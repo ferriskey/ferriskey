@@ -5,7 +5,7 @@ use axum::Extension;
 use handlers::realm::realm_routes;
 use tracing::{info, info_span};
 
-use crate::domain::realm::ports::RealmService;
+use crate::domain::{client::ports::ClientService, realm::ports::RealmService};
 
 use super::state::AppState;
 
@@ -31,12 +31,14 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new<R>(
+    pub async fn new<R, C>(
         config: HttpServerConfig,
         realm_service: Arc<R>,
+        client_service: Arc<C>,
     ) -> Result<Self, anyhow::Error>
     where
         R: RealmService,
+        C: ClientService,
     {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -45,12 +47,13 @@ impl HttpServer {
             },
         );
 
-        let state = AppState::new(realm_service);
+        let state = AppState::new(realm_service, client_service);
 
         let router = axum::Router::new()
             .merge(realm_routes::<R>())
             .layer(trace_layer)
-            .layer(Extension(Arc::clone(&state.realm_service)));
+            .layer(Extension(Arc::clone(&state.realm_service)))
+            .layer(Extension(Arc::clone(&state.client_service)));
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
             .await
