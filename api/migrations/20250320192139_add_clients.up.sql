@@ -1,0 +1,13 @@
+-- Add up migration script here
+CREATE TABLE clients (
+  id UUID PRIMARY KEY,
+  realm_id UUID NOT NULL REFERENCES realms(id),
+  name VARCHAR(255) NOT NULL,
+  client_id VARCHAR(255) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  protocol VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
