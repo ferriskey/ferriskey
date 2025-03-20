@@ -9,6 +9,7 @@ pub trait ClientService: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
         schema: CreateClientSchema,
+        realm_name: String,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
 }
 
