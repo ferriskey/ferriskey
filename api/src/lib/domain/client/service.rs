@@ -40,14 +40,23 @@ where
 {
     async fn create_client(
         &self,
-        _schema: CreateClientSchema,
+        schema: CreateClientSchema,
         realm_name: String,
     ) -> Result<Client, ClientError> {
-        let _realm = self
+        let realm = self
             .realm_service
             .get_by_name(realm_name)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
-        todo!("Implement create_client")
+
+        self.client_repository
+            .create_client(
+                realm.id,
+                schema.name,
+                schema.client_id,
+                schema.enabled,
+                schema.protocol,
+            )
+            .await
     }
 }
