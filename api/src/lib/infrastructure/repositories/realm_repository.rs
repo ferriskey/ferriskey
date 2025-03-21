@@ -40,6 +40,23 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
+    async fn delete_realm(&self, id: String) -> Result<Realm, RealmError> {
+        let realm = Realm::new(id);
+
+        sqlx::query!(
+            r#"
+        DELETE FROM realms WHERE id = $1
+      "#,
+            realm.id
+        )
+        .execute(&*self.postgres.get_pool())
+        .await
+        .map_err(|_| RealmError::InternalServerError)?;
+
+        Ok(realm)
+    }
+    }
+
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
         let realm = sqlx::query_as!(Realm, r#"SELECT * FROM realms WHERE name = $1"#, name)
             .fetch_optional(&*self.postgres.get_pool())

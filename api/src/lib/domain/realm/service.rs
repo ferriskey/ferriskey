@@ -30,6 +30,10 @@ where
         self.realm_repository.create_realm(name).await
     }
 
+    async fn delete_realm(&self, id: String) -> Result<Realm, RealmError> {
+        self.realm_repository.delete_realm(id).await
+    }
+
     async fn get_by_name(&self, name: String) -> Result<Realm, RealmError> {
         self.realm_repository
             .get_by_name(name)

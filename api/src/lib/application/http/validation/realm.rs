@@ -9,6 +9,12 @@ pub struct CreateRealmValidator {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct DeleteRealmValidator {
+    #[validate(length(min = 1, message = "id is required"))]
+    pub id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct UpdateRealmValidator {
     #[validate(length(min = 1, message = "name is required"))]
     pub name: String,
