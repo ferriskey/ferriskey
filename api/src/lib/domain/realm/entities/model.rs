@@ -24,4 +24,8 @@ impl Realm {
             updated_at: now,
         }
     }
+
+    pub fn can_delete(&self) -> bool {
+        self.name != "master"
+    }
 }

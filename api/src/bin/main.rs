@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
+use clap::Parser;
 use ferriskey::{
     application::http::{HttpServer, HttpServerConfig},
-    domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
+    domain::{
+        client::service::ClientServiceImpl,
+        realm::{ports::RealmService, service::RealmServiceImpl},
+    },
     env::{AppEnv, Env},
     infrastructure::{
         db::postgres::Postgres,
@@ -11,7 +15,6 @@ use ferriskey::{
         },
     },
 };
-use clap::Parser;
 
 fn init_logger(env: Arc<Env>) {
     match env.env {
@@ -44,6 +47,8 @@ async fn main() -> Result<(), anyhow::Error> {
         client_repository,
         Arc::clone(&realm_service),
     ));
+
+    realm_service.create_realm_master().await?;
 
     let server_config = HttpServerConfig::new(env.port.clone());
 
