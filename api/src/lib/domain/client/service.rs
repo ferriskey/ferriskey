@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use rand::Rng;
 
-use crate::domain::realm::ports::RealmService;
+use crate::{
+    application::http::client::validators::CreateClientValidator,
+    domain::realm::ports::RealmService,
+};
 
 use super::{
-    entities::{
-        error::ClientError,
-        model::{Client, CreateClientSchema},
-    },
+    entities::{error::ClientError, model::Client},
     ports::{ClientRepository, ClientService},
 };
 
@@ -42,7 +42,7 @@ where
 {
     async fn create_client(
         &self,
-        schema: CreateClientSchema,
+        schema: CreateClientValidator,
         realm_name: String,
     ) -> Result<Client, ClientError> {
         let realm = self
@@ -64,6 +64,9 @@ where
                 secret,
                 schema.enabled,
                 schema.protocol,
+                schema.public_client,
+                schema.service_account_enabled,
+                schema.client_type,
             )
             .await
     }

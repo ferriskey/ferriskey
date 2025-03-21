@@ -1,4 +1,4 @@
-use crate::application::http::realm::router::RealmApiDoc;
+use crate::application::http::{client::router::ClientApiDoc, realm::router::RealmApiDoc};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -7,7 +7,8 @@ use utoipa::OpenApi;
         title = "FerrisKey API"
     ),
     nest(
-        (path = "/realms", api = RealmApiDoc)
+        (path = "/realms", api = RealmApiDoc),
+        (path = "/realms/{realm_name}/clients", api = ClientApiDoc)
     )
 
 )]

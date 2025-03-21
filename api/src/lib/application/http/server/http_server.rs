@@ -1,3 +1,4 @@
+use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
@@ -48,6 +49,7 @@ impl HttpServer {
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(realm_routes::<R>())
+            .merge(client_routes::<C>())
             .layer(trace_layer)
             .layer(Extension(Arc::clone(&state.realm_service)))
             .layer(Extension(Arc::clone(&state.client_service)));

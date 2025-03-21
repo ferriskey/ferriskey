@@ -12,6 +12,9 @@ pub struct Client {
     pub secret: String,
     pub realm_id: Uuid,
     pub protocol: String,
+    pub public_client: bool,
+    pub service_account_enabled: bool,
+    pub client_type: String,
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -33,6 +36,9 @@ impl Client {
         secret: String,
         enabled: bool,
         protocol: String,
+        public_client: bool,
+        service_account_enabled: bool,
+        client_type: String,
     ) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);
@@ -45,6 +51,9 @@ impl Client {
             secret,
             realm_id,
             protocol,
+            public_client,
+            service_account_enabled,
+            client_type,
             name,
             created_at: now,
             updated_at: now,
