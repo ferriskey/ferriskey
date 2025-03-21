@@ -19,6 +19,7 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
         realm_id: Uuid,
         name: String,
         client_id: String,
+        secret: String,
         enabled: bool,
         protocol: String,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;

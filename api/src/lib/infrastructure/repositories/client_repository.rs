@@ -25,20 +25,22 @@ impl ClientRepository for PostgresClientRepository {
         realm_id: uuid::Uuid,
         name: String,
         client_id: String,
+        secret: String,
         enabled: bool,
         protocol: String,
     ) -> Result<Client, ClientError> {
-        let client = Client::new(realm_id, name, client_id, enabled, protocol);
+        let client = Client::new(realm_id, name, client_id, secret, enabled, protocol);
 
         sqlx::query!(
           r#"
-          INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO clients (id, realm_id, name, client_id, secret, enabled, protocol, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           "#,
           client.id,
           client.realm_id,
           client.name,
           client.client_id,
+          client.secret,
           client.enabled,
           client.protocol,
           client.created_at,

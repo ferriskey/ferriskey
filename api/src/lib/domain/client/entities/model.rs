@@ -9,6 +9,7 @@ pub struct Client {
     pub id: Uuid,
     pub enabled: bool,
     pub client_id: String,
+    pub secret: String,
     pub realm_id: Uuid,
     pub protocol: String,
     pub name: String,
@@ -29,6 +30,7 @@ impl Client {
         realm_id: Uuid,
         name: String,
         client_id: String,
+        secret: String,
         enabled: bool,
         protocol: String,
     ) -> Self {
@@ -40,6 +42,7 @@ impl Client {
             id: Uuid::new_v7(timestamp),
             enabled,
             client_id,
+            secret,
             realm_id,
             protocol,
             name,

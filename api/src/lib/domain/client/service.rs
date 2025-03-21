@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use rand::Rng;
+
 use crate::domain::realm::ports::RealmService;
 
 use super::{
@@ -48,12 +50,18 @@ where
             .get_by_name(realm_name)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
+        let secret = rand::rng()
+            .sample_iter(&rand::distr::Alphanumeric)
+            .take(15)
+            .map(char::from)
+            .collect::<String>();
 
         self.client_repository
             .create_client(
                 realm.id,
                 schema.name,
                 schema.client_id,
+                secret,
                 schema.enabled,
                 schema.protocol,
             )
