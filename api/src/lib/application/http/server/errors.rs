@@ -7,8 +7,6 @@ use axum::{
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use validator::Validate;
 
-pub mod realm;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationError {
     pub message: String,
@@ -52,7 +50,9 @@ where
         let Json(value) = Json::<T>::from_request(req, state)
             .await
             .map_err(|_| ApiError::InternalServerError("Failed to parse JSON".to_string()))?;
+
         value.validate()?;
+
         Ok(ValidateJson(value))
     }
 }
@@ -78,7 +78,6 @@ impl From<validator::ValidationErrors> for ApiError {
 
         for (field, error_msgs) in errors.field_errors() {
             for error in error_msgs {
-                // Obtenir le message personnalisé ou par défaut
                 let message = error
                     .message
                     .as_ref()

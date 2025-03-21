@@ -1,6 +1,5 @@
+use crate::application::http::server::errors::ApiError;
 use crate::domain::realm::entities::error::RealmError;
-
-use super::ApiError;
 
 impl From<RealmError> for ApiError {
     fn from(value: RealmError) -> Self {

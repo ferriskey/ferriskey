@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use clap::Parser;
+use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 use ferriskey::{
-    application::http::{HttpServer, HttpServerConfig},
     domain::{
         client::service::ClientServiceImpl,
         realm::{ports::RealmService, service::RealmServiceImpl},

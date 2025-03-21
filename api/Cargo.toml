@@ -17,6 +17,7 @@ anyhow = "1.0.97"
 axum = "0.8.1"
 axum-extra = { version = "0.10.0", features = ["typed-header", "typed-routing"] }
 axum-macros = "0.5.0"
+axum-valid = { version = "0.23.0", features = ["garde"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive", "env"] }
 dotenv = "0.15.0"

@@ -1,6 +1,5 @@
+use crate::application::http::realm::router::RealmApiDoc;
 use utoipa::OpenApi;
-
-use crate::application::http::handlers::realm::RealmApiDoc;
 
 #[derive(OpenApi)]
 #[openapi(
