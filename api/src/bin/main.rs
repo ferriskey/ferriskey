@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use authcrux::{
+use ferriskey::{
     application::http::{HttpServer, HttpServerConfig},
     domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
     env::{AppEnv, Env},

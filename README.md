@@ -1,8 +1,8 @@
-# AuthCrux - Keycloak Light in Rust
+# FerrisKey - Keycloak Light in Rust
 
 ## Project goals
 
-AuthCrux is a lightweight, modular identity management and authentication system designed to offer a simplified alternative to Keycloak, focusing on the essential features of user authentication, authorization and management.
+FerrisKey is a lightweight, modular identity management and authentication system designed to offer a simplified alternative to Keycloak, focusing on the essential features of user authentication, authorization and management.
 
 ### Main objectives:
 

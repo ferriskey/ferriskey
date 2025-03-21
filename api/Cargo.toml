@@ -6,11 +6,11 @@ authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
 
 [[bin]]
 path = "src/bin/main.rs"
-name = "authcrux-server"
+name = "ferriskey-server"
 
 [lib]
 path = "src/lib/lib.rs"
-name = "authcrux"
+name = "ferriskey"
 
 [dependencies]
 anyhow = "1.0.97"
