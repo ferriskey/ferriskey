@@ -4,8 +4,12 @@ use anyhow::Context;
 use axum::Extension;
 use handlers::realm::realm_routes;
 use tracing::{info, info_span};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::domain::{client::ports::ClientService, realm::ports::RealmService};
+
+use crate::application::http::handlers::realm::create_realm::__path_create_realm;
 
 use super::state::AppState;
 
@@ -24,6 +28,10 @@ impl HttpServerConfig {
         Self { port }
     }
 }
+
+#[derive(OpenApi)]
+#[openapi(paths(create_realm))]
+struct ApiDoc;
 
 pub struct HttpServer {
     router: axum::Router,
@@ -50,6 +58,7 @@ impl HttpServer {
         let state = AppState::new(realm_service, client_service);
 
         let router = axum::Router::new()
+            .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(realm_routes::<R>())
             .layer(trace_layer)
             .layer(Extension(Arc::clone(&state.realm_service)))

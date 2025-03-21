@@ -16,6 +16,14 @@ use crate::{
 #[typed_path("/realms")]
 pub struct CreateRealmRoute;
 
+#[utoipa::path(
+    post, 
+    path = "/realms",
+    responses(
+        (status = 201, body = Realm)
+    ),
+    request_body = CreateRealmValidator
+)]
 pub async fn create_realm<R: RealmService>(
     _: CreateRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,

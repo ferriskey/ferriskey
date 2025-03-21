@@ -29,5 +29,7 @@ tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json"] }
+utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
