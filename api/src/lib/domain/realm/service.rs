@@ -1,5 +1,7 @@
 use tracing::info;
 
+use uuid::Uuid;
+
 use super::{
     entities::{error::RealmError, model::Realm},
     ports::{RealmRepository, RealmService},
@@ -30,7 +32,7 @@ where
         self.realm_repository.create_realm(name).await
     }
 
-    async fn delete_realm(&self, id: String) -> Result<Realm, RealmError> {
+    async fn delete_realm(&self, id: Uuid) -> Result<(), RealmError> {
         self.realm_repository.delete_realm(id).await
     }
 

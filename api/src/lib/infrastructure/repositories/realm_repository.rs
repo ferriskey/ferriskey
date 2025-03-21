@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::{
     domain::realm::{
         entities::{error::RealmError, model::Realm},
@@ -40,21 +42,17 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
-    async fn delete_realm(&self, id: String) -> Result<Realm, RealmError> {
-        let realm = Realm::new(id);
-
+    async fn delete_realm(&self, id: Uuid) -> Result<(), RealmError> {
         sqlx::query!(
             r#"
         DELETE FROM realms WHERE id = $1
       "#,
-            realm.id
+            id
         )
         .execute(&*self.postgres.get_pool())
         .await
         .map_err(|_| RealmError::InternalServerError)?;
-
-        Ok(realm)
-    }
+        Ok(())
     }
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {

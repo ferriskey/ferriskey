@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
@@ -10,8 +11,7 @@ pub struct CreateRealmValidator {
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct DeleteRealmValidator {
-    #[validate(length(min = 1, message = "id is required"))]
-    pub id: String,
+    pub id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
