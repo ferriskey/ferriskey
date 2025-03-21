@@ -18,7 +18,8 @@ pub struct CreateRealmRoute;
 
 #[utoipa::path(
     post, 
-    path = "/realms",
+    path = "",
+    tag = "realm",
     responses(
         (status = 201, body = Realm)
     ),

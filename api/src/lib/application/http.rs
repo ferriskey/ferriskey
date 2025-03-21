@@ -3,18 +3,17 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::Extension;
 use handlers::realm::realm_routes;
+use openapi::ApiDoc;
 use tracing::{info, info_span};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::domain::{client::ports::ClientService, realm::ports::RealmService};
-
-use crate::application::http::handlers::realm::create_realm::__path_create_realm;
-
 use super::state::AppState;
+use crate::domain::{client::ports::ClientService, realm::ports::RealmService};
 
 pub mod errors;
 pub mod handlers;
+pub mod openapi;
 pub mod responses;
 pub mod validation;
 
@@ -28,10 +27,6 @@ impl HttpServerConfig {
         Self { port }
     }
 }
-
-#[derive(OpenApi)]
-#[openapi(paths(create_realm))]
-struct ApiDoc;
 
 pub struct HttpServer {
     router: axum::Router,
