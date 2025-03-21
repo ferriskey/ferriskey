@@ -17,12 +17,10 @@ anyhow = "1.0.97"
 axum = "0.8.1"
 axum-extra = { version = "0.10.0", features = ["typed-header", "typed-routing"] }
 axum-macros = "0.5.0"
-axum-valid = { version = "0.23.0", features = ["garde"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive", "env"] }
 dotenv = "0.15.0"
 serde = "1.0.219"
-serde_json = "1.0.140"
 sqlx = { version = "0.8.3", features = ["chrono", "postgres", "runtime-tokio", "uuid", "macros"] }
 thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["rt-multi-thread"] }
