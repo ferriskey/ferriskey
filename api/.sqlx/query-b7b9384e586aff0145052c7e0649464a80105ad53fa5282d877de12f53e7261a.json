@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM realms WHERE name = $1\n      ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b7b9384e586aff0145052c7e0649464a80105ad53fa5282d877de12f53e7261a"
+}

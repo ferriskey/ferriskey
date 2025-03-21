@@ -11,6 +11,10 @@ impl From<RealmError> for ApiError {
             RealmError::InternalServerError => {
                 ApiError::InternalServerError("Internal server error".to_string())
             }
+            RealmError::CannotDeleteMaster => {
+                ApiError::Forbidden("Cannot delete master realm".to_string())
+            }
+            RealmError::Forbidden => ApiError::Forbidden("Forbidden".to_string()),
         }
     }
 }

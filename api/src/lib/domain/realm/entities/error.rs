@@ -10,4 +10,8 @@ pub enum RealmError {
     Invalid,
     #[error("Internal server error")]
     InternalServerError,
+    #[error("Cannot delete master realm")]
+    CannotDeleteMaster,
+    #[error("Forbidden")]
+    Forbidden,
 }

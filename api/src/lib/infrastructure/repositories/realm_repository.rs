@@ -1,7 +1,3 @@
-use std::sync::Arc;
-
-use uuid::Uuid;
-
 use crate::{
     domain::realm::{
         entities::{error::RealmError, model::Realm},
@@ -9,6 +5,7 @@ use crate::{
     },
     infrastructure::db::postgres::Postgres,
 };
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
@@ -27,9 +24,9 @@ impl RealmRepository for PostgresRealmRepository {
 
         sqlx::query!(
             r#"
-      INSERT INTO realms (id, name, created_at, updated_at)
-      VALUES ($1, $2, $3, $4)
-      "#,
+                INSERT INTO realms (id, name, created_at, updated_at)
+                VALUES ($1, $2, $3, $4)
+            "#,
             realm.id,
             realm.name,
             realm.created_at,
@@ -42,12 +39,12 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
-    async fn delete_realm(&self, id: Uuid) -> Result<(), RealmError> {
+    async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
         sqlx::query!(
             r#"
-        DELETE FROM realms WHERE id = $1
-      "#,
-            id
+                DELETE FROM realms WHERE name = $1
+            "#,
+            name
         )
         .execute(&*self.postgres.get_pool())
         .await
