@@ -24,10 +24,7 @@ pub async fn fetch_realm<R: RealmService>(
     _: GetRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,
 ) -> Result<ApiSuccess<Vec<Realm>>, ApiError> {
-    let realms = realm_service
-        .fetch_realm()
-        .await
-        .map_err(ApiError::from)?;
+    let realms = realm_service.fetch_realm().await.map_err(ApiError::from)?;
 
     Ok(ApiSuccess::new(StatusCode::OK, realms))
 }

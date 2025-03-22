@@ -22,6 +22,9 @@ pub struct DeleteRealmResponse(String);
     delete,
     path = "/{name}",
     tag = "realm",
+    params(
+          ("name" = String, Path, description = "Realm name"),
+    ),
     responses(
         (status = 200)
     ),

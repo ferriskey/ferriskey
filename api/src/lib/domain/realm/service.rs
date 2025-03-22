@@ -1,8 +1,10 @@
 use super::{
-  entities::{error::RealmError, realm::Realm},
-  ports::{RealmRepository, RealmService},
+    entities::{error::RealmError, realm::Realm},
+    ports::{RealmRepository, RealmService},
 };
+use crate::domain::realm::entities::realm_setting::RealmSetting;
 use tracing::{error, info};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct RealmServiceImpl<R>
@@ -38,8 +40,8 @@ where
         Ok(realm)
     }
 
-    async fn update_realm(&self, name: String) -> Result<Realm, RealmError> {
-        self.realm_repository.update_realm(name).await
+    async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
+        self.realm_repository.update_realm(realm_name, name).await
     }
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
@@ -73,5 +75,15 @@ where
 
         info!("Creating realm master");
         self.create_realm("master".to_string()).await
+    }
+
+    async fn update_realm_setting(
+        &self,
+        realm_id: Uuid,
+        algorithm: String,
+    ) -> Result<RealmSetting, RealmError> {
+        self.realm_repository
+            .update_realm_setting(realm_id, algorithm)
+            .await
     }
 }

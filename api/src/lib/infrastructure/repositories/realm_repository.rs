@@ -6,8 +6,8 @@ use crate::{
     },
     infrastructure::db::postgres::Postgres,
 };
-use std::sync::Arc;
 use sqlx::Row;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -23,22 +23,22 @@ impl PostgresRealmRepository {
 
 impl RealmRepository for PostgresRealmRepository {
     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
-      let rows = sqlx::query("SELECT * FROM drones")
-        .fetch_all(&*self.postgres.get_pool())
-        .await
-        .map_err(|_| RealmError::InternalServerError)?;
+        let rows = sqlx::query("SELECT * FROM realms")
+            .fetch_all(&*self.postgres.get_pool())
+            .await
+            .map_err(|_| RealmError::InternalServerError)?;
 
-      let realms = rows
-        .iter()
-        .map(|row| Realm {
-          id: row.get("id"),
-          name: row.get("name"),
-          created_at: row.get("created_at"),
-          updated_at: row.get("updated_at"),
-        })
-        .collect();
+        let realms = rows
+            .iter()
+            .map(|row| Realm {
+                id: row.get("id"),
+                name: row.get("name"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
-      Ok(realms)
+        Ok(realms)
     }
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
@@ -69,12 +69,12 @@ impl RealmRepository for PostgresRealmRepository {
         .map_err(|_| RealmError::InternalServerError)
     }
 
-    async fn update_realm(&self, name: String) -> Result<Realm, RealmError> {
+    async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
         sqlx::query!(
             "UPDATE realms SET name = $1, updated_at = $2 WHERE name = $3",
             name,
             chrono::Utc::now(),
-            name
+            realm_name
         )
         .fetch_one(&*self.postgres.get_pool())
         .await
@@ -117,5 +117,27 @@ impl RealmRepository for PostgresRealmRepository {
             updated_at: row.get("updated_at"),
         })
         .map_err(|_| RealmError::InternalServerError)
+    }
+
+    async fn update_realm_setting(
+        &self,
+        realm_id: Uuid,
+        algorithm: String,
+    ) -> Result<RealmSetting, RealmError> {
+        sqlx::query!(
+      "UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3",
+      algorithm,
+      chrono::Utc::now(),
+      realm_id
+    )
+    .fetch_one(&*self.postgres.get_pool())
+    .await
+    .map(|row| RealmSetting {
+      id: row.get("id"),
+      realm_id: row.get("realm_id"),
+      default_signing_algorithm: row.get("default_signing_algorithm"),
+      updated_at: row.get("updated_at"),
+    })
+    .map_err(|_| RealmError::InternalServerError)
     }
 }

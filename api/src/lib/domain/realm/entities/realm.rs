@@ -6,28 +6,28 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(
-  Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
 )]
 pub struct Realm {
-  pub id: Uuid,
-  pub name: String,
-  pub created_at: DateTime<Utc>,
-  pub updated_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Realm {
-  pub fn new(name: String) -> Self {
-    let (now, timestamp) = generate_timestamp();
+    pub fn new(name: String) -> Self {
+        let (now, timestamp) = generate_timestamp();
 
-    Self {
-      id: Uuid::new_v7(timestamp),
-      name,
-      created_at: now,
-      updated_at: now,
+        Self {
+            id: Uuid::new_v7(timestamp),
+            name,
+            created_at: now,
+            updated_at: now,
+        }
     }
-  }
 
-  pub fn can_delete(&self) -> bool {
-    self.name != "master"
-  }
+    pub fn can_delete(&self) -> bool {
+        self.name != "master"
+    }
 }
