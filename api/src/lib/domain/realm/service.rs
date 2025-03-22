@@ -1,6 +1,6 @@
 use super::{
-    entities::{error::RealmError, model::Realm},
-    ports::{RealmRepository, RealmService},
+  entities::{error::RealmError, realm::Realm},
+  ports::{RealmRepository, RealmService},
 };
 use tracing::{error, info};
 
@@ -25,8 +25,21 @@ impl<R> RealmService for RealmServiceImpl<R>
 where
     R: RealmRepository,
 {
+    async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
+        self.realm_repository.fetch_realm().await
+    }
+
     async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
-        self.realm_repository.create_realm(name).await
+        let realm = self.realm_repository.create_realm(name.clone()).await?;
+        self.realm_repository
+            .create_realm_settings(realm.id, "RS256".to_string())
+            .await?;
+
+        Ok(realm)
+    }
+
+    async fn update_realm(&self, name: String) -> Result<Realm, RealmError> {
+        self.realm_repository.update_realm(name).await
     }
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {

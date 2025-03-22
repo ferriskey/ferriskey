@@ -9,27 +9,25 @@ use crate::application::http::server::handlers::ApiSuccess;
 use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{name}")]
-pub struct GetRealmRoute {
-    pub name: String,
-}
+#[typed_path("/realms")]
+pub struct GetRealmRoute {}
 
 #[utoipa::path(
     get,
-    path = "/{name}",
+    path = "",
     tag = "realm",
     responses(
-        (status = 200, body = Realm)
+        (status = 200, body = Vec<Realm>)
     ),
 )]
-pub async fn get_realm<R: RealmService>(
-    GetRealmRoute { name }: GetRealmRoute,
+pub async fn fetch_realm<R: RealmService>(
+    _: GetRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,
-) -> Result<ApiSuccess<Realm>, ApiError> {
-    let realm = realm_service
-        .get_by_name(name)
+) -> Result<ApiSuccess<Vec<Realm>>, ApiError> {
+    let realms = realm_service
+        .fetch_realm()
         .await
         .map_err(ApiError::from)?;
 
-    Ok(ApiSuccess::new(StatusCode::OK, realm))
+    Ok(ApiSuccess::new(StatusCode::OK, realms))
 }

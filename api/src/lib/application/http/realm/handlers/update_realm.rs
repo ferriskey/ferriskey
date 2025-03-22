@@ -13,21 +13,21 @@ use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
 pub struct CreateRealmRoute;
 
 #[utoipa::path(
-    post,
-    path = "",
+    put,
+    path = "/{name}",
     tag = "realm",
     responses(
-        (status = 201, body = Realm)
+        (status = 200, body = Realm)
     ),
     request_body = CreateRealmValidator
 )]
-pub async fn create_realm<R: RealmService>(
+pub async fn update_realm<R: RealmService>(
     _: CreateRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,
     ValidateJson(payload): ValidateJson<CreateRealmValidator>,
 ) -> Result<ApiSuccess<Realm>, ApiError> {
     realm_service
-        .create_realm(payload.name)
+        .update_realm(payload.name)
         .await
         .map_err(ApiError::from)
         .map(|realm| ApiSuccess::new(StatusCode::CREATED, realm))
