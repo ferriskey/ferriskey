@@ -40,15 +40,10 @@ impl RealmRepository for PostgresRealmRepository {
     }
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
-        sqlx::query!(
-            r#"
-                DELETE FROM realms WHERE name = $1
-            "#,
-            name
-        )
-        .execute(&*self.postgres.get_pool())
-        .await
-        .map_err(|_| RealmError::InternalServerError)?;
+        sqlx::query!("DELETE FROM realms WHERE name = $1", name)
+            .execute(&*self.postgres.get_pool())
+            .await
+            .map_err(|_| RealmError::InternalServerError)?;
         Ok(())
     }
 
