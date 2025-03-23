@@ -1,0 +1,43 @@
+name-template: 'v$RESOLVED_VERSION 🦀'
+tag-template: 'v$RESOLVED_VERSION'
+tag-prefix: v
+
+categories:
+  - title: 🚀 Features
+    labels:
+      - "type:feature"
+  - title: 🐛 Fixes
+    labels:
+      - "type:bug"
+  - title: 📄 Documentation
+    labels:
+      - "type:docs"
+  - title: 🔄 CI
+    labels:
+      - "type:ci"
+  - title: 🧩 Dependency Updates
+    labels:
+      - "type:build"
+  - title: 🔨 Refactor
+    labels:
+      - "type:refactor"
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - "semver:major"
+  minor:
+    labels:
+      - "semver:minor"
+  patch:
+    labels:
+      - "semver:patch"
+  default: patch
+
+template: |
+  ## Changes
+
+  $CHANGES
