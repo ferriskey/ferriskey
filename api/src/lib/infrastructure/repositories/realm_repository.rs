@@ -51,8 +51,8 @@ impl RealmRepository for PostgresRealmRepository {
     async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
         let realm = Realm::new(name);
 
-        sqlx::query!(
-            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, $3, $4)",
+        sqlx::query_as!(Realm,
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING *",
             realm.id,
             realm.name,
             realm.created_at,
@@ -60,13 +60,10 @@ impl RealmRepository for PostgresRealmRepository {
         )
         .fetch_one(&*self.postgres.get_pool())
         .await
-        .map(|row| Realm {
-            id: row.get("id"),
-            name: row.get("name"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
+        .map_err(|err| {
+          println!("Failed to insert realm: {:?}", err);
+          RealmError::InternalServerError
         })
-        .map_err(|_| RealmError::InternalServerError)
     }
 
     async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
@@ -103,19 +100,14 @@ impl RealmRepository for PostgresRealmRepository {
     ) -> Result<RealmSetting, RealmError> {
         let realm_setting = RealmSetting::new(realm_id, algorithm);
 
-        sqlx::query!(
-            "INSERT INTO realm_settings (realm_id, default_signing_algorithm) VALUES ($1, $2)",
+        sqlx::query_as!(RealmSetting,
+            "INSERT INTO realm_settings (id, realm_id, default_signing_algorithm) VALUES ($1, $2, $3) RETURNING *",
+            realm_setting.id,
             realm_setting.realm_id,
             realm_setting.default_signing_algorithm
         )
         .fetch_one(&*self.postgres.get_pool())
         .await
-        .map(|row| RealmSetting {
-            id: row.get("id"),
-            realm_id: row.get("realm_id"),
-            default_signing_algorithm: row.get("default_signing_algorithm"),
-            updated_at: row.get("updated_at"),
-        })
         .map_err(|_| RealmError::InternalServerError)
     }
 
@@ -124,20 +116,14 @@ impl RealmRepository for PostgresRealmRepository {
         realm_id: Uuid,
         algorithm: String,
     ) -> Result<RealmSetting, RealmError> {
-        sqlx::query!(
-      "UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3",
+        sqlx::query_as!(RealmSetting,
+      "UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3 RETURNING *",
       algorithm,
       chrono::Utc::now(),
       realm_id
     )
     .fetch_one(&*self.postgres.get_pool())
     .await
-    .map(|row| RealmSetting {
-      id: row.get("id"),
-      realm_id: row.get("realm_id"),
-      default_signing_algorithm: row.get("default_signing_algorithm"),
-      updated_at: row.get("updated_at"),
-    })
     .map_err(|_| RealmError::InternalServerError)
     }
 }
