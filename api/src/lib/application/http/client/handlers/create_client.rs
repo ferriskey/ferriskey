@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{Extension, http::StatusCode};
+use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 
@@ -9,7 +9,7 @@ use crate::{
         client::validators::CreateClientValidator,
         server::{
             errors::{ApiError, ValidateJson},
-            handlers::ApiSuccess,
+            handlers::Response,
         },
     },
     domain::client::{entities::model::Client, ports::ClientService},
@@ -31,10 +31,10 @@ pub async fn create_client<C: ClientService>(
     CreateClientRoute { realm_name }: CreateClientRoute,
     Extension(client_service): Extension<Arc<C>>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
-) -> Result<ApiSuccess<Client>, ApiError> {
+) -> Result<Response<Client>, ApiError> {
     client_service
         .create_client(payload, realm_name)
         .await
         .map_err(ApiError::from)
-        .map(|client| ApiSuccess::new(StatusCode::CREATED, client))
+        .map(|client| Response::Created(client))
 }

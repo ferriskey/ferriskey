@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::application::http::realm::validators::UpdateRealmSettingValidator;
 use crate::application::http::server::errors::{ApiError, ValidateJson};
-use crate::application::http::server::handlers::ApiSuccess;
+use crate::application::http::server::handlers::Response;
 use crate::domain::realm::entities::realm_setting::RealmSetting;
 use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
-use axum::{Extension, http::StatusCode};
+use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 
@@ -31,12 +31,12 @@ pub async fn update_realm_setting<R: RealmService>(
     UpdateRealmSettingsRoute { name }: UpdateRealmSettingsRoute,
     Extension(realm_service): Extension<Arc<R>>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
-) -> Result<ApiSuccess<RealmSetting>, ApiError> {
+) -> Result<Response<RealmSetting>, ApiError> {
     let realm = realm_service.get_by_name(name).await?;
 
     realm_service
         .update_realm_setting(realm.id, payload.default_signing_algorithm)
         .await
         .map_err(ApiError::from)
-        .map(|realm| ApiSuccess::new(StatusCode::CREATED, realm))
+        .map(Response::Created)
 }

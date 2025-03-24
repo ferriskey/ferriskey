@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use axum::{Extension, http::StatusCode};
+use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 
 use crate::application::http::server::errors::ApiError;
-use crate::application::http::server::handlers::ApiSuccess;
+use crate::application::http::server::handlers::Response;
 use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
 
 #[derive(TypedPath, Deserialize)]
@@ -28,11 +28,10 @@ pub struct GetRealmRoute {
 pub async fn get_realm<R: RealmService>(
     GetRealmRoute { name }: GetRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,
-) -> Result<ApiSuccess<Realm>, ApiError> {
-    let realm = realm_service
+) -> Result<Response<Realm>, ApiError> {
+    realm_service
         .get_by_name(name)
         .await
-        .map_err(ApiError::from)?;
-
-    Ok(ApiSuccess::new(StatusCode::OK, realm))
+        .map(Response::OK)
+        .map_err(ApiError::from)
 }

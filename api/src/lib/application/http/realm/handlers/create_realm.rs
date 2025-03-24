@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use axum::{Extension, http::StatusCode};
+use axum::Extension;
 use axum_macros::TypedPath;
 
 use crate::application::http::realm::validators::CreateRealmValidator;
 use crate::application::http::server::errors::{ApiError, ValidateJson};
-use crate::application::http::server::handlers::ApiSuccess;
+use crate::application::http::server::handlers::Response;
 use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
 
 #[derive(TypedPath)]
@@ -25,10 +25,10 @@ pub async fn create_realm<R: RealmService>(
     _: CreateRealmRoute,
     Extension(realm_service): Extension<Arc<R>>,
     ValidateJson(payload): ValidateJson<CreateRealmValidator>,
-) -> Result<ApiSuccess<Realm>, ApiError> {
+) -> Result<Response<Realm>, ApiError> {
     realm_service
         .create_realm(payload.name)
         .await
         .map_err(ApiError::from)
-        .map(|realm| ApiSuccess::new(StatusCode::CREATED, realm))
+        .map(Response::Created)
 }
