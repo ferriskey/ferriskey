@@ -1,4 +1,6 @@
-use crate::application::http::{client::router::ClientApiDoc, realm::router::RealmApiDoc};
+use crate::application::http::{
+    client::router::ClientApiDoc, realm::router::RealmApiDoc, user::router::UserApiDoc,
+};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -8,7 +10,8 @@ use utoipa::OpenApi;
     ),
     nest(
         (path = "/realms", api = RealmApiDoc),
-        (path = "/realms/{realm_name}/clients", api = ClientApiDoc)
+        (path = "/realms/{realm_name}/clients", api = ClientApiDoc),
+        (path = "/realms/{realm_name}/users", api = UserApiDoc),
     )
 
 )]

@@ -2,7 +2,9 @@ use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
+use crate::application::http::user::router::user_routes;
 use crate::domain::client::ports::ClientService;
+use crate::domain::credential::ports::CredentialService;
 use crate::domain::realm::ports::RealmService;
 use anyhow::Context;
 use axum::{Extension, Router};
@@ -28,14 +30,16 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new<R, C>(
+    pub async fn new<R, C, CR>(
         config: HttpServerConfig,
         realm_service: Arc<R>,
         client_service: Arc<C>,
+        credential_service: Arc<CR>,
     ) -> Result<Self, anyhow::Error>
     where
         R: RealmService,
         C: ClientService,
+        CR: CredentialService,
     {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -44,15 +48,17 @@ impl HttpServer {
             },
         );
 
-        let state = AppState::new(realm_service, client_service);
+        let state = AppState::new(realm_service, client_service, credential_service);
 
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(realm_routes::<R>())
             .merge(client_routes::<C>())
+            .merge(user_routes::<CR>())
             .layer(trace_layer)
             .layer(Extension(Arc::clone(&state.realm_service)))
-            .layer(Extension(Arc::clone(&state.client_service)));
+            .layer(Extension(Arc::clone(&state.client_service)))
+            .layer(Extension(Arc::clone(&state.credential_service)));
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
             .await

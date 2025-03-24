@@ -1,4 +1,6 @@
 pub mod client;
+pub mod credential;
+pub mod crypto;
 pub mod realm;
-pub mod utils;
 pub mod user;
+pub mod utils;

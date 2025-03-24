@@ -116,14 +116,17 @@ impl RealmRepository for PostgresRealmRepository {
         realm_id: Uuid,
         algorithm: String,
     ) -> Result<RealmSetting, RealmError> {
-        sqlx::query_as!(RealmSetting,
-      "UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3 RETURNING *",
-      algorithm,
-      chrono::Utc::now(),
-      realm_id
-    )
-    .fetch_one(&*self.postgres.get_pool())
-    .await
-    .map_err(|_| RealmError::InternalServerError)
+        sqlx::query_as!(
+            RealmSetting,
+            r#"
+            UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3 RETURNING *
+            "#,
+            algorithm,
+            chrono::Utc::now(),
+            realm_id
+        )
+        .fetch_one(&*self.postgres.get_pool())
+        .await
+        .map_err(|_| RealmError::InternalServerError)
     }
 }
