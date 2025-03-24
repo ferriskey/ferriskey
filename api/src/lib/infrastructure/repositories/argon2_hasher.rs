@@ -29,7 +29,7 @@ impl HasherRepository for Argon2HasherRepository {
     async fn verify_password(
         &self,
         password: &str,
-        secret_data: &str,
+        _secret_data: &str,
         credential_data: &str,
     ) -> Result<bool, anyhow::Error> {
         let parsed_hash = PasswordHash::new(credential_data)
