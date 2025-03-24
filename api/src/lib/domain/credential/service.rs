@@ -37,21 +37,10 @@ where
 {
     async fn create_password_credential(
         &self,
-        user_id: uuid::Uuid,
-        password: String,
-        label: String,
+        _user_id: uuid::Uuid,
+        _password: String,
+        _label: String,
     ) -> Result<Credential, CredentialError> {
-        let (secret, credential) = self
-            .hasher_repository
-            .hash_password(&password)
-            .await
-            .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
-
-        let cred = self
-            .credential_repository
-            .create_credential(user_id, "password".to_string(), secret, credential, label)
-            .await?;
-
         todo!("Implement this")
     }
 
@@ -84,6 +73,21 @@ where
         user_id: uuid::Uuid,
         password: String,
     ) -> Result<bool, CredentialError> {
-        todo!("Implement this")
+        let credential = self
+            .credential_repository
+            .get_password_credential(user_id)
+            .await?;
+
+        let is_valid = self
+            .hasher_repository
+            .verify_password(
+                &password,
+                &credential.secret_data,
+                &credential.credential_data,
+            )
+            .await
+            .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
+
+        Ok(is_valid)
     }
 }

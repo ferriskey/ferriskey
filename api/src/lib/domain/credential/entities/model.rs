@@ -9,10 +9,10 @@ use uuid::{NoContext, Timestamp, Uuid};
 )]
 pub struct Credential {
     pub id: Uuid,
-    pub salt: String,
+    pub salt: Option<String>,
     pub credential_type: String,
     pub user_id: Uuid,
-    pub user_label: String,
+    pub user_label: Option<String>,
     pub secret_data: String,
     pub credential_data: String,
     pub created_at: DateTime<Utc>,
@@ -35,10 +35,10 @@ impl Credential {
 
         Self {
             id: Uuid::new_v7(timestamp),
-            salt,
+            salt: Some(salt),
             credential_type,
             user_id,
-            user_label,
+            user_label: Some(user_label),
             secret_data,
             credential_data,
             created_at: now,

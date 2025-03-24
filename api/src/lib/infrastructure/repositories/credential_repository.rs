@@ -54,6 +54,22 @@ impl CredentialRepository for PostgresCredentialRepository {
         Ok(credential)
     }
 
+    async fn get_password_credential(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Credential, CredentialError> {
+        let credential = sqlx::query_as!(
+            Credential,
+            "SELECT * FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
+            user_id
+        )
+        .fetch_one(&*self.postgres.get_pool())
+        .await
+        .map_err(|_| CredentialError::GetPasswordCredentialError)?;
+
+        Ok(credential)
+    }
+
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
         sqlx::query!(
             "DELETE FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
