@@ -1,3 +1,4 @@
+use crate::application::http::auth::router::auth_router;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
@@ -55,6 +56,7 @@ impl HttpServer {
             .merge(realm_routes::<R>())
             .merge(client_routes::<C>())
             .merge(user_routes::<CR>())
+            .merge(auth_router())
             .layer(trace_layer)
             .layer(Extension(Arc::clone(&state.realm_service)))
             .layer(Extension(Arc::clone(&state.client_service)))
