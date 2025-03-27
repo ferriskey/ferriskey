@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 use crate::application::http::auth::router::auth_router;
+=======
+use crate::application::http::authentication::router::authentication_routes;
+>>>>>>> 8890145 (feat: implement exchange_token route)
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
+use crate::domain::authentication::ports::AuthenticationService;
 use crate::domain::client::ports::ClientService;
 use crate::domain::credential::ports::CredentialService;
 use crate::domain::realm::ports::RealmService;
@@ -35,16 +40,18 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new<R, C, CR>(
+    pub async fn new<R, C, CR, A>(
         config: HttpServerConfig,
         realm_service: Arc<R>,
         client_service: Arc<C>,
         credential_service: Arc<CR>,
+        authentication_service: Arc<A>,
     ) -> Result<Self, anyhow::Error>
     where
         R: RealmService,
         C: ClientService,
         CR: CredentialService,
+        A: AuthenticationService,
     {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -53,7 +60,12 @@ impl HttpServer {
             },
         );
 
-        let state = AppState::new(realm_service, client_service, credential_service);
+        let state = AppState::new(
+            realm_service,
+            client_service,
+            credential_service,
+            authentication_service,
+        );
 
         let allowed_origins: Vec<HeaderValue> = vec![
             HeaderValue::from_static("http://localhost:3000"),
@@ -78,6 +90,7 @@ impl HttpServer {
             .merge(client_routes::<C>())
             .merge(user_routes::<CR>())
             .merge(auth_router::<R, C>())
+            .merge(authentication_routes::<A>())
             .layer(trace_layer)
             .layer(cors)
             .layer(Extension(Arc::clone(&state.realm_service)))

@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
+use ferriskey::domain::authentication::service::AuthenticationServiceImpl;
 use ferriskey::domain::credential::service::CredentialServiceImpl;
 use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
+use ferriskey::infrastructure::repositories::authentication_repository::AuthenticationRepositoryImpl;
 use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use ferriskey::{
     domain::{
@@ -30,6 +32,7 @@ fn init_logger(env: Arc<Env>) {
             tracing_subscriber::fmt()
                 .json()
                 .with_max_level(tracing::Level::INFO)
+                .with_writer(std::io::stdout)
                 .init();
         }
     }
@@ -47,6 +50,9 @@ async fn main() -> Result<(), anyhow::Error> {
     let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
     let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
     let hasher_repository = Arc::new(Argon2HasherRepository::new());
+    let authentication_repository = Arc::new(AuthenticationServiceImpl::new(
+        AuthenticationRepositoryImpl::new(Arc::clone(&postgres)),
+    ));
 
     let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
 
@@ -79,8 +85,10 @@ async fn main() -> Result<(), anyhow::Error> {
         realm_service,
         client_service,
         credential_service,
+        authentication_repository,
     )
     .await?;
+
     http_server.run().await?;
     println!("Hello AuthCrux");
 

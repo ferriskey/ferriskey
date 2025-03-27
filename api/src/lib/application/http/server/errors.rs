@@ -1,3 +1,4 @@
+use crate::domain::authentication::entities::error::AuthenticationError;
 use axum::{
     Json,
     extract::{Form, FromRequest, Request, rejection::FormRejection},
@@ -92,6 +93,18 @@ impl From<validator::ValidationErrors> for ApiError {
         }
 
         Self::UnProcessableEntity(validation_errors)
+    }
+}
+
+impl From<AuthenticationError> for ApiError {
+    fn from(error: AuthenticationError) -> Self {
+        match error {
+            AuthenticationError::NotFound => Self::NotFound("Token not found".to_string()),
+            AuthenticationError::Invalid => Self::Unauthorized("Invalid client".to_string()),
+            AuthenticationError::InternalServerError => {
+                Self::InternalServerError("Internal server error".to_string())
+            }
+        }
     }
 }
 

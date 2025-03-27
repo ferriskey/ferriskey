@@ -15,6 +15,7 @@ name = "ferriskey"
 [dependencies]
 anyhow = "1.0.97"
 argon2 = "0.5.3"
+async-trait = "0.1.77"
 axum = "0.8.1"
 axum-extra = { version = "0.10.0", features = ["typed-header", "typed-routing"] }
 axum-macros = "0.5.0"
