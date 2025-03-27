@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use axum::{
+    Extension,
     extract::Query,
     http::Response,
     response::{IntoResponse, Redirect},
@@ -8,7 +11,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
-use crate::application::http::server::errors::{ApiError, ValidateJson};
+use crate::{
+    application::http::server::errors::{ApiError, ValidateJson},
+    domain::{client::ports::ClientService, realm::ports::RealmService},
+};
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct AuthRequest {
@@ -33,14 +39,26 @@ pub struct AuthRoute {
     pub realm_name: String,
 }
 
-pub async fn auth(
+pub async fn auth<R: RealmService, C: ClientService>(
     AuthRoute { realm_name }: AuthRoute,
+    Extension(realm_service): Extension<Arc<R>>,
+    Extension(client_service): Extension<Arc<C>>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let realm = realm_service
+        .get_by_name(realm_name)
+        .await
+        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
+
+    let client = client_service
+        .get_by_client_id(params.client_id, realm.id)
+        .await
+        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
+
     let login_url = format!(
-        "http://localhost:5672/realms/{}/login?client_id={}&redirect_uri={}&state={}",
-        realm_name,
-        params.client_id,
+        "http://localhost:5173/realms/{}/login?client_id={}&redirect_uri={}&state={}",
+        realm.name,
+        client.client_id,
         params.redirect_uri,
         params.state.unwrap_or_default()
     );

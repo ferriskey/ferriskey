@@ -8,8 +8,12 @@ use crate::domain::client::ports::ClientService;
 use crate::domain::credential::ports::CredentialService;
 use crate::domain::realm::ports::RealmService;
 use anyhow::Context;
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
+use axum::http::{HeaderValue, Method};
 use axum::{Extension, Router};
+use axum_extra::headers::Origin;
 use std::sync::Arc;
+use tower_http::cors::CorsLayer;
 use tracing::info_span;
 use tracing::log::info;
 use utoipa::OpenApi;
@@ -51,13 +55,31 @@ impl HttpServer {
 
         let state = AppState::new(realm_service, client_service, credential_service);
 
+        let allowed_origins: Vec<HeaderValue> = vec![
+            HeaderValue::from_static("http://localhost:3000"),
+            HeaderValue::from_static("http://localhost:5173"),
+        ];
+
+        let cors = CorsLayer::new()
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::DELETE,
+                Method::PUT,
+                Method::PATCH,
+            ])
+            .allow_origin(allowed_origins)
+            .allow_headers([AUTHORIZATION, CONTENT_TYPE, CONTENT_LENGTH, ACCEPT])
+            .allow_credentials(true);
+
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(realm_routes::<R>())
             .merge(client_routes::<C>())
             .merge(user_routes::<CR>())
-            .merge(auth_router())
+            .merge(auth_router::<R, C>())
             .layer(trace_layer)
+            .layer(cors)
             .layer(Extension(Arc::clone(&state.realm_service)))
             .layer(Extension(Arc::clone(&state.client_service)))
             .layer(Extension(Arc::clone(&state.credential_service)));

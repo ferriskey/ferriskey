@@ -68,4 +68,24 @@ impl ClientRepository for PostgresClientRepository {
 
         Ok(client)
     }
+
+    async fn get_by_client_id(
+        &self,
+        client_id: String,
+        realm_id: uuid::Uuid,
+    ) -> Result<Client, ClientError> {
+        let client = sqlx::query_as!(
+            Client,
+            r#"
+            SELECT * FROM clients WHERE client_id = $1 AND realm_id = $2
+            "#,
+            client_id,
+            realm_id
+        )
+        .fetch_one(&*self.postgres.get_pool())
+        .await
+        .map_err(|_| ClientError::InternalServerError)?;
+
+        Ok(client)
+    }
 }

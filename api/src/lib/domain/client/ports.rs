@@ -10,6 +10,11 @@ pub trait ClientService: Clone + Send + Sync + 'static {
         schema: CreateClientValidator,
         realm_name: String,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    fn get_by_client_id(
+        &self,
+        client_id: String,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
 }
 
 pub trait ClientRepository: Clone + Send + Sync + 'static {
@@ -24,5 +29,10 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
         public_client: bool,
         service_account_enabled: bool,
         client_type: String,
+    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    fn get_by_client_id(
+        &self,
+        client_id: String,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
 }

@@ -70,4 +70,14 @@ where
             )
             .await
     }
+
+    async fn get_by_client_id(
+        &self,
+        client_id: String,
+        realm_id: uuid::Uuid,
+    ) -> Result<Client, ClientError> {
+        self.client_repository
+            .get_by_client_id(client_id, realm_id)
+            .await
+    }
 }
