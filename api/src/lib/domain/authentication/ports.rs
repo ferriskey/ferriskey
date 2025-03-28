@@ -13,14 +13,15 @@ pub trait AuthenticationRepository: Clone + Send + Sync + 'static {
 
     async fn using_password(
         &self,
+        client_id: String,
         username: String,
         password: String,
     ) -> Result<JwtToken, AuthenticationError>;
 
     async fn using_credentials(
         &self,
-        username: String,
-        password: String,
+        client_id: String,
+        client_secret: String,
     ) -> Result<JwtToken, AuthenticationError>;
 }
 
