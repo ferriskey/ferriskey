@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct ExchangeToken {
+pub struct JwtToken {
     access_token: String,
     token_type: String,
     refresh_token: String,
@@ -10,7 +10,7 @@ pub struct ExchangeToken {
     id_token: String,
 }
 
-impl ExchangeToken {
+impl JwtToken {
     pub fn new(
         access_token: String,
         token_type: String,
@@ -26,4 +26,11 @@ impl ExchangeToken {
             id_token,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub enum GrantType {
+    Code,
+    Password,
+    Credentials,
 }
