@@ -55,8 +55,12 @@ pub async fn auth<R: RealmService, C: ClientService>(
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
+    println!("client: {:?}", client);
+
+    // @todo: verify redirect_uri
+
     let login_url = format!(
-        "http://localhost:5173/realms/{}/login?client_id={}&redirect_uri={}&state={}",
+        "http://localhost:5173/realms/{}/authentication/login?client_id={}&redirect_uri={}&state={}",
         realm.name,
         client.client_id,
         params.redirect_uri,
