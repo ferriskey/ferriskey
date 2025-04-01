@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use super::{
     entities::{error::SessionError, model::UserSession},
     ports::{UserSessionRepository, UserSessionService},

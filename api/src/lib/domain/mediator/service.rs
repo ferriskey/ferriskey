@@ -66,7 +66,7 @@ where
             secret: Some("secret".to_string()),
         };
 
-        let client = match self.client_service.create_client(schema, realm.name).await {
+        match self.client_service.create_client(schema, realm.name).await {
             Ok(client) => {
                 info!("client {:} created", client_id.clone());
                 client

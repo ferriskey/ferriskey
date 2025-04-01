@@ -5,7 +5,7 @@ use crate::domain::realm::ports::RealmService;
 use super::entities::error::AuthenticationError;
 use super::entities::model::{GrantType, JwtToken};
 use super::ports::{AuthenticationRepository, AuthenticationService};
-use async_trait::async_trait;
+use tracing::info;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ where
     R: RealmService,
 {
     pub authentication_repository: A,
-    pub realm_service: Arc<R>
+    pub realm_service: Arc<R>,
 }
 
 impl<A, R> AuthenticationServiceImpl<A, R>
@@ -31,7 +31,6 @@ where
     }
 }
 
-#[async_trait]
 impl<A, R> AuthenticationService for AuthenticationServiceImpl<A, R>
 where
     A: AuthenticationRepository,
@@ -60,12 +59,29 @@ where
 
     async fn using_credentials(
         &self,
-        username: String,
-        password: String,
+        realm_id: Uuid,
+        client_id: String,
+        client_secret: String,
     ) -> Result<JwtToken, AuthenticationError> {
-        self.authentication_repository
-            .using_credentials(username, password)
-            .await
+        let client = self
+            .authentication_repository
+            .using_credentials(realm_id, client_id, client_secret)
+            .await;
+
+        match client {
+            Ok(client) => {
+                info!("success to login with client: {:?}", client.name);
+
+                Ok(JwtToken::new(
+                    client.secret.unwrap(),
+                    "Bearer".to_string(),
+                    "8xLOxBtZp8".to_string(),
+                    3600,
+                    "id_token".to_string(),
+                ))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     async fn authentificate(
@@ -73,11 +89,17 @@ where
         realm_name: String,
         grant_type: GrantType,
         client_id: String,
+        client_secret: Option<String>,
         code: Option<String>,
         username: Option<String>,
         password: Option<String>,
     ) -> Result<JwtToken, AuthenticationError> {
-        let realm = self.realm_service.get_by_name(realm_name).await.map_err(|_| AuthenticationError::InternalServerError)?;
+        let realm = self
+            .realm_service
+            .get_by_name(realm_name)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
         match grant_type {
             GrantType::Code => self.using_code(client_id, code.unwrap()).await,
             GrantType::Password => {
@@ -85,7 +107,7 @@ where
                     .await
             }
             GrantType::Credentials => {
-                self.using_credentials(username.unwrap(), password.unwrap())
+                self.using_credentials(realm.id, client_id, client_secret.unwrap())
                     .await
             }
         }

@@ -1,60 +1,63 @@
 use uuid::Uuid;
 
+use crate::domain::client::entities::model::Client;
+
 use super::entities::{
     error::AuthenticationError,
     model::{GrantType, JwtToken},
 };
 
-#[async_trait::async_trait]
 pub trait AuthenticationRepository: Clone + Send + Sync + 'static {
-    async fn using_code(
+    fn using_code(
         &self,
         client_id: String,
         code: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    async fn using_password(
+    fn using_password(
         &self,
         user_id: Uuid,
         username: String,
         password: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    async fn using_credentials(
+    fn using_credentials(
         &self,
+        realm_id: Uuid,
         client_id: String,
         client_secret: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<Client, AuthenticationError>> + Send;
 }
 
-#[async_trait::async_trait]
 pub trait AuthenticationService: Clone + Send + Sync + 'static {
-    async fn using_code(
+    fn using_code(
         &self,
         client_id: String,
         code: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    async fn using_password(
+    fn using_password(
         &self,
         realm_id: Uuid,
         username: String,
         password: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    async fn using_credentials(
+    fn using_credentials(
         &self,
-        username: String,
-        password: String,
-    ) -> Result<JwtToken, AuthenticationError>;
+        realm_id: Uuid,
+        client_id: String,
+        client_secret: String,
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    async fn authentificate(
+    fn authentificate(
         &self,
         realm_name: String,
         grant_type: GrantType,
         client_id: String,
+        client_secret: Option<String>,
         code: Option<String>,
         username: Option<String>,
         password: Option<String>,
-    ) -> Result<JwtToken, AuthenticationError>;
+    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 }

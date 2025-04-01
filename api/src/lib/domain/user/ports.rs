@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use super::entities::{
     error::UserError,
     model::{User, UserConfig},

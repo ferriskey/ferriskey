@@ -10,10 +10,7 @@ use ferriskey::infrastructure::repositories::argon2_hasher::Argon2HasherReposito
 use ferriskey::infrastructure::repositories::authentication_repository::AuthenticationRepositoryImpl;
 use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use ferriskey::{
-    domain::{
-        client::service::ClientServiceImpl,
-        realm::{ports::RealmService, service::RealmServiceImpl},
-    },
+    domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
     env::{AppEnv, Env},
     infrastructure::{
         db::postgres::Postgres,
@@ -51,7 +48,6 @@ async fn main() -> Result<(), anyhow::Error> {
     let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
     let hasher_repository = Arc::new(Argon2HasherRepository::new());
     let authentication_repository = AuthenticationRepositoryImpl::new(Arc::clone(&postgres));
-    
 
     let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
 
@@ -60,7 +56,10 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&realm_service),
     ));
 
-    let authentication_service = Arc::new(AuthenticationServiceImpl::new(authentication_repository, Arc::clone(&realm_service)));
+    let authentication_service = Arc::new(AuthenticationServiceImpl::new(
+        authentication_repository,
+        Arc::clone(&realm_service),
+    ));
 
     let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
 

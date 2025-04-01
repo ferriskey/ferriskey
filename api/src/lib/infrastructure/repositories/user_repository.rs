@@ -26,7 +26,7 @@ impl UserRepository for PostgresUserRepository {
     async fn create_user(&self, user_config: UserConfig) -> Result<User, UserError> {
         let user = User::new(user_config);
 
-        let pg_user = sqlx::query_as!(User, r#"
+        let _ = sqlx::query_as!(User, r#"
         INSERT INTO users (id, realm_id, username, firstname, lastname, email, email_verified, enabled, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#,

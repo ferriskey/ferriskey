@@ -2,6 +2,7 @@ use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::info;
 
 use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::errors::{ApiError, ValidateJson};
@@ -26,14 +27,16 @@ pub struct TokenRoute {
 )]
 pub async fn exchange_token<A: AuthenticationService>(
     TokenRoute { realm_name }: TokenRoute,
-    Extension(token_service): Extension<Arc<A>>,
+    Extension(authentication_service): Extension<Arc<A>>,
     ValidateJson(payload): ValidateJson<TokenRequestValidator>,
 ) -> Result<Response<JwtToken>, ApiError> {
-    token_service
+    info!("request login with \"{:?}\" grant_type", payload.grant_type);
+    authentication_service
         .authentificate(
             realm_name,
             payload.grant_type,
             payload.client_id,
+            payload.client_secret,
             payload.code,
             payload.username,
             payload.password,

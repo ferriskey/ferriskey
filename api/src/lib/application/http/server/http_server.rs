@@ -91,6 +91,7 @@ impl HttpServer {
             .layer(cors)
             .layer(Extension(Arc::clone(&state.realm_service)))
             .layer(Extension(Arc::clone(&state.client_service)))
+            .layer(Extension(Arc::clone(&state.authentication_service)))
             .layer(Extension(Arc::clone(&state.credential_service)));
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))

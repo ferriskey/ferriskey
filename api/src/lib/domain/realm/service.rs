@@ -1,14 +1,9 @@
-use std::sync::Arc;
-
 use super::{
     entities::{error::RealmError, realm::Realm},
     ports::{RealmRepository, RealmService},
 };
-use crate::{
-    application::http::client::validators::CreateClientValidator,
-    domain::{client::ports::ClientService, realm::entities::realm_setting::RealmSetting},
-};
-use tracing::{error, info};
+use crate::domain::realm::entities::realm_setting::RealmSetting;
+use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
