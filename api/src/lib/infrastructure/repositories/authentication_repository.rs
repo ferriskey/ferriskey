@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use uuid::Uuid;
 use std::sync::Arc;
 
 use crate::domain::authentication::{
@@ -36,7 +37,7 @@ impl AuthenticationRepository for AuthenticationRepositoryImpl {
 
     async fn using_password(
         &self,
-        client_id: String,
+        user_id: Uuid,
         username: String,
         password: String,
     ) -> Result<JwtToken, AuthenticationError> {

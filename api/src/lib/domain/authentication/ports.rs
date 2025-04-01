@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use super::entities::{
     error::AuthenticationError,
     model::{GrantType, JwtToken},
@@ -13,7 +15,7 @@ pub trait AuthenticationRepository: Clone + Send + Sync + 'static {
 
     async fn using_password(
         &self,
-        client_id: String,
+        user_id: Uuid,
         username: String,
         password: String,
     ) -> Result<JwtToken, AuthenticationError>;
@@ -35,6 +37,7 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
 
     async fn using_password(
         &self,
+        realm_id: Uuid,
         username: String,
         password: String,
     ) -> Result<JwtToken, AuthenticationError>;
@@ -47,6 +50,7 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
 
     async fn authentificate(
         &self,
+        realm_name: String,
         grant_type: GrantType,
         client_id: String,
         code: Option<String>,

@@ -50,9 +50,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
     let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
     let hasher_repository = Arc::new(Argon2HasherRepository::new());
-    let authentication_repository = Arc::new(AuthenticationServiceImpl::new(
-        AuthenticationRepositoryImpl::new(Arc::clone(&postgres)),
-    ));
+    let authentication_repository = AuthenticationRepositoryImpl::new(Arc::clone(&postgres));
+    
 
     let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
 
@@ -60,6 +59,8 @@ async fn main() -> Result<(), anyhow::Error> {
         client_repository,
         Arc::clone(&realm_service),
     ));
+
+    let authentication_service = Arc::new(AuthenticationServiceImpl::new(authentication_repository, Arc::clone(&realm_service)));
 
     let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
 
@@ -85,7 +86,7 @@ async fn main() -> Result<(), anyhow::Error> {
         realm_service,
         client_service,
         credential_service,
-        authentication_repository,
+        authentication_service,
     )
     .await?;
 

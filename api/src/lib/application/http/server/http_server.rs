@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 use crate::application::http::auth::router::auth_router;
-=======
 use crate::application::http::authentication::router::authentication_routes;
->>>>>>> 8890145 (feat: implement exchange_token route)
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
@@ -16,7 +13,6 @@ use anyhow::Context;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method};
 use axum::{Extension, Router};
-use axum_extra::headers::Origin;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
