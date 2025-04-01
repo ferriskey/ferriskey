@@ -4,6 +4,8 @@ use sqlx::prelude::FromRow;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
+use crate::domain::user::ports::CreateUserDto;
+
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
 )]
@@ -31,6 +33,25 @@ pub struct UserConfig {
 }
 
 impl User {
+    pub fn from_dto(dto: CreateUserDto) -> Self {
+        let now = Utc::now();
+        let seconds = now.timestamp().try_into().unwrap_or(0);
+        let timestamp = Timestamp::from_unix(NoContext, seconds, 0);
+
+        Self {
+            id: Uuid::new_v7(timestamp),
+            realm_id: dto.realm_id,
+            username: dto.username,
+            firstname: dto.firstname,
+            lastname: dto.lastname,
+            email: dto.email,
+            email_verified: dto.email_verified,
+            enabled: dto.enabled,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
     pub fn new(user_config: UserConfig) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);

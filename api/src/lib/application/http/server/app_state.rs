@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::domain::{
-    authentication::ports::AuthenticationService, client::ports::ClientService, credential::ports::CredentialService, realm::ports::RealmService
+    authentication::ports::AuthenticationService, client::ports::ClientService,
+    credential::ports::CredentialService, realm::ports::RealmService,
 };
 
 #[derive(Debug, Clone)]
@@ -25,7 +26,12 @@ where
     CR: CredentialService,
     A: AuthenticationService,
 {
-    pub fn new(realm_service: Arc<R>, client_service: Arc<C>, credential_service: Arc<CR>, authentication_service: Arc<A>) -> Self {
+    pub fn new(
+        realm_service: Arc<R>,
+        client_service: Arc<C>,
+        credential_service: Arc<CR>,
+        authentication_service: Arc<A>,
+    ) -> Self {
         Self {
             realm_service,
             client_service,

@@ -1,7 +1,7 @@
 -- Add up migration script here
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-    realm_id UUID REFERENCES realms(id),
+    realm_id UUID REFERENCES realms(id) NOT NULL,
     username VARCHAR(255) NOT NULL,
     firstname VARCHAR(255) NOT NULL,
     lastname VARCHAR(255) NOT NULL,

@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::{
     domain::user::{
         entities::{
             error::UserError,
             model::{User, UserConfig},
         },
-        ports::UserRepository,
+        ports::{CreateUserDto, UserRepository},
     },
     infrastructure::db::postgres::Postgres,
 };
@@ -23,8 +25,8 @@ impl PostgresUserRepository {
 }
 
 impl UserRepository for PostgresUserRepository {
-    async fn create_user(&self, user_config: UserConfig) -> Result<User, UserError> {
-        let user = User::new(user_config);
+    async fn create_user(&self, dto: CreateUserDto) -> Result<User, UserError> {
+        let user = User::from_dto(dto);
 
         let _ = sqlx::query_as!(User, r#"
         INSERT INTO users (id, realm_id, username, firstname, lastname, email, email_verified, enabled, created_at, updated_at)
@@ -47,6 +49,21 @@ impl UserRepository for PostgresUserRepository {
             println!("Failed to insert user: {:?}", err);
             UserError::InternalServerError
         });
+        Ok(user)
+    }
+
+    async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT * FROM users WHERE username = $1 AND realm_id = $2
+            "#,
+            username,
+            realm_id
+        )
+        .fetch_one(&*self.postgres.get_pool())
+        .await
+        .map_err(|_| UserError::NotFound)?;
         Ok(user)
     }
 }
