@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::domain::crypto::ports::HasherRepository;
+use crate::domain::crypto::ports::{CryptoService, HasherRepository};
 
 use super::{
     entities::{error::CredentialError, model::Credential},
@@ -8,49 +8,40 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub struct CredentialServiceImpl<H, C>
+pub struct CredentialServiceImpl<C, CS>
 where
-    H: HasherRepository,
     C: CredentialRepository,
+    CS: CryptoService,
 {
-    hasher_repository: Arc<H>,
     credential_repository: C,
+    crypto_service: Arc<CS>,
 }
 
-impl<H, C> CredentialServiceImpl<H, C>
+impl<C, CS> CredentialServiceImpl<C, CS>
 where
-    H: HasherRepository,
     C: CredentialRepository,
+    CS: CryptoService,
 {
-    pub fn new(hasher_repository: Arc<H>, credential_repository: C) -> Self {
+    pub fn new(credential_repository: C, crypto_service: Arc<CS>) -> Self {
         Self {
-            hasher_repository,
             credential_repository,
+            crypto_service,
         }
     }
 }
 
-impl<H, C> CredentialService for CredentialServiceImpl<H, C>
+impl<C, CS> CredentialService for CredentialServiceImpl<C, CS>
 where
-    H: HasherRepository,
     C: CredentialRepository,
+    CS: CryptoService,
 {
     async fn create_password_credential(
         &self,
-        _user_id: uuid::Uuid,
-        _password: String,
-        _label: String,
-    ) -> Result<Credential, CredentialError> {
-        todo!("Implement this")
-    }
-
-    async fn reset_password(
-        &self,
         user_id: uuid::Uuid,
         password: String,
-    ) -> Result<(), CredentialError> {
-        let (secret, salt) = self
-            .hasher_repository
+        label: String,
+    ) -> Result<Credential, CredentialError> {
+        let (secret, salt) = self.crypto_service
             .hash_password(&password)
             .await
             .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
@@ -61,11 +52,34 @@ where
                 "password".to_string(),
                 secret,
                 salt,
-                String::from("My password"),
+                label,
             )
-            .await?;
+            .await
+    }
 
-        Ok(())
+    async fn reset_password(
+        &self,
+        user_id: uuid::Uuid,
+        password: String,
+    ) -> Result<(), CredentialError> {
+        // let (secret, salt) = self
+        //     .hasher_repository
+        //     .hash_password(&password)
+        //     .await
+        //     .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
+
+        // self.credential_repository
+        //     .create_credential(
+        //         user_id,
+        //         "password".to_string(),
+        //         secret,
+        //         salt,
+        //         String::from("My password"),
+        //     )
+        //     .await?;
+
+        // Ok(())
+        todo!("Reset password")
     }
 
     async fn verify_password(
@@ -78,16 +92,17 @@ where
             .get_password_credential(user_id)
             .await?;
 
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                &credential.credential_data,
-            )
-            .await
-            .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
+        // let is_valid = self
+        //     .hasher_repository
+        //     .verify_password(
+        //         &password,
+        //         &credential.secret_data,
+        //         &credential.credential_data,
+        //     )
+        //     .await
+        //     .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
 
-        Ok(is_valid)
+        // Ok(is_valid)
+        todo!("Verify password")
     }
 }

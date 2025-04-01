@@ -11,3 +11,7 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- Add unique constraint to username and realm_id
+ALTER TABLE users ADD CONSTRAINT unique_username_realm_id UNIQUE (username, realm_id);

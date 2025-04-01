@@ -18,6 +18,11 @@ pub trait UserService: Clone + Send + Sync + 'static {
         &self,
         dto: CreateUserDto,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
+    fn get_by_username(
+        &self,
+        username: String,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<User, UserError>> + Send;
 }
 
 pub trait UserRepository: Clone + Send + Sync + 'static {

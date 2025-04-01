@@ -1,3 +1,7 @@
+pub trait CryptoService: Clone + Send + Sync + 'static {
+    fn hash_password(&self, password: &str) -> impl Future<Output = Result<(String, String), anyhow::Error>> + Send;
+}
+
 pub trait HasherRepository: Clone + Send + Sync + 'static {
     fn hash_password(
         &self,

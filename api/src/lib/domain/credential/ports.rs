@@ -27,7 +27,7 @@ pub trait CredentialRepository: Clone + Send + Sync + 'static {
         user_id: Uuid,
         credential_type: String,
         secret: String,
-        credential: String,
+        salt: String,
         label: String,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
     fn get_password_credential(

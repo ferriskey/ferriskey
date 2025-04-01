@@ -25,16 +25,16 @@ impl CredentialRepository for PostgresCredentialRepository {
         user_id: uuid::Uuid,
         credential_type: String,
         secret: String,
-        credential: String,
+        salt: String,
         label: String,
     ) -> Result<Credential, CredentialError> {
         let credential = Credential::new(
-            String::new(),
+            salt,
             credential_type,
             user_id,
             label,
+            secret.clone(),
             secret,
-            credential,
         );
 
         sqlx::query!(

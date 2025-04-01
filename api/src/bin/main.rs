@@ -4,6 +4,7 @@ use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 use ferriskey::domain::authentication::service::AuthenticationServiceImpl;
 use ferriskey::domain::credential::service::CredentialServiceImpl;
+use ferriskey::domain::crypto::service::CryptoServiceImpl;
 use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
@@ -12,7 +13,6 @@ use ferriskey::infrastructure::repositories::authentication_repository::Authenti
 use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use ferriskey::infrastructure::repositories::user_repository::PostgresUserRepository;
 use ferriskey::{
-    domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
     domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
     env::{AppEnv, Env},
     infrastructure::{
@@ -49,9 +49,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
     let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
-    let hasher_repository = Arc::new(Argon2HasherRepository::new());
     let authentication_repository = AuthenticationRepositoryImpl::new(Arc::clone(&postgres));
     let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
+    let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
+     let hasher_repository = Argon2HasherRepository::new();
 
     let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
 
@@ -67,17 +68,19 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&realm_service),
     ));
 
-    let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
+   
+    let crypto_service = Arc::new(CryptoServiceImpl::new(hasher_repository));
 
     let credential_service = Arc::new(CredentialServiceImpl::new(
-        Arc::clone(&hasher_repository),
         credential_repository,
+        Arc::clone(&crypto_service),
     ));
 
     let mediator_service = Arc::new(MediatorServiceImpl::new(
         Arc::clone(&client_service),
         Arc::clone(&realm_service),
         Arc::clone(&user_service),
+        Arc::clone(&credential_service),
     ));
 
     mediator_service

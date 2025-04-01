@@ -5,49 +5,52 @@ use tracing::info;
 use crate::{
     application::http::client::validators::CreateClientValidator,
     domain::{
-        client::ports::ClientService,
-        realm::ports::RealmService,
-        user::{
+        client::ports::ClientService, credential::ports::CredentialService, realm::ports::RealmService, user::{
             entities::model::UserConfig,
             ports::{CreateUserDto, UserService},
-        },
+        }
     },
 };
 
 use super::ports::MediatorService;
 
 #[derive(Debug, Clone)]
-pub struct MediatorServiceImpl<C, R, U>
+pub struct MediatorServiceImpl<C, R, U, CS>
 where
     C: ClientService,
     R: RealmService,
     U: UserService,
+    CS: CredentialService
 {
     pub client_service: Arc<C>,
     pub realm_service: Arc<R>,
     pub user_service: Arc<U>,
+    pub credential_service: Arc<CS>
 }
 
-impl<C, R, U> MediatorServiceImpl<C, R, U>
+impl<C, R, U, CS> MediatorServiceImpl<C, R, U, CS>
 where
     C: ClientService,
     R: RealmService,
     U: UserService,
+    CS: CredentialService
 {
-    pub fn new(client_service: Arc<C>, realm_service: Arc<R>, user_service: Arc<U>) -> Self {
+    pub fn new(client_service: Arc<C>, realm_service: Arc<R>, user_service: Arc<U>, credential_service: Arc<CS>) -> Self {
         Self {
             client_service,
             realm_service,
             user_service,
+            credential_service,
         }
     }
 }
 
-impl<C, R, U> MediatorService for MediatorServiceImpl<C, R, U>
+impl<C, R, U, CS> MediatorService for MediatorServiceImpl<C, R, U, CS>
 where
     C: ClientService,
     R: RealmService,
     U: UserService,
+    CS: CredentialService
 {
     async fn initialize_master_realm(&self) -> Result<(), anyhow::Error> {
         info!("Introspecting master realm");
@@ -111,10 +114,17 @@ where
                 user
             }
             Err(_) => {
+                let user = self
+                    .user_service
+                    .get_by_username("admin".to_string(), realm.id)
+                    .await?;
                 info!("user {:} already exists", "admin");
-                return Ok(());
+                user
             }
         };
+
+        let credential = self.credential_service
+            .create_password_credential(user.id, "admin".to_string(), "".to_string()).await?;
 
         Ok(())
     }

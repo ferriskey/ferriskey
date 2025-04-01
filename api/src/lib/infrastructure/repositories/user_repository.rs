@@ -45,10 +45,7 @@ impl UserRepository for PostgresUserRepository {
         )
         .execute(&*self.postgres.get_pool())
         .await
-        .map_err(|err| {
-            println!("Failed to insert user: {:?}", err);
-            UserError::InternalServerError
-        });
+        .map_err(|_| UserError::InternalServerError)?;
         Ok(user)
     }
 

@@ -6,7 +6,7 @@ use argon2::{
 use crate::domain::crypto::ports::HasherRepository;
 
 #[derive(Debug, Clone)]
-pub struct Argon2HasherRepository;
+pub struct Argon2HasherRepository {}
 
 impl Argon2HasherRepository {
     pub fn new() -> Self {
