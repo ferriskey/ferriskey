@@ -25,7 +25,7 @@ impl ClientRepository for PostgresClientRepository {
         realm_id: uuid::Uuid,
         name: String,
         client_id: String,
-        secret: String,
+        secret: Option<String>,
         enabled: bool,
         protocol: String,
         public_client: bool,

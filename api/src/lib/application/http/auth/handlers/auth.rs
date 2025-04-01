@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::{
     Extension,
     extract::Query,
-    http::Response,
     response::{IntoResponse, Redirect},
 };
 use axum_macros::TypedPath;
@@ -12,7 +11,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::{
-    application::http::server::errors::{ApiError, ValidateJson},
+    application::http::server::errors::ApiError,
     domain::{client::ports::ClientService, realm::ports::RealmService},
 };
 
@@ -54,8 +53,6 @@ pub async fn auth<R: RealmService, C: ClientService>(
         .get_by_client_id(params.client_id, realm.id)
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
-
-    println!("client: {:?}", client);
 
     // @todo: verify redirect_uri
 

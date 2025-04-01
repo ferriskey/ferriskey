@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "salt",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "credential_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "user_label",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "secret_data",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "credential_data",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dc12c7fc0a36b86f23223de06167c419660d801c946786257fd560c0154d3c86"
+}

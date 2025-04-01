@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE realms SET name = $1, updated_at = $2 WHERE name = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d5ecb7a47418f8d189c93292cf9827d0665f7c35f980ad24d17e60786bbf8e56"
+}

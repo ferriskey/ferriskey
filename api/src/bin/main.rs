@@ -3,6 +3,8 @@ use std::sync::Arc;
 use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 use ferriskey::domain::credential::service::CredentialServiceImpl;
+use ferriskey::domain::mediator::ports::MediatorService;
+use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
 use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use ferriskey::{
@@ -43,10 +45,11 @@ async fn main() -> Result<(), anyhow::Error> {
     let postgres = Arc::new(Postgres::new(Arc::clone(&env)).await?);
 
     let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
-    let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
+    let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
     let hasher_repository = Arc::new(Argon2HasherRepository::new());
 
-    let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
+    let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
+
     let client_service = Arc::new(ClientServiceImpl::new(
         client_repository,
         Arc::clone(&realm_service),
@@ -59,7 +62,15 @@ async fn main() -> Result<(), anyhow::Error> {
         credential_repository,
     ));
 
-    realm_service.create_realm_master().await?;
+    let mediator_service = Arc::new(MediatorServiceImpl::new(
+        Arc::clone(&client_service),
+        Arc::clone(&realm_service),
+    ));
+
+    mediator_service
+        .initialize_master_realm()
+        .await
+        .expect("Failed to initialize master realm");
 
     let server_config = HttpServerConfig::new(env.port.clone());
 

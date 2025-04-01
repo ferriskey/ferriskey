@@ -23,7 +23,7 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
         realm_id: Uuid,
         name: String,
         client_id: String,
-        secret: String,
+        secret: Option<String>,
         enabled: bool,
         protocol: String,
         public_client: bool,
