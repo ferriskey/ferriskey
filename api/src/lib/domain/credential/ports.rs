@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+use crate::domain::crypto::ports::HashResult;
+
 use super::entities::{error::CredentialError, model::Credential};
 
 pub trait CredentialService: Clone + Send + Sync + 'static {
@@ -26,8 +28,7 @@ pub trait CredentialRepository: Clone + Send + Sync + 'static {
         &self,
         user_id: Uuid,
         credential_type: String,
-        secret: String,
-        salt: String,
+        hash_result: HashResult,
         label: String,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
     fn get_password_credential(

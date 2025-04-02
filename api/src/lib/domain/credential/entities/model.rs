@@ -14,7 +14,7 @@ pub struct Credential {
     pub user_id: Uuid,
     pub user_label: Option<String>,
     pub secret_data: String,
-    pub credential_data: String,
+    pub credential_data: CredentialData,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -26,7 +26,7 @@ impl Credential {
         user_id: Uuid,
         user_label: String,
         secret_data: String,
-        credential_data: String,
+        credential_data: CredentialData,
     ) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);
@@ -43,6 +43,23 @@ impl Credential {
             credential_data,
             created_at: now,
             updated_at: now,
+        }
+    }
+}
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, FromRow, PartialOrd, Ord,
+)]
+pub struct CredentialData {
+    pub hash_iterations: u32,
+    pub algorithm: String,
+}
+
+impl CredentialData {
+    pub fn new(hash_iterations: u32, algorithm: String) -> Self {
+        Self {
+            hash_iterations,
+            algorithm,
         }
     }
 }

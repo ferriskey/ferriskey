@@ -4,10 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     domain::user::{
-        entities::{
-            error::UserError,
-            model::{User, UserConfig},
-        },
+        entities::{error::UserError, model::User},
         ports::{CreateUserDto, UserRepository},
     },
     infrastructure::db::postgres::Postgres,

@@ -36,5 +36,5 @@ pub async fn create_client<C: ClientService>(
         .create_client(payload, realm_name)
         .await
         .map_err(ApiError::from)
-        .map(|client| Response::Created(client))
+        .map(Response::Created)
 }

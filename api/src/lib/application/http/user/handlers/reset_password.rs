@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::{Extension, http::StatusCode};
 use axum_macros::TypedPath;
 use serde::Deserialize;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -40,6 +41,10 @@ pub async fn reset_password<C: CredentialService>(
     Extension(credential_service): Extension<Arc<C>>,
     ValidateJson(payload): ValidateJson<ResetPasswordValidator>,
 ) -> Result<ApiSuccess<String>, ApiError> {
+    info!(
+        "reset password for user {:} in realm {:}",
+        user_id, realm_name
+    );
     credential_service
         .reset_password(user_id, payload.value)
         .await

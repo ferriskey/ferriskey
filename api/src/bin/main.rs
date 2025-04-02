@@ -9,7 +9,6 @@ use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
 use ferriskey::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
-use ferriskey::infrastructure::repositories::authentication_repository::AuthenticationRepositoryImpl;
 use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use ferriskey::infrastructure::repositories::user_repository::PostgresUserRepository;
 use ferriskey::{
@@ -49,10 +48,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
     let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
-    let authentication_repository = AuthenticationRepositoryImpl::new(Arc::clone(&postgres));
     let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
     let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
-     let hasher_repository = Argon2HasherRepository::new();
+    let hasher_repository = Argon2HasherRepository::new();
 
     let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
 
@@ -63,17 +61,18 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let user_service = Arc::new(UserServiceImpl::new(user_repository));
 
-    let authentication_service = Arc::new(AuthenticationServiceImpl::new(
-        authentication_repository,
-        Arc::clone(&realm_service),
-    ));
-
-   
     let crypto_service = Arc::new(CryptoServiceImpl::new(hasher_repository));
 
     let credential_service = Arc::new(CredentialServiceImpl::new(
         credential_repository,
         Arc::clone(&crypto_service),
+    ));
+
+    let authentication_service = Arc::new(AuthenticationServiceImpl::new(
+        Arc::clone(&realm_service),
+        Arc::clone(&client_service),
+        Arc::clone(&credential_service),
+        Arc::clone(&user_service),
     ));
 
     let mediator_service = Arc::new(MediatorServiceImpl::new(

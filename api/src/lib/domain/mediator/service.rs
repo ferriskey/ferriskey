@@ -5,10 +5,10 @@ use tracing::info;
 use crate::{
     application::http::client::validators::CreateClientValidator,
     domain::{
-        client::ports::ClientService, credential::ports::CredentialService, realm::ports::RealmService, user::{
-            entities::model::UserConfig,
-            ports::{CreateUserDto, UserService},
-        }
+        client::ports::ClientService,
+        credential::ports::CredentialService,
+        realm::ports::RealmService,
+        user::ports::{CreateUserDto, UserService},
     },
 };
 
@@ -20,12 +20,12 @@ where
     C: ClientService,
     R: RealmService,
     U: UserService,
-    CS: CredentialService
+    CS: CredentialService,
 {
     pub client_service: Arc<C>,
     pub realm_service: Arc<R>,
     pub user_service: Arc<U>,
-    pub credential_service: Arc<CS>
+    pub credential_service: Arc<CS>,
 }
 
 impl<C, R, U, CS> MediatorServiceImpl<C, R, U, CS>
@@ -33,9 +33,14 @@ where
     C: ClientService,
     R: RealmService,
     U: UserService,
-    CS: CredentialService
+    CS: CredentialService,
 {
-    pub fn new(client_service: Arc<C>, realm_service: Arc<R>, user_service: Arc<U>, credential_service: Arc<CS>) -> Self {
+    pub fn new(
+        client_service: Arc<C>,
+        realm_service: Arc<R>,
+        user_service: Arc<U>,
+        credential_service: Arc<CS>,
+    ) -> Self {
         Self {
             client_service,
             realm_service,
@@ -50,7 +55,7 @@ where
     C: ClientService,
     R: RealmService,
     U: UserService,
-    CS: CredentialService
+    CS: CredentialService,
 {
     async fn initialize_master_realm(&self) -> Result<(), anyhow::Error> {
         info!("Introspecting master realm");
@@ -88,11 +93,10 @@ where
             }
             Err(_) => {
                 info!("client {:} already exists", client_id.clone());
-                let client = self
+                self
                     .client_service
                     .get_by_client_id(client_id, realm.id)
-                    .await?;
-                client
+                    .await?
             }
         };
 
@@ -123,8 +127,20 @@ where
             }
         };
 
-        let credential = self.credential_service
-            .create_password_credential(user.id, "admin".to_string(), "".to_string()).await?;
+        let _ = match self
+            .credential_service
+            .create_password_credential(user.id, "admin".to_string(), "".to_string())
+            .await
+        {
+            Ok(credential) => {
+                info!("credential {:} created", credential.id);
+                credential
+            }
+            Err(_) => {
+                info!("credential {:} already exists", "admin");
+                return Ok(());
+            }
+        };
 
         Ok(())
     }

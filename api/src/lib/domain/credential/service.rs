@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::domain::crypto::ports::{CryptoService, HasherRepository};
+use crate::domain::crypto::ports::CryptoService;
 
 use super::{
     entities::{error::CredentialError, model::Credential},
@@ -41,45 +41,23 @@ where
         password: String,
         label: String,
     ) -> Result<Credential, CredentialError> {
-        let (secret, salt) = self.crypto_service
+        let hash = self
+            .crypto_service
             .hash_password(&password)
             .await
             .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
 
         self.credential_repository
-            .create_credential(
-                user_id,
-                "password".to_string(),
-                secret,
-                salt,
-                label,
-            )
+            .create_credential(user_id, "password".to_string(), hash, label)
             .await
     }
 
     async fn reset_password(
         &self,
-        user_id: uuid::Uuid,
-        password: String,
+        _user_id: uuid::Uuid,
+        _password: String,
     ) -> Result<(), CredentialError> {
-        // let (secret, salt) = self
-        //     .hasher_repository
-        //     .hash_password(&password)
-        //     .await
-        //     .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
-
-        // self.credential_repository
-        //     .create_credential(
-        //         user_id,
-        //         "password".to_string(),
-        //         secret,
-        //         salt,
-        //         String::from("My password"),
-        //     )
-        //     .await?;
-
-        // Ok(())
-        todo!("Reset password")
+        unimplemented!("Reset password")
     }
 
     async fn verify_password(
@@ -92,17 +70,16 @@ where
             .get_password_credential(user_id)
             .await?;
 
-        // let is_valid = self
-        //     .hasher_repository
-        //     .verify_password(
-        //         &password,
-        //         &credential.secret_data,
-        //         &credential.credential_data,
-        //     )
-        //     .await
-        //     .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
+        let is_valid = self.crypto_service
+            .verify_password(
+                &password,
+                &credential.secret_data,
+                &credential.credential_data,
+                &credential.salt.unwrap(),
+            )
+            .await
+            .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
 
-        // Ok(is_valid)
-        todo!("Verify password")
+        Ok(is_valid)
     }
 }

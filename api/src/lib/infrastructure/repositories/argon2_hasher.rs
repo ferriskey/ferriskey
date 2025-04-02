@@ -1,9 +1,12 @@
 use argon2::{
-    Argon2,
+    Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 
-use crate::domain::crypto::ports::HasherRepository;
+use crate::domain::{
+    credential::entities::model::CredentialData,
+    crypto::ports::{HashResult, HasherRepository},
+};
 
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {}
@@ -14,28 +17,59 @@ impl Argon2HasherRepository {
     }
 }
 
+impl Default for Argon2HasherRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HasherRepository for Argon2HasherRepository {
-    async fn hash_password(&self, password: &str) -> Result<(String, String), anyhow::Error> {
+    async fn hash_password(&self, password: &str) -> Result<HashResult, anyhow::Error> {
         let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
+        let params = argon2::Params::new(
+            32 * 1024, // Memory cost (32MB)
+            3,         // Number of iterations
+            1,         // Parallelism degree
+            Some(32),  // Output length
+        )
+        .map_err(|e| anyhow::anyhow!("Error during Argon2 configuration: {}", e))?;
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2d, Version::V0x13, params.clone());
+
+        let credential_data =
+            CredentialData::new(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
+
         let password_hash = argon2
             .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| anyhow::anyhow!("Erreur lors du hachage du mot de passe: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Error during password hashing: {}", e))?
             .to_string();
 
-        Ok((password_hash, salt.to_string()))
+        let hash_result = HashResult::new(password_hash, salt.to_string(), credential_data);
+        Ok(hash_result)
     }
 
     async fn verify_password(
         &self,
         password: &str,
-        _secret_data: &str,
-        credential_data: &str,
+        secret_data: &str,
+        credential_data: &CredentialData,
+        _salt: &str,
     ) -> Result<bool, anyhow::Error> {
-        let parsed_hash = PasswordHash::new(credential_data)
-            .map_err(|e| anyhow::anyhow!("Erreur lors de l'analyse du hash: {}", e))?;
+        let algorithm = match credential_data.algorithm.as_str() {
+            "argon2i" => Algorithm::Argon2i,
+            "argon2d" => Algorithm::Argon2d,
+            _ => Algorithm::Argon2id, // Par défaut, utiliser Argon2id
+        };
 
-        let argon2 = Argon2::default();
+        let argon2 = Argon2::new(
+            algorithm,
+            Version::V0x13,
+            Params::new(65536, credential_data.hash_iterations, 4, None)
+                .map_err(|e| anyhow::anyhow!("Erreur de configuration des paramètres: {}", e))?,
+        );
+
+        let parsed_hash = PasswordHash::new(secret_data)
+            .map_err(|e| anyhow::anyhow!("Error parsing hash: {}", e))?;
+
         let result = argon2.verify_password(password.as_bytes(), &parsed_hash);
 
         Ok(result.is_ok())
@@ -56,12 +90,16 @@ mod tests {
 
         assert!(result.is_ok(), "Password hashing should succeed");
 
-        let (secret, credential) = result.unwrap();
-        assert!(!secret.is_empty(), "Secret should not be empty");
-        assert!(!credential.is_empty(), "Credential should not be empty");
+        let hash_result = result.unwrap();
+        assert!(!hash_result.hash.is_empty(), "Hash should not be empty");
+        assert!(!hash_result.salt.is_empty(), "Salt should not be empty");
+        assert!(
+            !hash_result.credential_data.algorithm.is_empty(),
+            "Credential data should not be empty"
+        );
 
         assert!(
-            credential.starts_with("$argon2"),
+            hash_result.hash.starts_with("$argon2"),
             "Hash should start with '$argon2'"
         );
     }
@@ -71,9 +109,16 @@ mod tests {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
 
-        let (secret, credential) = hasher.hash_password(password).await.unwrap();
+        let hash_result = hasher.hash_password(password).await.unwrap();
 
-        let result = hasher.verify_password(password, &secret, &credential).await;
+        let result = hasher
+            .verify_password(
+                password,
+                &hash_result.hash,
+                &hash_result.credential_data,
+                &hash_result.salt,
+            )
+            .await;
 
         assert!(result.is_ok(), "Verification should succeed");
         assert!(result.unwrap(), "Password should be verified");
@@ -85,10 +130,15 @@ mod tests {
         let password = "my_password";
         let wrong_password = "bad_password";
 
-        let (secret, credential) = hasher.hash_password(password).await.unwrap();
+        let hash_result = hasher.hash_password(password).await.unwrap();
 
         let result = hasher
-            .verify_password(wrong_password, &secret, &credential)
+            .verify_password(
+                wrong_password,
+                &hash_result.hash,
+                &hash_result.credential_data,
+                &hash_result.salt,
+            )
             .await;
 
         assert!(result.is_ok(), "Verification should not fail with an error");
@@ -102,7 +152,12 @@ mod tests {
         let invalid_hash = "invalid_hash";
 
         let result = hasher
-            .verify_password(password, invalid_hash, invalid_hash)
+            .verify_password(
+                password,
+                invalid_hash,
+                &CredentialData::new(1, "argon2d".to_string()),
+                invalid_hash,
+            )
             .await;
 
         assert!(
@@ -117,11 +172,11 @@ mod tests {
         let password1 = "first_password";
         let password2 = "second_password";
 
-        let (_, credential1) = hasher.hash_password(password1).await.unwrap();
-        let (_, credential2) = hasher.hash_password(password2).await.unwrap();
+        let hash_result1 = hasher.hash_password(password1).await.unwrap();
+        let hash_result2 = hasher.hash_password(password2).await.unwrap();
 
         assert_ne!(
-            credential1, credential2,
+            hash_result1.hash, hash_result2.hash,
             "Two different passwords should have different hashes"
         );
     }
@@ -131,11 +186,11 @@ mod tests {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
 
-        let (_, credential1) = hasher.hash_password(password).await.unwrap();
-        let (_, credential2) = hasher.hash_password(password).await.unwrap();
+        let hash_result1 = hasher.hash_password(password).await.unwrap();
+        let hash_result2 = hasher.hash_password(password).await.unwrap();
 
         assert_ne!(
-            credential1, credential2,
+            hash_result1.hash, hash_result2.hash,
             "Same password should have different hashes due to the random salt"
         );
     }
