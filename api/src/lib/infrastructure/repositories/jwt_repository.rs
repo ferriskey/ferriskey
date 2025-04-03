@@ -35,7 +35,7 @@ impl StaticJwtRepository {
 #[async_trait]
 impl JwtRepository for StaticJwtRepository {
     async fn get_realm_key(&self, _realm: &str) -> Result<String, JwtError> {
-        Ok(self.private_key.clone())
+        Ok(self.public_key.clone())
     }
 
     async fn generate_jwt_token(&self, claims: &JwtClaims) -> Result<Jwt, JwtError> {
