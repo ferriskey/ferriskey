@@ -1,4 +1,3 @@
-use crate::application::http::auth::router::auth_router;
 use crate::application::http::authentication::router::authentication_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
@@ -85,8 +84,7 @@ impl HttpServer {
             .merge(realm_routes::<R>())
             .merge(client_routes::<C>())
             .merge(user_routes::<CR>())
-            .merge(auth_router::<R, C>())
-            .merge(authentication_routes::<A>())
+            .merge(authentication_routes::<A, R, C>())
             .layer(trace_layer)
             .layer(cors)
             .layer(Extension(Arc::clone(&state.realm_service)))

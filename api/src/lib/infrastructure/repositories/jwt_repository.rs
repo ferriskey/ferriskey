@@ -1,8 +1,10 @@
 use async_trait::async_trait;
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, encode, Algorithm};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
 
-use crate::domain::jwt::{entities::{Jwt, JwtError, JwtClaims}, ports::JwtRepository};
-
+use crate::domain::jwt::{
+    entities::{Jwt, JwtClaims, JwtError},
+    ports::JwtRepository,
+};
 
 pub struct JwtKeyPair {
     pub encoding_key: EncodingKey,
@@ -17,7 +19,6 @@ pub struct StaticJwtRepository {
 
 impl StaticJwtRepository {
     pub fn new(private_pem: &str, public_pem: &str) -> Result<Self, anyhow::Error> {
-
         let encoding_key = EncodingKey::from_rsa_pem(private_pem.as_bytes())?;
         let decoding_key = DecodingKey::from_rsa_pem(public_pem.as_bytes())?;
 
@@ -42,6 +43,9 @@ impl JwtRepository for StaticJwtRepository {
         let header = Header::new(Algorithm::RS256);
         let token = encode(&header, &claims, &self.keys.encoding_key)
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
-        Ok(Jwt { token, expires_at: claims.exp })
+        Ok(Jwt {
+            token,
+            expires_at: claims.exp,
+        })
     }
 }

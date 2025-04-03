@@ -56,6 +56,8 @@ pub async fn auth<R: RealmService, C: ClientService>(
 
     // @todo: verify redirect_uri
 
+    // Create session
+
     let login_url = format!(
         "http://localhost:5173/realms/{}/authentication/login?client_id={}&redirect_uri={}&state={}",
         realm.name,

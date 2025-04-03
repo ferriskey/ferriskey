@@ -27,7 +27,7 @@ where
     pub client_service: Arc<C>,
     pub credential_service: Arc<CR>,
     pub user_service: Arc<U>,
-    pub jwt_service: Arc<dyn JwtService>
+    pub jwt_service: Arc<dyn JwtService>,
 }
 
 impl<R, C, CR, U> AuthenticationServiceImpl<R, C, CR, U>
@@ -42,7 +42,7 @@ where
         client_service: Arc<C>,
         credential_service: Arc<CR>,
         user_service: Arc<U>,
-        jwt_service: Arc<dyn JwtService>
+        jwt_service: Arc<dyn JwtService>,
     ) -> Self {
         Self {
             realm_service,
@@ -99,14 +99,13 @@ where
         let claims = JwtClaims::new(
             user.id.to_string(),
             "http://localhost:3333/realms/master".to_string(),
-            vec![
-                "master-realm".to_string(),
-                "account".to_string(),
-            ],
+            vec!["master-realm".to_string(), "account".to_string()],
             "Bearer".to_string(),
             client_id,
         );
-        let jwt = self.jwt_service.generate_token(claims)
+        let jwt = self
+            .jwt_service
+            .generate_token(claims)
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
@@ -170,7 +169,8 @@ where
             GrantType::Password => {
                 let username = username.ok_or(AuthenticationError::Invalid)?;
                 let password = password.ok_or(AuthenticationError::Invalid)?;
-                self.using_password(realm.id, client_id, username, password).await
+                self.using_password(realm.id, client_id, username, password)
+                    .await
             }
             GrantType::Credentials => {
                 self.using_credentials(realm.id, client_id, client_secret.unwrap())

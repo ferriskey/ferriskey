@@ -4,6 +4,9 @@ use super::entities::{
     error::AuthenticationError,
     model::{GrantType, JwtToken},
 };
+
+pub mod auth_session;
+
 pub trait AuthenticationService: Clone + Send + Sync + 'static {
     fn using_code(
         &self,

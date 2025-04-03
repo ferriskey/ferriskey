@@ -2,13 +2,18 @@ use std::sync::Arc;
 
 use crate::{
     domain::{
-        client::ports::ClientRepository, credential::ports::CredentialRepository, crypto::ports::HasherRepository, jwt::ports::JwtRepository, realm::ports::RealmRepository, user::ports::UserRepository
+        client::ports::ClientRepository, credential::ports::CredentialRepository,
+        crypto::ports::HasherRepository, jwt::ports::JwtRepository, realm::ports::RealmRepository,
+        user::ports::UserRepository,
     },
     env::Env,
     infrastructure::{
         db::postgres::Postgres,
         repositories::{
-            argon2_hasher::Argon2HasherRepository, client_repository::PostgresClientRepository, credential_repository::PostgresCredentialRepository, jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository, user_repository::PostgresUserRepository
+            argon2_hasher::Argon2HasherRepository, client_repository::PostgresClientRepository,
+            credential_repository::PostgresCredentialRepository,
+            jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository,
+            user_repository::PostgresUserRepository,
         },
     },
 };
@@ -27,7 +32,7 @@ where
     pub user_repository: U,
     pub credential_repository: CR,
     pub hasher_repository: H,
-    pub jwt_repository: Box<dyn JwtRepository>
+    pub jwt_repository: Box<dyn JwtRepository>,
 }
 
 impl

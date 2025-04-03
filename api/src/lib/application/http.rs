@@ -1,4 +1,3 @@
-pub mod auth;
 pub mod authentication;
 pub mod client;
 mod realm;

@@ -61,7 +61,7 @@ async fn main() -> Result<(), anyhow::Error> {
     ));
 
     let jwt_service: Arc<dyn JwtService> = Arc::new(JwtServiceImpl::new(app_server.jwt_repository));
-    
+
     let authentication_service = Arc::new(AuthenticationServiceImpl::new(
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
