@@ -74,7 +74,8 @@ where
             "Salt is not found".to_string(),
         ))?;
 
-        let is_valid = self.crypto_service
+        let is_valid = self
+            .crypto_service
             .verify_password(
                 &password,
                 &credential.secret_data,

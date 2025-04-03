@@ -93,8 +93,7 @@ where
             }
             Err(_) => {
                 info!("client {:} already exists", client_id.clone());
-                self
-                    .client_service
+                self.client_service
                     .get_by_client_id(client_id, realm.id)
                     .await?
             }

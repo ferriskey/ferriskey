@@ -2,24 +2,20 @@ use std::sync::Arc;
 
 use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
+
+use ferriskey::application::server::AppServer;
 use ferriskey::domain::authentication::service::AuthenticationServiceImpl;
+
 use ferriskey::domain::credential::service::CredentialServiceImpl;
+
 use ferriskey::domain::crypto::service::CryptoServiceImpl;
+
 use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
-use ferriskey::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
-use ferriskey::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
-use ferriskey::infrastructure::repositories::user_repository::PostgresUserRepository;
 use ferriskey::{
     domain::{client::service::ClientServiceImpl, realm::service::RealmServiceImpl},
     env::{AppEnv, Env},
-    infrastructure::{
-        db::postgres::Postgres,
-        repositories::{
-            client_repository::PostgresClientRepository, realm_repository::PostgresRealmRepository,
-        },
-    },
 };
 
 fn init_logger(env: Arc<Env>) {
@@ -44,27 +40,21 @@ async fn main() -> Result<(), anyhow::Error> {
     let env = Arc::new(Env::parse());
     init_logger(Arc::clone(&env));
 
-    let postgres = Arc::new(Postgres::new(Arc::clone(&env)).await?);
+    let app_server = AppServer::new(Arc::clone(&env)).await?;
 
-    let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
-    let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
-    let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
-    let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
-    let hasher_repository = Argon2HasherRepository::new();
-
-    let realm_service = Arc::new(RealmServiceImpl::new(realm_repository));
+    let realm_service = Arc::new(RealmServiceImpl::new(app_server.realm_repository));
 
     let client_service = Arc::new(ClientServiceImpl::new(
-        client_repository,
+        app_server.client_repository,
         Arc::clone(&realm_service),
     ));
 
-    let user_service = Arc::new(UserServiceImpl::new(user_repository));
+    let user_service = Arc::new(UserServiceImpl::new(app_server.user_repository));
 
-    let crypto_service = Arc::new(CryptoServiceImpl::new(hasher_repository));
+    let crypto_service = Arc::new(CryptoServiceImpl::new(app_server.hasher_repository));
 
     let credential_service = Arc::new(CredentialServiceImpl::new(
-        credential_repository,
+        app_server.credential_repository,
         Arc::clone(&crypto_service),
     ));
 
