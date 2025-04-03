@@ -2,6 +2,7 @@ pub mod authentication;
 pub mod client;
 pub mod credential;
 pub mod crypto;
+pub mod jwt;
 pub mod mediator;
 pub mod realm;
 pub mod session;
