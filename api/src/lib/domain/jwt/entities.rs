@@ -7,8 +7,35 @@ pub struct JwtClaims {
     pub sub: String,
     pub exp: i64,
     pub iss: String,
-    pub aud: Option<String>,
-    pub realm: String,
+    pub aud: Vec<String>,
+    pub typ: String,
+    pub azp: String,
+}
+
+// #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+// pub struct Key {
+//     pub kid: String,
+//     pub kty: String,
+//     pub alg: String,
+//     #[serde(rename = "use")]
+//     pub _use: String,
+//     pub n: String,
+//     pub e: String,
+//     pub x5c: Vec<String>,
+//     pub x5t: String,
+// }
+
+impl JwtClaims {
+    pub fn new(sub: String, iss: String, aud: Vec<String>, typ: String, azp: String) -> Self {
+        Self {
+            sub,
+            exp: chrono::Utc::now().timestamp() + 3600,
+            iss,
+            aud,
+            typ,
+            azp,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord, ToSchema)]

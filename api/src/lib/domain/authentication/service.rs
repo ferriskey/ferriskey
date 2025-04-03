@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::domain::client::ports::ClientService;
 use crate::domain::credential::ports::CredentialService;
+use crate::domain::jwt::entities::JwtClaims;
+use crate::domain::jwt::ports::JwtService;
 use crate::domain::realm::ports::RealmService;
 use crate::domain::user::ports::UserService;
 
@@ -13,7 +15,7 @@ use tracing::info;
 
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AuthenticationServiceImpl<R, C, CR, U>
 where
     R: RealmService,
@@ -25,6 +27,7 @@ where
     pub client_service: Arc<C>,
     pub credential_service: Arc<CR>,
     pub user_service: Arc<U>,
+    pub jwt_service: Arc<dyn JwtService>
 }
 
 impl<R, C, CR, U> AuthenticationServiceImpl<R, C, CR, U>
@@ -39,12 +42,14 @@ where
         client_service: Arc<C>,
         credential_service: Arc<CR>,
         user_service: Arc<U>,
+        jwt_service: Arc<dyn JwtService>
     ) -> Self {
         Self {
             realm_service,
             client_service,
             credential_service,
             user_service,
+            jwt_service,
         }
     }
 }
@@ -67,6 +72,7 @@ where
     async fn using_password(
         &self,
         realm_id: Uuid,
+        client_id: String,
         username: String,
         password: String,
     ) -> Result<JwtToken, AuthenticationError> {
@@ -90,8 +96,22 @@ where
             return Err(AuthenticationError::Invalid);
         }
 
+        let claims = JwtClaims::new(
+            user.id.to_string(),
+            "http://localhost:3333/realms/master".to_string(),
+            vec![
+                "master-realm".to_string(),
+                "account".to_string(),
+            ],
+            "Bearer".to_string(),
+            client_id,
+        );
+        let jwt = self.jwt_service.generate_token(claims)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
         let jwt_token = JwtToken::new(
-            "secret".to_string(),
+            jwt.token,
             "Bearer".to_string(),
             "8xLOxBtZp8".to_string(),
             3600,
@@ -150,7 +170,7 @@ where
             GrantType::Password => {
                 let username = username.ok_or(AuthenticationError::Invalid)?;
                 let password = password.ok_or(AuthenticationError::Invalid)?;
-                self.using_password(realm.id, username, password).await
+                self.using_password(realm.id, client_id, username, password).await
             }
             GrantType::Credentials => {
                 self.using_credentials(realm.id, client_id, client_secret.unwrap())

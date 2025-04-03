@@ -10,6 +10,8 @@ use ferriskey::domain::credential::service::CredentialServiceImpl;
 
 use ferriskey::domain::crypto::service::CryptoServiceImpl;
 
+use ferriskey::domain::jwt::ports::JwtService;
+use ferriskey::domain::jwt::service::JwtServiceImpl;
 use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
@@ -58,11 +60,14 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&crypto_service),
     ));
 
+    let jwt_service: Arc<dyn JwtService> = Arc::new(JwtServiceImpl::new(app_server.jwt_repository));
+    
     let authentication_service = Arc::new(AuthenticationServiceImpl::new(
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
         Arc::clone(&credential_service),
         Arc::clone(&user_service),
+        Arc::clone(&jwt_service),
     ));
 
     let mediator_service = Arc::new(MediatorServiceImpl::new(

@@ -46,7 +46,7 @@ impl
         let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
         let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
         let hasher_repository = Argon2HasherRepository::new();
-        let jwt_repository = Box::new(StaticJwtRepository::new("", "")?);
+        let jwt_repository = Box::new(StaticJwtRepository::new(&env.private_key, &env.public_key)?);
 
         Ok(Self {
             postgres,

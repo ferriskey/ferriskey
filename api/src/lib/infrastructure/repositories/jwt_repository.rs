@@ -10,9 +10,9 @@ pub struct JwtKeyPair {
 }
 
 pub struct StaticJwtRepository {
-    keys: JwtKeyPair,
-    public_key: String,
-    private_key: String,
+    pub keys: JwtKeyPair,
+    pub private_key: String,
+    pub public_key: String,
 }
 
 impl StaticJwtRepository {
