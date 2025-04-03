@@ -70,12 +70,16 @@ where
             .get_password_credential(user_id)
             .await?;
 
+        let salt = credential.salt.ok_or(CredentialError::VerifyPasswordError(
+            "Salt is not found".to_string(),
+        ))?;
+
         let is_valid = self.crypto_service
             .verify_password(
                 &password,
                 &credential.secret_data,
                 &credential.credential_data,
-                &credential.salt.unwrap(),
+                &salt,
             )
             .await
             .map_err(|e| CredentialError::VerifyPasswordError(e.to_string()))?;
