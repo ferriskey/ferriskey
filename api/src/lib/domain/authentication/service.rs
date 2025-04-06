@@ -15,6 +15,8 @@ use tracing::info;
 
 use uuid::Uuid;
 
+pub mod auth_session;
+
 #[derive(Clone)]
 pub struct AuthenticationServiceImpl<R, C, CR, U>
 where

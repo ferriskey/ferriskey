@@ -5,6 +5,7 @@ use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
 use crate::domain::authentication::ports::AuthenticationService;
+use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::client::ports::ClientService;
 use crate::domain::credential::ports::CredentialService;
 use crate::domain::realm::ports::RealmService;
@@ -41,6 +42,7 @@ impl HttpServer {
         client_service: Arc<C>,
         credential_service: Arc<CR>,
         authentication_service: Arc<A>,
+        auth_session_service: Arc<dyn AuthSessionService>,
     ) -> Result<Self, anyhow::Error>
     where
         R: RealmService,
@@ -60,6 +62,7 @@ impl HttpServer {
             client_service,
             credential_service,
             authentication_service,
+            auth_session_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![
@@ -90,7 +93,8 @@ impl HttpServer {
             .layer(Extension(Arc::clone(&state.realm_service)))
             .layer(Extension(Arc::clone(&state.client_service)))
             .layer(Extension(Arc::clone(&state.authentication_service)))
-            .layer(Extension(Arc::clone(&state.credential_service)));
+            .layer(Extension(Arc::clone(&state.credential_service)))
+            .layer(Extension(Arc::clone(&state.auth_session_service)));
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
             .await

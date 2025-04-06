@@ -13,6 +13,8 @@ pub enum AuthSessionError {
     Expired,
     #[error("Session invalid")]
     Invalid,
+    #[error("Session creation error")]
+    CreateSessionError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

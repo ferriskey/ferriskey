@@ -12,7 +12,10 @@ use validator::Validate;
 
 use crate::{
     application::http::server::errors::ApiError,
-    domain::{client::ports::ClientService, realm::ports::RealmService},
+    domain::{
+        authentication::ports::auth_session::AuthSessionService, client::ports::ClientService,
+        realm::ports::RealmService,
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -42,6 +45,7 @@ pub async fn auth<R: RealmService, C: ClientService>(
     AuthRoute { realm_name }: AuthRoute,
     Extension(realm_service): Extension<Arc<R>>,
     Extension(client_service): Extension<Arc<C>>,
+    Extension(auth_session_service): Extension<Arc<dyn AuthSessionService>>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let realm = realm_service
@@ -56,7 +60,23 @@ pub async fn auth<R: RealmService, C: ClientService>(
 
     // @todo: verify redirect_uri
 
-    // Create session
+    // @todo: create session
+    let state = params.state.clone();
+    let redirect_uri = params.redirect_uri.clone();
+
+    let _ = auth_session_service
+        .create_session(
+            realm.id,
+            client.id,
+            redirect_uri,
+            params.response_type,
+            params.scope.unwrap_or_default(),
+            state,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     let login_url = format!(
         "http://localhost:5173/realms/{}/authentication/login?client_id={}&redirect_uri={}&state={}",
