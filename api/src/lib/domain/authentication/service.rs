@@ -10,6 +10,8 @@ use crate::domain::user::ports::UserService;
 use super::entities::error::AuthenticationError;
 use super::entities::model::{GrantType, JwtToken};
 use super::ports::authentication::AuthenticationService;
+use super::ports::AuthenticationService;
+use super::ports::auth_session::AuthSessionService;
 
 use tracing::info;
 
@@ -18,7 +20,7 @@ use uuid::Uuid;
 pub mod auth_session;
 
 #[derive(Clone)]
-pub struct AuthenticationServiceImpl<R, C, CR, U>
+pub struct AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
@@ -30,14 +32,16 @@ where
     pub credential_service: Arc<CR>,
     pub user_service: Arc<U>,
     pub jwt_service: Arc<dyn JwtService>,
+    pub auth_session_service: Arc<AS>,
 }
 
-impl<R, C, CR, U> AuthenticationServiceImpl<R, C, CR, U>
+impl<R, C, CR, U, AS> AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     U: UserService,
+    AS: AuthSessionService,
 {
     pub fn new(
         realm_service: Arc<R>,
@@ -45,6 +49,7 @@ where
         credential_service: Arc<CR>,
         user_service: Arc<U>,
         jwt_service: Arc<dyn JwtService>,
+        auth_session_service: Arc<AS>,
     ) -> Self {
         Self {
             realm_service,
@@ -52,11 +57,12 @@ where
             credential_service,
             user_service,
             jwt_service,
+            auth_session_service,
         }
     }
 }
 
-impl<R, C, CR, U> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U>
+impl<R, C, CR, U, AS> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
@@ -178,6 +184,38 @@ where
                 self.using_credentials(realm.id, client_id, client_secret.unwrap())
                     .await
             }
+        }
+    }
+
+    async fn using_session_code(
+        &self,
+        realm_id: Uuid,
+        client_id: String,
+        session_code: String,
+        username: String,
+        password: String,
+    ) -> Result<JwtToken, AuthenticationError> {
+        if session_code.is_empty() {
+            return Err(AuthenticationError::Invalid);
+        }
+
+        let user = self
+            .user_service
+            .get_by_username(username, realm_id)
+            .await?;
+
+        let has_valid_password = self
+            .credential_service
+            .verify_password(user.id, password)
+            .await?;
+
+        if has_valid_password {
+            let session = self
+                .auth_session_service
+                .get_by_session_code(session_code)
+                .await?;
+        } else {
+            Err(AuthenticationError::Invalid)
         }
     }
 }

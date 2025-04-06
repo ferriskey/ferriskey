@@ -69,6 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&credential_service),
         Arc::clone(&user_service),
         Arc::clone(&jwt_service),
+        Arc::clone(&auth_session_service),
     ));
 
     let auth_session_service = Arc::new(AuthSessionServiceImpl::new(

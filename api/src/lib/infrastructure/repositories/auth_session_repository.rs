@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tracing::error;
+use uuid::Uuid;
 
 use crate::{
     domain::authentication::{
@@ -46,5 +47,24 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         })?;
 
         Ok(session.clone())
+    }
+
+    async fn get_by_session_code(
+        &self,
+        session_code: Uuid,
+    ) -> Result<AuthSession, AuthSessionError> {
+        let session = sqlx::query_as!(
+            AuthSession,
+            "SELECT * FROM auth_sessions WHERE id = $1 LIMIT 1",
+            session_code
+        )
+        .fetch_one(&*self.postgres.get_pool())
+        .await
+        .map_err(|e| {
+            error!("Error getting session: {:?}", e);
+            AuthSessionError::NotFound
+        })?;
+
+        Ok(session)
     }
 }

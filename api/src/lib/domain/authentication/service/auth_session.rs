@@ -43,4 +43,11 @@ impl AuthSessionService for AuthSessionServiceImpl {
         self.repository.create(&session).await?;
         Ok(session)
     }
+
+    async fn get_by_session_code(
+        &self,
+        session_code: Uuid,
+    ) -> Result<AuthSession, AuthSessionError> {
+        self.repository.get_by_session_code(session_code).await
+    }
 }

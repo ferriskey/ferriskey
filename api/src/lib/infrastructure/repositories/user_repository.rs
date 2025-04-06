@@ -49,9 +49,7 @@ impl UserRepository for PostgresUserRepository {
     async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
         let user = sqlx::query_as!(
             User,
-            r#"
-            SELECT * FROM users WHERE username = $1 AND realm_id = $2
-            "#,
+            "SELECT * FROM users WHERE username = $1 AND realm_id = $2",
             username,
             realm_id
         )
