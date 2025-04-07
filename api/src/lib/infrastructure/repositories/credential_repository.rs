@@ -9,7 +9,7 @@ use crate::{
             },
             ports::credential_repository::CredentialRepository,
         },
-        crypto::ports::HashResult,
+        crypto::entities::hash_result::HashResult,
     },
     infrastructure::db::postgres::Postgres,
 };

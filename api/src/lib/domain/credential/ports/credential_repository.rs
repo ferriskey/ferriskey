@@ -1,6 +1,6 @@
 use crate::domain::credential::entities::error::CredentialError;
 use crate::domain::credential::entities::model::Credential;
-use crate::domain::crypto::ports::HashResult;
+use crate::domain::crypto::entities::hash_result::HashResult;
 use uuid::Uuid;
 
 pub trait CredentialRepository: Clone + Send + Sync + 'static {

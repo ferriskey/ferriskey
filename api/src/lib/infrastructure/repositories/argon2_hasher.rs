@@ -4,8 +4,8 @@ use argon2::{
 };
 
 use crate::domain::{
-    credential::entities::model::CredentialData,
-    crypto::ports::{HashResult, HasherRepository},
+    credential::entities::model::CredentialData, crypto::entities::hash_result::HashResult,
+    crypto::ports::hasher_repository::HasherRepository,
 };
 
 #[derive(Debug, Clone)]

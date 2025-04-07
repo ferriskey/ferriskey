@@ -1,5 +1,7 @@
-use super::ports::{CryptoService, HashResult, HasherRepository};
-
+use crate::domain::crypto::entities::hash_result::HashResult;
+use crate::domain::crypto::ports::{
+    crypto_service::CryptoService, hasher_repository::HasherRepository,
+};
 #[derive(Debug, Clone)]
 pub struct CryptoServiceImpl<H>
 where
