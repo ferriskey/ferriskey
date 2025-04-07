@@ -9,7 +9,7 @@ use crate::domain::user::ports::UserService;
 
 use super::entities::error::AuthenticationError;
 use super::entities::model::{GrantType, JwtToken};
-use super::ports::AuthenticationService;
+use super::ports::authentication::AuthenticationService;
 
 use tracing::info;
 

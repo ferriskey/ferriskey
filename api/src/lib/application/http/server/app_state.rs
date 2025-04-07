@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::domain::{
-    authentication::ports::{AuthenticationService, auth_session::AuthSessionService},
+    authentication::ports::{
+        auth_session::AuthSessionService, authentication::AuthenticationService,
+    },
     client::ports::ClientService,
     credential::ports::CredentialService,
     realm::ports::RealmService,

@@ -8,7 +8,7 @@ use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::errors::{ApiError, ValidateJson};
 use crate::application::http::server::handlers::Response;
 use crate::domain::authentication::entities::model::JwtToken;
-use crate::domain::authentication::ports::AuthenticationService;
+use crate::domain::authentication::ports::authentication::AuthenticationService;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/protocol/openid-connect/token")]
