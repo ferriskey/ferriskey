@@ -6,7 +6,7 @@ use crate::application::http::realm::handlers::update_realm::{__path_update_real
 use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
 };
-use crate::domain::realm::ports::RealmService;
+use crate::domain::realm::ports::realm_service::RealmService;
 use axum::Router;
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;

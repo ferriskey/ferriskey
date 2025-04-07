@@ -6,7 +6,7 @@ use crate::domain::{
     },
     client::ports::client_service::ClientService,
     credential::ports::credential_service::CredentialService,
-    realm::ports::RealmService,
+    realm::ports::realm_service::RealmService,
 };
 
 #[derive(Clone)]

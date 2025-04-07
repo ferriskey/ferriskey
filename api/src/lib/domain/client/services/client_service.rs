@@ -4,7 +4,7 @@ use crate::application::http::client::validators::CreateClientValidator;
 use crate::domain::client::entities::{error::ClientError, model::Client};
 use crate::domain::client::ports::client_repository::ClientRepository;
 use crate::domain::client::ports::client_service::ClientService;
-use crate::domain::realm::ports::RealmService;
+use crate::domain::realm::ports::realm_service::RealmService;
 
 #[derive(Debug, Clone)]
 pub struct ClientServiceImpl<C, R>

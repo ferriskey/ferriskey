@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::application::http::realm::validators::UpdateRealmValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
-use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
+use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
 use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;

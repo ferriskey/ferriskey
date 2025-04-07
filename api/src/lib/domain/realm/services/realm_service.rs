@@ -1,8 +1,7 @@
-use super::{
-    entities::{error::RealmError, realm::Realm},
-    ports::{RealmRepository, RealmService},
+use crate::domain::realm::entities::{
+    error::RealmError, realm::Realm, realm_setting::RealmSetting,
 };
-use crate::domain::realm::entities::realm_setting::RealmSetting;
+use crate::domain::realm::ports::{realm_repository::RealmRepository, realm_service::RealmService};
 use tracing::error;
 use uuid::Uuid;
 
@@ -64,41 +63,6 @@ where
             .await?
             .ok_or(RealmError::NotFound)
     }
-
-    // async fn create_realm_master(&self) -> Result<Realm, RealmError> {
-    //     info!("Introspecting realm master");
-    //     let realm = self.get_by_name("master".to_string()).await;
-
-    //     if let Ok(realm) = realm {
-    //         info!("Realm master already exists");
-    //         return Ok(realm);
-    //     }
-
-    //     info!("Creating realm master");
-    //     let realm = self.create_realm("master".to_string()).await?;
-
-    //     info!("Creating client security-admin-console ...");
-
-    //     // create client security-admin-console
-    //     let schema = CreateClientValidator {
-    //         client_id: "security-admin-console".to_string(),
-    //         enabled: true,
-    //         name: "security-admin-console".to_string(),
-    //         protocol: "openid-connect".to_string(),
-    //         public_client: false,
-    //         service_account_enabled: false,
-    //         client_type: "confidential".to_string(),
-    //     };
-    //     let _ = self
-    //         .client_service
-    //         .create_client(schema, realm.name.clone())
-    //         .await
-    //         .map_err(|_| RealmError::InternalServerError)?;
-
-    //     info!("Client security-admin-console created");
-
-    //     Ok(realm)
-    // }
 
     async fn update_realm_setting(
         &self,

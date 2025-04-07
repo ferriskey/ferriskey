@@ -7,7 +7,7 @@ use tracing::info;
 
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
-use crate::domain::realm::ports::RealmService;
+use crate::domain::realm::ports::realm_service::RealmService;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}")]

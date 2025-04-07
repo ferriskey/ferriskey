@@ -8,7 +8,7 @@ use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 use crate::domain::client::ports::client_service::ClientService;
 use crate::domain::credential::ports::credential_service::CredentialService;
-use crate::domain::realm::ports::RealmService;
+use crate::domain::realm::ports::realm_service::RealmService;
 use anyhow::Context;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method};

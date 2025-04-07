@@ -4,7 +4,7 @@ use crate::application::http::realm::validators::UpdateRealmSettingValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::domain::realm::entities::realm_setting::RealmSetting;
-use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
+use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
 use axum::Extension;
 use axum_macros::TypedPath;
 use serde::Deserialize;

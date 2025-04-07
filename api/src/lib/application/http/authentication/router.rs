@@ -5,7 +5,7 @@ use crate::{
     application::http::authentication::handlers::token::exchange_token,
     domain::{
         authentication::ports::authentication::AuthenticationService,
-        client::ports::client_service::ClientService, realm::ports::RealmService,
+        client::ports::client_service::ClientService, realm::ports::realm_service::RealmService,
     },
 };
 

@@ -18,7 +18,8 @@ use ferriskey::domain::mediator::services::mediator_service::MediatorServiceImpl
 use ferriskey::domain::user::service::UserServiceImpl;
 use ferriskey::{
     domain::{
-        client::services::client_service::ClientServiceImpl, realm::service::RealmServiceImpl,
+        client::services::client_service::ClientServiceImpl,
+        realm::services::realm_service::RealmServiceImpl,
     },
     env::{AppEnv, Env},
 };

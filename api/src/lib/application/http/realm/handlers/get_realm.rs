@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
-use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
+use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}")]

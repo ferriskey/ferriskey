@@ -2,7 +2,7 @@ use crate::domain::realm::entities::realm_setting::RealmSetting;
 use crate::{
     domain::realm::{
         entities::{error::RealmError, realm::Realm},
-        ports::RealmRepository,
+        ports::realm_repository::RealmRepository,
     },
     infrastructure::db::postgres::Postgres,
 };

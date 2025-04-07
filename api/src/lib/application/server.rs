@@ -6,7 +6,7 @@ use crate::{
         client::ports::client_repository::ClientRepository,
         credential::ports::credential_repository::CredentialRepository,
         crypto::ports::hasher_repository::HasherRepository,
-        jwt::ports::jwt_repository::JwtRepository, realm::ports::RealmRepository,
+        jwt::ports::jwt_repository::JwtRepository, realm::ports::realm_repository::RealmRepository,
         user::ports::UserRepository,
     },
     env::Env,
