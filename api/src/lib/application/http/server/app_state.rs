@@ -5,7 +5,7 @@ use crate::domain::{
         auth_session::AuthSessionService, authentication::AuthenticationService,
     },
     client::ports::client_service::ClientService,
-    credential::ports::CredentialService,
+    credential::ports::credential_service::CredentialService,
     realm::ports::RealmService,
 };
 

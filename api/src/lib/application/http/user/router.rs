@@ -2,7 +2,7 @@ use axum::Router;
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
-use crate::domain::credential::ports::CredentialService;
+use crate::domain::credential::ports::credential_service::CredentialService;
 
 use super::handlers::reset_password::{__path_reset_password, reset_password};
 

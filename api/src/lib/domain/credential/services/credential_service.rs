@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
+use crate::domain::credential::entities::error::CredentialError;
+use crate::domain::credential::entities::model::Credential;
+use crate::domain::credential::ports::credential_repository::CredentialRepository;
+use crate::domain::credential::ports::credential_service::CredentialService;
 use crate::domain::crypto::ports::CryptoService;
-
-use super::{
-    entities::{error::CredentialError, model::Credential},
-    ports::{CredentialRepository, CredentialService},
-};
 
 #[derive(Debug, Clone)]
 pub struct CredentialServiceImpl<C, CS>

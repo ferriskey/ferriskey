@@ -6,7 +6,7 @@ use crate::{
     application::http::client::validators::CreateClientValidator,
     domain::{
         client::ports::client_service::ClientService,
-        credential::ports::CredentialService,
+        credential::ports::credential_service::CredentialService,
         realm::ports::RealmService,
         user::ports::{CreateUserDto, UserService},
     },

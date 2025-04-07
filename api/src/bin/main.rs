@@ -8,8 +8,7 @@ use ferriskey::domain::authentication::ports::auth_session::AuthSessionService;
 use ferriskey::domain::authentication::service::auth_session::AuthSessionServiceImpl;
 use ferriskey::domain::authentication::service::authentication::AuthenticationServiceImpl;
 
-use ferriskey::domain::credential::service::CredentialServiceImpl;
-
+use ferriskey::domain::credential::services::credential_service::CredentialServiceImpl;
 use ferriskey::domain::crypto::service::CryptoServiceImpl;
 
 use ferriskey::domain::jwt::ports::JwtService;

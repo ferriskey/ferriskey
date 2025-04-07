@@ -7,7 +7,7 @@ use crate::{
                 error::CredentialError,
                 model::{Credential, CredentialData},
             },
-            ports::CredentialRepository,
+            ports::credential_repository::CredentialRepository,
         },
         crypto::ports::HashResult,
     },

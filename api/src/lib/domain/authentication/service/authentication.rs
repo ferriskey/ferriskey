@@ -9,7 +9,7 @@ use crate::domain::{
         ports::{auth_session::AuthSessionService, authentication::AuthenticationService},
     },
     client::ports::client_service::ClientService,
-    credential::ports::CredentialService,
+    credential::ports::credential_service::CredentialService,
     jwt::{entities::JwtClaims, ports::JwtService},
     realm::ports::RealmService,
     user::ports::UserService,
