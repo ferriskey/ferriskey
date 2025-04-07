@@ -5,8 +5,8 @@ use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::application::http::server::errors::ApiError;
-use crate::application::http::server::handlers::Response;
+use crate::application::http::server::api_entities::api_error::ApiError;
+use crate::application::http::server::api_entities::response::Response;
 use crate::domain::realm::ports::RealmService;
 
 #[derive(TypedPath, Deserialize)]

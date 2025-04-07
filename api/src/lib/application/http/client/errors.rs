@@ -1,5 +1,6 @@
 use crate::{
-    application::http::server::errors::ApiError, domain::client::entities::error::ClientError,
+    application::http::server::api_entities::api_error::ApiError,
+    domain::client::entities::error::ClientError,
 };
 
 impl From<ClientError> for ApiError {

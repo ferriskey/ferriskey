@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::application::http::authentication::validators::TokenRequestValidator;
-use crate::application::http::server::errors::{ApiError, ValidateJson};
-use crate::application::http::server::handlers::Response;
+use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::response::Response;
 use crate::domain::authentication::entities::model::JwtToken;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 

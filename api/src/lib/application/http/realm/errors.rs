@@ -1,4 +1,4 @@
-use crate::application::http::server::errors::ApiError;
+use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::domain::realm::entities::error::RealmError;
 
 impl From<RealmError> for ApiError {

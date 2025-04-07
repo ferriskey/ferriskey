@@ -8,8 +8,8 @@ use crate::{
     application::http::{
         client::validators::CreateClientValidator,
         server::{
-            errors::{ApiError, ValidateJson},
-            handlers::Response,
+            api_entities::api_error::{ApiError, ValidateJson},
+            api_entities::response::Response,
         },
     },
     domain::client::{entities::model::Client, ports::ClientService},

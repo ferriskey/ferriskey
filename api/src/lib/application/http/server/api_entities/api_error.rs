@@ -8,6 +8,11 @@ use axum::{
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use validator::Validate;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ApiErrorData {
+    pub message: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationError {
     pub message: String,

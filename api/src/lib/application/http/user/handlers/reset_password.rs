@@ -6,16 +6,10 @@ use serde::Deserialize;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    application::http::{
-        server::{
-            errors::{ApiError, ValidateJson},
-            handlers::ApiSuccess,
-        },
-        user::validators::ResetPasswordValidator,
-    },
-    domain::credential::ports::CredentialService,
-};
+use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_success::ApiSuccess;
+use crate::application::http::user::validators::ResetPasswordValidator;
+use crate::domain::credential::ports::CredentialService;
 
 #[derive(Deserialize, TypedPath)]
 #[typed_path("/realms/{realm_name}/users/{user_id}/reset-password")]

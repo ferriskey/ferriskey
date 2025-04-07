@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::application::http::realm::validators::UpdateRealmSettingValidator;
-use crate::application::http::server::errors::{ApiError, ValidateJson};
-use crate::application::http::server::handlers::Response;
+use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::response::Response;
 use crate::domain::realm::entities::realm_setting::RealmSetting;
 use crate::domain::realm::{entities::realm::Realm, ports::RealmService};
 use axum::Extension;
