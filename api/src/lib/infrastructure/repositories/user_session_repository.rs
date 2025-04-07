@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     domain::session::{
         entities::{error::SessionError, model::UserSession},
-        ports::UserSessionRepository,
+        ports::user_session_repository::UserSessionRepository,
     },
     infrastructure::db::postgres::Postgres,
 };

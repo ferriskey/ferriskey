@@ -1,6 +1,7 @@
-use super::{
+use crate::domain::session::{
     entities::{error::SessionError, model::UserSession},
-    ports::{UserSessionRepository, UserSessionService},
+    ports::user_session_repository::UserSessionRepository,
+    ports::user_session_service::UserSessionService,
 };
 
 #[derive(Debug, Clone)]
