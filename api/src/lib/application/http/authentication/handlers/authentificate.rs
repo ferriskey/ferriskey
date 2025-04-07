@@ -68,7 +68,7 @@ pub async fn authenticate<A: AuthenticationService>(
         )
         .await?;
 
-    let current_state = auth_session.state.ok_or(AuthenticationError::Invalid)?;
+    let current_state = auth_session.state.ok_or(AuthenticationError::InvalidState)?;
 
     let login_url = format!(
         "{}?code={}&state={}",

@@ -199,25 +199,25 @@ where
             .realm_service
             .get_by_name(realm_name)
             .await
-            .map_err(|_| AuthenticationError::NotFound)?;
+            .map_err(|_| AuthenticationError::InvalidRealm)?;
 
         let _ = self
             .client_service
             .get_by_client_id(client_id.to_string(), realm.id)
             .await
-            .map_err(|_| AuthenticationError::NotFound);
+            .map_err(|_| AuthenticationError::InvalidClient);
 
         let user = self
             .user_service
             .get_by_username(username, realm.id)
             .await
-            .map_err(|_| AuthenticationError::NotFound)?;
+            .map_err(|_| AuthenticationError::InvalidUser)?;
 
         let has_valid_password = self
             .credential_service
             .verify_password(user.id, password)
             .await
-            .map_err(|_| AuthenticationError::Invalid);
+            .map_err(|_| AuthenticationError::InvalidPassword);
 
         if has_valid_password? {
             self.auth_session_service
@@ -227,7 +227,7 @@ where
 
             Ok(generate_random_string())
         } else {
-            Err(AuthenticationError::Invalid)
+            Err(AuthenticationError::InvalidPassword)
         }
     }
 }
