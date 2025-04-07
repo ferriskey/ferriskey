@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-use super::ports::MediatorService;
+use crate::domain::mediator::ports::mediator_service::MediatorService;
 
 #[derive(Debug, Clone)]
 pub struct MediatorServiceImpl<C, R, U, CS>

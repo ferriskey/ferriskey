@@ -13,8 +13,8 @@ use ferriskey::domain::crypto::services::crypto_service::CryptoServiceImpl;
 
 use ferriskey::domain::jwt::ports::jwt_service::JwtService;
 use ferriskey::domain::jwt::services::jwt_service::JwtServiceImpl;
-use ferriskey::domain::mediator::ports::MediatorService;
-use ferriskey::domain::mediator::service::MediatorServiceImpl;
+use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
+use ferriskey::domain::mediator::services::mediator_service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
 use ferriskey::{
     domain::{
