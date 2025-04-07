@@ -104,6 +104,13 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InternalServerError => {
                 Self::InternalServerError("Internal server error".to_string())
             }
+            AuthenticationError::InvalidClient => Self::NotFound("Client not found".to_string()),
+            AuthenticationError::InvalidPassword => {
+                Self::Unauthorized("Invalid password".to_string())
+            }
+            AuthenticationError::InvalidRealm => Self::NotFound("Realm not found".to_string()),
+            AuthenticationError::InvalidState => Self::NotFound("Invalid state".to_string()),
+            AuthenticationError::InvalidUser => Self::NotFound("User not found".to_string()),
         }
     }
 }

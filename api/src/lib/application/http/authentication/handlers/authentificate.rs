@@ -11,8 +11,8 @@ use validator::Validate;
 use crate::application::http::server::errors::{ApiError, ValidateJson};
 use crate::domain::authentication::entities::error::AuthenticationError;
 use crate::domain::authentication::entities::model::JwtToken;
-use crate::domain::authentication::ports::AuthenticationService;
 use crate::domain::authentication::ports::auth_session::AuthSessionService;
+use crate::domain::authentication::ports::authentication::AuthenticationService;
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
@@ -68,7 +68,9 @@ pub async fn authenticate<A: AuthenticationService>(
         )
         .await?;
 
-    let current_state = auth_session.state.ok_or(AuthenticationError::InvalidState)?;
+    let current_state = auth_session
+        .state
+        .ok_or(AuthenticationError::InvalidState)?;
 
     let login_url = format!(
         "{}?code={}&state={}",

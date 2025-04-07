@@ -10,9 +10,8 @@ use crate::domain::utils::generate_random_string;
 
 use super::entities::error::AuthenticationError;
 use super::entities::model::{GrantType, JwtToken};
-use super::ports::authentication::AuthenticationService;
-use super::ports::AuthenticationService;
 use super::ports::auth_session::AuthSessionService;
+use super::ports::authentication::AuthenticationService;
 
 use tracing::info;
 
