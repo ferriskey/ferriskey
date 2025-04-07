@@ -39,6 +39,7 @@ impl AuthSessionService for AuthSessionServiceImpl {
             state,
             nonce,
             user_id,
+            false,
         );
         self.repository.create(&session).await?;
         Ok(session)

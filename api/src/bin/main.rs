@@ -4,6 +4,7 @@ use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 
 use ferriskey::application::server::AppServer;
+use ferriskey::domain::authentication::ports::auth_session::AuthSessionService;
 use ferriskey::domain::authentication::service::AuthenticationServiceImpl;
 use ferriskey::domain::authentication::service::auth_session::AuthSessionServiceImpl;
 
@@ -62,6 +63,9 @@ async fn main() -> Result<(), anyhow::Error> {
     ));
 
     let jwt_service: Arc<dyn JwtService> = Arc::new(JwtServiceImpl::new(app_server.jwt_repository));
+    let auth_session_service: Arc<dyn AuthSessionService> = Arc::new(AuthSessionServiceImpl::new(
+        app_server.auth_session_repository,
+    ));
 
     let authentication_service = Arc::new(AuthenticationServiceImpl::new(
         Arc::clone(&realm_service),
@@ -70,10 +74,6 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&user_service),
         Arc::clone(&jwt_service),
         Arc::clone(&auth_session_service),
-    ));
-
-    let auth_session_service = Arc::new(AuthSessionServiceImpl::new(
-        app_server.auth_session_repository,
     ));
 
     let mediator_service = Arc::new(MediatorServiceImpl::new(

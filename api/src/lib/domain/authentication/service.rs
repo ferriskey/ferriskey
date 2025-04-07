@@ -6,6 +6,7 @@ use crate::domain::jwt::entities::JwtClaims;
 use crate::domain::jwt::ports::JwtService;
 use crate::domain::realm::ports::RealmService;
 use crate::domain::user::ports::UserService;
+use crate::domain::utils::generate_random_string;
 
 use super::entities::error::AuthenticationError;
 use super::entities::model::{GrantType, JwtToken};
@@ -20,7 +21,7 @@ use uuid::Uuid;
 pub mod auth_session;
 
 #[derive(Clone)]
-pub struct AuthenticationServiceImpl<R, C, CR, U, AS>
+pub struct AuthenticationServiceImpl<R, C, CR, U>
 where
     R: RealmService,
     C: ClientService,
@@ -32,16 +33,15 @@ where
     pub credential_service: Arc<CR>,
     pub user_service: Arc<U>,
     pub jwt_service: Arc<dyn JwtService>,
-    pub auth_session_service: Arc<AS>,
+    pub auth_session_service: Arc<dyn AuthSessionService>,
 }
 
-impl<R, C, CR, U, AS> AuthenticationServiceImpl<R, C, CR, U, AS>
+impl<R, C, CR, U> AuthenticationServiceImpl<R, C, CR, U>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     U: UserService,
-    AS: AuthSessionService,
 {
     pub fn new(
         realm_service: Arc<R>,
@@ -49,7 +49,7 @@ where
         credential_service: Arc<CR>,
         user_service: Arc<U>,
         jwt_service: Arc<dyn JwtService>,
-        auth_session_service: Arc<AS>,
+        auth_session_service: Arc<dyn AuthSessionService>,
     ) -> Self {
         Self {
             realm_service,
@@ -62,7 +62,7 @@ where
     }
 }
 
-impl<R, C, CR, U, AS> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U, AS>
+impl<R, C, CR, U> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U>
 where
     R: RealmService,
     C: ClientService,
@@ -189,31 +189,37 @@ where
 
     async fn using_session_code(
         &self,
-        realm_id: Uuid,
-        client_id: String,
-        session_code: String,
+        realm_name: String,
+        client_id: Uuid,
+        session_code: Uuid,
         username: String,
         password: String,
-    ) -> Result<JwtToken, AuthenticationError> {
-        if session_code.is_empty() {
-            return Err(AuthenticationError::Invalid);
-        }
+    ) -> Result<String, AuthenticationError> {
+        let realm = self
+            .realm_service
+            .get_by_name(realm_name)
+            .await
+            .map_err(|_| AuthenticationError::NotFound)?;
 
         let user = self
             .user_service
-            .get_by_username(username, realm_id)
-            .await?;
+            .get_by_username(username, realm.id)
+            .await
+            .map_err(|_| AuthenticationError::NotFound)?;
 
         let has_valid_password = self
             .credential_service
             .verify_password(user.id, password)
-            .await?;
+            .await
+            .map_err(|_| AuthenticationError::Invalid);
 
-        if has_valid_password {
-            let session = self
-                .auth_session_service
+        if has_valid_password? {
+            self.auth_session_service
                 .get_by_session_code(session_code)
-                .await?;
+                .await
+                .map_err(|_| AuthenticationError::NotFound)?;
+
+            Ok(generate_random_string())
         } else {
             Err(AuthenticationError::Invalid)
         }

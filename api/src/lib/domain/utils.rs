@@ -1,3 +1,5 @@
+use argon2::password_hash::rand_core::{OsRng, RngCore};
+use base64_url::encode;
 use chrono::{DateTime, Utc};
 use uuid::{NoContext, Timestamp};
 
@@ -8,4 +10,10 @@ pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
     let timestamp = Timestamp::from_unix(NoContext, seconds, 0);
 
     (now, timestamp)
+}
+
+pub fn generate_random_string() -> String {
+    let mut bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut bytes);
+    encode(&bytes)
 }

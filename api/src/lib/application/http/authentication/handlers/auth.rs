@@ -60,8 +60,6 @@ pub async fn auth<R: RealmService, C: ClientService>(
 
     // @todo: verify redirect_uri
 
-    
-
     let state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
 
