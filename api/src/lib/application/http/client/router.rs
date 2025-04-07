@@ -3,7 +3,7 @@ use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
 use super::handlers::create_client::{__path_create_client, create_client};
-use crate::domain::client::ports::ClientService;
+use crate::domain::client::ports::client_service::ClientService;
 
 #[derive(OpenApi)]
 #[openapi(

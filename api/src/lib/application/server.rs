@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::{
     domain::{
         authentication::ports::auth_session::AuthSessionRepository,
-        client::ports::ClientRepository, credential::ports::CredentialRepository,
-        crypto::ports::HasherRepository, jwt::ports::JwtRepository, realm::ports::RealmRepository,
-        user::ports::UserRepository,
+        client::ports::client_repository::ClientRepository,
+        credential::ports::CredentialRepository, crypto::ports::HasherRepository,
+        jwt::ports::JwtRepository, realm::ports::RealmRepository, user::ports::UserRepository,
     },
     env::Env,
     infrastructure::{

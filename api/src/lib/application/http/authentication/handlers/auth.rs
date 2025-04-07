@@ -13,8 +13,8 @@ use validator::Validate;
 use crate::{
     application::http::server::api_entities::api_error::ApiError,
     domain::{
-        authentication::ports::auth_session::AuthSessionService, client::ports::ClientService,
-        realm::ports::RealmService,
+        authentication::ports::auth_session::AuthSessionService,
+        client::ports::client_service::ClientService, realm::ports::RealmService,
     },
 };
 

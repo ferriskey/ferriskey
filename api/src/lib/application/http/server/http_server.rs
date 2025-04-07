@@ -6,7 +6,7 @@ use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
 use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
-use crate::domain::client::ports::ClientService;
+use crate::domain::client::ports::client_service::ClientService;
 use crate::domain::credential::ports::CredentialService;
 use crate::domain::realm::ports::RealmService;
 use anyhow::Context;

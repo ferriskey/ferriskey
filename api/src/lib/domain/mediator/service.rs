@@ -5,7 +5,7 @@ use tracing::info;
 use crate::{
     application::http::client::validators::CreateClientValidator,
     domain::{
-        client::ports::ClientService,
+        client::ports::client_service::ClientService,
         credential::ports::CredentialService,
         realm::ports::RealmService,
         user::ports::{CreateUserDto, UserService},

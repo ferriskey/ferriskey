@@ -4,8 +4,8 @@ use axum_extra::routing::RouterExt;
 use crate::{
     application::http::authentication::handlers::token::exchange_token,
     domain::{
-        authentication::ports::authentication::AuthenticationService, client::ports::ClientService,
-        realm::ports::RealmService,
+        authentication::ports::authentication::AuthenticationService,
+        client::ports::client_service::ClientService, realm::ports::RealmService,
     },
 };
 

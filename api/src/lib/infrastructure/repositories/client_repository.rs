@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     domain::client::{
         entities::{error::ClientError, model::Client},
-        ports::ClientRepository,
+        ports::client_repository::ClientRepository,
     },
     infrastructure::db::postgres::Postgres,
 };

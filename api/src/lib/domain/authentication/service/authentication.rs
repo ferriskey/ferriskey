@@ -8,7 +8,7 @@ use crate::domain::{
         entities::{error::AuthenticationError, grant_type::GrantType, jwt_token::JwtToken},
         ports::{auth_session::AuthSessionService, authentication::AuthenticationService},
     },
-    client::ports::ClientService,
+    client::ports::client_service::ClientService,
     credential::ports::CredentialService,
     jwt::{entities::JwtClaims, ports::JwtService},
     realm::ports::RealmService,

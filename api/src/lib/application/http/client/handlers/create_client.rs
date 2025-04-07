@@ -12,7 +12,7 @@ use crate::{
             api_entities::response::Response,
         },
     },
-    domain::client::{entities::model::Client, ports::ClientService},
+    domain::client::{entities::model::Client, ports::client_service::ClientService},
 };
 
 #[derive(TypedPath, Deserialize)]
