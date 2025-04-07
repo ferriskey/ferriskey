@@ -201,6 +201,12 @@ where
             .await
             .map_err(|_| AuthenticationError::NotFound)?;
 
+        let _ = self
+            .client_service
+            .get_by_client_id(client_id.to_string(), realm.id)
+            .await
+            .map_err(|_| AuthenticationError::NotFound);
+
         let user = self
             .user_service
             .get_by_username(username, realm.id)
