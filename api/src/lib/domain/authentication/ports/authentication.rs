@@ -1,8 +1,7 @@
 use uuid::Uuid;
 
 use crate::domain::authentication::entities::{
-    error::AuthenticationError,
-    model::{GrantType, JwtToken},
+    error::AuthenticationError, grant_type::GrantType, jwt_token::JwtToken,
 };
 
 pub trait AuthenticationService: Clone + Send + Sync + 'static {

@@ -7,7 +7,7 @@ use tracing::info;
 use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
-use crate::domain::authentication::entities::model::JwtToken;
+use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 
 #[derive(TypedPath, Deserialize)]

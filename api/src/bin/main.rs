@@ -5,8 +5,8 @@ use ferriskey::application::http::server::http_server::{HttpServer, HttpServerCo
 
 use ferriskey::application::server::AppServer;
 use ferriskey::domain::authentication::ports::auth_session::AuthSessionService;
-use ferriskey::domain::authentication::service::AuthenticationServiceImpl;
 use ferriskey::domain::authentication::service::auth_session::AuthSessionServiceImpl;
+use ferriskey::domain::authentication::service::authentication::AuthenticationServiceImpl;
 
 use ferriskey::domain::credential::service::CredentialServiceImpl;
 

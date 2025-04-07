@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
-use crate::domain::authentication::entities::model::GrantType;
+use crate::domain::authentication::entities::grant_type::GrantType;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct TokenRequestValidator {
