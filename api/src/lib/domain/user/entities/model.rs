@@ -4,7 +4,7 @@ use sqlx::prelude::FromRow;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::user::ports::CreateUserDto;
+use crate::domain::user::dtos::user_dto::CreateUserDto;
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,

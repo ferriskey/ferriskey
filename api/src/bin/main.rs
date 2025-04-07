@@ -15,7 +15,7 @@ use ferriskey::domain::jwt::ports::jwt_service::JwtService;
 use ferriskey::domain::jwt::services::jwt_service::JwtServiceImpl;
 use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::domain::mediator::services::mediator_service::MediatorServiceImpl;
-use ferriskey::domain::user::service::UserServiceImpl;
+use ferriskey::domain::user::services::user_service::UserServiceImpl;
 use ferriskey::{
     domain::{
         client::services::client_service::ClientServiceImpl,

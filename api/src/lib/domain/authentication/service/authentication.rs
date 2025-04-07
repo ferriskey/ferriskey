@@ -12,7 +12,7 @@ use crate::domain::{
     credential::ports::credential_service::CredentialService,
     jwt::{entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService},
     realm::ports::realm_service::RealmService,
-    user::ports::UserService,
+    user::ports::user_service::UserService,
     utils::generate_random_string,
 };
 

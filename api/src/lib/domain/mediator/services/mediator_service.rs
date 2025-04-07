@@ -8,7 +8,7 @@ use crate::{
         client::ports::client_service::ClientService,
         credential::ports::credential_service::CredentialService,
         realm::ports::realm_service::RealmService,
-        user::ports::{CreateUserDto, UserService},
+        user::{dtos::user_dto::CreateUserDto, ports::user_service::UserService},
     },
 };
 

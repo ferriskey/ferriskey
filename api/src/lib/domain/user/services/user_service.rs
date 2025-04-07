@@ -1,6 +1,7 @@
-use super::{
+use crate::domain::user::{
+    dtos::user_dto::CreateUserDto,
     entities::{error::UserError, model::User},
-    ports::{CreateUserDto, UserRepository, UserService},
+    ports::{user_repository::UserRepository, user_service::UserService},
 };
 
 #[derive(Debug, Clone)]
