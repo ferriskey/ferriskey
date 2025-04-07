@@ -6,8 +6,10 @@ use validator::Validate;
 pub struct ResetPasswordValidator {
     #[serde(default)]
     pub temporary: bool,
+
     #[serde(default)]
     pub credential_type: String,
+
     #[validate(length(min = 1, message = "value is required"))]
     #[serde(default)]
     pub value: String,
