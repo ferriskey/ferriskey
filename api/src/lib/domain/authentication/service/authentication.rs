@@ -10,7 +10,7 @@ use crate::domain::{
     },
     client::ports::client_service::ClientService,
     credential::ports::credential_service::CredentialService,
-    jwt::{entities::JwtClaims, ports::JwtService},
+    jwt::{entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService},
     realm::ports::RealmService,
     user::ports::UserService,
     utils::generate_random_string,
@@ -100,7 +100,7 @@ where
             return Err(AuthenticationError::Invalid);
         }
 
-        let claims = JwtClaims::new(
+        let claims = JwtClaim::new(
             user.id.to_string(),
             "http://localhost:3333/realms/master".to_string(),
             vec!["master-realm".to_string(), "account".to_string()],

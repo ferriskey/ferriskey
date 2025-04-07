@@ -11,8 +11,8 @@ use ferriskey::domain::authentication::service::authentication::AuthenticationSe
 use ferriskey::domain::credential::services::credential_service::CredentialServiceImpl;
 use ferriskey::domain::crypto::services::crypto_service::CryptoServiceImpl;
 
-use ferriskey::domain::jwt::ports::JwtService;
-use ferriskey::domain::jwt::service::JwtServiceImpl;
+use ferriskey::domain::jwt::ports::jwt_service::JwtService;
+use ferriskey::domain::jwt::services::jwt_service::JwtServiceImpl;
 use ferriskey::domain::mediator::ports::MediatorService;
 use ferriskey::domain::mediator::service::MediatorServiceImpl;
 use ferriskey::domain::user::service::UserServiceImpl;
