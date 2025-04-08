@@ -50,8 +50,8 @@ pub async fn authenticate<A: AuthenticationService>(
     TokenRoute { realm_name }: TokenRoute,
     Extension(authentication_service): Extension<Arc<A>>,
     Extension(auth_session_service): Extension<Arc<dyn AuthSessionService>>,
-    ValidateJson(payload): ValidateJson<AuthenticateRequest>,
     Query(query): Query<AuthenticateQueryParams>,
+    ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let auth_session = auth_session_service
         .get_by_session_code(query.session_code)

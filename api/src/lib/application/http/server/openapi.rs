@@ -1,5 +1,6 @@
 use crate::application::http::{
-    client::router::ClientApiDoc, realm::router::RealmApiDoc, user::router::UserApiDoc,
+    authentication::router::AuthenticationApiDoc, client::router::ClientApiDoc,
+    realm::router::RealmApiDoc, user::router::UserApiDoc,
 };
 use utoipa::OpenApi;
 
@@ -12,7 +13,7 @@ use utoipa::OpenApi;
         (path = "/realms", api = RealmApiDoc),
         (path = "/realms/{realm_name}/clients", api = ClientApiDoc),
         (path = "/realms/{realm_name}/users", api = UserApiDoc),
+        (path = "/realms/{realm_name}", api = AuthenticationApiDoc),
     )
-
 )]
 pub struct ApiDoc;
