@@ -29,7 +29,7 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
     fn using_session_code(
         &self,
         realm_id: String,
-        client_id: Uuid,
+        client_id: String,
         session_code: Uuid,
         username: String,
         password: String,

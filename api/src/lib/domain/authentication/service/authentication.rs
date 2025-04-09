@@ -186,20 +186,20 @@ where
     async fn using_session_code(
         &self,
         realm_name: String,
-        client_id: Uuid,
+        client_id: String,
         session_code: Uuid,
         username: String,
         password: String,
     ) -> Result<String, AuthenticationError> {
         let realm = self
-            .realm_service
+            .realm_servicse
             .get_by_name(realm_name)
             .await
             .map_err(|_| AuthenticationError::InvalidRealm)?;
 
         let _ = self
             .client_service
-            .get_by_client_id(client_id.to_string(), realm.id)
+            .get_by_client_id(client_id, realm.id)
             .await
             .map_err(|_| AuthenticationError::InvalidClient);
 

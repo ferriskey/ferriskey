@@ -16,7 +16,7 @@ use crate::domain::authentication::ports::authentication::AuthenticationService;
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
-    client_id: Uuid,
+    client_id: String,
     session_code: Uuid,
 }
 
