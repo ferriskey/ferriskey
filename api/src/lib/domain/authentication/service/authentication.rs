@@ -192,7 +192,7 @@ where
         password: String,
     ) -> Result<String, AuthenticationError> {
         let realm = self
-            .realm_servicse
+            .realm_service
             .get_by_name(realm_name)
             .await
             .map_err(|_| AuthenticationError::InvalidRealm)?;
