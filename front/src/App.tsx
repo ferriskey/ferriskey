@@ -1,10 +1,8 @@
-import { useState } from 'react'
-import './app.css'
-import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch } from '@/store/store'
 import { getUserState } from '@/store/user.store'
-import LoaderSpinner from '@/components/ui/loader-spinner'
+import { useDispatch, useSelector } from 'react-redux'
 import { Route, Routes } from 'react-router'
+import './app.css'
 import PageAuthentication from './pages/authentication/page-authentication'
 
 function App() {
@@ -22,8 +20,8 @@ function App() {
   return (
     <>
       <Routes>
-        <Route path='realms/:realm_name'>
-          <Route path='authentication/*' element={<PageAuthentication />} />
+        <Route path="realms/:realm_name">
+          <Route path="authentication/*" element={<PageAuthentication />} />
         </Route>
       </Routes>
     </>

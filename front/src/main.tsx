@@ -1,14 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './app.tsx'
-import { BrowserRouter } from 'react-router'
-import { setupStore } from './store/store.ts'
 import { Provider } from 'react-redux'
+import { BrowserRouter } from 'react-router'
+import App from './App.tsx'
+import './index.css'
+import { setupStore } from './store/store.ts'
 
-const container =
-  document.getElementById('root') ||
-  (document.createElement('div') as HTMLElement)
+const container = document.getElementById('root') || (document.createElement('div') as HTMLElement)
 const root = createRoot(container)
 
 const store = setupStore()
