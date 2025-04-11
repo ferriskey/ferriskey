@@ -1,7 +1,10 @@
 use axum::extract::{Query, State};
+use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect};
+use axum_cookie::CookieManager;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
@@ -14,12 +17,15 @@ use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 
 #[derive(Serialize, Deserialize)]
+#[typeshare]
 pub struct AuthenticateQueryParams {
     client_id: String,
-    session_code: Uuid,
+    // #[typeshare(serialized_as = "string")]
+    // session_code: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+#[typeshare]
 pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "username is required"))]
     #[serde(default)]
@@ -49,11 +55,17 @@ pub async fn authenticate(
     TokenRoute { realm_name }: TokenRoute,
     State(state): State<AppState>,
     Query(query): Query<AuthenticateQueryParams>,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    // get session_code from cookies
+    let session_code = cookie.get("session_code").unwrap();
+    let session_code = session_code.value().to_string();
+    println!("session_code: {}", session_code);
+    let session_code = Uuid::parse_str(&session_code).unwrap();
     let auth_session = state
         .auth_session_service
-        .get_by_session_code(query.session_code)
+        .get_by_session_code(session_code)
         .await
         .map_err(|_| AuthenticationError::NotFound)?;
 
@@ -62,7 +74,7 @@ pub async fn authenticate(
         .using_session_code(
             realm_name,
             query.client_id,
-            query.session_code,
+            auth_session.id,
             payload.username,
             payload.password,
         )

@@ -1,12 +1,19 @@
 use axum::{
     extract::{Query, State},
+    http::{
+        self, HeaderMap, HeaderValue, StatusCode,
+        header::{CONTENT_TYPE, SET_COOKIE},
+    },
     response::{IntoResponse, Redirect},
 };
+use axum_extra::headers::Cookie;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use validator::Validate;
 
+use crate::application::http::server::api_entities::response::Response;
 use crate::{
     application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
     domain::{
@@ -30,6 +37,12 @@ pub struct AuthRequest {
     pub scope: Option<String>,
     #[serde(default)]
     pub state: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
+#[typeshare]
+pub struct AuthResponse {
+    pub url: String,
 }
 
 #[derive(TypedPath, Deserialize)]
@@ -60,8 +73,7 @@ pub async fn auth(
     let params_state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
 
-    let _ = state
-        .auth_session_service
+    let session = auth_session_service
         .create_session(
             realm.id,
             client.id,
@@ -76,12 +88,39 @@ pub async fn auth(
         .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     let login_url = format!(
-        "http://localhost:5173/realms/{}/authentication/login?client_id={}&redirect_uri={}&state={}",
-        realm.name,
+        "?client_id={}&redirect_uri={}&state={}",
         client.client_id,
         params.redirect_uri,
         params.state.unwrap_or_default()
     );
 
-    Ok(Redirect::to(&login_url))
+    // set session id in cookie
+
+    let cookie_value = format!(
+        "session_code={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
+        session.id
+    );
+
+    let mut headers = HeaderMap::new();
+
+    headers.insert(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie_value)
+            .map_err(|_| ApiError::InternalServerError("".to_string()))?,
+    );
+
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    let response = AuthResponse { url: login_url };
+    let json_body = serde_json::to_string(&response)
+        .map_err(|_| ApiError::InternalServerError("Failed to serialize response".to_string()))?;
+
+    let axum_response = axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(http::header::CONTENT_TYPE, "application/json")
+        .header(http::header::SET_COOKIE, cookie_value)
+        .body(json_body)
+        .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
+
+    Ok(axum_response)
 }

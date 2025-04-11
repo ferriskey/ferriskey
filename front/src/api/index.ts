@@ -1,6 +1,11 @@
-import { BaseQueryFn, FetchArgs, fetchBaseQuery, FetchBaseQueryError } from '@reduxjs/toolkit/query'
-
-export const backendUrl = import.meta.env.VITE_API_URL
+import {
+  BaseQueryFn,
+  FetchArgs,
+  fetchBaseQuery,
+  FetchBaseQueryError,
+} from '@reduxjs/toolkit/query/react'
+import axios from 'axios'
+export const backendUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
 
 export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
@@ -9,6 +14,7 @@ export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryE
 ) => {
   const baseQuery = fetchBaseQuery({
     baseUrl: backendUrl,
+    credentials: 'include',
     prepareHeaders: (headers) => {
       const token = sessionStorage.getItem('token')
       headers.set('Authorization', `Bearer ${token}`)
@@ -16,5 +22,20 @@ export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryE
   })
 
   const result = await baseQuery(args, api, extraOptions)
+
+  console.log(result)
+
   return result
 }
+
+const apiUrl = 'http://localhost:3333'
+
+const defaultHeaders = {
+  'Content-Type': 'application/json',
+}
+
+export const apiClient = axios.create({
+  baseURL: apiUrl,
+  headers: defaultHeaders,
+  withCredentials: true,
+})
