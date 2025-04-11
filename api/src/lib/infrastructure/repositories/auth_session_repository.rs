@@ -1,24 +1,20 @@
-use std::sync::Arc;
-
+use sqlx::PgPool;
 use tracing::error;
 use uuid::Uuid;
 
-use crate::{
-    domain::authentication::{
-        entities::auth_session::{AuthSession, AuthSessionError},
-        ports::auth_session::AuthSessionRepository,
-    },
-    infrastructure::db::postgres::Postgres,
+use crate::domain::authentication::{
+    entities::auth_session::{AuthSession, AuthSessionError},
+    ports::auth_session::AuthSessionRepository,
 };
 
 #[derive(Clone)]
 pub struct PostgresAuthSessionRepository {
-    pub postgres: Arc<Postgres>,
+    pub pool: PgPool,
 }
 
 impl PostgresAuthSessionRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
@@ -38,7 +34,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             session.created_at,
             session.expires_at,
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|e| {
             error!("Error creating session: {:?}", e);
@@ -57,7 +53,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             "SELECT * FROM auth_sessions WHERE id = $1 LIMIT 1",
             session_code
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|e| {
             error!("Error getting session: {:?}", e);

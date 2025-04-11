@@ -1,23 +1,19 @@
-use std::sync::Arc;
-
+use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{
-    domain::session::{
-        entities::{error::SessionError, model::UserSession},
-        ports::user_session_repository::UserSessionRepository,
-    },
-    infrastructure::db::postgres::Postgres,
+use crate::domain::session::{
+    entities::{error::SessionError, model::UserSession},
+    ports::user_session_repository::UserSessionRepository,
 };
 
 #[derive(Debug, Clone)]
 pub struct PostgresUserSessionRepository {
-    postgres: Arc<Postgres>,
+    pool: PgPool,
 }
 
 impl PostgresUserSessionRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
@@ -33,7 +29,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             session.created_at,
             session.expires_at
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|_| SessionError::CreateError)?;
 
@@ -46,7 +42,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             "SELECT * FROM user_sessions WHERE user_id = $1",
             user_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| SessionError::NotFound)?;
 
@@ -55,7 +51,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
     async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
         sqlx::query!("DELETE FROM user_sessions WHERE id = $1", id)
-            .execute(&*self.postgres.get_pool())
+            .execute(&self.pool)
             .await
             .map_err(|_| SessionError::DeleteError)?;
 

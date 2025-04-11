@@ -33,7 +33,6 @@ where
     J: JwtRepository,
     AS: AuthSessionRepository,
 {
-    pub postgres: Arc<Postgres>,
     pub realm_repository: R,
     pub client_repository: C,
     pub user_repository: U,
@@ -55,18 +54,16 @@ impl
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
-        let postgres = Arc::new(Postgres::new(Arc::clone(&env)).await?);
-        let realm_repository = PostgresRealmRepository::new(Arc::clone(&postgres));
-        let client_repository = PostgresClientRepository::new(Arc::clone(&postgres));
-        let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
-        let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
+        let postgres = Postgres::new(Arc::clone(&env)).await?;
+        let realm_repository = PostgresRealmRepository::new(postgres.get_pool());
+        let client_repository = PostgresClientRepository::new(postgres.get_pool());
+        let user_repository = PostgresUserRepository::new(postgres.get_pool());
+        let credential_repository = PostgresCredentialRepository::new(postgres.get_pool());
         let hasher_repository = Argon2HasherRepository::new();
-        //let jwt_repository = Box::new(StaticJwtRepository::new(&env.private_key, &env.public_key)?);
         let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
-        let auth_session_repository = PostgresAuthSessionRepository::new(Arc::clone(&postgres));
+        let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_pool());
 
         Ok(Self {
-            postgres,
             realm_repository,
             client_repository,
             user_repository,
