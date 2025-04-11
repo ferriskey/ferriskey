@@ -15,6 +15,7 @@ use ferriskey::domain::jwt::ports::jwt_service::JwtService;
 use ferriskey::domain::jwt::services::jwt_service::JwtServiceImpl;
 use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::domain::mediator::services::mediator_service::MediatorServiceImpl;
+use ferriskey::domain::realm::services::realm_service::DefaultRealmService;
 use ferriskey::domain::user::services::user_service::UserServiceImpl;
 use ferriskey::{
     domain::{
@@ -48,7 +49,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app_server = AppServer::new(Arc::clone(&env)).await?;
 
-    let realm_service = Arc::new(RealmServiceImpl::new(app_server.realm_repository));
+    //let realm_service = Arc::new(RealmServiceImpl::new(app_server.realm_repository));
+    let realm_service = Arc::new(DefaultRealmService::new(app_server.realm_repository));
 
     let client_service = Arc::new(ClientServiceImpl::new(
         app_server.client_repository,

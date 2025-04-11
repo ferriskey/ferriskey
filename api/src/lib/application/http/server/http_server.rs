@@ -13,6 +13,7 @@ use anyhow::Context;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method};
 use axum::{Extension, Router};
+use axum_cookie::prelude::*;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
@@ -94,7 +95,8 @@ impl HttpServer {
             .layer(Extension(Arc::clone(&state.client_service)))
             .layer(Extension(Arc::clone(&state.authentication_service)))
             .layer(Extension(Arc::clone(&state.credential_service)))
-            .layer(Extension(Arc::clone(&state.auth_session_service)));
+            .layer(Extension(Arc::clone(&state.auth_session_service)))
+            .layer(CookieLayer::default());
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
             .await

@@ -2,8 +2,50 @@ use crate::domain::realm::entities::{
     error::RealmError, realm::Realm, realm_setting::RealmSetting,
 };
 use crate::domain::realm::ports::{realm_repository::RealmRepository, realm_service::RealmService};
+use crate::infrastructure::repositories::realm_repository::PostgresRealmRepository;
 use tracing::error;
 use uuid::Uuid;
+
+// #[derive(Clone)]
+// pub type DefaultRealmService(RealmServiceImpl<PostgresRealmRepository>);
+
+// impl DefaultRealmService {
+//     pub fn new(realm_repository: PostgresRealmRepository) -> Self {
+//         Self(RealmServiceImpl::new(realm_repository))
+//     }
+// }
+
+// impl RealmService for DefaultRealmService {
+//     async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
+//         self.0.create_realm(name).await
+//     }
+
+//     async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
+//         self.0.update_realm(realm_name, name).await
+//     }
+
+//     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
+//         self.0.delete_by_name(name).await
+//     }
+
+//     async fn get_by_name(&self, name: String) -> Result<Realm, RealmError> {
+//         self.0.get_by_name(name).await
+//     }
+
+//     async fn update_realm_setting(
+//         &self,
+//         realm_id: Uuid,
+//         algorithm: String,
+//     ) -> Result<RealmSetting, RealmError> {
+//         self.0.update_realm_setting(realm_id, algorithm).await
+//     }
+
+//     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
+//         self.0.fetch_realm().await
+//     }
+// }
+
+pub type DefaultRealmService = RealmServiceImpl<PostgresRealmRepository>;
 
 #[derive(Debug, Clone)]
 pub struct RealmServiceImpl<R>

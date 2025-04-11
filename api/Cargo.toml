@@ -17,6 +17,7 @@ anyhow = "1.0.97"
 argon2 = "0.5.3"
 async-trait = "0.1.77"
 axum = "0.8.1"
+axum-cookie = "0.2.3"
 axum-extra = { version = "0.10.0", features = ["typed-header", "typed-routing"] }
 axum-macros = "0.5.0"
 base64 = "0.22.1"
@@ -35,6 +36,7 @@ tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json"] }
+typeshare = "1.0.4"
 utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
