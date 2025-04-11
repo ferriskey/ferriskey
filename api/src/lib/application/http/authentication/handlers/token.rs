@@ -1,12 +1,12 @@
-use axum::Extension;
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
-use std::sync::Arc;
 use tracing::info;
 
 use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
+use crate::application::http::server::app_state::AppState;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 
@@ -25,13 +25,14 @@ pub struct TokenRoute {
         (status = 200, body = JwtToken)
     )
 )]
-pub async fn exchange_token<A: AuthenticationService>(
+pub async fn exchange_token(
     TokenRoute { realm_name }: TokenRoute,
-    Extension(authentication_service): Extension<Arc<A>>,
+    State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<TokenRequestValidator>,
 ) -> Result<Response<JwtToken>, ApiError> {
     info!("request login with \"{:?}\" grant_type", payload.grant_type);
-    authentication_service
+    state
+        .authentication_service
         .authentificate(
             realm_name,
             payload.grant_type,

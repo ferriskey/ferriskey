@@ -4,15 +4,16 @@ use crate::application::http::realm::router::realm_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
-use crate::domain::authentication::ports::auth_session::AuthSessionService;
-use crate::domain::authentication::ports::authentication::AuthenticationService;
-use crate::domain::client::ports::client_service::ClientService;
-use crate::domain::credential::ports::credential_service::CredentialService;
-use crate::domain::realm::ports::realm_service::RealmService;
+
+use crate::domain::authentication::service::auth_session::DefaultAuthSessionService;
+use crate::domain::authentication::service::authentication::DefaultAuthenticationService;
+use crate::domain::client::services::client_service::DefaultClientService;
+use crate::domain::credential::services::credential_service::DefaultCredentialService;
+use crate::domain::realm::services::realm_service::DefaultRealmService;
 use anyhow::Context;
+use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method};
-use axum::{Extension, Router};
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
@@ -36,21 +37,14 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new<R, C, CR, A, AS>(
+    pub async fn new(
         config: HttpServerConfig,
-        realm_service: Arc<R>,
-        client_service: Arc<C>,
-        credential_service: Arc<CR>,
-        authentication_service: Arc<A>,
-        auth_session_service: Arc<AS>,
-    ) -> Result<Self, anyhow::Error>
-    where
-        R: RealmService,
-        C: ClientService,
-        CR: CredentialService,
-        A: AuthenticationService,
-        AS: AuthSessionService,
-    {
+        realm_service: Arc<DefaultRealmService>,
+        client_service: Arc<DefaultClientService>,
+        credential_service: Arc<DefaultCredentialService>,
+        authentication_service: Arc<DefaultAuthenticationService>,
+        auth_session_service: Arc<DefaultAuthSessionService>,
+    ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
                 let uri: String = request.uri().to_string();
@@ -85,17 +79,18 @@ impl HttpServer {
 
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-            .merge(realm_routes::<R>())
-            .merge(client_routes::<C>())
-            .merge(user_routes::<CR>())
-            .merge(authentication_routes::<A, R, C, AS>())
+            .merge(realm_routes())
+            .merge(client_routes())
+            .merge(user_routes())
+            .merge(authentication_routes())
             .layer(trace_layer)
             .layer(cors)
-            .layer(Extension(Arc::clone(&state.realm_service)))
-            .layer(Extension(Arc::clone(&state.client_service)))
-            .layer(Extension(Arc::clone(&state.authentication_service)))
-            .layer(Extension(Arc::clone(&state.credential_service)))
-            .layer(Extension(Arc::clone(&state.auth_session_service)));
+            // .layer(Extension(Arc::clone(&state.realm_service)))
+            // .layer(Extension(Arc::clone(&state.client_service)))
+            // .layer(Extension(Arc::clone(&state.authentication_service)))
+            // .layer(Extension(Arc::clone(&state.credential_service)))
+            // .layer(Extension(Arc::clone(&state.auth_session_service)))
+            .with_state(state);
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
             .await

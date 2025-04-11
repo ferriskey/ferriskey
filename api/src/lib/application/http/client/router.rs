@@ -3,7 +3,7 @@ use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
 use super::handlers::create_client::{__path_create_client, create_client};
-use crate::domain::client::ports::client_service::ClientService;
+use crate::application::http::server::app_state::AppState;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -14,6 +14,6 @@ use crate::domain::client::ports::client_service::ClientService;
 )]
 pub struct ClientApiDoc;
 
-pub fn client_routes<C: ClientService>() -> Router {
-    Router::new().typed_post(create_client::<C>)
+pub fn client_routes() -> Router<AppState> {
+    Router::new().typed_post(create_client)
 }

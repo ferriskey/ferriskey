@@ -1,10 +1,9 @@
-use std::sync::Arc;
-
-use axum::Extension;
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 
 use crate::{
+    application::http::server::app_state::AppState,
     application::http::{
         client::validators::CreateClientValidator,
         server::{
@@ -27,12 +26,13 @@ pub struct CreateClientRoute {
     tag = "client",
     request_body = CreateClientValidator,
 )]
-pub async fn create_client<C: ClientService>(
+pub async fn create_client(
     CreateClientRoute { realm_name }: CreateClientRoute,
-    Extension(client_service): Extension<Arc<C>>,
+    State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
-    client_service
+    state
+        .client_service
         .create_client(payload, realm_name)
         .await
         .map_err(ApiError::from)

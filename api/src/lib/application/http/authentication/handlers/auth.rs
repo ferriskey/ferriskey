@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use axum::{
-    Extension,
-    extract::Query,
+    extract::{Query, State},
     response::{IntoResponse, Redirect},
 };
 use axum_macros::TypedPath;
@@ -11,7 +8,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::{
-    application::http::server::api_entities::api_error::ApiError,
+    application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
     domain::{
         authentication::ports::auth_session::AuthSessionService,
         client::ports::client_service::ClientService, realm::ports::realm_service::RealmService,
@@ -41,36 +38,37 @@ pub struct AuthRoute {
     pub realm_name: String,
 }
 
-pub async fn auth<R: RealmService, C: ClientService, AS: AuthSessionService>(
+pub async fn auth(
     AuthRoute { realm_name }: AuthRoute,
-    Extension(realm_service): Extension<Arc<R>>,
-    Extension(client_service): Extension<Arc<C>>,
-    Extension(auth_session_service): Extension<Arc<AS>>,
+    State(state): State<AppState>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let realm = realm_service
+    let realm = state
+        .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
-    let client = client_service
+    let client = state
+        .client_service
         .get_by_client_id(params.client_id, realm.id)
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
     // @todo: verify redirect_uri
 
-    let state = params.state.clone();
+    let params_state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
 
-    let _ = auth_session_service
+    let _ = state
+        .auth_session_service
         .create_session(
             realm.id,
             client.id,
             redirect_uri,
             params.response_type,
             params.scope.unwrap_or_default(),
-            state,
+            params_state,
             None,
             None,
         )

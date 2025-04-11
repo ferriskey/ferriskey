@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use crate::application::http::realm::validators::UpdateRealmSettingValidator;
+
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
+use crate::application::http::server::app_state::AppState;
 use crate::domain::realm::entities::realm_setting::RealmSetting;
 use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
-use axum::Extension;
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 
@@ -27,14 +27,19 @@ pub struct UpdateRealmSettingsRoute {
     ),
     request_body = UpdateRealmSettingValidator
 )]
-pub async fn update_realm_setting<R: RealmService>(
+pub async fn update_realm_setting(
     UpdateRealmSettingsRoute { name }: UpdateRealmSettingsRoute,
-    Extension(realm_service): Extension<Arc<R>>,
+    State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
 ) -> Result<Response<RealmSetting>, ApiError> {
-    let realm = realm_service.get_by_name(name).await?;
+    let realm = state
+        .realm_service
+        .get_by_name(name)
+        .await
+        .map_err(ApiError::from)?;
 
-    realm_service
+    state
+        .realm_service
         .update_realm_setting(realm.id, payload.default_signing_algorithm)
         .await
         .map_err(ApiError::from)

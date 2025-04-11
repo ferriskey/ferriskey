@@ -1,14 +1,13 @@
-use axum::Extension;
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::response::{IntoResponse, Redirect};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::app_state::AppState;
 use crate::domain::authentication::entities::error::AuthenticationError;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::auth_session::AuthSessionService;
@@ -46,19 +45,20 @@ pub struct TokenRoute {
         (status = 200, body = JwtToken)
     )
 )]
-pub async fn authenticate<A: AuthenticationService, AS: AuthSessionService>(
+pub async fn authenticate(
     TokenRoute { realm_name }: TokenRoute,
-    Extension(authentication_service): Extension<Arc<A>>,
-    Extension(auth_session_service): Extension<Arc<AS>>,
+    State(state): State<AppState>,
     Query(query): Query<AuthenticateQueryParams>,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let auth_session = auth_session_service
+    let auth_session = state
+        .auth_session_service
         .get_by_session_code(query.session_code)
         .await
         .map_err(|_| AuthenticationError::NotFound)?;
 
-    let code = authentication_service
+    let code = state
+        .authentication_service
         .using_session_code(
             realm_name,
             query.client_id,

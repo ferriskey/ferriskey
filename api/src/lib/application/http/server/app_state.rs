@@ -1,44 +1,30 @@
 use std::sync::Arc;
 
 use crate::domain::{
-    authentication::ports::{
-        auth_session::AuthSessionService, authentication::AuthenticationService,
+    authentication::service::{
+        auth_session::DefaultAuthSessionService, authentication::DefaultAuthenticationService,
     },
-    client::ports::client_service::ClientService,
-    credential::ports::credential_service::CredentialService,
-    realm::ports::realm_service::RealmService,
+    client::services::client_service::DefaultClientService,
+    credential::services::credential_service::DefaultCredentialService,
+    realm::services::realm_service::DefaultRealmService,
 };
 
 #[derive(Clone)]
-pub struct AppState<R, C, CR, A, AS>
-where
-    R: RealmService,
-    C: ClientService,
-    CR: CredentialService,
-    A: AuthenticationService,
-    AS: AuthSessionService,
-{
-    pub realm_service: Arc<R>,
-    pub client_service: Arc<C>,
-    pub credential_service: Arc<CR>,
-    pub authentication_service: Arc<A>,
-    pub auth_session_service: Arc<AS>,
+pub struct AppState {
+    pub realm_service: Arc<DefaultRealmService>,
+    pub client_service: Arc<DefaultClientService>,
+    pub credential_service: Arc<DefaultCredentialService>,
+    pub authentication_service: Arc<DefaultAuthenticationService>,
+    pub auth_session_service: Arc<DefaultAuthSessionService>,
 }
 
-impl<R, C, CR, A, AS> AppState<R, C, CR, A, AS>
-where
-    R: RealmService,
-    C: ClientService,
-    CR: CredentialService,
-    A: AuthenticationService,
-    AS: AuthSessionService,
-{
+impl AppState {
     pub fn new(
-        realm_service: Arc<R>,
-        client_service: Arc<C>,
-        credential_service: Arc<CR>,
-        authentication_service: Arc<A>,
-        auth_session_service: Arc<AS>,
+        realm_service: Arc<DefaultRealmService>,
+        client_service: Arc<DefaultClientService>,
+        credential_service: Arc<DefaultCredentialService>,
+        authentication_service: Arc<DefaultAuthenticationService>,
+        auth_session_service: Arc<DefaultAuthSessionService>,
     ) -> Self {
         Self {
             realm_service,

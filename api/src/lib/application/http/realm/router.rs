@@ -6,7 +6,7 @@ use crate::application::http::realm::handlers::update_realm::{__path_update_real
 use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
 };
-use crate::domain::realm::ports::realm_service::RealmService;
+use crate::application::http::server::app_state::AppState;
 use axum::Router;
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
@@ -22,12 +22,12 @@ use utoipa::OpenApi;
 ))]
 pub struct RealmApiDoc;
 
-pub fn realm_routes<R: RealmService>() -> Router {
+pub fn realm_routes() -> Router<AppState> {
     Router::new()
-        .typed_get(fetch_realm::<R>)
-        .typed_get(get_realm::<R>)
-        .typed_post(create_realm::<R>)
-        .typed_put(update_realm::<R>)
-        .typed_delete(delete_realm::<R>)
-        .typed_put(update_realm_setting::<R>)
+        .typed_get(fetch_realm)
+        .typed_get(get_realm)
+        .typed_post(create_realm)
+        .typed_put(update_realm)
+        .typed_delete(delete_realm)
+        .typed_put(update_realm_setting)
 }

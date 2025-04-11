@@ -2,7 +2,7 @@ use axum::Router;
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
-use crate::domain::credential::ports::credential_service::CredentialService;
+use crate::application::http::server::app_state::AppState;
 
 use super::handlers::reset_password::{__path_reset_password, reset_password};
 
@@ -10,6 +10,6 @@ use super::handlers::reset_password::{__path_reset_password, reset_password};
 #[openapi(paths(reset_password))]
 pub struct UserApiDoc;
 
-pub fn user_routes<C: CredentialService>() -> Router {
-    Router::new().typed_put(reset_password::<C>)
+pub fn user_routes() -> Router<AppState> {
+    Router::new().typed_put(reset_password)
 }
