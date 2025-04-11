@@ -1,21 +1,18 @@
-use std::sync::Arc;
+use sqlx::PgPool;
 
-use crate::{
-    domain::client::{
-        entities::{error::ClientError, model::Client},
-        ports::client_repository::ClientRepository,
-    },
-    infrastructure::db::postgres::Postgres,
+use crate::domain::client::{
+    entities::{error::ClientError, model::Client},
+    ports::client_repository::ClientRepository,
 };
 
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
-    pub postgres: Arc<Postgres>,
+    pub pool: PgPool,
 }
 
 impl PostgresClientRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
@@ -62,7 +59,7 @@ impl ClientRepository for PostgresClientRepository {
           client.created_at,
           client.updated_at
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|_| ClientError::InternalServerError)?;
 
@@ -82,7 +79,7 @@ impl ClientRepository for PostgresClientRepository {
             client_id,
             realm_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| ClientError::InternalServerError)?;
 

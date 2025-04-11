@@ -1,24 +1,20 @@
-use std::sync::Arc;
-
+use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{
-    domain::user::{
-        dtos::user_dto::CreateUserDto,
-        entities::{error::UserError, model::User},
-        ports::user_repository::UserRepository,
-    },
-    infrastructure::db::postgres::Postgres,
+use crate::domain::user::{
+    dtos::user_dto::CreateUserDto,
+    entities::{error::UserError, model::User},
+    ports::user_repository::UserRepository,
 };
 
 #[derive(Debug, Clone)]
 pub struct PostgresUserRepository {
-    pub postgres: Arc<Postgres>,
+    pub pool: PgPool,
 }
 
 impl PostgresUserRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
@@ -41,7 +37,7 @@ impl UserRepository for PostgresUserRepository {
         user.created_at,
         user.updated_at
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|_| UserError::InternalServerError)?;
         Ok(user)
@@ -54,7 +50,7 @@ impl UserRepository for PostgresUserRepository {
             username,
             realm_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| UserError::NotFound)?;
         Ok(user)

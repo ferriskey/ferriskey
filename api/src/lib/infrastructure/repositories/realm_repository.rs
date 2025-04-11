@@ -1,30 +1,28 @@
 use crate::domain::realm::entities::realm_setting::RealmSetting;
-use crate::{
-    domain::realm::{
-        entities::{error::RealmError, realm::Realm},
-        ports::realm_repository::RealmRepository,
-    },
-    infrastructure::db::postgres::Postgres,
+use crate::domain::realm::{
+    entities::{error::RealmError, realm::Realm},
+    ports::realm_repository::RealmRepository,
 };
+
+use sqlx::PgPool;
 use sqlx::Row;
-use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
-    pub postgres: Arc<Postgres>,
+    pub pool: PgPool,
 }
 
 impl PostgresRealmRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
 impl RealmRepository for PostgresRealmRepository {
     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
         let rows = sqlx::query("SELECT * FROM realms")
-            .fetch_all(&*self.postgres.get_pool())
+            .fetch_all(&self.pool)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
@@ -43,7 +41,7 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
         sqlx::query_as!(Realm, "SELECT * FROM realms WHERE name = $1", name)
-            .fetch_optional(&*self.postgres.get_pool())
+            .fetch_optional(&self.pool)
             .await
             .map_err(|_| RealmError::InternalServerError)
     }
@@ -58,7 +56,7 @@ impl RealmRepository for PostgresRealmRepository {
             realm.created_at,
             realm.updated_at
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|err| {
           println!("Failed to insert realm: {:?}", err);
@@ -73,7 +71,7 @@ impl RealmRepository for PostgresRealmRepository {
             chrono::Utc::now(),
             realm_name
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map(|row| Realm {
             id: row.get("id"),
@@ -86,7 +84,7 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
         sqlx::query!("DELETE FROM realms WHERE name = $1", name)
-            .execute(&*self.postgres.get_pool())
+            .execute(&self.pool)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
@@ -106,7 +104,7 @@ impl RealmRepository for PostgresRealmRepository {
             realm_setting.realm_id,
             realm_setting.default_signing_algorithm
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| RealmError::InternalServerError)
     }
@@ -125,7 +123,7 @@ impl RealmRepository for PostgresRealmRepository {
             chrono::Utc::now(),
             realm_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| RealmError::InternalServerError)
     }

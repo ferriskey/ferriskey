@@ -42,7 +42,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             "SELECT * FROM user_sessions WHERE user_id = $1",
             user_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| SessionError::NotFound)?;
 
@@ -51,7 +51,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
     async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
         sqlx::query!("DELETE FROM user_sessions WHERE id = $1", id)
-            .execute(&*self.postgres.get_pool())
+            .execute(&self.pool)
             .await
             .map_err(|_| SessionError::DeleteError)?;
 

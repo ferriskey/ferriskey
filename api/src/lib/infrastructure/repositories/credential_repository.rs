@@ -1,27 +1,24 @@
-use std::sync::Arc;
+use sqlx::PgPool;
 
-use crate::{
-    domain::{
-        credential::{
-            entities::{
-                error::CredentialError,
-                model::{Credential, CredentialData},
-            },
-            ports::credential_repository::CredentialRepository,
+use crate::domain::{
+    credential::{
+        entities::{
+            error::CredentialError,
+            model::{Credential, CredentialData},
         },
-        crypto::entities::hash_result::HashResult,
+        ports::credential_repository::CredentialRepository,
     },
-    infrastructure::db::postgres::Postgres,
+    crypto::entities::hash_result::HashResult,
 };
 
 #[derive(Debug, Clone)]
 pub struct PostgresCredentialRepository {
-    pub postgres: Arc<Postgres>,
+    pub pool: PgPool,
 }
 
 impl PostgresCredentialRepository {
-    pub fn new(postgres: Arc<Postgres>) -> Self {
-        Self { postgres }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
@@ -55,7 +52,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             credential.secret_data,
             credential_data,
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|_| CredentialError::CreateCredentialError)?;
 
@@ -70,7 +67,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             "SELECT * FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
             user_id
         )
-        .fetch_one(&*self.postgres.get_pool())
+        .fetch_one(&self.pool)
         .await
         .map_err(|_| CredentialError::GetPasswordCredentialError)?;
 
@@ -96,7 +93,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             "DELETE FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
             user_id
         )
-        .execute(&*self.postgres.get_pool())
+        .execute(&self.pool)
         .await
         .map_err(|_| CredentialError::DeletePasswordCredentialError)?;
 
