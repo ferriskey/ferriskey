@@ -41,11 +41,11 @@ pub struct AuthRoute {
     pub realm_name: String,
 }
 
-pub async fn auth<R: RealmService, C: ClientService>(
+pub async fn auth<R: RealmService, C: ClientService, AS: AuthSessionService>(
     AuthRoute { realm_name }: AuthRoute,
     Extension(realm_service): Extension<Arc<R>>,
     Extension(client_service): Extension<Arc<C>>,
-    Extension(auth_session_service): Extension<Arc<dyn AuthSessionService>>,
+    Extension(auth_session_service): Extension<Arc<AS>>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let realm = realm_service

@@ -12,6 +12,7 @@ use crate::{
     infrastructure::db::postgres::Postgres,
 };
 
+#[derive(Clone)]
 pub struct PostgresAuthSessionRepository {
     pub postgres: Arc<Postgres>,
 }
@@ -22,7 +23,6 @@ impl PostgresAuthSessionRepository {
     }
 }
 
-#[async_trait]
 impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn create(&self, session: &AuthSession) -> Result<AuthSession, AuthSessionError> {
         sqlx::query!(

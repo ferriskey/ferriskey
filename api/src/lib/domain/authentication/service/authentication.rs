@@ -17,27 +17,29 @@ use crate::domain::{
 };
 
 #[derive(Clone)]
-pub struct AuthenticationServiceImpl<R, C, CR, U>
+pub struct AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     U: UserService,
+    AS: AuthSessionService,
 {
     pub realm_service: Arc<R>,
     pub client_service: Arc<C>,
     pub credential_service: Arc<CR>,
     pub user_service: Arc<U>,
     pub jwt_service: Arc<dyn JwtService>,
-    pub auth_session_service: Arc<dyn AuthSessionService>,
+    pub auth_session_service: Arc<AS>,
 }
 
-impl<R, C, CR, U> AuthenticationServiceImpl<R, C, CR, U>
+impl<R, C, CR, U, AS> AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     U: UserService,
+    AS: AuthSessionService,
 {
     pub fn new(
         realm_service: Arc<R>,
@@ -45,7 +47,7 @@ where
         credential_service: Arc<CR>,
         user_service: Arc<U>,
         jwt_service: Arc<dyn JwtService>,
-        auth_session_service: Arc<dyn AuthSessionService>,
+        auth_session_service: Arc<AS>,
     ) -> Self {
         Self {
             realm_service,
@@ -58,12 +60,13 @@ where
     }
 }
 
-impl<R, C, CR, U> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U>
+impl<R, C, CR, U, AS> AuthenticationService for AuthenticationServiceImpl<R, C, CR, U, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     U: UserService,
+    AS: AuthSessionService,
 {
     async fn using_code(
         &self,

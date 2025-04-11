@@ -10,33 +10,35 @@ use crate::domain::{
 };
 
 #[derive(Clone)]
-pub struct AppState<R, C, CR, A>
+pub struct AppState<R, C, CR, A, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     A: AuthenticationService,
+    AS: AuthSessionService,
 {
     pub realm_service: Arc<R>,
     pub client_service: Arc<C>,
     pub credential_service: Arc<CR>,
     pub authentication_service: Arc<A>,
-    pub auth_session_service: Arc<dyn AuthSessionService>,
+    pub auth_session_service: Arc<AS>,
 }
 
-impl<R, C, CR, A> AppState<R, C, CR, A>
+impl<R, C, CR, A, AS> AppState<R, C, CR, A, AS>
 where
     R: RealmService,
     C: ClientService,
     CR: CredentialService,
     A: AuthenticationService,
+    AS: AuthSessionService,
 {
     pub fn new(
         realm_service: Arc<R>,
         client_service: Arc<C>,
         credential_service: Arc<CR>,
         authentication_service: Arc<A>,
-        auth_session_service: Arc<dyn AuthSessionService>,
+        auth_session_service: Arc<AS>,
     ) -> Self {
         Self {
             realm_service,

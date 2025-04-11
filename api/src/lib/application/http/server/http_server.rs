@@ -36,19 +36,20 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub async fn new<R, C, CR, A>(
+    pub async fn new<R, C, CR, A, AS>(
         config: HttpServerConfig,
         realm_service: Arc<R>,
         client_service: Arc<C>,
         credential_service: Arc<CR>,
         authentication_service: Arc<A>,
-        auth_session_service: Arc<dyn AuthSessionService>,
+        auth_session_service: Arc<AS>,
     ) -> Result<Self, anyhow::Error>
     where
         R: RealmService,
         C: ClientService,
         CR: CredentialService,
         A: AuthenticationService,
+        AS: AuthSessionService,
     {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -87,7 +88,7 @@ impl HttpServer {
             .merge(realm_routes::<R>())
             .merge(client_routes::<C>())
             .merge(user_routes::<CR>())
-            .merge(authentication_routes::<A, R, C>())
+            .merge(authentication_routes::<A, R, C, AS>())
             .layer(trace_layer)
             .layer(cors)
             .layer(Extension(Arc::clone(&state.realm_service)))

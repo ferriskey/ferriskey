@@ -3,9 +3,8 @@ use uuid::Uuid;
 
 use crate::domain::authentication::entities::auth_session::{AuthSession, AuthSessionError};
 
-#[async_trait]
-pub trait AuthSessionService: Send + Sync + 'static {
-    async fn create_session(
+pub trait AuthSessionService: Clone + Send + Sync + 'static {
+    fn create_session(
         &self,
         realm_id: Uuid,
         client_id: Uuid,
@@ -15,19 +14,21 @@ pub trait AuthSessionService: Send + Sync + 'static {
         state: Option<String>,
         nonce: Option<String>,
         user_id: Option<Uuid>,
-    ) -> Result<AuthSession, AuthSessionError>;
+    ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 
-    async fn get_by_session_code(
+    fn get_by_session_code(
         &self,
         session_code: Uuid,
-    ) -> Result<AuthSession, AuthSessionError>;
+    ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 }
 
-#[async_trait]
-pub trait AuthSessionRepository: Send + Sync {
-    async fn create(&self, session: &AuthSession) -> Result<AuthSession, AuthSessionError>;
-    async fn get_by_session_code(
+pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
+    fn create(
+        &self,
+        session: &AuthSession,
+    ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
+    fn get_by_session_code(
         &self,
         session_code: Uuid,
-    ) -> Result<AuthSession, AuthSessionError>;
+    ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 }

@@ -46,10 +46,10 @@ pub struct TokenRoute {
         (status = 200, body = JwtToken)
     )
 )]
-pub async fn authenticate<A: AuthenticationService>(
+pub async fn authenticate<A: AuthenticationService, AS: AuthSessionService>(
     TokenRoute { realm_name }: TokenRoute,
     Extension(authentication_service): Extension<Arc<A>>,
-    Extension(auth_session_service): Extension<Arc<dyn AuthSessionService>>,
+    Extension(auth_session_service): Extension<Arc<AS>>,
     Query(query): Query<AuthenticateQueryParams>,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {

@@ -1,5 +1,3 @@
-use async_trait::async_trait;
-
 use uuid::Uuid;
 
 use crate::domain::authentication::{
@@ -7,18 +5,18 @@ use crate::domain::authentication::{
     ports::auth_session::{AuthSessionRepository, AuthSessionService},
 };
 
-pub struct AuthSessionServiceImpl {
-    pub repository: Box<dyn AuthSessionRepository>,
+#[derive(Clone)]
+pub struct AuthSessionServiceImpl<R: AuthSessionRepository> {
+    pub repository: R,
 }
 
-impl AuthSessionServiceImpl {
-    pub fn new(repository: Box<dyn AuthSessionRepository>) -> Self {
+impl<R: AuthSessionRepository> AuthSessionServiceImpl<R> {
+    pub fn new(repository: R) -> Self {
         Self { repository }
     }
 }
 
-#[async_trait]
-impl AuthSessionService for AuthSessionServiceImpl {
+impl<R: AuthSessionRepository> AuthSessionService for AuthSessionServiceImpl<R> {
     async fn create_session(
         &self,
         realm_id: Uuid,
