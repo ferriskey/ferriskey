@@ -1,8 +1,13 @@
-use crate::domain::user::{
-    dtos::user_dto::CreateUserDto,
-    entities::{error::UserError, model::User},
-    ports::{user_repository::UserRepository, user_service::UserService},
+use crate::{
+    domain::user::{
+        dtos::user_dto::CreateUserDto,
+        entities::{error::UserError, model::User},
+        ports::{user_repository::UserRepository, user_service::UserService},
+    },
+    infrastructure::repositories::user_repository::PostgresUserRepository,
 };
+
+pub type DefaultUserService = UserServiceImpl<PostgresUserRepository>;
 
 #[derive(Debug, Clone)]
 pub struct UserServiceImpl<U>

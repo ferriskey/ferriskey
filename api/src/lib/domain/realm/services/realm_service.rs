@@ -2,8 +2,11 @@ use crate::domain::realm::entities::{
     error::RealmError, realm::Realm, realm_setting::RealmSetting,
 };
 use crate::domain::realm::ports::{realm_repository::RealmRepository, realm_service::RealmService};
+use crate::infrastructure::repositories::realm_repository::PostgresRealmRepository;
 use tracing::error;
 use uuid::Uuid;
+
+pub type DefaultRealmService = RealmServiceImpl<PostgresRealmRepository>;
 
 #[derive(Debug, Clone)]
 pub struct RealmServiceImpl<R>

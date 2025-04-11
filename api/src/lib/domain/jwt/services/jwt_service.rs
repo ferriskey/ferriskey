@@ -1,20 +1,25 @@
-use async_trait::async_trait;
-
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
-use crate::domain::jwt::ports::{jwt_repository::JwtRepository, jwt_service::JwtService};
+use crate::domain::jwt::ports::jwt_repository::JwtRepository;
+use crate::domain::jwt::ports::jwt_service::JwtService;
+use crate::infrastructure::repositories::jwt_repository::StaticJwtRepository;
 
-pub struct JwtServiceImpl {
-    pub repository: Box<dyn JwtRepository>,
+pub type DefaultJwtService = JwtServiceImpl<StaticJwtRepository>;
+
+#[derive(Clone)]
+pub struct JwtServiceImpl<R>
+where
+    R: JwtRepository,
+{
+    pub repository: R,
 }
 
-impl JwtServiceImpl {
-    pub fn new(repository: Box<dyn JwtRepository>) -> Self {
+impl<R: JwtRepository> JwtServiceImpl<R> {
+    pub fn new(repository: R) -> Self {
         Self { repository }
     }
 }
 
-#[async_trait]
-impl JwtService for JwtServiceImpl {
+impl<R: JwtRepository> JwtService for JwtServiceImpl<R> {
     async fn generate_token(&self, claims: JwtClaim) -> Result<Jwt, JwtError> {
         self.repository.generate_jwt_token(&claims).await
     }

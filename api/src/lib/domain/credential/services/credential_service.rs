@@ -5,23 +5,25 @@ use crate::domain::credential::entities::model::Credential;
 use crate::domain::credential::ports::credential_repository::CredentialRepository;
 use crate::domain::credential::ports::credential_service::CredentialService;
 use crate::domain::crypto::ports::crypto_service::CryptoService;
+use crate::domain::crypto::services::crypto_service::DefaultCryptoService;
+use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
+
+pub type DefaultCredentialService = CredentialServiceImpl<PostgresCredentialRepository>;
 
 #[derive(Debug, Clone)]
-pub struct CredentialServiceImpl<C, CS>
+pub struct CredentialServiceImpl<C>
 where
     C: CredentialRepository,
-    CS: CryptoService,
 {
     credential_repository: C,
-    crypto_service: Arc<CS>,
+    crypto_service: Arc<DefaultCryptoService>,
 }
 
-impl<C, CS> CredentialServiceImpl<C, CS>
+impl<C> CredentialServiceImpl<C>
 where
     C: CredentialRepository,
-    CS: CryptoService,
 {
-    pub fn new(credential_repository: C, crypto_service: Arc<CS>) -> Self {
+    pub fn new(credential_repository: C, crypto_service: Arc<DefaultCryptoService>) -> Self {
         Self {
             credential_repository,
             crypto_service,
@@ -29,10 +31,9 @@ where
     }
 }
 
-impl<C, CS> CredentialService for CredentialServiceImpl<C, CS>
+impl<C> CredentialService for CredentialServiceImpl<C>
 where
     C: CredentialRepository,
-    CS: CryptoService,
 {
     async fn create_password_credential(
         &self,

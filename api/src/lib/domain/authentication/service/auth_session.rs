@@ -1,9 +1,14 @@
 use uuid::Uuid;
 
-use crate::domain::authentication::{
-    entities::auth_session::{AuthSession, AuthSessionError},
-    ports::auth_session::{AuthSessionRepository, AuthSessionService},
+use crate::{
+    domain::authentication::{
+        entities::auth_session::{AuthSession, AuthSessionError},
+        ports::auth_session::{AuthSessionRepository, AuthSessionService},
+    },
+    infrastructure::repositories::auth_session_repository::PostgresAuthSessionRepository,
 };
+
+pub type DefaultAuthSessionService = AuthSessionServiceImpl<PostgresAuthSessionRepository>;
 
 #[derive(Clone)]
 pub struct AuthSessionServiceImpl<R: AuthSessionRepository> {

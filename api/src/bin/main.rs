@@ -4,25 +4,19 @@ use clap::Parser;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 
 use ferriskey::application::server::AppServer;
-use ferriskey::domain::authentication::ports::auth_session::AuthSessionService;
-use ferriskey::domain::authentication::service::auth_session::AuthSessionServiceImpl;
-use ferriskey::domain::authentication::service::authentication::AuthenticationServiceImpl;
+use ferriskey::domain::authentication::service::auth_session::DefaultAuthSessionService;
+use ferriskey::domain::authentication::service::authentication::DefaultAuthenticationService;
 
-use ferriskey::domain::credential::services::credential_service::CredentialServiceImpl;
-use ferriskey::domain::crypto::services::crypto_service::CryptoServiceImpl;
+use ferriskey::domain::client::services::client_service::DefaultClientService;
+use ferriskey::domain::credential::services::credential_service::DefaultCredentialService;
+use ferriskey::domain::crypto::services::crypto_service::DefaultCryptoService;
 
-use ferriskey::domain::jwt::ports::jwt_service::JwtService;
-use ferriskey::domain::jwt::services::jwt_service::JwtServiceImpl;
+use ferriskey::domain::jwt::services::jwt_service::DefaultJwtService;
 use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
-use ferriskey::domain::mediator::services::mediator_service::MediatorServiceImpl;
-use ferriskey::domain::user::services::user_service::UserServiceImpl;
-use ferriskey::{
-    domain::{
-        client::services::client_service::ClientServiceImpl,
-        realm::services::realm_service::RealmServiceImpl,
-    },
-    env::{AppEnv, Env},
-};
+use ferriskey::domain::mediator::services::mediator_service::DefaultMediatorService;
+use ferriskey::domain::realm::services::realm_service::DefaultRealmService;
+use ferriskey::domain::user::services::user_service::DefaultUserService;
+use ferriskey::env::{AppEnv, Env};
 
 fn init_logger(env: Arc<Env>) {
     match env.env {
@@ -48,28 +42,28 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app_server = AppServer::new(Arc::clone(&env)).await?;
 
-    let realm_service = Arc::new(RealmServiceImpl::new(app_server.realm_repository));
+    let realm_service = Arc::new(DefaultRealmService::new(app_server.realm_repository));
 
-    let client_service = Arc::new(ClientServiceImpl::new(
+    let client_service = Arc::new(DefaultClientService::new(
         app_server.client_repository,
         Arc::clone(&realm_service),
     ));
 
-    let user_service = Arc::new(UserServiceImpl::new(app_server.user_repository));
+    let user_service = Arc::new(DefaultUserService::new(app_server.user_repository));
 
-    let crypto_service = Arc::new(CryptoServiceImpl::new(app_server.hasher_repository));
+    let crypto_service = Arc::new(DefaultCryptoService::new(app_server.hasher_repository));
 
-    let credential_service = Arc::new(CredentialServiceImpl::new(
+    let credential_service = Arc::new(DefaultCredentialService::new(
         app_server.credential_repository,
         Arc::clone(&crypto_service),
     ));
 
-    let jwt_service: Arc<dyn JwtService> = Arc::new(JwtServiceImpl::new(app_server.jwt_repository));
-    let auth_session_service = Arc::new(AuthSessionServiceImpl::new(
+    let jwt_service = Arc::new(DefaultJwtService::new(app_server.jwt_repository));
+    let auth_session_service = Arc::new(DefaultAuthSessionService::new(
         app_server.auth_session_repository,
     ));
 
-    let authentication_service = Arc::new(AuthenticationServiceImpl::new(
+    let authentication_service = Arc::new(DefaultAuthenticationService::new(
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
         Arc::clone(&credential_service),
@@ -78,7 +72,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&auth_session_service),
     ));
 
-    let mediator_service = Arc::new(MediatorServiceImpl::new(
+    let mediator_service = Arc::new(DefaultMediatorService::new(
         Arc::clone(&client_service),
         Arc::clone(&realm_service),
         Arc::clone(&user_service),

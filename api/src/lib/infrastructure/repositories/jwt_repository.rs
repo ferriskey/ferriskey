@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
 
 use crate::domain::jwt::{
@@ -6,11 +5,13 @@ use crate::domain::jwt::{
     ports::jwt_repository::JwtRepository,
 };
 
+#[derive(Clone)]
 pub struct JwtKeyPair {
     pub encoding_key: EncodingKey,
     pub decoding_key: DecodingKey,
 }
 
+#[derive(Clone)]
 pub struct StaticJwtRepository {
     pub keys: JwtKeyPair,
     pub private_key: String,
@@ -33,7 +34,6 @@ impl StaticJwtRepository {
     }
 }
 
-#[async_trait]
 impl JwtRepository for StaticJwtRepository {
     async fn get_realm_key(&self, _realm: &str) -> Result<String, JwtError> {
         Ok(self.public_key.clone())

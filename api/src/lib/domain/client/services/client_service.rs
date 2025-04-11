@@ -5,23 +5,25 @@ use crate::domain::client::entities::{error::ClientError, model::Client};
 use crate::domain::client::ports::client_repository::ClientRepository;
 use crate::domain::client::ports::client_service::ClientService;
 use crate::domain::realm::ports::realm_service::RealmService;
+use crate::domain::realm::services::realm_service::DefaultRealmService;
+use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
+
+pub type DefaultClientService = ClientServiceImpl<PostgresClientRepository>;
 
 #[derive(Debug, Clone)]
-pub struct ClientServiceImpl<C, R>
+pub struct ClientServiceImpl<C>
 where
     C: ClientRepository,
-    R: RealmService,
 {
     pub client_repository: C,
-    pub realm_service: Arc<R>,
+    pub realm_service: Arc<DefaultRealmService>,
 }
 
-impl<C, R> ClientServiceImpl<C, R>
+impl<C> ClientServiceImpl<C>
 where
     C: ClientRepository,
-    R: RealmService,
 {
-    pub fn new(client_repository: C, realm_service: Arc<R>) -> Self {
+    pub fn new(client_repository: C, realm_service: Arc<DefaultRealmService>) -> Self {
         Self {
             client_repository,
             realm_service,
@@ -29,10 +31,9 @@ where
     }
 }
 
-impl<C, R> ClientService for ClientServiceImpl<C, R>
+impl<C> ClientService for ClientServiceImpl<C>
 where
     C: ClientRepository,
-    R: RealmService,
 {
     async fn create_client(
         &self,

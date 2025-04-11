@@ -5,41 +5,39 @@ use tracing::info;
 use crate::{
     application::http::client::validators::CreateClientValidator,
     domain::{
-        client::ports::client_service::ClientService,
-        credential::ports::credential_service::CredentialService,
-        realm::ports::realm_service::RealmService,
-        user::{dtos::user_dto::CreateUserDto, ports::user_service::UserService},
+        client::{
+            ports::client_service::ClientService, services::client_service::DefaultClientService,
+        },
+        credential::{
+            ports::credential_service::CredentialService,
+            services::credential_service::DefaultCredentialService,
+        },
+        realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
+        user::{
+            dtos::user_dto::CreateUserDto, ports::user_service::UserService,
+            services::user_service::DefaultUserService,
+        },
     },
 };
 
 use crate::domain::mediator::ports::mediator_service::MediatorService;
 
+pub type DefaultMediatorService = MediatorServiceImpl;
+
 #[derive(Debug, Clone)]
-pub struct MediatorServiceImpl<C, R, U, CS>
-where
-    C: ClientService,
-    R: RealmService,
-    U: UserService,
-    CS: CredentialService,
-{
-    pub client_service: Arc<C>,
-    pub realm_service: Arc<R>,
-    pub user_service: Arc<U>,
-    pub credential_service: Arc<CS>,
+pub struct MediatorServiceImpl {
+    pub client_service: Arc<DefaultClientService>,
+    pub realm_service: Arc<DefaultRealmService>,
+    pub user_service: Arc<DefaultUserService>,
+    pub credential_service: Arc<DefaultCredentialService>,
 }
 
-impl<C, R, U, CS> MediatorServiceImpl<C, R, U, CS>
-where
-    C: ClientService,
-    R: RealmService,
-    U: UserService,
-    CS: CredentialService,
-{
+impl MediatorServiceImpl {
     pub fn new(
-        client_service: Arc<C>,
-        realm_service: Arc<R>,
-        user_service: Arc<U>,
-        credential_service: Arc<CS>,
+        client_service: Arc<DefaultClientService>,
+        realm_service: Arc<DefaultRealmService>,
+        user_service: Arc<DefaultUserService>,
+        credential_service: Arc<DefaultCredentialService>,
     ) -> Self {
         Self {
             client_service,
@@ -50,13 +48,7 @@ where
     }
 }
 
-impl<C, R, U, CS> MediatorService for MediatorServiceImpl<C, R, U, CS>
-where
-    C: ClientService,
-    R: RealmService,
-    U: UserService,
-    CS: CredentialService,
-{
+impl MediatorService for MediatorServiceImpl {
     async fn initialize_master_realm(&self) -> Result<(), anyhow::Error> {
         info!("Introspecting master realm");
 

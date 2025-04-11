@@ -23,13 +23,14 @@ use crate::{
     },
 };
 
-pub struct AppServer<R, C, U, CR, H, AS>
+pub struct AppServer<R, C, U, CR, H, J, AS>
 where
     R: RealmRepository,
     C: ClientRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
+    J: JwtRepository,
     AS: AuthSessionRepository,
 {
     pub postgres: Arc<Postgres>,
@@ -38,7 +39,7 @@ where
     pub user_repository: U,
     pub credential_repository: CR,
     pub hasher_repository: H,
-    pub jwt_repository: Box<dyn JwtRepository>,
+    pub jwt_repository: J,
     pub auth_session_repository: AS,
 }
 
@@ -49,6 +50,7 @@ impl
         PostgresUserRepository,
         PostgresCredentialRepository,
         Argon2HasherRepository,
+        StaticJwtRepository,
         PostgresAuthSessionRepository,
     >
 {
@@ -59,7 +61,8 @@ impl
         let user_repository = PostgresUserRepository::new(Arc::clone(&postgres));
         let credential_repository = PostgresCredentialRepository::new(Arc::clone(&postgres));
         let hasher_repository = Argon2HasherRepository::new();
-        let jwt_repository = Box::new(StaticJwtRepository::new(&env.private_key, &env.public_key)?);
+        //let jwt_repository = Box::new(StaticJwtRepository::new(&env.private_key, &env.public_key)?);
+        let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
         let auth_session_repository = PostgresAuthSessionRepository::new(Arc::clone(&postgres));
 
         Ok(Self {

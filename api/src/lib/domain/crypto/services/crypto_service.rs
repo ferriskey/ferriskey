@@ -2,6 +2,10 @@ use crate::domain::crypto::entities::hash_result::HashResult;
 use crate::domain::crypto::ports::{
     crypto_service::CryptoService, hasher_repository::HasherRepository,
 };
+use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
+
+pub type DefaultCryptoService = CryptoServiceImpl<Argon2HasherRepository>;
+
 #[derive(Debug, Clone)]
 pub struct CryptoServiceImpl<H>
 where
