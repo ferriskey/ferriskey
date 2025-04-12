@@ -1,5 +1,7 @@
 import { UserState } from '@/contracts/states.interface'
 import { createSlice } from '@reduxjs/toolkit'
+import { create } from 'zustand'
+import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 import { RootState } from './store'
 
 const USER_KEY = 'user'
@@ -25,3 +27,18 @@ export const userReducer = userSlice.reducer
 export const userActions = userSlice.actions
 
 export const getUserState = (root: RootState) => root[USER_KEY]
+
+export const userStore = create<UserState>()(
+  devtools(
+    persist(
+      (set) => ({
+        ...initialUserState,
+        switchIsLoading: (isLoading: boolean) => set({ isLoading }),
+      }),
+      {
+        name: 'user',
+        storage: createJSONStorage(() => localStorage),
+      }
+    )
+  )
+)

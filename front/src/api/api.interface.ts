@@ -15,3 +15,7 @@ export interface AuthenticateRequest {
 	password?: string;
 }
 
+export interface AuthenticateResponse {
+	url: string;
+}
+

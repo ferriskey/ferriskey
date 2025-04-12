@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiClient } from '.'
-import { AuthenticateRequest, AuthResponse } from './api.interface'
+import { AuthenticateRequest, AuthenticateResponse, AuthResponse } from './api.interface'
 
 export interface AuthenticatePayload {
   data: AuthenticateRequest
@@ -31,8 +31,8 @@ export const useAuthQuery = (params: AuthQuery) => {
 
 export const useAuthenticateMutation = () => {
   return useMutation({
-    mutationFn: async (params: AuthenticatePayload) => {
-      const response = await apiClient.post(
+    mutationFn: async (params: AuthenticatePayload): Promise<AuthenticateResponse> => {
+      const response = await apiClient.post<AuthenticateResponse>(
         `/realms/${params.realm}/login-actions/authenticate?client_id=${params.clientId}&session_code=${params.sessionCode}`,
         params.data
       )

@@ -2,7 +2,7 @@ import { useAuthenticateMutation, useAuthQuery } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 
@@ -44,6 +44,7 @@ const authenticateSchema = z.object({
 export type AuthenticateSchema = z.infer<typeof authenticateSchema>
 
 export default function PageLoginFeature() {
+  const { realm_name } = useParams()
   const navigate = useNavigate()
   const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
   const [isSetup, setIsSetup] = useState(false)
@@ -65,9 +66,8 @@ export default function PageLoginFeature() {
     }
   }
 
-  //const { data, isSuccess, isError, error } = useAuthQuery(getOAuthParams())c
   const { data, isSuccess, isError, error } = useAuthQuery(getOAuthParams())
-  const { mutate: authenticate } = useAuthenticateMutation()
+  const { mutate: authenticate, data: authenticateData } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
@@ -76,6 +76,14 @@ export default function PageLoginFeature() {
       password: '',
     },
   })
+
+  useEffect(() => {
+    if (authenticateData) {
+      const [url, query] = authenticateData.url.split('?')
+      const newUrl = `/realms/${realm_name}/authentication/callback?${query}`
+      navigate(newUrl)
+    }
+  }, [authenticateData])
 
   const onSubmit = (data: AuthenticateSchema) => {
     // Get session_code from cookies
