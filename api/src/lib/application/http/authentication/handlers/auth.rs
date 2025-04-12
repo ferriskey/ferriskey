@@ -4,16 +4,14 @@ use axum::{
         self, HeaderMap, HeaderValue, StatusCode,
         header::{CONTENT_TYPE, SET_COOKIE},
     },
-    response::{IntoResponse, Redirect},
+    response::IntoResponse,
 };
-use axum_extra::headers::Cookie;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use validator::Validate;
 
-use crate::application::http::server::api_entities::response::Response;
 use crate::{
     application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
     domain::{
@@ -73,7 +71,8 @@ pub async fn auth(
     let params_state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
 
-    let session = auth_session_service
+    let session = state
+        .auth_session_service
         .create_session(
             realm.id,
             client.id,

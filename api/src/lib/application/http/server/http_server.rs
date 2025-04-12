@@ -12,7 +12,7 @@ use crate::domain::credential::services::credential_service::DefaultCredentialSe
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use anyhow::Context;
 use axum::Router;
-use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
 use axum::http::{HeaderValue, Method};
 use axum_cookie::prelude::*;
 use std::sync::Arc;
@@ -73,9 +73,16 @@ impl HttpServer {
                 Method::DELETE,
                 Method::PUT,
                 Method::PATCH,
+                Method::OPTIONS,
             ])
             .allow_origin(allowed_origins)
-            .allow_headers([AUTHORIZATION, CONTENT_TYPE, CONTENT_LENGTH, ACCEPT])
+            .allow_headers([
+                AUTHORIZATION,
+                CONTENT_TYPE,
+                CONTENT_LENGTH,
+                ACCEPT,
+                LOCATION,
+            ])
             .allow_credentials(true);
 
         let router = axum::Router::new()

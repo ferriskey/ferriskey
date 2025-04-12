@@ -1,5 +1,4 @@
 use axum::extract::{Query, State};
-use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect};
 use axum_cookie::CookieManager;
 use axum_macros::TypedPath;
@@ -10,6 +9,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::domain::authentication::entities::error::AuthenticationError;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
@@ -22,6 +22,12 @@ pub struct AuthenticateQueryParams {
     client_id: String,
     // #[typeshare(serialized_as = "string")]
     // session_code: Uuid,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[typeshare]
+pub struct AuthenticateResponse {
+    url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -57,7 +63,7 @@ pub async fn authenticate(
     Query(query): Query<AuthenticateQueryParams>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<Response<AuthenticateResponse>, ApiError> {
     // get session_code from cookies
     let session_code = cookie.get("session_code").unwrap();
     let session_code = session_code.value().to_string();
@@ -89,5 +95,7 @@ pub async fn authenticate(
         auth_session.redirect_uri, code, current_state
     );
 
-    Ok(Redirect::to(&login_url))
+    let response = AuthenticateResponse { url: login_url };
+
+    Ok(Response::OK(response))
 }
