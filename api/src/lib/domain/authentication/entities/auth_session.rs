@@ -28,6 +28,7 @@ pub struct AuthSession {
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
+    pub code: Option<String>,
     pub authenticated: bool,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
@@ -43,6 +44,7 @@ impl AuthSession {
         state: Option<String>,
         nonce: Option<String>,
         user_id: Option<Uuid>,
+        code: Option<String>,
         authenticated: bool,
     ) -> Self {
         let now = Utc::now();
@@ -60,6 +62,7 @@ impl AuthSession {
             state,
             nonce,
             user_id,
+            code,
             authenticated,
             created_at: now,
             expires_at: now + Duration::minutes(10),

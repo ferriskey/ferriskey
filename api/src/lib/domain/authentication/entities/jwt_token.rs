@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub struct JwtToken {
     access_token: String,
     token_type: String,

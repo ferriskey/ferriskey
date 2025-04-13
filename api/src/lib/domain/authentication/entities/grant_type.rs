@@ -1,9 +1,11 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub enum GrantType {
     #[default]
     #[serde(rename = "authorization_code")]

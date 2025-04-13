@@ -61,10 +61,46 @@ impl AuthenticationServiceImpl {
 impl AuthenticationService for AuthenticationServiceImpl {
     async fn using_code(
         &self,
-        _client_id: String,
-        _code: String,
+        client_id: String,
+        code: String,
     ) -> Result<JwtToken, AuthenticationError> {
-        todo!("using_code")
+        let auth_session = self
+            .auth_session_service
+            .get_by_code(code)
+            .await
+            .map_err(|_| AuthenticationError::Invalid)?;
+
+        let user_id = auth_session.user_id.ok_or(AuthenticationError::Invalid)?;
+
+        let user = self
+            .user_service
+            .get_by_id(user_id)
+            .await
+            .map_err(|_| AuthenticationError::Invalid)?;
+
+        let claims = JwtClaim::new(
+            user.id.to_string(),
+            "http://localhost:3333/realms/master".to_string(),
+            vec!["master-realm".to_string(), "account".to_string()],
+            "Bearer".to_string(),
+            client_id,
+        );
+
+        let jwt = self
+            .jwt_service
+            .generate_token(claims)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        let jwt_token = JwtToken::new(
+            jwt.token,
+            "Bearer".to_string(),
+            "8xLOxBtZp8".to_string(),
+            3600,
+            "id_token".to_string(),
+        );
+
+        Ok(jwt_token)
     }
 
     async fn using_password(

@@ -1,5 +1,4 @@
 use axum::extract::{Query, State};
-use axum::response::{IntoResponse, Redirect};
 use axum_cookie::CookieManager;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
@@ -85,6 +84,12 @@ pub async fn authenticate(
             payload.password,
         )
         .await?;
+
+    state
+        .auth_session_service
+        .update_code(session_code, code.clone())
+        .await
+        .map_err(|_| AuthenticationError::Invalid)?;
 
     let current_state = auth_session
         .state

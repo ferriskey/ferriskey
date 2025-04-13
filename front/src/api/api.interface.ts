@@ -19,3 +19,26 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
+export interface JwtToken {
+	access_token: string;
+	token_type: string;
+	refresh_token: string;
+	expires_in: number;
+	id_token: string;
+}
+
+export enum GrantType {
+	Code = "authorization_code",
+	Password = "password",
+	Credentials = "client_credentials",
+}
+
+export interface TokenRequestValidator {
+	grant_type?: GrantType;
+	client_id?: string;
+	client_secret?: string;
+	code?: string;
+	username?: string;
+	password?: string;
+}
+

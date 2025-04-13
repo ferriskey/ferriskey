@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     state VARCHAR(255),
     nonce VARCHAR(255),
     user_id UUID,
+    code VARCHAR(255) NULL UNIQUE,
     authenticated BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL,

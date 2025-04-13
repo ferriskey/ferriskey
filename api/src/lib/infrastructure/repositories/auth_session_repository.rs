@@ -62,4 +62,41 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         Ok(session)
     }
+
+    async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthSessionError> {
+        let session = sqlx::query_as!(
+            AuthSession,
+            "SELECT * FROM auth_sessions WHERE code = $1 LIMIT 1",
+            code
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| {
+            error!("Error getting session: {:?}", e);
+            AuthSessionError::NotFound
+        })?;
+
+        Ok(session)
+    }
+
+    async fn update_code(
+        &self,
+        session_code: Uuid,
+        code: String,
+    ) -> Result<AuthSession, AuthSessionError> {
+        let session = sqlx::query_as!(
+            AuthSession,
+            "UPDATE auth_sessions SET code = $1 WHERE id = $2 RETURNING *",
+            code,
+            session_code
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            error!("Error updating code: {:?}", e);
+            AuthSessionError::Invalid
+        })?;
+
+        Ok(session)
+    }
 }

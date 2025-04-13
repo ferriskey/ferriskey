@@ -68,4 +68,12 @@ impl UserRepository for PostgresUserRepository {
         .map_err(|_| UserError::NotFound)?;
         Ok(user)
     }
+
+    async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| UserError::NotFound)?;
+        Ok(user)
+    }
 }
