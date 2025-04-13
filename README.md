@@ -1,50 +1,64 @@
-# FerrisKey - Keycloak Light in Rust
+# FerrisKey
 
-## Project goals
+FerrisKey is an open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments. With its high-performance API written in Rust and its intuitive web interface developed in Typescript/React, FerrisKey offerrs a robust and flexible alternative to tradtional IAM solutions.
 
-FerrisKey is a lightweight, modular identity management and authentication system designed to offer a simplified alternative to Keycloak, focusing on the essential features of user authentication, authorization and management.
+## 🚀 Features
 
-### Main objectives:
+- **Modern and high-performance**: Built with Rust and React, ensuring optimal performance and a smooth user experience.
+- **Cloud-native**: Optimised for container deployments and Kubernetes clusters.
+- **Hexagonal architecture**: An API structured around ports and adapters facilitating extensibility and collaboration.
+- **Intuitive user interface**: A comprehensive administration portal developed with React, TypeScript and Tailwind CSS.
+- **Highly secure**: Leveraging Rust's memory safety guarantees and best practices in authentication.
+- **Open Source**: Developed transparently with the community, for the community.
 
-- Provide a lightweight OAuth2/OIDC server written in GB.
-- Authentication and user management with PostgreSQL.
-- JWT generation and validation.
-- Support for essential OAuth2 flows (Authorization Code, Client Credentials, Refresh Token).
-- Administration via a REST API and a React web interface.
-- Cloud-native deployment on Kubernetes.
+## 🏗️ Architecture
 
+FerrisKey is based on a hexagonal architecture (or "ports and adapters") that clearly separates business logic from technical infrastructure. This approach facilitates application maintenance, extension and testing.
 
+### API (Rust)
 
-### API Endpoints
+This FerrisKey API is structured according to hexagonal architecture principles:
 
+- **Domain**: Contains business entities and core logic
+- **Application**: Coordinates workflows between the domain and adapters.
+- **Infrastructure(adapters)**: Connect the system to external technologies (databases, web services, etc..).
 
-#### Endpoints for Realms management
+![API Architecture](./docs/api_architecture.png)
 
-- [ ] POST `/realms` - Create new realm
-- [ ] GET `/realms` - List realms
-- [ ] GET `/realms/{realm}` - Realm detail
-- [ ] DELETE `/realms/{realm}` - Delete a realm
+This modular design allows:
 
-#### Endpoint for manage oauth2 clients
+- Easy addition of new features
+- Component replacement without modifying business logic
+- Robust unit and integration testing
+- Efficient collaboration between developers
 
-- [ ] POST `/realms/{realm}/clients` - Creating an OAuth2 client in a realm
-- [ ] GET `/realms/{realm}/clients` - List of OAuth2 clients for a realm
-- [ ] GET `/realms/{realm}/clients/{clientId}` - Details of an OAuth2 client
-- [ ] DELETE `/realms/{realm}/clients/{clientId}` - Removing an OAuth2 client
+### Frontend (TypeScript/React)
 
-#### Authentication and User Endpoints
+The user interface is developed with modern web technologies:
 
-- [ ] POST `/realms/{realm}/auth/signup` - New user registration
-- [ ] POST `/realms/{realm}/auth/login` - Connecting and generating a JWT
-- [ ] POST `/realms/{realm}/auth/refresh` - Token refresh
-- [ ] POST `/realms/{realm}/auth/logout` - Log off
-- [ ] GET `/realms/{realm}/users/{id}` - Retrieving user information
-- [ ] PATCH `/realms/{realm}/users/{id}` - User profile update
-- [ ] DELETE `/realms/{realm}/users/{id}` - Deleting a user
+- React: For a reactive and modular interface
+- TypeScript: For strong typing and better maintainability
+- Tailwind CSS: For elegant and responsive design
+- React Query: For efficient data management and API calls
+- Zustand: For state management
 
-#### OAuth2 Endpoints
+## 🌱 Why FerrisKey?
 
-- [ ] POST `/realms/{realm}/protocol/openid-connect/token` - Exchange an authentication code for a JWT token
-- [ ] GET `/realms/{realm}/protocol/openid-connect/introspect` - OAuth2 token validation
-- [ ] GET `/realms/{realm}/protocol/openid-connect/jwks` - Public key recovery for JWT validation
-- [ ] GET `/realms/{realm}/protocol/openid-connect/userinfo` - Authenticated user information retrieval
+Unlike historical solutions such as Keycloak (11 years of Java/Quarkus codebase), FerrisKey is designed from the outset to address modern identity management challenges:
+
+- **Performance**: Reduced memory footprint and minimal latency thanks to Rust.
+- **Security**: Protection against common security vulnerabilities.
+- **Adaptability**: Ease of extension and integration with modern ecosystems.
+- **Simplified deployment**: Optimised for Kubernetes and containerised environments.
+
+## 🚦 Getting Started with FerrisKey
+
+We working to prepare the development environnement
+
+## 🧩 Contributions
+
+FerrisKey is an open-source project that welcomes community contributions. Whether you want to fix a bug, add a feature or improve documentation, your contributions are welcome!
+
+## 🙏 Acknowledgements
+
+FerrisKey builds upon numerous open-source projects and draws inspiration from community best practices. We thank all contributors who make this project possible.
