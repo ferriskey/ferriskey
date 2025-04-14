@@ -79,7 +79,8 @@ impl AuthenticationService for AuthenticationServiceImpl {
             .map_err(|_| AuthenticationError::Invalid)?;
 
         let claims = JwtClaim::new(
-            user.id.to_string(),
+            user.id,
+            user.username,
             "http://localhost:3333/realms/master".to_string(),
             vec!["master-realm".to_string(), "account".to_string()],
             "Bearer".to_string(),
