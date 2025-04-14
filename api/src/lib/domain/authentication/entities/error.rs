@@ -5,6 +5,9 @@ pub enum AuthenticationError {
     #[error("Token not found")]
     NotFound,
 
+    #[error("Service account not found")]
+    ServiceAccountNotFound,
+
     #[error("Invalid client")]
     Invalid,
 

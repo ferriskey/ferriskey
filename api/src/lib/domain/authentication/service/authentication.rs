@@ -95,7 +95,8 @@ impl AuthenticationService for AuthenticationServiceImpl {
         }
 
         let claims = JwtClaim::new(
-            user.id.to_string(),
+            user.id,
+            user.username,
             "http://localhost:3333/realms/master".to_string(),
             vec!["master-realm".to_string(), "account".to_string()],
             "Bearer".to_string(),
@@ -126,7 +127,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
     ) -> Result<JwtToken, AuthenticationError> {
         let client = self
             .client_service
-            .get_by_client_id(client_id, realm_id)
+            .get_by_client_id(client_id.clone(), realm_id)
             .await
             .map_err(|_| AuthenticationError::Invalid);
 
@@ -134,8 +135,29 @@ impl AuthenticationService for AuthenticationServiceImpl {
             Ok(client) => {
                 info!("success to login with client: {:?}", client.name);
 
+                let user = self
+                    .user_service
+                    .get_by_client_id(client.id, realm_id)
+                    .await
+                    .map_err(|_| AuthenticationError::ServiceAccountNotFound)?;
+
+                let claims = JwtClaim::new(
+                    user.id,
+                    user.username,
+                    "http://localhost:3333/realms/master".to_string(),
+                    vec!["master-realm".to_string(), "account".to_string()],
+                    "Bearer".to_string(),
+                    client_id,
+                );
+
+                let jwt = self
+                    .jwt_service
+                    .generate_token(claims)
+                    .await
+                    .map_err(|_| AuthenticationError::InternalServerError)?;
+
                 Ok(JwtToken::new(
-                    client.secret.unwrap(),
+                    jwt.token,
                     "Bearer".to_string(),
                     "8xLOxBtZp8".to_string(),
                     3600,

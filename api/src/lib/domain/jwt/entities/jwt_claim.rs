@@ -1,10 +1,12 @@
 use serde::Deserialize;
 use serde::Serialize;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord, ToSchema)]
 pub struct JwtClaim {
-    pub sub: String,
+    pub sub: Uuid,
+    pub preferred_username: String,
     pub exp: i64,
     pub iss: String,
     pub aud: Vec<String>,
@@ -13,9 +15,17 @@ pub struct JwtClaim {
 }
 
 impl JwtClaim {
-    pub fn new(sub: String, iss: String, aud: Vec<String>, typ: String, azp: String) -> Self {
+    pub fn new(
+        sub: Uuid,
+        preferred_username: String,
+        iss: String,
+        aud: Vec<String>,
+        typ: String,
+        azp: String,
+    ) -> Self {
         Self {
             sub,
+            preferred_username,
             exp: chrono::Utc::now().timestamp() + 3600,
             iss,
             aud,

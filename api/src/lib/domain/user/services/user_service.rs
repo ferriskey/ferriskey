@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::{
     domain::user::{
         dtos::user_dto::CreateUserDto,
@@ -34,13 +36,15 @@ where
         self.user_repository.create_user(dto).await
     }
 
-    async fn get_by_username(
-        &self,
-        username: String,
-        realm_id: uuid::Uuid,
-    ) -> Result<User, UserError> {
+    async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
         self.user_repository
             .get_by_username(username, realm_id)
+            .await
+    }
+
+    async fn get_by_client_id(&self, client_id: Uuid, realm_id: Uuid) -> Result<User, UserError> {
+        self.user_repository
+            .get_by_client_id(client_id, realm_id)
             .await
     }
 }

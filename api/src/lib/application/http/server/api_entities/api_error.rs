@@ -116,6 +116,9 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InvalidRealm => Self::NotFound("Realm not found".to_string()),
             AuthenticationError::InvalidState => Self::NotFound("Invalid state".to_string()),
             AuthenticationError::InvalidUser => Self::NotFound("User not found".to_string()),
+            AuthenticationError::ServiceAccountNotFound => {
+                Self::NotFound("Service account not found".to_string())
+            }
         }
     }
 }
