@@ -6,34 +6,46 @@ use crate::domain::client::ports::client_repository::ClientRepository;
 use crate::domain::client::ports::client_service::ClientService;
 use crate::domain::realm::ports::realm_service::RealmService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
-use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
+use crate::domain::user::dtos::user_dto::CreateUserDto;
+use crate::domain::user::ports::user_repository::UserRepository;
+use crate::infrastructure::repositories::{
+    client_repository::PostgresClientRepository, user_repository::PostgresUserRepository,
+};
 
-pub type DefaultClientService = ClientServiceImpl<PostgresClientRepository>;
+pub type DefaultClientService = ClientServiceImpl<PostgresClientRepository, PostgresUserRepository>;
 
 #[derive(Debug, Clone)]
-pub struct ClientServiceImpl<C>
+pub struct ClientServiceImpl<C, U>
 where
     C: ClientRepository,
 {
     pub client_repository: C,
+    pub user_repository: U,
     pub realm_service: Arc<DefaultRealmService>,
 }
 
-impl<C> ClientServiceImpl<C>
+impl<C, U> ClientServiceImpl<C, U>
 where
     C: ClientRepository,
+    U: UserRepository,
 {
-    pub fn new(client_repository: C, realm_service: Arc<DefaultRealmService>) -> Self {
+    pub fn new(
+        client_repository: C,
+        user_repository: U,
+        realm_service: Arc<DefaultRealmService>,
+    ) -> Self {
         Self {
             client_repository,
+            user_repository,
             realm_service,
         }
     }
 }
 
-impl<C> ClientService for ClientServiceImpl<C>
+impl<C, U> ClientService for ClientServiceImpl<C, U>
 where
     C: ClientRepository,
+    U: UserRepository,
 {
     async fn create_client(
         &self,
@@ -46,7 +58,8 @@ where
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        self.client_repository
+        let client = self
+            .client_repository
             .create_client(
                 realm.id,
                 schema.name,
@@ -59,6 +72,24 @@ where
                 schema.client_type,
             )
             .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let _ = self
+            .user_repository
+            .create_user(CreateUserDto {
+                realm_id: realm.id,
+                client_id: Some(client.id),
+                username: format!("service-account-{}", client.id),
+                firstname: "".to_string(),
+                lastname: "".to_string(),
+                email: "".to_string(),
+                email_verified: false,
+                enabled: true,
+            })
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        Ok(client)
     }
 
     async fn get_by_client_id(

@@ -100,6 +100,7 @@ impl MediatorService for MediatorServiceImpl {
                 firstname: "admin".to_string(),
                 lastname: "admin".to_string(),
                 realm_id: realm.id,
+                client_id: None,
                 username: "admin".to_string(),
             })
             .await

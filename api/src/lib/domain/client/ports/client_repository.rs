@@ -15,6 +15,7 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
         service_account_enabled: bool,
         client_type: String,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+
     fn get_by_client_id(
         &self,
         client_id: String,

@@ -46,6 +46,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let client_service = Arc::new(DefaultClientService::new(
         app_server.client_repository,
+        app_server.user_repository.clone(),
         Arc::clone(&realm_service),
     ));
 

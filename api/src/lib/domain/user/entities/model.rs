@@ -12,6 +12,7 @@ use crate::domain::user::dtos::user_dto::CreateUserDto;
 pub struct User {
     pub id: Uuid,
     pub realm_id: Uuid,
+    pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
     pub lastname: String,
@@ -24,6 +25,7 @@ pub struct User {
 
 pub struct UserConfig {
     pub realm_id: Uuid,
+    pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
     pub lastname: String,
@@ -41,6 +43,7 @@ impl User {
         Self {
             id: Uuid::new_v7(timestamp),
             realm_id: dto.realm_id,
+            client_id: dto.client_id,
             username: dto.username,
             firstname: dto.firstname,
             lastname: dto.lastname,
@@ -60,6 +63,7 @@ impl User {
         Self {
             id: Uuid::new_v7(timestamp),
             realm_id: user_config.realm_id,
+            client_id: user_config.client_id,
             username: user_config.username,
             firstname: user_config.firstname,
             lastname: user_config.lastname,
