@@ -14,6 +14,8 @@ use crate::domain::authentication::entities::error::AuthenticationError;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
+use crate::domain::realm::ports::realm_service::RealmService;
+use crate::domain::user::ports::user_service::UserService;
 
 #[derive(Serialize, Deserialize)]
 #[typeshare]
@@ -66,7 +68,7 @@ pub async fn authenticate(
     // get session_code from cookies
     let session_code = cookie.get("session_code").unwrap();
     let session_code = session_code.value().to_string();
-    println!("session_code: {}", session_code);
+
     let session_code = Uuid::parse_str(&session_code).unwrap();
     let auth_session = state
         .auth_session_service
@@ -77,17 +79,29 @@ pub async fn authenticate(
     let code = state
         .authentication_service
         .using_session_code(
-            realm_name,
+            realm_name.clone(),
             query.client_id,
             auth_session.id,
-            payload.username,
+            payload.username.clone(),
             payload.password,
         )
         .await?;
 
+    let realm = state
+        .realm_service
+        .get_by_name(realm_name)
+        .await
+        .map_err(|_| AuthenticationError::NotFound)?;
+
+    let user = state
+        .user_service
+        .get_by_username(payload.username, realm.id)
+        .await
+        .map_err(|_| AuthenticationError::NotFound)?;
+
     state
         .auth_session_service
-        .update_code(session_code, code.clone())
+        .update_code(session_code, code.clone(), user.id)
         .await
         .map_err(|_| AuthenticationError::Invalid)?;
 

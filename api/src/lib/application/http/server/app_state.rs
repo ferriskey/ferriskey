@@ -7,6 +7,7 @@ use crate::domain::{
     client::services::client_service::DefaultClientService,
     credential::services::credential_service::DefaultCredentialService,
     realm::services::realm_service::DefaultRealmService,
+    user::services::user_service::DefaultUserService,
 };
 
 #[derive(Clone)]
@@ -16,6 +17,7 @@ pub struct AppState {
     pub credential_service: Arc<DefaultCredentialService>,
     pub authentication_service: Arc<DefaultAuthenticationService>,
     pub auth_session_service: Arc<DefaultAuthSessionService>,
+    pub user_service: Arc<DefaultUserService>,
 }
 
 impl AppState {
@@ -25,6 +27,7 @@ impl AppState {
         credential_service: Arc<DefaultCredentialService>,
         authentication_service: Arc<DefaultAuthenticationService>,
         auth_session_service: Arc<DefaultAuthSessionService>,
+        user_service: Arc<DefaultUserService>,
     ) -> Self {
         Self {
             realm_service,
@@ -32,6 +35,7 @@ impl AppState {
             credential_service,
             authentication_service,
             auth_session_service,
+            user_service,
         }
     }
 }

@@ -12,6 +12,7 @@ pub struct JwtClaim {
     pub aud: Vec<String>,
     pub typ: String,
     pub azp: String,
+    pub client_id: Option<String>,
 }
 
 impl JwtClaim {
@@ -31,6 +32,7 @@ impl JwtClaim {
             aud,
             typ,
             azp,
+            client_id: None,
         }
     }
 }

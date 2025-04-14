@@ -79,15 +79,17 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
-    async fn update_code(
+    async fn update_code_and_user_id(
         &self,
         session_code: Uuid,
         code: String,
+        user_id: Uuid,
     ) -> Result<AuthSession, AuthSessionError> {
         let session = sqlx::query_as!(
             AuthSession,
-            "UPDATE auth_sessions SET code = $1 WHERE id = $2 RETURNING *",
+            "UPDATE auth_sessions SET code = $1, user_id = $2 WHERE id = $3 RETURNING *",
             code,
+            user_id,
             session_code
         )
         .fetch_one(&self.pool)

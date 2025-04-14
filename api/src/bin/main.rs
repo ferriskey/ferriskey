@@ -94,6 +94,7 @@ async fn main() -> Result<(), anyhow::Error> {
         credential_service,
         authentication_service,
         auth_session_service,
+        user_service,
     )
     .await?;
 

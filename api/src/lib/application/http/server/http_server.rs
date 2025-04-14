@@ -10,6 +10,7 @@ use crate::domain::authentication::service::authentication::DefaultAuthenticatio
 use crate::domain::client::services::client_service::DefaultClientService;
 use crate::domain::credential::services::credential_service::DefaultCredentialService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
+use crate::domain::user::services::user_service::DefaultUserService;
 use anyhow::Context;
 use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
@@ -45,6 +46,7 @@ impl HttpServer {
         credential_service: Arc<DefaultCredentialService>,
         authentication_service: Arc<DefaultAuthenticationService>,
         auth_session_service: Arc<DefaultAuthSessionService>,
+        user_service: Arc<DefaultUserService>,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -59,6 +61,7 @@ impl HttpServer {
             credential_service,
             authentication_service,
             auth_session_service,
+            user_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![

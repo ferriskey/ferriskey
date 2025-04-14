@@ -29,6 +29,7 @@ pub trait AuthSessionService: Clone + Send + Sync + 'static {
         &self,
         session_code: Uuid,
         code: String,
+        user_id: Uuid,
     ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 }
 
@@ -45,9 +46,10 @@ pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
         &self,
         code: String,
     ) -> impl Future<Output = Result<Option<AuthSession>, AuthSessionError>> + Send;
-    fn update_code(
+    fn update_code_and_user_id(
         &self,
         session_code: Uuid,
         code: String,
+        user_id: Uuid,
     ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 }

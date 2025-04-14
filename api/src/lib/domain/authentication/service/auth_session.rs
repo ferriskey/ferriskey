@@ -67,7 +67,10 @@ impl<R: AuthSessionRepository> AuthSessionService for AuthSessionServiceImpl<R> 
         &self,
         session_code: Uuid,
         code: String,
+        user_id: Uuid,
     ) -> Result<AuthSession, AuthSessionError> {
-        self.repository.update_code(session_code, code).await
+        self.repository
+            .update_code_and_user_id(session_code, code, user_id)
+            .await
     }
 }
