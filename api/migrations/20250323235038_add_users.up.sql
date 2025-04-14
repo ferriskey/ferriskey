@@ -2,6 +2,7 @@
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     realm_id UUID REFERENCES realms(id) NOT NULL,
+    client_id UUID REFERENCES clients(id),
     username VARCHAR(255) NOT NULL,
     firstname VARCHAR(255) NOT NULL,
     lastname VARCHAR(255) NOT NULL,
@@ -15,3 +16,6 @@ CREATE TABLE users (
 
 -- Add unique constraint to username and realm_id
 ALTER TABLE users ADD CONSTRAINT unique_username_realm_id UNIQUE (username, realm_id);
+
+-- Add unique constraint to realm_id
+ALTER TABLE users ADD CONSTRAINT unique_client_id UNIQUE (client_id);
