@@ -41,6 +41,7 @@ pub async fn exchange_token(
             payload.code,
             payload.username,
             payload.password,
+            payload.refresh_token,
         )
         .await
         .map(Response::OK)

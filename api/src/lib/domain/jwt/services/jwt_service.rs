@@ -23,4 +23,8 @@ impl<R: JwtRepository> JwtService for JwtServiceImpl<R> {
     async fn generate_token(&self, claims: JwtClaim) -> Result<Jwt, JwtError> {
         self.repository.generate_jwt_token(&claims).await
     }
+
+    async fn verify_token(&self, token: String) -> Result<JwtClaim, JwtError> {
+        self.repository.verify_token(token).await
+    }
 }

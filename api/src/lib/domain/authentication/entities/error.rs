@@ -26,6 +26,9 @@ pub enum AuthenticationError {
     #[error("Invalid state")]
     InvalidState,
 
+    #[error("Invalid refresh token")]
+    InvalidRefreshToken,
+
     #[error("Internal server error")]
     InternalServerError,
 }

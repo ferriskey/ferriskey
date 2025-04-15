@@ -5,4 +5,9 @@ pub trait JwtService: Clone + Send + Sync + 'static {
         &self,
         claims: JwtClaim,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
+
+    fn verify_token(
+        &self,
+        token: String,
+    ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
 }

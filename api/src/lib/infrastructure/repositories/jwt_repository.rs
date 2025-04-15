@@ -1,4 +1,4 @@
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 
 use crate::domain::jwt::{
     entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError},
@@ -47,5 +47,18 @@ impl JwtRepository for StaticJwtRepository {
             token,
             expires_at: claims.exp,
         })
+    }
+
+    async fn verify_token(&self, token: String) -> Result<JwtClaim, JwtError> {
+        let validation = Validation::new(Algorithm::RS256);
+        let token_data = decode::<JwtClaim>(&token, &self.keys.decoding_key, &validation)
+            .map_err(|e| JwtError::ValidationError(e.to_string()))?;
+
+        let current_time = chrono::Utc::now().timestamp();
+        if token_data.claims.exp < current_time {
+            return Err(JwtError::ExpiredToken);
+        }
+
+        Ok(token_data.claims)
     }
 }

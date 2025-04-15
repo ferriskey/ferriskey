@@ -24,4 +24,7 @@ pub struct TokenRequestValidator {
 
     #[serde(default)]
     pub password: Option<String>,
+
+    #[serde(default)]
+    pub refresh_token: Option<String>,
 }

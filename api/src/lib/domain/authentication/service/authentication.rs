@@ -177,10 +177,11 @@ impl AuthenticationService for AuthenticationServiceImpl {
         code: Option<String>,
         username: Option<String>,
         password: Option<String>,
+        token: Option<String>,
     ) -> Result<JwtToken, AuthenticationError> {
         let realm = self
             .realm_service
-            .get_by_name(realm_name)
+            .get_by_name(realm_name.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
@@ -194,6 +195,11 @@ impl AuthenticationService for AuthenticationServiceImpl {
             }
             GrantType::Credentials => {
                 self.using_credentials(realm.id, client_id, client_secret.unwrap())
+                    .await
+            }
+            GrantType::RefreshToken => {
+                let refresh_token = token.ok_or(AuthenticationError::Invalid)?;
+                self.using_refresh_token(realm.id, client_id, refresh_token)
                     .await
             }
         }
@@ -241,5 +247,38 @@ impl AuthenticationService for AuthenticationServiceImpl {
         } else {
             Err(AuthenticationError::InvalidPassword)
         }
+    }
+
+    async fn using_refresh_token(
+        &self,
+        realm_id: Uuid,
+        client_id: String,
+        refresh_token: String,
+    ) -> Result<JwtToken, AuthenticationError> {
+        let _ = self
+            .client_service
+            .get_by_client_id(client_id, realm_id)
+            .await
+            .map_err(|_| AuthenticationError::InvalidClient)?;
+
+        let claims = self
+            .jwt_service
+            .verify_token(refresh_token)
+            .await
+            .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
+
+        let jwt = self
+            .jwt_service
+            .generate_token(claims)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        Ok(JwtToken::new(
+            jwt.token,
+            "Bearer".to_string(),
+            "8xLOxBtZp8".to_string(),
+            3600,
+            "id_token".to_string(),
+        ))
     }
 }

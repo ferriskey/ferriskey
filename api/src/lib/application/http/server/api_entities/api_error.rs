@@ -119,6 +119,9 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::ServiceAccountNotFound => {
                 Self::NotFound("Service account not found".to_string())
             }
+            AuthenticationError::InvalidRefreshToken => {
+                Self::Unauthorized("Invalid refresh token".to_string())
+            }
         }
     }
 }

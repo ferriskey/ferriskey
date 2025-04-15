@@ -8,10 +8,15 @@ pub enum GrantType {
     #[default]
     #[serde(rename = "authorization_code")]
     Code,
+
     #[serde(rename = "password")]
     Password,
+
     #[serde(rename = "client_credentials")]
     Credentials,
+
+    #[serde(rename = "refresh_token")]
+    RefreshToken,
 }
 
 impl Display for GrantType {
@@ -20,6 +25,7 @@ impl Display for GrantType {
             GrantType::Code => write!(f, "code"),
             GrantType::Password => write!(f, "password"),
             GrantType::Credentials => write!(f, "credentials"),
+            GrantType::RefreshToken => write!(f, "refresh_token"),
         }
     }
 }
