@@ -31,6 +31,7 @@ export enum GrantType {
 	Code = "authorization_code",
 	Password = "password",
 	Credentials = "client_credentials",
+	RefreshToken = "refresh_token",
 }
 
 export interface TokenRequestValidator {
@@ -40,5 +41,6 @@ export interface TokenRequestValidator {
 	code?: string;
 	username?: string;
 	password?: string;
+	refresh_token?: string;
 }
 
