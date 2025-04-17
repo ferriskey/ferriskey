@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './app.css'
+import Layout from './components/layout/layout'
 import useUser from './hooks/use-user'
 import PageAuthentication from './pages/authentication/page-authentication'
+import PageOverview from './pages/overview/page-overview'
 
 function App() {
   const { realm_name } = useParams()
@@ -12,11 +14,22 @@ function App() {
 
   console.log(isAuthenticated, isLoading, pathname)
 
+  const authenticateRoute = useMemo(() => {
+    if (pathname.includes('authentication')) {
+      return true
+    }
+    return false
+  }, [pathname])
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !pathname.includes('authentication')) {
       const realm = realm_name ?? 'master'
 
       navigate(`/realms/${realm}/authentication/login`)
+    } else {
+      if (isAuthenticated) {
+        navigate(`/realms/${realm_name}/overview`)
+      }
     }
   }, [isAuthenticated, isLoading, pathname, realm_name, navigate])
 
@@ -25,6 +38,10 @@ function App() {
       <Routes>
         <Route path="realms/:realm_name">
           <Route path="authentication/*" element={<PageAuthentication />} />
+
+          <Route element={<Layout />}>
+            <Route path="overview/*" element={<PageOverview />} />
+          </Route>
         </Route>
       </Routes>
     </>

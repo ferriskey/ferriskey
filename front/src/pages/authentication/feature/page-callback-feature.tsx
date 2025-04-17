@@ -1,13 +1,16 @@
 import { GrantType } from '@/api/api.interface'
 import { useTokenMutation } from '@/api/auth.api'
+import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
 
 export default function PageCallbackFeature() {
   const [code, setCode] = useState<string | null>(null)
   const [setup, setSetup] = useState<boolean>(false)
   const { realm_name } = useParams()
+  const { setAuthToken } = useAuth()
+  const navigate = useNavigate()
 
   const { mutate: exchangeToken, data, status } = useTokenMutation()
 
@@ -35,7 +38,9 @@ export default function PageCallbackFeature() {
 
   useEffect(() => {
     if (data) {
-      console.log(data)
+      setAuthToken(data.access_token)
+
+      navigate(`/realms/${realm_name}/overview`)
     }
   }, [data])
 
