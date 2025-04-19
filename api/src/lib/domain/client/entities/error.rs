@@ -10,4 +10,8 @@ pub enum ClientError {
     Invalid,
     #[error("Internal server error")]
     InternalServerError,
+    #[error("Redirect URI not found")]
+    RedirectUriNotFound,
+    #[error("Invalid redirect URI")]
+    InvalidRedirectUri,
 }
