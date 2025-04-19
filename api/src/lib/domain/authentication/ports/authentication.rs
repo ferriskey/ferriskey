@@ -11,14 +11,6 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
         code: String,
     ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
-    fn using_password(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        username: String,
-        password: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
     fn using_session_code(
         &self,
         realm_id: String,
