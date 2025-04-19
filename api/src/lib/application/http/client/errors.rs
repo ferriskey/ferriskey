@@ -14,6 +14,12 @@ impl From<ClientError> for ApiError {
             ClientError::AlreadyExists => {
                 ApiError::validation_error("Client already exists", "name")
             }
+            ClientError::RedirectUriNotFound => {
+                ApiError::validation_error("Redirect URI not found", "redirect_uri")
+            }
+            ClientError::InvalidRedirectUri => {
+                ApiError::validation_error("Redirect URI format is invalid", "redirect_uri")
+            }
         }
     }
 }
