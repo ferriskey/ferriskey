@@ -5,12 +5,6 @@ use crate::domain::authentication::entities::{
 };
 
 pub trait AuthenticationService: Clone + Send + Sync + 'static {
-    fn using_code(
-        &self,
-        client_id: String,
-        code: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
     fn using_session_code(
         &self,
         realm_id: String,
