@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use tracing::info;
 use uuid::Uuid;
 
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, grant_type::GrantType, jwt_token::JwtToken},
-        grant_type_strategies::client_credentials_strategy::ClientCredentialsStrategy,
+        grant_type_strategies::{
+            client_credentials_strategy::ClientCredentialsStrategy,
+            refresh_token_strategy::RefreshTokenStrategy,
+        },
         ports::{
             auth_session::AuthSessionService,
             authentication::AuthenticationService,
@@ -42,6 +44,7 @@ pub struct AuthenticationServiceImpl {
     pub jwt_service: Arc<DefaultJwtService>,
     pub auth_session_service: Arc<DefaultAuthSessionService>,
     pub client_credentials_strategy: ClientCredentialsStrategy,
+    pub refresh_token_strategy: RefreshTokenStrategy,
 }
 
 impl AuthenticationServiceImpl {
@@ -59,6 +62,9 @@ impl AuthenticationServiceImpl {
             jwt_service.clone(),
         );
 
+        let refresh_token_strategy =
+            RefreshTokenStrategy::new(jwt_service.clone(), client_service.clone());
+
         Self {
             realm_service,
             client_service,
@@ -67,6 +73,7 @@ impl AuthenticationServiceImpl {
             jwt_service,
             auth_session_service,
             client_credentials_strategy,
+            refresh_token_strategy,
         }
     }
 }
@@ -207,11 +214,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
                     .await
             }
             GrantType::Credentials => self.client_credentials_strategy.execute(params).await,
-            GrantType::RefreshToken => {
-                let refresh_token = token.ok_or(AuthenticationError::Invalid)?;
-                self.using_refresh_token(realm.id, client_id, refresh_token)
-                    .await
-            }
+            GrantType::RefreshToken => self.refresh_token_strategy.execute(params).await,
         }
     }
 
@@ -257,38 +260,5 @@ impl AuthenticationService for AuthenticationServiceImpl {
         } else {
             Err(AuthenticationError::InvalidPassword)
         }
-    }
-
-    async fn using_refresh_token(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        refresh_token: String,
-    ) -> Result<JwtToken, AuthenticationError> {
-        let _ = self
-            .client_service
-            .get_by_client_id(client_id, realm_id)
-            .await
-            .map_err(|_| AuthenticationError::InvalidClient)?;
-
-        let claims = self
-            .jwt_service
-            .verify_token(refresh_token)
-            .await
-            .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
-
-        let jwt = self
-            .jwt_service
-            .generate_token(claims)
-            .await
-            .map_err(|_| AuthenticationError::InternalServerError)?;
-
-        Ok(JwtToken::new(
-            jwt.token,
-            "Bearer".to_string(),
-            "8xLOxBtZp8".to_string(),
-            3600,
-            "id_token".to_string(),
-        ))
     }
 }

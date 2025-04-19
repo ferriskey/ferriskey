@@ -39,52 +39,47 @@ impl ClientCredentialsStrategy {
 }
 
 impl GrantTypeStrategy for ClientCredentialsStrategy {
-    fn execute(
-        &self,
-        params: GrantTypeParams,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send {
-        async move {
-            let client = self
-                .client_service
-                .get_by_client_id(params.client_id.clone(), params.realm_id)
-                .await
-                .map_err(|_| AuthenticationError::Invalid);
+    async fn execute(&self, params: GrantTypeParams) -> Result<JwtToken, AuthenticationError> {
+        let client = self
+            .client_service
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|_| AuthenticationError::Invalid);
 
-            match client {
-                Ok(client) => {
-                    info!("success to login with client: {:?}", client.name);
+        match client {
+            Ok(client) => {
+                info!("success to login with client: {:?}", client.name);
 
-                    let user = self
-                        .user_service
-                        .get_by_client_id(client.id, params.realm_id)
-                        .await
-                        .map_err(|_| AuthenticationError::ServiceAccountNotFound)?;
+                let user = self
+                    .user_service
+                    .get_by_client_id(client.id, params.realm_id)
+                    .await
+                    .map_err(|_| AuthenticationError::ServiceAccountNotFound)?;
 
-                    let claims = JwtClaim::new(
-                        user.id,
-                        user.username,
-                        "http://localhost:3333/realms/master".to_string(),
-                        vec!["master-realm".to_string(), "account".to_string()],
-                        "Bearer".to_string(),
-                        params.client_id,
-                    );
+                let claims = JwtClaim::new(
+                    user.id,
+                    user.username,
+                    "http://localhost:3333/realms/master".to_string(),
+                    vec!["master-realm".to_string(), "account".to_string()],
+                    "Bearer".to_string(),
+                    params.client_id,
+                );
 
-                    let jwt = self
-                        .jwt_service
-                        .generate_token(claims)
-                        .await
-                        .map_err(|_| AuthenticationError::InternalServerError)?;
+                let jwt = self
+                    .jwt_service
+                    .generate_token(claims)
+                    .await
+                    .map_err(|_| AuthenticationError::InternalServerError)?;
 
-                    Ok(JwtToken::new(
-                        jwt.token,
-                        "Bearer".to_string(),
-                        "8xLOxBtZp8".to_string(),
-                        3600,
-                        "id_token".to_string(),
-                    ))
-                }
-                Err(error) => Err(error),
+                Ok(JwtToken::new(
+                    jwt.token,
+                    "Bearer".to_string(),
+                    "8xLOxBtZp8".to_string(),
+                    3600,
+                    "id_token".to_string(),
+                ))
             }
+            Err(error) => Err(error),
         }
     }
 }

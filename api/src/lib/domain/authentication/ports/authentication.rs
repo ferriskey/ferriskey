@@ -28,13 +28,6 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
         password: String,
     ) -> impl Future<Output = Result<String, AuthenticationError>> + Send;
 
-    fn using_refresh_token(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        refresh_token: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
     fn authentificate(
         &self,
         realm_name: String,
