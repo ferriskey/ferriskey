@@ -76,14 +76,12 @@ impl GrantTypeStrategy for PasswordStrategy {
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
-        let jwt_token = JwtToken::new(
+        Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             "8xLOxBtZp8".to_string(),
             3600,
             "id_token".to_string(),
-        );
-
-        Ok(jwt_token)
+        ))
     }
 }
