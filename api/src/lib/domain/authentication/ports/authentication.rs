@@ -5,27 +5,6 @@ use crate::domain::authentication::entities::{
 };
 
 pub trait AuthenticationService: Clone + Send + Sync + 'static {
-    fn using_code(
-        &self,
-        client_id: String,
-        code: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
-    fn using_password(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        username: String,
-        password: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
-    fn using_credentials(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        client_secret: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-
     fn using_session_code(
         &self,
         realm_id: String,
@@ -34,13 +13,6 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
         username: String,
         password: String,
     ) -> impl Future<Output = Result<String, AuthenticationError>> + Send;
-
-    fn using_refresh_token(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        refresh_token: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 
     fn authentificate(
         &self,
