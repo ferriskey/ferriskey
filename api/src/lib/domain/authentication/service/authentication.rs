@@ -6,7 +6,12 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, grant_type::GrantType, jwt_token::JwtToken},
-        ports::{auth_session::AuthSessionService, authentication::AuthenticationService},
+        grant_type_strategies::client_credentials_strategy::ClientCredentialsStrategy,
+        ports::{
+            auth_session::AuthSessionService,
+            authentication::AuthenticationService,
+            grant_type_strategy::{GrantTypeParams, GrantTypeStrategy},
+        },
     },
     client::{
         ports::client_service::ClientService, services::client_service::DefaultClientService,
@@ -36,6 +41,7 @@ pub struct AuthenticationServiceImpl {
     pub user_service: Arc<DefaultUserService>,
     pub jwt_service: Arc<DefaultJwtService>,
     pub auth_session_service: Arc<DefaultAuthSessionService>,
+    pub client_credentials_strategy: ClientCredentialsStrategy,
 }
 
 impl AuthenticationServiceImpl {
@@ -47,6 +53,12 @@ impl AuthenticationServiceImpl {
         jwt_service: Arc<DefaultJwtService>,
         auth_session_service: Arc<DefaultAuthSessionService>,
     ) -> Self {
+        let client_credentials_strategy = ClientCredentialsStrategy::new(
+            client_service.clone(),
+            user_service.clone(),
+            jwt_service.clone(),
+        );
+
         Self {
             realm_service,
             client_service,
@@ -54,6 +66,7 @@ impl AuthenticationServiceImpl {
             user_service,
             jwt_service,
             auth_session_service,
+            client_credentials_strategy,
         }
     }
 }
@@ -156,55 +169,6 @@ impl AuthenticationService for AuthenticationServiceImpl {
         Ok(jwt_token)
     }
 
-    async fn using_credentials(
-        &self,
-        realm_id: Uuid,
-        client_id: String,
-        _client_secret: String,
-    ) -> Result<JwtToken, AuthenticationError> {
-        let client = self
-            .client_service
-            .get_by_client_id(client_id.clone(), realm_id)
-            .await
-            .map_err(|_| AuthenticationError::Invalid);
-
-        match client {
-            Ok(client) => {
-                info!("success to login with client: {:?}", client.name);
-
-                let user = self
-                    .user_service
-                    .get_by_client_id(client.id, realm_id)
-                    .await
-                    .map_err(|_| AuthenticationError::ServiceAccountNotFound)?;
-
-                let claims = JwtClaim::new(
-                    user.id,
-                    user.username,
-                    "http://localhost:3333/realms/master".to_string(),
-                    vec!["master-realm".to_string(), "account".to_string()],
-                    "Bearer".to_string(),
-                    client_id,
-                );
-
-                let jwt = self
-                    .jwt_service
-                    .generate_token(claims)
-                    .await
-                    .map_err(|_| AuthenticationError::InternalServerError)?;
-
-                Ok(JwtToken::new(
-                    jwt.token,
-                    "Bearer".to_string(),
-                    "8xLOxBtZp8".to_string(),
-                    3600,
-                    "id_token".to_string(),
-                ))
-            }
-            Err(error) => Err(error),
-        }
-    }
-
     async fn authentificate(
         &self,
         realm_name: String,
@@ -222,6 +186,18 @@ impl AuthenticationService for AuthenticationServiceImpl {
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let params = GrantTypeParams {
+            realm_id: realm.id,
+            realm_name: realm.name,
+            client_id: client_id.clone(),
+            client_secret: client_secret.clone(),
+            code: code.clone(),
+            username: username.clone(),
+            password: password.clone(),
+            refresh_token: token.clone(),
+            redirect_uri: None,
+        };
+
         match grant_type {
             GrantType::Code => self.using_code(client_id, code.unwrap()).await,
             GrantType::Password => {
@@ -230,10 +206,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
                 self.using_password(realm.id, client_id, username, password)
                     .await
             }
-            GrantType::Credentials => {
-                self.using_credentials(realm.id, client_id, client_secret.unwrap())
-                    .await
-            }
+            GrantType::Credentials => self.client_credentials_strategy.execute(params).await,
             GrantType::RefreshToken => {
                 let refresh_token = token.ok_or(AuthenticationError::Invalid)?;
                 self.using_refresh_token(realm.id, client_id, refresh_token)
