@@ -1,16 +1,20 @@
 use std::future::Future;
 use uuid::Uuid;
 
-use crate::domain::client::entities::{
-    redirect_uri::RedirectUri, redirect_uri_error::RedirectUriError,
+use crate::{
+    application::http::client::validators::CreateRedirectUriValidator,
+    domain::client::entities::{
+        error::ClientError, redirect_uri::RedirectUri, redirect_uri_error::RedirectUriError,
+    },
 };
 
 pub trait RedirectUriService: Clone + Send + Sync + 'static {
     fn add_redirect_uri(
         &self,
-        client_id: Uuid,
-        uri: String,
-    ) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+        schema: CreateRedirectUriValidator,
+        realm_name: String,
+        client_id: String,
+    ) -> impl Future<Output = Result<RedirectUri, ClientError>> + Send;
 
     fn get_by_client_id(
         &self,

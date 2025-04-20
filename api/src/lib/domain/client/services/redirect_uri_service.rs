@@ -1,15 +1,24 @@
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    domain::client::{
-        entities::{redirect_uri::RedirectUri, redirect_uri_error::RedirectUriError},
-        ports::{
-            redirect_uri_repository::RedirectUriRepository,
-            redirect_uri_service::RedirectUriService,
+    application::http::client::validators::CreateRedirectUriValidator,
+    domain::{
+        client::{
+            entities::{
+                error::ClientError, redirect_uri::RedirectUri, redirect_uri_error::RedirectUriError,
+            },
+            ports::{
+                client_service::ClientService, redirect_uri_repository::RedirectUriRepository,
+                redirect_uri_service::RedirectUriService,
+            },
         },
+        realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
     },
     infrastructure::repositories::redirect_uri_repository::PostgresRedirectUriRepository,
 };
+
+use super::client_service::DefaultClientService;
 
 pub type DefaultRepositery = RedirectUriServiceImpl<PostgresRedirectUriRepository>;
 
@@ -19,15 +28,22 @@ where
     R: RedirectUriRepository,
 {
     pub redirect_uri_repository: R,
-    // Add any necessary fields here, such as a database connection or configuration
+    pub realm_service: Arc<DefaultRealmService>,
+    pub client_service: Arc<DefaultClientService>,
 }
 impl<R> RedirectUriServiceImpl<R>
 where
     R: RedirectUriRepository,
 {
-    pub fn new(redirect_uri_repository: R) -> Self {
+    pub fn new(
+        redirect_uri_repository: R,
+        realm_service: Arc<DefaultRealmService>,
+        client_service: Arc<DefaultClientService>,
+    ) -> Self {
         Self {
             redirect_uri_repository,
+            realm_service,
+            client_service,
         }
     }
 }
@@ -38,12 +54,28 @@ where
 {
     async fn add_redirect_uri(
         &self,
-        client_id: Uuid,
-        uri: String,
-    ) -> Result<RedirectUri, RedirectUriError> {
-        self.redirect_uri_repository
-            .create_redirect_uri(client_id, uri, true)
+        schema: CreateRedirectUriValidator,
+        realm_name: String,
+        client_id: String,
+    ) -> Result<RedirectUri, ClientError> {
+        let realm = self
+            .realm_service
+            .get_by_name(realm_name)
             .await
+            .map_err(|_| ClientError::InternalServerError)?;
+        let client = self
+            .client_service
+            .get_by_client_id(client_id, realm.id)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let redirect_uri = self
+            .redirect_uri_repository
+            .create_redirect_uri(client.id, schema.value, schema.enabled)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        Ok(redirect_uri)
     }
 
     async fn get_by_client_id(

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::{NoContext, Timestamp, Uuid};
+use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct RedirectUri {
@@ -11,6 +12,12 @@ pub struct RedirectUri {
     pub enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreateRedirectUriSchema {
+    pub value: String,
+    pub enabled: bool,
 }
 
 impl RedirectUri {
