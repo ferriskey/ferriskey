@@ -50,7 +50,10 @@ impl JwtRepository for StaticJwtRepository {
     }
 
     async fn verify_token(&self, token: String) -> Result<JwtClaim, JwtError> {
-        let validation = Validation::new(Algorithm::RS256);
+        let mut validation = Validation::new(Algorithm::RS256);
+
+        validation.validate_aud = false;
+
         let token_data = decode::<JwtClaim>(&token, &self.keys.decoding_key, &validation)
             .map_err(|e| JwtError::ValidationError(e.to_string()))?;
 

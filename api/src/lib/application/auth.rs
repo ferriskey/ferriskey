@@ -1,5 +1,9 @@
 use axum::{
-    extract::{FromRef, FromRequestParts, Request, State}, http::{request::Parts, StatusCode}, middleware::Next, response::{IntoResponse, Response}, RequestPartsExt
+    RequestPartsExt,
+    extract::{FromRef, FromRequestParts, Request, State},
+    http::{StatusCode, request::Parts},
+    middleware::Next,
+    response::{IntoResponse, Response},
 };
 use axum_extra::{
     TypedHeader,
@@ -34,23 +38,34 @@ pub enum AuthError {
     InvalidSignature,
 }
 
-
 #[derive(Serialize, Deserialize)]
 struct ErrorResponse {
     code: String,
     message: String,
-    status: i64
+    status: i64,
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
-            AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid token"),
-            AuthError::TokenExpired => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token expired"),
-            AuthError::TokenNotFound => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token not found"),
-            AuthError::InvalidSignature => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid signature"),
+            AuthError::InvalidToken => {
+                (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid token")
+            }
+            AuthError::TokenExpired => {
+                (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token expired")
+            }
+            AuthError::TokenNotFound => (
+                StatusCode::UNAUTHORIZED,
+                "E_UNAUTHORIZED",
+                "Token not found",
+            ),
+            AuthError::InvalidSignature => (
+                StatusCode::UNAUTHORIZED,
+                "E_UNAUTHORIZED",
+                "Invalid signature",
+            ),
         };
-        
+
         let error_response = ErrorResponse {
             code: code.to_string(),
             message: message.to_string(),
@@ -58,7 +73,8 @@ impl IntoResponse for AuthError {
         };
 
         let body = serde_json::to_string(&error_response).unwrap_or_else(|_| {
-            r#"{"code":"INTERNAL_SERVER_ERROR","message":"Failed to serialize error response"}"#.to_string()
+            r#"{"code":"INTERNAL_SERVER_ERROR","message":"Failed to serialize error response"}"#
+                .to_string()
         });
 
         axum::response::Response::builder()
@@ -120,24 +136,23 @@ pub async fn auth(
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
 
-    let user = state.user_service
-    .get_by_id(claims.sub)
-    .await
-    .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user = state
+        .user_service
+        .get_by_id(claims.sub)
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     let identity: Identity = match claims.is_service_account() {
         true => {
             let client = state
-            .client_service
-            .get_by_id(user.client_id.unwrap())
-            .await
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                .client_service
+                .get_by_id(user.client_id.unwrap())
+                .await
+                .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
             Identity::Client(client)
         }
-        false => {
-            Identity::User(user)
-        }
+        false => Identity::User(user),
     };
 
     req.extensions_mut().insert(identity);

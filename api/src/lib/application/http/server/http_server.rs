@@ -99,11 +99,6 @@ impl HttpServer {
             .merge(authentication_routes())
             .layer(trace_layer)
             .layer(cors)
-            // .layer(Extension(Arc::clone(&state.realm_service)))
-            // .layer(Extension(Arc::clone(&state.client_service)))
-            // .layer(Extension(Arc::clone(&state.authentication_service)))
-            // .layer(Extension(Arc::clone(&state.credential_service)))
-            // .layer(Extension(Arc::clone(&state.auth_session_service)))
             .layer(CookieLayer::default())
             .with_state(state);
 

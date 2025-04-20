@@ -23,8 +23,8 @@ impl UserRepository for PostgresUserRepository {
         let user = User::from_dto(dto);
 
         let _ = sqlx::query_as!(User, r#"
-        INSERT INTO users (id, realm_id, username, firstname, lastname, email, email_verified, enabled, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO users (id, realm_id, username, firstname, lastname, email, email_verified, enabled, client_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         "#,
         user.id,
         user.realm_id,
@@ -34,6 +34,7 @@ impl UserRepository for PostgresUserRepository {
         user.email,
         user.email_verified,
         user.enabled,
+        user.client_id,
         user.created_at,
         user.updated_at
         )
@@ -57,14 +58,10 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, UserError> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE client_id = $1",
-            client_id,
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| UserError::NotFound)?;
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE client_id = $1", client_id,)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| UserError::NotFound)?;
         Ok(user)
     }
 

@@ -86,10 +86,7 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
-    async fn get_by_id(
-            &self,
-            id: uuid::Uuid,
-        ) -> Result<Client, ClientError> {
+    async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, ClientError> {
         let client = sqlx::query_as!(
             Client,
             r#"

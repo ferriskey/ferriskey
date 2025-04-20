@@ -8,7 +8,7 @@ use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
 };
 use crate::application::http::server::app_state::AppState;
-use axum::{middleware, Router};
+use axum::{Router, middleware};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 

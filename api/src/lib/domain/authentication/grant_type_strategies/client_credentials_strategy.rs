@@ -52,7 +52,7 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
 
                 let user = self
                     .user_service
-                    .get_by_client_id(client.id, params.realm_id)
+                    .get_by_client_id(client.id)
                     .await
                     .map_err(|_| AuthenticationError::ServiceAccountNotFound)?;
 
