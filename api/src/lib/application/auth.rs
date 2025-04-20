@@ -11,6 +11,7 @@ use axum_extra::{
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::domain::{
     client::{entities::model::Client, ports::client_service::ClientService},
@@ -144,10 +145,12 @@ pub async fn auth(
 
     let identity: Identity = match claims.is_service_account() {
         true => {
-            let client_id  = match claims.client_id {
+            let client_id = match claims.client_id {
                 Some(client_id) => client_id,
                 None => return Err(StatusCode::UNAUTHORIZED),
             };
+
+            let client_id = Uuid::parse_str(&client_id).map_err(|_| StatusCode::UNAUTHORIZED)?;
             let client = state
                 .client_service
                 .get_by_id(client_id)
