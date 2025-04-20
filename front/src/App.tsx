@@ -22,13 +22,12 @@ function App() {
   }, [pathname])
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !pathname.includes('authentication')) {
-      const realm = realm_name ?? 'master'
-
+    const realm = realm_name ?? 'master'
+    if (!isLoading && !isAuthenticated && !authenticateRoute) {
       navigate(`/realms/${realm}/authentication/login`)
     } else {
       if (isAuthenticated) {
-        navigate(`/realms/${realm_name}/overview`)
+        navigate(`/realms/${realm}/overview`)
       }
     }
   }, [isAuthenticated, isLoading, pathname, realm_name, navigate])

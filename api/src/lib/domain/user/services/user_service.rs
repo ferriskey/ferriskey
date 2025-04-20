@@ -42,9 +42,9 @@ where
             .await
     }
 
-    async fn get_by_client_id(&self, client_id: Uuid, realm_id: Uuid) -> Result<User, UserError> {
+    async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, UserError> {
         self.user_repository
-            .get_by_client_id(client_id, realm_id)
+            .get_by_client_id(client_id)
             .await
     }
 

@@ -1,0 +1,146 @@
+use axum::{
+    extract::{FromRef, FromRequestParts, Request, State}, http::{request::Parts, StatusCode}, middleware::Next, response::{IntoResponse, Response}, RequestPartsExt
+};
+use axum_extra::{
+    TypedHeader,
+    headers::{Authorization, authorization::Bearer},
+};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::domain::{
+    client::{entities::model::Client, ports::client_service::ClientService},
+    jwt::{entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService},
+    user::{entities::model::User, ports::user_service::UserService},
+};
+
+use super::http::server::app_state::AppState;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Jwt {
+    claims: JwtClaim,
+    token: String,
+}
+
+#[derive(Debug, Error, Deserialize, Serialize, PartialEq, Eq)]
+pub enum AuthError {
+    #[error("Invalid token")]
+    InvalidToken,
+    #[error("Token expired")]
+    TokenExpired,
+    #[error("Token not found")]
+    TokenNotFound,
+    #[error("Invalid signature")]
+    InvalidSignature,
+}
+
+
+#[derive(Serialize, Deserialize)]
+struct ErrorResponse {
+    code: String,
+    message: String,
+    status: i64
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        let (status, code, message) = match self {
+            AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid token"),
+            AuthError::TokenExpired => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token expired"),
+            AuthError::TokenNotFound => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token not found"),
+            AuthError::InvalidSignature => (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid signature"),
+        };
+        
+        let error_response = ErrorResponse {
+            code: code.to_string(),
+            message: message.to_string(),
+            status: status.as_u16() as i64,
+        };
+
+        let body = serde_json::to_string(&error_response).unwrap_or_else(|_| {
+            r#"{"code":"INTERNAL_SERVER_ERROR","message":"Failed to serialize error response"}"#.to_string()
+        });
+
+        axum::response::Response::builder()
+            .status(status)
+            .header("Content-Type", "application/json")
+            .body(body.clone().into())
+            .unwrap_or_else(|_| axum::response::Response::new(body.clone().into()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Identity {
+    User(User),
+    Client(Client),
+}
+
+impl<S> FromRequestParts<S> for Jwt
+where
+    S: Send + Sync,
+    AppState: FromRef<S>,
+{
+    type Rejection = AuthError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let token = extract_token_from_bearer(parts).await?;
+
+        let app_state = AppState::from_ref(state);
+
+        let claims = app_state
+            .jwt_service
+            .verify_token(token.clone())
+            .await
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        Ok(Jwt {
+            claims,
+            token: token.clone(),
+        })
+    }
+}
+
+pub async fn extract_token_from_bearer(parts: &mut Parts) -> Result<String, AuthError> {
+    let TypedHeader(Authorization(bearer)) = parts
+        .extract::<TypedHeader<Authorization<Bearer>>>()
+        .await
+        .map_err(|_| AuthError::TokenNotFound)?;
+
+    Ok(bearer.token().to_string())
+}
+
+pub async fn auth(
+    State(state): State<AppState>,
+    jwt: Jwt,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let claims = jwt.claims;
+
+    let user = state.user_service
+    .get_by_id(claims.sub)
+    .await
+    .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    let identity: Identity = match claims.is_service_account() {
+        true => {
+            let client = state
+            .client_service
+            .get_by_id(user.client_id.unwrap())
+            .await
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+            Identity::Client(client)
+        }
+        false => {
+            Identity::User(user)
+        }
+    };
+
+    req.extensions_mut().insert(identity);
+
+    Ok(next.run(req).await)
+}

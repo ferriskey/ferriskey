@@ -101,4 +101,14 @@ where
             .get_by_client_id(client_id, realm_id)
             .await
     }
+
+    async fn get_by_id(
+            &self,
+            id: uuid::Uuid,
+        ) -> Result<Client, ClientError> {
+        self.client_repository
+            .get_by_id(id)
+            .await
+            .map_err(|_| ClientError::NotFound)
+    }
 }

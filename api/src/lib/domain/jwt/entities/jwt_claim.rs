@@ -35,4 +35,8 @@ impl JwtClaim {
             client_id: None,
         }
     }
+
+    pub fn is_service_account(&self) -> bool {
+        self.client_id.is_some()
+    }
 }

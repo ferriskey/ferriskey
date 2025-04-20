@@ -1,3 +1,4 @@
+use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
 use crate::application::http::realm::handlers::fetch_realm::{__path_fetch_realm, fetch_realm};
@@ -7,7 +8,7 @@ use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
 };
 use crate::application::http::server::app_state::AppState;
-use axum::Router;
+use axum::{middleware, Router};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
@@ -22,7 +23,7 @@ use utoipa::OpenApi;
 ))]
 pub struct RealmApiDoc;
 
-pub fn realm_routes() -> Router<AppState> {
+pub fn realm_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .typed_get(fetch_realm)
         .typed_get(get_realm)
@@ -30,4 +31,5 @@ pub fn realm_routes() -> Router<AppState> {
         .typed_put(update_realm)
         .typed_delete(delete_realm)
         .typed_put(update_realm_setting)
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

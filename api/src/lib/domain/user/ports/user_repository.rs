@@ -17,7 +17,6 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
     fn get_by_client_id(
         &self,
         client_id: Uuid,
-        realm_id: Uuid,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
 
     fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;

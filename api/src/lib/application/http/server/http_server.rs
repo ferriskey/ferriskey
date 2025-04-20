@@ -9,6 +9,7 @@ use crate::domain::authentication::service::auth_session::DefaultAuthSessionServ
 use crate::domain::authentication::service::authentication::DefaultAuthenticationService;
 use crate::domain::client::services::client_service::DefaultClientService;
 use crate::domain::credential::services::credential_service::DefaultCredentialService;
+use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::user::services::user_service::DefaultUserService;
 use anyhow::Context;
@@ -47,6 +48,7 @@ impl HttpServer {
         authentication_service: Arc<DefaultAuthenticationService>,
         auth_session_service: Arc<DefaultAuthSessionService>,
         user_service: Arc<DefaultUserService>,
+        jwt_service: Arc<DefaultJwtService>,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -62,6 +64,7 @@ impl HttpServer {
             authentication_service,
             auth_session_service,
             user_service,
+            jwt_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![
@@ -90,7 +93,7 @@ impl HttpServer {
 
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-            .merge(realm_routes())
+            .merge(realm_routes(state.clone()))
             .merge(client_routes())
             .merge(user_routes())
             .merge(authentication_routes())
