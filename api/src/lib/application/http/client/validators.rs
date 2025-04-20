@@ -25,3 +25,12 @@ pub struct CreateClientValidator {
     #[serde(default)]
     pub secret: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateRedirectUriValidator {
+    #[validate(length(min = 1, message = "Uri value is required"))]
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub enabled: bool,
+}
