@@ -144,9 +144,13 @@ pub async fn auth(
 
     let identity: Identity = match claims.is_service_account() {
         true => {
+            let client_id  = match claims.client_id {
+                Some(client_id) => client_id,
+                None => return Err(StatusCode::UNAUTHORIZED),
+            };
             let client = state
                 .client_service
-                .get_by_id(user.client_id.unwrap())
+                .get_by_id(client_id)
                 .await
                 .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
