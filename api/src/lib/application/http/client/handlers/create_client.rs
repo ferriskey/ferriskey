@@ -23,6 +23,9 @@ pub struct CreateClientRoute {
 #[utoipa::path(
     post,
     path = "",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
     tag = "client",
     request_body = CreateClientValidator,
 )]
