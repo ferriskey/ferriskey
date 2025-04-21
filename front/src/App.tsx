@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
-import './app.css'
+import './App.css'
 import Layout from './components/layout/layout'
 import useUser from './hooks/use-user'
 import PageAuthentication from './pages/authentication/page-authentication'
