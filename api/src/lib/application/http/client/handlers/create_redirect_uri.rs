@@ -1,6 +1,7 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::{
     application::http::{
@@ -19,18 +20,18 @@ use crate::{
 };
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}/redirections")]
+#[typed_path("/realms/{realm_name}/clients/{client_id}/redirects")]
 pub struct CreateRedirectUriRoute {
     pub realm_name: String,
-    pub client_id: String,
+    pub client_id: Uuid,
 }
 
 #[utoipa::path(
     post,
-    path = "/{client_id}/redirections",
+    path = "/{client_id}/redirects",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-        ("client_id" = String, Path, description = "Client ID"),
+        ("client_id" = Uuid, Path, description = "Client ID"),
     ),
     tag = "client",
     request_body = CreateRedirectUriValidator,

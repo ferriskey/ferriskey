@@ -13,7 +13,7 @@ pub trait RedirectUriService: Clone + Send + Sync + 'static {
         &self,
         schema: CreateRedirectUriValidator,
         realm_name: String,
-        client_id: String,
+        client_id: Uuid,
     ) -> impl Future<Output = Result<RedirectUri, ClientError>> + Send;
 
     fn get_by_client_id(

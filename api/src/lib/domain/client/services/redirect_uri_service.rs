@@ -56,18 +56,23 @@ where
         &self,
         schema: CreateRedirectUriValidator,
         realm_name: String,
-        client_id: String,
+        client_id: Uuid,
     ) -> Result<RedirectUri, ClientError> {
         let realm = self
             .realm_service
             .get_by_name(realm_name)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
+
         let client = self
             .client_service
-            .get_by_client_id(client_id, realm.id)
+            .get_by_id(client_id)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
+
+        if client.realm_id != realm.id {
+            return Err(ClientError::NotFound);
+        }
 
         let redirect_uri = self
             .redirect_uri_repository
