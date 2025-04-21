@@ -8,52 +8,79 @@ use crate::domain::{
     client::{
         ports::client_service::ClientService, services::client_service::DefaultClientService,
     },
-    jwt::{ports::jwt_service::JwtService, services::jwt_service::DefaultJwtService},
+    jwt::{
+        entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService,
+        services::jwt_service::DefaultJwtService,
+    },
+    user::{ports::user_service::UserService, services::user_service::DefaultUserService},
 };
 
 #[derive(Clone)]
 pub struct RefreshTokenStrategy {
     pub jwt_service: Arc<DefaultJwtService>,
     pub client_service: Arc<DefaultClientService>,
+    pub user_service: Arc<DefaultUserService>,
 }
 
 impl RefreshTokenStrategy {
     pub fn new(
         jwt_service: Arc<DefaultJwtService>,
         client_service: Arc<DefaultClientService>,
+        user_service: Arc<DefaultUserService>,
     ) -> Self {
         Self {
             jwt_service,
             client_service,
+            user_service,
         }
     }
 }
 
 impl GrantTypeStrategy for RefreshTokenStrategy {
     async fn execute(&self, params: GrantTypeParams) -> Result<JwtToken, AuthenticationError> {
-        let _ = self
-            .client_service
-            .get_by_client_id(params.client_id, params.realm_id)
-            .await
-            .map_err(|_| AuthenticationError::InvalidClient)?;
+        let refresh_token = params.refresh_token.ok_or(AuthenticationError::Invalid)?;
 
-        let token = params.refresh_token.ok_or(AuthenticationError::Invalid)?;
         let claims = self
             .jwt_service
-            .verify_token(token)
+            .verify_token(refresh_token)
             .await
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
-        let jwt = self
+        if claims.typ != "refresh_token" {
+            return Err(AuthenticationError::InvalidRefreshToken);
+        }
+
+        let user = self
+            .user_service
+            .get_by_id(claims.sub)
+            .await
+            .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
+
+        let claims = JwtClaim::new(
+            user.id,
+            user.username,
+            "http://localhost:3333/realms/master".to_string(),
+            vec!["master-realm".to_string(), "account".to_string()],
+            "Bearer".to_string(),
+            params.client_id,
+        );
+
+        let access_token = self
             .jwt_service
             .generate_token(claims)
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let refresh_token = self
+            .jwt_service
+            .generate_refresh_token(user.id)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
         Ok(JwtToken::new(
-            jwt.token,
+            access_token.token,
             "Bearer".to_string(),
-            "8xLOxBtZp8".to_string(),
+            refresh_token.token,
             3600,
             "id_token".to_string(),
         ))
