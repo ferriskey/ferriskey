@@ -6,12 +6,15 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord, ToSchema)]
 pub struct JwtClaim {
     pub sub: Uuid,
-    pub preferred_username: String,
-    pub exp: i64,
+    pub iat: i64,
+    pub jti: String,
     pub iss: String,
-    pub aud: Vec<String>,
     pub typ: String,
     pub azp: String,
+    pub aud: Vec<String>,
+   
+    pub exp: Option<i64>,  
+    pub preferred_username: Option<String>,
     pub client_id: Option<String>,
 }
 
@@ -26,12 +29,34 @@ impl JwtClaim {
     ) -> Self {
         Self {
             sub,
-            preferred_username,
-            exp: chrono::Utc::now().timestamp() + 3600,
+            preferred_username: Some(preferred_username),
+            iat: chrono::Utc::now().timestamp(),
+            jti: Uuid::new_v4().to_string(),
+            exp: Some(chrono::Utc::now().timestamp() + 3600),
             iss,
             aud,
             typ,
             azp,
+            client_id: None,
+        }
+    }
+
+    pub fn new_refresh_token(
+        sub: Uuid,
+        iss: String,
+        aud: Vec<String>,
+        azp: String,
+    ) -> Self {
+        Self {
+            sub,
+            iat: chrono::Utc::now().timestamp(),
+            jti: Uuid::new_v4().to_string(),
+            iss,
+            aud,
+            typ: "refresh".to_string(),
+            azp,
+            preferred_username: None,
+            exp: None,
             client_id: None,
         }
     }

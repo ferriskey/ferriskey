@@ -43,9 +43,11 @@ impl JwtRepository for StaticJwtRepository {
         let header = Header::new(Algorithm::RS256);
         let token = encode(&header, &claims, &self.keys.encoding_key)
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        let exp = claims.exp.unwrap_or(0);
         Ok(Jwt {
             token,
-            expires_at: claims.exp,
+            expires_at: exp,
         })
     }
 
@@ -58,8 +60,11 @@ impl JwtRepository for StaticJwtRepository {
             .map_err(|e| JwtError::ValidationError(e.to_string()))?;
 
         let current_time = chrono::Utc::now().timestamp();
-        if token_data.claims.exp < current_time {
-            return Err(JwtError::ExpiredToken);
+
+        if let Some(exp) = token_data.claims.exp {
+            if exp < current_time {
+                return Err(JwtError::ExpiredToken);
+            }
         }
 
         Ok(token_data.claims)
