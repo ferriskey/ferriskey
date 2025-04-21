@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 
 use crate::domain::client::{
-    entities::{error::ClientError, model::Client},
+    entities::{dto::CreateClientDto, error::ClientError, model::Client},
     ports::client_repository::ClientRepository,
 };
 
@@ -17,28 +17,17 @@ impl PostgresClientRepository {
 }
 
 impl ClientRepository for PostgresClientRepository {
-    async fn create_client(
-        &self,
-        realm_id: uuid::Uuid,
-        name: String,
-        client_id: String,
-        secret: Option<String>,
-        enabled: bool,
-        protocol: String,
-        public_client: bool,
-        service_account_enabled: bool,
-        client_type: String,
-    ) -> Result<Client, ClientError> {
+    async fn create_client(&self, data: CreateClientDto) -> Result<Client, ClientError> {
         let client = Client::new(
-            realm_id,
-            name,
-            client_id,
-            secret,
-            enabled,
-            protocol,
-            public_client,
-            service_account_enabled,
-            client_type,
+            data.realm_id,
+            data.name,
+            data.client_id,
+            data.secret,
+            data.enabled,
+            data.protocol,
+            data.public_client,
+            data.service_account_enabled,
+            data.client_type,
         );
 
         sqlx::query!(

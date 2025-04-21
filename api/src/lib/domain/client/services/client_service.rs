@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::application::http::client::validators::CreateClientValidator;
+use crate::domain::client::entities::dto::CreateClientDto;
 use crate::domain::client::entities::{error::ClientError, model::Client};
 use crate::domain::client::ports::client_repository::ClientRepository;
 use crate::domain::client::ports::client_service::ClientService;
@@ -60,17 +61,17 @@ where
 
         let client = self
             .client_repository
-            .create_client(
-                realm.id,
-                schema.name,
-                schema.client_id,
-                schema.secret,
-                schema.enabled,
-                schema.protocol,
-                schema.public_client,
-                schema.service_account_enabled,
-                schema.client_type,
-            )
+            .create_client(CreateClientDto {
+                realm_id: realm.id,
+                name: schema.name,
+                client_id: schema.client_id,
+                secret: schema.secret,
+                enabled: schema.enabled,
+                protocol: schema.protocol,
+                public_client: schema.public_client,
+                service_account_enabled: schema.service_account_enabled,
+                client_type: schema.client_type,
+            })
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
