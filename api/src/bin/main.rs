@@ -51,11 +51,11 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&realm_service),
     ));
 
-    let redirect_uri_service = Arc::new(DefaultRedirectUriService::new(
+    let redirect_uri_service = DefaultRedirectUriService::new(
         app_server.redirect_uri_repository,
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
-    ));
+    );
 
     let user_service = Arc::new(DefaultUserService::new(app_server.user_repository));
 

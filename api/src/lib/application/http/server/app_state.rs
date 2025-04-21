@@ -22,7 +22,7 @@ pub struct AppState {
     pub auth_session_service: Arc<DefaultAuthSessionService>,
     pub user_service: Arc<DefaultUserService>,
     pub jwt_service: Arc<DefaultJwtService>,
-    pub redirect_uri_service: Arc<DefaultRedirectUriService>,
+    pub redirect_uri_service: DefaultRedirectUriService,
 }
 
 impl AppState {
@@ -34,7 +34,7 @@ impl AppState {
         auth_session_service: Arc<DefaultAuthSessionService>,
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
-        redirect_uri_service: Arc<DefaultRedirectUriService>,
+        redirect_uri_service: DefaultRedirectUriService,
     ) -> Self {
         Self {
             realm_service,

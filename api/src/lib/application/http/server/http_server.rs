@@ -50,7 +50,7 @@ impl HttpServer {
         auth_session_service: Arc<DefaultAuthSessionService>,
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
-        redirect_uri_service: Arc<DefaultRedirectUriService>,
+        redirect_uri_service: DefaultRedirectUriService,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
