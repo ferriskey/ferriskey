@@ -47,7 +47,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .await
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
-        if claims.typ != "refresh_token" {
+        if claims.typ != ClaimsTyp::Refresh {
             return Err(AuthenticationError::InvalidRefreshToken);
         }
 
@@ -62,7 +62,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             user.username,
             "http://localhost:3333/realms/master".to_string(),
             vec!["master-realm".to_string(), "account".to_string()],
-            "Bearer".to_string(),
+            ClaimsTyp::Bearer,
             params.client_id,
         );
 

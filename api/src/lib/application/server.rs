@@ -3,7 +3,9 @@ use std::sync::Arc;
 use crate::{
     domain::{
         authentication::ports::auth_session::AuthSessionRepository,
-        client::ports::client_repository::ClientRepository,
+        client::ports::{
+            client_repository::ClientRepository, redirect_uri_repository::RedirectUriRepository,
+        },
         credential::ports::credential_repository::CredentialRepository,
         crypto::ports::hasher_repository::HasherRepository,
         jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
@@ -19,13 +21,14 @@ use crate::{
             client_repository::PostgresClientRepository,
             credential_repository::PostgresCredentialRepository,
             jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository,
+            redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             user_repository::PostgresUserRepository,
         },
     },
 };
 
-pub struct AppServer<R, C, U, CR, H, J, AS, RR>
+pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -35,6 +38,7 @@ where
     J: JwtRepository,
     AS: AuthSessionRepository,
     RR: RefreshTokenRepository,
+    RU: RedirectUriRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -44,6 +48,7 @@ where
     pub jwt_repository: J,
     pub auth_session_repository: AS,
     pub refresh_token_repository: RR,
+    pub redirect_uri_repository: RU,
 }
 
 impl
@@ -56,6 +61,7 @@ impl
         StaticJwtRepository,
         PostgresAuthSessionRepository,
         PostgresRefreshTokenRepository,
+        PostgresRedirectUriRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -68,6 +74,7 @@ impl
         let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
         let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_pool());
         let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_pool());
+        let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_pool());
 
         Ok(Self {
             realm_repository,
@@ -78,6 +85,7 @@ impl
             jwt_repository,
             auth_session_repository,
             refresh_token_repository,
+            redirect_uri_repository,
         })
     }
 }

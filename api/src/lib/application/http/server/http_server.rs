@@ -8,6 +8,7 @@ use crate::application::http::user::router::user_routes;
 use crate::domain::authentication::service::auth_session::DefaultAuthSessionService;
 use crate::domain::authentication::service::authentication::DefaultAuthenticationService;
 use crate::domain::client::services::client_service::DefaultClientService;
+use crate::domain::client::services::redirect_uri_service::DefaultRedirectUriService;
 use crate::domain::credential::services::credential_service::DefaultCredentialService;
 use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
@@ -49,6 +50,7 @@ impl HttpServer {
         auth_session_service: Arc<DefaultAuthSessionService>,
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
+        redirect_uri_service: Arc<DefaultRedirectUriService>,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -65,6 +67,7 @@ impl HttpServer {
             auth_session_service,
             user_service,
             jwt_service,
+            redirect_uri_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![

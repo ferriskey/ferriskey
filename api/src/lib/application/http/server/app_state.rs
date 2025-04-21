@@ -4,7 +4,9 @@ use crate::domain::{
     authentication::service::{
         auth_session::DefaultAuthSessionService, authentication::DefaultAuthenticationService,
     },
-    client::services::client_service::DefaultClientService,
+    client::services::{
+        client_service::DefaultClientService, redirect_uri_service::DefaultRedirectUriService,
+    },
     credential::services::credential_service::DefaultCredentialService,
     jwt::services::jwt_service::DefaultJwtService,
     realm::services::realm_service::DefaultRealmService,
@@ -20,6 +22,7 @@ pub struct AppState {
     pub auth_session_service: Arc<DefaultAuthSessionService>,
     pub user_service: Arc<DefaultUserService>,
     pub jwt_service: Arc<DefaultJwtService>,
+    pub redirect_uri_service: Arc<DefaultRedirectUriService>,
 }
 
 impl AppState {
@@ -31,6 +34,7 @@ impl AppState {
         auth_session_service: Arc<DefaultAuthSessionService>,
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
+        redirect_uri_service: Arc<DefaultRedirectUriService>,
     ) -> Self {
         Self {
             realm_service,
@@ -40,6 +44,7 @@ impl AppState {
             auth_session_service,
             user_service,
             jwt_service,
+            redirect_uri_service,
         }
     }
 }

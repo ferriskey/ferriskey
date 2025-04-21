@@ -8,6 +8,7 @@ use ferriskey::domain::authentication::service::auth_session::DefaultAuthSession
 use ferriskey::domain::authentication::service::authentication::DefaultAuthenticationService;
 
 use ferriskey::domain::client::services::client_service::DefaultClientService;
+use ferriskey::domain::client::services::redirect_uri_service::DefaultRedirectUriService;
 use ferriskey::domain::credential::services::credential_service::DefaultCredentialService;
 use ferriskey::domain::crypto::services::crypto_service::DefaultCryptoService;
 
@@ -48,6 +49,12 @@ async fn main() -> Result<(), anyhow::Error> {
         app_server.client_repository,
         app_server.user_repository.clone(),
         Arc::clone(&realm_service),
+    ));
+
+    let redirect_uri_service = Arc::new(DefaultRedirectUriService::new(
+        app_server.redirect_uri_repository,
+        Arc::clone(&realm_service),
+        Arc::clone(&client_service),
     ));
 
     let user_service = Arc::new(DefaultUserService::new(app_server.user_repository));
@@ -100,6 +107,7 @@ async fn main() -> Result<(), anyhow::Error> {
         auth_session_service,
         user_service,
         jwt_service,
+        redirect_uri_service,
     )
     .await?;
 
