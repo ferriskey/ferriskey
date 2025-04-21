@@ -79,7 +79,7 @@ where
             .create_user(CreateUserDto {
                 realm_id: realm.id,
                 client_id: Some(client.id),
-                username: format!("service-account-{}", client.id),
+                username: format!("service-account-{}", client.name),
                 firstname: "".to_string(),
                 lastname: "".to_string(),
                 email: "".to_string(),
