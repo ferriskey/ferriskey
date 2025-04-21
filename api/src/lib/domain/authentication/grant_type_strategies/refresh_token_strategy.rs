@@ -9,7 +9,7 @@ use crate::domain::{
     },
     client::services::client_service::DefaultClientService,
     jwt::{
-        entities::jwt_claim::JwtClaim,
+        entities::jwt_claim::{ClaimsTyp, JwtClaim},
         ports::{jwt_repository::RefreshTokenRepository, jwt_service::JwtService},
         services::jwt_service::DefaultJwtService,
     },
