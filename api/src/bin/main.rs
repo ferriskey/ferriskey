@@ -59,7 +59,11 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&crypto_service),
     ));
 
-    let jwt_service = Arc::new(DefaultJwtService::new(app_server.jwt_repository));
+    let jwt_service = Arc::new(DefaultJwtService::new(
+        app_server.jwt_repository,
+        app_server.refresh_token_repository,
+    ));
+
     let auth_session_service = Arc::new(DefaultAuthSessionService::new(
         app_server.auth_session_repository,
     ));

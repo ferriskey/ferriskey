@@ -65,8 +65,11 @@ impl AuthenticationServiceImpl {
             jwt_service.clone(),
         );
 
-        let refresh_token_strategy =
-            RefreshTokenStrategy::new(jwt_service.clone(), client_service.clone());
+        let refresh_token_strategy = RefreshTokenStrategy::new(
+            jwt_service.clone(),
+            client_service.clone(),
+            user_service.clone(),
+        );
 
         let password_strategy = PasswordStrategy::new(
             jwt_service.clone(),

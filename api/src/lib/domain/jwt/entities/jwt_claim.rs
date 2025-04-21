@@ -13,7 +13,7 @@ pub enum ClaimsTyp {
 pub struct JwtClaim {
     pub sub: Uuid,
     pub iat: i64,
-    pub jti: String,
+    pub jti: Uuid,
     pub iss: String,
     pub typ: ClaimsTyp,
     pub azp: String,
@@ -40,7 +40,7 @@ impl JwtClaim {
             sub,
             preferred_username: Some(preferred_username),
             iat: chrono::Utc::now().timestamp(),
-            jti: Uuid::new_v4().to_string(),
+            jti: Uuid::new_v4(),
             exp: Some(chrono::Utc::now().timestamp() + 3600),
             iss,
             aud,
@@ -54,7 +54,7 @@ impl JwtClaim {
         Self {
             sub,
             iat: chrono::Utc::now().timestamp(),
-            jti: Uuid::new_v4().to_string(),
+            jti: Uuid::new_v4(),
             iss,
             aud,
             typ: ClaimsTyp::Refresh,

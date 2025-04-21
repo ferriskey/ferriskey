@@ -6,7 +6,8 @@ use crate::{
         client::ports::client_repository::ClientRepository,
         credential::ports::credential_repository::CredentialRepository,
         crypto::ports::hasher_repository::HasherRepository,
-        jwt::ports::jwt_repository::JwtRepository, realm::ports::realm_repository::RealmRepository,
+        jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
+        realm::ports::realm_repository::RealmRepository,
         user::ports::user_repository::UserRepository,
     },
     env::Env,
@@ -18,12 +19,13 @@ use crate::{
             client_repository::PostgresClientRepository,
             credential_repository::PostgresCredentialRepository,
             jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository,
+            refresh_token_repository::PostgresRefreshTokenRepository,
             user_repository::PostgresUserRepository,
         },
     },
 };
 
-pub struct AppServer<R, C, U, CR, H, J, AS>
+pub struct AppServer<R, C, U, CR, H, J, AS, RR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -32,6 +34,7 @@ where
     H: HasherRepository,
     J: JwtRepository,
     AS: AuthSessionRepository,
+    RR: RefreshTokenRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -40,6 +43,7 @@ where
     pub hasher_repository: H,
     pub jwt_repository: J,
     pub auth_session_repository: AS,
+    pub refresh_token_repository: RR,
 }
 
 impl
@@ -51,6 +55,7 @@ impl
         Argon2HasherRepository,
         StaticJwtRepository,
         PostgresAuthSessionRepository,
+        PostgresRefreshTokenRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -62,6 +67,7 @@ impl
         let hasher_repository = Argon2HasherRepository::new();
         let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
         let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_pool());
+        let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_pool());
 
         Ok(Self {
             realm_repository,
@@ -71,6 +77,7 @@ impl
             hasher_repository,
             jwt_repository,
             auth_session_repository,
+            refresh_token_repository,
         })
     }
 }
