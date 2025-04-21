@@ -20,7 +20,7 @@ use crate::{
 
 use super::client_service::DefaultClientService;
 
-pub type DefaultRepositery = RedirectUriServiceImpl<PostgresRedirectUriRepository>;
+pub type DefaultRedirectUriService = RedirectUriServiceImpl<PostgresRedirectUriRepository>;
 
 #[derive(Clone)]
 pub struct RedirectUriServiceImpl<R>
