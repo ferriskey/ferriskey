@@ -15,7 +15,10 @@ use uuid::Uuid;
 
 use crate::domain::{
     client::{entities::model::Client, ports::client_service::ClientService},
-    jwt::{entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService},
+    jwt::{
+        entities::jwt_claim::{ClaimsTyp, JwtClaim},
+        ports::jwt_service::JwtService,
+    },
     user::{entities::model::User, ports::user_service::UserService},
 };
 
@@ -136,6 +139,10 @@ pub async fn auth(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
+
+    if claims.typ != ClaimsTyp::Bearer {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     let user = state
         .user_service

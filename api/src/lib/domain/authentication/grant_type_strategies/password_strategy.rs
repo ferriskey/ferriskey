@@ -10,7 +10,8 @@ use crate::domain::{
         services::credential_service::DefaultCredentialService,
     },
     jwt::{
-        entities::jwt_claim::JwtClaim, ports::jwt_service::JwtService,
+        entities::jwt_claim::{ClaimsTyp, JwtClaim},
+        ports::jwt_service::JwtService,
         services::jwt_service::DefaultJwtService,
     },
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
@@ -67,7 +68,7 @@ impl GrantTypeStrategy for PasswordStrategy {
             user.username,
             "http://localhost:3333/realms/master".to_string(),
             vec!["master-realm".to_string(), "account".to_string()],
-            "Bearer".to_string(),
+            ClaimsTyp::Bearer,
             params.client_id,
         );
 

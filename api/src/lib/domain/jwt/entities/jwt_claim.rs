@@ -3,13 +3,19 @@ use serde::Serialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+pub enum ClaimsTyp {
+    Refresh,
+    Bearer,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord, ToSchema)]
 pub struct JwtClaim {
     pub sub: Uuid,
     pub iat: i64,
     pub jti: String,
     pub iss: String,
-    pub typ: String,
+    pub typ: ClaimsTyp,
     pub azp: String,
     pub aud: Vec<String>,
 
@@ -27,7 +33,7 @@ impl JwtClaim {
         preferred_username: String,
         iss: String,
         aud: Vec<String>,
-        typ: String,
+        typ: ClaimsTyp,
         azp: String,
     ) -> Self {
         Self {
@@ -51,7 +57,7 @@ impl JwtClaim {
             jti: Uuid::new_v4().to_string(),
             iss,
             aud,
-            typ: "refresh".to_string(),
+            typ: ClaimsTyp::Refresh,
             azp,
             preferred_username: None,
             exp: None,
