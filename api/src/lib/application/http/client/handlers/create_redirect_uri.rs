@@ -27,11 +27,15 @@ pub struct CreateRedirectUriRoute {
 
 #[utoipa::path(
     post,
-    path = "",
-    tag = "redirect_uri",
+    path = "/{client_id}/redirections",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = String, Path, description = "Client ID"),
+    ),
+    tag = "client",
     request_body = CreateRedirectUriValidator,
 )]
-pub async fn create_client(
+pub async fn create_redirect_uri(
     CreateRedirectUriRoute {
         realm_name,
         client_id,
