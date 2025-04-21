@@ -12,9 +12,12 @@ pub struct JwtClaim {
     pub typ: String,
     pub azp: String,
     pub aud: Vec<String>,
-   
-    pub exp: Option<i64>,  
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exp: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 }
 
@@ -41,12 +44,7 @@ impl JwtClaim {
         }
     }
 
-    pub fn new_refresh_token(
-        sub: Uuid,
-        iss: String,
-        aud: Vec<String>,
-        azp: String,
-    ) -> Self {
+    pub fn new_refresh_token(sub: Uuid, iss: String, aud: Vec<String>, azp: String) -> Self {
         Self {
             sub,
             iat: chrono::Utc::now().timestamp(),

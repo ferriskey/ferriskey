@@ -62,7 +62,7 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
                     "http://localhost:3333/realms/master".to_string(),
                     vec!["master-realm".to_string(), "account".to_string()],
                     "Bearer".to_string(),
-                    params.client_id,
+                    params.client_id.clone(),
                 );
 
                 let jwt = self
@@ -71,10 +71,16 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 
+                let refresh_token = self
+                    .jwt_service
+                    .generate_refresh_token(user.id)
+                    .await
+                    .map_err(|_| AuthenticationError::InternalServerError)?;
+
                 Ok(JwtToken::new(
                     jwt.token,
                     "Bearer".to_string(),
-                    "8xLOxBtZp8".to_string(),
+                    refresh_token.token,
                     3600,
                     "id_token".to_string(),
                 ))

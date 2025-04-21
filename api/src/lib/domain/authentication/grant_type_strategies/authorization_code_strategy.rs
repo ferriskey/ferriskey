@@ -76,10 +76,16 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let refresh_token = self
+            .jwt_service
+            .generate_refresh_token(user.id)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
-            "8xLOxBtZp8".to_string(),
+            refresh_token.token,
             3600,
             "id_token".to_string(),
         ))
