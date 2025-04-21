@@ -4,7 +4,10 @@ use uuid::Uuid;
 
 use crate::domain::{
     authentication::{
-        entities::{error::AuthenticationError, grant_type::GrantType, jwt_token::JwtToken},
+        entities::{
+            dto::AuthenticateDto, error::AuthenticationError, grant_type::GrantType,
+            jwt_token::JwtToken,
+        },
         grant_type_strategies::{
             authorization_code_strategy::AuthorizationCodeStrategy,
             client_credentials_strategy::ClientCredentialsStrategy,
@@ -95,36 +98,26 @@ impl AuthenticationServiceImpl {
 }
 
 impl AuthenticationService for AuthenticationServiceImpl {
-    async fn authentificate(
-        &self,
-        realm_name: String,
-        grant_type: GrantType,
-        client_id: String,
-        client_secret: Option<String>,
-        code: Option<String>,
-        username: Option<String>,
-        password: Option<String>,
-        token: Option<String>,
-    ) -> Result<JwtToken, AuthenticationError> {
+    async fn authenticate(&self, data: AuthenticateDto) -> Result<JwtToken, AuthenticationError> {
         let realm = self
             .realm_service
-            .get_by_name(realm_name.clone())
+            .get_by_name(data.realm_name.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
         let params = GrantTypeParams {
             realm_id: realm.id,
             realm_name: realm.name,
-            client_id: client_id.clone(),
-            client_secret: client_secret.clone(),
-            code: code.clone(),
-            username: username.clone(),
-            password: password.clone(),
-            refresh_token: token.clone(),
+            client_id: data.client_id.clone(),
+            client_secret: data.client_secret.clone(),
+            code: data.code.clone(),
+            username: data.username.clone(),
+            password: data.password.clone(),
+            refresh_token: data.refresh_token.clone(),
             redirect_uri: None,
         };
 
-        match grant_type {
+        match data.grant_type {
             GrantType::Code => self.authorization_code_strategy.execute(params).await,
             GrantType::Password => self.password_strategy.execute(params).await,
             GrantType::Credentials => self.client_credentials_strategy.execute(params).await,

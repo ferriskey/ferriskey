@@ -7,6 +7,7 @@ use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
+use crate::domain::authentication::entities::dto::AuthenticateDto;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::authentication::AuthenticationService;
 
@@ -33,16 +34,16 @@ pub async fn exchange_token(
     info!("request login with \"{:?}\" grant_type", payload.grant_type);
     state
         .authentication_service
-        .authentificate(
+        .authenticate(AuthenticateDto {
             realm_name,
-            payload.grant_type,
-            payload.client_id,
-            payload.client_secret,
-            payload.code,
-            payload.username,
-            payload.password,
-            payload.refresh_token,
-        )
+            grant_type: payload.grant_type,
+            client_id: payload.client_id,
+            client_secret: payload.client_secret,
+            code: payload.code,
+            username: payload.username,
+            password: payload.password,
+            refresh_token: payload.refresh_token,
+        })
         .await
         .map(Response::OK)
         .map_err(ApiError::from)
