@@ -9,6 +9,7 @@ use crate::domain::realm::ports::realm_service::RealmService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::user::dtos::user_dto::CreateUserDto;
 use crate::domain::user::ports::user_repository::UserRepository;
+use crate::domain::utils::generate_random_string;
 use crate::infrastructure::repositories::{
     client_repository::PostgresClientRepository, user_repository::PostgresUserRepository,
 };
@@ -65,7 +66,7 @@ where
                 realm_id: realm.id,
                 name: schema.name,
                 client_id: schema.client_id,
-                secret: schema.secret,
+                secret: generate_random_string(),
                 enabled: schema.enabled,
                 protocol: schema.protocol,
                 public_client: schema.public_client,

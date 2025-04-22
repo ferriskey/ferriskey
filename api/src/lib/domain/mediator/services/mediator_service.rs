@@ -75,7 +75,6 @@ impl MediatorService for MediatorServiceImpl {
             public_client: false,
             service_account_enabled: false,
             client_type: "confidential".to_string(),
-            secret: Some("secret".to_string()),
         };
 
         match self.client_service.create_client(schema, realm.name).await {

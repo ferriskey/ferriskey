@@ -22,8 +22,6 @@ pub struct CreateClientValidator {
     pub protocol: String,
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
-    pub secret: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

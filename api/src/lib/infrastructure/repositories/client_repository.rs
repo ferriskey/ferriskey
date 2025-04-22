@@ -1,8 +1,11 @@
 use sqlx::PgPool;
 
-use crate::domain::client::{
-    entities::{dto::CreateClientDto, error::ClientError, model::Client},
-    ports::client_repository::ClientRepository,
+use crate::domain::{
+    client::{
+        entities::{dto::CreateClientDto, error::ClientError, model::Client},
+        ports::client_repository::ClientRepository,
+    },
+    utils::{generate_timestamp, generate_uuid_v7},
 };
 
 #[derive(Debug, Clone)]
@@ -18,41 +21,29 @@ impl PostgresClientRepository {
 
 impl ClientRepository for PostgresClientRepository {
     async fn create_client(&self, data: CreateClientDto) -> Result<Client, ClientError> {
-        let client = Client::new(
-            data.realm_id,
-            data.name,
-            data.client_id,
-            data.secret,
-            data.enabled,
-            data.protocol,
-            data.public_client,
-            data.service_account_enabled,
-            data.client_type,
-        );
-
-        sqlx::query!(
+        let (now, _) = generate_timestamp();
+        sqlx::query_as!(
+          Client,
           r#"
           INSERT INTO clients (id, realm_id, name, client_id, secret, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
           "#,
-          client.id,
-          client.realm_id,
-          client.name,
-          client.client_id,
-          client.secret,
-          client.enabled,
-          client.protocol,
-          client.public_client,
-          client.service_account_enabled,
-          client.client_type,
-          client.created_at,
-          client.updated_at
+          generate_uuid_v7(),
+          data.realm_id,
+          data.name,
+          data.client_id,
+          data.secret,
+          data.enabled,
+          data.protocol,
+          data.public_client,
+          data.service_account_enabled,
+          data.client_type,
+          now,
+          now,
         )
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await
-        .map_err(|_| ClientError::InternalServerError)?;
-
-        Ok(client)
+        .map_err(|_| ClientError::InternalServerError)
     }
 
     async fn get_by_client_id(
