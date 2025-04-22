@@ -122,6 +122,9 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InvalidRefreshToken => {
                 Self::Unauthorized("Invalid refresh token".to_string())
             }
+            AuthenticationError::InvalidClientSecret => {
+                Self::Unauthorized("Invalid client secret".to_string())
+            }
         }
     }
 }

@@ -31,4 +31,7 @@ pub enum AuthenticationError {
 
     #[error("Internal server error")]
     InternalServerError,
+
+    #[error("Invalid client secret")]
+    InvalidClientSecret,
 }

@@ -49,6 +49,10 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
 
         match client {
             Ok(client) => {
+                if client.secret != params.client_secret {
+                    return Err(AuthenticationError::InvalidClientSecret);
+                }
+
                 info!("success to login with client: {:?}", client.name);
 
                 let user = self
