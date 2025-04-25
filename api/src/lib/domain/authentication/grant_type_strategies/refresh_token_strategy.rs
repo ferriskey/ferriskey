@@ -51,6 +51,10 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             return Err(AuthenticationError::InvalidRefreshToken);
         }
 
+        if claims.azp != params.client_id {
+            return Err(AuthenticationError::InvalidRefreshToken);
+        }
+
         let user = self
             .user_service
             .get_by_id(claims.sub)
