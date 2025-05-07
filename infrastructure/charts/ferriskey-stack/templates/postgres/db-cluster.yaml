@@ -1,0 +1,13 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+    name: {{ include "ferriskey-stack.fullname" . }}-db
+    namespace: {{ .Release.Namespace }}
+spec:
+    instances: 3
+
+    storage:
+        size: 1Gi
+
+    monitoring:
+        enablePodMonitor: true

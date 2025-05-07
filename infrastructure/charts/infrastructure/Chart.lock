@@ -1,0 +1,9 @@
+dependencies:
+- name: keda
+  repository: https://kedacore.github.io/charts
+  version: 2.17.0
+- name: cloudnative-pg
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.19.1
+digest: sha256:4ce0f741d88c264c8dc2af72ca4710cba21aefd9bf7eb43e2226a772563ec30f
+generated: "2025-05-08T00:12:59.209498+02:00"

@@ -1,0 +1,58 @@
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate.*
+.terraformrc
+terraform.rc
+.terraform.d/
+crash.log
+
+# Local .tfvars files which may contain sensitive data
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Exclude plan output files
+*tfplan*
+
+# Logs
+*.log
+/tmp/*.pid
+/tmp/*.log
+
+# OS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Kubernetes temporary files
+kubeconfig*
+.kube/
+
+# Helm chart dependencies
+charts/*/charts/
+charts/*/Chart.lock
+
+# Project specific
+/tmp/grafana-pf.pid
+/tmp/grafana-port-forward.log
