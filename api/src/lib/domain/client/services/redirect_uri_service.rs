@@ -92,7 +92,7 @@ where
             .get_by_client_id(client_id)
             .await;
 
-        redirect_uris
+        redirect_uris.map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn get_enabled_by_client_id(
@@ -104,7 +104,7 @@ where
             .get_enabled_by_client_id(client_id)
             .await;
 
-        redirect_uris
+        redirect_uris.map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn update_enabled(
@@ -112,12 +112,17 @@ where
         id: Uuid,
         enabled: bool,
     ) -> Result<RedirectUri, RedirectUriError> {
-        self.redirect_uri_repository
+        let redirect_uri = self
+            .redirect_uri_repository
             .update_enabled(id, enabled)
-            .await
+            .await;
+
+        redirect_uri.map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
-        self.redirect_uri_repository.delete(id).await
+        let result = self.redirect_uri_repository.delete(id).await;
+
+        result.map_err(|_| RedirectUriError::InternalServerError)
     }
 }
