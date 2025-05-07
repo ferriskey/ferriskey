@@ -123,6 +123,6 @@ where
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
         let result = self.redirect_uri_repository.delete(id).await;
 
-        result.map_err(|_| RedirectUriError::InternalServerError)
+        result
     }
 }

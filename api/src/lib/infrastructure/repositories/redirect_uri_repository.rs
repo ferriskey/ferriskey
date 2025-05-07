@@ -130,6 +130,20 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
-        todo!()
+        let res = sqlx::query!(
+            r#"
+            DELETE FROM redirect_uris WHERE id = $1
+            "#,
+            id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| RedirectUriError::DatabaseError)?;
+
+        if res.rows_affected() == 0 {
+            return Err(RedirectUriError::NotFound);
+        }
+
+        Ok(())
     }
 }
