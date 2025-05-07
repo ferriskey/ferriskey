@@ -87,21 +87,24 @@ where
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        let redirect_uri = self
+        let redirect_uris = self
             .redirect_uri_repository
             .get_by_client_id(client_id)
             .await;
 
-        redirect_uri
+        redirect_uris
     }
 
     async fn get_enabled_by_client_id(
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        self.redirect_uri_repository
+        let redirect_uris = self
+            .redirect_uri_repository
             .get_enabled_by_client_id(client_id)
-            .await
+            .await;
+
+        redirect_uris
     }
 
     async fn update_enabled(

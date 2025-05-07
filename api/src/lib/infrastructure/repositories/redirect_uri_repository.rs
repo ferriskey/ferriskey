@@ -76,7 +76,30 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        todo!()
+        let res = sqlx::query!(
+            r#"
+            SELECT * FROM redirect_uris WHERE client_id = $1
+            AND enabled = true
+            "#,
+            client_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| RedirectUriError::DatabaseError)?;
+
+        let res = res
+            .into_iter()
+            .map(|row| RedirectUri {
+                id: row.id,
+                client_id: row.client_id,
+                value: row.value,
+                enabled: row.enabled.unwrap_or(false),
+                created_at: row.created_at.unwrap_or_else(|| chrono::Utc::now()),
+                updated_at: row.updated_at.unwrap_or_else(|| chrono::Utc::now()),
+            })
+            .collect();
+
+        Ok(res)
     }
 
     async fn update_enabled(
