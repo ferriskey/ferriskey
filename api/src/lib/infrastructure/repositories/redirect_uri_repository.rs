@@ -107,7 +107,26 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         id: Uuid,
         enabled: bool,
     ) -> Result<RedirectUri, RedirectUriError> {
-        todo!()
+        let res = sqlx::query!(
+            r#"
+            UPDATE redirect_uris SET enabled = $1, updated_at = NOW() WHERE id = $2
+            RETURNING id, client_id, value, enabled, created_at, updated_at
+            "#,
+            enabled,
+            id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|_| RedirectUriError::DatabaseError)?;
+
+        Ok(RedirectUri {
+            id: res.id,
+            client_id: res.client_id,
+            value: res.value,
+            enabled: res.enabled.unwrap_or(false),
+            created_at: res.created_at.unwrap_or_else(|| chrono::Utc::now()),
+            updated_at: res.updated_at.unwrap_or_else(|| chrono::Utc::now()),
+        })
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
