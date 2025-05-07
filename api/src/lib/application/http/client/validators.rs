@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -29,6 +30,12 @@ pub struct CreateRedirectUriValidator {
     #[validate(length(min = 1, message = "Uri value is required"))]
     #[serde(default)]
     pub value: String,
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdateRedirectUriValidator {
     #[serde(default)]
     pub enabled: bool,
 }
