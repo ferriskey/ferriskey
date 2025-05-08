@@ -2,40 +2,40 @@ use axum::extract::State;
 
 use crate::{
     application::http::{
-        client::routes::client_routes::RedirectUriRoute,
+        client::routes::client_routes::UriRedirectUriRoute,
         server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
         },
     },
-    domain::client::{
-        entities::redirect_uri::RedirectUri, ports::redirect_uri_service::RedirectUriService,
-    },
+    domain::client::ports::redirect_uri_service::RedirectUriService,
 };
 
 #[utoipa::path(
-    get,
-    path = "/{client_id}/redirects",
+    delete,
+    path = "/{client_id}/redirects/{uri_id}",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),
+        ("uri_id" = Uuid, Path, description = "Redirect URI ID"),
     ),
     tag = "client",
     responses(
-        (status = 200, body = Vec<RedirectUri>),
+        (status = 200, description = "Redirect URI deleted successfully"),
     ),
 )]
-pub async fn get_redirect_uris(
-    RedirectUriRoute {
+pub async fn delete_redirect_uri(
+    UriRedirectUriRoute {
         realm_name,
         client_id,
-    }: RedirectUriRoute,
+        uri_id,
+    }: UriRedirectUriRoute,
     State(state): State<AppState>,
-) -> Result<Response<Vec<RedirectUri>>, ApiError> {
+) -> Result<Response<()>, ApiError> {
     state
         .redirect_uri_service
-        .get_by_client_id(client_id)
+        .delete(uri_id)
         .await
         .map_err(ApiError::from)
-        .map(|uris| Response::OK(uris))
+        .map(|_| Response::OK(()))
 }

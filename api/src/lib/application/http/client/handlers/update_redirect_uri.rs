@@ -1,11 +1,10 @@
 use axum::extract::State;
-use axum_macros::TypedPath;
-use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::{
     application::http::{
-        client::validators::UpdateRedirectUriValidator,
+        client::{
+            routes::client_routes::UriRedirectUriRoute, validators::UpdateRedirectUriValidator,
+        },
         server::{
             api_entities::{
                 api_error::{ApiError, ValidateJson},
@@ -18,14 +17,6 @@ use crate::{
         entities::redirect_uri::RedirectUri, ports::redirect_uri_service::RedirectUriService,
     },
 };
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}")]
-pub struct CreateRedirectUriRoute {
-    pub realm_name: String,
-    pub client_id: Uuid,
-    pub uri_id: Uuid,
-}
 
 #[utoipa::path(
     put,
@@ -42,11 +33,11 @@ pub struct CreateRedirectUriRoute {
     ),
 )]
 pub async fn update_redirect_uri(
-    CreateRedirectUriRoute {
+    UriRedirectUriRoute {
         realm_name,
         client_id,
         uri_id,
-    }: CreateRedirectUriRoute,
+    }: UriRedirectUriRoute,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {
