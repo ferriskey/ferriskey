@@ -1,0 +1,213 @@
+---
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import BlogLayout from "@/layouts/BlogLayout.astro";
+import CodeGroupWrapper from "@/plugins/code-group/CodeGroupWrapper.astro";
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import { NewspaperIcon } from "lucide-react";
+import { DateTime } from "luxon";
+import config from "../../../explainer.config";
+import ReadMoreWrapper from "../../lib/plugins/read-more/ReadMoreWrapper.astro";
+interface Props {
+	element: CollectionEntry<"blog">;
+}
+
+export async function getStaticPaths() {
+	const contents = await getCollection("blog");
+	return contents.map((item) => ({
+		params: { slug: item.data.permalink, publishedAt: item.data.publishedAt },
+		props: { element: item },
+	}));
+}
+
+const { element } = Astro.props;
+const { Content, headings } = await render(element);
+
+const availableHeadings = headings.filter((heading) =>
+	[2, 3].includes(heading.depth),
+);
+
+type HeadingNode = {
+	depth: number;
+	slug: string;
+	text: string;
+	children: HeadingNode[];
+};
+
+function buildHeadingTree(headings: typeof availableHeadings): HeadingNode[] {
+	const result: HeadingNode[] = [];
+	let currentH2: HeadingNode | null = null;
+
+	for (const heading of headings) {
+		const node: HeadingNode = {
+			depth: heading.depth,
+			slug: heading.slug,
+			text: heading.text,
+			children: [],
+		};
+
+		if (heading.depth === 2) {
+			currentH2 = node;
+			result.push(node);
+		} else if (heading.depth === 3 && currentH2) {
+			currentH2.children.push(node);
+		}
+	}
+
+	return result;
+}
+
+const headingTree = buildHeadingTree(availableHeadings);
+---
+
+<BlogLayout>
+	<div class="flex flex-col gap-4">
+		<div class="relative border-b py-8">
+			<div
+				class="mb-2.5 text-sm font-semibold gap-1.5 flex flex-col gap-y-8 items-start"
+			>
+				<div class="mb-2.5">
+					<Breadcrumb>
+						<BreadcrumbList>
+							<BreadcrumbItem>
+								<BreadcrumbLink
+									className="flex items-center gap-2 text-muted-foreground"
+									href="/blog"
+								>
+									<NewspaperIcon className="size-4" />
+									Blog
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbLink
+									className="text-primary"
+									href={`/blog/${element.data.permalink}`}
+								>
+									{element.data.title}
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+						</BreadcrumbList>
+					</Breadcrumb>
+				</div>
+
+				{
+					element.data.publishedAt && (
+						<div class="flex items-center space-x-2">
+							<span class="text-primary">Published at</span>
+							<span class="text-muted-foreground">
+								·&nbsp;&nbsp;
+								<time>
+									{DateTime.fromJSDate(
+										new Date(element.data.publishedAt),
+									).toFormat("dd/MM/yyyy HH:mm")}
+								</time>
+							</span>
+						</div>
+					)
+				}
+			</div>
+			<div>
+				<div
+					class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+				>
+					<h1 class="text-4xl sm:text-4xl text-pretty font-medium">
+						{element.data.title}
+					</h1>
+				</div>
+				<div class="text-lg text-pretty text-muted-foreground max-w-4xl mt-4">
+					{element.data.description}
+				</div>
+				<div class="mt-4 flex flex-wrap items-center gap-6">
+					{
+						element.data.authors?.map((key) => {
+							const currentAuthor = config.blog.authors[key];
+							return (
+								<div
+									data-orientation="horizontal"
+									class="relative group/user flex items-center gap-2"
+								>
+									<span class="inline-flex items-center justify-center select-none overflow-hidden rounded-full align-middle bg-(--ui-bg-elevated) size-8 text-base shrink-0 transform transition-transform duration-200 group-hover/user:scale-115">
+										<img
+											width="32"
+											height="32"
+											alt={currentAuthor.name}
+											class="h-full w-full rounded-[inherit] object-cover"
+											src={currentAuthor.avatar}
+										/>
+									</span>
+									<div class="">
+										<a
+											href={currentAuthor.href}
+											tabindex="-1"
+											rel="noopener noreferrer"
+											aria-label={currentAuthor.name}
+											class="focus:outline-none peer"
+										>
+											<span class="absolute inset-0" aria-hidden="true" />
+										</a>
+										<p class="font-medium text-(--ui-text) peer-hover:text-(--ui-text-highlighted) transition-colors text-sm">
+											{currentAuthor.name}
+										</p>
+										<p class="text-muted-foreground transition-colors text-xs">
+											@{key}
+										</p>
+									</div>
+								</div>
+							);
+						})
+					}
+				</div>
+			</div>
+		</div>
+
+		<div class="flex justify-between gap-10 w-full">
+			<div class="w-full max-w-4xl">
+				<div class="prose">
+					<Content components={{ CodeGroupWrapper, ReadMoreWrapper }} />
+				</div>
+			</div>
+			<aside class="hidden xl:block w-64">
+				<div class="sticky top-14 p-4 overflow-y-auto h-[calc(100vh-4rem)]">
+					<p
+						class="group text-sm font-semibold flex-1 items-center gap-1.5 py-1.5 -mt-1.5 focus-visible:outline-primary hidden lg:flex"
+					>
+						<span class="truncate">On this page</span>
+					</p>
+
+					<ul class="min-w-0 ms-2.5 ps-4 border-s border-gray-300">
+						{
+							headingTree.map((heading) => (
+								<li>
+									<a
+										href={`#${heading.slug}`}
+										class="group relative text-sm flex items-center focus-visible:outline-primary py-1 text-muted-foreground hover:text-primary transition-colors"
+									>
+										{heading.text}
+									</a>
+									<ul class="ms-3">
+										{heading.children.map((child) => (
+											<li class="min-w-0 -ms-px">
+												<a
+													href={`#${child.slug}`}
+													class="group relative text-sm flex items-center focus-visible:outline-primary py-1 text-muted-foreground hover:text-primary transition-colors"
+												>
+													<span class="truncate">{child.text}</span>
+												</a>
+											</li>
+										))}
+									</ul>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+			</aside>
+		</div>
+	</div>
+</BlogLayout>

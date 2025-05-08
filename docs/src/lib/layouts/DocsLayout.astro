@@ -1,0 +1,126 @@
+---
+import Separator from "@/components/elements/separator";
+import type { CollectionKey, z } from "astro:content";
+import { getCollection } from "astro:content";
+import clsx from "clsx";
+import type { icons } from "lucide-react";
+import type { docSchema } from "src/content.config";
+import config from "../../../explainer.config";
+import "../../assets/css/global.css";
+import "../../assets/css/markdown.css";
+import LucideIcon from "../components/elements/lucid-icon.astro";
+import BaseLayout from "./BaseLayout.astro";
+
+const currentCollection = Object.entries(config.docs).find(([key, element]) => {
+	return Astro.url.pathname.startsWith(element.baseUrl);
+});
+
+const currentCollectionKey = currentCollection![0] as CollectionKey;
+const collection = await getCollection(currentCollectionKey);
+const currentCollectionItems = collection
+	.sort(
+		(a, b) =>
+			(a.data as z.infer<typeof docSchema>).order -
+			(b.data as z.infer<typeof docSchema>).order,
+	)
+	.map((item) => {
+		return {
+			label: item.data.title,
+			href: `/docs/${item.collection}/${item.data.permalink}`,
+			icon: item.data.icon,
+		};
+	});
+---
+
+<BaseLayout>
+	<main class="relative flex-1">
+		<Separator />
+		<div class="mx-auto px-4 sm:px-0 max-w-screen-xl">
+			<div class="flex flex-col lg:grid lg:grid-cols-10 lg:gap-8">
+				<aside class="lg:col-span-2 pr-2">
+					<div
+						class="sticky top-14 px-4 sm:px-0 py-8 overflow-y-auto h-[calc(100vh-4rem)]"
+					>
+						<nav>
+							<div class="space-y-3 mb-3 lg:mb-6 -mx-1 lg:mx-0">
+								{
+									Object.entries(config.docs).map(([key, element]) => (
+										<a
+											class="flex items-center gap-2 group text-primary font-medium"
+											href={element.href}
+										>
+											<div
+												class={clsx(
+													"rounded-sm p-1 inline-flex ring-inset ring-1",
+													Astro.url.pathname.startsWith(element.baseUrl)
+														? "bg-primary ring-primary text-white"
+														: "bg-gray-50 dark:bg-gray-800 ring-gray-200 dark:ring-gray-700 text-muted-foreground",
+												)}
+											>
+												<element.icon className="size-4" />
+											</div>
+											<span
+												class={clsx(
+													"text-sm relative",
+													Astro.url.pathname.startsWith(element.baseUrl)
+														? "text-primary"
+														: "text-muted-foreground",
+												)}
+											>
+												{element.label}
+											</span>
+										</a>
+									))
+								}
+							</div>
+						</nav>
+
+						<hr
+							class="my-5 border-dashed border-gray-200 dark:border-gray-700"
+						/>
+
+						<div class="space-y-1">
+							{
+								currentCollectionItems.map((item) => (
+									<a
+										href={item.href}
+										class="group block py-1.5 px-1.5 text-sm rounded-md transition-colors hover:text-primary"
+									>
+										<div class="flex items-center gap-2">
+											{item.icon ? (
+												<LucideIcon
+													name={item.icon as keyof typeof icons}
+													class={clsx(
+														"text-gray-500 dark:text-gray-400 group-hover:text-primary size-5",
+														Astro.url.pathname.startsWith(item.href)
+															? "text-primary"
+															: "text-muted-foreground",
+													)}
+												/>
+											) : (
+												<div class="size-5" />
+											)}
+											<span
+												class={clsx(
+													"text-sm group-hover:text-primary",
+													Astro.url.pathname.startsWith(item.href)
+														? "text-primary"
+														: "text-muted-foreground",
+												)}
+											>
+												{item.label}
+											</span>
+										</div>
+									</a>
+								))
+							}
+						</div>
+					</div>
+				</aside>
+
+				{/* Main content */}
+				<slot />
+			</div>
+		</div>
+	</main>
+</BaseLayout>

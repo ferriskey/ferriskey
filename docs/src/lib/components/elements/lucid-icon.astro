@@ -1,0 +1,16 @@
+---
+// @ts-nocheck
+import * as lucideIcons from "lucide-react";
+
+export interface Props {
+  name: keyof typeof lucideIcons;
+  size?: number;
+  color?: string;
+  class?: string;
+}
+
+const { name, color = "currentColor", class: className = "" } = Astro.props;
+const Icon = lucideIcons[name];
+---
+
+{Icon && <Icon color={color} className={className} />}

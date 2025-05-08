@@ -1,0 +1,14 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { ApiReferenceReact } from "@scalar/api-reference-react";
+---
+
+<Layout>
+  <ApiReferenceReact
+    client:load
+    configuration={{
+      url: "https://cdn.jsdelivr.net/npm/@scalar/galaxy/dist/latest.json",
+      hideDarkModeToggle: true,
+    }}
+  />
+</Layout>

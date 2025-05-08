@@ -1,0 +1,12 @@
+---
+import Separator from "@/components/elements/separator";
+import "../../assets/css/global.css";
+import BaseLayout from "./BaseLayout.astro";
+---
+
+<BaseLayout>
+	<div className="relative">
+		<Separator accent />
+		<slot />
+	</div>
+</BaseLayout>
