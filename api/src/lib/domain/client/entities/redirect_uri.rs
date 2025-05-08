@@ -5,7 +5,9 @@ use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow, ToSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
+)]
 pub struct RedirectUri {
     pub id: Uuid,
     pub client_id: Uuid,

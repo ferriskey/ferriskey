@@ -87,24 +87,20 @@ where
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        let redirect_uris = self
-            .redirect_uri_repository
+        self.redirect_uri_repository
             .get_by_client_id(client_id)
-            .await;
-
-        redirect_uris.map_err(|_| RedirectUriError::InternalServerError)
+            .await
+            .map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn get_enabled_by_client_id(
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        let redirect_uris = self
-            .redirect_uri_repository
+        self.redirect_uri_repository
             .get_enabled_by_client_id(client_id)
-            .await;
-
-        redirect_uris.map_err(|_| RedirectUriError::InternalServerError)
+            .await
+            .map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn update_enabled(
@@ -112,17 +108,13 @@ where
         id: Uuid,
         enabled: bool,
     ) -> Result<RedirectUri, RedirectUriError> {
-        let redirect_uri = self
-            .redirect_uri_repository
+        self.redirect_uri_repository
             .update_enabled(id, enabled)
-            .await;
-
-        redirect_uri.map_err(|_| RedirectUriError::InternalServerError)
+            .await
+            .map_err(|_| RedirectUriError::InternalServerError)
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
-        let result = self.redirect_uri_repository.delete(id).await;
-
-        result
+        self.redirect_uri_repository.delete(id).await
     }
 }
