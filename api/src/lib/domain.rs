@@ -8,3 +8,4 @@ pub mod realm;
 pub mod session;
 pub mod user;
 pub mod utils;
+pub mod role;
