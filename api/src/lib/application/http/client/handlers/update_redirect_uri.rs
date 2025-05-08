@@ -3,7 +3,7 @@ use axum::extract::State;
 use crate::{
     application::http::{
         client::{
-            routes::client_routes::UriRedirectUriRoute, validators::UpdateRedirectUriValidator,
+            routes::client_routes::UpdateRedirectUriRoute, validators::UpdateRedirectUriValidator,
         },
         server::{
             api_entities::{
@@ -33,11 +33,11 @@ use crate::{
     ),
 )]
 pub async fn update_redirect_uri(
-    UriRedirectUriRoute {
+    UpdateRedirectUriRoute {
         realm_name,
         client_id,
         uri_id,
-    }: UriRedirectUriRoute,
+    }: UpdateRedirectUriRoute,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {

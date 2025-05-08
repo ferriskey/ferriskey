@@ -2,7 +2,7 @@ use axum::extract::State;
 
 use crate::{
     application::http::{
-        client::routes::client_routes::RedirectUriRoute,
+        client::routes::client_routes::GetRedirectUriRoute,
         server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
@@ -26,10 +26,10 @@ use crate::{
     ),
 )]
 pub async fn get_redirect_uris(
-    RedirectUriRoute {
+    GetRedirectUriRoute {
         realm_name,
         client_id,
-    }: RedirectUriRoute,
+    }: GetRedirectUriRoute,
     State(state): State<AppState>,
 ) -> Result<Response<Vec<RedirectUri>>, ApiError> {
     state

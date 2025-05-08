@@ -2,7 +2,7 @@ use axum::extract::State;
 
 use crate::{
     application::http::{
-        client::routes::client_routes::UriRedirectUriRoute,
+        client::routes::client_routes::DeleteRedirectUriRoute,
         server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
@@ -25,11 +25,11 @@ use crate::{
     ),
 )]
 pub async fn delete_redirect_uri(
-    UriRedirectUriRoute {
+    DeleteRedirectUriRoute {
         realm_name,
         client_id,
         uri_id,
-    }: UriRedirectUriRoute,
+    }: DeleteRedirectUriRoute,
     State(state): State<AppState>,
 ) -> Result<Response<()>, ApiError> {
     state

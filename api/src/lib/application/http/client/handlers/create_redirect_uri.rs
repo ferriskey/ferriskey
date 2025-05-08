@@ -2,7 +2,9 @@ use axum::extract::State;
 
 use crate::{
     application::http::{
-        client::{routes::client_routes::RedirectUriRoute, validators::CreateRedirectUriValidator},
+        client::{
+            routes::client_routes::CreateRedirectUriRoute, validators::CreateRedirectUriValidator,
+        },
         server::{
             api_entities::{
                 api_error::{ApiError, ValidateJson},
@@ -27,10 +29,10 @@ use crate::{
     request_body = CreateRedirectUriValidator,
 )]
 pub async fn create_redirect_uri(
-    RedirectUriRoute {
+    CreateRedirectUriRoute {
         realm_name,
         client_id,
-    }: RedirectUriRoute,
+    }: CreateRedirectUriRoute,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<CreateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {
