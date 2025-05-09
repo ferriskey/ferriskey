@@ -19,6 +19,26 @@ const framework = defineCollection({
   schema: docSchema
 })
 
+const concepts = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/01-concepts" }),
+  schema: docSchema
+})
+
+const tutorials = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/02-tutorials" }),
+  schema: docSchema
+})
+
+const tasks = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/03-tasks" }),
+  schema: docSchema
+})
+
+const reference = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/04-reference" }),
+  schema: docSchema
+})
+
 const blog = defineCollection({
   loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/blog" }),
   schema: z.object({
@@ -31,4 +51,4 @@ const blog = defineCollection({
   }),
 })
 
-export const collections = { blog, framework, syntax };
+export const collections = { blog, framework, syntax, concepts, tutorials, tasks, reference };

@@ -1,5 +1,5 @@
 import { defineExplainerConfig } from '@/utils'
-import { CuboidIcon, PencilLineIcon } from 'lucide-react'
+import { BookIcon, BracesIcon, ClipboardListIcon, CuboidIcon, GraduationCapIcon, PencilLineIcon } from 'lucide-react'
 
 export default defineExplainerConfig({
   meta: {
@@ -25,6 +25,30 @@ export default defineExplainerConfig({
       href: '/docs/syntax/texts',
       baseUrl: '/docs/syntax',
     },
+    concepts: {
+      icon: BookIcon,
+      label: 'Concepts',
+      href: '/docs/concepts/overview',
+      baseUrl: '/docs/concepts',
+    },
+    tutorials: {
+      icon: GraduationCapIcon,
+      label: 'Tutorials',
+      href: '/docs/tutorials/quickstart',
+      baseUrl: '/docs/tutorials',
+    },
+    tasks: {
+      icon: ClipboardListIcon,
+      label: 'Tasks',
+      href: '/docs/tasks/manage-users',
+      baseUrl: '/docs/tasks',
+    },
+    reference: {
+      icon: BracesIcon,
+      label: 'Reference',
+      href: '/docs/reference/api',
+      baseUrl: '/docs/reference',
+    },
   },
   blog: {
     defaults: {
@@ -41,6 +65,31 @@ export default defineExplainerConfig({
   navbar: [
     {
       label: 'Docs',
+      items: [
+        {
+          label: 'Concepts',
+          description: 'Learn about the core concepts of Explainer.',
+          href: '/docs/concepts/overview',
+        },
+        {
+          label: 'Tutorials',
+          description: 'Learn how to use Explainer.',
+          href: '/docs/tutorials/quickstart',
+        },
+        {
+          label: 'Tasks',
+          description: 'Learn how to use Explainer.',
+          href: '/docs/tasks/manage-users',
+        },
+        {
+          label: 'Reference',
+          description: 'Learn how to use Explainer.',
+          href: '/docs/reference/api',
+        },
+      ],
+    },
+    {
+      label: 'Explainer',
       items: [
         {
           label: 'Framework',
