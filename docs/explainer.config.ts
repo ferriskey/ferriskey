@@ -1,5 +1,4 @@
 import { defineExplainerConfig } from '@/utils'
-import { BookIcon, BracesIcon, ClipboardListIcon, CuboidIcon, GraduationCapIcon, PencilLineIcon } from 'lucide-react'
 
 export default defineExplainerConfig({
   meta: {
@@ -14,37 +13,37 @@ export default defineExplainerConfig({
   },
   docs: {
     framework: {
-      icon: CuboidIcon,
+      icon: 'lucide:cuboid',
       label: 'Framework',
       href: '/docs/framework/getting-started',
       baseUrl: '/docs/framework',
     },
     syntax: {
-      icon: PencilLineIcon,
+      icon: 'lucide:pencil-line',
       label: 'Syntax',
       href: '/docs/syntax/texts',
       baseUrl: '/docs/syntax',
     },
     concepts: {
-      icon: BookIcon,
+      icon: 'lucide:book',
       label: 'Concepts',
       href: '/docs/concepts/overview',
       baseUrl: '/docs/concepts',
     },
     tutorials: {
-      icon: GraduationCapIcon,
+      icon: 'lucide:graduation-cap',
       label: 'Tutorials',
       href: '/docs/tutorials/quickstart',
       baseUrl: '/docs/tutorials',
     },
     tasks: {
-      icon: ClipboardListIcon,
+      icon: 'lucide:clipboard-list',
       label: 'Tasks',
       href: '/docs/tasks/manage-users',
       baseUrl: '/docs/tasks',
     },
     reference: {
-      icon: BracesIcon,
+      icon: 'lucide:braces',
       label: 'Reference',
       href: '/docs/reference/api',
       baseUrl: '/docs/reference',

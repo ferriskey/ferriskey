@@ -1,7 +1,13 @@
 ---
-import HomeBentogrid from "@/components/elements/home-bentogrid";
+import {
+	HomeBentogrid,
+	type BentoGridProps,
+} from "@/components/elements/home-bentogrid";
 import { HomeBlog } from "@/components/elements/home-blog";
-import { HomeMarquee } from "@/components/elements/home-marquee";
+import {
+	HomeMarquee,
+	type MarqueeProps,
+} from "@/components/elements/home-marquee";
 import { BackgroundAnimation } from "@/components/ui/background-animation";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +29,133 @@ const posts = await getCollection("blog", (post) => {
 
 	return post.data.publishedAt && new Date(post.data.publishedAt) <= new Date();
 });
+
+const header = {
+	title: "FerrisKey",
+	subtitle: "Open-Source IAM Solution",
+	description:
+		"Open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments developed in Rust",
+	actions: [
+		{
+			label: "Get started",
+			href: config.urls.getStarted,
+			icon: RocketIcon,
+		},
+		{
+			label: "Documentation",
+			href: config.urls.documentation,
+			icon: BookIcon,
+		},
+	],
+};
+
+const cards = [
+	{
+		title: "Latest tweets",
+		description: "Lorem ipsum dolor sit amet.",
+		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+	},
+	{
+		title: "Latest tweets",
+		description: "Lorem ipsum dolor sit amet.",
+		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+	},
+	{
+		title: "Latest tweets",
+		description: "Lorem ipsum dolor sit amet.",
+		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+	},
+];
+
+const marquee: MarqueeProps = {
+	title: "What our users are saying",
+	description: "Because our users are the best people",
+	reviewers: [
+		{
+			name: "Jack",
+			username: "@jack",
+			body: "I've never seen anything like this before. It's amazing. I love it.",
+			img: "https://avatar.vercel.sh/jack",
+		},
+		{
+			name: "Jill",
+			username: "@jill",
+			body: "I don't know what to say. I'm speechless. This is amazing.",
+			img: "https://avatar.vercel.sh/jill",
+		},
+		{
+			name: "John",
+			username: "@john",
+			body: "I'm at a loss for words. This is amazing. I love it.",
+			img: "https://avatar.vercel.sh/john",
+		},
+		{
+			name: "Jane",
+			username: "@jane",
+			body: "I'm at a loss for words. This is amazing. I love it.",
+			img: "https://avatar.vercel.sh/jane",
+		},
+		{
+			name: "Jenny",
+			username: "@jenny",
+			body: "I'm at a loss for words. This is amazing. I love it.",
+			img: "https://avatar.vercel.sh/jenny",
+		},
+		{
+			name: "James",
+			username: "@james",
+			body: "I'm at a loss for words. This is amazing. I love it.",
+			img: "https://avatar.vercel.sh/james",
+		},
+	],
+};
+
+const bentogrid: BentoGridProps = {
+	title: "What we offer",
+	description: "Discover all features that we provide",
+	items: [
+		{
+			title: "Performance",
+			subtitle: "Lightning-fast builds",
+			description:
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
+			image:
+				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-performance.png",
+		},
+		{
+			title: "Releases",
+			subtitle: "Push to deploy",
+			description:
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
+			image:
+				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-releases.png",
+		},
+		{
+			title: "Speed",
+			subtitle: "Built for power users",
+			description:
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
+			image:
+				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-speed.png",
+		},
+		{
+			title: "Integrations",
+			subtitle: "Connect your favorite tools",
+			description:
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
+			image:
+				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-integrations.png",
+		},
+		{
+			title: "Network",
+			subtitle: "Globally distributed CDN",
+			description:
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
+			image:
+				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-network.png",
+		},
+	],
+};
 ---
 
 <Layout>
@@ -30,36 +163,28 @@ const posts = await getCollection("blog", (post) => {
 		<div class="relative flex items-center justify-center min-h-[60vh]">
 			<BackgroundAnimation client:only />
 			<div
-				class="relative z-10 flex flex-col items-center justify-center gap-5 text-center max-w-xl"
+				class="px-5 sm:px-0 relative z-10 flex flex-col items-center justify-center gap-5 text-center"
 			>
-				<h1 class="text-7xl font-bold text-primary">FerrisKey</h1>
-				<p class="text-4xl text-foreground font-bold">
-					Open-Source IAM Solution
-				</p>
-				<p class="text-lg text-foreground font-light">
-					FerrisKey is an open-source IAM (Identity and Access Management)
-					solution designed for modern cloud-native environments.
+				<h1 class="text-7xl font-bold text-primary">{header.title}</h1>
+				<p class="text-4xl text-foreground font-bold">{header.subtitle}</p>
+				<p class="text-lg text-foreground font-light max-w-xl">
+					{header.description}
 				</p>
 
-				<div class="flex flex-col md:flex-row gap-5 justify-center w-full">
-					<Button>
-						<a
-							href={config.urls.getStarted}
-							class="flex items-center gap-2 cursor-pointer"
-						>
-							<RocketIcon className="w-5 h-5" />
-							Get started
-						</a>
-					</Button>
-					<Button>
-						<a
-							href={config.urls.documentation}
-							class="flex items-center gap-2 cursor-pointer"
-						>
-							<BookIcon className="w-5 h-5" />
-							Documentation
-						</a>
-					</Button>
+				<div class="flex flex-col justify-center md:flex-row gap-5 w-full">
+					{
+						header.actions.map((action) => (
+							<Button>
+								<a
+									href={action.href}
+									class="flex items-center gap-2 cursor-pointer"
+								>
+									<action.icon className="w-5 h-5" />
+									{action.label}
+								</a>
+							</Button>
+						))
+					}
 					<Button variant="outline">
 						<a
 							href={config.urls.github}
@@ -87,55 +212,26 @@ const posts = await getCollection("blog", (post) => {
 		<div
 			class="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 px-5 sm:px-0 py-16"
 		>
-			<Card>
-				<CardHeader>
-					<CardTitle>Latest tweets</CardTitle>
-					<CardDescription>
-						Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-					</CardDescription>
-				</CardHeader>
+			{
+				cards.map((card) => (
+					<Card>
+						<CardHeader>
+							<CardTitle>{card.title}</CardTitle>
+							<CardDescription>{card.description}</CardDescription>
+						</CardHeader>
 
-				<CardContent>
-					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-					eiusmod tempor incididunt ut labore et dolore magna aliqua.
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Latest tweets</CardTitle>
-					<CardDescription>
-						Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-					</CardDescription>
-				</CardHeader>
-
-				<CardContent>
-					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-					eiusmod tempor incididunt ut labore et dolore magna aliqua.
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Latest tweets</CardTitle>
-					<CardDescription>
-						Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-					</CardDescription>
-				</CardHeader>
-
-				<CardContent>
-					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-					eiusmod tempor incididunt ut labore et dolore magna aliqua.
-				</CardContent>
-			</Card>
+						<CardContent>{card.content}</CardContent>
+					</Card>
+				))
+			}
 		</div>
 
 		<div class="max-w-screen-xl mx-auto">
-			<HomeBentogrid />
+			<HomeBentogrid {...bentogrid} />
 		</div>
 
 		<div class="max-w-screen-xl mx-auto">
-			<HomeMarquee client:visible />
+			<HomeMarquee {...marquee} client:visible />
 		</div>
 
 		{

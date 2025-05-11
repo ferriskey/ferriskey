@@ -10,14 +10,15 @@ const { title = config.meta.title } = Astro.props;
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charSet="UTF-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
 
     <title>{title}</title>
-    <meta name="description" content={config.meta.description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={config.meta.description} />
+    <meta name="image" content={config.meta.thumbnail} />
 
     <meta property="og:title" content={title} />
     <meta property="og:type" content="website" />
@@ -28,8 +29,8 @@ const { title = config.meta.title } = Astro.props;
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
   </head>
-  <body className="relative min-h-screen">
-    <div className="min-h-screen flex flex-col">
+  <body class="relative min-h-screen">
+    <div class="min-h-screen flex flex-col">
       <Navbar client:only />
       <slot />
       <Footer client:only />

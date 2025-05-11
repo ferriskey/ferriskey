@@ -1,82 +1,125 @@
-import * as React from "react"
-import { cn } from "@/utils"
-import { Menu, X } from "lucide-react"
-import { Button } from "../ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTrigger
+} from "@/components/ui/sheet"
+import { Icon } from '@iconify/react'
+import clsx from 'clsx'
+import { Fragment, useState } from 'react'
+import config from '../../../../explainer.config'
 
-interface SidebarItem {
-  title: string
-  href: string
-  icon?: React.ReactNode
-  items?: SidebarItem[]
+type Props = {
 }
 
-interface DocsSidebarProps {
-  items: SidebarItem[]
-  className?: string
-}
+export function DocsSidebar(props: Props) {
+  const [isOpen, setIsOpen] = useState(false)
 
-const SidebarLink = ({ item }: { item: SidebarItem }) => {
   return (
-    <li>
-      <a
-        href={item.href}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground"
-      >
-        {item.icon}
-        {item.title}
-      </a>
-      {item.items && (
-        <ul className="ml-4 mt-2 space-y-1">
-          {item.items.map((subItem) => (
-            <SidebarLink key={subItem.href} item={subItem} />
-          ))}
-        </ul>
-      )}
-    </li>
+    <div>
+      <div>
+        <SidebarRenderer />
+      </div>
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger>
+          <Icon
+            icon={isOpen ? 'lucide:chevron-up' : 'lucide:chevron-down'}
+            className="size-5"
+          />
+        </SheetTrigger>
+        <SheetContent side="left">
+          <SheetHeader>
+            <SheetDescription />
+            <SidebarRenderer />
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>
+    </div>
   )
 }
 
-export function DocsSidebar({ items, className }: DocsSidebarProps) {
-  const [isOpen, setIsOpen] = React.useState(false)
-
+function SidebarRenderer() {
   return (
-    <>
-      {/* Mobile toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-40 lg:hidden"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </Button>
-
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed top-0 left-0 z-30 h-screen w-72 border-r bg-background transition-transform lg:translate-x-0 lg:relative",
-          isOpen ? "translate-x-0" : "-translate-x-full",
-          className
-        )}
-      >
-        <div className="sticky top-0 overflow-y-auto h-full p-6 pt-16 lg:pt-6">
-          <nav>
-            <ul className="space-y-2">
-              {items.map((item) => (
-                <SidebarLink key={item.href} item={item} />
-              ))}
-            </ul>
-          </nav>
+    <Fragment>
+      <nav>
+        <div className="space-y-3 mb-3 lg:mb-6 -mx-1 lg:mx-0">
+          {
+            Object.entries(config.docs).map(([key, element]) => (
+              <a
+                className="flex items-center gap-2 group text-primary font-medium"
+                href={element.href}
+              >
+                <div
+                  className={clsx(
+                    "rounded-sm p-1 inline-flex ring-inset ring-1",
+                    window.location.pathname.startsWith(element.baseUrl)
+                      ? "bg-primary ring-primary text-white"
+                      : "bg-gray-50 dark:bg-gray-800 ring-gray-200 dark:ring-gray-700 text-muted-foreground",
+                  )}
+                >
+                  <Icon
+                    icon={element.icon}
+                    className="size-4"
+                  />
+                </div>
+                <span
+                  className={clsx(
+                    "text-sm relative",
+                    window.location.pathname.startsWith(element.baseUrl)
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {element.label}
+                </span>
+              </a>
+            ))
+          }
         </div>
-      </aside>
-    </>
+      </nav>
+
+      <hr
+        className="my-5 border-dashed border-gray-200 dark:border-gray-700"
+      />
+
+      <div className="space-y-1">
+        {
+          currentCollectionItems.map((item) => (
+            <a
+              href={item.href}
+              className="group block py-1.5 px-1.5 text-sm rounded-md transition-colors hover:text-primary"
+            >
+              <div className="flex items-center gap-2">
+                {item.icon ? (
+                  <Icon
+                    client:only
+                    icon={item.icon}
+                    className={clsx(
+                      "text-gray-500 dark:text-gray-400 group-hover:text-primary size-5",
+                      Astro.url.pathname.startsWith(item.href)
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                ) : (
+                  <div className="size-5" />
+                )}
+                <span
+                  className={clsx(
+                    "text-sm group-hover:text-primary",
+                    Astro.url.pathname.startsWith(item.href)
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {item.label}
+                </span>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </Fragment >
   )
-} 
+}

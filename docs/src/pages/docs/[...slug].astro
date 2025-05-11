@@ -12,7 +12,7 @@ import type { CollectionKey } from "astro:content";
 import { getCollection, render, type CollectionEntry } from "astro:content";
 import config from "../../../explainer.config";
 import CodeGroupWrapper from "../../lib/plugins/code-group/CodeGroupWrapper.astro";
-
+import type { HeadingNode } from "../../lib/utils";
 interface Props {
 	element: CollectionEntry<"blog">;
 }
@@ -39,13 +39,6 @@ const { Content, headings } = await render(element);
 const availableHeadings = headings.filter((heading) =>
 	[2, 3].includes(heading.depth),
 );
-
-type HeadingNode = {
-	depth: number;
-	slug: string;
-	text: string;
-	children: HeadingNode[];
-};
 
 function buildHeadingTree(headings: typeof availableHeadings): HeadingNode[] {
 	const result: HeadingNode[] = [];

@@ -1,12 +1,17 @@
-import type { CollectionKey } from 'astro:content'
-import { clsx, type ClassValue } from "clsx"
-import type { LucideProps } from 'lucide-react'
-import type { ForwardRefExoticComponent, RefAttributes } from 'react'
-import { twMerge } from "tailwind-merge"
+import type { CollectionKey } from 'astro:content';
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+export type HeadingNode = {
+  depth: number;
+  slug: string;
+  text: string;
+  children: HeadingNode[];
+};
 
 type NavbarCollection = {
   label: string
@@ -27,7 +32,7 @@ type ExplainerMeta = {
 }
 
 type ExplainerDocs = {
-  icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>
+  icon: string
   label: string
   href: string
   baseUrl: string
