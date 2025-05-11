@@ -1,0 +1,50 @@
+# Dépendances
+node_modules
+.pnpm-store
+
+# Fichiers de build
+dist
+build
+
+# Environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers d'éditeur
+.idea
+.vscode
+*.swp
+*.swo
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# Cache
+.astro
+.eslintcache
+.cache
+
+# Tests
+coverage
+.nyc_output
+
+# Fichiers Docker (pour éviter la récursion)
+Dockerfile
+.dockerignore
+docker-compose*
+
+# Fichiers Git
+.git
+.gitignore
