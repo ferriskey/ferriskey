@@ -1,6 +1,6 @@
 variable "cluster_name" {
   description = "Nom du cluster k3d"
-  default     = "ferriskey"
+  default     = "gke_nathael-dev_europe-west1_onepiece"
 }
 
 variable "grafana_url" {

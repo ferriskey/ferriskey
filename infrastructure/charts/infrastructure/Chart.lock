@@ -5,5 +5,8 @@ dependencies:
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
   version: 0.19.1
-digest: sha256:4ce0f741d88c264c8dc2af72ca4710cba21aefd9bf7eb43e2226a772563ec30f
-generated: "2025-05-08T00:12:59.209498+02:00"
+- name: argo-cd
+  repository: https://argoproj.github.io/argo-helm
+  version: 7.9.1
+digest: sha256:98bd15f28c55d00956386281552cd9d394ae26d2e50fdbc91524bfa042ce727d
+generated: "2025-05-11T23:09:09.649581+02:00"

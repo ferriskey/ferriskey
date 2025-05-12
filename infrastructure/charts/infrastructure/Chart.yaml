@@ -13,3 +13,6 @@ dependencies:
   - name: cloudnative-pg
     version: 0.19.1  # Check for the latest version on https://artifacthub.io/packages/helm/cloudnative-pg/cloudnative-pg
     repository: https://cloudnative-pg.github.io/charts
+  - name: argo-cd
+    version: 7.9.1
+    repository: https://argoproj.github.io/argo-helm
