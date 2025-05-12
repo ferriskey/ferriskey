@@ -10,7 +10,7 @@ pub struct Role {
     pub description: Option<String>,
     pub permissions: i32,
     pub realm_id: Uuid,
-    pub client_id: Uuid,
+    pub client_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>
 }
