@@ -19,6 +19,14 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
+export interface CreateRoleRequest {
+	name: string;
+	description?: string;
+	permissions: number;
+	realm_id: string;
+	client_id: string;
+}
+
 export interface JwtToken {
 	access_token: string;
 	token_type: string;
