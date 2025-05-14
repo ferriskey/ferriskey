@@ -21,28 +21,26 @@ pub struct Credential {
 
 impl Credential {
     pub fn new(
+        id: Uuid,
         salt: String,
         credential_type: String,
         user_id: Uuid,
         user_label: String,
         secret_data: String,
         credential_data: CredentialData,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
     ) -> Self {
-        let now = Utc::now();
-        let seconds = now.timestamp().try_into().unwrap_or(0);
-
-        let timestamp = Timestamp::from_unix(NoContext, seconds, 0);
-
         Self {
-            id: Uuid::new_v7(timestamp),
+            id,
             salt: Some(salt),
             credential_type,
             user_id,
             user_label: Some(user_label),
             secret_data,
             credential_data,
-            created_at: now,
-            updated_at: now,
+            created_at,
+            updated_at,
         }
     }
 }
