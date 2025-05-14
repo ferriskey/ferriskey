@@ -43,6 +43,19 @@ impl From<&entity::realms::Model> for Realm {
     }
 }
 
+impl From<entity::realm_settings::Model> for RealmSetting {
+    fn from(value: entity::realm_settings::Model) -> Self {
+        let updated_at: DateTime<Utc> = Utc.from_utc_datetime(&value.updated_at);
+
+        RealmSetting {
+            id: value.id,
+            realm_id: value.realm_id,
+            default_signing_algorithm: value.default_signing_algorithm,
+            updated_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
     pub pool: PgPool,
@@ -151,19 +164,19 @@ impl RealmRepository for PostgresRealmRepository {
     ) -> Result<RealmSetting, RealmError> {
         let realm_setting = RealmSetting::new(realm_id, algorithm);
 
-        let t = entity::realm_settings::ActiveModel {
+        let active_model = entity::realm_settings::ActiveModel {
             id: Set(realm_setting.id),
             realm_id: Set(realm_setting.realm_id),
             default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
             updated_at: Set(realm_setting.updated_at.naive_utc()),
         };
 
-        let insert_result = entity::realm_settings::Entity::insert(t)
-            .exec(&self.db)
+        let model: RealmSetting = active_model.insert(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?;
+            .map_err(|_| RealmError::InternalServerError)?
+            .into();
 
-        Ok(realm_setting)
+        Ok(model)
     }
 
     async fn update_realm_setting(
@@ -171,17 +184,22 @@ impl RealmRepository for PostgresRealmRepository {
         realm_id: Uuid,
         algorithm: String,
     ) -> Result<RealmSetting, RealmError> {
-        sqlx::query_as!(
-            RealmSetting,
-            r#"
-            UPDATE realm_settings SET default_signing_algorithm = $1, updated_at = $2 WHERE realm_id = $3 RETURNING *
-            "#,
-            algorithm,
-            chrono::Utc::now(),
-            realm_id
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| RealmError::InternalServerError)
+        let realm_setting = entity::realm_settings::Entity::find()
+            .filter(entity::realm_settings::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .ok_or(RealmError::NotFound)?;
+
+        let mut realm_setting: entity::realm_settings::ActiveModel = realm_setting.into();
+
+        realm_setting.default_signing_algorithm = Set(Some(algorithm));
+
+        let realm_setting = realm_setting.update(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .into();
+
+        Ok(realm_setting)
     }
 }
