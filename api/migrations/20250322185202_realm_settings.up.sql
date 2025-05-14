@@ -4,7 +4,7 @@ CREATE TABLE realm_settings
     id                        UUID PRIMARY KEY,
     realm_id                  UUID        NOT NULL,
     default_signing_algorithm VARCHAR(255),
-    updated_at                TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at                TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE realm_settings

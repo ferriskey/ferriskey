@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
 
+[workspace]
+members = [".", "entity"]
+
 [[bin]]
 path = "src/bin/main.rs"
 name = "ferriskey-server"
@@ -13,12 +16,16 @@ path = "src/lib/lib.rs"
 name = "ferriskey"
 
 [dependencies]
+entity = { path = "entity" }
 anyhow = "1.0.97"
 argon2 = "0.5.3"
 async-trait = "0.1.77"
 axum = "0.8.1"
 axum-cookie = "0.2.3"
-axum-extra = { version = "0.10.0", features = ["typed-header", "typed-routing"] }
+axum-extra = { version = "0.10.0", features = [
+  "typed-header",
+  "typed-routing",
+] }
 axum-macros = "0.5.0"
 base64 = "0.22.1"
 base64-url = "3.0.0"
@@ -28,9 +35,20 @@ dotenv = "0.15.0"
 jsonwebtoken = "9.3.1"
 rand = "0.9.0"
 regex = "1.11.1"
+sea-orm = { version = "1.1.11", features = [
+  "sqlx-postgres",
+  "macros",
+  "with-uuid",
+] }
 serde = "1.0.219"
 serde_json = "1.0.140"
-sqlx = { version = "0.8.3", features = ["chrono", "postgres", "runtime-tokio", "uuid", "macros"] }
+sqlx = { version = "0.8.3", features = [
+  "chrono",
+  "postgres",
+  "runtime-tokio",
+  "uuid",
+  "macros",
+] }
 thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["rt-multi-thread"] }
 tower = "0.5.2"

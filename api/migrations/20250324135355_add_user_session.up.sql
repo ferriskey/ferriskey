@@ -5,8 +5,8 @@ CREATE TABLE user_sessions (
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
     user_agent VARCHAR(255),
     ip_address VARCHAR(255), 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), 
-    expires_at TIMESTAMPTZ NOT NULL
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(), 
+    expires_at TIMESTAMP NOT NULL
 );
 
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);

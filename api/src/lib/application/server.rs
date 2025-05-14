@@ -66,7 +66,7 @@ impl
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
         let postgres = Postgres::new(Arc::clone(&env)).await?;
-        let realm_repository = PostgresRealmRepository::new(postgres.get_pool());
+        let realm_repository = PostgresRealmRepository::new(postgres.get_pool(), postgres.get_db());
         let client_repository = PostgresClientRepository::new(postgres.get_pool());
         let user_repository = PostgresUserRepository::new(postgres.get_pool());
         let credential_repository = PostgresCredentialRepository::new(postgres.get_pool());

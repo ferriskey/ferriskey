@@ -4,89 +4,142 @@ use crate::domain::realm::{
     ports::realm_repository::RealmRepository,
 };
 
+use sea_orm::ActiveValue;
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
+
+use entity::realms::{ActiveModel, Entity as RealmEntity};
+
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use sqlx::PgPool;
-use sqlx::Row;
 use uuid::Uuid;
+
+impl From<entity::realms::Model> for Realm {
+    fn from(model: entity::realms::Model) -> Self {
+        let created_at = Utc.from_utc_datetime(&model.created_at);
+        let updated_at = Utc.from_utc_datetime(&model.updated_at);
+
+        Realm {
+            id: model.id,
+            name: model.name,
+            created_at,
+            updated_at,
+        }
+    }
+}
+
+impl From<&entity::realms::Model> for Realm {
+    fn from(model: &entity::realms::Model) -> Self {
+        let created_at = Utc.from_utc_datetime(&model.created_at);
+        let updated_at = Utc.from_utc_datetime(&model.updated_at);
+
+        Realm {
+            id: model.id,
+            name: model.name.clone(),
+            created_at,
+            updated_at,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
     pub pool: PgPool,
+    pub db: DatabaseConnection,
 }
 
 impl PostgresRealmRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
+        Self { pool, db }
     }
 }
 
 impl RealmRepository for PostgresRealmRepository {
     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
-        let rows = sqlx::query("SELECT * FROM realms")
-            .fetch_all(&self.pool)
+        let realms = RealmEntity::find()
+            .all(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?;
-
-        let realms = rows
+            .map_err(|_| RealmError::InternalServerError)?
             .iter()
-            .map(|row| Realm {
-                id: row.get("id"),
-                name: row.get("name"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+            .map(Realm::from)
+            .collect::<Vec<Realm>>();
 
         Ok(realms)
     }
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
-        sqlx::query_as!(Realm, "SELECT * FROM realms WHERE name = $1", name)
-            .fetch_optional(&self.pool)
+        let realm = RealmEntity::find()
+            .filter(entity::realms::Column::Name.eq(name))
+            .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)
+            .map_err(|_| RealmError::InternalServerError)?
+            .map(Realm::from);
+
+        Ok(realm)
     }
 
     async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
         let realm = Realm::new(name);
 
-        sqlx::query_as!(Realm,
-            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING *",
-            realm.id,
-            realm.name,
-            realm.created_at,
-            realm.updated_at
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|err| {
-          println!("Failed to insert realm: {:?}", err);
-          RealmError::InternalServerError
-        })
+        let new_realm = ActiveModel {
+            id: Set(realm.id),
+            name: Set(realm.name),
+            created_at: Set(realm.created_at.naive_utc()),
+            updated_at: Set(realm.updated_at.naive_utc()),
+        };
+
+        let insert_result = RealmEntity::insert(new_realm)
+            .exec(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?;
+
+        let realm = RealmEntity::find()
+            .filter(entity::realms::Column::Id.eq(realm.id))
+            .one(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .map(Realm::from);
+
+        let realm = realm.ok_or(RealmError::InternalServerError)?;
+        Ok(realm)
     }
 
     async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
-        sqlx::query!(
-            "UPDATE realms SET name = $1, updated_at = $2 WHERE name = $3",
-            name,
-            chrono::Utc::now(),
-            realm_name
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map(|row| Realm {
-            id: row.get("id"),
-            name: row.get("name"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
-        .map_err(|_| RealmError::InternalServerError)
+        let realm = RealmEntity::find()
+            .filter(entity::realms::Column::Name.eq(realm_name))
+            .one(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .ok_or(RealmError::NotFound)?;
+
+        let mut realm: ActiveModel = realm.into();
+        realm.name = Set(name.clone());
+        realm.updated_at = Set(Utc::now().naive_utc());
+        realm
+            .update(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?;
+        let updated_realm = RealmEntity::find()
+            .filter(entity::realms::Column::Name.eq(name))
+            .one(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .map(Realm::from);
+        let updated_realm = updated_realm.ok_or(RealmError::InternalServerError)?;
+        Ok(updated_realm)
     }
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
-        sqlx::query!("DELETE FROM realms WHERE name = $1", name)
-            .execute(&self.pool)
+        let res = RealmEntity::delete_many()
+            .filter(entity::realms::Column::Name.eq(name))
+            .exec(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
+
+        if res.rows_affected == 0 {
+            return Err(RealmError::InternalServerError);
+        }
 
         Ok(())
     }
@@ -98,15 +151,19 @@ impl RealmRepository for PostgresRealmRepository {
     ) -> Result<RealmSetting, RealmError> {
         let realm_setting = RealmSetting::new(realm_id, algorithm);
 
-        sqlx::query_as!(RealmSetting,
-            "INSERT INTO realm_settings (id, realm_id, default_signing_algorithm) VALUES ($1, $2, $3) RETURNING *",
-            realm_setting.id,
-            realm_setting.realm_id,
-            realm_setting.default_signing_algorithm
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| RealmError::InternalServerError)
+        let t = entity::realm_settings::ActiveModel {
+            id: Set(realm_setting.id),
+            realm_id: Set(realm_setting.realm_id),
+            default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
+            updated_at: Set(realm_setting.updated_at.naive_utc()),
+        };
+
+        let insert_result = entity::realm_settings::Entity::insert(t)
+            .exec(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?;
+
+        Ok(realm_setting)
     }
 
     async fn update_realm_setting(
