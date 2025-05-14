@@ -1,5 +1,5 @@
 use entity::clients::{ActiveModel, Entity as ClientEntity};
-use sea_orm::EntityTrait;
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
 use sqlx::{Executor, PgPool};
 
 use crate::domain::{
@@ -75,21 +75,25 @@ impl ClientRepository for PostgresClientRepository {
         client_id: String,
         realm_id: uuid::Uuid,
     ) -> Result<Client, ClientError> {
-        ClientEntity::find()
+        let client = ClientEntity::find()
             .filter(entity::clients::Column::ClientId.eq(client_id))
             .filter(entity::clients::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
-            .map(Client::from)
+            .map(Client::from);
+
+        Ok(client)
     }
 
     async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, ClientError> {
-        ClientEntity::find()
+        let client = ClientEntity::find()
             .filter(entity::clients::Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
-            .map(Client::from)
+            .map(Client::from);
+
+        Ok(client)
     }
 }
