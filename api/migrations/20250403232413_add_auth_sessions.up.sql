@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     user_id UUID,
     code VARCHAR(255) NULL UNIQUE,
     authenticated BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
 
     CONSTRAINT fk_realm
         FOREIGN KEY (realm_id)
