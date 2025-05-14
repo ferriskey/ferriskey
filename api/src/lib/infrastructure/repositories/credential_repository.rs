@@ -90,7 +90,7 @@ impl CredentialRepository for PostgresCredentialRepository {
     }
 
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
-        CredentialEntity::delete_many()
+        CredentialEntity::delete(&self.db)
             .filter(entity::credentials::Column::UserId.eq(user_id))
             .filter(entity::credentials::Column::CredentialType.eq("password"))
             .exec(&self.db)
