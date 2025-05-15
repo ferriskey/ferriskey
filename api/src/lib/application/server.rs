@@ -10,6 +10,7 @@ use crate::{
         crypto::ports::hasher_repository::HasherRepository,
         jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
         realm::ports::realm_repository::RealmRepository,
+        role::ports::RoleRepository,
         user::ports::user_repository::UserRepository,
     },
     env::Env,
@@ -23,12 +24,12 @@ use crate::{
             jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository,
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
-            user_repository::PostgresUserRepository,
+            role_repository::PostgresRoleRepository, user_repository::PostgresUserRepository,
         },
     },
 };
 
-pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU>
+pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU, RO>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -39,6 +40,7 @@ where
     AS: AuthSessionRepository,
     RR: RefreshTokenRepository,
     RU: RedirectUriRepository,
+    RO: RoleRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -49,6 +51,7 @@ where
     pub auth_session_repository: AS,
     pub refresh_token_repository: RR,
     pub redirect_uri_repository: RU,
+    pub role_repository: RO,
 }
 
 impl
@@ -62,6 +65,7 @@ impl
         PostgresAuthSessionRepository,
         PostgresRefreshTokenRepository,
         PostgresRedirectUriRepository,
+        PostgresRoleRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -75,6 +79,7 @@ impl
         let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_db());
         let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_db());
         let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_db());
+        let role_repository = PostgresRoleRepository::new(postgres.get_db());
 
         Ok(Self {
             realm_repository,
@@ -86,6 +91,7 @@ impl
             auth_session_repository,
             refresh_token_repository,
             redirect_uri_repository,
+            role_repository,
         })
     }
 }
