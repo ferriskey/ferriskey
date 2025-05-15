@@ -1,5 +1,9 @@
+use chrono::{TimeZone, Utc};
 use entity::credentials::{ActiveModel, Entity as CredentialEntity};
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
+    QueryFilter,
+};
 use sqlx::{Executor, PgPool};
 
 use crate::domain::{
@@ -11,6 +15,7 @@ use crate::domain::{
         ports::credential_repository::CredentialRepository,
     },
     crypto::entities::hash_result::HashResult,
+    utils::{generate_timestamp, generate_uuid_v7},
 };
 
 impl From<entity::credentials::Model> for Credential {
@@ -18,17 +23,24 @@ impl From<entity::credentials::Model> for Credential {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
-        Credential::new(
-            model.id,
-            model.salt,
-            model.credential_type,
-            model.user_id,
-            model.user_label,
-            model.secret_data,
-            model.credential_data,
+        let credential_data = serde_json::from_value(model.credential_data)
+            .map_err(|_| CredentialError::GetPasswordCredentialError)
+            .unwrap_or(CredentialData {
+                hash_iterations: 0,
+                algorithm: "default".to_string(),
+            });
+
+        Self {
+            id: model.id,
+            salt: model.salt,
+            credential_type: model.credential_type,
+            user_id: model.user_id,
+            user_label: model.user_label,
+            secret_data: model.secret_data,
+            credential_data,
             created_at,
             updated_at,
-        )
+        }
     }
 }
 
@@ -56,22 +68,23 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
-            salt: Set(hash_result.salt),
+            salt: Set(Some(hash_result.salt)),
             credential_type: Set(credential_type),
             user_id: Set(user_id),
-            user_label: Set(label),
+            user_label: Set(Some(label)),
             secret_data: Set(hash_result.hash),
             credential_data: Set(serde_json::to_value(&hash_result.credential_data)
                 .map_err(|_| CredentialError::CreateCredentialError)?),
-            created_at: Set(now),
-            updated_at: Set(now),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
         };
 
-        CredentialEntity::insert(payload)
-            .exec(&self.db)
+        let t = payload
+            .insert(&self.db)
             .await
-            .map_err(|_| CredentialError::CreateCredentialError)?
-            .map(Credential::from);
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(t.into())
     }
 
     async fn get_password_credential(
@@ -86,14 +99,22 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::GetPasswordCredentialError)?
             .map(Credential::from);
 
+        let credential = credential.ok_or(CredentialError::GetPasswordCredentialError)?;
+
         Ok(credential)
     }
 
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
-        CredentialEntity::delete(&self.db)
+        let credential = CredentialEntity::find()
             .filter(entity::credentials::Column::UserId.eq(user_id))
             .filter(entity::credentials::Column::CredentialType.eq("password"))
-            .exec(&self.db)
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::DeletePasswordCredentialError)?
+            .ok_or(CredentialError::DeletePasswordCredentialError)?;
+
+        credential
+            .delete(&self.db)
             .await
             .map_err(|_| CredentialError::DeletePasswordCredentialError)?;
 

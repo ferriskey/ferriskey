@@ -1,4 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -10,14 +13,31 @@ use crate::domain::{
     utils::generate_uuid_v7,
 };
 
+impl From<entity::refresh_tokens::Model> for RefreshToken {
+    fn from(model: entity::refresh_tokens::Model) -> Self {
+        let created_at = Utc.from_utc_datetime(&model.created_at);
+        let expires_at = model.expires_at.map(|dt| Utc.from_utc_datetime(&dt));
+
+        RefreshToken {
+            id: model.id,
+            jti: model.jti,
+            user_id: model.user_id,
+            revoked: model.revoked,
+            created_at,
+            expires_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresRefreshTokenRepository {
     pub pool: PgPool,
+    pub db: DatabaseConnection,
 }
 
 impl PostgresRefreshTokenRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
+        Self { pool, db }
     }
 }
 
@@ -28,23 +48,27 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
     ) -> Result<RefreshToken, JwtError> {
-        sqlx::query_as!(
-            RefreshToken,
-            "INSERT INTO refresh_tokens (id, jti, user_id, revoked, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            generate_uuid_v7(),
-            jti,
-            user_id,
-            false,
-            expires_at
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| JwtError::GenerationError(e.to_string()))
+        let model = entity::refresh_tokens::ActiveModel {
+            id: Set(generate_uuid_v7()),
+            jti: Set(jti),
+            user_id: Set(user_id),
+            revoked: Set(false),
+            created_at: Set(Utc::now().naive_utc()),
+            expires_at: Set(expires_at.map(|dt| dt.naive_utc())),
+        };
+
+        let refresh_token = model
+            .insert(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(refresh_token.into())
     }
 
     async fn delete(&self, jti: Uuid) -> Result<(), JwtError> {
-        sqlx::query!("DELETE FROM refresh_tokens WHERE jti = $1", jti)
-            .execute(&self.pool)
+        entity::refresh_tokens::Entity::delete_many()
+            .filter(entity::refresh_tokens::Column::Jti.eq(jti))
+            .exec(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 

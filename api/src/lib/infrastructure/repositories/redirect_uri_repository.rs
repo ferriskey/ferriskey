@@ -1,5 +1,8 @@
+use chrono::{TimeZone, Utc};
 use entity::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
 use sqlx::{Executor, PgPool};
 use uuid::Uuid;
 
@@ -49,15 +52,16 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
             client_id: Set(redirect_uri.client_id),
             value: Set(redirect_uri.value),
             enabled: Set(redirect_uri.enabled),
-            created_at: Set(redirect_uri.created_at),
-            updated_at: Set(redirect_uri.updated_at),
+            created_at: Set(redirect_uri.created_at.naive_utc()),
+            updated_at: Set(redirect_uri.updated_at.naive_utc()),
         };
 
-        RedirectUriEntity::insert(payload)
-            .exec(&self.db)
+        let t = payload
+            .insert(&self.db)
             .await
-            .map_err(|_| RedirectUriError::DatabaseError)?
-            .map(RedirectUri::from);
+            .map_err(|_| RedirectUriError::DatabaseError)?;
+
+        Ok(t.into())
     }
 
     async fn get_by_client_id(
@@ -66,10 +70,14 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
         let redirect_uris = RedirectUriEntity::find()
             .filter(entity::redirect_uris::Column::ClientId.eq(client_id))
-            .one(&self.db)
+            .all(&self.db)
             .await
-            .map_err(|_| RedirectUriError::DatabaseError)?
-            .map(RedirectUri::from);
+            .map_err(|_| RedirectUriError::DatabaseError)?;
+
+        let redirect_uris = redirect_uris
+            .into_iter()
+            .map(RedirectUri::from)
+            .collect::<Vec<RedirectUri>>();
 
         Ok(redirect_uris)
     }
@@ -84,7 +92,9 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
             .all(&self.db)
             .await
             .map_err(|_| RedirectUriError::DatabaseError)?
-            .map(RedirectUri::from);
+            .into_iter()
+            .map(RedirectUri::from)
+            .collect::<Vec<RedirectUri>>();
 
         Ok(redirect_uris)
     }
@@ -107,8 +117,9 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
             let redirect_uri = redirect_uri
                 .update(&self.db)
                 .await
-                .map_err(|_| RedirectUriError::DatabaseError)?
-                .map(RedirectUri::from);
+                .map_err(|_| RedirectUriError::DatabaseError)?;
+
+            let redirect_uri = redirect_uri.into();
 
             Ok(redirect_uri)
         } else {
@@ -117,7 +128,7 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
-        let _ = RedirectUriEntity::delete_by_id(id)
+        RedirectUriEntity::delete_by_id(id)
             .exec(&self.db)
             .await
             .map_err(|_| RedirectUriError::DatabaseError)?;
