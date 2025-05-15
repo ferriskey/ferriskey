@@ -29,12 +29,11 @@ impl From<entity::redirect_uris::Model> for RedirectUri {
 
 #[derive(Debug, Clone)]
 pub struct PostgresRedirectUriRepository {
-    pub pool: PgPool,
     pub db: DatabaseConnection,
 }
 impl PostgresRedirectUriRepository {
-    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
-        Self { pool, db }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 

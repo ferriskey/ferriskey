@@ -1,7 +1,11 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::DatabaseConnection;
+use uuid::Uuid;
 
-use crate::domain::role::entities::models::Role;
+use crate::domain::role::{
+    entities::{CreateRoleRequest, errors::RoleError, models::Role},
+    ports::RoleRepository,
+};
 
 // impl From<entity::roles::Model> for Role {
 //     fn from(model: entity::roles::Model) -> Self {
@@ -27,5 +31,31 @@ pub struct PostgresRoleRepository {
 impl PostgresRoleRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+}
+
+impl RoleRepository for PostgresRoleRepository {
+    async fn create(&self, payload: CreateRoleRequest) -> Result<(), RoleError> {
+        todo!()
+    }
+
+    async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {
+        todo!()
+    }
+
+    async fn get_by_client_id(&self, client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+        todo!()
+    }
+
+    async fn get_by_client_id_text(
+        &self,
+        client_id: String,
+        realm_id: Uuid,
+    ) -> Result<Vec<Role>, RoleError> {
+        todo!()
+    }
+
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<Role>, RoleError> {
+        todo!()
     }
 }

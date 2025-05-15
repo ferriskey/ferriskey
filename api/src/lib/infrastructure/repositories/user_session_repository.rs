@@ -1,7 +1,8 @@
 use chrono::{TimeZone, Utc};
-use sea_orm::ColumnTrait;
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
-use sqlx::PgPool;
+
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
 use uuid::Uuid;
 
 use crate::domain::session::{
@@ -28,13 +29,12 @@ impl From<entity::user_sessions::Model> for UserSession {
 
 #[derive(Debug, Clone)]
 pub struct PostgresUserSessionRepository {
-    pool: PgPool,
     pub db: DatabaseConnection,
 }
 
 impl PostgresUserSessionRepository {
-    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
-        Self { pool, db }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
@@ -60,7 +60,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
     async fn find_by_user_id(&self, user_id: &Uuid) -> Result<UserSession, SessionError> {
         let user_session = entity::user_sessions::Entity::find()
-            .filter(entity::user_sessions::Column::UserId.eq(user_id))
+            .filter(entity::user_sessions::Column::UserId.eq(user_id.clone()))
             .one(&self.db)
             .await
             .map_err(|_| SessionError::NotFound)?
@@ -70,7 +70,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
-        entity::user_sessions::Entity::delete_by_id(id)
+        entity::user_sessions::Entity::delete_by_id(id.clone())
             .exec(&self.db)
             .await
             .map_err(|_| SessionError::DeleteError)?;

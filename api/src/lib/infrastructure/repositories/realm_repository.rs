@@ -57,13 +57,12 @@ impl From<entity::realm_settings::Model> for RealmSetting {
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
-    pub pool: PgPool,
     pub db: DatabaseConnection,
 }
 
 impl PostgresRealmRepository {
-    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
-        Self { pool, db }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
@@ -101,19 +100,13 @@ impl RealmRepository for PostgresRealmRepository {
             updated_at: Set(realm.updated_at.naive_utc()),
         };
 
-        let insert_result = RealmEntity::insert(new_realm)
-            .exec(&self.db)
+        let result_insert = new_realm
+            .insert(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
-        let realm = RealmEntity::find()
-            .filter(entity::realms::Column::Id.eq(realm.id))
-            .one(&self.db)
-            .await
-            .map_err(|_| RealmError::InternalServerError)?
-            .map(Realm::from);
+        let realm = result_insert.into();
 
-        let realm = realm.ok_or(RealmError::InternalServerError)?;
         Ok(realm)
     }
 

@@ -1,5 +1,8 @@
+use chrono::{TimeZone, Utc};
 use entity::clients::{ActiveModel, Entity as ClientEntity};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
 use sqlx::{Executor, PgPool};
 
 use crate::domain::{
@@ -34,13 +37,12 @@ impl From<entity::clients::Model> for Client {
 
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
-    pub pool: PgPool,
     pub db: DatabaseConnection,
 }
 
 impl PostgresClientRepository {
-    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
-        Self { pool, db }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
@@ -59,15 +61,18 @@ impl ClientRepository for PostgresClientRepository {
             public_client: Set(data.public_client),
             service_account_enabled: Set(data.service_account_enabled),
             client_type: Set(data.client_type),
-            created_at: Set(now),
-            updated_at: Set(now),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_local()),
         };
 
-        ClientEntity::insert(payload)
-            .exec(&self.db)
+        let client = payload
+            .insert(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)
-            .map(Client::from)
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let client = client.into();
+
+        Ok(client)
     }
 
     async fn get_by_client_id(
@@ -81,7 +86,8 @@ impl ClientRepository for PostgresClientRepository {
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
-            .map(Client::from);
+            .map(Client::from)
+            .ok_or(ClientError::NotFound)?;
 
         Ok(client)
     }
@@ -92,7 +98,8 @@ impl ClientRepository for PostgresClientRepository {
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
-            .map(Client::from);
+            .map(Client::from)
+            .ok_or(ClientError::NotFound)?;
 
         Ok(client)
     }

@@ -1,3 +1,7 @@
+use chrono::{TimeZone, Utc};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -7,14 +11,35 @@ use crate::domain::user::{
     ports::user_repository::UserRepository,
 };
 
+impl From<entity::users::Model> for User {
+    fn from(model: entity::users::Model) -> Self {
+        let created_at = Utc.from_utc_datetime(&model.created_at);
+        let updated_at = Utc.from_utc_datetime(&model.updated_at);
+
+        User {
+            id: model.id,
+            realm_id: model.realm_id,
+            username: model.username,
+            firstname: model.firstname,
+            lastname: model.lastname,
+            email: model.email,
+            email_verified: model.email_verified,
+            enabled: model.enabled,
+            client_id: model.client_id,
+            created_at,
+            updated_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresUserRepository {
-    pub pool: PgPool,
+    pub db: DatabaseConnection,
 }
 
 impl PostgresUserRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
@@ -22,54 +47,65 @@ impl UserRepository for PostgresUserRepository {
     async fn create_user(&self, dto: CreateUserDto) -> Result<User, UserError> {
         let user = User::from_dto(dto);
 
-        let _ = sqlx::query_as!(User, r#"
-        INSERT INTO users (id, realm_id, username, firstname, lastname, email, email_verified, enabled, client_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        "#,
-        user.id,
-        user.realm_id,
-        user.username,
-        user.firstname,
-        user.lastname,
-        user.email,
-        user.email_verified,
-        user.enabled,
-        user.client_id,
-        user.created_at,
-        user.updated_at
-        )
-        .execute(&self.pool)
-        .await
-        .map_err(|_| UserError::InternalServerError)?;
+        let model = entity::users::ActiveModel {
+            id: Set(user.id),
+            realm_id: Set(user.realm_id),
+            username: Set(user.username),
+            firstname: Set(user.firstname),
+            lastname: Set(user.lastname),
+            email: Set(user.email),
+            email_verified: Set(user.email_verified),
+            enabled: Set(user.enabled),
+            client_id: Set(user.client_id),
+            created_at: Set(user.created_at.naive_utc()),
+            updated_at: Set(user.updated_at.naive_utc()),
+        };
+
+        let t = model
+            .insert(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        let user = t.into();
+
         Ok(user)
     }
 
     async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE username = $1 AND realm_id = $2",
-            username,
-            realm_id
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| UserError::NotFound)?;
+        let user = entity::users::Entity::find()
+            .filter(entity::users::Column::Username.eq(username.clone()))
+            .filter(entity::users::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| UserError::NotFound)?
+            .ok_or(UserError::NotFound)?;
+
+        let user = user.into();
+
         Ok(user)
     }
 
     async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, UserError> {
-        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE client_id = $1", client_id,)
-            .fetch_one(&self.pool)
+        let user = entity::users::Entity::find()
+            .filter(entity::users::Column::ClientId.eq(client_id))
+            .one(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|_| UserError::NotFound)?
+            .ok_or(UserError::NotFound)?;
+
+        let user = user.into();
         Ok(user)
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
-        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
-            .fetch_one(&self.pool)
+        let user = entity::users::Entity::find()
+            .filter(entity::users::Column::Id.eq(id))
+            .one(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|_| UserError::NotFound)?
+            .ok_or(UserError::NotFound)?;
+
+        let user = user.into();
         Ok(user)
     }
 }

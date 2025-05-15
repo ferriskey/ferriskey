@@ -66,16 +66,15 @@ impl
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
         let postgres = Postgres::new(Arc::clone(&env)).await?;
-        let realm_repository = PostgresRealmRepository::new(postgres.get_pool(), postgres.get_db());
-        let client_repository =
-            PostgresClientRepository::new(postgres.get_pool(), postgres.get_db());
-        let user_repository = PostgresUserRepository::new(postgres.get_pool());
-        let credential_repository = PostgresCredentialRepository::new(postgres.get_pool());
+        let realm_repository = PostgresRealmRepository::new(postgres.get_db());
+        let client_repository = PostgresClientRepository::new(postgres.get_db());
+        let user_repository = PostgresUserRepository::new(postgres.get_db());
+        let credential_repository = PostgresCredentialRepository::new(postgres.get_db());
         let hasher_repository = Argon2HasherRepository::new();
         let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
-        let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_pool());
-        let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_pool());
-        let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_pool());
+        let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_db());
+        let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_db());
+        let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_db());
 
         Ok(Self {
             realm_repository,

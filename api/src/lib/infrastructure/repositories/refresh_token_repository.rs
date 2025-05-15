@@ -31,13 +31,12 @@ impl From<entity::refresh_tokens::Model> for RefreshToken {
 
 #[derive(Debug, Clone)]
 pub struct PostgresRefreshTokenRepository {
-    pub pool: PgPool,
     pub db: DatabaseConnection,
 }
 
 impl PostgresRefreshTokenRepository {
-    pub fn new(pool: PgPool, db: DatabaseConnection) -> Self {
-        Self { pool, db }
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
     }
 }
 
