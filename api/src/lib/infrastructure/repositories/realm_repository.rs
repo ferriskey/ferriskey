@@ -4,14 +4,13 @@ use crate::domain::realm::{
     ports::realm_repository::RealmRepository,
 };
 
-use sea_orm::ActiveValue;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 
 use entity::realms::{ActiveModel, Entity as RealmEntity};
 
-use chrono::{DateTime, FixedOffset, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -171,7 +170,8 @@ impl RealmRepository for PostgresRealmRepository {
             updated_at: Set(realm_setting.updated_at.naive_utc()),
         };
 
-        let model: RealmSetting = active_model.insert(&self.db)
+        let model: RealmSetting = active_model
+            .insert(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
             .into();
@@ -195,7 +195,8 @@ impl RealmRepository for PostgresRealmRepository {
 
         realm_setting.default_signing_algorithm = Set(Some(algorithm));
 
-        let realm_setting = realm_setting.update(&self.db)
+        let realm_setting = realm_setting
+            .update(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
             .into();

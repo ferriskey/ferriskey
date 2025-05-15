@@ -1,3 +1,4 @@
+use chrono::{TimeZone, Utc};
 use entity::credentials::{ActiveModel, Entity as CredentialEntity};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter};
 use sqlx::{Executor, PgPool};
@@ -18,17 +19,24 @@ impl From<entity::credentials::Model> for Credential {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
-        Credential::new(
-            model.id,
-            model.salt,
-            model.credential_type,
-            model.user_id,
-            model.user_label,
-            model.secret_data,
-            model.credential_data,
+        let credential_data = serde_json::from_value(model.credential_data)
+            .map_err(|_| CredentialError::GetPasswordCredentialError)
+            .unwrap_or(CredentialData {
+                hash_iterations: 0,
+                algorithm: "default".to_string(),
+            });
+
+        Self {
+            id: model.id,
+            salt: model.salt,
+            credential_type: model.credential_type,
+            user_id: model.user_id,
+            user_label: model.user_label,
+            secret_data: model.secret_data,
+            credential_data,
             created_at,
             updated_at,
-        )
+        }
     }
 }
 
