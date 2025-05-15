@@ -1,6 +1,6 @@
 use chrono::{TimeZone, Utc};
 use entity::credentials::{ActiveModel, Entity as CredentialEntity};
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
 use sqlx::{Executor, PgPool};
 
 use crate::domain::{
@@ -11,7 +11,7 @@ use crate::domain::{
         },
         ports::credential_repository::CredentialRepository,
     },
-    crypto::entities::hash_result::HashResult,
+    crypto::entities::hash_result::HashResult, utils::{generate_timestamp, generate_uuid_v7},
 };
 
 impl From<entity::credentials::Model> for Credential {
@@ -64,22 +64,22 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
-            salt: Set(hash_result.salt),
+            salt: Set(Some(hash_result.salt)),
             credential_type: Set(credential_type),
             user_id: Set(user_id),
-            user_label: Set(label),
+            user_label: Set(Some(label)),
             secret_data: Set(hash_result.hash),
             credential_data: Set(serde_json::to_value(&hash_result.credential_data)
                 .map_err(|_| CredentialError::CreateCredentialError)?),
-            created_at: Set(now),
-            updated_at: Set(now),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
         };
 
-        CredentialEntity::insert(payload)
-            .exec(&self.db)
-            .await
-            .map_err(|_| CredentialError::CreateCredentialError)?
-            .map(Credential::from);
+        let t = payload.insert(&self.db).await.map_err(|_| {
+            CredentialError::CreateCredentialError
+        })?;
+
+        Ok(t.into())
     }
 
     async fn get_password_credential(
@@ -93,6 +93,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             .await
             .map_err(|_| CredentialError::GetPasswordCredentialError)?
             .map(Credential::from);
+
+        let credential = credential.ok_or(CredentialError::GetPasswordCredentialError)?;
 
         Ok(credential)
     }
