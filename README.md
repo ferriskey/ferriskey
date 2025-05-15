@@ -23,7 +23,7 @@ This FerrisKey API is structured according to hexagonal architecture principles:
 - **Application**: Coordinates workflows between the domain and adapters.
 - **Infrastructure(adapters)**: Connect the system to external technologies (databases, web services, etc..).
 
-![API Architecture](./docs/api_architecture.png)
+![API Architecture](./docs_old/api_architecture.png)
 
 This modular design allows:
 
