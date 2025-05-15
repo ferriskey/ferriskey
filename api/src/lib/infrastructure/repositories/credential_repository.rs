@@ -1,6 +1,9 @@
 use chrono::{TimeZone, Utc};
 use entity::credentials::{ActiveModel, Entity as CredentialEntity};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
+    QueryFilter,
+};
 use sqlx::{Executor, PgPool};
 
 use crate::domain::{
@@ -11,7 +14,8 @@ use crate::domain::{
         },
         ports::credential_repository::CredentialRepository,
     },
-    crypto::entities::hash_result::HashResult, utils::{generate_timestamp, generate_uuid_v7},
+    crypto::entities::hash_result::HashResult,
+    utils::{generate_timestamp, generate_uuid_v7},
 };
 
 impl From<entity::credentials::Model> for Credential {
@@ -75,9 +79,10 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
         };
 
-        let t = payload.insert(&self.db).await.map_err(|_| {
-            CredentialError::CreateCredentialError
-        })?;
+        let t = payload
+            .insert(&self.db)
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(t.into())
     }
@@ -100,10 +105,16 @@ impl CredentialRepository for PostgresCredentialRepository {
     }
 
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
-        CredentialEntity::delete(&self.db)
+        let credential = CredentialEntity::find()
             .filter(entity::credentials::Column::UserId.eq(user_id))
             .filter(entity::credentials::Column::CredentialType.eq("password"))
-            .exec(&self.db)
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::DeletePasswordCredentialError)?
+            .ok_or(CredentialError::DeletePasswordCredentialError)?;
+
+        credential
+            .delete(&self.db)
             .await
             .map_err(|_| CredentialError::DeletePasswordCredentialError)?;
 

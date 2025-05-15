@@ -1,8 +1,8 @@
 use chrono::{TimeZone, Utc};
+use sea_orm::ColumnTrait;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryFilter};
 use sqlx::PgPool;
 use uuid::Uuid;
-use sea_orm::ColumnTrait;
 
 use crate::domain::session::{
     entities::{error::SessionError, model::UserSession},
