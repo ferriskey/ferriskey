@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tracing::info;
+
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, jwt_token::JwtToken},

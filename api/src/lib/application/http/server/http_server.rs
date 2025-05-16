@@ -1,6 +1,7 @@
 use crate::application::http::authentication::router::authentication_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
+use crate::application::http::role::router::role_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
@@ -103,6 +104,7 @@ impl HttpServer {
             .merge(client_routes())
             .merge(user_routes())
             .merge(authentication_routes())
+            .merge(role_routes(state.clone()))
             .layer(trace_layer)
             .layer(cors)
             .layer(CookieLayer::default())

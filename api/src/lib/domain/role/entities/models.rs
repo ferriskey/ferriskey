@@ -1,9 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, FromRow)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, FromRow, ToSchema,
+)]
 pub struct Role {
     pub id: Uuid,
     pub name: String,

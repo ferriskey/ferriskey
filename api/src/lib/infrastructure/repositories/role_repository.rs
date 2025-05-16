@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     role::{
-        entities::{CreateRoleRequest, errors::RoleError, models::Role},
+        entities::{CreateRoleDto, errors::RoleError, models::Role},
         ports::RoleRepository,
     },
     utils::generate_uuid_v7,
@@ -40,7 +40,7 @@ impl PostgresRoleRepository {
 }
 
 impl RoleRepository for PostgresRoleRepository {
-    async fn create(&self, payload: CreateRoleRequest) -> Result<Role, RoleError> {
+    async fn create(&self, payload: CreateRoleDto) -> Result<Role, RoleError> {
         let id = generate_uuid_v7();
         let model = entity::roles::ActiveModel {
             id: Set(id),

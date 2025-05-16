@@ -1,7 +1,7 @@
 use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
 
 use super::{
-    entities::{CreateRoleRequest, errors::RoleError, models::Role},
+    entities::{CreateRoleDto, errors::RoleError, models::Role},
     ports::{RoleRepository, RoleService},
 };
 pub type DefaultRoleService = RoleServiceImpl<PostgresRoleRepository>;
@@ -27,8 +27,9 @@ impl<R> RoleService for RoleServiceImpl<R>
 where
     R: RoleRepository,
 {
-    async fn create(&self, payload: CreateRoleRequest) -> Result<Role, RoleError> {
-        todo!("create role");
+    async fn create(&self, payload: CreateRoleDto) -> Result<Role, RoleError> {
+        let role = self.role_repository.create(payload).await?;
+        Ok(role)
     }
 
     async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {

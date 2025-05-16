@@ -18,6 +18,7 @@ impl Postgres {
         let mut opt = ConnectOptions::new(env.database_url.clone());
 
         opt.max_connections(100).min_connections(5);
+        opt.sqlx_logging(false);
 
         let db = Database::connect(opt).await?;
 

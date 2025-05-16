@@ -1,11 +1,11 @@
 use uuid::Uuid;
 
-use super::entities::{CreateRoleRequest, errors::RoleError, models::Role};
+use super::entities::{CreateRoleDto, errors::RoleError, models::Role};
 
 pub trait RoleService: Send + Sync {
     fn create(
         &self,
-        payload: CreateRoleRequest,
+        payload: CreateRoleDto,
     ) -> impl Future<Output = Result<Role, RoleError>> + Send;
     fn get_by_realm_id(
         &self,
@@ -27,7 +27,7 @@ pub trait RoleService: Send + Sync {
 pub trait RoleRepository: Send + Sync {
     fn create(
         &self,
-        payload: CreateRoleRequest,
+        payload: CreateRoleDto,
     ) -> impl Future<Output = Result<Role, RoleError>> + Send;
     fn get_by_client_id(
         &self,
