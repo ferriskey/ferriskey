@@ -12,6 +12,7 @@ use crate::domain::client::services::redirect_uri_service::DefaultRedirectUriSer
 use crate::domain::credential::services::credential_service::DefaultCredentialService;
 use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
+use crate::domain::role::services::DefaultRoleService;
 use crate::domain::user::services::user_service::DefaultUserService;
 use anyhow::Context;
 use axum::Router;
@@ -51,6 +52,7 @@ impl HttpServer {
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
         redirect_uri_service: DefaultRedirectUriService,
+        role_service: DefaultRoleService,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -68,6 +70,7 @@ impl HttpServer {
             user_service,
             jwt_service,
             redirect_uri_service,
+            role_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![

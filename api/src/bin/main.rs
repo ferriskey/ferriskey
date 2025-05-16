@@ -16,6 +16,7 @@ use ferriskey::domain::jwt::services::jwt_service::DefaultJwtService;
 use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::domain::mediator::services::mediator_service::DefaultMediatorService;
 use ferriskey::domain::realm::services::realm_service::DefaultRealmService;
+use ferriskey::domain::role::services::DefaultRoleService;
 use ferriskey::domain::user::services::user_service::DefaultUserService;
 use ferriskey::env::{AppEnv, Env};
 
@@ -75,6 +76,8 @@ async fn main() -> Result<(), anyhow::Error> {
         app_server.auth_session_repository,
     ));
 
+    let role_service = DefaultRoleService::new(app_server.role_repository);
+
     let authentication_service = Arc::new(DefaultAuthenticationService::new(
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
@@ -114,6 +117,7 @@ async fn main() -> Result<(), anyhow::Error> {
         user_service,
         jwt_service,
         redirect_uri_service,
+        role_service,
     )
     .await?;
 
