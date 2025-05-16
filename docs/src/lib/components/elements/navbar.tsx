@@ -9,7 +9,7 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import { useTheme } from "@/hooks/use-theme"
 import { cn } from "@/utils"
 import config from 'explainer.config'
-import { FileCode2Icon, LaptopIcon, MenuIcon, MoonIcon, SunIcon } from "lucide-react"
+import { LaptopIcon, MenuIcon, MoonIcon, SunIcon } from "lucide-react"
 import * as React from "react"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet'
 
@@ -40,21 +40,18 @@ const ListItem = React.forwardRef<
 ListItem.displayName = "ListItem"
 
 export default function Navbar() {
-  const { theme, setTheme } = useTheme()
-  const [open, setOpen] = React.useState(false)
-
   return (
     <div className="sticky top-0 z-50 w-full p-2 py-3 border-b bg-background/60 backdrop-blur-sm">
       <div className="max-w-screen-xl mx-auto flex items-center justify-between">
         <a href="/" className="flex sm:hidden items-center space-x-2">
-          <FileCode2Icon className="size-5 text-primary" />
-          <span className="font-bold text-primary text-lg">{config.meta.title}</span>
+          🦀
+          <span className="pl-1 font-bold text-primary text-lg">{config.meta.title}</span>
         </a>
 
         <div className="hidden lg:flex items-center justify-between w-full">
           <a href="/" className="flex items-center space-x-2">
-            <FileCode2Icon className="size-5 text-primary" />
-            <span className="font-bold text-primary text-lg">{config.meta.title}</span>
+            🦀
+            <span className="pl-1 font-bold text-primary text-lg">{config.meta.title}</span>
           </a>
           <NavigationMenu>
             <NavigationMenuList>
