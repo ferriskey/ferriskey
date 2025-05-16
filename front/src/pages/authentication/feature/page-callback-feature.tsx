@@ -9,7 +9,7 @@ export default function PageCallbackFeature() {
   const [code, setCode] = useState<string | null>(null)
   const [setup, setSetup] = useState<boolean>(false)
   const { realm_name } = useParams()
-  const { setAuthToken } = useAuth()
+  const { setAuthTokens } = useAuth()
   const navigate = useNavigate()
 
   const { mutate: exchangeToken, data, status } = useTokenMutation()
@@ -38,11 +38,11 @@ export default function PageCallbackFeature() {
 
   useEffect(() => {
     if (data) {
-      setAuthToken(data.access_token)
+      setAuthTokens(data.access_token, data.refresh_token)
 
       navigate(`/realms/${realm_name}/overview`)
     }
-  }, [data])
+  }, [data, realm_name, navigate, setAuthTokens])
 
   return <PageCallback code={code} setup={setup} />
 }
