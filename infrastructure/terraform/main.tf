@@ -41,13 +41,10 @@ resource "helm_release" "monitoring" {
     name  = "grafana.adminUser"
     value = var.grafana_admin_user
   }
+
   set {
     name  = "grafana.adminPassword"
     value = var.grafana_admin_password
-  }
-  set {
-    name  = "grafana.service.type"
-    value = "LoadBalancer"
   }
 
   set {
@@ -60,7 +57,7 @@ resource "null_resource" "grafana_port_forward" {
   depends_on = [helm_release.monitoring]
 
   provisioner "local-exec" {
-    when        = "create"
+    when        = create
     interpreter = ["bash", "-c"]
     command     = <<-EOT
       nohup kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80 \
@@ -69,7 +66,7 @@ resource "null_resource" "grafana_port_forward" {
   }
 
   provisioner "local-exec" {
-    when        = "destroy"
+    when        = destroy
     interpreter = ["bash", "-c"]
     command     = "kill $(cat /tmp/grafana-pf.pid) || true"
   }
