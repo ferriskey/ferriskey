@@ -1,17 +1,17 @@
+use std::collections::HashSet;
+
 use crate::{
     application::{
         auth::Identity,
         http::server::{api_entities::api_error::ApiError, app_state::AppState},
     },
-    domain::user::ports::user_service::UserService,
+    domain::{role::entities::permission::Permissions, user::ports::user_service::UserService},
 };
 
 pub struct RolePolicy {}
 
 impl RolePolicy {
     pub async fn create(identity: Identity, state: AppState) -> Result<bool, ApiError> {
-        // Implement your logic to check if the user has permission to create a role
-        // For example, check if the user has a specific role or permission
         let user = match identity {
             Identity::User(user) => user,
             Identity::Client(client) => {
@@ -31,8 +31,24 @@ impl RolePolicy {
             .await
             .map_err(|_| ApiError::Forbidden("User not found".to_string()))?;
 
-        println!("User roles: {:?}", roles);
+        //let mut permissions: Vec<Permissions> = Vec::new();
+        // create a vector of permissions unique
+        let mut permissions: HashSet<Permissions> = HashSet::new();
 
-        Ok(false)
+        for role in roles {
+            let t = role.permissions as u64;
+
+            let a = Permissions::from_bitfield(t);
+            for p in a {
+                permissions.insert(p);
+            }
+        }
+
+        let c = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageClients],
+        );
+
+        Ok(c)
     }
 }

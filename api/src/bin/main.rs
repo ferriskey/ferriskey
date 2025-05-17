@@ -93,6 +93,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&user_service),
         Arc::clone(&credential_service),
         redirect_uri_service.clone(),
+        role_service.clone(),
     ));
 
     mediator_service

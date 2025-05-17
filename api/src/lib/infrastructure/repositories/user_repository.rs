@@ -1,24 +1,17 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait,
-    ActiveValue::Set,
-    ColumnTrait, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect,
-    RelationTrait,
-    prelude::Expr,
-    sea_query::{Alias, IntoCondition},
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, JoinType,
+    ModelTrait, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
 };
-use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{
-    application::http::user,
-    domain::{
-        role::entities::models::Role,
-        user::{
-            dtos::user_dto::CreateUserDto,
-            entities::{error::UserError, model::User},
-            ports::user_repository::UserRepository,
-        },
+use crate::domain::{
+    realm::entities::realm::Realm,
+    role::entities::models::Role,
+    user::{
+        dtos::user_dto::CreateUserDto,
+        entities::{error::UserError, model::User},
+        ports::user_repository::UserRepository,
     },
 };
 use tracing::error;
@@ -39,6 +32,7 @@ impl From<entity::users::Model> for User {
             enabled: model.enabled,
             client_id: model.client_id,
             roles: Vec::new(),
+            realm: None,
             created_at,
             updated_at,
         }
@@ -111,14 +105,25 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
-        let user = entity::users::Entity::find()
+        let user_model = entity::users::Entity::find()
             .filter(entity::users::Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|_| UserError::NotFound)?
             .ok_or(UserError::NotFound)?;
 
-        let user = user.into();
+        let realm = user_model
+            .find_related(entity::realms::Entity)
+            .one(&self.db)
+            .await
+            .map_err(|_| UserError::NotFound)?
+            .ok_or(UserError::NotFound)?;
+
+        let realm: Realm = realm.into();
+
+        let mut user: User = user_model.into();
+        user.realm = Some(realm);
+
         Ok(user)
     }
 

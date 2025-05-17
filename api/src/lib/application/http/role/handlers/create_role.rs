@@ -33,6 +33,7 @@ pub struct CreateRoleRoute {
 
 #[utoipa::path(
     post,
+    summary = "Create a new role",
     path = "",
     tag = "role",
     params(
@@ -53,7 +54,6 @@ pub async fn create_role(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRoleValidator>,
 ) -> Result<Response<Role>, ApiError> {
-    info!("identity: {:?}", identity);
     let realm = state
         .realm_service
         .get_by_name(realm_name)

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
+use tracing::warn;
 
 use crate::domain::{
     authentication::{
@@ -50,6 +51,9 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
         if claims.typ != ClaimsTyp::Refresh {
             return Err(AuthenticationError::InvalidRefreshToken);
         }
+
+        warn!("claims: {:?}", claims);
+        warn!("params: {:?}", params.client_id);
 
         if claims.azp != params.client_id {
             return Err(AuthenticationError::InvalidRefreshToken);

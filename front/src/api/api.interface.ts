@@ -19,12 +19,18 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
-export interface CreateRoleRequest {
+export interface CreateRoleDto {
 	name: string;
 	description?: string;
 	permissions: number;
 	realm_id: string;
 	client_id: string;
+}
+
+export interface CreateRoleValidator {
+	name: string;
+	description?: string;
+	permissions: number;
 }
 
 export interface JwtToken {

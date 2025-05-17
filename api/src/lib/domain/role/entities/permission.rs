@@ -1,3 +1,4 @@
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Permissions {
     // Permissions de création et de gestion
@@ -47,8 +48,9 @@ impl Permissions {
         ];
 
         all_permissions
-            .into_iter()
-            .filter(|&permission| (bitfield & (1 << permission as u64)) != 0)
+            .iter()
+            .copied()
+            .filter(|&permission| (bitfield & (permission as u64)) == (permission as u64))
             .collect()
     }
 
@@ -95,7 +97,7 @@ impl Permissions {
     pub fn to_bitfield(permissions: &[Permissions]) -> u64 {
         permissions
             .iter()
-            .fold(0, |acc, &permission| acc | (1 << permission as u64))
+            .fold(0, |acc, &permission| acc | (permission as u64))
     }
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -119,5 +121,76 @@ impl Permissions {
             "view_users" => Some(Self::ViewUsers),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Permissions;
+
+    #[test]
+    fn test_from_bitfield() {
+        let bitfield = Permissions::ManageUsers as u64 | Permissions::ViewClients as u64;
+        let permissions = Permissions::from_bitfield(bitfield);
+
+        assert_eq!(permissions.len(), 2);
+        assert!(permissions.contains(&Permissions::ManageUsers));
+        assert!(permissions.contains(&Permissions::ViewClients));
+    }
+
+    #[test]
+    fn test_to_bitfield() {
+        let permissions = vec![Permissions::ManageUsers, Permissions::ViewClients];
+        let bitfield = Permissions::to_bitfield(&permissions);
+
+        assert_eq!(
+            bitfield,
+            Permissions::ManageUsers as u64 | Permissions::ViewClients as u64
+        );
+    }
+
+    #[test]
+    fn test_name_and_from_name() {
+        let permission = Permissions::ManageUsers;
+        let name = permission.name();
+
+        assert_eq!(name, "manage_users");
+
+        let recovered = Permissions::from_name(&name);
+        assert_eq!(recovered, Some(permission));
+    }
+
+    #[test]
+    fn test_has_permissions() {
+        let user_permissions = vec![
+            Permissions::ManageUsers,
+            Permissions::ViewClients,
+            Permissions::QueryUsers,
+        ];
+
+        assert!(Permissions::has_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewClients]
+        ));
+
+        assert!(!Permissions::has_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewRealm]
+        ));
+    }
+
+    #[test]
+    fn test_has_one_of_permissions() {
+        let user_permissions = vec![Permissions::ManageUsers];
+
+        assert!(Permissions::has_one_of_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewRealm]
+        ));
+
+        assert!(!Permissions::has_one_of_permissions(
+            &user_permissions,
+            &[Permissions::ManageClients, Permissions::ViewRealm]
+        ));
     }
 }

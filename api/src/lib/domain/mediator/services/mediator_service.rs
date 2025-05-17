@@ -17,6 +17,11 @@ use crate::{
             services::credential_service::DefaultCredentialService,
         },
         realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
+        role::{
+            entities::{CreateRoleDto, permission::Permissions},
+            ports::RoleService,
+            services::DefaultRoleService,
+        },
         user::{
             dtos::user_dto::CreateUserDto, ports::user_service::UserService,
             services::user_service::DefaultUserService,
@@ -35,6 +40,7 @@ pub struct MediatorServiceImpl {
     pub user_service: Arc<DefaultUserService>,
     pub credential_service: Arc<DefaultCredentialService>,
     pub redirect_uri_service: DefaultRedirectUriService,
+    pub role_service: DefaultRoleService,
 }
 
 impl MediatorServiceImpl {
@@ -44,6 +50,7 @@ impl MediatorServiceImpl {
         user_service: Arc<DefaultUserService>,
         credential_service: Arc<DefaultCredentialService>,
         redirect_uri_service: DefaultRedirectUriService,
+        role_service: DefaultRoleService,
     ) -> Self {
         Self {
             client_service,
@@ -51,6 +58,7 @@ impl MediatorServiceImpl {
             user_service,
             credential_service,
             redirect_uri_service,
+            role_service,
         }
     }
 }
@@ -84,11 +92,7 @@ impl MediatorService for MediatorServiceImpl {
             client_type: "confidential".to_string(),
         };
 
-        let client = match self
-            .client_service
-            .create_client(schema, realm.name.clone())
-            .await
-        {
+        let client = match self.client_service.create_client(schema, realm.name).await {
             Ok(client) => {
                 info!("client {:} created", client_id.clone());
                 client
@@ -132,6 +136,16 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
+        let role = self
+            .role_service
+            .create(CreateRoleDto {
+                client_id: Some(client.id),
+                name: "admin".to_string(),
+                permissions: Permissions::ManageRealm as i32,
+                realm_id: realm.id,
+                description: None,
+            })
+            .await?;
         let _ = match self
             .credential_service
             .create_password_credential(user.id, "admin".to_string(), "".to_string())
