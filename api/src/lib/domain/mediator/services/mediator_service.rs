@@ -3,10 +3,14 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::{
-    application::http::client::validators::CreateClientValidator,
+    application::http::client::validators::{CreateClientValidator, CreateRedirectUriValidator},
     domain::{
         client::{
-            ports::client_service::ClientService, services::client_service::DefaultClientService,
+            ports::{client_service::ClientService, redirect_uri_service::RedirectUriService},
+            services::{
+                client_service::DefaultClientService,
+                redirect_uri_service::DefaultRedirectUriService,
+            },
         },
         credential::{
             ports::credential_service::CredentialService,
@@ -30,6 +34,7 @@ pub struct MediatorServiceImpl {
     pub realm_service: Arc<DefaultRealmService>,
     pub user_service: Arc<DefaultUserService>,
     pub credential_service: Arc<DefaultCredentialService>,
+    pub redirect_uri_service: DefaultRedirectUriService,
 }
 
 impl MediatorServiceImpl {
@@ -38,12 +43,14 @@ impl MediatorServiceImpl {
         realm_service: Arc<DefaultRealmService>,
         user_service: Arc<DefaultUserService>,
         credential_service: Arc<DefaultCredentialService>,
+        redirect_uri_service: DefaultRedirectUriService,
     ) -> Self {
         Self {
             client_service,
             realm_service,
             user_service,
             credential_service,
+            redirect_uri_service,
         }
     }
 }
@@ -77,7 +84,11 @@ impl MediatorService for MediatorServiceImpl {
             client_type: "confidential".to_string(),
         };
 
-        match self.client_service.create_client(schema, realm.name).await {
+        let client = match self
+            .client_service
+            .create_client(schema, realm.name.clone())
+            .await
+        {
             Ok(client) => {
                 info!("client {:} created", client_id.clone());
                 client
@@ -89,6 +100,9 @@ impl MediatorService for MediatorServiceImpl {
                     .await?
             }
         };
+
+        // Initialize redirect URIs for the admin client
+        self.initialize_admin_redirect_uris().await?;
 
         let user = match self
             .user_service
@@ -132,6 +146,61 @@ impl MediatorService for MediatorServiceImpl {
                 return Ok(());
             }
         };
+
+        Ok(())
+    }
+
+    async fn initialize_admin_redirect_uris(&self) -> Result<(), anyhow::Error> {
+        info!("Initializing admin redirect URIs");
+
+        // Récupération du realm master
+        let realm = self.realm_service.get_by_name("master".to_string()).await?;
+
+        // Récupération du client admin
+        let client_id = "security-admin-console".to_string();
+        let client = self
+            .client_service
+            .get_by_client_id(client_id.clone(), realm.id)
+            .await?;
+
+        // Configuration des patterns de redirection pour l'admin console
+        let admin_redirect_patterns = vec![
+            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
+            "^http://localhost:[0-9]+/.*",
+            // URLs spécifiques si nécessaire
+            "http://localhost:3000/admin",
+            "http://localhost:5173/admin",
+        ];
+
+        // Vérification des URIs existantes
+        let existing_uris = match self.redirect_uri_service.get_by_client_id(client.id).await {
+            Ok(uris) => uris,
+            Err(_) => Vec::new(),
+        };
+
+        for pattern in admin_redirect_patterns {
+            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+
+            if !pattern_exists {
+                info!("Adding admin redirect URI pattern: {}", pattern);
+
+                let redirect_schema = CreateRedirectUriValidator {
+                    value: pattern.to_string(),
+                    enabled: true,
+                };
+
+                match self
+                    .redirect_uri_service
+                    .add_redirect_uri(redirect_schema, realm.name.clone(), client.id)
+                    .await
+                {
+                    Ok(_) => info!("Successfully added admin redirect URI: {}", pattern),
+                    Err(e) => info!("Failed to add admin redirect URI {}: {}", pattern, e),
+                }
+            } else {
+                info!("Admin redirect URI already exists: {}", pattern);
+            }
+        }
 
         Ok(())
     }

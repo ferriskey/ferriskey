@@ -89,12 +89,18 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&realm_service),
         Arc::clone(&user_service),
         Arc::clone(&credential_service),
+        redirect_uri_service.clone(),
     ));
 
     mediator_service
         .initialize_master_realm()
         .await
         .expect("Failed to initialize master realm");
+
+    mediator_service
+        .initialize_admin_redirect_uris()
+        .await
+        .expect("Failed to initialize admin redirect uris");
 
     let server_config = HttpServerConfig::new(env.port.clone());
 
