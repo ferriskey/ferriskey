@@ -130,9 +130,9 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
 
 function ErrorMessage() {
   return (
-    <div>
-      <p>Une erreur est survenue lors de la connexion</p>
-      <p>Veuillez réessayer</p>
+    <div className="flex min-h-svh flex-col items-center justify-center">
+      <p className="text-lg font-semibold text-destructive">An error occurred during login</p>
+      <p className="text-muted-foreground">Please try again</p>
     </div>
   )
 }
