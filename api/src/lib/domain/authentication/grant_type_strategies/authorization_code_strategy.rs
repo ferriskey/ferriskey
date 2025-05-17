@@ -73,13 +73,13 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
 
         let jwt = self
             .jwt_service
-            .generate_token(claims)
+            .generate_token(claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(user.id)
+            .generate_refresh_token(claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 

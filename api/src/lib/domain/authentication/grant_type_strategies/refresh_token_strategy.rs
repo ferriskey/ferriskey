@@ -82,7 +82,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(user.id)
+            .generate_refresh_token(claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
