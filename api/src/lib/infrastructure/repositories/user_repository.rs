@@ -1,15 +1,27 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect,
+    RelationTrait,
+    prelude::Expr,
+    sea_query::{Alias, IntoCondition},
 };
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::domain::user::{
-    dtos::user_dto::CreateUserDto,
-    entities::{error::UserError, model::User},
-    ports::user_repository::UserRepository,
+use crate::{
+    application::http::user,
+    domain::{
+        role::entities::models::Role,
+        user::{
+            dtos::user_dto::CreateUserDto,
+            entities::{error::UserError, model::User},
+            ports::user_repository::UserRepository,
+        },
+    },
 };
+use tracing::error;
 
 impl From<entity::users::Model> for User {
     fn from(model: entity::users::Model) -> Self {
@@ -26,6 +38,7 @@ impl From<entity::users::Model> for User {
             email_verified: model.email_verified,
             enabled: model.enabled,
             client_id: model.client_id,
+            roles: Vec::new(),
             created_at,
             updated_at,
         }
@@ -107,5 +120,31 @@ impl UserRepository for PostgresUserRepository {
 
         let user = user.into();
         Ok(user)
+    }
+
+    async fn get_roles_by_user_id(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+        let roles = entity::roles::Entity::find()
+            .join(
+                JoinType::InnerJoin,
+                entity::user_role::Relation::Roles
+                    .def()
+                    .rev()
+                    .on_condition(move |_left, right| {
+                        Expr::col((right, entity::user_role::Column::UserId))
+                            .eq(user_id)
+                            .into_condition()
+                    }),
+            )
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error getting user roles: {:?}", e);
+                UserError::InternalServerError
+            })?
+            .iter()
+            .map(|model| model.clone().into())
+            .collect::<Vec<Role>>();
+
+        Ok(roles)
     }
 }

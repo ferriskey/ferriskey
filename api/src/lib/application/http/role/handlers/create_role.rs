@@ -8,7 +8,7 @@ use crate::{
     application::{
         auth::Identity,
         http::{
-            role::validators::CreateRoleValidator,
+            role::{policies::RolePolicy, validators::CreateRoleValidator},
             server::{
                 api_entities::{
                     api_error::{ApiError, ValidateJson},
@@ -61,6 +61,14 @@ pub async fn create_role(
         .map_err(ApiError::from)?;
 
     let payload = payload.to_dto(realm.id, Some(client_id));
+
+    let bool = RolePolicy::create(identity, state.clone()).await?;
+
+    if !bool {
+        return Err(ApiError::Forbidden(
+            "User not allowed to create role".to_string(),
+        ));
+    }
 
     let role = state
         .role_service

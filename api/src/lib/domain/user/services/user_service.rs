@@ -1,10 +1,13 @@
 use uuid::Uuid;
 
 use crate::{
-    domain::user::{
-        dtos::user_dto::CreateUserDto,
-        entities::{error::UserError, model::User},
-        ports::{user_repository::UserRepository, user_service::UserService},
+    domain::{
+        role::entities::models::Role,
+        user::{
+            dtos::user_dto::CreateUserDto,
+            entities::{error::UserError, model::User},
+            ports::{user_repository::UserRepository, user_service::UserService},
+        },
     },
     infrastructure::repositories::user_repository::PostgresUserRepository,
 };
@@ -48,5 +51,10 @@ where
 
     async fn get_by_id(&self, id: uuid::Uuid) -> Result<User, UserError> {
         self.user_repository.get_by_id(id).await
+    }
+
+    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+        let roles = self.user_repository.get_roles_by_user_id(user_id).await?;
+        Ok(roles)
     }
 }

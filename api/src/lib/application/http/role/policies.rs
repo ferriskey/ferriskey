@@ -25,6 +25,14 @@ impl RolePolicy {
             }
         };
 
-        Ok(true)
+        let roles = state
+            .user_service
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| ApiError::Forbidden("User not found".to_string()))?;
+
+        println!("User roles: {:?}", roles);
+
+        Ok(false)
     }
 }
