@@ -13,10 +13,14 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::{
-    application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
+    application::http::{
+        client,
+        server::{api_entities::api_error::ApiError, app_state::AppState},
+    },
     domain::{
         authentication::ports::auth_session::AuthSessionService,
-        client::ports::client_service::ClientService, realm::ports::realm_service::RealmService,
+        client::ports::{client_service::ClientService, redirect_uri_service::RedirectUriService},
+        realm::ports::realm_service::RealmService,
     },
 };
 
@@ -66,10 +70,30 @@ pub async fn auth(
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
-    // @todo: verify redirect_uri
-
     let params_state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
+
+    let client_redirect_uris = state
+        .redirect_uri_service
+        .get_enabled_by_client_id(client.id)
+        .await
+        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
+
+    if !client_redirect_uris.iter().any(|uri| {
+        // Check for exact match first
+        if uri.value == redirect_uri {
+            return true;
+        }
+
+        // If not an exact match, try to interpret as regex pattern
+        if let Ok(regex) = regex::Regex::new(&uri.value) {
+            return regex.is_match(&redirect_uri);
+        }
+
+        false
+    }) {
+        return Err(ApiError::Unauthorized("Invalid redirect_uri".to_string()));
+    }
 
     let session = state
         .auth_session_service
