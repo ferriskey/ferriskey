@@ -22,6 +22,7 @@ function App() {
   useEffect(() => {
     if (isLoading || pathname.includes('/authentication/callback')) return
     const realm = realm_name ?? 'master'
+    
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
         navigate(`/realms/${realm}/authentication/login`, { replace: true });
