@@ -14,7 +14,7 @@ function decodeJwt(token: string) {
 }
 
 export function useAuth() {
-  const { setAuthTokens, switchIsAuthenticated, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
+  const { setAuthTokens, switchIsAuthenticated, switchIsLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
 
   const setAuthTokensWrapper = (access_token: string, refresh_token: string) => {
     const decoded = decodeJwt(access_token)
@@ -85,6 +85,34 @@ export function useAuth() {
       clearInterval(interval)
     }
   }, [isAuthenticated, access_token])
+
+  useEffect(() => {
+    if (!isLoading) return
+
+    if (!access_token) {
+      switchIsAuthenticated(false)
+      switchIsLoading(false)
+      return
+    }
+
+    const decoded = decodeJwt(access_token)
+    if (!decoded || !decoded.exp) {
+      switchIsAuthenticated(false)
+      switchIsLoading(false)
+      return
+    }
+
+    const expTime = decoded.exp * 1000
+    const currentTime = Date.now()
+
+    if (expTime > currentTime) {
+      switchIsAuthenticated(true)
+      switchIsLoading(false)
+    } else {
+      switchIsAuthenticated(false)
+      switchIsLoading(false)
+    }
+  }, [])
 
   return {
     setAuthToken,
