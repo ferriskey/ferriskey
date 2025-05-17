@@ -38,12 +38,9 @@ export function useAuth() {
   const refreshAccessToken = async () => {
     try {
       if (!refresh_token) {
-        console.error('No refresh token available')
         switchIsAuthenticated(false)
         return false
       }
-
-      console.log('Refreshing access token...')
 
       const response = await axios.post('/realms/master/protocol/openid-connect/token', {
         grant_type: GrantType.RefreshToken,
@@ -52,7 +49,6 @@ export function useAuth() {
       })
 
       if (response.data.access_token) {
-        console.log('Token refreshed successfully')
         setAuthTokensWrapper(response.data.access_token, response.data.refresh_token || refresh_token)
         return true
       }
@@ -66,10 +62,7 @@ export function useAuth() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isAuthenticated || !access_token) {
-        console.log('User is not authenticated or no access token available')
-        return
-      }
+      if (!isAuthenticated || !access_token) return
 
       const payload = decodeJwt(access_token)
 
@@ -82,12 +75,8 @@ export function useAuth() {
       const currentTime = Date.now()
 
       const timeToExpiry = exp - currentTime
-      console.log(`Token expires in ${Math.round(timeToExpiry / 1000)} seconds`)
-
-      console.log(exp, currentTime)
 
       if (timeToExpiry / 1000 <= 5) {
-        console.log('Token expired, refreshing...')
         refreshAccessToken()
       }
     }, 1000 * 5)
