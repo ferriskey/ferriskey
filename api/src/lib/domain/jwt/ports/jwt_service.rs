@@ -15,6 +15,6 @@ pub trait JwtService: Clone + Send + Sync + 'static {
 
     fn generate_refresh_token(
         &self,
-        user_id: Uuid,
+        claims: JwtClaim,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
 }

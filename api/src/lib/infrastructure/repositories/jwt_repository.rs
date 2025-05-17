@@ -45,6 +45,7 @@ impl JwtRepository for StaticJwtRepository {
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
         let exp = claims.exp.unwrap_or(0);
+
         Ok(Jwt {
             token,
             expires_at: exp,

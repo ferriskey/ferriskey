@@ -36,14 +36,12 @@ impl<JR: JwtRepository, RR: RefreshTokenRepository> JwtService for JwtServiceImp
         self.jwt_repository.verify_token(token).await
     }
 
-    async fn generate_refresh_token(&self, user_id: Uuid) -> Result<Jwt, JwtError> {
-        let claims = JwtClaim::new_refresh_token(
-            user_id,
-            "http://localhost:3333/realms/master".to_string(),
-            vec!["master-realm".to_string(), "account".to_string()],
-            "master-realm".to_string(),
-        );
+    async fn generate_refresh_token(&self, claims: JwtClaim) -> Result<Jwt, JwtError> {
+        let refresh_claims =
+            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
 
-        self.jwt_repository.generate_jwt_token(&claims).await
+        self.jwt_repository
+            .generate_jwt_token(&refresh_claims)
+            .await
     }
 }
