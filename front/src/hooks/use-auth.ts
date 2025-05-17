@@ -1,5 +1,5 @@
 import { userStore } from '@/store/user.store'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { GrantType } from '@/api/api.interface'
 import axios from 'axios'
 
@@ -14,8 +14,7 @@ function decodeJwt(token: string) {
 }
 
 export function useAuth() {
-  const { setAuthTokens, switchIsAuthenticated, access_token, refresh_token, expiration } = userStore()
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { setAuthTokens, switchIsAuthenticated, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
 
   const setAuthTokensWrapper = (access_token: string, refresh_token: string) => {
     const decoded = decodeJwt(access_token)
@@ -30,7 +29,7 @@ export function useAuth() {
     setAuthTokensWrapper(access_token, '')
   }
 
-  const isTokenExpired = () => {
+  const isTokenExpired = (): boolean => {
     if (!expiration) return true
     // Check if token is expired or will expire in the next 60 seconds
     return Date.now() > expiration - 60000
@@ -65,61 +64,45 @@ export function useAuth() {
     }
   }
 
-  const setupTokenRefresh = () => {
-    // Clear any existing timeout
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current)
-      refreshTimeoutRef.current = null
-    }
-
-    if (!access_token || !expiration) return
-
-    const timeToExpiry = expiration - Date.now()
-    const refreshBuffer = 60000 // 1 minute before expiry
-
-    console.log(`Token expires in ${Math.round(timeToExpiry / 1000)} seconds`)
-
-    // Don't set a timer if the token is already expired or will expire soon
-    if (timeToExpiry <= refreshBuffer) {
-      console.log('Token is expired or will expire soon, refreshing now')
-      refreshAccessToken()
-      return
-    }
-
-    // Schedule refresh before token expires
-    const refreshTime = timeToExpiry - refreshBuffer
-    console.log(`Scheduling token refresh in ${Math.round(refreshTime / 1000)} seconds`)
-
-    refreshTimeoutRef.current = setTimeout(async () => {
-      const success = await refreshAccessToken()
-      if (success) {
-        // Token refreshed, no need to set up another timer as the useEffect will trigger
-      } else {
-        // Failed to refresh, try again in 30 seconds if still authenticated
-        if (userStore.getState().isAuthenticated) {
-          refreshTimeoutRef.current = setTimeout(() => {
-            setupTokenRefresh()
-          }, 30000)
-        }
-      }
-    }, refreshTime)
-  }
-
-  // Set up token refresh mechanism
   useEffect(() => {
-    setupTokenRefresh()
+    const interval = setInterval(() => {
+      if (!isAuthenticated || !access_token) {
+        console.log('User is not authenticated or no access token available')
+        return
+      }
+
+      const payload = decodeJwt(access_token)
+
+      if (!payload) {
+        console.error('Invalid token format')
+        return
+      }
+
+      const exp = payload.exp * 1000
+      const currentTime = Date.now()
+
+      const timeToExpiry = exp - currentTime
+      console.log(`Token expires in ${Math.round(timeToExpiry / 1000)} seconds`)
+
+      console.log(exp, currentTime)
+
+      if (timeToExpiry / 1000 <= 5) {
+        console.log('Token expired, refreshing...')
+        refreshAccessToken()
+      }
+    }, 1000 * 5)
 
     return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-      }
+      clearInterval(interval)
     }
-  }, [access_token, expiration])
+  }, [isAuthenticated, access_token])
 
   return {
     setAuthToken,
     setAuthTokens: setAuthTokensWrapper,
     isTokenExpired,
+    isAuthenticated,
+    isLoading,
     refreshAccessToken,
   }
 }

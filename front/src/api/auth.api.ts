@@ -20,8 +20,6 @@ export interface AuthQuery {
   realm: string
 }
 
-const BASE_URL = 'http://localhost:3333' // Adjust this based on your API base URL
-
 export const useAuthQuery = (params: AuthQuery) => {
   return useQuery({
     queryKey: ['auth'],

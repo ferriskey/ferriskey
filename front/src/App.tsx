@@ -2,17 +2,15 @@ import { useEffect, useMemo } from 'react'
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './App.css'
 import Layout from './components/layout/layout'
-import useUser from './hooks/use-user'
 import PageAuthentication from './pages/authentication/page-authentication'
 import PageOverview from './pages/overview/page-overview'
+import { useAuth } from './hooks/use-auth'
 
 function App() {
   const { realm_name } = useParams()
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading } = useUser()
-
-  console.log(isAuthenticated, isLoading, pathname)
+  const { isAuthenticated, isLoading } = useAuth()
 
   const authenticateRoute = useMemo(() => {
     if (pathname.includes('authentication')) {
@@ -22,15 +20,16 @@ function App() {
   }, [pathname])
 
   useEffect(() => {
+    if (isLoading || pathname.includes('/authentication/callback')) return
     const realm = realm_name ?? 'master'
-    if (!isLoading && !isAuthenticated && !authenticateRoute) {
-      navigate(`/realms/${realm}/authentication/login`)
-    } else {
-      if (isAuthenticated) {
-        navigate(`/realms/${realm}/overview`)
+    if (!isAuthenticated && !authenticateRoute) {
+      if (!pathname.includes('authentication/login')) {
+        navigate(`/realms/${realm}/authentication/login`, { replace: true });
       }
+    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
+      navigate(`/realms/${realm}/overview`, { replace: true });
     }
-  }, [isAuthenticated, isLoading, pathname, realm_name, navigate])
+  }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name])
 
   return (
     <>
