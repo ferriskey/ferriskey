@@ -22,6 +22,7 @@ impl From<entity::roles::Model> for Role {
             permissions: model.permissions,
             realm_id: model.realm_id,
             client_id: model.client_id,
+            client: None,
             created_at: Utc.from_utc_datetime(&model.created_at),
             updated_at: Utc.from_utc_datetime(&model.updated_at),
         }
@@ -46,7 +47,7 @@ impl RoleRepository for PostgresRoleRepository {
             id: Set(id),
             name: Set(payload.name),
             description: Set(payload.description),
-            permissions: Set(0),
+            permissions: Set(payload.permissions as i64),
             realm_id: Set(payload.realm_id),
             client_id: Set(payload.client_id),
             created_at: Set(Utc::now().naive_utc()),

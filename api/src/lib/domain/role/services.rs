@@ -32,27 +32,27 @@ where
         Ok(role)
     }
 
-    async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {
+    async fn delete_by_id(&self, _id: uuid::Uuid) -> Result<(), RoleError> {
         todo!("delete role");
     }
 
-    async fn get_by_client_id(&self, client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+    async fn get_by_client_id(&self, _client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
         todo!("get role by client id");
     }
 
     async fn get_by_client_id_text(
         &self,
-        client_id: String,
-        realm_id: uuid::Uuid,
+        _client_id: String,
+        _realm_id: uuid::Uuid,
     ) -> Result<Vec<Role>, RoleError> {
         todo!("get role by client id text");
     }
 
-    async fn get_by_id(&self, id: uuid::Uuid) -> Result<Role, RoleError> {
+    async fn get_by_id(&self, _id: uuid::Uuid) -> Result<Role, RoleError> {
         todo!("get role by id");
     }
 
-    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+    async fn get_by_realm_id(&self, _realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
         todo!("get role by realm id");
     }
 }

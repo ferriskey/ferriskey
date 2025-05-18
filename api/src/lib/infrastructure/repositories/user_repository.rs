@@ -140,6 +140,8 @@ impl UserRepository for PostgresUserRepository {
                             .into_condition()
                     }),
             )
+            .join(JoinType::LeftJoin, entity::roles::Relation::Clients.def())
+            .select_also(entity::clients::Entity)
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -147,7 +149,13 @@ impl UserRepository for PostgresUserRepository {
                 UserError::InternalServerError
             })?
             .iter()
-            .map(|model| model.clone().into())
+            .map(|(model, client)| {
+                let mut role: Role = model.clone().into();
+                if let Some(client) = client {
+                    role.client = Some(client.clone().into());
+                }
+                role
+            })
             .collect::<Vec<Role>>();
 
         Ok(roles)

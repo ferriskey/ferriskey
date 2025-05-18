@@ -92,7 +92,11 @@ impl MediatorService for MediatorServiceImpl {
             client_type: "confidential".to_string(),
         };
 
-        let client = match self.client_service.create_client(schema, realm.name).await {
+        let _client = match self
+            .client_service
+            .create_client(schema, realm.name.clone())
+            .await
+        {
             Ok(client) => {
                 info!("client {:} created", client_id.clone());
                 client
@@ -100,7 +104,35 @@ impl MediatorService for MediatorServiceImpl {
             Err(_) => {
                 info!("client {:} already exists", client_id.clone());
                 self.client_service
-                    .get_by_client_id(client_id, realm.id)
+                    .get_by_client_id(client_id.clone(), realm.id)
+                    .await?
+            }
+        };
+
+        let master_realm_client = match self
+            .client_service
+            .create_client(
+                CreateClientValidator {
+                    client_id: "master-realm".to_string(),
+                    enabled: true,
+                    name: "master-realm".to_string(),
+                    protocol: "openid-connect".to_string(),
+                    public_client: false,
+                    service_account_enabled: false,
+                    client_type: "confidential".to_string(),
+                },
+                realm.name.clone(),
+            )
+            .await
+        {
+            Ok(client) => {
+                info!("client {:} created", client_id.clone());
+                client
+            }
+            Err(_) => {
+                info!("client {:} already exists", client_id.clone());
+                self.client_service
+                    .get_by_client_id("master-realm".to_string(), realm.id)
                     .await?
             }
         };
@@ -136,16 +168,31 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
-        let role = self
+        // let role = self
+        //     .role_service
+        //     .create(CreateRoleDto {
+        //         client_id: Some(master_realm_client.id),
+        //         name: "master-realm".to_string(),
+        //         permissions: Permissions::ManageRealm as i32,
+        //         realm_id: realm.id,
+        //         description: None,
+        //     })
+        //     .await?;
+        // info!("role {:} created", role.name);
+        let _ = self
             .role_service
             .create(CreateRoleDto {
-                client_id: Some(client.id),
-                name: "admin".to_string(),
+                client_id: Some(master_realm_client.id),
+                name: "master-realm".to_string(),
                 permissions: Permissions::ManageRealm as i32,
                 realm_id: realm.id,
                 description: None,
             })
-            .await?;
+            .await
+            .map_err(|_| {
+                info!("role {:} already exists", "master-realm");
+                anyhow::anyhow!("Role already exists")
+            });
         let _ = match self
             .credential_service
             .create_password_credential(user.id, "admin".to_string(), "".to_string())

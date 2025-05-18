@@ -1,3 +1,4 @@
+use crate::domain::realm::entities::realm::Realm;
 use crate::domain::role::entities::models::Role;
 use crate::domain::user::dtos::user_dto::CreateUserDto;
 use crate::domain::user::entities::{error::UserError, model::User};
@@ -25,4 +26,10 @@ pub trait UserService: Clone + Send + Sync + 'static {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
+
+    fn get_user_realms(
+        &self,
+        user: User,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<Realm>, UserError>> + Send;
 }

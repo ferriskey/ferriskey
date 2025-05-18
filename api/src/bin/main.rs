@@ -44,7 +44,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app_server = AppServer::new(Arc::clone(&env)).await?;
 
-    let realm_service = Arc::new(DefaultRealmService::new(app_server.realm_repository));
+    let realm_service = Arc::new(DefaultRealmService::new(
+        app_server.realm_repository.clone(),
+    ));
 
     let client_service = Arc::new(DefaultClientService::new(
         app_server.client_repository,
@@ -58,7 +60,10 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&client_service),
     );
 
-    let user_service = Arc::new(DefaultUserService::new(app_server.user_repository));
+    let user_service = Arc::new(DefaultUserService::new(
+        app_server.user_repository,
+        app_server.realm_repository,
+    ));
 
     let crypto_service = Arc::new(DefaultCryptoService::new(app_server.hasher_repository));
 
