@@ -36,10 +36,7 @@ impl<JR: JwtRepository, RR: RefreshTokenRepository> JwtService for JwtServiceImp
         self.jwt_repository.verify_token(token).await
     }
 
-    async fn generate_refresh_token(&self, claims: JwtClaim) -> Result<Jwt, JwtError> {
-        let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
-
+    async fn generate_refresh_token(&self, refresh_claims: JwtClaim) -> Result<Jwt, JwtError> {
         self.jwt_repository
             .generate_jwt_token(&refresh_claims)
             .await

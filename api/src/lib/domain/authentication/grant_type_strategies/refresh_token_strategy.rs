@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::domain::{
     authentication::{
@@ -49,6 +49,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
         if claims.typ != ClaimsTyp::Refresh {
+            info!("Invalid token type: {:?}", claims.typ);
             return Err(AuthenticationError::InvalidRefreshToken);
         }
 
@@ -56,6 +57,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
         warn!("params: {:?}", params.client_id);
 
         if claims.azp != params.client_id {
+            info!("Invalid client_id: {:?}", claims.azp);
             return Err(AuthenticationError::InvalidRefreshToken);
         }
 
@@ -65,7 +67,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .await
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
-        let claims = JwtClaim::new(
+        let new_claims = JwtClaim::new(
             user.id,
             user.username,
             "http://localhost:3333/realms/master".to_string(),
@@ -80,9 +82,16 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let refresh_claims = JwtClaim::new_refresh_token(
+            new_claims.sub.clone(),
+            new_claims.iss.clone(),
+            new_claims.aud.clone(),
+            new_claims.azp.clone(),
+        );
+
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(claims.clone())
+            .generate_refresh_token(refresh_claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
@@ -95,7 +104,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
         self.jwt_service
             .refresh_token_repository
             .create(
-                claims.jti,
+                refresh_claims.jti.clone(),
                 user.id,
                 Some(Utc.timestamp_opt(refresh_token.expires_at, 0).unwrap()),
             )
