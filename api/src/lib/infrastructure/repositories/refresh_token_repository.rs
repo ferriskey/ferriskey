@@ -64,32 +64,15 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         Ok(refresh_token.into())
     }
 
-    async fn is_valid(&self, jti: Uuid) -> Result<bool, JwtError> {
-        let token = entity::refresh_tokens::Entity::find()
+    async fn get_by_jti(&self, jti: Uuid) -> Result<RefreshToken, JwtError> {
+        let refresh_token = entity::refresh_tokens::Entity::find()
             .filter(entity::refresh_tokens::Column::Jti.eq(jti))
             .one(&self.db)
             .await
-            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?
+            .ok_or_else(|| JwtError::GenerationError("Refresh token not found".to_string()))?;
 
-        match token {
-            Some(token) => {
-                // Check if the token is revoked
-                if token.revoked {
-                    return Ok(false);
-                }
-
-                // Check if the token has expired
-                if let Some(expires_at) = token.expires_at {
-                    if Utc::now().naive_utc() > expires_at {
-                        return Ok(false);
-                    }
-                }
-
-                // Token is valid: not revoked and not expired
-                Ok(true)
-            }
-            None => Ok(false),
-        }
+        Ok(refresh_token.into())
     }
 
     async fn delete(&self, jti: Uuid) -> Result<(), JwtError> {

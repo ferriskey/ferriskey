@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
 use tracing::{info, warn};
-use utoipa::openapi::info;
 
 use crate::domain::{
     authentication::{
@@ -45,16 +44,13 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let claims = self
             .jwt_service
-            .verify_token(refresh_token)
+            .verify_refresh_token(refresh_token)
             .await
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
         if claims.typ != ClaimsTyp::Refresh {
             return Err(AuthenticationError::InvalidRefreshToken);
         }
-
-        warn!("claims: {:?}", claims);
-        warn!("params: {:?}", params.client_id);
 
         if claims.azp != params.client_id {
             info!("Invalid client_id: {:?}", claims.azp);

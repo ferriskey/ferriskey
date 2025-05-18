@@ -33,12 +33,22 @@ impl<JR: JwtRepository, RR: RefreshTokenRepository> JwtService for JwtServiceImp
     }
 
     async fn verify_token(&self, token: String) -> Result<JwtClaim, JwtError> {
+        self.jwt_repository.verify_token(token).await
+    }
+
+    async fn verify_refresh_token(&self, token: String) -> Result<JwtClaim, JwtError> {
         let claims = self.jwt_repository.verify_token(token).await?;
 
-        info!("claims: {:?}", claims.jti);
+        let refresh_token = self.refresh_token_repository.get_by_jti(claims.jti).await?;
 
-        if !self.refresh_token_repository.is_valid(claims.jti).await? {
-            return Err(JwtError::InvalidToken);
+        if refresh_token.revoked {
+            return Err(JwtError::ExpiredToken);
+        }
+
+        if let Some(expires_at) = refresh_token.expires_at {
+            if expires_at < chrono::Utc::now() {
+                return Err(JwtError::ExpiredToken);
+            }
         }
 
         Ok(claims)
