@@ -23,6 +23,7 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 import RealmSwitcher from './realm-switcher'
+import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
 
 // This is sample data.
 const data = {
@@ -51,13 +52,13 @@ const data = {
   navMain: [
     {
       title: 'Clients',
-      url: '#',
+      url: `${CLIENT_URL('master')}${CLIENT_OVERVIEW_URL}`,
       icon: SquareTerminal,
       isActive: true,
     },
     {
       title: 'Users',
-      url: '#',
+      url: '/realms/master/overview',
       icon: Bot,
     },
     {

@@ -7,6 +7,7 @@ import PageOverview from './pages/overview/page-overview'
 import { useAuth } from './hooks/use-auth'
 import { useGetUserRealmsQuery } from './api/realm.api'
 import useRealmStore from './store/realm.store'
+import PageClient from './pages/client/page-client'
 
 function App() {
   const { realm_name } = useParams()
@@ -51,6 +52,8 @@ function App() {
 
           <Route element={<Layout />}>
             <Route path="overview/*" element={<PageOverview />} />
+
+            <Route path='clients/*' element={<PageClient />} />
           </Route>
         </Route>
       </Routes>
