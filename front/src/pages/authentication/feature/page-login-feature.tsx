@@ -66,7 +66,7 @@ export default function PageLoginFeature() {
     }
   }
 
-  const { data, isSuccess, isError, error } = useAuthQuery(getOAuthParams())
+  const { data, isError } = useAuthQuery(getOAuthParams())
   const { mutate: authenticate, data: authenticateData } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
@@ -79,7 +79,7 @@ export default function PageLoginFeature() {
 
   useEffect(() => {
     if (authenticateData) {
-      const [url, query] = authenticateData.url.split('?')
+      const [_, query] = authenticateData.url.split('?')
       const newUrl = `/realms/${realm_name}/authentication/callback?${query}`
       navigate(newUrl)
     }

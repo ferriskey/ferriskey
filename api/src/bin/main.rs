@@ -16,6 +16,7 @@ use ferriskey::domain::jwt::services::jwt_service::DefaultJwtService;
 use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::domain::mediator::services::mediator_service::DefaultMediatorService;
 use ferriskey::domain::realm::services::realm_service::DefaultRealmService;
+use ferriskey::domain::role::services::DefaultRoleService;
 use ferriskey::domain::user::services::user_service::DefaultUserService;
 use ferriskey::env::{AppEnv, Env};
 
@@ -43,7 +44,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app_server = AppServer::new(Arc::clone(&env)).await?;
 
-    let realm_service = Arc::new(DefaultRealmService::new(app_server.realm_repository));
+    let realm_service = Arc::new(DefaultRealmService::new(
+        app_server.realm_repository.clone(),
+    ));
 
     let client_service = Arc::new(DefaultClientService::new(
         app_server.client_repository,
@@ -57,7 +60,10 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&client_service),
     );
 
-    let user_service = Arc::new(DefaultUserService::new(app_server.user_repository));
+    let user_service = Arc::new(DefaultUserService::new(
+        app_server.user_repository,
+        app_server.realm_repository,
+    ));
 
     let crypto_service = Arc::new(DefaultCryptoService::new(app_server.hasher_repository));
 
@@ -75,6 +81,8 @@ async fn main() -> Result<(), anyhow::Error> {
         app_server.auth_session_repository,
     ));
 
+    let role_service = DefaultRoleService::new(app_server.role_repository);
+
     let authentication_service = Arc::new(DefaultAuthenticationService::new(
         Arc::clone(&realm_service),
         Arc::clone(&client_service),
@@ -89,12 +97,19 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&realm_service),
         Arc::clone(&user_service),
         Arc::clone(&credential_service),
+        redirect_uri_service.clone(),
+        role_service.clone(),
     ));
 
     mediator_service
         .initialize_master_realm()
         .await
         .expect("Failed to initialize master realm");
+
+    mediator_service
+        .initialize_admin_redirect_uris()
+        .await
+        .expect("Failed to initialize admin redirect uris");
 
     let server_config = HttpServerConfig::new(env.port.clone());
 
@@ -108,6 +123,7 @@ async fn main() -> Result<(), anyhow::Error> {
         user_service,
         jwt_service,
         redirect_uri_service,
+        role_service,
     )
     .await?;
 

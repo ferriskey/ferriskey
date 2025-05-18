@@ -19,12 +19,33 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
+export interface CreateRoleDto {
+	name: string;
+	description?: string;
+	permissions: number;
+	realm_id: string;
+	client_id: string;
+}
+
+export interface CreateRoleValidator {
+	name: string;
+	description?: string;
+	permissions: number;
+}
+
 export interface JwtToken {
 	access_token: string;
 	token_type: string;
 	refresh_token: string;
 	expires_in: number;
 	id_token: string;
+}
+
+export interface Realm {
+	id: string;
+	name: string;
+	created_at: Date;
+	updated_at: Date;
 }
 
 export enum GrantType {
@@ -42,5 +63,9 @@ export interface TokenRequestValidator {
 	username?: string;
 	password?: string;
 	refresh_token?: string;
+}
+
+export interface UserRealmsResponse {
+	data: Realm[];
 }
 

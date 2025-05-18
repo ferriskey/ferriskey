@@ -41,7 +41,7 @@ impl JwtClaim {
             preferred_username: Some(preferred_username),
             iat: chrono::Utc::now().timestamp(),
             jti: Uuid::new_v4(),
-            exp: Some(chrono::Utc::now().timestamp() + 3600),
+            exp: Some(chrono::Utc::now().timestamp() + 3600), // 1 hour
             iss,
             aud,
             typ,
@@ -60,7 +60,7 @@ impl JwtClaim {
             typ: ClaimsTyp::Refresh,
             azp,
             preferred_username: None,
-            exp: None,
+            exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
             client_id: None,
         }
     }

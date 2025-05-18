@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{TimeZone, Utc};
 use tracing::info;
 
 use crate::domain::{
@@ -12,7 +13,7 @@ use crate::domain::{
     },
     jwt::{
         entities::jwt_claim::{ClaimsTyp, JwtClaim},
-        ports::jwt_service::JwtService,
+        ports::{jwt_repository::RefreshTokenRepository, jwt_service::JwtService},
         services::jwt_service::DefaultJwtService,
     },
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
@@ -72,13 +73,30 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
 
                 let jwt = self
                     .jwt_service
-                    .generate_token(claims)
+                    .generate_token(claims.clone())
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 
+                let refresh_claims = JwtClaim::new_refresh_token(
+                    claims.sub.clone(),
+                    claims.iss.clone(),
+                    claims.aud.clone(),
+                    claims.azp.clone(),
+                );
+
                 let refresh_token = self
                     .jwt_service
-                    .generate_refresh_token(user.id)
+                    .generate_refresh_token(refresh_claims.clone())
+                    .await
+                    .map_err(|_| AuthenticationError::InternalServerError)?;
+
+                self.jwt_service
+                    .refresh_token_repository
+                    .create(
+                        refresh_claims.jti,
+                        user.id,
+                        Some(Utc.timestamp_opt(refresh_token.expires_at, 0).unwrap()),
+                    )
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 

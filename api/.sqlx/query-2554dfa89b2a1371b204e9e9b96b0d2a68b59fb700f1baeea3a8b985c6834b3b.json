@@ -60,7 +60,10 @@
       }
     ],
     "parameters": {
-      "Left": ["Text", "Uuid"]
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
     },
     "nullable": [
       false,

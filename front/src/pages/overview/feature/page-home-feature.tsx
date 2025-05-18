@@ -1,3 +1,5 @@
+import PageHome from "../ui/page-home";
+
 export default function PageHomeFeature() {
-  return <div>Page home</div>
+  return <PageHome />
 }

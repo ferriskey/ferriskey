@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "eslint-plugin-react": "^7.37.4",
     "lucide-react": "^0.483.0",
+    "motion": "^12.12.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.55.0",

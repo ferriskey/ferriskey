@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use chrono::{TimeZone, Utc};
+
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, jwt_token::JwtToken},
@@ -13,7 +15,7 @@ use crate::domain::{
     credential::services::credential_service::DefaultCredentialService,
     jwt::{
         entities::jwt_claim::{ClaimsTyp, JwtClaim},
-        ports::jwt_service::JwtService,
+        ports::{jwt_repository::RefreshTokenRepository, jwt_service::JwtService},
         services::jwt_service::DefaultJwtService,
     },
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
@@ -48,9 +50,11 @@ impl AuthorizationCodeStrategy {
 
 impl GrantTypeStrategy for AuthorizationCodeStrategy {
     async fn execute(&self, params: GrantTypeParams) -> Result<JwtToken, AuthenticationError> {
+        let code = params.code.ok_or(AuthenticationError::Invalid)?;
+
         let auth_session = self
             .auth_session_service
-            .get_by_code(params.code.unwrap())
+            .get_by_code(code)
             .await
             .map_err(|_| AuthenticationError::Invalid)?;
 
@@ -73,13 +77,30 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
 
         let jwt = self
             .jwt_service
-            .generate_token(claims)
+            .generate_token(claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let refresh_claims = JwtClaim::new_refresh_token(
+            claims.sub.clone(),
+            claims.iss.clone(),
+            claims.aud.clone(),
+            claims.azp.clone(),
+        );
+
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(user.id)
+            .generate_refresh_token(refresh_claims.clone())
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        self.jwt_service
+            .refresh_token_repository
+            .create(
+                refresh_claims.jti,
+                user.id,
+                Some(Utc.timestamp_opt(refresh_token.expires_at, 0).unwrap()),
+            )
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 

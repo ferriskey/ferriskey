@@ -25,5 +25,6 @@ pub trait RefreshTokenRepository: Clone + Send + Sync + 'static {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
     ) -> impl Future<Output = Result<RefreshToken, JwtError>> + Send;
+    fn get_by_jti(&self, jti: Uuid) -> impl Future<Output = Result<RefreshToken, JwtError>> + Send;
     fn delete(&self, jti: Uuid) -> impl Future<Output = Result<(), JwtError>> + Send;
 }

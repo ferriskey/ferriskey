@@ -1,4 +1,4 @@
-use uuid::Uuid;
+use tracing::{info, warn};
 
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
 use crate::domain::jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository};
@@ -36,14 +36,27 @@ impl<JR: JwtRepository, RR: RefreshTokenRepository> JwtService for JwtServiceImp
         self.jwt_repository.verify_token(token).await
     }
 
-    async fn generate_refresh_token(&self, user_id: Uuid) -> Result<Jwt, JwtError> {
-        let claims = JwtClaim::new_refresh_token(
-            user_id,
-            "http://localhost:3333/realms/master".to_string(),
-            vec!["master-realm".to_string(), "account".to_string()],
-            "master-realm".to_string(),
-        );
+    async fn verify_refresh_token(&self, token: String) -> Result<JwtClaim, JwtError> {
+        let claims = self.jwt_repository.verify_token(token).await?;
 
-        self.jwt_repository.generate_jwt_token(&claims).await
+        let refresh_token = self.refresh_token_repository.get_by_jti(claims.jti).await?;
+
+        if refresh_token.revoked {
+            return Err(JwtError::ExpiredToken);
+        }
+
+        if let Some(expires_at) = refresh_token.expires_at {
+            if expires_at < chrono::Utc::now() {
+                return Err(JwtError::ExpiredToken);
+            }
+        }
+
+        Ok(claims)
+    }
+
+    async fn generate_refresh_token(&self, refresh_claims: JwtClaim) -> Result<Jwt, JwtError> {
+        self.jwt_repository
+            .generate_jwt_token(&refresh_claims)
+            .await
     }
 }

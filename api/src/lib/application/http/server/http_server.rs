@@ -1,6 +1,7 @@
 use crate::application::http::authentication::router::authentication_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
+use crate::application::http::role::router::role_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::user::router::user_routes;
@@ -12,6 +13,7 @@ use crate::domain::client::services::redirect_uri_service::DefaultRedirectUriSer
 use crate::domain::credential::services::credential_service::DefaultCredentialService;
 use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
+use crate::domain::role::services::DefaultRoleService;
 use crate::domain::user::services::user_service::DefaultUserService;
 use anyhow::Context;
 use axum::Router;
@@ -51,6 +53,7 @@ impl HttpServer {
         user_service: Arc<DefaultUserService>,
         jwt_service: Arc<DefaultJwtService>,
         redirect_uri_service: DefaultRedirectUriService,
+        role_service: DefaultRoleService,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -68,11 +71,13 @@ impl HttpServer {
             user_service,
             jwt_service,
             redirect_uri_service,
+            role_service,
         );
 
         let allowed_origins: Vec<HeaderValue> = vec![
             HeaderValue::from_static("http://localhost:3000"),
             HeaderValue::from_static("http://localhost:5173"),
+            HeaderValue::from_static("http://localhost:4321"),
         ];
 
         let cors = CorsLayer::new()
@@ -100,6 +105,7 @@ impl HttpServer {
             .merge(client_routes())
             .merge(user_routes())
             .merge(authentication_routes())
+            .merge(role_routes(state.clone()))
             .layer(trace_layer)
             .layer(cors)
             .layer(CookieLayer::default())

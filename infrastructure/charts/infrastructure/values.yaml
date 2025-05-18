@@ -1,4 +1,5 @@
 argo-cd:
+  namespaceOverride: "argocd"
   redis-ha:
     enabled: true
 

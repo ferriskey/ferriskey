@@ -19,6 +19,7 @@ pub struct GetRealmRoute {}
         (status = 200, body = Vec<Realm>)
     ),
 )]
+
 pub async fn fetch_realm(
     _: GetRealmRoute,
     State(state): State<AppState>,

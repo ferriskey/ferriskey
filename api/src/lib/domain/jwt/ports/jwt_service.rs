@@ -13,8 +13,13 @@ pub trait JwtService: Clone + Send + Sync + 'static {
         token: String,
     ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
 
+    fn verify_refresh_token(
+        &self,
+        token: String,
+    ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
+
     fn generate_refresh_token(
         &self,
-        user_id: Uuid,
+        claims: JwtClaim,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
 }

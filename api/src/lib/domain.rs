@@ -5,6 +5,7 @@ pub mod crypto;
 pub mod jwt;
 pub mod mediator;
 pub mod realm;
+pub mod role;
 pub mod session;
 pub mod user;
 pub mod utils;

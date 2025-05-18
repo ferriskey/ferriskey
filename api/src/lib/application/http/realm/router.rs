@@ -12,6 +12,8 @@ use axum::{Router, middleware};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
+use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
+
 #[derive(OpenApi)]
 #[openapi(paths(
     fetch_realm,
@@ -19,12 +21,14 @@ use utoipa::OpenApi;
     create_realm,
     update_realm,
     delete_realm,
-    update_realm_setting
+    update_realm_setting,
+    get_user_realms,
 ))]
 pub struct RealmApiDoc;
 
 pub fn realm_routes(state: AppState) -> Router<AppState> {
     Router::new()
+        .typed_get(get_user_realms)
         .typed_get(fetch_realm)
         .typed_get(get_realm)
         .typed_post(create_realm)

@@ -1,7 +1,7 @@
 import { GrantType } from '@/api/api.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
 
@@ -9,22 +9,25 @@ export default function PageCallbackFeature() {
   const [code, setCode] = useState<string | null>(null)
   const [setup, setSetup] = useState<boolean>(false)
   const { realm_name } = useParams()
-  const { setAuthToken } = useAuth()
+  const { setAuthTokens } = useAuth()
   const navigate = useNavigate()
+  
+  const hasProcessedToken = useRef(false)
 
-  const { mutate: exchangeToken, data, status } = useTokenMutation()
+  const { mutate: exchangeToken, data } = useTokenMutation()
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
-    console.log(urlParams, realm_name)
-    const code = urlParams.get('code')
-    setCode(code)
-
-    setSetup(true)
+    const codeParam = urlParams.get('code')
+    
+    if (!setup) {
+      setCode(codeParam)
+      setSetup(true)
+    }
   }, [])
 
   useEffect(() => {
-    if (code && setup) {
+    if (code && setup && !hasProcessedToken.current) {
       exchangeToken({
         data: {
           client_id: 'security-admin-console',
@@ -34,15 +37,17 @@ export default function PageCallbackFeature() {
         realm: realm_name ?? 'master',
       })
     }
-  }, [code, setup])
+  }, [code, setup, exchangeToken, realm_name])
 
   useEffect(() => {
-    if (data) {
-      setAuthToken(data.access_token)
-
-      navigate(`/realms/${realm_name}/overview`)
+    if (data && !hasProcessedToken.current) {
+      hasProcessedToken.current = true
+    
+      setAuthTokens(data.access_token, data.refresh_token)
+      
+      navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
     }
-  }, [data])
+  }, [data, realm_name, navigate, setAuthTokens])
 
   return <PageCallback code={code} setup={setup} />
 }

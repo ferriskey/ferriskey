@@ -22,7 +22,7 @@ use super::client_service::DefaultClientService;
 
 pub type DefaultRedirectUriService = RedirectUriServiceImpl<PostgresRedirectUriRepository>;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RedirectUriServiceImpl<R>
 where
     R: RedirectUriRepository,
@@ -31,6 +31,7 @@ where
     pub realm_service: Arc<DefaultRealmService>,
     pub client_service: Arc<DefaultClientService>,
 }
+
 impl<R> RedirectUriServiceImpl<R>
 where
     R: RedirectUriRepository,
