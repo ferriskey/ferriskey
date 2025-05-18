@@ -1,4 +1,4 @@
-use uuid::Uuid;
+use tracing::{info, warn};
 
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
 use crate::domain::jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository};
@@ -33,7 +33,15 @@ impl<JR: JwtRepository, RR: RefreshTokenRepository> JwtService for JwtServiceImp
     }
 
     async fn verify_token(&self, token: String) -> Result<JwtClaim, JwtError> {
-        self.jwt_repository.verify_token(token).await
+        let claims = self.jwt_repository.verify_token(token).await?;
+
+        info!("claims: {:?}", claims.jti);
+
+        if !self.refresh_token_repository.is_valid(claims.jti).await? {
+            return Err(JwtError::InvalidToken);
+        }
+
+        Ok(claims)
     }
 
     async fn generate_refresh_token(&self, refresh_claims: JwtClaim) -> Result<Jwt, JwtError> {

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
 use tracing::{info, warn};
+use utoipa::openapi::info;
 
 use crate::domain::{
     authentication::{
@@ -49,7 +50,6 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
         if claims.typ != ClaimsTyp::Refresh {
-            info!("Invalid token type: {:?}", claims.typ);
             return Err(AuthenticationError::InvalidRefreshToken);
         }
 
