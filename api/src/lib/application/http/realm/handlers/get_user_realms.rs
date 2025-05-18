@@ -1,6 +1,7 @@
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use crate::{
@@ -21,6 +22,7 @@ pub struct GetUserRealmsRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[typeshare]
 pub struct UserRealmsResponse {
     pub data: Vec<Realm>,
 }
