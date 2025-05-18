@@ -16,7 +16,7 @@ export const userStore = create<UserState>()(
         switchIsLoading: (isLoading: boolean) => set({ isLoading }),
         setToken: (token: string) => set({ token }),
         switchIsAuthenticated: (isAuthenticated: boolean) => set({ isAuthenticated }),
-        setAuthTokens: (access_token: string, refresh_token: string, expiration: number | null) => set({ access_token, refresh_token, expiration })
+        setAuthTokens: (access_token: string, refresh_token: string, expiration: number | null) => set({ access_token, refresh_token, expiration }),
       }),
       {
         name: 'user',

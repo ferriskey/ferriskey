@@ -1,5 +1,4 @@
-import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { useParams } from "react-router"
 
 import {
   DropdownMenu,
@@ -16,22 +15,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useEffect, useState } from "react"
+import { Realm } from "@/api/api.interface"
+import useRealmStore from "@/store/realm.store"
+import { ChevronsUpDown, Map, Plus } from "lucide-react"
 
-export function TeamSwitcher({
-  teams,
-}: {
-  teams: {
-    name: string
-    logo: React.ElementType
-    plan: string
-  }[]
-}) {
+
+export default function RealmSwitcher() {
+  const { realm_name } = useParams<{ realm_name: string }>()
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const [activeRealm, setActiveRealm] = useState<Realm | null>(null)
+  const { userRealms } = useRealmStore()
 
-  if (!activeTeam) {
-    return null
-  }
+  useEffect(() => {
+    if (userRealms && realm_name) {
+      const realm = userRealms.find((realm) => realm.name === realm_name)
+      if (realm) setActiveRealm(realm)
+    }
+  }, [userRealms, realm_name])
+
+  if (!activeRealm) return null
 
   return (
     <SidebarMenu>
@@ -42,12 +45,19 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
+              <div className="bg-white border text-sidebar-primary-foreground flex aspect-square size-12 items-center justify-center rounded-lg">
+                <img
+                src="/logo_ferriskey.png"
+                className="size-10"
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+                <span className="truncate font-medium">{activeRealm?.name}</span>
+                {activeRealm.name === 'master' && (
+                  <span className="text-xs text-muted-foreground">
+                    master
+                  </span>
+                )}
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
@@ -59,18 +69,18 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+              Realms
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {userRealms.map((realm, index) => (
               <DropdownMenuItem
-                key={team.name}
-                onClick={() => setActiveTeam(team)}
+                key={realm.name}
+                onClick={() => setActiveRealm(realm)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
+                  <Map className="size-3.5 shrink-0" />
                 </div>
-                {team.name}
+                {realm.name}
                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}

@@ -41,6 +41,13 @@ export interface JwtToken {
 	id_token: string;
 }
 
+export interface Realm {
+	id: string;
+	name: string;
+	created_at: Date;
+	updated_at: Date;
+}
+
 export enum GrantType {
 	Code = "authorization_code",
 	Password = "password",
@@ -56,5 +63,9 @@ export interface TokenRequestValidator {
 	username?: string;
 	password?: string;
 	refresh_token?: string;
+}
+
+export interface UserRealmsResponse {
+	data: Realm[];
 }
 
