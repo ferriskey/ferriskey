@@ -1,7 +1,10 @@
-import { Routes } from "react-router";
+import { Route, Routes } from "react-router";
+import PageClientsOverviewFeature from "./feature/page-clients-overview-feature";
 
 export default function PageClient() {
   return (
-    <Routes></Routes>
+    <Routes>
+      <Route path="overview" element={<PageClientsOverviewFeature />} />
+    </Routes>
   )
 }

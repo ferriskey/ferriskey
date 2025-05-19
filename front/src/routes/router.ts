@@ -1,5 +1,5 @@
 export const REALM_URL = (realmName: string) => `/realms/${realmName}`
 
-export interface RouterParams {
+export type RouterParams = {
   realm_name: string
 }

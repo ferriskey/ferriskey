@@ -19,6 +19,25 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
+export interface Client {
+	id: string;
+	enabled: boolean;
+	client_id: string;
+	secret?: string;
+	realm_id: string;
+	protocol: string;
+	public_client: boolean;
+	service_account_enabled: boolean;
+	client_type: string;
+	name: string;
+	created_at: Date;
+	updated_at: Date;
+}
+
+export interface ClientsResponse {
+	data: Client[];
+}
+
 export interface CreateRoleDto {
 	name: string;
 	description?: string;

@@ -5,6 +5,7 @@ import {
   FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react'
 import axios from 'axios'
+
 export const backendUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
 
 export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
@@ -29,6 +30,10 @@ export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryE
 }
 
 const apiUrl = 'http://localhost:3333'
+
+export interface BaseQuery {
+  realm: string
+}
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
