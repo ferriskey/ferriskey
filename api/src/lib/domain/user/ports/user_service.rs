@@ -32,4 +32,9 @@ pub trait UserService: Clone + Send + Sync + 'static {
         user: User,
         realm_name: String,
     ) -> impl Future<Output = Result<Vec<Realm>, UserError>> + Send;
+
+    fn find_by_realm_id(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<User>, UserError>> + Send;
 }

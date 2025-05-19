@@ -25,4 +25,9 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
+
+    fn find_by_realm_id(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<User>, UserError>> + Send;
 }

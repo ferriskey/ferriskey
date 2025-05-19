@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
@@ -12,9 +13,13 @@ use crate::domain::{
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
 )]
+#[typeshare]
 pub struct User {
+    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
+    #[typeshare(serialized_as = "string")]
     pub realm_id: Uuid,
+    #[typeshare(serialized_as = "string")]
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
@@ -24,7 +29,9 @@ pub struct User {
     pub enabled: bool,
     pub roles: Vec<Role>,
     pub realm: Option<Realm>,
+    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 

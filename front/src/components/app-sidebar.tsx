@@ -23,11 +23,12 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar'
-import RealmSwitcher from './realm-switcher'
-import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
 import { cn } from '@/lib/utils'
-import { Link, useParams } from 'react-router'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
+import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
+import { Link, useParams } from 'react-router'
+import { USER_OVERVIEW_URL, USER_URL } from '../routes/sub-router/user.router'
+import RealmSwitcher from './realm-switcher'
 
 // This is sample data.
 const data = {
@@ -62,7 +63,7 @@ const data = {
     },
     {
       title: 'Users',
-      url: '/realms/master/overview',
+      url: `${USER_URL('master')}${USER_OVERVIEW_URL}`,
       icon: Bot,
     },
     {
@@ -97,7 +98,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
-        <Link 
+        <Link
           className={cn('flex items-center gap-3 cursor-pointer', state === 'expanded' && 'hover:bg-gray-100 rounded-md')}
           to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
         >
@@ -112,9 +113,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
         </Link>
         <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')} >
-          <RealmSwitcher  />
+          <RealmSwitcher />
         </div>
-       
+
       </SidebarHeader>
       <SidebarContent>
         <NavMain />

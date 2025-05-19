@@ -67,6 +67,18 @@ export interface Realm {
 	updated_at: Date;
 }
 
+export interface Role {
+	id: string;
+	name: string;
+	description?: string;
+	permissions: number;
+	realm_id: string;
+	client_id: string;
+	client?: Client;
+	created_at: Date;
+	updated_at: Date;
+}
+
 export enum GrantType {
 	Code = "authorization_code",
 	Password = "password",
@@ -84,7 +96,27 @@ export interface TokenRequestValidator {
 	refresh_token?: string;
 }
 
+export interface User {
+	id: string;
+	realm_id: string;
+	client_id: string;
+	username: string;
+	firstname: string;
+	lastname: string;
+	email: string;
+	email_verified: boolean;
+	enabled: boolean;
+	roles: Role[];
+	realm?: Realm;
+	created_at: Date;
+	updated_at: Date;
+}
+
 export interface UserRealmsResponse {
 	data: Realm[];
+}
+
+export interface UsersResponse {
+	data: User[];
 }
 

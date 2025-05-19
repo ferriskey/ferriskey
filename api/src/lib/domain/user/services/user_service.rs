@@ -134,4 +134,8 @@ where
 
         Ok(user_realms)
     }
+
+    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
+        self.user_repository.find_by_realm_id(realm_id).await
+    }
 }

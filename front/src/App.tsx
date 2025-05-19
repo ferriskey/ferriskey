@@ -2,10 +2,11 @@ import { useEffect, useMemo } from 'react'
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './App.css'
 import Layout from './components/layout/layout'
-import PageAuthentication from './pages/authentication/page-authentication'
-import PageOverview from './pages/overview/page-overview'
 import { useAuth } from './hooks/use-auth'
+import PageAuthentication from './pages/authentication/page-authentication'
 import PageClient from './pages/client/page-client'
+import PageOverview from './pages/overview/page-overview'
+import PageUser from './pages/user/page-user'
 
 function App() {
   const { realm_name } = useParams()
@@ -23,7 +24,7 @@ function App() {
   useEffect(() => {
     if (isLoading || pathname.includes('/authentication/callback')) return
     const realm = realm_name ?? 'master'
-    
+
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
         navigate(`/realms/${realm}/authentication/login`, { replace: true });
@@ -43,6 +44,7 @@ function App() {
             <Route path="overview/*" element={<PageOverview />} />
 
             <Route path='clients/*' element={<PageClient />} />
+            <Route path='users/*' element={<PageUser />} />
           </Route>
         </Route>
       </Routes>

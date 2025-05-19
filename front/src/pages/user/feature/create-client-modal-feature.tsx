@@ -8,7 +8,7 @@ export default function CreateClientModalFeature() {
     <Dialog>
       <DialogTrigger asChild>
         <Button>
-          Create Client
+          Create User
         </Button>
       </DialogTrigger>
 

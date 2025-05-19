@@ -160,4 +160,16 @@ impl UserRepository for PostgresUserRepository {
 
         Ok(roles)
     }
+
+    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
+        let users = entity::users::Entity::find()
+            .filter(entity::users::Column::RealmId.eq(realm_id))
+            .all(&self.db)
+            .await
+            .map_err(|_| UserError::NotFound)?;
+
+        let users: Vec<User> = users.into_iter().map(|user| user.into()).collect();
+
+        Ok(users)
+    }
 }
