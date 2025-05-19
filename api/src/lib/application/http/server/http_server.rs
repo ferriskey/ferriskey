@@ -102,7 +102,7 @@ impl HttpServer {
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .merge(realm_routes(state.clone()))
-            .merge(client_routes())
+            .merge(client_routes(state.clone()))
             .merge(user_routes())
             .merge(authentication_routes())
             .merge(role_routes(state.clone()))

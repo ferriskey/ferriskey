@@ -102,4 +102,16 @@ impl ClientRepository for PostgresClientRepository {
 
         Ok(client)
     }
+
+    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, ClientError> {
+        let clients = ClientEntity::find()
+            .filter(entity::clients::Column::RealmId.eq(realm_id))
+            .all(&self.db)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let clients: Vec<Client> = clients.into_iter().map(|c| c.into()).collect();
+
+        Ok(clients)
+    }
 }

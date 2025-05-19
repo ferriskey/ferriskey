@@ -110,4 +110,11 @@ where
             .await
             .map_err(|_| ClientError::NotFound)
     }
+
+    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, ClientError> {
+        self.client_repository
+            .get_by_realm_id(realm_id)
+            .await
+            .map_err(|_| ClientError::NotFound)
+    }
 }
