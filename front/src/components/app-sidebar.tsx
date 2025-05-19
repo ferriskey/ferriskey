@@ -26,7 +26,6 @@ import {
 import RealmSwitcher from './realm-switcher'
 import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
 import { cn } from '@/lib/utils'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { Link, useParams } from 'react-router'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
 
@@ -118,7 +117,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
        
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain />
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

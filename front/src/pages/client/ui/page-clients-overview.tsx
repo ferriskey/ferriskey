@@ -1,6 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { Edit, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Edit, ExternalLink, Trash2 } from "lucide-react";
 import { columns } from "../columns/list-client.column";
 import { Client } from "@/api/api.interface";
 import CreateClientModalFeature from "../feature/create-client-modal-feature";

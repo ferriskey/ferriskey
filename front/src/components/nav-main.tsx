@@ -1,40 +1,16 @@
-"use client"
-
-import { BookOpen, Bot, ChevronRight, SquareAsterisk, type LucideIcon } from "lucide-react"
-
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+import { BookOpen, Bot, SquareAsterisk } from "lucide-react"
 import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { useNavigate, useParams } from "react-router"
 import { CLIENT_OVERVIEW_URL, CLIENT_URL } from "@/routes/sub-router/client.router"
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from "@/routes/router"
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-    isActive?: boolean
-    items?: {
-      title: string
-      url: string
-    }[]
-  }[]
-}) {
+export function NavMain() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
 

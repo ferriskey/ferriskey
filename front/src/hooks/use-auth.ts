@@ -1,7 +1,6 @@
 import { userStore } from '@/store/user.store'
 import { useEffect } from 'react'
 import { GrantType } from '@/api/api.interface'
-import axios from 'axios'
 import { useTokenMutation } from '@/api/auth.api'
 
 function decodeJwt(token: string) {
