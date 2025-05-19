@@ -7,7 +7,7 @@ export default function CreateClientModalFeature() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>
+        <Button variant="outline">
           Create Client
         </Button>
       </DialogTrigger>

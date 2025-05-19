@@ -14,17 +14,7 @@ export interface PageClientsOverviewProps {
 
 export default function PageClientsOverview({ data, isLoading, realmName, handleDeleteSelected }: PageClientsOverviewProps) {
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground">
-            Gérez les clients et leurs configurations dans {realmName}
-          </p>
-        </div>
-        <CreateClientModalFeature />
-      </div>
-
+    <div>
       <DataTable
         data={data}
         columns={columns}

@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import App from './App.tsx'
 import './index.css'
-import './styles/input.scss'
 
 const container = document.getElementById('root') || (document.createElement('div') as HTMLElement)
 const root = createRoot(container)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './App.css'
 import Layout from './components/layout/layout'
 import { useAuth } from './hooks/use-auth'
@@ -49,6 +49,8 @@ function App() {
             <Route path='roles/*' element={<PageRole />} />
           </Route>
         </Route>
+
+        <Route path='*' element={<Navigate to="/realms/master/authentication/login" replace />} />
       </Routes>
     </>
   )
