@@ -21,9 +21,14 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import RealmSwitcher from './realm-switcher'
 import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
+import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Link, useParams } from 'react-router'
+import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
 
 // This is sample data.
 const data = {
@@ -87,10 +92,30 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { state } = useSidebar()
+  const { realm_name } = useParams<RouterParams>()
+
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
-        <RealmSwitcher />
+        <Link 
+          className={cn('flex items-center gap-3 cursor-pointer', state === 'expanded' && 'hover:bg-gray-100 rounded-md')}
+          to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
+        >
+          <div className='flex items-center gap-2'>
+            <div className="size-12">
+              <img src="/logo_ferriskey.png" />
+            </div>
+            <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')} >
+              <span className='text-lg font-medium text-gray-600'>FerrisKey</span>
+            </div>
+          </div>
+          <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
+        </Link>
+        <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')} >
+          <RealmSwitcher  />
+        </div>
+       
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
@@ -101,5 +126,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+interface ConsoleBadgeProps {
+  className?: string
+}
+
+function ConsoleBadge({ className }: ConsoleBadgeProps) {
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center rounded-[2px] bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white",
+        className,
+      )}
+    >
+      Console
+    </div>
   )
 }

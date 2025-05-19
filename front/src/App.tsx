@@ -5,8 +5,6 @@ import Layout from './components/layout/layout'
 import PageAuthentication from './pages/authentication/page-authentication'
 import PageOverview from './pages/overview/page-overview'
 import { useAuth } from './hooks/use-auth'
-import { useGetUserRealmsQuery } from './api/realm.api'
-import useRealmStore from './store/realm.store'
 import PageClient from './pages/client/page-client'
 
 function App() {
@@ -14,15 +12,6 @@ function App() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
-  const { setUserRealms } = useRealmStore()
-
-  const { data } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
-
-  useEffect(() => {
-    if (data) {
-      setUserRealms(data)
-    }
-  }, [data])
 
   const authenticateRoute = useMemo(() => {
     if (pathname.includes('authentication')) {

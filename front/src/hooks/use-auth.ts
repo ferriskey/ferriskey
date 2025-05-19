@@ -2,6 +2,7 @@ import { userStore } from '@/store/user.store'
 import { useEffect } from 'react'
 import { GrantType } from '@/api/api.interface'
 import axios from 'axios'
+import { useTokenMutation } from '@/api/auth.api'
 
 function decodeJwt(token: string) {
   try {
@@ -15,6 +16,7 @@ function decodeJwt(token: string) {
 
 export function useAuth() {
   const { setAuthTokens, switchIsAuthenticated, switchIsLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
+  const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
 
   const setAuthTokensWrapper = (access_token: string, refresh_token: string) => {
     const decoded = decodeJwt(access_token)
@@ -36,33 +38,36 @@ export function useAuth() {
   }
 
   const refreshAccessToken = async () => {
-    try {
-      if (!refresh_token) {
-        switchIsAuthenticated(false)
-        return false
-      }
+    if (!refresh_token) {
+      switchIsAuthenticated(false)
+      return
+    }
 
-      const response = await axios.post('/realms/master/protocol/openid-connect/token', {
+    exchangeToken({
+      realm: 'master',
+      data: {
         grant_type: GrantType.RefreshToken,
         client_id: 'security-admin-console',
         refresh_token: refresh_token,
-      })
-
-      if (response.data.access_token) {
-        setAuthTokensWrapper(response.data.access_token, response.data.refresh_token || refresh_token)
-        return true
       }
-      return false
-    } catch (error) {
-      console.error('Error refreshing token:', error)
-      switchIsAuthenticated(false)
-      return false
-    }
+    }) 
   }
+
+  useEffect(() => {
+    if (!responseExchangeToken) return
+
+    if (responseExchangeToken.access_token) {
+      setAuthTokensWrapper(responseExchangeToken.access_token, responseExchangeToken.refresh_token)
+    }
+  }, [responseExchangeToken])
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isAuthenticated || !access_token) return
+
+      console.log('Checking token expiration...')
+      ;
+      
 
       const payload = decodeJwt(access_token)
 
@@ -71,12 +76,17 @@ export function useAuth() {
         return
       }
 
-      const exp = payload.exp * 1000
-      const currentTime = Date.now()
+      const exp = payload.exp
+      const currentTime = Math.floor(Date.now() / 1000)
+
+      console.log(`exp: ${exp}, currentTime: ${currentTime}`);
+      
 
       const timeToExpiry = exp - currentTime
 
-      if (timeToExpiry / 1000 <= 5) {
+      console.log('Time to expiry:', timeToExpiry)
+
+      if (timeToExpiry <= 5) {
         refreshAccessToken()
       }
     }, 1000 * 5)

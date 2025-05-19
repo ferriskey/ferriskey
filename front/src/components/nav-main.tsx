@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, type LucideIcon } from "lucide-react"
+import { BookOpen, Bot, ChevronRight, SquareAsterisk, type LucideIcon } from "lucide-react"
 
 import {
   Collapsible,
@@ -17,7 +17,9 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
-import { useNavigate } from "react-router"
+import { useNavigate, useParams } from "react-router"
+import { CLIENT_OVERVIEW_URL, CLIENT_URL } from "@/routes/sub-router/client.router"
+import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from "@/routes/router"
 
 export function NavMain({
   items,
@@ -33,13 +35,39 @@ export function NavMain({
     }[]
   }[]
 }) {
+  const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+
+  const handleClick = (url: string) => {
+    navigate(url)
+  }
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Manage</SidebarGroupLabel>
+      <SidebarGroupLabel onClick={() => handleClick(`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`)}>Manage</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
+        <SidebarMenuItem onClick={() => handleClick(`${CLIENT_URL(realm_name)}${CLIENT_OVERVIEW_URL}`)}>
+          <SidebarMenuButton>
+            {/* icon */}
+            <SquareAsterisk />
+            <span>Clients</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem onClick={() => handleClick(`${CLIENT_URL(realm_name)}${CLIENT_OVERVIEW_URL}`)}>
+          <SidebarMenuButton>
+            {/* icon */}
+            <Bot />
+            <span>Users</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem onClick={() => handleClick(`${CLIENT_URL(realm_name)}${CLIENT_OVERVIEW_URL}`)}>
+          <SidebarMenuButton>
+            {/* icon */}
+            <BookOpen />
+            <span>Roles</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        {/* {items.map((item) => (
           <Collapsible
             key={item.title}
             asChild
@@ -82,7 +110,7 @@ export function NavMain({
               
             </SidebarMenuItem>
           </Collapsible>
-        ))}
+        ))} */}
       </SidebarMenu>
     </SidebarGroup>
   )
