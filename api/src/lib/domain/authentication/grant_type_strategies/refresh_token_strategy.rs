@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::domain::{
     authentication::{
@@ -74,7 +74,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let access_token = self
             .jwt_service
-            .generate_token(claims.clone())
+            .generate_token(new_claims.clone())
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 

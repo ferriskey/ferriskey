@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::domain::{
@@ -119,6 +120,8 @@ impl AuthenticationService for AuthenticationServiceImpl {
             refresh_token: data.refresh_token.clone(),
             redirect_uri: None,
         };
+
+        warn!("request login with \"{:?}\" grant_type", data.grant_type);
 
         match data.grant_type {
             GrantType::Code => self.authorization_code_strategy.execute(params).await,
