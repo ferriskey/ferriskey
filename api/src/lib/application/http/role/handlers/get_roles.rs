@@ -29,7 +29,7 @@ pub struct GetRolesRoute {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[typeshare]
-pub struct RolesResponse {
+pub struct GetRolesResponse {
     pub data: Vec<Role>,
 }
 
@@ -42,13 +42,13 @@ pub struct RolesResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = RolesResponse)
+        (status = 200, body = GetRolesResponse)
     )
 )]
 pub async fn get_roles(
     GetRolesRoute { realm_name }: GetRolesRoute,
     State(state): State<AppState>,
-) -> Result<Response<RolesResponse>, ApiError> {
+) -> Result<Response<GetRolesResponse>, ApiError> {
     let realm = state
         .realm_service
         .get_by_name(realm_name)
@@ -61,5 +61,5 @@ pub async fn get_roles(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(RolesResponse { data: roles }))
+    Ok(Response::OK(GetRolesResponse { data: roles }))
 }

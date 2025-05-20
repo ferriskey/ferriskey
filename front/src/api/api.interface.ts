@@ -52,6 +52,22 @@ export interface CreateRoleValidator {
 	permissions: number;
 }
 
+export interface Role {
+	id: string;
+	name: string;
+	description?: string;
+	permissions: number;
+	realm_id: string;
+	client_id: string;
+	client?: Client;
+	created_at: Date;
+	updated_at: Date;
+}
+
+export interface GetRolesResponse {
+	data: Role[];
+}
+
 export interface JwtToken {
 	access_token: string;
 	token_type: string;
@@ -65,22 +81,6 @@ export interface Realm {
 	name: string;
 	created_at: Date;
 	updated_at: Date;
-}
-
-export interface Role {
-	id: string;
-	name: string;
-	description?: string;
-	permissions: number;
-	realm_id: string;
-	client_id: string;
-	client?: Client;
-	created_at: Date;
-	updated_at: Date;
-}
-
-export interface RolesResponse {
-	data: Role[];
 }
 
 export enum GrantType {
