@@ -52,7 +52,7 @@ where
         todo!("get role by id");
     }
 
-    async fn get_by_realm_id(&self, _realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
-        todo!("get role by realm id");
+    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+        self.role_repository.find_by_realm_id(realm_id).await
     }
 }

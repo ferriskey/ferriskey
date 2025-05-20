@@ -35,4 +35,9 @@ pub trait RoleRepository: Send + Sync {
     ) -> impl Future<Output = Result<Vec<Role>, RoleError>> + Send;
     fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Option<Role>, RoleError>> + Send;
     fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), RoleError>> + Send;
+
+    fn find_by_realm_id(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Role>, RoleError>> + Send;
 }

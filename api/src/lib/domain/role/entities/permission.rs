@@ -1,5 +1,8 @@
+use typeshare::typeshare;
+
 #[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[typeshare]
 pub enum Permissions {
     // Permissions de création et de gestion
     CreateClient = 0x0000000000000001,            // 1 << 0

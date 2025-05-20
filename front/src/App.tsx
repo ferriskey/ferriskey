@@ -6,6 +6,7 @@ import { useAuth } from './hooks/use-auth'
 import PageAuthentication from './pages/authentication/page-authentication'
 import PageClient from './pages/client/page-client'
 import PageOverview from './pages/overview/page-overview'
+import PageRole from './pages/role/page-role'
 import PageUser from './pages/user/page-user'
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
 
             <Route path='clients/*' element={<PageClient />} />
             <Route path='users/*' element={<PageUser />} />
+            <Route path='roles/*' element={<PageRole />} />
           </Route>
         </Route>
       </Routes>

@@ -79,6 +79,10 @@ export interface Role {
 	updated_at: Date;
 }
 
+export interface RolesResponse {
+	data: Role[];
+}
+
 export enum GrantType {
 	Code = "authorization_code",
 	Password = "password",
@@ -118,5 +122,25 @@ export interface UserRealmsResponse {
 
 export interface UsersResponse {
 	data: User[];
+}
+
+export enum Permissions {
+	CreateClient = "CreateClient",
+	ManageAuthorization = "ManageAuthorization",
+	ManageClients = "ManageClients",
+	ManageEvents = "ManageEvents",
+	ManageIdentityProviders = "ManageIdentityProviders",
+	ManageRealm = "ManageRealm",
+	ManageUsers = "ManageUsers",
+	QueryClients = "QueryClients",
+	QueryGroups = "QueryGroups",
+	QueryRealms = "QueryRealms",
+	QueryUsers = "QueryUsers",
+	ViewAuthorization = "ViewAuthorization",
+	ViewClients = "ViewClients",
+	ViewEvents = "ViewEvents",
+	ViewIdentityProviders = "ViewIdentityProviders",
+	ViewRealm = "ViewRealm",
+	ViewUsers = "ViewUsers",
 }
 
