@@ -77,6 +77,7 @@ impl HttpServer {
         let allowed_origins: Vec<HeaderValue> = vec![
             HeaderValue::from_static("http://localhost:3000"),
             HeaderValue::from_static("http://localhost:5173"),
+            HeaderValue::from_static("http://localhost:5174"),
             HeaderValue::from_static("http://localhost:4321"),
         ];
 
