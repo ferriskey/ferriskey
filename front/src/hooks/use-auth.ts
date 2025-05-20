@@ -2,6 +2,7 @@ import { GrantType } from '@/api/api.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { userStore } from '@/store/user.store'
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
 
 function decodeJwt(token: string): Record<string, never> | null {
   try {
@@ -13,6 +14,7 @@ function decodeJwt(token: string): Record<string, never> | null {
 }
 
 export function useAuth() {
+  const navigate = useNavigate()
   const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
 
@@ -47,6 +49,21 @@ export function useAuth() {
       }
     })
   }
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (location.pathname.includes('authentication')) return
+      const authState = localStorage.getItem('auth')
+
+      if (!authState) {
+        setAuthenticated(false)
+        localStorage.removeItem('auth')
+        navigate('/authentication/login')
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (responseExchangeToken?.access_token) {

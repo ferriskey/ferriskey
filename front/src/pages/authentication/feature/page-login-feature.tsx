@@ -49,9 +49,8 @@ export default function PageLoginFeature() {
   const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
   const [isSetup, setIsSetup] = useState(false)
 
-  const getOAuthParams = () => {
+  function getOAuthParams() {
     const state = crypto.randomUUID()
-
     sessionStorage.setItem('oauth_state', state)
 
     return {
