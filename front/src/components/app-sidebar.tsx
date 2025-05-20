@@ -26,7 +26,9 @@ import {
 import { cn } from '@/lib/utils'
 import { Link, useParams } from 'react-router'
 import RealmSwitcher from './realm-switcher'
-import { REALM_OVERVIEW_URL, REALM_URL, USER_OVERVIEW_URL, USER_URL, RouterParams } from '@/routes/router'
+import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
+import { CLIENT_OVERVIEW_URL, CLIENT_URL } from '@/routes/sub-router/client.router'
+import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
 
 // This is sample data.
 const data = {
@@ -96,6 +98,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
+      <Link
+          className={cn('flex items-center gap-3 cursor-pointer', state === 'expanded' && 'hover:bg-gray-100 rounded-md')}
+          to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
+        >
+          <div className='flex items-center gap-2'>
+            <div className="size-12">
+              <img src="/logo_ferriskey.png" />
+            </div>
+            <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')} >
+              <span className='text-lg font-medium text-gray-600'>FerrisKey</span>
+            </div>
+          </div>
+          <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
+        </Link>
         <RealmSwitcher />
       </SidebarHeader>
       <SidebarContent>

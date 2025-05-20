@@ -43,14 +43,10 @@ export default function RealmSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-gray-100 border shadow-2xs"
             >
               <div 
                 className="bg-white border text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-lg">
-                {/* <img
-                  src="/logo_ferriskey.png"
-                  className="size-10"
-                /> */}
                 <Command className="text-slate-900 size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
