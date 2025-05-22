@@ -1,0 +1,34 @@
+---
+title: Installation
+description: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+permalink: installation
+icon: lucide:info
+order: 2
+---
+
+# Installation 🚀
+
+## Before you start
+
+Before installing FerrisKey, make sure you have the following prerequisites:
+
+- Docker installed on your system
+  - [Install Docker](https://docs.docker.com/get-docker/) if you don't have it yet
+- Basic familiarity with command-line operations
+- At least 512MB of free RAM for running the container
+
+You can verify your Docker installation by running:
+
+## With Docker
+
+The simplest way to get started with FerrisKey is using Docker:
+
+### Launching the FerrisKey API
+
+FerrisKey can be quickly launched using our official Docker image. This approach requires minimal setup and ensures you're running the latest stable version.
+
+Run the following command in your terminal to pull and start the FerrisKey API server:
+
+```bash
+docker run -p 3333:3333 ghcr.io/ferriskey/ferriskey-api
+```

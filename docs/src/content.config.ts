@@ -9,13 +9,13 @@ export const docSchema = z.object({
   icon: z.string().optional(),
 })
 
-const syntax = defineCollection({
-  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/syntax" }),
+const framework = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/framework" }),
   schema: docSchema
 })
 
-const framework = defineCollection({
-  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/framework" }),
+const welcome = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/welcome" }),
   schema: docSchema
 })
 
@@ -51,4 +51,4 @@ const blog = defineCollection({
   }),
 })
 
-export const collections = { blog, framework, syntax, concepts, tutorials, tasks, reference };
+export const collections = { blog, framework, concepts, tutorials, tasks, reference, welcome };

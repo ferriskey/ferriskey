@@ -23,6 +23,9 @@ import remarkReadMoreDirective from './src/lib/plugins/read-more/remark-directiv
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
+  server: {
+    port: 8081,
+  },
   integrations: [
     react(),
     mdx(),
