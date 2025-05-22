@@ -1,12 +1,10 @@
 import { Heading } from "@/components/ui/heading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RouterParams } from "@/routes/router";
 import { useState } from "react";
-import { Outlet, useParams } from "react-router";
+import { Outlet } from "react-router";
 import CreateClientModalFeature from "./feature/create-client-modal-feature";
 
 export default function Container() {
-  const { realm_name } = useParams<RouterParams>()
   const [tab, setTab] = useState("list")
 
   return (

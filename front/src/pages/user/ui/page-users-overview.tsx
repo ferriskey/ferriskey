@@ -11,7 +11,7 @@ export interface PageUsersOverviewOverviewProps {
   handleDeleteSelected: (items: User[]) => void
 }
 
-export default function PageUsersOverview({ data, isLoading, realmName, handleDeleteSelected }: PageUsersOverviewOverviewProps) {
+export default function PageUsersOverview({ data, isLoading, handleDeleteSelected }: PageUsersOverviewOverviewProps) {
   return (
     <div>
        <DataTable

@@ -1,4 +1,5 @@
 import { Client } from "@/api/api.interface";
+import BadgeColor, { BadgeColorScheme } from "@/components/ui/badge-color";
 import { ColumnDef } from "@/components/ui/data-table";
 
 export const columns: ColumnDef<Client>[] = [
@@ -7,8 +8,8 @@ export const columns: ColumnDef<Client>[] = [
     header: "Utilisateur",
     cell: (client) => (
       <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-          <span className="text-xs font-medium text-purple-600">{client.name?.[0]?.toUpperCase() || 'C'}</span>
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-xs font-medium text-primary">{client.name?.[0]?.toUpperCase() || 'C'}</span>
         </div>
         <div>
           <div className="font-medium">{client.name}</div>
@@ -21,9 +22,9 @@ export const columns: ColumnDef<Client>[] = [
     id: "type",
     header: "Type",
     cell: (client) => (
-      <span className="text-sm px-2 py-0.5 rounded-md bg-slate-100">
+      <BadgeColor color={BadgeColorScheme.PRIMARY}>
         {client.public_client ? "Public" : "Confidentiel"}
-      </span>
+      </BadgeColor>
     ),
   },
   {
