@@ -172,4 +172,14 @@ impl UserRepository for PostgresUserRepository {
 
         Ok(users)
     }
+
+    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<(), UserError> {
+        entity::users::Entity::delete_many()
+            .filter(entity::users::Column::Id.is_in(ids))
+            .exec(&self.db)
+            .await
+            .map_err(|_| UserError::NotFound)?;
+
+        Ok(())
+    }
 }

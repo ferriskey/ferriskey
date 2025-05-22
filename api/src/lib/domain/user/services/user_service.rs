@@ -138,4 +138,8 @@ where
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
         self.user_repository.find_by_realm_id(realm_id).await
     }
+
+    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<(), UserError> {
+        self.user_repository.bulk_delete_user(ids).await
+    }
 }

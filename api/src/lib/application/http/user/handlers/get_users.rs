@@ -31,6 +31,14 @@ pub struct UsersResponse {
     pub data: Vec<User>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/{realm_name}/users",
+    tag = "user",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),  
+    ),
+)]
 pub async fn get_users(
     GetUsersRoute { realm_name }: GetUsersRoute,
     State(state): State<AppState>,

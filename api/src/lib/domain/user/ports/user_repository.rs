@@ -30,4 +30,9 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
         &self,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Vec<User>, UserError>> + Send;
+
+    fn bulk_delete_user(
+        &self,
+        ids: Vec<Uuid>,
+    ) -> impl Future<Output = Result<(), UserError>> + Send;
 }

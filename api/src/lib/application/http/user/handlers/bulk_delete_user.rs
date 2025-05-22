@@ -15,7 +15,7 @@ use crate::{
                 },
                 app_state::AppState,
             },
-            user::validators::CreateUserValidator,
+            user::validators::{BulkDeleteUserValidator, CreateUserValidator},
         },
     },
     domain::{
@@ -28,35 +28,25 @@ use crate::{
 };
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users")]
-pub struct CreateUserRoute {
+#[typed_path("/realms/{realm_name}/users/bulk")]
+pub struct BulkDeleteUserRoute {
     pub realm_name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
-pub struct CreateUserResponse {
-    pub data: User,
-}
-
 #[utoipa::path(
-    post,
-    path = "/{realm_name}/users",
+    delete,
+    path = "/{realm_name}/users/bulk",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-    ),
-    request_body(
-        content = CreateUserValidator,
-        description = "User to create",
-        content_type = "application/json",
+        ("ids" = Vec<Uuid>, Path, description = "User IDs"),
     ),
 )]
-pub async fn create_user(
-    CreateUserRoute { realm_name }: CreateUserRoute,
+pub async fn bulk_delete_user(
+    BulkDeleteUserRoute { realm_name }: BulkDeleteUserRoute,
     State(state): State<AppState>,
-    ValidateJson(payload): ValidateJson<CreateUserValidator>,
-) -> Result<Response<CreateUserResponse>, ApiError> {
+    ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
+) -> Result<Response<()>, ApiError> {
     let realm = state
         .realm_service
         .get_by_name(realm_name)
@@ -65,18 +55,9 @@ pub async fn create_user(
 
     let user = state
         .user_service
-        .create_user(CreateUserDto {
-            client_id: None,
-            realm_id: realm.id,
-            username: payload.username,
-            firstname: payload.firstname,
-            lastname: payload.lastname,
-            email: payload.email,
-            email_verified: payload.email_verified.unwrap_or(false),
-            enabled: true,
-        })
+        .bulk_delete_user(payload.ids)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(CreateUserResponse { data: user }))
+    Ok(Response::OK(()))
 }

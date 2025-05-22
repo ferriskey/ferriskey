@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -35,4 +36,10 @@ pub struct CreateUserValidator {
 
     #[serde(default)]
     pub email_verified: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct BulkDeleteUserValidator {
+    #[serde(default)]
+    pub ids: Vec<Uuid>,
 }
