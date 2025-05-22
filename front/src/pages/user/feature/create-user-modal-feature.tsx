@@ -1,35 +1,46 @@
-import { z } from "zod";
-import CreateUserModal from "../ui/create-user-modal";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from 'react';
+import { useForm } from "react-hook-form";
+import { useCreateUser } from '../../../api/user.api';
+import { Form } from '../../../components/ui/form';
+import CreateUserModal from "../ui/create-user-modal";
+import { CreateUserSchema, createUserValidator } from '../validators';
 
-export const createUserSchema = z.object({
-  username: z.string().min(1, { message: "Le nom d'utilisateur est requis" }),
-  email: z.string().email({ message: "L'email doit être valide" }),
-  firstName: z.string().min(1, { message: "Le prénom est requis" }),
-  lastName: z.string().min(1, { message: "Le nom est requis" }),
-  emailVerified: z.boolean().optional(),
-})
+type Props = {
+  realm: string
+}
 
-export type CreateUserSchema = z.infer<typeof createUserSchema>
+export default function CreateUserModalFeature(props: Props) {
+  const { mutate: createUser } = useCreateUser()
+  const [open, setOpen] = useState(false)
 
-export default function CreateUserModalFeature() {
   const form = useForm<CreateUserSchema>({
-    resolver: zodResolver(createUserSchema),
+    resolver: zodResolver(createUserValidator),
     defaultValues: {
-      username: "",
-      email: "",
-      firstName: "",
-      lastName: "",
-      emailVerified: false,
+      username: '',
+      email: '',
+      firstname: '',
+      lastname: '',
+      email_verified: false,
     }
   })
 
-  const onSubmit = (data: CreateUserSchema) => {
-    console.log(data)
+  function onSubmit(data: CreateUserSchema) {
+    createUser({ realm: props.realm, payload: data }, {
+      onSuccess: () => {
+        form.reset()
+        setOpen(false)
+      }
+    })
   }
 
   return (
-    <CreateUserModal form={form} onSubmit={onSubmit}  />
+    <Form {...form}>
+      <CreateUserModal
+        realm={props.realm}
+        onSubmit={onSubmit}
+        openState={[open, setOpen]}
+      />
+    </Form>
   )
 }

@@ -13,7 +13,7 @@ export default function Container() {
       <div className="flex flex-col gap-2 border-b pb-4">
         <div className="flex flex-col gap-2">
           <Heading>Users</Heading>
-          <p>Gérez les utilisateurs dans {realm_name}</p>
+          <p>Manage users in {realm_name}</p>
         </div>
         <div className="flex justify-between items-center">
           <Tabs defaultValue={tab} onValueChange={setTab}>
@@ -21,18 +21,11 @@ export default function Container() {
               <TabsTrigger value={"list"}>Users list</TabsTrigger>
             </TabsList>
           </Tabs>
-
-
           <div>
-
-            <CreateUserModalFeature />
-
-            
+            <CreateUserModalFeature realm={realm_name ?? 'master'} />
           </div>
         </div>
-
       </div>
-
 
       <Outlet />
     </div>

@@ -1,19 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { UseFormReturn } from "react-hook-form";
-import { CreateUserSchema } from "../feature/create-user-modal-feature";
-import {  FormField } from "@/components/ui/form";
+import { Dispatch, SetStateAction } from 'react';
+import { useFormContext } from "react-hook-form";
+import { Fragment } from 'react/jsx-runtime';
+import { Switch } from '../../../components/ui/switch';
+import { CreateUserSchema } from '../validators';
 
-export interface CreateUserModalProps {
-  form: UseFormReturn<CreateUserSchema>
+type Props = {
+  realm: string,
   onSubmit: (data: CreateUserSchema) => void
+  openState: [boolean, Dispatch<SetStateAction<boolean>>]
 }
 
-export default function CreateUserModal({ form, onSubmit }: CreateUserModalProps) {
+export default function CreateUserModal(props: Props) {
+  const form = useFormContext<CreateUserSchema>()
+  const [open, setOpen] = props.openState
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           Create User
@@ -22,80 +28,122 @@ export default function CreateUserModal({ form, onSubmit }: CreateUserModalProps
 
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Edit profile</DialogTitle>
+          <DialogTitle>Create User</DialogTitle>
           <DialogDescription>
-            Make changes to your profile here. Click save when you're done.
+            Create a new user in the selected realm: {props.realm}.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Username
-            </Label>
-            <FormField 
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <Input id="username" {...field} className="col-span-3" />
-              )}
-            />
-          </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="email" className="text-right">
-              Email
-            </Label>
-            <FormField 
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <Input id="email" {...field} className="col-span-3" />
-              )}
-            />
-          </div>
+        <form onSubmit={form.handleSubmit(props.onSubmit)}>
+          <div className="grid gap-5 py-4">
+            <div className="flex flex-col gap-1">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <Fragment>
+                    <FormLabel htmlFor="name" className="text-right">
+                      Username
+                    </FormLabel>
+                    <Input
+                      id="username"
+                      className="col-span-3"
+                      {...field}
+                    />
+                    <FormMessage />
+                  </Fragment>
+                )}
+              />
+            </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="firstName" className="text-right">
-              First Name
-            </Label>
-            <FormField 
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <Input id="firstName" {...field} className="col-span-3" />
-              )}
-            />
-          </div>
+            <div className="flex flex-col gap-1">
+              <FormField
+                control={form.control}
+                name="firstname"
+                render={({ field }) => (
+                  <Fragment>
+                    <FormLabel htmlFor="firstname" className="text-right">
+                      Firstname
+                    </FormLabel>
+                    <Input
+                      id="firstname"
+                      className="col-span-3"
+                      {...field}
+                    />
+                    <FormMessage />
+                  </Fragment>
+                )}
+              />
+            </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="firstName" className="text-right">
-              First Name
-            </Label>
-            <FormField 
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <Input id="firstName" {...field} className="col-span-3" />
-              )}
-            />
-          </div>
+            <div className="flex flex-col gap-1">
+              <FormField
+                control={form.control}
+                name="lastname"
+                render={({ field }) => (
+                  <Fragment>
+                    <FormLabel htmlFor="lastname" className="text-right">
+                      Lastname
+                    </FormLabel>
+                    <Input
+                      id="lastname"
+                      className="col-span-3"
+                      {...field}
+                    />
+                    <FormMessage />
+                  </Fragment>
+                )}
+              />
+            </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="lastName" className="text-right">
-              Last Name
-            </Label>
-            <FormField 
-              control={form.control}
-              name="lastName"
-              render={({ field }) => (
-                <Input id="lastName" {...field} className="col-span-3" />
-              )}
-            />
+            <div className="flex flex-col gap-1">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <Fragment>
+                    <FormLabel htmlFor="email" className="text-right">
+                      Email
+                    </FormLabel>
+                    <Input
+                      id="email"
+                      className="col-span-3"
+                      {...field}
+                    />
+                    <FormMessage />
+                  </Fragment>
+                )}
+              />
+            </div>
+
+
+            <div className="flex flex-col gap-1">
+              <FormField
+                control={form.control}
+                name="email_verified"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Verified email</FormLabel>
+                      <FormDescription>
+                        Choose between verified and unverified email as default status.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={() => onSubmit(form.getValues())}>Save changes</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="submit">Save changes</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

@@ -5,6 +5,7 @@ use utoipa::OpenApi;
 use crate::application::http::server::app_state::AppState;
 
 use super::handlers::{
+    create_user::create_user,
     get_users::{self, get_users},
     reset_password::{__path_reset_password, reset_password},
 };
@@ -14,5 +15,8 @@ use super::handlers::{
 pub struct UserApiDoc;
 
 pub fn user_routes() -> Router<AppState> {
-    Router::new().typed_put(reset_password).typed_get(get_users)
+    Router::new()
+        .typed_get(get_users)
+        .typed_post(create_user)
+        .typed_put(reset_password)
 }

@@ -64,6 +64,33 @@ export interface Role {
 	updated_at: Date;
 }
 
+export interface Realm {
+	id: string;
+	name: string;
+	created_at: Date;
+	updated_at: Date;
+}
+
+export interface User {
+	id: string;
+	realm_id: string;
+	client_id: string;
+	username: string;
+	firstname: string;
+	lastname: string;
+	email: string;
+	email_verified: boolean;
+	enabled: boolean;
+	roles: Role[];
+	realm?: Realm;
+	created_at: Date;
+	updated_at: Date;
+}
+
+export interface CreateUserResponse {
+	data: User;
+}
+
 export interface GetRolesResponse {
 	data: Role[];
 }
@@ -74,13 +101,6 @@ export interface JwtToken {
 	refresh_token: string;
 	expires_in: number;
 	id_token: string;
-}
-
-export interface Realm {
-	id: string;
-	name: string;
-	created_at: Date;
-	updated_at: Date;
 }
 
 export enum GrantType {
@@ -98,22 +118,6 @@ export interface TokenRequestValidator {
 	username?: string;
 	password?: string;
 	refresh_token?: string;
-}
-
-export interface User {
-	id: string;
-	realm_id: string;
-	client_id: string;
-	username: string;
-	firstname: string;
-	lastname: string;
-	email: string;
-	email_verified: boolean;
-	enabled: boolean;
-	roles: Role[];
-	realm?: Realm;
-	created_at: Date;
-	updated_at: Date;
 }
 
 export interface UserRealmsResponse {

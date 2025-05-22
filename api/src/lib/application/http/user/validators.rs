@@ -14,3 +14,25 @@ pub struct ResetPasswordValidator {
     #[serde(default)]
     pub value: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateUserValidator {
+    #[validate(length(min = 1, message = "username is required"))]
+    #[serde(default)]
+    pub username: String,
+
+    #[validate(length(min = 1, message = "firstname is required"))]
+    #[serde(default)]
+    pub firstname: String,
+
+    #[validate(length(min = 1, message = "lastname is required"))]
+    #[serde(default)]
+    pub lastname: String,
+
+    #[validate(length(min = 1, message = "email is required"))]
+    #[serde(default)]
+    pub email: String,
+
+    #[serde(default)]
+    pub email_verified: Option<bool>,
+}
