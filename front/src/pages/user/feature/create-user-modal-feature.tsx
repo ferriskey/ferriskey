@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from 'react';
 import { useForm } from "react-hook-form";
+import { toast } from 'sonner';
 import { useCreateUser } from '../../../api/user.api';
 import { Form } from '../../../components/ui/form';
 import CreateUserModal from "../ui/create-user-modal";
@@ -30,6 +31,10 @@ export default function CreateUserModalFeature(props: Props) {
       onSuccess: () => {
         form.reset()
         setOpen(false)
+        toast.success("User was created")
+      },
+      onError: (error) => {
+        toast.error(error.message)
       }
     })
   }

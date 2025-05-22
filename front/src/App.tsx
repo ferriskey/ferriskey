@@ -8,6 +8,7 @@ import PageClient from './pages/client/page-client'
 import PageOverview from './pages/overview/page-overview'
 import PageRole from './pages/role/page-role'
 import PageUser from './pages/user/page-user'
+import { Toaster } from './components/ui/sonner'
 
 function App() {
   const { realm_name } = useParams()
@@ -81,6 +82,7 @@ function App() {
 
         <Route path='*' element={<Navigate to="/realms/master/authentication/login" replace />} />
       </Routes>
+      <Toaster />
     </>
   )
 }
