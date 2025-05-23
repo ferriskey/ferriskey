@@ -70,6 +70,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             vec!["master-realm".to_string(), "account".to_string()],
             ClaimsTyp::Bearer,
             params.client_id,
+            Some(user.email.clone()),
         );
 
         let access_token = self

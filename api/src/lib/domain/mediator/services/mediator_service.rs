@@ -165,9 +165,9 @@ impl MediatorService for MediatorServiceImpl {
             Err(_) => {
                 let user = self
                     .user_service
-                    .get_by_username("admin".to_string(), realm.id)
+                    .get_by_username(self.env.admin_username.clone(), realm.id)
                     .await?;
-                info!("user {:} already exists", "admin");
+                info!("user {:} already exists", self.env.admin_username.clone());
                 user
             }
         };

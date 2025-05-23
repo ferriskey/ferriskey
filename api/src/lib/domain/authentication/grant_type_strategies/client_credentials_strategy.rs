@@ -69,6 +69,7 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
                     vec!["master-realm".to_string(), "account".to_string()],
                     ClaimsTyp::Bearer,
                     params.client_id.clone(),
+                    Some(user.email.clone()),
                 );
 
                 let jwt = self

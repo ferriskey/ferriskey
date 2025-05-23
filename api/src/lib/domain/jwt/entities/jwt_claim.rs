@@ -23,6 +23,10 @@ pub struct JwtClaim {
     pub exp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_username: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 }
@@ -35,6 +39,7 @@ impl JwtClaim {
         aud: Vec<String>,
         typ: ClaimsTyp,
         azp: String,
+        email: Option<String>,
     ) -> Self {
         Self {
             sub,
@@ -46,6 +51,7 @@ impl JwtClaim {
             aud,
             typ,
             azp,
+            email: email,
             client_id: None,
         }
     }
@@ -60,6 +66,7 @@ impl JwtClaim {
             typ: ClaimsTyp::Refresh,
             azp,
             preferred_username: None,
+            email: None,
             exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
             client_id: None,
         }
