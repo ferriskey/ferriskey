@@ -19,6 +19,10 @@ export interface AuthenticateResponse {
 	url: string;
 }
 
+export interface BulkDeleteUserResponse {
+	count: number;
+}
+
 export interface Client {
 	id: string;
 	enabled: boolean;

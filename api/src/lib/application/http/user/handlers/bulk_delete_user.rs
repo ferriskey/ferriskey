@@ -27,6 +27,12 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[typeshare]
+pub struct BulkDeleteUserResponse {
+    pub count: u32,
+}
+
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users/bulk")]
 pub struct BulkDeleteUserRoute {
@@ -46,18 +52,20 @@ pub async fn bulk_delete_user(
     BulkDeleteUserRoute { realm_name }: BulkDeleteUserRoute,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
-) -> Result<Response<()>, ApiError> {
+) -> Result<Response<BulkDeleteUserResponse>, ApiError> {
     let realm = state
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    let user = state
+    let count = state
         .user_service
         .bulk_delete_user(payload.ids)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(()))
+    Ok(Response::OK(BulkDeleteUserResponse {
+        count: count as u32,
+    }))
 }

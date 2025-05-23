@@ -41,5 +41,5 @@ pub trait UserService: Clone + Send + Sync + 'static {
     fn bulk_delete_user(
         &self,
         ids: Vec<Uuid>,
-    ) -> impl Future<Output = Result<(), UserError>> + Send;
+    ) -> impl Future<Output = Result<u64, UserError>> + Send;
 }

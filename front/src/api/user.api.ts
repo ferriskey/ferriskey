@@ -2,7 +2,7 @@ import { userStore } from "@/store/user.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { CreateUserSchema } from '../pages/user/validators'
-import { CreateUserResponse, UsersResponse } from "./api.interface"
+import { BulkDeleteUserResponse, CreateUserResponse, UsersResponse } from "./api.interface"
 
 export interface UserMutateContract<T> {
   realm: string,
@@ -50,7 +50,7 @@ export const useCreateUser = () => {
 export const useBulkDeleteUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ realm, payload }: UserMutateContract<{ ids: string[] }>): Promise<CreateUserResponse> => {
+    mutationFn: async ({ realm, payload }: UserMutateContract<{ ids: string[] }>): Promise<BulkDeleteUserResponse> => {
       const accessToken = userStore.getState().access_token
       const response = await apiClient.delete(`/realms/${realm}/users/bulk`, {
         data: payload,

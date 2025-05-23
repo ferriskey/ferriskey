@@ -15,12 +15,8 @@ export default function PageUsersOverviewFeature() {
       realm: realm_name ?? 'master',
       payload: { ids: items.map((item) => item.id) }
     }, {
-      onSuccess: () => {
-        toast.success(`${items.length} users deleted`)
-      },
-      onError: (error) => {
-        toast.error(error.message)
-      }
+      onSuccess: (data) => toast.success(`${data.count} users deleted`),
+      onError: (error) => toast.error(error.message)
     })
   };
 

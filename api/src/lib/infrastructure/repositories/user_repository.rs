@@ -1,7 +1,8 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, JoinType,
-    ModelTrait, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    JoinType, ModelTrait, QueryFilter, QuerySelect, RelationTrait, prelude::Expr,
+    sea_query::IntoCondition,
 };
 use uuid::Uuid;
 
@@ -173,13 +174,17 @@ impl UserRepository for PostgresUserRepository {
         Ok(users)
     }
 
-    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<(), UserError> {
-        entity::users::Entity::delete_many()
-            .filter(entity::users::Column::Id.is_in(ids))
+    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, UserError> {
+        let rows = entity::users::Entity::delete_many()
+            .filter(
+                Condition::all()
+                    .add(entity::users::Column::Id.is_in(ids.clone()))
+                    .add(entity::users::Column::ClientId.is_null()),
+            )
             .exec(&self.db)
             .await
             .map_err(|_| UserError::NotFound)?;
 
-        Ok(())
+        Ok(rows.rows_affected)
     }
 }
