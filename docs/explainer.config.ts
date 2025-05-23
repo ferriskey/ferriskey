@@ -87,21 +87,6 @@ export default defineExplainerConfig({
       ],
     },
     {
-      label: 'Explainer',
-      items: [
-        {
-          label: 'Framework',
-          description: 'Discover Explainer framework guidelines and usages.',
-          href: '/docs/framework/getting-started',
-        },
-        {
-          label: 'Syntax',
-          description: 'Learn markdown syntax and markdown components.',
-          href: '/docs/syntax/texts',
-        },
-      ],
-    },
-    {
       label: 'API',
       href: '/api',
     },

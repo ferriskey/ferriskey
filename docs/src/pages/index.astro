@@ -1,21 +1,21 @@
 ---
 import {
-	HomeBentogrid,
-	type BentoGridProps,
+  HomeBentogrid,
+  type BentoGridProps,
 } from "@/components/elements/home-bentogrid";
 import { HomeBlog } from "@/components/elements/home-blog";
 import {
-	HomeMarquee,
-	type MarqueeProps,
+  HomeMarquee,
+  type MarqueeProps,
 } from "@/components/elements/home-marquee";
 import { BackgroundAnimation } from "@/components/ui/background-animation";
 import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import Layout from "@/layouts/Layout.astro";
 import { getCollection } from "astro:content";
@@ -23,223 +23,229 @@ import { BookIcon, RocketIcon } from "lucide-react";
 import config from "../../explainer.config";
 
 const posts = await getCollection("blog", (post) => {
-	if (import.meta.env.DEV) {
-		return true;
-	}
+  if (import.meta.env.DEV) {
+    return true;
+  }
 
-	return post.data.publishedAt && new Date(post.data.publishedAt) <= new Date();
+  return post.data.publishedAt && new Date(post.data.publishedAt) <= new Date();
 });
 
 const header = {
-	title: "FerrisKey",
-	subtitle: "Open-Source IAM Solution",
-	description:
-		"Open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments developed in Rust",
-	actions: [
-		{
-			label: "Get started",
-			href: config.urls.getStarted,
-			icon: RocketIcon,
-		},
-		{
-			label: "Documentation",
-			href: config.urls.documentation,
-			icon: BookIcon,
-		},
-	],
+  title: "FerrisKey",
+  subtitle: "Open-Source IAM Solution",
+  description:
+    "Open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments developed in Rust",
+  actions: [
+    {
+      label: "Get started",
+      href: config.urls.getStarted,
+      icon: RocketIcon,
+    },
+    {
+      label: "Documentation",
+      href: config.urls.documentation,
+      icon: BookIcon,
+    },
+  ],
 };
 
 const cards = [
-	{
-		title: "Latest tweets",
-		description: "Lorem ipsum dolor sit amet.",
-		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-	},
-	{
-		title: "Latest tweets",
-		description: "Lorem ipsum dolor sit amet.",
-		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-	},
-	{
-		title: "Latest tweets",
-		description: "Lorem ipsum dolor sit amet.",
-		content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-	},
+  {
+    title: "🦀 Rust based",
+    description:
+      "Blazing-fast performance with memory safety and reliability for mission-critical identity systems.",
+    content:
+      "Built with Rust to deliver exceptional speed, security, and resource efficiency for enterprise-grade IAM deployments.",
+  },
+  {
+    title: "Security zero trust",
+    description:
+      "Adopt a zero-trust security model to protect sensitive data and resources.",
+    content:
+      "Implement a zero-trust security model to ensure that every access request is verified, regardless of its origin.",
+  },
+  {
+    title: "User-friendly",
+    description:
+      "Intuitive user interface and seamless integration with existing systems.",
+    content:
+      "Designed with user experience in mind, FerrisKey offers an intuitive interface and seamless integration with existing systems.",
+  },
 ];
 
 const marquee: MarqueeProps = {
-	title: "What our users are saying",
-	description: "Because our users are the best people",
-	reviewers: [
-		{
-			name: "Jack",
-			username: "@jack",
-			body: "I've never seen anything like this before. It's amazing. I love it.",
-			img: "https://avatar.vercel.sh/jack",
-		},
-		{
-			name: "Jill",
-			username: "@jill",
-			body: "I don't know what to say. I'm speechless. This is amazing.",
-			img: "https://avatar.vercel.sh/jill",
-		},
-		{
-			name: "John",
-			username: "@john",
-			body: "I'm at a loss for words. This is amazing. I love it.",
-			img: "https://avatar.vercel.sh/john",
-		},
-		{
-			name: "Jane",
-			username: "@jane",
-			body: "I'm at a loss for words. This is amazing. I love it.",
-			img: "https://avatar.vercel.sh/jane",
-		},
-		{
-			name: "Jenny",
-			username: "@jenny",
-			body: "I'm at a loss for words. This is amazing. I love it.",
-			img: "https://avatar.vercel.sh/jenny",
-		},
-		{
-			name: "James",
-			username: "@james",
-			body: "I'm at a loss for words. This is amazing. I love it.",
-			img: "https://avatar.vercel.sh/james",
-		},
-	],
+  title: "What our users are saying",
+  description: "Because our users are the best people",
+  reviewers: [
+    {
+      name: "Jack",
+      username: "@jack",
+      body: "I've never seen anything like this before. It's amazing. I love it.",
+      img: "https://avatar.vercel.sh/jack",
+    },
+    {
+      name: "Jill",
+      username: "@jill",
+      body: "I don't know what to say. I'm speechless. This is amazing.",
+      img: "https://avatar.vercel.sh/jill",
+    },
+    {
+      name: "John",
+      username: "@john",
+      body: "I'm at a loss for words. This is amazing. I love it.",
+      img: "https://avatar.vercel.sh/john",
+    },
+    {
+      name: "Jane",
+      username: "@jane",
+      body: "I'm at a loss for words. This is amazing. I love it.",
+      img: "https://avatar.vercel.sh/jane",
+    },
+    {
+      name: "Jenny",
+      username: "@jenny",
+      body: "I'm at a loss for words. This is amazing. I love it.",
+      img: "https://avatar.vercel.sh/jenny",
+    },
+    {
+      name: "James",
+      username: "@james",
+      body: "I'm at a loss for words. This is amazing. I love it.",
+      img: "https://avatar.vercel.sh/james",
+    },
+  ],
 };
 
 const bentogrid: BentoGridProps = {
-	title: "What we offer",
-	description: "Discover all features that we provide",
-	items: [
-		{
-			title: "Performance",
-			subtitle: "Lightning-fast builds",
-			description:
-				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
-			image:
-				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-performance.png",
-		},
-		{
-			title: "Releases",
-			subtitle: "Push to deploy",
-			description:
-				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
-			image:
-				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-releases.png",
-		},
-		{
-			title: "Speed",
-			subtitle: "Built for power users",
-			description:
-				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
-			image:
-				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-speed.png",
-		},
-		{
-			title: "Integrations",
-			subtitle: "Connect your favorite tools",
-			description:
-				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
-			image:
-				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-integrations.png",
-		},
-		{
-			title: "Network",
-			subtitle: "Globally distributed CDN",
-			description:
-				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. In gravida justo et nulla efficitur, maximus egestas sem pellentesque.",
-			image:
-				"https://tailwindcss.com/plus-assets/img/component-images/bento-01-network.png",
-		},
-	],
+  title: "What we offer",
+  description: "Discover all features that we provide",
+  items: [
+    {
+      title: "Manage Clients",
+      subtitle: "Centralized client management",
+      description:
+        "Manage your OAuth clients in one place with powerful tools for creation, monitoring, and permission control. Easily configure redirect URIs, scopes, and security settings.",
+      image:
+        "https://cdn.discordapp.com/attachments/1352739343050997883/1375261606744948786/image.png?ex=68310bae&is=682fba2e&hm=51b857b61b2e9979507b67ef77e4a94dd493152d939cd5c36491c154d3a1f4a1&",
+    },
+    {
+      title: "Login with OAuth",
+      subtitle: "Seamless authentication",
+      description:
+        "Implement secure authentication using our OAuth provider. Enable single sign-on capabilities, social login integration, and customizable authorization flows for your applications with minimal configuration.",
+      image:
+        "https://cdn.discordapp.com/attachments/1352739343050997883/1375261995611328643/image.png?ex=68310c0a&is=682fba8a&hm=9a8df7b25725eec7276d6cac33a7726622477ee2a4bf42d8c3e0a8bf1971271f&",
+    },
+    {
+      title: "UI Intuitive",
+      subtitle: "User-friendly experience",
+      description:
+        "Our intuitive user interface simplifies identity management with clean layouts, responsive design, and thoughtful workflows that reduce complexity and enhance productivity.",
+      image:
+        "https://cdn.discordapp.com/attachments/1352739343050997883/1375261757135913051/image.png?ex=68310bd2&is=682fba52&hm=773063ca827d2edcba5f92289ebdacad086952d6f620c7853ec88988019791df&",
+    },
+    {
+      title: "Identity Providers",
+      subtitle: "Connect multiple authentication sources",
+      description:
+        "Integrate with multiple identity providers including Google, GitHub, Microsoft, and more. Allow your users to authenticate using their preferred accounts while maintaining centralized identity management.",
+      image:
+        "https://tailwindcss.com/plus-assets/img/component-images/bento-01-integrations.png",
+    },
+    {
+      title: "Scalability",
+      subtitle: "Built for growth",
+      description:
+        "FerrisKey is designed to scale with your organization. Whether you have a handful of users or thousands, our architecture can handle the load without compromising performance.",
+      image:
+        "https://tailwindcss.com/plus-assets/img/component-images/bento-01-network.png",
+    },
+  ],
 };
 ---
 
 <Layout>
-	<div>
-		<div class="relative flex items-center justify-center min-h-[60vh]">
-			<BackgroundAnimation client:only />
-			<div
-				class="px-5 sm:px-0 relative z-10 flex flex-col items-center justify-center gap-5 text-center"
-			>
-				<h1 class="text-7xl font-bold text-primary">{header.title}</h1>
-				<p class="text-4xl text-foreground font-bold">{header.subtitle}</p>
-				<p class="text-lg text-foreground font-light max-w-xl">
-					{header.description}
-				</p>
+  <div>
+    <div class="relative flex items-center justify-center min-h-[60vh]">
+      <BackgroundAnimation client:only />
+      <div
+        class="px-5 sm:px-0 relative z-10 flex flex-col items-center justify-center gap-5 text-center"
+      >
+        <h1 class="text-7xl font-bold text-primary">{header.title}</h1>
+        <p class="text-4xl text-foreground font-bold">{header.subtitle}</p>
+        <p class="text-lg text-foreground font-light max-w-xl">
+          {header.description}
+        </p>
 
-				<div class="flex flex-col justify-center md:flex-row gap-5 w-full">
-					{
-						header.actions.map((action) => (
-							<Button>
-								<a
-									href={action.href}
-									class="flex items-center gap-2 cursor-pointer"
-								>
-									<action.icon className="w-5 h-5" />
-									{action.label}
-								</a>
-							</Button>
-						))
-					}
-					<Button variant="outline">
-						<a
-							href={config.urls.github}
-							target="_blank"
-							class="flex items-center gap-2 cursor-pointer"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width={24}
-								height={24}
-								viewBox="0 0 24 24"
-							>
-								<path
-									fill="currentColor"
-									d="M12 .297c-6.63 0-12 5.373-12 12c0 5.303 3.438 9.8 8.205 11.385c.6.113.82-.258.82-.577c0-.285-.01-1.04-.015-2.04c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729c1.205.084 1.838 1.236 1.838 1.236c1.07 1.835 2.809 1.305 3.495.998c.108-.776.417-1.305.76-1.605c-2.665-.3-5.466-1.332-5.466-5.93c0-1.31.465-2.38 1.235-3.22c-.135-.303-.54-1.523.105-3.176c0 0 1.005-.322 3.3 1.23c.96-.267 1.98-.399 3-.405c1.02.006 2.04.138 3 .405c2.28-1.552 3.285-1.23 3.285-1.23c.645 1.653.24 2.873.12 3.176c.765.84 1.23 1.91 1.23 3.22c0 4.61-2.805 5.625-5.475 5.92c.42.36.81 1.096.81 2.22c0 1.606-.015 2.896-.015 3.286c0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
-								></path>
-							</svg>
-							View on Github
-						</a>
-					</Button>
-				</div>
-			</div>
-		</div>
+        <div class="flex flex-col justify-center md:flex-row gap-5 w-full">
+          {
+            header.actions.map((action) => (
+              <Button>
+                <a
+                  href={action.href}
+                  class="flex items-center gap-2 cursor-pointer"
+                >
+                  <action.icon className="w-5 h-5" />
+                  {action.label}
+                </a>
+              </Button>
+            ))
+          }
+          <Button variant="outline">
+            <a
+              href={config.urls.github}
+              target="_blank"
+              class="flex items-center gap-2 cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={24}
+                height={24}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fill="currentColor"
+                  d="M12 .297c-6.63 0-12 5.373-12 12c0 5.303 3.438 9.8 8.205 11.385c.6.113.82-.258.82-.577c0-.285-.01-1.04-.015-2.04c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729c1.205.084 1.838 1.236 1.838 1.236c1.07 1.835 2.809 1.305 3.495.998c.108-.776.417-1.305.76-1.605c-2.665-.3-5.466-1.332-5.466-5.93c0-1.31.465-2.38 1.235-3.22c-.135-.303-.54-1.523.105-3.176c0 0 1.005-.322 3.3 1.23c.96-.267 1.98-.399 3-.405c1.02.006 2.04.138 3 .405c2.28-1.552 3.285-1.23 3.285-1.23c.645 1.653.24 2.873.12 3.176c.765.84 1.23 1.91 1.23 3.22c0 4.61-2.805 5.625-5.475 5.92c.42.36.81 1.096.81 2.22c0 1.606-.015 2.896-.015 3.286c0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+                ></path>
+              </svg>
+              View on Github
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
 
-		<div
-			class="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 px-5 sm:px-0 py-16"
-		>
-			{
-				cards.map((card) => (
-					<Card>
-						<CardHeader>
-							<CardTitle>{card.title}</CardTitle>
-							<CardDescription>{card.description}</CardDescription>
-						</CardHeader>
+    <div
+      class="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 px-5 sm:px-0 py-16"
+    >
+      {
+        cards.map((card) => (
+          <Card>
+            <CardHeader>
+              <CardTitle>{card.title}</CardTitle>
+              <CardDescription>{card.description}</CardDescription>
+            </CardHeader>
 
-						<CardContent>{card.content}</CardContent>
-					</Card>
-				))
-			}
-		</div>
+            <CardContent>{card.content}</CardContent>
+          </Card>
+        ))
+      }
+    </div>
 
-		<div class="max-w-screen-xl mx-auto">
-			<HomeBentogrid {...bentogrid} />
-		</div>
+    <div class="max-w-screen-xl mx-auto">
+      <HomeBentogrid {...bentogrid} />
+    </div>
 
-		<div class="max-w-screen-xl mx-auto">
-			<HomeMarquee {...marquee} client:visible />
-		</div>
+    <div class="max-w-screen-xl mx-auto">
+      <HomeMarquee {...marquee} client:visible />
+    </div>
 
-		{
-			posts.length && (
-				<div class="max-w-screen-xl mx-auto">
-					<HomeBlog posts={posts} client:visible />
-				</div>
-			)
-		}
-	</div>
+    {
+      posts.length && (
+        <div class="max-w-screen-xl mx-auto">
+          <HomeBlog posts={posts} client:visible />
+        </div>
+      )
+    }
+  </div>
 </Layout>
