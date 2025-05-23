@@ -1,19 +1,19 @@
-import { userStore } from "@/store/user.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { ClientsResponse } from "./api.interface"
 import { CreateClientSchema } from "@/pages/client/feature/create-client-modal-feature"
+import { authStore } from "@/store/auth.store"
 
 
 export const useGetClients = ({ realm }: BaseQuery) => {
   return useQuery({
     queryKey: ["clients"],
     queryFn: async (): Promise<ClientsResponse> => {
-      const access_token = userStore.getState().access_token
+      const accessToken = authStore.getState().accessToken
 
       const response = await apiClient.get<ClientsResponse>(`/realms/${realm}/clients`, {
         headers: {
-          Authorization: `Bearer ${access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       })
 
@@ -31,7 +31,7 @@ export const useCreateClient = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ realm, payload }: CreateClientMutate) => {
-      const accessToken = userStore.getState().access_token
+      const accessToken = authStore.getState().accessToken
 
       const response = await apiClient.post(`/realms/${realm}/clients`, {
         ...payload,

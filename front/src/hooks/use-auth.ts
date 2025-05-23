@@ -1,8 +1,11 @@
 import { GrantType } from '@/api/api.interface'
 import { useTokenMutation } from '@/api/auth.api'
-import { userStore } from '@/store/user.store'
+import { RouterParams } from '@/routes/router'
+import { authStore } from '@/store/auth.store'
+import userStore from '@/store/user.store'
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
+
 
 function decodeJwt(token: string): Record<string, never> | null {
   try {
@@ -15,16 +18,18 @@ function decodeJwt(token: string): Record<string, never> | null {
 
 export function useAuth() {
   const navigate = useNavigate()
-  const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
+  const { realm_name = 'master' } = useParams<RouterParams>()
+  //const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
+  const { accessToken, refreshToken, setTokens } = authStore()
+  const { expiration, isAuthenticated, isLoading, user, setAuthenticated, setLoading, setUser, setExpiration } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
 
   function setAuthTokensWrapper(access_token: string, refresh_token: string) {
     const decoded = decodeJwt(access_token)
     const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-    if (setAuthTokens) {
-      setAuthTokens(access_token, refresh_token, expiration)
-    }
+    setTokens(access_token, refresh_token)
+    setExpiration(expiration)
 
     setAuthenticated(true)
   }
@@ -34,18 +39,24 @@ export function useAuth() {
     return Date.now() > expiration - 60000
   }
 
+  function logout() {
+    localStorage.removeItem('auth')
+    setAuthenticated(false)
+    setLoading(true)
+  }
+
   async function refreshAccessToken() {
-    if (!refresh_token) {
+    if (!refreshToken) {
       setAuthenticated(false)
       return
     }
 
     exchangeToken({
-      realm: 'master',
+      realm: realm_name,
       data: {
         grant_type: GrantType.RefreshToken,
         client_id: 'security-admin-console',
-        refresh_token: refresh_token,
+        refresh_token: refreshToken,
       }
     })
   }
@@ -76,8 +87,8 @@ export function useAuth() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isAuthenticated || !access_token) return
-      const payload = decodeJwt(access_token)
+      if (!isAuthenticated || !accessToken) return
+      const payload = decodeJwt(accessToken)
 
       if (!payload) {
         console.error('Invalid token format')
@@ -94,30 +105,32 @@ export function useAuth() {
     }, 1000 * 5)
 
     return () => clearInterval(interval)
-  }, [isAuthenticated, access_token])
+  }, [isAuthenticated, accessToken])
 
   useEffect(() => {
     if (!isLoading) return
 
-    if (!access_token) {
+    if (!accessToken) {
       setAuthenticated(false)
       setLoading(false)
       return
     }
 
-    const decoded = decodeJwt(access_token)
+    const decoded = decodeJwt(accessToken)
     if (!decoded || !decoded.exp) {
       setAuthenticated(false)
       setLoading(false)
       return
     }
 
+    setUser(decoded)
+
     const expTime = decoded.exp * 1000
     const currentTime = Date.now()
 
     setAuthenticated(expTime > currentTime)
     setLoading(false)
-  }, [])
+  }, [accessToken])
 
   return {
     setAuthToken: (value: string) => setAuthTokensWrapper(value, ''),
@@ -125,6 +138,8 @@ export function useAuth() {
     isTokenExpired,
     isAuthenticated,
     isLoading,
+    user,
     refreshAccessToken,
+    logout
   }
 }

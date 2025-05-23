@@ -85,8 +85,6 @@ export default function PageLoginFeature() {
   }, [authenticateData])
 
   const onSubmit = (data: AuthenticateSchema) => {
-    // Get session_code from cookies
-    console.log('cookies', document.cookie)
     const cookies = document.cookie.split(';').reduce(
       (acc, cookie) => {
         const [key, value] = cookie.trim().split('=')
