@@ -27,6 +27,7 @@ use crate::{
             services::user_service::DefaultUserService,
         },
     },
+    env::Env,
 };
 
 use crate::domain::mediator::ports::mediator_service::MediatorService;
@@ -35,6 +36,7 @@ pub type DefaultMediatorService = MediatorServiceImpl;
 
 #[derive(Debug, Clone)]
 pub struct MediatorServiceImpl {
+    pub env: Arc<Env>,
     pub client_service: Arc<DefaultClientService>,
     pub realm_service: Arc<DefaultRealmService>,
     pub user_service: Arc<DefaultUserService>,
@@ -45,6 +47,7 @@ pub struct MediatorServiceImpl {
 
 impl MediatorServiceImpl {
     pub fn new(
+        env: Arc<Env>,
         client_service: Arc<DefaultClientService>,
         realm_service: Arc<DefaultRealmService>,
         user_service: Arc<DefaultUserService>,
@@ -53,6 +56,7 @@ impl MediatorServiceImpl {
         role_service: DefaultRoleService,
     ) -> Self {
         Self {
+            env,
             client_service,
             realm_service,
             user_service,
@@ -143,14 +147,14 @@ impl MediatorService for MediatorServiceImpl {
         let user = match self
             .user_service
             .create_user(CreateUserDto {
-                email: "admin@security.com".to_string(),
+                email: self.env.admin_email.clone(),
                 email_verified: true,
                 enabled: true,
-                firstname: "admin".to_string(),
-                lastname: "admin".to_string(),
+                firstname: self.env.admin_username.clone(),
+                lastname: self.env.admin_username.clone(),
                 realm_id: realm.id,
                 client_id: None,
-                username: "admin".to_string(),
+                username: self.env.admin_username.clone(),
             })
             .await
         {
@@ -168,17 +172,6 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
-        // let role = self
-        //     .role_service
-        //     .create(CreateRoleDto {
-        //         client_id: Some(master_realm_client.id),
-        //         name: "master-realm".to_string(),
-        //         permissions: Permissions::ManageRealm as i32,
-        //         realm_id: realm.id,
-        //         description: None,
-        //     })
-        //     .await?;
-        // info!("role {:} created", role.name);
         let _ = self
             .role_service
             .create(CreateRoleDto {
@@ -195,7 +188,7 @@ impl MediatorService for MediatorServiceImpl {
             });
         let _ = match self
             .credential_service
-            .create_password_credential(user.id, "admin".to_string(), "".to_string())
+            .create_password_credential(user.id, self.env.admin_password.clone(), "".to_string())
             .await
         {
             Ok(credential) => {
@@ -203,7 +196,10 @@ impl MediatorService for MediatorServiceImpl {
                 credential
             }
             Err(_) => {
-                info!("credential {:} already exists", "admin");
+                info!(
+                    "credential {:} already exists",
+                    self.env.admin_username.clone()
+                );
                 return Ok(());
             }
         };

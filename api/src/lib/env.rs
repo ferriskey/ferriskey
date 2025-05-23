@@ -24,6 +24,13 @@ pub struct Env {
     #[clap(env)]
     pub allowed_origins: String,
 
+    #[clap(env)]
+    pub admin_password: String,
+    #[clap(env)]
+    pub admin_username: String,
+    #[clap(env)]
+    pub admin_email: String,
+
     #[clap(env, default_value = "development", value_enum)]
     pub env: AppEnv,
 }

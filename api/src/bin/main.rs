@@ -93,6 +93,7 @@ async fn main() -> Result<(), anyhow::Error> {
     ));
 
     let mediator_service = Arc::new(DefaultMediatorService::new(
+        Arc::clone(&env),
         Arc::clone(&client_service),
         Arc::clone(&realm_service),
         Arc::clone(&user_service),
