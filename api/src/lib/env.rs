@@ -21,6 +21,9 @@ pub struct Env {
     #[clap(env)]
     pub private_key: String,
 
+    #[clap(env)]
+    pub allowed_origins: String,
+
     #[clap(env, default_value = "development", value_enum)]
     pub env: AppEnv,
 }

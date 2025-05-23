@@ -1,5 +1,3 @@
-use tracing::{info, warn};
-
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
 use crate::domain::jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository};
 use crate::domain::jwt::ports::jwt_service::JwtService;

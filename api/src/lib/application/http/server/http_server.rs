@@ -15,6 +15,7 @@ use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::role::services::DefaultRoleService;
 use crate::domain::user::services::user_service::DefaultUserService;
+use crate::env::Env;
 use anyhow::Context;
 use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
@@ -44,6 +45,7 @@ pub struct HttpServer {
 
 impl HttpServer {
     pub async fn new(
+        env: Arc<Env>,
         config: HttpServerConfig,
         realm_service: Arc<DefaultRealmService>,
         client_service: Arc<DefaultClientService>,
@@ -74,12 +76,24 @@ impl HttpServer {
             role_service,
         );
 
+        // Split the allowed origins from the environment variable (",") after this transform Vec<&str> into Vec<HeaderValue>
+
+        let allowed_origins_from_env = env
+            .allowed_origins
+            .clone()
+            .split(",")
+            .map(|origin| HeaderValue::from_str(origin).unwrap())
+            .collect::<Vec<HeaderValue>>();
+
         let allowed_origins: Vec<HeaderValue> = vec![
             HeaderValue::from_static("http://localhost:3000"),
             HeaderValue::from_static("http://localhost:5173"),
             HeaderValue::from_static("http://localhost:5174"),
             HeaderValue::from_static("http://localhost:4321"),
-        ];
+        ]
+        .into_iter()
+        .chain(allowed_origins_from_env.into_iter())
+        .collect::<Vec<HeaderValue>>();
 
         let cors = CorsLayer::new()
             .allow_methods([

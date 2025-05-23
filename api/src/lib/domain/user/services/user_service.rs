@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use tracing::info;
-use utoipa::openapi::info;
 use uuid::Uuid;
 
 use crate::{

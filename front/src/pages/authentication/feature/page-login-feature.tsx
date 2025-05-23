@@ -57,11 +57,11 @@ export default function PageLoginFeature() {
       query: new URLSearchParams({
         response_type: 'code',
         client_id: 'security-admin-console',
-        redirect_uri: 'http://localhost:5173/realms/master/authentication/callback', // URL de callback de votre app
+        redirect_uri: `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`, // URL de callback de votre app
         scope: 'openid profile email',
         state,
       }).toString(),
-      realm: 'master',
+      realm: realm_name ?? 'master',
     }
   }
 
