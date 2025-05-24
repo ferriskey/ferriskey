@@ -186,6 +186,7 @@ impl MediatorService for MediatorServiceImpl {
                 info!("role {:} already exists", "master-realm");
                 anyhow::anyhow!("Role already exists")
             });
+
         let _ = match self
             .credential_service
             .create_password_credential(user.id, self.env.admin_password.clone(), "".to_string())
