@@ -187,4 +187,19 @@ impl UserRepository for PostgresUserRepository {
 
         Ok(rows.rows_affected)
     }
+
+    async fn assign_role_to_user(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+        let user_role = entity::user_role::ActiveModel {
+            role_id: Set(role_id),
+            user_id: Set(user_id),
+            ..Default::default()
+        };
+
+        user_role
+            .insert(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        Ok(())
+    }
 }

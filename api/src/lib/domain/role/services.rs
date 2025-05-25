@@ -55,4 +55,11 @@ where
     async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
         self.role_repository.find_by_realm_id(realm_id).await
     }
+
+    async fn find_by_name(&self, name: String, realm_id: uuid::Uuid) -> Result<Role, RoleError> {
+        self.role_repository
+            .find_by_name(name, realm_id)
+            .await?
+            .ok_or(RoleError::NotFound)
+    }
 }

@@ -23,8 +23,11 @@ use crate::{
             services::DefaultRoleService,
         },
         user::{
-            dtos::user_dto::CreateUserDto, ports::user_service::UserService,
-            services::user_service::DefaultUserService,
+            dtos::user_dto::CreateUserDto,
+            ports::{user_role_service::UserRoleService, user_service::UserService},
+            services::{
+                user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
+            },
         },
     },
     env::Env,
@@ -43,6 +46,7 @@ pub struct MediatorServiceImpl {
     pub credential_service: Arc<DefaultCredentialService>,
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
+    pub user_role_service: DefaultUserRoleService,
 }
 
 impl MediatorServiceImpl {
@@ -54,6 +58,7 @@ impl MediatorServiceImpl {
         credential_service: Arc<DefaultCredentialService>,
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
+        user_role_service: DefaultUserRoleService,
     ) -> Self {
         Self {
             env,
@@ -63,6 +68,7 @@ impl MediatorServiceImpl {
             credential_service,
             redirect_uri_service,
             role_service,
+            user_role_service,
         }
     }
 }
@@ -172,7 +178,7 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
-        let _ = self
+        let role = match self
             .role_service
             .create(CreateRoleDto {
                 client_id: Some(master_realm_client.id),
@@ -182,10 +188,19 @@ impl MediatorService for MediatorServiceImpl {
                 description: None,
             })
             .await
-            .map_err(|_| {
+        {
+            Ok(role) => role,
+            Err(_) => {
                 info!("role {:} already exists", "master-realm");
-                anyhow::anyhow!("Role already exists")
-            });
+                self.role_service
+                    .find_by_name("master-realm".to_string(), realm.id)
+                    .await?
+            }
+        };
+
+        self.user_role_service
+            .assign_role("master".to_string(), user.id, role.id)
+            .await?;
 
         let _ = match self
             .credential_service

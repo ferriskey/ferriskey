@@ -11,7 +11,7 @@ use crate::domain::{
     jwt::services::jwt_service::DefaultJwtService,
     realm::services::realm_service::DefaultRealmService,
     role::services::DefaultRoleService,
-    user::services::user_service::DefaultUserService,
+    user::services::{user_role_service::DefaultUserRoleService, user_service::DefaultUserService},
 };
 
 #[derive(Clone)]
@@ -25,6 +25,7 @@ pub struct AppState {
     pub jwt_service: Arc<DefaultJwtService>,
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
+    pub user_role_service: DefaultUserRoleService,
 }
 
 impl AppState {
@@ -38,6 +39,7 @@ impl AppState {
         jwt_service: Arc<DefaultJwtService>,
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
+        user_role_service: DefaultUserRoleService,
     ) -> Self {
         Self {
             realm_service,
@@ -49,6 +51,7 @@ impl AppState {
             jwt_service,
             redirect_uri_service,
             role_service,
+            user_role_service,
         }
     }
 }

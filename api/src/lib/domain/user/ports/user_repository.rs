@@ -35,4 +35,10 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
         &self,
         ids: Vec<Uuid>,
     ) -> impl Future<Output = Result<u64, UserError>> + Send;
+
+    fn assign_role_to_user(
+        &self,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), UserError>> + Send;
 }

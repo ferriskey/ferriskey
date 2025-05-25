@@ -111,4 +111,16 @@ impl RoleRepository for PostgresRoleRepository {
 
         Ok(roles)
     }
+
+    async fn find_by_name(&self, name: String, realm_id: Uuid) -> Result<Option<Role>, RoleError> {
+        let role = entity::roles::Entity::find()
+            .filter(entity::roles::Column::Name.eq(name))
+            .filter(entity::roles::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| RoleError::InternalServerError)?
+            .map(Role::from);
+
+        Ok(role)
+    }
 }

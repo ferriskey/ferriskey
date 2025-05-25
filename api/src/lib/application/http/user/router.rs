@@ -5,6 +5,7 @@ use utoipa::OpenApi;
 use crate::application::http::server::app_state::AppState;
 
 use super::handlers::{
+    assign_role::{__path_assign_role, assign_role},
     bulk_delete_user::{__path_bulk_delete_user, bulk_delete_user},
     create_user::{__path_create_user, create_user},
     get_users::{__path_get_users, get_users},
@@ -12,7 +13,7 @@ use super::handlers::{
 };
 
 #[derive(OpenApi)]
-#[openapi(paths(get_users, create_user, bulk_delete_user, reset_password))]
+#[openapi(paths(get_users, create_user, bulk_delete_user, reset_password, assign_role))]
 pub struct UserApiDoc;
 
 pub fn user_routes() -> Router<AppState> {
@@ -21,4 +22,5 @@ pub fn user_routes() -> Router<AppState> {
         .typed_post(create_user)
         .typed_put(reset_password)
         .typed_delete(bulk_delete_user)
+        .typed_post(assign_role)
 }

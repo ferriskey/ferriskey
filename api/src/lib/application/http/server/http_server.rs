@@ -14,6 +14,7 @@ use crate::domain::credential::services::credential_service::DefaultCredentialSe
 use crate::domain::jwt::services::jwt_service::DefaultJwtService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::role::services::DefaultRoleService;
+use crate::domain::user::services::user_role_service::DefaultUserRoleService;
 use crate::domain::user::services::user_service::DefaultUserService;
 use crate::env::Env;
 use anyhow::Context;
@@ -56,6 +57,7 @@ impl HttpServer {
         jwt_service: Arc<DefaultJwtService>,
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
+        user_role_service: DefaultUserRoleService,
     ) -> Result<Self, anyhow::Error> {
         let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
             |request: &axum::extract::Request| {
@@ -74,6 +76,7 @@ impl HttpServer {
             jwt_service,
             redirect_uri_service,
             role_service,
+            user_role_service,
         );
 
         // Split the allowed origins from the environment variable (",") after this transform Vec<&str> into Vec<HeaderValue>

@@ -17,6 +17,7 @@ use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::domain::mediator::services::mediator_service::DefaultMediatorService;
 use ferriskey::domain::realm::services::realm_service::DefaultRealmService;
 use ferriskey::domain::role::services::DefaultRoleService;
+use ferriskey::domain::user::services::user_role_service::DefaultUserRoleService;
 use ferriskey::domain::user::services::user_service::DefaultUserService;
 use ferriskey::env::{AppEnv, Env};
 
@@ -61,8 +62,8 @@ async fn main() -> Result<(), anyhow::Error> {
     );
 
     let user_service = Arc::new(DefaultUserService::new(
-        app_server.user_repository,
-        app_server.realm_repository,
+        app_server.user_repository.clone(),
+        app_server.realm_repository.clone(),
     ));
 
     let crypto_service = Arc::new(DefaultCryptoService::new(app_server.hasher_repository));
@@ -81,7 +82,7 @@ async fn main() -> Result<(), anyhow::Error> {
         app_server.auth_session_repository,
     ));
 
-    let role_service = DefaultRoleService::new(app_server.role_repository);
+    let role_service = DefaultRoleService::new(app_server.role_repository.clone());
 
     let authentication_service = Arc::new(DefaultAuthenticationService::new(
         Arc::clone(&realm_service),
@@ -92,6 +93,12 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&auth_session_service),
     ));
 
+    let user_role_service = DefaultUserRoleService::new(
+        app_server.user_repository.clone(),
+        app_server.role_repository.clone(),
+        app_server.realm_repository.clone(),
+    );
+
     let mediator_service = Arc::new(DefaultMediatorService::new(
         Arc::clone(&env),
         Arc::clone(&client_service),
@@ -100,6 +107,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Arc::clone(&credential_service),
         redirect_uri_service.clone(),
         role_service.clone(),
+        user_role_service.clone(),
     ));
 
     mediator_service
@@ -126,6 +134,7 @@ async fn main() -> Result<(), anyhow::Error> {
         jwt_service,
         redirect_uri_service,
         role_service,
+        user_role_service,
     )
     .await?;
 
