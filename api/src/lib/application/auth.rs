@@ -95,6 +95,48 @@ pub enum Identity {
     Client(Client),
 }
 
+impl Identity {
+    pub fn id(&self) -> Uuid {
+        match self {
+            Self::User(user) => user.id,
+            Self::Client(client) => client.id,
+        }
+    }
+
+    pub fn is_service_account(&self) -> bool {
+        matches!(self, Self::Client(_))
+    }
+
+    pub fn is_regular_user(&self) -> bool {
+        matches!(self, Self::User(user) if user.client_id.is_none())
+    }
+
+    pub fn as_user(&self) -> Option<&User> {
+        match self {
+            Self::User(user) => Some(user),
+            _ => None,
+        }
+    }
+
+    pub fn as_client(&self) -> Option<&Client> {
+        match self {
+            Self::Client(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    pub fn realm_id(&self) -> Uuid {
+        match self {
+            Self::User(user) => user.realm_id,
+            Self::Client(client) => client.realm_id,
+        }
+    }
+
+    pub fn has_access_to_realm(&self, realm_id: Uuid) -> bool {
+        self.realm_id() == realm_id
+    }
+}
+
 impl<S> FromRequestParts<S> for Jwt
 where
     S: Send + Sync,

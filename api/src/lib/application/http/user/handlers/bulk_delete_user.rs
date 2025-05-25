@@ -53,7 +53,7 @@ pub async fn bulk_delete_user(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
 ) -> Result<Response<BulkDeleteUserResponse>, ApiError> {
-    let realm = state
+    let _ = state
         .realm_service
         .get_by_name(realm_name)
         .await

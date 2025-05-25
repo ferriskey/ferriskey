@@ -1,4 +1,5 @@
 use axum::extract::State;
+use tracing::info;
 
 use crate::{
     application::http::{
@@ -41,6 +42,10 @@ pub async fn update_redirect_uri(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {
+    info!(
+        "Updating redirect URI: realm_name={}, client_id={}, uri_id={}",
+        realm_name, client_id, uri_id
+    );
     state
         .redirect_uri_service
         .update_enabled(uri_id, payload.enabled)

@@ -82,15 +82,15 @@ where
             .await
     }
 
-    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+    async fn get_user_roles(&self, _user_id: Uuid) -> Result<Vec<Role>, UserError> {
         todo!()
     }
 
-    async fn has_role(&self, user_id: Uuid, role_id: Uuid) -> Result<bool, UserError> {
+    async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, UserError> {
         todo!()
     }
 
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn revoke_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<(), UserError> {
         todo!()
     }
 }
