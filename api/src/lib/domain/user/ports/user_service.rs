@@ -1,6 +1,6 @@
 use crate::domain::realm::entities::realm::Realm;
 use crate::domain::role::entities::models::Role;
-use crate::domain::user::dtos::user_dto::CreateUserDto;
+use crate::domain::user::dtos::user_dto::{CreateUserDto, UpdateUserDto};
 use crate::domain::user::entities::{error::UserError, model::User};
 use uuid::Uuid;
 
@@ -42,4 +42,10 @@ pub trait UserService: Clone + Send + Sync + 'static {
         &self,
         ids: Vec<Uuid>,
     ) -> impl Future<Output = Result<u64, UserError>> + Send;
+
+    fn update_user(
+        &self,
+        user_id: Uuid,
+        dto: UpdateUserDto,
+    ) -> impl Future<Output = Result<User, UserError>> + Send;
 }

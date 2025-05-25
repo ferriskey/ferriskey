@@ -11,6 +11,7 @@ use super::handlers::{
     get_user::{__path_get_user, get_user},
     get_users::{__path_get_users, get_users},
     reset_password::{__path_reset_password, reset_password},
+    update_user::{__path_update_user, update_user},
 };
 
 #[derive(OpenApi)]
@@ -19,6 +20,7 @@ use super::handlers::{
     get_user,
     assign_role,
     create_user,
+    update_user,
     bulk_delete_user,
     reset_password,
 ))]
@@ -29,6 +31,7 @@ pub fn user_routes() -> Router<AppState> {
         .typed_get(get_users)
         .typed_get(get_user)
         .typed_post(create_user)
+        .typed_put(update_user)
         .typed_put(reset_password)
         .typed_delete(bulk_delete_user)
         .typed_post(assign_role)

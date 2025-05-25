@@ -10,7 +10,7 @@ use crate::domain::{
     realm::entities::realm::Realm,
     role::entities::models::Role,
     user::{
-        dtos::user_dto::CreateUserDto,
+        dtos::user_dto::{CreateUserDto, UpdateUserDto},
         entities::{error::UserError, model::User},
         ports::user_repository::UserRepository,
     },
@@ -201,5 +201,30 @@ impl UserRepository for PostgresUserRepository {
             .map_err(|_| UserError::InternalServerError)?;
 
         Ok(())
+    }
+
+    async fn update_user(&self, user_id: Uuid, dto: UpdateUserDto) -> Result<User, UserError> {
+        let user = entity::users::Entity::find()
+            .filter(entity::users::Column::Id.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| UserError::NotFound)?;
+
+        let user = user.ok_or(UserError::NotFound)?;
+
+        let mut active_model: entity::users::ActiveModel = user.into();
+
+        active_model.firstname = Set(dto.firstname);
+        active_model.lastname = Set(dto.lastname);
+        active_model.email = Set(dto.email);
+        active_model.email_verified = Set(dto.email_verified);
+        active_model.enabled = Set(dto.enabled);
+
+        let updated_user = active_model
+            .update(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        Ok(updated_user.into())
     }
 }

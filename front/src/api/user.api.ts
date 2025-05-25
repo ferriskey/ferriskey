@@ -1,11 +1,12 @@
 import { authStore } from "@/store/auth.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
-import { CreateUserSchema } from '../pages/user/validators'
-import { BulkDeleteUserResponse, CreateUserResponse, User, UserResponse, UsersResponse } from "./api.interface"
+import { CreateUserSchema, UpdateUserSchema } from '../pages/user/validators'
+import { BulkDeleteUserResponse, CreateUserResponse, UpdateUserResponse, User, UserResponse, UsersResponse } from "./api.interface"
 
 export interface UserMutateContract<T> {
-  realm: string,
+  realm?: string,
+  userId?: string,
   payload: T
 }
 
@@ -65,6 +66,27 @@ export const useCreateUser = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["users"],
+      })
+    }
+  })
+}
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ realm, userId, payload }: UserMutateContract<UpdateUserSchema>): Promise<UpdateUserResponse> => {
+      const accessToken = authStore.getState().accessToken
+      const response = await apiClient.put(`/realms/${realm}/users/${userId}`, payload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["users", "user"],
       })
     }
   })

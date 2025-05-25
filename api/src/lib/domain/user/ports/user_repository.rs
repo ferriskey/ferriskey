@@ -1,5 +1,5 @@
 use crate::domain::role::entities::models::Role;
-use crate::domain::user::dtos::user_dto::CreateUserDto;
+use crate::domain::user::dtos::user_dto::{CreateUserDto, UpdateUserDto};
 use crate::domain::user::entities::{error::UserError, model::User};
 use uuid::Uuid;
 
@@ -41,4 +41,10 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<(), UserError>> + Send;
+
+    fn update_user(
+        &self,
+        user_id: Uuid,
+        dto: UpdateUserDto,
+    ) -> impl Future<Output = Result<User, UserError>> + Send;
 }

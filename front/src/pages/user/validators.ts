@@ -8,4 +8,15 @@ export const createUserValidator = z.object({
   email_verified: z.boolean().optional(),
 })
 
+export const updateUserValidator = z.object({
+  username: z.string().min(1),
+  firstname: z.string().min(1),
+  lastname: z.string().min(1),
+  enabled: z.boolean().optional(),
+  email: z.string().email().min(1),
+  email_verified: z.boolean().optional(),
+})
+
+
 export type CreateUserSchema = z.infer<typeof createUserValidator>
+export type UpdateUserSchema = z.infer<typeof updateUserValidator>

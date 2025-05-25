@@ -11,3 +11,11 @@ pub struct CreateUserDto {
     pub email_verified: bool,
     pub enabled: bool,
 }
+
+pub struct UpdateUserDto {
+    pub firstname: String,
+    pub lastname: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub enabled: bool,
+}

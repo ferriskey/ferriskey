@@ -43,3 +43,24 @@ pub struct BulkDeleteUserValidator {
     #[serde(default)]
     pub ids: Vec<Uuid>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdateUserValidator {
+    #[validate(length(min = 1, message = "firstname is required"))]
+    #[serde(default)]
+    pub firstname: String,
+
+    #[validate(length(min = 1, message = "lastname is required"))]
+    #[serde(default)]
+    pub lastname: String,
+
+    #[validate(length(min = 1, message = "email is required"))]
+    #[serde(default)]
+    pub email: String,
+
+    #[serde(default)]
+    pub email_verified: Option<bool>,
+
+    #[serde(default)]
+    pub enabled: Option<bool>,
+}

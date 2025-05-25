@@ -7,7 +7,7 @@ use crate::{
         realm::{entities::realm::Realm, ports::realm_repository::RealmRepository},
         role::entities::{models::Role, permission::Permissions},
         user::{
-            dtos::user_dto::CreateUserDto,
+            dtos::user_dto::{CreateUserDto, UpdateUserDto},
             entities::{error::UserError, model::User},
             ports::{user_repository::UserRepository, user_service::UserService},
         },
@@ -139,5 +139,9 @@ where
 
     async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, UserError> {
         self.user_repository.bulk_delete_user(ids).await
+    }
+
+    async fn update_user(&self, user_id: Uuid, dto: UpdateUserDto) -> Result<User, UserError> {
+        self.user_repository.update_user(user_id, dto).await
     }
 }
