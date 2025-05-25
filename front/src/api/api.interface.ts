@@ -128,6 +128,10 @@ export interface UserRealmsResponse {
 	data: Realm[];
 }
 
+export interface UserResponse {
+	data: User;
+}
+
 export interface UsersResponse {
 	data: User[];
 }

@@ -39,7 +39,7 @@ const BadgeColor = ({ children, color, className }: PropsWithChildren<BadgeColor
 
   return (
     <span
-      className={clsx('inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset', colorStyles[color], className)}
+      className={clsx('inline-flex items-center rounded px-2 py-1 text-xs font-medium ring-1 ring-inset', colorStyles[color], className)}
     >
       {children}
     </span>

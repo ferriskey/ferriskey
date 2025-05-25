@@ -22,7 +22,7 @@ export default function PageUsersOverviewFeature() {
 
   return (
     <PageUsersOverview
-      data={data?.data || []}
+      data={data || []}
       isLoading={isLoading}
       realmName={realm_name ?? "master"}
       handleDeleteSelected={handleDeleteSelected}

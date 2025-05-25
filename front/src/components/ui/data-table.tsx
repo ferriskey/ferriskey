@@ -1,13 +1,13 @@
+import { cn } from "@/lib/utils"
+import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
 import { ReactNode, useMemo, useState } from "react"
 import { Button } from "./button"
-import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from "lucide-react"
-import { Input } from "./input"
 import { Checkbox } from "./checkbox"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./dropdown-menu"
-import { cn } from "@/lib/utils"
+import { Input } from "./input"
 import { Skeleton } from "./skeleton"
-import { AnimatePresence, motion } from "motion/react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table"
 
 export type ColumnDef<T> = {
   id: string
@@ -128,7 +128,7 @@ export function DataTable<T extends { id: string }>({
           </div>
 
           <div className="flex items-center gap-3">
-          {/* {selectedItems.length > 0 && onDeleteSelected && (
+            {/* {selectedItems.length > 0 && onDeleteSelected && (
             <Button 
               variant="destructive" 
               size="sm" 
@@ -139,7 +139,7 @@ export function DataTable<T extends { id: string }>({
               {selectedItems.length} {selectedItems.length === 1 ? "élément" : "éléments"}
             </Button>
           )} */}
-          
+
             {searchKeys.length > 0 && (
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -161,139 +161,139 @@ export function DataTable<T extends { id: string }>({
             <TableSkeleton columns={columns.length} enableSelection={enableSelection} />
           ) : (
             <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {enableSelection && (
-                    <TableHead className="w-[40px] px-2">
-                      <Checkbox 
-                        checked={
-                          paginatedData.length > 0 && 
-                          selectedItems.length === paginatedData.length
-                        } 
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Sélectionner toutes les lignes"
-                      />
-                    </TableHead>
-                  )}
-                  
-                  {columns.map((column) => (
-                    <TableHead key={column.id}>{column.header}</TableHead>
-                  ))}
-                  
-                  {rowActions.length > 0 && (
-                    <TableHead className="w-[80px]"></TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {paginatedData.length > 0 ? (
-                  paginatedData.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-muted/50">
-                      {enableSelection && (
-                        <TableCell className="px-2">
-                          <Checkbox 
-                            checked={selectedItems.some(item => item.id === row.id)} 
-                            onCheckedChange={() => handleSelectItem(row)}
-                            aria-label={`Sélectionner la ligne`}
-                          />
-                        </TableCell>
-                      )}
-                      
-                      {columns.map((column) => (
-                        <TableCell key={column.id}>
-                          {column.cell 
-                            ? column.cell(row) 
-                            : column.accessorKey 
-                              ? String(row[column.accessorKey] || '')
-                              : ''}
-                        </TableCell>
-                      ))}
-                      
-                      {rowActions.length > 0 && (
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <span className="sr-only">Ouvrir le menu</span>
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {rowActions.map((action, index) => (
-                                <DropdownMenuItem 
-                                  key={index}
-                                  onClick={() => action.onClick(row)}
-                                  className={cn(
-                                    "flex items-center gap-2",
-                                    action.variant === "destructive" && "text-destructive"
-                                  )}
-                                >
-                                  {action.icon}
-                                  <span>{action.label}</span>
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))
-                ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={
-                        columns.length +
-                        (enableSelection ? 1 : 0) +
-                        (rowActions.length > 0 ? 1 : 0)
-                      }
-                      className="h-24 text-center"
-                    >
-                      {emptyState || (
-                        search
-                          ? "Aucun résultat trouvé."
-                          : "Aucune donnée disponible."
-                      )}
-                    </TableCell>
+                    {enableSelection && (
+                      <TableHead className="w-[40px] px-2">
+                        <Checkbox
+                          checked={
+                            paginatedData.length > 0 &&
+                            selectedItems.length === paginatedData.length
+                          }
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Sélectionner toutes les lignes"
+                        />
+                      </TableHead>
+                    )}
+
+                    {columns.map((column) => (
+                      <TableHead key={column.id}>{column.header}</TableHead>
+                    ))}
+
+                    {rowActions.length > 0 && (
+                      <TableHead className="w-[80px]"></TableHead>
+                    )}
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+
+                <TableBody>
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((row) => (
+                      <TableRow key={row.id} className="hover:bg-muted/50">
+                        {enableSelection && (
+                          <TableCell className="px-2">
+                            <Checkbox
+                              checked={selectedItems.some(item => item.id === row.id)}
+                              onCheckedChange={() => handleSelectItem(row)}
+                              aria-label={`Sélectionner la ligne`}
+                            />
+                          </TableCell>
+                        )}
+
+                        {columns.map((column) => (
+                          <TableCell key={column.id}>
+                            {column.cell
+                              ? column.cell(row)
+                              : column.accessorKey
+                                ? String(row[column.accessorKey] || '')
+                                : ''}
+                          </TableCell>
+                        ))}
+
+                        {rowActions.length > 0 && (
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                                  <span className="sr-only">Ouvrir le menu</span>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {rowActions.map((action, index) => (
+                                  <DropdownMenuItem
+                                    key={index}
+                                    onClick={() => action.onClick(row)}
+                                    className={cn(
+                                      "flex items-center gap-2 cursor-pointer",
+                                      action.variant === "destructive" && "text-destructive"
+                                    )}
+                                  >
+                                    {action.icon}
+                                    <span>{action.label}</span>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={
+                          columns.length +
+                          (enableSelection ? 1 : 0) +
+                          (rowActions.length > 0 ? 1 : 0)
+                        }
+                        className="h-24 text-center"
+                      >
+                        {emptyState || (
+                          search
+                            ? "Aucun résultat trouvé."
+                            : "Aucune donnée disponible."
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
 
-      {/* Pagination */}
-      {enablePagination && totalPages > 1 && (
-        <div className="flex items-center justify-between py-2">
-          <div className="text-sm text-muted-foreground">
-            Page {currentPage} sur {totalPages}
+        {/* Pagination */}
+        {enablePagination && totalPages > 1 && (
+          <div className="flex items-center justify-between py-2">
+            <div className="text-sm text-muted-foreground">
+              Page {currentPage} sur {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Page précédente</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage >= totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Page suivante</span>
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Page précédente</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage >= totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Page suivante</span>
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* Bannière flottante de confirmation de suppression (style Discord) */}
@@ -321,15 +321,15 @@ export function DataTable<T extends { id: string }>({
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedItems([])}
                 >
                   Annuler
                 </Button>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
                   onClick={isConfirmingDelete ? handleConfirmDelete : () => setIsConfirmingDelete(true)}
                 >
