@@ -113,9 +113,9 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InvalidPassword => {
                 Self::Unauthorized("Invalid password".to_string())
             }
-            AuthenticationError::InvalidRealm => Self::NotFound("Realm not found".to_string()),
-            AuthenticationError::InvalidState => Self::NotFound("Invalid state".to_string()),
-            AuthenticationError::InvalidUser => Self::NotFound("User not found".to_string()),
+            AuthenticationError::InvalidRealm => Self::Unauthorized("Realm not found".to_string()),
+            AuthenticationError::InvalidState => Self::Unauthorized("Invalid state".to_string()),
+            AuthenticationError::InvalidUser => Self::Unauthorized("User not found".to_string()),
             AuthenticationError::ServiceAccountNotFound => {
                 Self::NotFound("Service account not found".to_string())
             }

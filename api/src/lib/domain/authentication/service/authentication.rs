@@ -164,7 +164,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
             self.auth_session_service
                 .get_by_session_code(session_code)
                 .await
-                .map_err(|_| AuthenticationError::NotFound)?;
+                .map_err(|_| AuthenticationError::InternalServerError)?;
 
             Ok(generate_random_string())
         } else {

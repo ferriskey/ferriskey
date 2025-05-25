@@ -65,7 +65,6 @@ pub async fn authenticate(
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<Response<AuthenticateResponse>, ApiError> {
-    // get session_code from cookies
     let session_code = cookie.get("session_code").unwrap();
     let session_code = session_code.value().to_string();
 
@@ -74,7 +73,7 @@ pub async fn authenticate(
         .auth_session_service
         .get_by_session_code(session_code)
         .await
-        .map_err(|_| AuthenticationError::NotFound)?;
+        .map_err(|_| ApiError::Unauthorized("invalid session code".to_string()))?;
 
     let code = state
         .authentication_service
@@ -85,29 +84,30 @@ pub async fn authenticate(
             payload.username.clone(),
             payload.password,
         )
-        .await?;
+        .await
+        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
     let realm = state
         .realm_service
         .get_by_name(realm_name)
         .await
-        .map_err(|_| AuthenticationError::NotFound)?;
+        .map_err(|_| ApiError::Unauthorized("invalid realm".to_string()))?;
 
     let user = state
         .user_service
         .get_by_username(payload.username, realm.id)
         .await
-        .map_err(|_| AuthenticationError::NotFound)?;
+        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
     state
         .auth_session_service
         .update_code(session_code, code.clone(), user.id)
         .await
-        .map_err(|_| AuthenticationError::Invalid)?;
+        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
     let current_state = auth_session
         .state
-        .ok_or(AuthenticationError::InvalidState)?;
+        .ok_or(ApiError::Unauthorized("invalid credentials".to_string()))?;
 
     let login_url = format!(
         "{}?code={}&state={}",
