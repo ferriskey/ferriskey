@@ -1,4 +1,5 @@
 use axum::extract::State;
+use tracing::info;
 
 use crate::{
     application::http::{
@@ -32,6 +33,10 @@ pub async fn get_redirect_uris(
     }: GetRedirectUriRoute,
     State(state): State<AppState>,
 ) -> Result<Response<Vec<RedirectUri>>, ApiError> {
+    info!(
+        "Fetching redirect URIs for client: realm_name={}, client_id={}",
+        realm_name, client_id
+    );
     state
         .redirect_uri_service
         .get_by_client_id(client_id)

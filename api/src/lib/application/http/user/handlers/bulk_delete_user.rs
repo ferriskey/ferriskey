@@ -1,13 +1,11 @@
-use axum::{Extension, extract::State};
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use crate::{
-    application::{
-        auth::Identity,
-        http::{
+    application::http::{
             server::{
                 api_entities::{
                     api_error::{ApiError, ValidateJson},
@@ -15,15 +13,11 @@ use crate::{
                 },
                 app_state::AppState,
             },
-            user::validators::{BulkDeleteUserValidator, CreateUserValidator},
+            user::validators::BulkDeleteUserValidator,
         },
-    },
     domain::{
-        client::{entities::model::Client, ports::client_service::ClientService},
         realm::ports::realm_service::RealmService,
-        user::{
-            dtos::user_dto::CreateUserDto, entities::model::User, ports::user_service::UserService,
-        },
+        user::ports::user_service::UserService,
     },
 };
 

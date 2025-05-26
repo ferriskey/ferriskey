@@ -1,7 +1,6 @@
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::Deserialize;
-use tracing::info;
 use uuid::Uuid;
 
 use crate::{

@@ -10,7 +10,6 @@ use validator::Validate;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::authentication::entities::error::AuthenticationError;
 use crate::domain::authentication::entities::jwt_token::JwtToken;
 use crate::domain::authentication::ports::auth_session::AuthSessionService;
 use crate::domain::authentication::ports::authentication::AuthenticationService;

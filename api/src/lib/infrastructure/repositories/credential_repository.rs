@@ -4,7 +4,6 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
     QueryFilter,
 };
-use sqlx::{Executor, PgPool};
 
 use crate::domain::{
     credential::{

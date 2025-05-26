@@ -1,4 +1,4 @@
-use axum::{Extension, extract::State};
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
@@ -6,26 +6,20 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    application::{
-        auth::Identity,
-        http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
+    application::http::{
+        server::{
+            api_entities::{
+                api_error::{ApiError, ValidateJson},
+                response::Response,
             },
-            user::validators::{CreateUserValidator, UpdateUserValidator},
+            app_state::AppState,
         },
+        user::validators::{CreateUserValidator, UpdateUserValidator},
     },
     domain::{
-        client::{entities::model::Client, ports::client_service::ClientService},
         realm::ports::realm_service::RealmService,
         user::{
-            dtos::user_dto::{CreateUserDto, UpdateUserDto},
-            entities::model::User,
-            ports::user_service::UserService,
+            dtos::user_dto::UpdateUserDto, entities::model::User, ports::user_service::UserService,
         },
     },
 };
@@ -65,7 +59,7 @@ pub async fn update_user(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<UpdateUserValidator>,
 ) -> Result<Response<UpdateUserResponse>, ApiError> {
-    let realm = state
+    let _realm = state
         .realm_service
         .get_by_name(realm_name)
         .await

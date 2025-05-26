@@ -48,15 +48,11 @@ pub async fn get_user_realms(
 ) -> Result<Response<UserRealmsResponse>, ApiError> {
     let user = match identity {
         Identity::User(user) => user,
-        Identity::Client(client) => {
-            let service_account = state
-                .user_service
-                .get_by_client_id(client.id)
-                .await
-                .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?;
-
-            service_account
-        }
+        Identity::Client(client) => state
+            .user_service
+            .get_by_client_id(client.id)
+            .await
+            .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?,
     };
     let realms = state
         .user_service

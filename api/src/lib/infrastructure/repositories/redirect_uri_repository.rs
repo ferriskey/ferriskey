@@ -3,7 +3,6 @@ use entity::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
-use sqlx::{Executor, PgPool};
 use uuid::Uuid;
 
 use crate::domain::client::{

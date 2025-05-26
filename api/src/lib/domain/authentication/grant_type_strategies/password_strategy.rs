@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
-use tracing::info;
 
 use crate::domain::{
     authentication::{

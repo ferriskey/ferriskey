@@ -1,21 +1,18 @@
-use axum::{Extension, extract::State};
+use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use crate::{
-    application::{
-        auth::Identity,
-        http::server::{
+    application::http::server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
         },
-    },
     domain::{
         realm::ports::realm_service::RealmService,
         role::{
-            entities::{errors::RoleError, models::Role},
+            entities::models::Role,
             ports::RoleService,
         },
     },

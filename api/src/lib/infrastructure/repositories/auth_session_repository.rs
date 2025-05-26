@@ -3,7 +3,6 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
     prelude::Expr,
 };
-use sqlx::PgPool;
 use tracing::error;
 use uuid::Uuid;
 

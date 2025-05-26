@@ -13,10 +13,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::{
-    application::http::{
-        client,
-        server::{api_entities::api_error::ApiError, app_state::AppState},
-    },
+    application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
     domain::{
         authentication::ports::auth_session::AuthSessionService,
         client::ports::{client_service::ClientService, redirect_uri_service::RedirectUriService},

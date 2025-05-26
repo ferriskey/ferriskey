@@ -11,7 +11,6 @@ use sea_orm::{
 use entity::realms::{ActiveModel, Entity as RealmEntity};
 
 use chrono::{DateTime, TimeZone, Utc};
-use sqlx::PgPool;
 use uuid::Uuid;
 
 impl From<entity::realms::Model> for Realm {

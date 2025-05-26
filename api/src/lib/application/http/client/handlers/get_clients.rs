@@ -33,7 +33,7 @@ pub struct ClientsResponse {
 pub async fn get_clients(
     GetClientsRoute { realm_name }: GetClientsRoute,
     State(state): State<AppState>,
-    Extension(identity): Extension<Identity>,
+    Extension(_identity): Extension<Identity>,
 ) -> Result<Response<ClientsResponse>, ApiError> {
     let realm = state
         .realm_service

@@ -6,7 +6,7 @@ use crate::{
         client::entities::model::Client,
         role::entities::{
             models::Role,
-            permission::{self, Permissions},
+            permission::{Permissions},
         },
         user::{entities::model::User, ports::user_service::UserService},
     },

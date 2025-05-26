@@ -1,4 +1,5 @@
 use axum::extract::State;
+use tracing::info;
 
 use crate::{
     application::http::{
@@ -32,6 +33,10 @@ pub async fn delete_redirect_uri(
     }: DeleteRedirectUriRoute,
     State(state): State<AppState>,
 ) -> Result<Response<()>, ApiError> {
+    info!(
+        "Deleting redirect URI: realm_name={}, client_id={}, uri_id={}",
+        realm_name, client_id, uri_id
+    );
     state
         .redirect_uri_service
         .delete(uri_id)

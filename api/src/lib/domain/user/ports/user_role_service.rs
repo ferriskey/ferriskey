@@ -1,9 +1,6 @@
 use uuid::Uuid;
 
-use crate::{
-    application::http::realm,
-    domain::{role::entities::models::Role, user::entities::error::UserError},
-};
+use crate::domain::{role::entities::models::Role, user::entities::error::UserError};
 
 pub trait UserRoleService: Send + Sync {
     fn assign_role(

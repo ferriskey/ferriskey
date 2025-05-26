@@ -1,7 +1,6 @@
 use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
-use tracing::info;
 
 use crate::application::auth::Identity;
 use crate::application::http::realm::policies::RealmPolicy;

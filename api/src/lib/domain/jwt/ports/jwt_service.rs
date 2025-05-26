@@ -1,4 +1,3 @@
-use uuid::Uuid;
 
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
 
