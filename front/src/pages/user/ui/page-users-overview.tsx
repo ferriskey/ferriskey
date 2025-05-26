@@ -48,7 +48,7 @@ export default function PageUsersOverview(props: PageUsersOverviewOverviewProps)
         ]}
       />
 
-      <EditUserModalFeature realm={props.realmName} />
+      <EditUserModalFeature />
     </Fragment>
   )
 }

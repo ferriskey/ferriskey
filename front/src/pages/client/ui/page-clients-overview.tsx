@@ -8,10 +8,11 @@ export interface PageClientsOverviewProps {
   data: Client[]
   realmName: string
   handleDeleteSelected: (items: Client[]) => void
+  handleClickRow: (clientId: string) => void
 
 }
 
-export default function PageClientsOverview({ data, isLoading, handleDeleteSelected }: PageClientsOverviewProps) {
+export default function PageClientsOverview({ data, isLoading, handleDeleteSelected, handleClickRow }: PageClientsOverviewProps) {
   return (
     <div>
       <DataTable
@@ -21,6 +22,9 @@ export default function PageClientsOverview({ data, isLoading, handleDeleteSelec
         searchPlaceholder="Rechercher un client..."
         searchKeys={["name", "client_id"]}
         enableSelection={true}
+        onRowClick={(client) => {
+          handleClickRow(client.id)
+        }}
         onDeleteSelected={handleDeleteSelected}
         rowActions={[
           {

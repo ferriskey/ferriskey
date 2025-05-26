@@ -40,6 +40,7 @@ export type DataTableProps<T> = {
   onSelectionChange?: (selectedItems: T[]) => void
   pageSize?: number
   onDeleteSelected?: (items: T[]) => void
+  onRowClick?: (item: T) => void
 }
 
 export function DataTable<T extends { id: string }>({
@@ -57,6 +58,7 @@ export function DataTable<T extends { id: string }>({
   onSelectionChange,
   pageSize = 10,
   onDeleteSelected,
+  onRowClick,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("")
   const [selectedItems, setSelectedItems] = useState<T[]>([])
@@ -190,7 +192,10 @@ export function DataTable<T extends { id: string }>({
                 <TableBody>
                   {paginatedData.length > 0 ? (
                     paginatedData.map((row) => (
-                      <TableRow key={row.id} className="hover:bg-muted/50">
+                      <TableRow 
+                        key={row.id} 
+                        className="hover:bg-muted/50" 
+                      >
                         {enableSelection && (
                           <TableCell className="px-2">
                             <Checkbox
@@ -201,8 +206,16 @@ export function DataTable<T extends { id: string }>({
                           </TableCell>
                         )}
 
+                       
                         {columns.map((column) => (
-                          <TableCell key={column.id}>
+                          <TableCell 
+                            key={column.id}  
+                            onClick={() => {
+                              if (onRowClick) {
+                                onRowClick(row);
+                              }
+                            }}
+                          >
                             {column.cell
                               ? column.cell(row)
                               : column.accessorKey
@@ -210,6 +223,7 @@ export function DataTable<T extends { id: string }>({
                                 : ''}
                           </TableCell>
                         ))}
+
 
                         {rowActions.length > 0 && (
                           <TableCell className="text-right">
