@@ -3,6 +3,7 @@ use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::{
     application::{
@@ -19,44 +20,49 @@ use crate::{
 };
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients")]
-pub struct GetClientsRoute {
+#[typed_path("/realms/{realm_name}/clients/{client_id}")]
+pub struct GetClientRoute {
     pub realm_name: String,
+    pub client_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[typeshare]
-pub struct ClientsResponse {
-    pub data: Vec<Client>,
+pub struct GetClientResponse {
+    pub data: Client,
 }
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/{client_id}",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = Uuid, Path, description = "Client ID"),
     ),
     tag = "client",
     responses(
-        (status = 200, description = "Clients retrieved successfully", body = ClientsResponse),
+        (status = 200, description = "Client retrieved successfully", body = GetClientResponse),
     )
 )]
-pub async fn get_clients(
-    GetClientsRoute { realm_name }: GetClientsRoute,
+pub async fn get_client(
+    GetClientRoute {
+        realm_name,
+        client_id,
+    }: GetClientRoute,
     State(state): State<AppState>,
     Extension(_identity): Extension<Identity>,
-) -> Result<Response<ClientsResponse>, ApiError> {
-    let realm = state
+) -> Result<Response<GetClientResponse>, ApiError> {
+    let _realm = state
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    let clients = state
+    let client = state
         .client_service
-        .get_by_realm_id(realm.id)
+        .get_by_id(client_id)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(ClientsResponse { data: clients }))
+    Ok(Response::OK(GetClientResponse { data: client }))
 }
