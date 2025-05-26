@@ -95,6 +95,10 @@ export interface CreateUserResponse {
 	data: User;
 }
 
+export interface GetClientResponse {
+	data: Client;
+}
+
 export interface GetRolesResponse {
 	data: Role[];
 }

@@ -27,7 +27,6 @@ import { cn } from '@/lib/utils'
 import { Link, useParams } from 'react-router'
 import RealmSwitcher from './realm-switcher'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
-import { CLIENT_OVERVIEW_URL, CLIENTS_URL } from '@/routes/sub-router/client.router'
 import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
 
 // This is sample data.
@@ -57,7 +56,8 @@ const data = {
   navMain: [
     {
       title: 'Clients',
-      url: `${CLIENTS_URL('master')}${CLIENT_OVERVIEW_URL}`,
+      //url: `${CLIENTS_URL('master')}${OVERVIEW_URL}`,
+      url: '/realms/master/clients/overview',
       icon: SquareTerminal,
       isActive: true,
     },

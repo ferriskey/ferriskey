@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
-import { ClientsResponse } from "./api.interface"
+import { Client, ClientsResponse, GetClientResponse } from "./api.interface"
 import { CreateClientSchema } from "@/pages/client/feature/create-client-modal-feature"
 import { authStore } from "@/store/auth.store"
 
@@ -19,6 +19,23 @@ export const useGetClients = ({ realm }: BaseQuery) => {
 
       return response.data
     }
+  })
+}
+
+export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
+  return useQuery({
+    queryKey: ["client", clientId],
+    queryFn: async (): Promise<Client> => {
+      const accessToken = authStore.getState().accessToken
+
+      const { data: response } = await apiClient.get<GetClientResponse>(`/realms/${realm}/clients/${clientId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      return response.data
+    },
+    enabled: !!clientId && !!realm,
   })
 }
 
