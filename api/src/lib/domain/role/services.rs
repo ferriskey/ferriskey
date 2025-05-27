@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
 
 use super::{
@@ -32,31 +34,34 @@ where
         Ok(role)
     }
 
-    async fn delete_by_id(&self, _id: uuid::Uuid) -> Result<(), RoleError> {
+    async fn delete_by_id(&self, _id: Uuid) -> Result<(), RoleError> {
         todo!("delete role");
     }
 
-    async fn get_by_client_id(&self, _client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+    async fn get_by_client_id(&self, _client_id: Uuid) -> Result<Vec<Role>, RoleError> {
         todo!("get role by client id");
     }
 
     async fn get_by_client_id_text(
         &self,
         _client_id: String,
-        _realm_id: uuid::Uuid,
+        _realm_id: Uuid,
     ) -> Result<Vec<Role>, RoleError> {
         todo!("get role by client id text");
     }
 
-    async fn get_by_id(&self, _id: uuid::Uuid) -> Result<Role, RoleError> {
-        todo!("get role by id");
+    async fn get_by_id(&self, id: Uuid) -> Result<Role, RoleError> {
+        self.role_repository
+            .get_by_id(id)
+            .await
+            .and_then(|role| role.ok_or(RoleError::NotFound))
     }
 
-    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
+    async fn get_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Role>, RoleError> {
         self.role_repository.find_by_realm_id(realm_id).await
     }
 
-    async fn find_by_name(&self, name: String, realm_id: uuid::Uuid) -> Result<Role, RoleError> {
+    async fn find_by_name(&self, name: String, realm_id: Uuid) -> Result<Role, RoleError> {
         self.role_repository
             .find_by_name(name, realm_id)
             .await?
