@@ -12,6 +12,7 @@ pub enum Permissions {
     ManageIdentityProviders = 0x0000000000000010, // 1 << 4
     ManageRealm = 0x0000000000000020,             // 1 << 5
     ManageUsers = 0x0000000000000040,             // 1 << 6
+    ManageRoles = 0x0000000000000080,             // 1 << 7
 
     // Permissions de requête/lecture
     QueryClients = 0x0000000000000100, // 1 << 8
@@ -26,6 +27,7 @@ pub enum Permissions {
     ViewIdentityProviders = 0x0000000000008000, // 1 << 15
     ViewRealm = 0x0000000000010000,             // 1 << 16
     ViewUsers = 0x0000000000020000,             // 1 << 17
+    ViewRoles = 0x0000000000040000,             // 1 << 18
 }
 
 impl Permissions {
@@ -38,6 +40,7 @@ impl Permissions {
             Self::ManageIdentityProviders,
             Self::ManageRealm,
             Self::ManageUsers,
+            Self::ManageRoles,
             Self::QueryClients,
             Self::QueryGroups,
             Self::QueryRealms,
@@ -48,6 +51,7 @@ impl Permissions {
             Self::ViewIdentityProviders,
             Self::ViewRealm,
             Self::ViewUsers,
+            Self::ViewRoles,
         ];
 
         all_permissions
@@ -66,6 +70,7 @@ impl Permissions {
             Self::ManageIdentityProviders => "manage_identity_providers".to_string(),
             Self::ManageRealm => "manage_realm".to_string(),
             Self::ManageUsers => "manage_users".to_string(),
+            Self::ManageRoles => "manage_roles".to_string(),
             Self::QueryClients => "query_clients".to_string(),
             Self::QueryGroups => "query_groups".to_string(),
             Self::QueryRealms => "query_realms".to_string(),
@@ -76,6 +81,7 @@ impl Permissions {
             Self::ViewIdentityProviders => "view_identity_providers".to_string(),
             Self::ViewRealm => "view_realm".to_string(),
             Self::ViewUsers => "view_users".to_string(),
+            Self::ViewRoles => "view_roles".to_string(),
         }
     }
 

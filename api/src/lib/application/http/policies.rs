@@ -3,11 +3,9 @@ use std::collections::HashSet;
 use crate::{
     application::auth::Identity,
     domain::{
-        client::entities::model::Client,
-        role::entities::{
-            models::Role,
-            permission::{Permissions},
-        },
+        client::{entities::model::Client, ports::client_service::ClientService},
+        realm::entities::realm::Realm,
+        role::entities::{models::Role, permission::Permissions},
         user::{entities::model::User, ports::user_service::UserService},
     },
 };
@@ -99,5 +97,49 @@ impl PolicyEnforcer {
         }
 
         Ok(permissions)
+    }
+
+    pub async fn get_permission_for_target_realm(
+        &self,
+        user: &User,
+        target_realm: &Realm,
+    ) -> Result<HashSet<Permissions>, ApiError> {
+        let user_realm = user
+            .realm
+            .as_ref()
+            .ok_or(ApiError::Forbidden("User has no realm".into()))?;
+
+        let mut permissions: HashSet<Permissions> = HashSet::new();
+
+        if !self.can_access_realm(user_realm, target_realm) {
+            return Ok(permissions);
+        }
+
+        if self.is_cross_realm_access(user_realm, target_realm) {
+            let client_id = format!("{}-realm", target_realm.name);
+
+            let client = self
+                .state
+                .client_service
+                .get_by_client_id(client_id, user_realm.id)
+                .await
+                .map_err(|_| ApiError::Forbidden("Client not found for target realm".into()))?;
+
+            let client_permissions = self.get_client_specific_permissions(&user, &client).await?;
+            permissions.extend(client_permissions);
+        } else {
+            let user_permissions = self.get_user_permissions(&user).await?;
+            permissions.extend(user_permissions);
+        }
+
+        Ok(permissions)
+    }
+
+    fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
+        user_realm.name == target_realm.name || user_realm.name == "master"
+    }
+
+    fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
+        user_realm.name == "master" && user_realm.name != target_realm.name
     }
 }

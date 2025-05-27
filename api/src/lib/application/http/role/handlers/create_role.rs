@@ -61,9 +61,9 @@ pub async fn create_role(
 
     let payload = payload.to_dto(realm.id, Some(client_id));
 
-    let bool = RolePolicy::create(identity, state.clone()).await?;
+    let has_permission = RolePolicy::create(identity, state.clone(), realm).await?;
 
-    if !bool {
+    if !has_permission {
         return Err(ApiError::Forbidden(
             "User not allowed to create role".to_string(),
         ));

@@ -6,15 +6,15 @@ use utoipa::ToSchema;
 
 use crate::{
     application::http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
+        server::{
+            api_entities::{
+                api_error::{ApiError, ValidateJson},
+                response::Response,
             },
-            user::validators::CreateUserValidator,
+            app_state::AppState,
         },
+        user::validators::CreateUserValidator,
+    },
     domain::{
         realm::ports::realm_service::RealmService,
         user::{

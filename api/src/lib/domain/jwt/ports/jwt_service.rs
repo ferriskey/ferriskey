@@ -1,4 +1,3 @@
-
 use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
 
 pub trait JwtService: Clone + Send + Sync + 'static {

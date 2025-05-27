@@ -6,19 +6,16 @@ use utoipa::ToSchema;
 
 use crate::{
     application::http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
+        server::{
+            api_entities::{
+                api_error::{ApiError, ValidateJson},
+                response::Response,
             },
-            user::validators::BulkDeleteUserValidator,
+            app_state::AppState,
         },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        user::ports::user_service::UserService,
+        user::validators::BulkDeleteUserValidator,
     },
+    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]

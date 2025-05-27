@@ -6,9 +6,9 @@ use utoipa::ToSchema;
 
 use crate::{
     application::http::server::{
-            api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
-        },
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
+    },
     domain::{
         realm::ports::realm_service::RealmService,
         user::{entities::model::User, ports::user_service::UserService},

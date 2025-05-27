@@ -14,7 +14,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/clients", api = ClientApiDoc),
         (path = "/realms/{realm_name}/users", api = UserApiDoc),
         (path = "/realms/{realm_name}", api = AuthenticationApiDoc),
-        (path = "realms/{realm_name}/clients/{client_id}/roles", api = RoleApiDoc),
+        (path = "realms/{realm_name}/roles", api = RoleApiDoc),
     )
 )]
 pub struct ApiDoc;
