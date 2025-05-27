@@ -20,7 +20,7 @@ export default function ClientLayout() {
           <div className="flex items-center gap-4">
             <Heading size={3}>{data?.client_id}</Heading>
             <div>
-              <BadgeColor color={BadgeColorScheme.BLUE}>
+              <BadgeColor color={BadgeColorScheme.PRIMARY}>
                 {data?.protocol}
               </BadgeColor>
             </div>
@@ -31,8 +31,8 @@ export default function ClientLayout() {
         </div>
 
         <div>
-          <Tabs>
-            <TabsList>
+          <Tabs defaultValue="settings">
+            <TabsList className="flex items-center gap-4">
               <TabsTrigger value={"settings"}>Settings</TabsTrigger>
               <TabsTrigger disabled value={"keys"}>Keys</TabsTrigger>
               <TabsTrigger disabled value={"credentials"}>Credentials</TabsTrigger>

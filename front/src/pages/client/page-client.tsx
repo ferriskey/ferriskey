@@ -1,8 +1,8 @@
 import { Route, Routes } from "react-router";
 import PageClientsOverviewFeature from "./feature/page-clients-overview-feature";
 import Container from "./container";
-import PageClientOverviewFeature from "./feature/page-client-overview-feature";
 import ClientLayout from "./layout/client-layout";
+import PageClientSettingsFeature from "./feature/page-client-settings-feature";
 
 export default function PageClient() {
   return (
@@ -12,7 +12,7 @@ export default function PageClient() {
       </Route>    
 
       <Route element={<ClientLayout />}>
-        <Route path="/:client_id/overview" element={<PageClientOverviewFeature />} />
+        <Route path="/:client_id/settings" element={<PageClientSettingsFeature />} />
       </Route>
     </Routes>
   )

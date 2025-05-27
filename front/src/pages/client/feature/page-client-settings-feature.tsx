@@ -1,9 +1,10 @@
 import { useGetClient } from "@/api/client.api"
 import { RouterParams } from "@/routes/router"
 import { useParams } from "react-router"
-import PageClientOverview from "../ui/page-client-overview"
+import PageClientSettings from "../ui/page-client-settings"
 
-export default function PageClientOverviewFeature() {
+
+export default function PageClientSettingsFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
   const { data } = useGetClient({
     realm: realm_name ?? 'master',
@@ -13,7 +14,7 @@ export default function PageClientOverviewFeature() {
   return (
     <>
       {data && (
-        <PageClientOverview client={data} />
+        <PageClientSettings client={data} />
       )}
     </>
   )
