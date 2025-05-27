@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RouterParams } from "@/routes/router";
-import { ROLE_URL } from "@/routes/sub-router/role.router";
+import { ROLE_OVERVIEW_URL, ROLE_URL, ROLES_URL } from "@/routes/sub-router/role.router";
 import { ArrowLeft } from "lucide-react";
 import { Outlet, useNavigate, useParams } from "react-router";
 
@@ -17,6 +17,10 @@ export default function RoleLayout() {
     roleId: role_id,  
   })
 
+  const handleBack = () => {
+    navigate(`${ROLES_URL(realm_name)}${ROLE_OVERVIEW_URL}`)
+  }
+
   const handleTabChange = (value: string) => {
     navigate(`${ROLE_URL(realm_name, role_id)}/${value}`)
   }
@@ -27,7 +31,7 @@ export default function RoleLayout() {
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center">
 
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-3 w-3" />
               
             </Button>

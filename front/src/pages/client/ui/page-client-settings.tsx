@@ -31,7 +31,6 @@ export default function PageClientSettings({ client }: PageClientSettingsProps) 
                 className="bg-white"
                 placeholder="Enter client name"
                 value={client.name}
-                disabled
               />
             </div>
           </div>

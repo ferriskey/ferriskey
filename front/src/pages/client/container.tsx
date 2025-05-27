@@ -12,7 +12,7 @@ export default function Container() {
       <div className="flex flex-col gap-2 border-b pb-4">
         <div className="flex flex-col gap-2">
           <Heading>Clients</Heading>
-          <p>Gérez les clients et leurs configurations dans</p>
+          <p>Manage your clients effectively</p>
         </div>
         <div className="flex justify-between items-center">
           <Tabs defaultValue={tab} onValueChange={setTab}>

@@ -11,9 +11,10 @@ export interface PageRolesOverviewProps {
   data: Role[]
   realmName: string
   handleDeleteSelected: (items: Role[]) => void
+  handleClickRow: (roleId: string) => void
 }
 
-export default function PageRolesOverview({ data, isLoading, realmName, handleDeleteSelected }: PageRolesOverviewProps) {
+export default function PageRolesOverview({ data, isLoading, realmName, handleDeleteSelected, handleClickRow }: PageRolesOverviewProps) {
   const navigate = useNavigate();
 
   const handleViewSettings = (role: Role) => {
@@ -26,7 +27,7 @@ export default function PageRolesOverview({ data, isLoading, realmName, handleDe
         <div>
           <Heading>Roles</Heading>
           <p className="text-muted-foreground">
-            Gérez les rôles dans {realmName}
+            Manage roles in {realmName}
           </p>
         </div>
         <CreateRoleModalFeature />
@@ -36,10 +37,13 @@ export default function PageRolesOverview({ data, isLoading, realmName, handleDe
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher un client..."
+        searchPlaceholder="Search a client..."
         searchKeys={["name", "client_id"]}
         enableSelection={true}
         onDeleteSelected={handleDeleteSelected}
+        onRowClick={(role) => {
+          handleClickRow(role.id)
+        }}
         rowActions={[
           {
             label: "Paramètres",
