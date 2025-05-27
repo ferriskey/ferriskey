@@ -1,9 +1,10 @@
 import { Role } from "@/api/api.interface";
 import { DataTable } from "@/components/ui/data-table";
-import { Edit, ExternalLink, Trash2 } from "lucide-react";
+import { Edit, ExternalLink, Trash2, Settings } from "lucide-react";
 import { columns } from "../columns/list-client.column";
 import CreateRoleModalFeature from '../feature/create-role-modal-feature';
 import { Heading } from "@/components/ui/heading";
+import { useNavigate } from "react-router-dom";
 
 export interface PageRolesOverviewProps {
   isLoading?: boolean
@@ -13,6 +14,12 @@ export interface PageRolesOverviewProps {
 }
 
 export default function PageRolesOverview({ data, isLoading, realmName, handleDeleteSelected }: PageRolesOverviewProps) {
+  const navigate = useNavigate();
+
+  const handleViewSettings = (role: Role) => {
+    navigate(`/realms/${realmName}/roles/${role.id}/settings`);
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -34,6 +41,11 @@ export default function PageRolesOverview({ data, isLoading, realmName, handleDe
         enableSelection={true}
         onDeleteSelected={handleDeleteSelected}
         rowActions={[
+          {
+            label: "Paramètres",
+            icon: <Settings className="h-4 w-4" />,
+            onClick: handleViewSettings,
+          },
           {
             label: "Éditer",
             icon: <Edit className="h-4 w-4" />,

@@ -9,7 +9,7 @@ import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from "@/routes/router"
 import { CLIENTS_URL, OVERVIEW_URL } from "@/routes/sub-router/client.router"
 import { BookOpen, Bot, SquareAsterisk } from "lucide-react"
 import { useNavigate, useParams } from "react-router"
-import { ROLE_OVERVIEW_URL, ROLE_URL } from '../routes/sub-router/role.router'
+import { ROLE_OVERVIEW_URL, ROLES_URL } from '../routes/sub-router/role.router'
 import { USER_OVERVIEW_URL, USER_URL } from '../routes/sub-router/user.router'
 
 export function NavMain() {
@@ -38,7 +38,7 @@ export function NavMain() {
             <span>Users</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem onClick={() => handleClick(`${ROLE_URL(realm_name)}${ROLE_OVERVIEW_URL}`)}>
+        <SidebarMenuItem onClick={() => handleClick(`${ROLES_URL(realm_name)}${ROLE_OVERVIEW_URL}`)}>
           <SidebarMenuButton className="flex items-center gap-2 cursor-pointer">
             {/* icon */}
             <BookOpen />
