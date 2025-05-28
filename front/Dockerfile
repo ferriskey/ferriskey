@@ -22,7 +22,7 @@ COPY ./pnpm-lock.yaml .
 COPY . .
 
 FROM dependencies AS build
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
 FROM nginx:latest

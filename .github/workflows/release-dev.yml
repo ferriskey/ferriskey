@@ -31,6 +31,7 @@ jobs:
         with:
           context: docs
           push: true
+          cache-from: type=gha
           provenance: false
           tags: ghcr.io/ferriskey/ferriskey-docs:latest
   build-api:
@@ -53,6 +54,7 @@ jobs:
         with:
           context: api
           push: true
+          cache-from: type=gha
           provenance: false
           tags: ghcr.io/ferriskey/ferriskey-api:latest
   build-front:
@@ -75,5 +77,6 @@ jobs:
         with:
           context: front
           push: true
+          cache-from: type=gha
           provenance: false
           tags: ghcr.io/ferriskey/ferriskey-front:latest
