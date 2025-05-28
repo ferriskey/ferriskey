@@ -22,12 +22,15 @@ use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
 use axum::http::{HeaderValue, Method};
 use axum_cookie::prelude::*;
+use axum_extra::routing::RouterExt;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
 use tracing::log::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+use super::config::get_config;
 
 pub struct HttpServerConfig {
     port: String,
@@ -77,6 +80,7 @@ impl HttpServer {
             redirect_uri_service,
             role_service,
             user_role_service,
+            env.clone(),
         );
 
         // Split the allowed origins from the environment variable (",") after this transform Vec<&str> into Vec<HeaderValue>
@@ -119,6 +123,7 @@ impl HttpServer {
 
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+            .typed_get(get_config)
             .merge(realm_routes(state.clone()))
             .merge(client_routes(state.clone()))
             .merge(user_routes())

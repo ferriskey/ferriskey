@@ -15,6 +15,7 @@ WORKDIR /app
 COPY . .
 COPY --from=cacher /app/target target
 COPY --from=cacher /usr/local/cargo /usr/local/cargo
+RUN cargo install sqlx-cli --no-default-features --features postgres
 RUN SQLX_OFFLINE=true cargo build --release --bin ferriskey-server
 
 FROM debian:bookworm-slim AS runtime
@@ -22,6 +23,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/ferriskey-server /usr/local/bin
+COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin
+COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 80
 

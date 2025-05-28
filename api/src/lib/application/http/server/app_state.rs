@@ -1,17 +1,22 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::service::{
-        auth_session::DefaultAuthSessionService, authentication::DefaultAuthenticationService,
+use crate::{
+    domain::{
+        authentication::service::{
+            auth_session::DefaultAuthSessionService, authentication::DefaultAuthenticationService,
+        },
+        client::services::{
+            client_service::DefaultClientService, redirect_uri_service::DefaultRedirectUriService,
+        },
+        credential::services::credential_service::DefaultCredentialService,
+        jwt::services::jwt_service::DefaultJwtService,
+        realm::services::realm_service::DefaultRealmService,
+        role::services::DefaultRoleService,
+        user::services::{
+            user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
+        },
     },
-    client::services::{
-        client_service::DefaultClientService, redirect_uri_service::DefaultRedirectUriService,
-    },
-    credential::services::credential_service::DefaultCredentialService,
-    jwt::services::jwt_service::DefaultJwtService,
-    realm::services::realm_service::DefaultRealmService,
-    role::services::DefaultRoleService,
-    user::services::{user_role_service::DefaultUserRoleService, user_service::DefaultUserService},
+    env::Env,
 };
 
 #[derive(Clone)]
@@ -26,6 +31,7 @@ pub struct AppState {
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
+    pub env: Arc<Env>,
 }
 
 impl AppState {
@@ -40,6 +46,7 @@ impl AppState {
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
         user_role_service: DefaultUserRoleService,
+        env: Arc<Env>,
     ) -> Self {
         Self {
             realm_service,
@@ -52,6 +59,7 @@ impl AppState {
             redirect_uri_service,
             role_service,
             user_role_service,
+            env,
         }
     }
 }

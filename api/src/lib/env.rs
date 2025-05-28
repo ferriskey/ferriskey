@@ -1,10 +1,31 @@
 use clap::{Parser, ValueEnum};
+use typeshare::typeshare;
 
 #[derive(Debug, Clone, ValueEnum, Default)]
+#[typeshare]
 pub enum AppEnv {
     #[default]
     Development,
     Production,
+}
+
+impl From<String> for AppEnv {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "development" => AppEnv::Development,
+            "production" => AppEnv::Production,
+            _ => AppEnv::Development, // Default to Development if unknown
+        }
+    }
+}
+
+impl ToString for AppEnv {
+    fn to_string(&self) -> String {
+        match self {
+            AppEnv::Development => "development".to_string(),
+            AppEnv::Production => "production".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Parser)]
