@@ -8,6 +8,7 @@ import {
   Map,
   PieChart,
   SquareTerminal,
+  TriangleAlert,
 } from 'lucide-react'
 import * as React from 'react'
 
@@ -28,6 +29,8 @@ import { Link, useParams } from 'react-router'
 import RealmSwitcher from './realm-switcher'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
 import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
+import { useConfig } from '@/hooks/use-config'
+import BadgeColor, { BadgeColorScheme } from './ui/badge-color'
 
 // This is sample data.
 const data = {
@@ -94,6 +97,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { realm_name } = useParams<RouterParams>()
+  const { config } = useConfig()
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
@@ -119,6 +123,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
+
+        {config && (
+          <div className='flex flex-col gap-2'>
+            <div>
+              <BadgeColor color={BadgeColorScheme.PRIMARY}>
+                {config.app_version}
+              </BadgeColor>
+            </div>
+
+            {config.environment === 'development' && (
+
+              <div className="rounded-md bg-primary/10 p-4">
+                <div className="flex">
+                  <div className="shrink-0">
+                    <TriangleAlert aria-hidden="true" className="size-5 text-primary" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-primary">Development mode</h3>
+                    <div className="mt-2 text-sm text-primary/75">
+                      <p>
+                        You are currently in development mode.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

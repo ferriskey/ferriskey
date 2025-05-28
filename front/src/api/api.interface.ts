@@ -99,6 +99,11 @@ export interface GetClientResponse {
 	data: Client;
 }
 
+export interface GetConfigResponse {
+	app_version: string;
+	environment: string;
+}
+
 export interface GetRoleResponse {
 	data: Role;
 }
@@ -146,6 +151,11 @@ export interface UserResponse {
 
 export interface UsersResponse {
 	data: User[];
+}
+
+export enum AppEnv {
+	Development = "Development",
+	Production = "Production",
 }
 
 export enum Permissions {

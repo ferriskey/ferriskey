@@ -9,12 +9,23 @@ import PageOverview from './pages/overview/page-overview'
 import PageRole from './pages/role/page-role'
 import PageUser from './pages/user/page-user'
 import { Toaster } from './components/ui/sonner'
+import { useGetConfig } from './api/config.api'
+import { useConfig } from './hooks/use-config'
 
 function App() {
   const { realm_name } = useParams()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
+  const { setConfig } = useConfig()
+
+  const { data: responseConfig } = useGetConfig()
+
+  useEffect(() => {
+    if (responseConfig) {
+      setConfig(responseConfig)
+    }
+  }, [responseConfig])
 
   const authenticateRoute = useMemo(() => {
     if (pathname.includes('authentication')) {
