@@ -2,16 +2,45 @@ use std::sync::Arc;
 
 use crate::{
     domain::{
-        authentication::ports::auth_session::AuthSessionRepository,
-        client::ports::{
-            client_repository::ClientRepository, redirect_uri_repository::RedirectUriRepository,
+        authentication::{
+            ports::auth_session::AuthSessionRepository,
+            service::{
+                auth_session::DefaultAuthSessionService,
+                authentication::DefaultAuthenticationService,
+            },
         },
-        credential::ports::credential_repository::CredentialRepository,
-        crypto::ports::hasher_repository::HasherRepository,
-        jwt::ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
-        realm::ports::realm_repository::RealmRepository,
-        role::ports::RoleRepository,
-        user::ports::user_repository::UserRepository,
+        client::{
+            ports::{
+                client_repository::ClientRepository, redirect_uri_repository::RedirectUriRepository,
+            },
+            services::{
+                client_service::DefaultClientService,
+                redirect_uri_service::DefaultRedirectUriService,
+            },
+        },
+        credential::{
+            ports::credential_repository::CredentialRepository,
+            services::credential_service::DefaultCredentialService,
+        },
+        crypto::{
+            ports::hasher_repository::HasherRepository,
+            services::crypto_service::DefaultCryptoService,
+        },
+        jwt::{
+            ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
+            services::jwt_service::DefaultJwtService,
+        },
+        mediator::services::mediator_service::DefaultMediatorService,
+        realm::{
+            ports::realm_repository::RealmRepository, services::realm_service::DefaultRealmService,
+        },
+        role::{ports::RoleRepository, services::DefaultRoleService},
+        user::{
+            ports::user_repository::UserRepository,
+            services::{
+                user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
+            },
+        },
     },
     env::Env,
     infrastructure::{
@@ -28,6 +57,8 @@ use crate::{
         },
     },
 };
+
+use super::http::server::app_state::AppState;
 
 pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU, RO>
 where
@@ -93,5 +124,84 @@ impl
             redirect_uri_repository,
             role_repository,
         })
+    }
+
+    pub fn create_app_state(&self, env: Arc<Env>) -> AppState {
+        let realm_service = Arc::new(DefaultRealmService::new(self.realm_repository.clone()));
+        let client_service = Arc::new(DefaultClientService::new(
+            self.client_repository.clone(),
+            self.user_repository.clone(),
+            realm_service.clone(),
+        ));
+
+        let redirect_uri_service = DefaultRedirectUriService::new(
+            self.redirect_uri_repository.clone(),
+            realm_service.clone(),
+            client_service.clone(),
+        );
+
+        let user_service = Arc::new(DefaultUserService::new(
+            self.user_repository.clone(),
+            self.realm_repository.clone(),
+        ));
+
+        let crypto_service = Arc::new(DefaultCryptoService::new(self.hasher_repository.clone()));
+
+        let credential_service = Arc::new(DefaultCredentialService::new(
+            self.credential_repository.clone(),
+            crypto_service.clone(),
+        ));
+
+        let jwt_service = Arc::new(DefaultJwtService::new(
+            self.jwt_repository.clone(),
+            self.refresh_token_repository.clone(),
+        ));
+
+        let auth_session_service = Arc::new(DefaultAuthSessionService::new(
+            self.auth_session_repository.clone(),
+        ));
+
+        let role_service = DefaultRoleService::new(self.role_repository.clone());
+
+        let authentication_service = Arc::new(DefaultAuthenticationService::new(
+            realm_service.clone(),
+            client_service.clone(),
+            credential_service.clone(),
+            user_service.clone(),
+            jwt_service.clone(),
+            auth_session_service.clone(),
+        ));
+
+        let user_role_service = DefaultUserRoleService::new(
+            self.user_repository.clone(),
+            self.role_repository.clone(),
+            self.realm_repository.clone(),
+        );
+
+        let mediator_service = Arc::new(DefaultMediatorService::new(
+            Arc::clone(&env),
+            client_service.clone(),
+            realm_service.clone(),
+            user_service.clone(),
+            credential_service.clone(),
+            redirect_uri_service.clone(),
+            role_service.clone(),
+            user_role_service.clone(),
+        ));
+
+        AppState {
+            realm_service,
+            client_service,
+            credential_service,
+            authentication_service,
+            auth_session_service,
+            user_service,
+            jwt_service,
+            redirect_uri_service,
+            role_service,
+            user_role_service,
+            mediator_service,
+            env: Arc::clone(&env),
+        }
     }
 }

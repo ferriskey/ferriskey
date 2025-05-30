@@ -10,6 +10,7 @@ use crate::{
         },
         credential::services::credential_service::DefaultCredentialService,
         jwt::services::jwt_service::DefaultJwtService,
+        mediator::services::mediator_service::DefaultMediatorService,
         realm::services::realm_service::DefaultRealmService,
         role::services::DefaultRoleService,
         user::services::{
@@ -31,6 +32,7 @@ pub struct AppState {
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
+    pub mediator_service: Arc<DefaultMediatorService>,
     pub env: Arc<Env>,
 }
 
@@ -46,6 +48,7 @@ impl AppState {
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
         user_role_service: DefaultUserRoleService,
+        mediator_service: Arc<DefaultMediatorService>,
         env: Arc<Env>,
     ) -> Self {
         Self {
@@ -59,6 +62,7 @@ impl AppState {
             redirect_uri_service,
             role_service,
             user_role_service,
+            mediator_service,
             env,
         }
     }

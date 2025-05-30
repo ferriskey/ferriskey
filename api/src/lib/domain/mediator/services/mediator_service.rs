@@ -240,7 +240,7 @@ impl MediatorService for MediatorServiceImpl {
         let admin_redirect_patterns = vec![
             // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
             "^http://localhost:[0-9]+/.*",
-            // URLs spécifiques si nécessaire
+            "^/*",
             "http://localhost:3000/admin",
             "http://localhost:5173/admin",
         ];

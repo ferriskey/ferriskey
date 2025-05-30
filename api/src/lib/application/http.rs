@@ -4,4 +4,5 @@ pub mod policies;
 pub mod realm;
 pub mod role;
 pub mod server;
+pub mod test;
 pub mod user;
