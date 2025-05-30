@@ -42,7 +42,7 @@ pub struct UserRealmsResponse {
     )
 )]
 pub async fn get_user_realms(
-    GetUserRealmsRoute { realm_name }: GetUserRealmsRoute,
+    _: GetUserRealmsRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UserRealmsResponse>, ApiError> {
@@ -54,9 +54,14 @@ pub async fn get_user_realms(
             .await
             .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?,
     };
+
+    let realm = user.realm.clone().ok_or(ApiError::Forbidden(
+        "User does not belong to any realm".to_string(),
+    ))?;
+
     let realms = state
         .user_service
-        .get_user_realms(user, realm_name)
+        .get_user_realms(user, realm.name)
         .await
         .map_err(|_| ApiError::Forbidden("User not found".to_string()))?;
 

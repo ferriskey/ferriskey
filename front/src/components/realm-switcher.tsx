@@ -1,4 +1,4 @@
-import { useParams } from "react-router"
+import { useNavigate, useParams } from "react-router"
 
 import {
   DropdownMenu,
@@ -34,16 +34,23 @@ import { FormField } from '@/components/ui/form.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useCreateRealm } from '@/api/realm.api.ts'
 import { toast } from 'sonner'
+import { REALM_OVERVIEW_URL, REALM_URL } from "@/routes/router"
 
 
 export default function RealmSwitcher() {
   const { realm_name } = useParams<{ realm_name: string }>()
+  const navigate = useNavigate()
   const { isMobile } = useSidebar()
   const [open, setOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [activeRealm, setActiveRealm] = useState<Realm | null>(null)
   const [_, setHasRealmMaster] = useState(false)
   const { userRealms } = useRealmStore()
+
+  const handleClick = (realm: Realm) => {
+    setActiveRealm(realm)
+    navigate(`${REALM_URL(realm.name)}${REALM_OVERVIEW_URL}`)
+  }
 
 
   useEffect(() => {
@@ -96,7 +103,7 @@ export default function RealmSwitcher() {
               {userRealms.map((realm, index) => (
                 <DropdownMenuItem
                   key={realm.name}
-                  onClick={() => setActiveRealm(realm)}
+                  onClick={() => handleClick(realm)}
                   className="gap-2 p-2"
                 >
                   <div className="flex size-6 items-center justify-center rounded-md border">
