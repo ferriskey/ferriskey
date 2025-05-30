@@ -1,9 +1,141 @@
 ---
 title: Realms
-description: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+description: Understand how FerrisKey Realms provide isolated environments for multi-tenant identity and access management.
 permalink: realms
 icon: lucide:crown
 order: 3
 ---
 
-# Overview
+# Realms
+
+Realms in FerrisKey provide complete isolation and multi-tenancy for identity and access management.
+Each realm acts as an independent IAM environment with its own users, roles, applications, and security policies.
+
+## What are Realms?
+
+A realm is a fundamental concept in FerrisKey that represents a completely isolated security boundary. Think of realms as separate organizations or environments within a single FerrisKey deployment. Each realm maintains:
+
+- **Isolated User Base**: Users in one realm cannot access another realm
+- **Independent Roles & Permissions**: Each realm defines its own authorization model
+- **Separate Applications**: Applications are registered per realm
+- **Custom Security Policies**: Each realm can have different security requirements
+- **Isolated Audit Logs**: Complete separation of audit trails
+
+## Use Cases
+
+### Multi-Organization Hosting
+
+Host multiple organizations on a single FerrisKey instance while maintaining complete data isolation. Each organization can have its own realm with unique users, roles, and applications.
+
+```
+├── Company A Realm
+│   ├── Users: alice@company-a.com, bob@company-a.com
+│   ├── Roles: Admin, Employee, Manager
+│   └── Apps: CRM, HR System
+├── Company B Realm
+│   ├── Users: charlie@company-b.com, diana@company-b.com
+│   ├── Roles: Owner, Developer, Support
+│   └── Apps: Project Tool, Analytics
+```
+
+### Environment Separation
+Separate development, staging, and production environments with distinct user bases.
+
+```
+├── Development Realm
+│   └── Users: dev-team@company.com
+├── Staging Realm
+│   └── Users: qa-team@company.com
+└── Production Realm
+    └── Users: all-users@company.com
+```
+
+
+### Department Isolation
+Create separate realms for different departments within an organization.
+
+```
+├── Engineering Realm
+│   └── Apps: GitHub, JIRA, Slack
+├── Sales Realm
+│   └── Apps: Salesforce, HubSpot
+└── HR Realm
+    └── Apps: Workday, BambooHR
+```
+
+
+## Realm Architecture
+
+### Data Isolation
+
+Each realm maintains complete data separation at the database level.
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    realm_id UUID REFERENCES realms(id) NOT NULL,
+    client_id UUID REFERENCES clients(id),
+    username VARCHAR(255) NOT NULL,
+    firstname VARCHAR(255) NOT NULL,
+    lastname VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Add unique constraint to username and realm_id
+ALTER TABLE users ADD CONSTRAINT unique_username_realm_id UNIQUE (username, realm_id);
+
+-- Add unique constraint to realm_id
+ALTER TABLE users ADD CONSTRAINT unique_client_id UNIQUE (client_id);
+```
+
+### Cross-Realm Operations
+
+FerrisKey implements a sophisticated cross-realm access control system where only users in the **master realm** can manage other realms, and only with proper permissions.
+
+#### Master Realm Authority
+
+The **master realm** is a special realm that serves as the administrative control center for all other realms in the FerrisKey instance. Users in the master realm can potentially manage other realms, but access is strictly controlled through a client-based permission system.
+
+
+#### Client-Based Realm Management
+
+
+To manage a specific realm, a master realm user must have a client with a specific naming convention and appropriate permissions:
+
+- **Client Naming**: `{realm-name}-realm` (e.g., "company-a-realm", "development-realm")
+- **Required Permissions**: The client must have realm management permissions in its role
+- **Scope Isolation**: Each client can only manage its corresponding realm
+
+#### Permission Structure
+
+```rust
+// Realm management permissions (bitwise)
+const REALM_READ: u64 = 1 << 10;           // View realm configuration
+const REALM_WRITE: u64 = 1 << 11;          // Modify realm settings
+const REALM_USER_MANAGE: u64 = 1 << 12;    // Manage users in realm
+const REALM_ROLE_MANAGE: u64 = 1 << 13;    // Manage roles in realm
+const REALM_DELETE: u64 = 1 << 14;         // Delete realm
+
+// Combined permission sets
+const REALM_ADMIN: u64 = REALM_READ | REALM_WRITE | REALM_USER_MANAGE | REALM_ROLE_MANAGE;
+const REALM_FULL_ACCESS: u64 = REALM_ADMIN | REALM_DELETE;
+```
+
+#### Example Workflow
+
+1. **Master Realm User**: `admin@master.local` exists in the master realm
+2. **Target Realm**: `company-a` needs to be managed
+3. **Required Client**: User must have access to client named `company-a-realm`
+4. **Client Role**: The client's role must include realm management permissions
+
+#### Security Benefits
+
+- **Principle of Least Privilege**: Users only get access to realms they explicitly need
+- **Audit Trail**: All cross-realm operations are logged with client context
+- **Granular Control**: Different permission levels for different types of realm operations
+- **Isolation**: Compromise of one realm client doesn't affect others

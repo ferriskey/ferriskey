@@ -19,6 +19,23 @@ Before installing FerrisKey, make sure you have the following prerequisites:
 
 You can verify your Docker installation by running:
 
+### API environment variables
+
+```bash
+PORT=3333
+ENV=development
+DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
+
+ADMIN_PASSWORD=super
+ADMIN_USERNAME=super
+ADMIN_EMAIL=super@ferriskey.fr
+
+PUBLIC_KEY="public_key_here"
+PRIVATE_KEY="private_key_here"
+
+ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5556
+```
+
 ## With Docker
 
 The simplest way to get started with FerrisKey is using Docker:
@@ -30,5 +47,78 @@ FerrisKey can be quickly launched using our official Docker image. This approach
 Run the following command in your terminal to pull and start the FerrisKey API server:
 
 ```bash
-docker run -p 3333:3333 ghcr.io/ferriskey/ferriskey-api
+docker run -p 3333:3333 \
+  -e PORT=3333 -e ENV=development \
+  -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/ferriskey \
+  -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=admin \
+  -e ADMIN_EMAIL=admin@example.com \
+  -e PUBLIC_KEY=your_public_key \
+  -e PRIVATE_KEY=your_private_key \
+  -e ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5554 \
+  ghcr.io/ferriskey/ferriskey-api
+```
+
+### Launching the FerrisKey Frontend
+
+Once the API is running, you can start the FerrisKey frontend. This will allow you to interact with the API through a web interface.
+
+```bash
+docker run -p 5555:80 \
+  -e APP_API_URL=http://localhost:3333 \
+  ghcr.io/ferriskey/ferriskey-front
+```
+
+
+## With Docker Compose
+
+If you prefer to use Docker Compose, you can set up both the API and frontend with a single command. This method is more convenient for managing multiple services.
+
+```yaml
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ferriskey
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+  api-migration:
+    image: ghcr.io/ferriskey/ferriskey-api:latest
+    env_file:
+      - api.env
+    depends_on:
+      - postgres
+    command: >
+      bash -c "
+        sqlx migrate run &&
+        echo 'Database migrations completed!'
+      "
+    restart: "no"
+  api:
+    image: ghcr.io/ferriskey/ferriskey-api:latest
+    env_file:
+      - api.env
+    depends_on:
+      api-migration:
+        condition: service_completed_successfully
+    ports:
+      - "3333:3333"
+    restart: unless-stopped
+  frontend:
+    image: ghcr.io/ferriskey/ferriskey-front:latest
+    ports:
+      - "5555:80"
+    environment:
+      - APP_API_URL=http://localhost:3333
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
 ```

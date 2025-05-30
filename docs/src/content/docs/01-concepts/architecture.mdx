@@ -1,9 +1,73 @@
 ---
 title: Architecture
-description: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+description: Discover FerrisKey's monolithic architecture built with Rust and Axum for performance and reliability.
 permalink: architecture
 icon: lucide:building-2
 order: 2
 ---
 
-# Overview
+# Architecture 
+
+FerrisKey is designed with a monolithic architecture built in Rust using the Axum web framework, ensuring high performance, memory safety, and operational simplicity for modern enterprise environments.
+
+## Architecture Overview
+
+FerrisKey follows a monolithic approach with a single, well-structured Rust application that handles all IAM operations. This design provides excellent performance, simplified deployment, and reduced operational complexity while maintaining clear internal module separation.
+
+### Core Modules
+
+#### Identity Module
+- **User Management**: Centralized storage and management of user profiles
+- **Authentication**: Identity validation through multiple methods
+- **Session Handling**: Secure session management with Postgres
+
+#### Authorization Module
+- **Role-Based Access Control (RBAC)**: Hierarchical role system with inherited permissions
+- **Bitwise Permissions**: Discord-style permission system using bitflags for efficient storage and evaluation
+- **Permission Inheritance**: Roles can inherit and override permissions from parent roles
+- **Resource Protection**: Fine-grained access control for APIs, endpoints, and application resources
+
+**Bitwise Permission System**
+
+FerrisKey uses a bitwise permission system similar to Discord, where each permission is represented by a unique bit position in a 64-bit integer. This approach provides:
+- **Performance**: O(1) permission checking using bitwise operations
+- **Efficiency**: Compact storage of multiple permissions in a single integer
+- **Flexibility**: Easy permission combinations using bitwise OR operations
+- **Scalability**: Support for up to 64 different permissions per role
+
+
+```rust
+pub enum Permissions {
+    Read = 1 << 0,        // 00000001
+    Write = 1 << 1,       // 00000010
+    Execute = 1 << 2,     // 00000100
+    Admin = 1 << 3,       // 00001000
+}
+
+fn has_permission(role_permissions: u64, permission: Permissions) -> bool {
+    (role_permissions & permission as u64) != 0
+}
+
+fn add_permission(role_permissions: &mut u64, permission: Permissions) {
+    *role_permissions |= permission as u64;
+}
+
+const READ_PERMISSION: u64 = Permissions::Read as u64;
+```
+
+#### Token Module
+- **JWT Management**: Secure token generation and validation
+- **Token Lifecycle**: Issuance, refresh, and revocation handling
+- **Cryptographic Operations**: Digital signatures and encryption
+
+## Technology Stack
+
+### Core Framework
+- **Rust**: Systems programming language for memory safety and performance
+- **Axum**: Modern, ergonomic web framework built on Tokio
+- **Tokio**: Asynchronous runtime for concurrent operations
+- **Tower**: Middleware and service abstractions
+
+### Data Layer
+- **PostgreSQL**: Primary database for user data and configurations
+- **SeaORM (sqlx)**: Compile-time checked SQL queries
