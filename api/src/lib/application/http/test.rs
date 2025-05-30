@@ -1,12 +1,7 @@
 use chrono::Utc;
-use uuid::Uuid;
 
 use crate::domain::{
-    realm::{entities::realm::Realm, ports::realm_service::RealmService},
-    role::entities::models::Role,
-    user::{
-        dtos::user_dto::CreateUserDto, entities::model::User, ports::user_service::UserService,
-    },
+    realm::entities::realm::Realm, role::entities::models::Role, user::entities::model::User,
     utils::generate_uuid_v7,
 };
 
@@ -34,39 +29,10 @@ impl UserFactory {
 
     pub async fn create_user_with_realm(
         &self,
-        user_data: User,
-        realm_data: Option<Realm>,
+        _user_data: User,
+        _realm_data: Option<Realm>,
     ) -> Result<(User, Realm), anyhow::Error> {
-        let realm = if let Some(realm) = realm_data {
-            self.state.realm_service.create_realm(realm.name).await?
-        } else {
-            self.state
-                .realm_service
-                .create_realm(format!("realm-{}", Uuid::new_v4()))
-                .await?
-        };
-
-        let user = User {
-            realm_id: realm.id,
-            ..user_data
-        };
-
-        let created_user = self
-            .state
-            .user_service
-            .create_user(CreateUserDto {
-                username: user.username,
-                email: user.email,
-                firstname: user.firstname,
-                lastname: user.lastname,
-                enabled: user.enabled,
-                client_id: None,
-                email_verified: user.email_verified,
-                realm_id: realm.id,
-            })
-            .await?;
-
-        Ok((created_user, realm))
+        todo!("Implement create_user_with_realm method");
     }
 }
 

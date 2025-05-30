@@ -29,7 +29,7 @@ pub trait RoleService: Send + Sync {
     ) -> impl Future<Output = Result<Role, RoleError>> + Send;
 }
 
-pub trait RoleRepository: Send + Sync {
+pub trait RoleRepository: Send + Sync + Clone {
     fn create(
         &self,
         payload: CreateRoleDto,

@@ -127,7 +127,12 @@ impl
     }
 
     pub fn create_app_state(&self, env: Arc<Env>) -> AppState {
-        let realm_service = Arc::new(DefaultRealmService::new(self.realm_repository.clone()));
+        let realm_service = Arc::new(DefaultRealmService::new(
+            self.realm_repository.clone(),
+            self.client_repository.clone(),
+            self.role_repository.clone(),
+            self.user_repository.clone(),
+        ));
         let client_service = Arc::new(DefaultClientService::new(
             self.client_repository.clone(),
             self.user_repository.clone(),

@@ -9,6 +9,7 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
+use crate::domain::user::ports::user_service::UserService;
 
 #[derive(TypedPath)]
 #[typed_path("/realms")]
@@ -29,16 +30,29 @@ pub async fn create_realm(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRealmValidator>,
 ) -> Result<Response<Realm>, ApiError> {
-    let c = RealmPolicy::create(identity, state.clone()).await?;
+    let c = RealmPolicy::create(identity.clone(), state.clone()).await?;
 
     if !c {
         return Err(ApiError::Forbidden(
             "You do not have permission to create a realm".into(),
         ));
     }
+
+    let user = match identity {
+        Identity::User(user) => user,
+        Identity::Client(client) => {
+            let service_account = state
+                .user_service
+                .get_by_client_id(client.id)
+                .await
+                .map_err(|_| ApiError::Forbidden("Service account not found".to_string()))?;
+            service_account
+        }
+    };
+
     state
         .realm_service
-        .create_realm(payload.name)
+        .create_realm_with_user(payload.name, &user)
         .await
         .map_err(ApiError::from)
         .map(Response::Created)

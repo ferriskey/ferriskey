@@ -1,11 +1,17 @@
-use crate::domain::realm::entities::{
-    error::RealmError, realm::Realm, realm_setting::RealmSetting,
+use crate::domain::{
+    realm::entities::{error::RealmError, realm::Realm, realm_setting::RealmSetting},
+    user::entities::model::User,
 };
 use uuid::Uuid;
 
-pub trait RealmService: Clone + Send + Sync + 'static {
+pub trait RealmService: Clone + Send + Sync {
     fn fetch_realm(&self) -> impl Future<Output = Result<Vec<Realm>, RealmError>> + Send;
 
+    fn create_realm_with_user(
+        &self,
+        name: String,
+        user: &User,
+    ) -> impl Future<Output = Result<Realm, RealmError>> + Send;
     fn create_realm(&self, name: String) -> impl Future<Output = Result<Realm, RealmError>> + Send;
 
     fn update_realm(
