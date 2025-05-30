@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
+import { toast } from 'sonner'
 
 export const initiateOAuthLogin = async (realmName: string) => {
   const params = new URLSearchParams({
@@ -66,7 +67,7 @@ export default function PageLoginFeature() {
   }
 
   const { data, isError } = useAuthQuery(getOAuthParams())
-  const { mutate: authenticate, data: authenticateData } = useAuthenticateMutation()
+  const { mutate: authenticate, data: authenticateData, status: authenticateStatus } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
@@ -76,7 +77,7 @@ export default function PageLoginFeature() {
     },
   })
 
-  useEffect(() => {
+  useEffect(() => {    
     if (authenticateData) {
       const [_, query] = authenticateData.url.split('?')
       const newUrl = `/realms/${realm_name}/authentication/callback?${query}`
@@ -114,6 +115,13 @@ export default function PageLoginFeature() {
 
     setIsSetup(true)
   }, [])
+
+  useEffect(() => {
+    if (authenticateStatus === 'error') {
+      toast.error('Authentication failed. Please check your credentials and try again.')
+      form.reset()
+    }
+  }, [authenticateStatus])
 
   useEffect(() => {
     if (data && isSetup && !isAuthInitiated) {

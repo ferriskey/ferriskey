@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from "."
 import { Realm, UserRealmsResponse } from "./api.interface"
 import { authStore } from "@/store/auth.store"
@@ -19,6 +19,31 @@ export const useGetUserRealmsQuery = ({ realm }: UserRealmsQuery) => {
       })
 
       return response.data.data
+    }
+  })
+}
+
+export const useCreateRealm = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ payload }) => {
+      const accessToken = authStore.getState().accessToken
+
+      console.log("Creating realm with payload:", payload)
+
+      const response = await apiClient.post('/realms', payload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["user-realms"]
+      })
     }
   })
 }

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import App from './App.tsx'
 import './index.css'
+
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 const container = document.getElementById('root') || (document.createElement('div') as HTMLElement)

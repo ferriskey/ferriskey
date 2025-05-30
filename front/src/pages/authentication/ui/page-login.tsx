@@ -7,6 +7,7 @@ import { AuthenticateSchema } from '../feature/page-login-feature'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import { MagicCard } from '@/components/magicui/magic-card'
+import { InputText } from '@/components/ui/input-text'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -38,32 +39,41 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                         </p>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="email">Username</Label>
                         <FormField
                           control={form.control}
                           name="username"
                           render={({ field }) => (
-                            <Input {...field} placeholder="Username" className="w-full" />
+                            <InputText 
+                              {...field}
+                              label='Username'
+                              name='username'
+                              className="w-full"
+                            />
                           )}
                         />
                       </div>
                       <div className="grid gap-2">
+                        <FormField
+                          control={form.control}
+                          name="password"
+                          render={({ field }) => (
+                            <InputText 
+                              {...field}
+                              label='Password'
+                              name='password'
+                              type='password'
+                              className="w-full"
+                            />
+                          )}
+                        />
                         <div className="flex items-center">
-                          <Label htmlFor="password">Password</Label>
                           <a
                             href="#"
                             className="ml-auto text-sm underline-offset-2 hover:underline"
                           >
                             Forgot your password?
                           </a>
-                        </div>
-                        <FormField
-                          control={form.control}
-                          name="password"
-                          render={({ field }) => (
-                            <Input {...field} placeholder="Password" className="w-full" />
-                          )}
-                        />
+                       </div>
                       </div>
                       <Button onClick={() => onSubmit(form.getValues())} className="w-full">
                         Login

@@ -88,8 +88,6 @@ function StartingPoints() {
           <span aria-hidden="true"> &rarr;</span>
         </a>
       </div>
-
-
     </div>
   )
 }
