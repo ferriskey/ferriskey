@@ -25,7 +25,6 @@ import {
   DialogDescription, DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog.tsx'
 import { InputText } from '@/components/ui/input-text.tsx'
 import { Form, useForm } from 'react-hook-form'
@@ -43,7 +42,7 @@ export default function RealmSwitcher() {
   const [open, setOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [activeRealm, setActiveRealm] = useState<Realm | null>(null)
-  const [hasRealmMaster, setHasRealmMaster] = useState(false)
+  const [_, setHasRealmMaster] = useState(false)
   const { userRealms } = useRealmStore()
 
 

@@ -1,13 +1,7 @@
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
   Frame,
-  GalleryVerticalEnd,
   Map,
   PieChart,
-  SquareTerminal,
   TriangleAlert,
 } from 'lucide-react'
 import * as React from 'react'
@@ -28,7 +22,6 @@ import { cn } from '@/lib/utils'
 import { Link, useParams } from 'react-router'
 import RealmSwitcher from './realm-switcher'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
-import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
 import { useConfig } from '@/hooks/use-config'
 import BadgeColor, { BadgeColorScheme } from './ui/badge-color'
 

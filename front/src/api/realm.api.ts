@@ -27,7 +27,7 @@ export const useCreateRealm = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ payload }) => {
+    mutationFn: async ({ payload }: { payload: { name: string }}) => {
       const accessToken = authStore.getState().accessToken
 
       console.log("Creating realm with payload:", payload)

@@ -1,11 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormField } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { UseFormReturn } from 'react-hook-form'
 import { AuthenticateSchema } from '../feature/page-login-feature'
 import { cn } from '@/lib/utils'
-import { Label } from '@/components/ui/label'
 import { MagicCard } from '@/components/magicui/magic-card'
 import { InputText } from '@/components/ui/input-text'
 
