@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::entities::{CreateRoleDto, errors::RoleError, models::Role};
 
-pub trait RoleService: Send + Sync {
+pub trait RoleService: Send + Sync + Clone {
     fn create(
         &self,
         payload: CreateRoleDto,

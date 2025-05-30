@@ -117,7 +117,7 @@ where
             .role_repository
             .create(CreateRoleDto {
                 client_id: Some(client.id),
-                name: "".into(),
+                name: format!("{}-realm-admin", name),
                 permissions,
                 realm_id: realm_master.id,
                 description: Some(format!("role for manage realm {}", name)),
