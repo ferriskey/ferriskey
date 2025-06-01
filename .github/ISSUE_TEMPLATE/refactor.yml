@@ -1,0 +1,18 @@
+name: ♻️ Refactor Request
+description: Suggest code refactoring to improve maintainability or structure
+labels: [type:refactor]
+body:
+  - type: textarea
+    attributes:
+      label: Refactor Description
+      description: What part of the codebase do you suggest refactoring?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Current Behavior
+      description: Explain how it currently works and why it needs improvement.
+  - type: textarea
+    attributes:
+      label: Proposed Solution
+      description: Describe how you'd improve or restructure it.

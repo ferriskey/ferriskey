@@ -1,0 +1,23 @@
+name: 🚀 Feature Request
+description: Propose a new feature or enhancement for FerrisKey
+labels: [type:feature]
+body:
+  - type: textarea
+    attributes:
+      label: Feature Description
+      description: Describe the feature you'd like to see implemented.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Use Case
+      description: What problem does this feature solve? Who benefits from it?
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Priority
+      options:
+        - Low
+        - Medium
+        - High
