@@ -47,7 +47,7 @@ impl JwtKeyPair {
 
     pub fn generate() -> Result<(String, String), JwtError> {
         let mut rng = rand::rngs::OsRng;
-        let bits = 1024;
+        let bits = 2048; // RSA key size in bits
         let private_key = RsaPrivateKey::new(&mut rng, bits)
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
