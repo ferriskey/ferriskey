@@ -1,7 +1,7 @@
 # Refactor Template
 name: 🔧 Refactor Request
 description: Propose a code refactoring
-labels: [ "refactor" ]
+labels: [ "type:refactor" ]
 body:
 - type: markdown
   attributes:

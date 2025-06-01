@@ -1,7 +1,7 @@
 # Bug Report Template
 name: 🐛 Bug Report
 description: Report a bug to help us improve the project
-labels: [ "bug" ]
+labels: [ "type:bug" ]
 body:
 - type: markdown
   attributes:
