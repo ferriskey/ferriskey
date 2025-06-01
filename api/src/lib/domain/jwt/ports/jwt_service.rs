@@ -1,4 +1,11 @@
-use crate::domain::jwt::entities::{jwt::Jwt, jwt_claim::JwtClaim, jwt_error::JwtError};
+use crate::domain::{
+    jwt::entities::{
+        jwt::{Jwt, JwtKeyPair},
+        jwt_claim::JwtClaim,
+        jwt_error::JwtError,
+    },
+    realm::entities::realm::Realm,
+};
 
 pub trait JwtService: Clone + Send + Sync + 'static {
     fn generate_token(
@@ -20,4 +27,9 @@ pub trait JwtService: Clone + Send + Sync + 'static {
         &self,
         claims: JwtClaim,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
+
+    fn retrieve_realm_rsa_keys(
+        &self,
+        realm: &Realm,
+    ) -> impl Future<Output = Result<JwtKeyPair, JwtError>> + Send;
 }

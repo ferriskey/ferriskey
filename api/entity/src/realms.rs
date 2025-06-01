@@ -43,6 +43,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     AuthSessions,
     Clients,
+    JwtKeys,
     RealmSettings,
     Roles,
     UserSessions,
@@ -66,6 +67,7 @@ impl RelationTrait for Relation {
         match self {
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::Clients => Entity::has_many(super::clients::Entity).into(),
+            Self::JwtKeys => Entity::has_many(super::jwt_keys::Entity).into(),
             Self::RealmSettings => Entity::has_many(super::realm_settings::Entity).into(),
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
             Self::UserSessions => Entity::has_many(super::user_sessions::Entity).into(),
@@ -83,6 +85,12 @@ impl Related<super::auth_sessions::Entity> for Entity {
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
+    }
+}
+
+impl Related<super::jwt_keys::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::JwtKeys.def()
     }
 }
 

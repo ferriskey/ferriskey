@@ -22,4 +22,7 @@ pub enum JwtError {
 
     #[error("Expired token")]
     ExpiredToken,
+
+    #[error("Invalid key: {0}")]
+    InvalidKey(String),
 }

@@ -16,6 +16,7 @@ use crate::{
             ports::credential_service::CredentialService,
             services::credential_service::DefaultCredentialService,
         },
+        jwt::{ports::jwt_service::JwtService, services::jwt_service::DefaultJwtService},
         realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
         role::{
             entities::{CreateRoleDto, permission::Permissions},
@@ -37,7 +38,7 @@ use crate::domain::mediator::ports::mediator_service::MediatorService;
 
 pub type DefaultMediatorService = MediatorServiceImpl;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MediatorServiceImpl {
     pub env: Arc<Env>,
     pub client_service: Arc<DefaultClientService>,
@@ -47,6 +48,7 @@ pub struct MediatorServiceImpl {
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
+    pub jwt_service: Arc<DefaultJwtService>,
 }
 
 impl MediatorServiceImpl {
@@ -59,6 +61,7 @@ impl MediatorServiceImpl {
         redirect_uri_service: DefaultRedirectUriService,
         role_service: DefaultRoleService,
         user_role_service: DefaultUserRoleService,
+        jwt_service: Arc<DefaultJwtService>,
     ) -> Self {
         Self {
             env,
@@ -69,6 +72,7 @@ impl MediatorServiceImpl {
             redirect_uri_service,
             role_service,
             user_role_service,
+            jwt_service,
         }
     }
 }
@@ -89,6 +93,8 @@ impl MediatorService for MediatorServiceImpl {
                     .await?
             }
         };
+
+        let _ = self.jwt_service.retrieve_realm_rsa_keys(&realm).await?;
 
         let client_id = "security-admin-console".to_string();
 

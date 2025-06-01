@@ -27,7 +27,10 @@ use crate::{
             services::crypto_service::DefaultCryptoService,
         },
         jwt::{
-            ports::jwt_repository::{JwtRepository, RefreshTokenRepository},
+            ports::{
+                jwt_repository::{JwtRepository, RefreshTokenRepository},
+                keystore_repository::KeyStoreRepository,
+            },
             services::jwt_service::DefaultJwtService,
         },
         mediator::services::mediator_service::DefaultMediatorService,
@@ -50,7 +53,8 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             client_repository::PostgresClientRepository,
             credential_repository::PostgresCredentialRepository,
-            jwt_repository::StaticJwtRepository, realm_repository::PostgresRealmRepository,
+            jwt_repository::StaticJwtRepository, keystore_repository::PostgresKeyStoreRepository,
+            realm_repository::PostgresRealmRepository,
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             role_repository::PostgresRoleRepository, user_repository::PostgresUserRepository,
@@ -60,7 +64,7 @@ use crate::{
 
 use super::http::server::app_state::AppState;
 
-pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU, RO>
+pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU, RO, K>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -72,6 +76,7 @@ where
     RR: RefreshTokenRepository,
     RU: RedirectUriRepository,
     RO: RoleRepository,
+    K: KeyStoreRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -83,6 +88,7 @@ where
     pub refresh_token_repository: RR,
     pub redirect_uri_repository: RU,
     pub role_repository: RO,
+    pub keystore_repository: K,
 }
 
 impl
@@ -97,6 +103,7 @@ impl
         PostgresRefreshTokenRepository,
         PostgresRedirectUriRepository,
         PostgresRoleRepository,
+        PostgresKeyStoreRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -111,6 +118,7 @@ impl
         let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_db());
         let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_db());
         let role_repository = PostgresRoleRepository::new(postgres.get_db());
+        let keystore_repository = PostgresKeyStoreRepository::new(postgres.get_db());
 
         Ok(Self {
             realm_repository,
@@ -123,6 +131,7 @@ impl
             refresh_token_repository,
             redirect_uri_repository,
             role_repository,
+            keystore_repository,
         })
     }
 
@@ -160,6 +169,8 @@ impl
         let jwt_service = Arc::new(DefaultJwtService::new(
             self.jwt_repository.clone(),
             self.refresh_token_repository.clone(),
+            self.keystore_repository.clone(),
+            self.realm_repository.clone(),
         ));
 
         let auth_session_service = Arc::new(DefaultAuthSessionService::new(
@@ -192,6 +203,7 @@ impl
             redirect_uri_service.clone(),
             role_service.clone(),
             user_role_service.clone(),
+            jwt_service.clone(),
         ));
 
         AppState {

@@ -3,6 +3,7 @@
 pub use super::auth_sessions::Entity as AuthSessions;
 pub use super::clients::Entity as Clients;
 pub use super::credentials::Entity as Credentials;
+pub use super::jwt_keys::Entity as JwtKeys;
 pub use super::realm_settings::Entity as RealmSettings;
 pub use super::realms::Entity as Realms;
 pub use super::redirect_uris::Entity as RedirectUris;

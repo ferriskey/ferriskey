@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod auth_sessions;
 pub mod clients;
 pub mod credentials;
+pub mod jwt_keys;
 pub mod realm_settings;
 pub mod realms;
 pub mod redirect_uris;
