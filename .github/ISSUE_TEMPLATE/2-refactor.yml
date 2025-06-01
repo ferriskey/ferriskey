@@ -1,0 +1,48 @@
+# Refactor Template
+name: 🔧 Refactor Request
+description: Propose a code refactoring
+labels: [ "refactor" ]
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for taking the time to suggest a code improvement!
+
+- type: textarea
+  attributes:
+    label: Current Code State
+    description: Describe the current state of the code and why it needs refactoring
+    placeholder: "The current implementation is..."
+
+- type: textarea
+  attributes:
+    label: Proposed Changes
+    description: Describe your suggested improvements
+    placeholder: |
+      - Replace X with Y
+      - Extract this logic into a separate class
+      - Implement the Builder pattern
+
+- type: textarea
+  attributes:
+    label: Benefits
+    description: What are the benefits of this refactor?
+    placeholder: |
+      - Improved performance
+      - Better maintainability
+      - Reduced complexity
+
+- type: textarea
+  attributes:
+    label: Potential Risks
+    description: What are the potential risks or downsides?
+    placeholder: |
+      - Breaking changes in API
+      - Migration effort needed
+      - Backward compatibility issues
+
+- type: input
+  attributes:
+    label: Affected Components
+    description: Which parts of the codebase will be affected?
+    placeholder: "auth/login, database/queries"

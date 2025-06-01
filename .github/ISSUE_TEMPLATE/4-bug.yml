@@ -1,0 +1,48 @@
+# Bug Report Template
+name: 🐛 Bug Report
+description: Report a bug to help us improve the project
+labels: [ "bug" ]
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for taking the time to fill out this bug report!
+
+- type: textarea
+  attributes:
+    label: Bug Description
+    description: A clear and concise description of the bug
+    placeholder: "What happened?"
+
+- type: textarea
+  attributes:
+    label: To Reproduce
+    description: Steps to reproduce the behavior
+    placeholder: |
+      1. Go to '...'
+      2. Click on '....'
+      3. Scroll down to '....'
+      4. See error
+
+- type: textarea
+  attributes:
+    label: Expected Behavior
+    description: A clear description of what you expected to happen
+
+- type: input
+  attributes:
+    label: Version
+    description: What version are you using?
+    placeholder: "v1.0.0"
+
+- type: textarea
+  attributes:
+    label: Environment
+    description: |
+      Examples:
+        - OS: Ubuntu 20.04
+        - Browser: Chrome 89
+    value: |
+      - OS:
+      - Browser:
+      - Version:
