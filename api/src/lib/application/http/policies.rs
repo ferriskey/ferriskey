@@ -55,13 +55,17 @@ impl PolicyEnforcer {
         let mut permissions: HashSet<Permissions> = HashSet::new();
 
         for role in roles {
-            let permissions_bits = role.permissions as u64;
+            let role_permissions: HashSet<Permissions> = role
+                .permissions
+                .iter()
+                .filter_map(|p| Permissions::from_name(p))
+                .collect();
 
-            let perm_values = Permissions::from_bitfield(permissions_bits);
+            let permissions_as_vec: Vec<Permissions> = role_permissions.into_iter().collect();
+            let permissions_bits = Permissions::to_bitfield(&permissions_as_vec);
+            let validated_permissions = Permissions::from_bitfield(permissions_bits);
 
-            for p in perm_values {
-                permissions.insert(p);
-            }
+            permissions.extend(validated_permissions);
         }
 
         Ok(permissions)
@@ -87,7 +91,15 @@ impl PolicyEnforcer {
         let mut permissions: HashSet<Permissions> = HashSet::new();
 
         for role in client_roles {
-            let permissions_bits = role.permissions as u64;
+            let permissions_vec: Vec<String> = role.permissions.clone();
+            let mut permissions_set: HashSet<Permissions> = HashSet::new();
+            for permission in permissions_vec {
+                if let Some(perm) = Permissions::from_name(&permission) {
+                    permissions_set.insert(perm);
+                }
+            }
+            let permissions_list: Vec<Permissions> = permissions_set.into_iter().collect();
+            let permissions_bits = Permissions::to_bitfield(&permissions_list);
 
             let perm_values = Permissions::from_bitfield(permissions_bits);
 

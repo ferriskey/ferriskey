@@ -60,7 +60,7 @@ export interface Role {
 	id: string;
 	name: string;
 	description?: string;
-	permissions: number;
+	permissions: string[];
 	realm_id: string;
 	client_id: string;
 	client?: Client;
@@ -159,24 +159,24 @@ export enum AppEnv {
 }
 
 export enum Permissions {
-	CreateClient = "CreateClient",
-	ManageAuthorization = "ManageAuthorization",
-	ManageClients = "ManageClients",
-	ManageEvents = "ManageEvents",
-	ManageIdentityProviders = "ManageIdentityProviders",
-	ManageRealm = "ManageRealm",
-	ManageUsers = "ManageUsers",
-	ManageRoles = "ManageRoles",
-	QueryClients = "QueryClients",
-	QueryGroups = "QueryGroups",
-	QueryRealms = "QueryRealms",
-	QueryUsers = "QueryUsers",
-	ViewAuthorization = "ViewAuthorization",
-	ViewClients = "ViewClients",
-	ViewEvents = "ViewEvents",
-	ViewIdentityProviders = "ViewIdentityProviders",
-	ViewRealm = "ViewRealm",
-	ViewUsers = "ViewUsers",
-	ViewRoles = "ViewRoles",
+	CreateClient = "create_client",
+	ManageAuthorization = "manage_authorization",
+	ManageClients = "manage_clients",
+	ManageEvents = "manage_events",
+	ManageIdentityProviders = "manage_identity_providers",
+	ManageRealm = "manage_realm",
+	ManageUsers = "manage_users",
+	ManageRoles = "manage_roles",
+	QueryClients = "query_clients",
+	QueryGroups = "query_groups",
+	QueryRealms = "query_realms",
+	QueryUsers = "query_users",
+	ViewAuthorization = "view_authorization",
+	ViewClients = "view_clients",
+	ViewEvents = "view_events",
+	ViewIdentityProviders = "view_identity_providers",
+	ViewRealm = "view_realm",
+	ViewUsers = "view_users",
+	ViewRoles = "view_roles",
 }
 

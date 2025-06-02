@@ -108,12 +108,13 @@ where
             let mut permissions = HashSet::new();
 
             for role in client_roles {
-                let bitfield = role.permissions.clone() as u64;
-                let role_permissions = Permissions::from_bitfield(bitfield);
+                let role_permissions = role
+                    .permissions
+                    .iter()
+                    .filter_map(|perm_str| Permissions::from_name(perm_str))
+                    .collect::<HashSet<Permissions>>();
 
-                for permission in role_permissions {
-                    permissions.insert(permission);
-                }
+                permissions.extend(role_permissions);
             }
 
             let has_access = Permissions::has_one_of_permissions(

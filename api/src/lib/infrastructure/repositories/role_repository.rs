@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     role::{
-        entities::{CreateRoleDto, errors::RoleError, models::Role},
+        entities::{CreateRoleDto, errors::RoleError, models::Role, permission::Permissions},
         ports::RoleRepository,
     },
     utils::generate_uuid_v7,
@@ -14,12 +14,17 @@ use crate::domain::{
 
 impl From<entity::roles::Model> for Role {
     fn from(model: entity::roles::Model) -> Self {
+        let permissions = Permissions::from_bitfield(model.permissions as u64);
+        let permissions = permissions
+            .iter()
+            .map(|p| p.name().to_string())
+            .collect::<Vec<String>>();
+
         Role {
             id: model.id,
             name: model.name,
             description: model.description,
-
-            permissions: model.permissions,
+            permissions,
             realm_id: model.realm_id,
             client_id: model.client_id,
             client: None,

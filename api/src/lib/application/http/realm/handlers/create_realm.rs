@@ -131,7 +131,11 @@ mod tests {
             Some(test_user.email.clone()),
         );
 
-        let token = state.jwt_service.generate_token(claims).await.unwrap();
+        let token = state
+            .jwt_service
+            .generate_token(claims, test_user.realm_id)
+            .await
+            .unwrap();
 
         (test_user, token.token)
     }

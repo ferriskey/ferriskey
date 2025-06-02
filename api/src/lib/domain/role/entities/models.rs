@@ -16,8 +16,7 @@ pub struct Role {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    #[typeshare(serialized_as = "number")]
-    pub permissions: i64,
+    pub permissions: Vec<String>,
     #[typeshare(serialized_as = "string")]
     pub realm_id: Uuid,
     #[typeshare(serialized_as = "string")]
