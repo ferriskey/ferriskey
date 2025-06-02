@@ -153,8 +153,6 @@ where
 
         let app_state = AppState::from_ref(state);
 
-        // get realm_id from request parts if needed
-        // on peut trouver le realm_name dans l'url
         let realm_name =
             extract_realm_name_from_path(&parts.uri.path()).ok_or(AuthError::TokenNotFound)?;
 
@@ -203,11 +201,6 @@ fn extract_realm_name_from_path(path: &str) -> Option<String> {
     }
 
     None
-}
-
-pub async fn get_realm_from_request(parts: &Parts) -> Option<String> {
-    let path = parts.uri.path();
-    extract_realm_name_from_path(path)
 }
 
 pub async fn auth(
