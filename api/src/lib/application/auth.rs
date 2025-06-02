@@ -19,6 +19,7 @@ use crate::domain::{
         entities::jwt_claim::{ClaimsTyp, JwtClaim},
         ports::jwt_service::JwtService,
     },
+    realm::ports::realm_service::RealmService,
     user::{entities::model::User, ports::user_service::UserService},
 };
 
@@ -152,9 +153,20 @@ where
 
         let app_state = AppState::from_ref(state);
 
+        // get realm_id from request parts if needed
+        // on peut trouver le realm_name dans l'url
+        let realm_name =
+            extract_realm_name_from_path(&parts.uri.path()).ok_or(AuthError::TokenNotFound)?;
+
+        let realm = app_state
+            .realm_service
+            .get_by_name(realm_name)
+            .await
+            .map_err(|_| AuthError::TokenNotFound)?;
+
         let claims = app_state
             .jwt_service
-            .verify_token(token.clone())
+            .verify_token(token.clone(), realm.id)
             .await
             .map_err(|_| AuthError::InvalidToken)?;
 
@@ -172,6 +184,30 @@ pub async fn extract_token_from_bearer(parts: &mut Parts) -> Result<String, Auth
         .map_err(|_| AuthError::TokenNotFound)?;
 
     Ok(bearer.token().to_string())
+}
+
+fn extract_realm_name_from_path(path: &str) -> Option<String> {
+    // Split the path by '/'
+    let parts: Vec<&str> = path.split('/').collect();
+
+    // Find the position of "realms" in the path
+    let realms_position = parts.iter().position(|&part| part == "realms")?;
+
+    // The realm name should be right after "realms" if it exists
+    if realms_position + 1 < parts.len() {
+        // Get the realm name and ensure it's not empty
+        let realm_name = parts[realms_position + 1];
+        if !realm_name.is_empty() {
+            return Some(realm_name.to_string());
+        }
+    }
+
+    None
+}
+
+pub async fn get_realm_from_request(parts: &Parts) -> Option<String> {
+    let path = parts.uri.path();
+    extract_realm_name_from_path(path)
 }
 
 pub async fn auth(

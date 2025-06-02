@@ -74,7 +74,7 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
 
                 let jwt = self
                     .jwt_service
-                    .generate_token(claims.clone())
+                    .generate_token(claims.clone(), params.realm_id)
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 
@@ -87,7 +87,7 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
 
                 let refresh_token = self
                     .jwt_service
-                    .generate_refresh_token(refresh_claims.clone())
+                    .generate_token(refresh_claims.clone(), params.realm_id)
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 

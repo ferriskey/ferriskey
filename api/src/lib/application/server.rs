@@ -28,8 +28,7 @@ use crate::{
         },
         jwt::{
             ports::{
-                jwt_repository::{JwtRepository, RefreshTokenRepository},
-                keystore_repository::KeyStoreRepository,
+                jwt_repository::RefreshTokenRepository, keystore_repository::KeyStoreRepository,
             },
             services::jwt_service::DefaultJwtService,
         },
@@ -53,7 +52,7 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             client_repository::PostgresClientRepository,
             credential_repository::PostgresCredentialRepository,
-            jwt_repository::StaticJwtRepository, keystore_repository::PostgresKeyStoreRepository,
+            keystore_repository::PostgresKeyStoreRepository,
             realm_repository::PostgresRealmRepository,
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
@@ -64,14 +63,13 @@ use crate::{
 
 use super::http::server::app_state::AppState;
 
-pub struct AppServer<R, C, U, CR, H, J, AS, RR, RU, RO, K>
+pub struct AppServer<R, C, U, CR, H, AS, RR, RU, RO, K>
 where
     R: RealmRepository,
     C: ClientRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
-    J: JwtRepository,
     AS: AuthSessionRepository,
     RR: RefreshTokenRepository,
     RU: RedirectUriRepository,
@@ -83,7 +81,6 @@ where
     pub user_repository: U,
     pub credential_repository: CR,
     pub hasher_repository: H,
-    pub jwt_repository: J,
     pub auth_session_repository: AS,
     pub refresh_token_repository: RR,
     pub redirect_uri_repository: RU,
@@ -98,7 +95,6 @@ impl
         PostgresUserRepository,
         PostgresCredentialRepository,
         Argon2HasherRepository,
-        StaticJwtRepository,
         PostgresAuthSessionRepository,
         PostgresRefreshTokenRepository,
         PostgresRedirectUriRepository,
@@ -113,7 +109,6 @@ impl
         let user_repository = PostgresUserRepository::new(postgres.get_db());
         let credential_repository = PostgresCredentialRepository::new(postgres.get_db());
         let hasher_repository = Argon2HasherRepository::new();
-        let jwt_repository = StaticJwtRepository::new(&env.private_key, &env.public_key)?;
         let auth_session_repository = PostgresAuthSessionRepository::new(postgres.get_db());
         let refresh_token_repository = PostgresRefreshTokenRepository::new(postgres.get_db());
         let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_db());
@@ -126,7 +121,6 @@ impl
             user_repository,
             credential_repository,
             hasher_repository,
-            jwt_repository,
             auth_session_repository,
             refresh_token_repository,
             redirect_uri_repository,
@@ -167,7 +161,6 @@ impl
         ));
 
         let jwt_service = Arc::new(DefaultJwtService::new(
-            self.jwt_repository.clone(),
             self.refresh_token_repository.clone(),
             self.keystore_repository.clone(),
             self.realm_repository.clone(),

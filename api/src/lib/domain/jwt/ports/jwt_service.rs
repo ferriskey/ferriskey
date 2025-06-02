@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::domain::{
     jwt::entities::{
         jwt::{Jwt, JwtKeyPair},
@@ -11,22 +13,20 @@ pub trait JwtService: Clone + Send + Sync + 'static {
     fn generate_token(
         &self,
         claims: JwtClaim,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
 
     fn verify_token(
         &self,
         token: String,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
 
     fn verify_refresh_token(
         &self,
         token: String,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
-
-    fn generate_refresh_token(
-        &self,
-        claims: JwtClaim,
-    ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
 
     fn retrieve_realm_rsa_keys(
         &self,

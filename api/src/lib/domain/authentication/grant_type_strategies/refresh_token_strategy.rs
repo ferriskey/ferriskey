@@ -44,7 +44,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let claims = self
             .jwt_service
-            .verify_refresh_token(refresh_token)
+            .verify_refresh_token(refresh_token, params.realm_id)
             .await
             .map_err(|_| AuthenticationError::InvalidRefreshToken)?;
 
@@ -75,7 +75,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let access_token = self
             .jwt_service
-            .generate_token(new_claims.clone())
+            .generate_token(new_claims.clone(), params.realm_id)
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
@@ -88,7 +88,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
 
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(refresh_claims.clone())
+            .generate_token(refresh_claims.clone(), params.realm_id)
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
