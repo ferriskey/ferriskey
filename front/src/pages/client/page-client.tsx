@@ -3,6 +3,7 @@ import PageClientsOverviewFeature from "./feature/page-clients-overview-feature"
 import Container from "./container";
 import ClientLayout from "./layout/client-layout";
 import PageClientSettingsFeature from "./feature/page-client-settings-feature";
+import PageClientCredentialsFeature from "./feature/page-client-credentials-feature";
 
 export default function PageClient() {
   return (
@@ -13,6 +14,7 @@ export default function PageClient() {
 
       <Route element={<ClientLayout />}>
         <Route path="/:client_id/settings" element={<PageClientSettingsFeature />} />
+        <Route path="/:client_id/credentials" element={<PageClientCredentialsFeature />} />
       </Route>
     </Routes>
   )

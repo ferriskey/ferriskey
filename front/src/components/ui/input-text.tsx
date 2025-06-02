@@ -11,6 +11,8 @@ export interface InputTextProps {
   onChange?: (value: string | number) => void
   error?: string
   disabled?: boolean
+  // variable to control the toggle visibility of the password even if it's in disable
+  togglePasswordVisibility?: boolean
 }
 
 export function InputText({
@@ -22,6 +24,7 @@ export function InputText({
   error,
   className = "",
   disabled,
+  togglePasswordVisibility = false,
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
   const inputRef = useRef<HTMLDivElement>(null)
@@ -43,7 +46,7 @@ export function InputText({
 
   const inputActions = hasFocus
     ? "input--focused"
-    : disabled
+    : disabled && !togglePasswordVisibility
       ? "input--disabled"
       : ""
 
@@ -57,7 +60,7 @@ export function InputText({
           className={cn("input", inputActions, hasError, hasLabelUp)}
           ref={inputRef}
         >
-          <div className={cn(disabled ? "pointer-events-none" : "")}>
+          <div>
             <label
               htmlFor={label}
               className={cn(hasFocus ? "text-xs" : "translate-y-2 text-sm")}
@@ -83,11 +86,14 @@ export function InputText({
             {(currentValue as string)?.length > 0 && type === "password" && (
               <div
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors hover:text-neutral-400"
-                onClick={() =>
-                  currentType === "password"
-                    ? setCurrentType("text")
-                    : setCurrentType("password")
-                }
+                onClick={() => {
+                  console.log("Toggle password visibility");
+                  
+                  setCurrentType(
+                    currentType === "password" ? "text" : "password"
+                  )
+
+                }}
               >
                 {currentType === "password" && <Eye className="text-sm" />}
                 {currentType !== "password" && (
