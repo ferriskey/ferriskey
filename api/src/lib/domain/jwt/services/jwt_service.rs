@@ -1,4 +1,5 @@
 use jsonwebtoken::{Algorithm, Header, Validation, decode};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::jwt::entities::jwt::JwtKeyPair;
@@ -58,8 +59,12 @@ where
             .await?;
 
         let header = Header::new(Algorithm::RS256);
-        let token = jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key)
-            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+        let token =
+            jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
+                error!("JWT generation error: {}", e);
+
+                JwtError::GenerationError(e.to_string())
+            })?;
 
         let exp = claims.exp.unwrap_or(0);
 
