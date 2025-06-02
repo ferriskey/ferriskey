@@ -30,9 +30,6 @@ ADMIN_PASSWORD=super
 ADMIN_USERNAME=super
 ADMIN_EMAIL=super@ferriskey.fr
 
-PUBLIC_KEY="public_key_here"
-PRIVATE_KEY="private_key_here"
-
 ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5556
 ```
 
@@ -52,8 +49,6 @@ docker run -p 3333:3333 \
   -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/ferriskey \
   -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=admin \
   -e ADMIN_EMAIL=admin@example.com \
-  -e PUBLIC_KEY=your_public_key \
-  -e PRIVATE_KEY=your_private_key \
   -e ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5554 \
   ghcr.io/ferriskey/ferriskey-api
 ```
