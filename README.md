@@ -1,6 +1,6 @@
 # FerrisKey
 
-FerrisKey is an open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments. With its high-performance API written in Rust and its intuitive web interface developed in Typescript/React, FerrisKey offerrs a robust and flexible alternative to tradtional IAM solutions.
+FerrisKey is an open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments. With its high-performance API written in Rust and its intuitive web interface developed in Typescript/React, FerrisKey offers a robust and flexible alternative to tradtional IAM solutions.
 
 ## 🚀 Features
 
@@ -17,7 +17,7 @@ FerrisKey is based on a hexagonal architecture (or "ports and adapters") that cl
 
 ### API (Rust)
 
-This FerrisKey API is structured according to hexagonal architecture principles:
+The FerrisKey API is structured according to hexagonal architecture principles:
 
 - **Domain**: Contains business entities and core logic
 - **Application**: Coordinates workflows between the domain and adapters.
@@ -25,7 +25,7 @@ This FerrisKey API is structured according to hexagonal architecture principles:
 
 ![API Architecture](./docs_old/api_architecture.png)
 
-This modular design allows:
+This modular design allows for:
 
 - Easy addition of new features
 - Component replacement without modifying business logic
@@ -44,7 +44,7 @@ The user interface is developed with modern web technologies:
 
 ## 🌱 Why FerrisKey?
 
-Unlike historical solutions such as Keycloak (11 years of Java/Quarkus codebase), FerrisKey is designed from the outset to address modern identity management challenges:
+FerrisKey is designed from the outset to address modern identity management challenges:
 
 - **Performance**: Reduced memory footprint and minimal latency thanks to Rust.
 - **Security**: Protection against common security vulnerabilities.
@@ -53,7 +53,7 @@ Unlike historical solutions such as Keycloak (11 years of Java/Quarkus codebase)
 
 ## 🚦 Getting Started with FerrisKey
 
-We working to prepare the development environnement
+We are working on providing a development environment.
 
 ## 🧩 Contributions
 
