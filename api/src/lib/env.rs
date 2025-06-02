@@ -37,12 +37,6 @@ pub struct Env {
     pub database_url: String,
 
     #[clap(env)]
-    pub public_key: String,
-
-    #[clap(env)]
-    pub private_key: String,
-
-    #[clap(env)]
     pub allowed_origins: String,
 
     #[clap(env)]
