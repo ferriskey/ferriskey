@@ -4,12 +4,14 @@ import BadgeColor, { BadgeColorScheme } from "@/components/ui/badge-color";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { InputText } from "@/components/ui/input-text";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { createRoleSchema, CreateRoleSchema } from "../schemas/create-role.schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 export default function CreateRoleModalFeature() {
   const [selectedPermissions, setSelectedPermissions] = useState<Permissions[]>([]);
@@ -21,6 +23,15 @@ export default function CreateRoleModalFeature() {
         : [...prev, permission]
     );
   };
+
+  const form = useForm<CreateRoleSchema>({
+    resolver: zodResolver(createRoleSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      permissions: []
+    }
+  })
 
   const permissionsList = Object.values(Permissions).filter(value => typeof value === 'string');
 
