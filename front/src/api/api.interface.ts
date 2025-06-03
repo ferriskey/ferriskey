@@ -45,7 +45,7 @@ export interface ClientsResponse {
 export interface CreateRoleDto {
 	name: string;
 	description?: string;
-	permissions: number;
+	permissions: string[];
 	realm_id: string;
 	client_id: string;
 }
@@ -53,7 +53,7 @@ export interface CreateRoleDto {
 export interface CreateRoleValidator {
 	name: string;
 	description?: string;
-	permissions: number;
+	permissions: string[];
 }
 
 export interface Role {
