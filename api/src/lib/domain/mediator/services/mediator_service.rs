@@ -189,7 +189,7 @@ impl MediatorService for MediatorServiceImpl {
             .create(CreateRoleDto {
                 client_id: Some(master_realm_client.id),
                 name: "master-realm".to_string(),
-                permissions: Permissions::ManageRealm as i32,
+                permissions: Permissions::to_names(&[Permissions::ManageRealm]),
                 realm_id: realm.id,
                 description: None,
             })

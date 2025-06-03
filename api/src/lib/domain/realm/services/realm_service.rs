@@ -109,10 +109,13 @@ where
             .map_err(|_| RealmError::InternalServerError)?;
 
         // Create role for client
-        let permissions: i32 = Permissions::ManageRealm as i32
-            | Permissions::ManageClients as i32
-            | Permissions::ManageRoles as i32
-            | Permissions::ManageUsers as i32;
+        let permissions = Permissions::to_names(&[
+            Permissions::ManageRealm,
+            Permissions::ManageClients,
+            Permissions::ManageRoles,
+            Permissions::ManageUsers,
+        ]);
+
         let role = self
             .role_repository
             .create(CreateRoleDto {

@@ -48,11 +48,14 @@ impl PostgresRoleRepository {
 impl RoleRepository for PostgresRoleRepository {
     async fn create(&self, payload: CreateRoleDto) -> Result<Role, RoleError> {
         let id = generate_uuid_v7();
+        let permissions = Permissions::from_names(&payload.permissions);
+        let bitfield = Permissions::to_bitfield(&permissions);
+
         let model = entity::roles::ActiveModel {
             id: Set(id),
             name: Set(payload.name),
             description: Set(payload.description),
-            permissions: Set(payload.permissions as i64),
+            permissions: Set(bitfield as i64),
             realm_id: Set(payload.realm_id),
             client_id: Set(payload.client_id),
             created_at: Set(Utc::now().naive_utc()),

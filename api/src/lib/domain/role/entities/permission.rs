@@ -133,6 +133,20 @@ impl Permissions {
             _ => None,
         }
     }
+
+    pub fn from_names(names: &[String]) -> Vec<Self> {
+        names
+            .iter()
+            .filter_map(|name| Self::from_name(name))
+            .collect()
+    }
+
+    pub fn to_names(permissions: &[Self]) -> Vec<String> {
+        permissions
+            .iter()
+            .map(|permission| permission.name())
+            .collect()
+    }
 }
 
 #[cfg(test)]

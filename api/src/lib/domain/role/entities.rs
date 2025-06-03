@@ -11,7 +11,7 @@ pub mod permission;
 pub struct CreateRoleDto {
     pub name: String,
     pub description: Option<String>,
-    pub permissions: i32,
+    pub permissions: Vec<String>,
     #[typeshare(serialized_as = "string")]
     pub realm_id: Uuid,
     #[typeshare(serialized_as = "string", optional)]

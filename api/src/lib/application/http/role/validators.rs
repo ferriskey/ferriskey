@@ -11,7 +11,7 @@ use crate::domain::role::entities::CreateRoleDto;
 pub struct CreateRoleValidator {
     pub name: String,
     pub description: Option<String>,
-    pub permissions: i32,
+    pub permissions: Vec<String>,
 }
 
 impl CreateRoleValidator {
