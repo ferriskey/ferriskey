@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ferriskey.fullname" . }}-api
+  labels:
+    {{- include "ferriskey.labels" . | nindent 4 }}
+    component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ferriskey.selectorLabels" . | nindent 6 }}
+      component: api
+  template:
+    metadata:
+      labels:
+        {{- include "ferriskey.labels" . | nindent 8 }}
+        component: api
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      #serviceAccountName: {{ include "ferriskey.serviceAccountName" . }}
+      initContainers:
+        - name: migrations
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              sqlx migrate run &&
+              echo 'Database migrations completed!'
+          env:
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: ENV
+              value: {{ .Values.env | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.databaseUrl | quote }}
+            - name: ADMIN_PASSWORD
+              value: {{ .Values.auth.password }}
+            - name: ADMIN_USERNAME
+              value: {{ .Values.auth.username | quote }}
+            - name: ADMIN_EMAIL
+              value: {{ .Values.auth.email | quote }}
+            - name: ALLOWED_ORIGINS
+              value: {{ .Values.allowedOrigins | quote }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.api.service.port | quote }}
+            - name: ENV
+              value: {{ .Values.env | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.databaseUrl | quote }}
+            - name: ADMIN_PASSWORD
+              value: {{ .Values.auth.password }}
+            - name: ADMIN_USERNAME
+              value: {{ .Values.auth.username | quote }}
+            - name: ADMIN_EMAIL
+              value: {{ .Values.auth.email | quote }}
+            - name: ALLOWED_ORIGINS
+              value: {{ .Values.allowedOrigins | quote }}

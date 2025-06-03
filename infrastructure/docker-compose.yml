@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ferriskey
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+  api-migration:
+    image: ghcr.io/ferriskey/ferriskey-api:latest
+    environment:
+      - PORT=3333
+      - ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
+      - ADMIN_PASSWORD=admin
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=super@ferriskey.dev
+      - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
+    depends_on:
+      - postgres
+    command: >
+      bash -c "
+        sqlx migrate run &&
+        echo 'Database migrations completed!'
+      "
+    restart: "no"
+  api:
+    image: ghcr.io/ferriskey/ferriskey-api:latest
+    environment:
+      - PORT=3333
+      - ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
+      - ADMIN_PASSWORD=admin
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=super@ferriskey.dev
+      - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
+    depends_on:
+      api-migration:
+        condition: service_completed_successfully
+    ports:
+      - "3333:3333"
+    restart: unless-stopped
+  frontend:
+    image: ghcr.io/ferriskey/ferriskey-front:latest
+    ports:
+      - "5555:80"
+    environment:
+      - APP_API_URL=http://localhost:3333
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

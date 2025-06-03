@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ferriskey.fullname" . }}-front
+  labels:
+    {{- include "ferriskey.labels" . | nindent 4 }}
+    component: front
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ferriskey.selectorLabels" . | nindent 6 }}
+      component: front
+  template:
+    metadata:
+      labels:
+        {{- include "ferriskey.selectorLabels" . | nindent 8 }}
+        component: front
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.front.image.repository }}:{{ .Values.front.image.tag }}"
+          imagePullPolicy: {{ .Values.front.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: APP_API_URL
+              value: {{ .Values.front.apiUrl }}
