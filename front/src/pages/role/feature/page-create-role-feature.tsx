@@ -42,14 +42,6 @@ export default function PageCreateRoleFeature() {
     }
   })
 
-  // watch form data
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      console.log("Form values changed:", value);
-    });
-    return () => subscription.unsubscribe();
-  })
-
   const handleSubmit = () => {
     const values = form.getValues()
     if (!realm_name) return
