@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -48,6 +49,7 @@ impl Credential {
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, FromRow, PartialOrd, Ord,
 )]
+#[typeshare]
 pub struct CredentialData {
     pub hash_iterations: u32,
     pub algorithm: String,

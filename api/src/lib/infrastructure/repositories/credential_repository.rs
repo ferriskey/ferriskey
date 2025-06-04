@@ -118,4 +118,20 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         Ok(())
     }
+
+    async fn get_credentials_by_user_id(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        let credentials = CredentialEntity::find()
+            .filter(entity::credentials::Column::UserId.eq(user_id))
+            .all(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .into_iter()
+            .map(Credential::from)
+            .collect();
+
+        Ok(credentials)
+    }
 }

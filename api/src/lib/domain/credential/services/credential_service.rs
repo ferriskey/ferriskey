@@ -87,4 +87,13 @@ where
 
         Ok(is_valid)
     }
+
+    async fn get_credentials_by_user_id(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        self.credential_repository
+            .get_credentials_by_user_id(user_id)
+            .await
+    }
 }
