@@ -96,4 +96,8 @@ where
             .get_credentials_by_user_id(user_id)
             .await
     }
+
+    async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
+        self.credential_repository.delete_by_id(credential_id).await
+    }
 }

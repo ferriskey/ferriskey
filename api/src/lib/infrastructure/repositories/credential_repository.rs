@@ -134,4 +134,20 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         Ok(credentials)
     }
+
+    async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
+        let credential = CredentialEntity::find()
+            .filter(entity::credentials::Column::Id.eq(credential_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::DeleteCredentialError)?
+            .ok_or(CredentialError::DeleteCredentialError)?;
+
+        credential
+            .delete(&self.db)
+            .await
+            .map_err(|_| CredentialError::DeleteCredentialError)?;
+
+        Ok(())
+    }
 }
