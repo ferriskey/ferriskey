@@ -2,9 +2,10 @@ import { Role } from "@/api/api.interface";
 import { DataTable } from "@/components/ui/data-table";
 import { Edit, ExternalLink, Trash2, Settings } from "lucide-react";
 import { columns } from "../columns/list-client.column";
-import CreateRoleModalFeature from '../feature/create-role-modal-feature';
 import { Heading } from "@/components/ui/heading";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ROLE_CREATE_URL, ROLES_URL } from "@/routes/sub-router/role.router";
 
 export interface PageRolesOverviewProps {
   isLoading?: boolean
@@ -21,6 +22,10 @@ export default function PageRolesOverview({ data, isLoading, realmName, handleDe
     navigate(`/realms/${realmName}/roles/${role.id}/settings`);
   };
 
+  const handleCreateRole = () => {
+    navigate(`${ROLES_URL(realmName)}${ROLE_CREATE_URL}`)
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -30,7 +35,9 @@ export default function PageRolesOverview({ data, isLoading, realmName, handleDe
             Manage roles in {realmName}
           </p>
         </div>
-        <CreateRoleModalFeature />
+        <Button variant="outline" onClick={handleCreateRole}>
+          Create Role
+        </Button>
       </div>
 
       <DataTable

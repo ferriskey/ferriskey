@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { GetRoleResponse, GetRolesResponse, Role } from "./api.interface"
 import { authStore } from "@/store/auth.store"
+import { CreateRoleSchema } from "@/pages/role/schemas/create-role.schema"
 
 
 export const useGetRoles = ({ realm }: BaseQuery) => {
@@ -36,5 +37,26 @@ export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) =
       return response.data
     },
     enabled: !!realm && !!roleId,
+  })
+}
+
+export const useCreateRole = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ realmName, clientId, payload }: { realmName: string, clientId: string, payload: CreateRoleSchema }) => {
+      const accessToken = authStore.getState().accessToken
+
+      const response = await apiClient.post(`/realms/${realmName}/clients/${clientId}/roles`, payload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] })
+    }
   })
 }

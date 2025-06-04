@@ -14,7 +14,7 @@ export default function LoaderSpinner(props: LoaderSpinnerProps) {
   } = props
   const themeClasses =
     theme === 'dark'
-      ? 'border-neutral-350 border-r-neutral-50'
+      ? 'border-neutral-300 border-r-neutral-50'
       : 'border-r-neutral-500'
 
   return (

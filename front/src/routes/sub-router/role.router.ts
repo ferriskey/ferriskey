@@ -5,3 +5,4 @@ export const ROLE_URL = (realmName = ":realmName", roleId = ":roleId") => `${ROL
 
 export const ROLE_OVERVIEW_URL = '/overview'
 export const ROLE_SETTINGS_URL = '/settings'
+export const ROLE_CREATE_URL = '/create'

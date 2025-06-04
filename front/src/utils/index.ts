@@ -8,3 +8,9 @@ export function getBadgeColorFromPermissionVariant (permission: Permissions): Ba
   if (permission.toString().startsWith('query')) return BadgeColorScheme.YELLOW
   return BadgeColorScheme.GRAY
 }
+
+export function formatPermissionName(permission: string): string {
+  return permission
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+}
