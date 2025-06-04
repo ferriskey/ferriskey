@@ -95,6 +95,21 @@ export interface CreateUserResponse {
 	data: User;
 }
 
+export interface CredentialData {
+	hash_iterations: number;
+	algorithm: string;
+}
+
+export interface CredentialOverview {
+	id: string;
+	user_id: string;
+	credential_type: string;
+	user_label?: string;
+	credential_data: CredentialData;
+	created_at: Date;
+	updated_at: Date;
+}
+
 export interface GetClientResponse {
 	data: Client;
 }
@@ -110,6 +125,10 @@ export interface GetRoleResponse {
 
 export interface GetRolesResponse {
 	data: Role[];
+}
+
+export interface GetUserCredentialsResponse {
+	data: CredentialOverview[];
 }
 
 export interface JwtToken {

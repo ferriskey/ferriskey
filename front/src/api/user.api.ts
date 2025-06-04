@@ -2,7 +2,7 @@ import { authStore } from "@/store/auth.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { CreateUserSchema, UpdateUserSchema } from '../pages/user/validators'
-import { BulkDeleteUserResponse, CreateUserResponse, UpdateUserResponse, User, UserResponse, UsersResponse } from "./api.interface"
+import { BulkDeleteUserResponse, CreateUserResponse, CredentialOverview, GetUserCredentialsResponse, UpdateUserResponse, User, UserResponse, UsersResponse } from "./api.interface"
 
 export interface UserMutateContract<T> {
   realm?: string,
@@ -47,6 +47,23 @@ export const useGetUser = ({ realm, userId }: GetUserQueryParams) => {
       return response.data.data
     },
     enabled: !!userId && !!realm
+  })
+}
+
+export const useGetUserCredentials = ({ realm, userId }: GetUserQueryParams) => {
+  return useQuery({
+    queryKey: ["user", userId, "credentials"],
+    queryFn: async (): Promise<CredentialOverview[]> => {
+      const accessToken = authStore.getState().accessToken
+
+      const { data: responseData } = await apiClient.get<GetUserCredentialsResponse>(`/realms/${realm}/users/${userId}/credentials`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return responseData.data
+    }
   })
 }
 
@@ -109,6 +126,28 @@ export const useBulkDeleteUser = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["users"],
+      })
+    }
+  })
+}
+
+export const useResetUserPassword = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ realm, userId, payload }: UserMutateContract<{ password: string }>): Promise<UpdateUserResponse> => {
+      const accessToken = authStore.getState().accessToken
+      const response = await apiClient.put(`/realms/${realm}/users/${userId}/reset-password`, payload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["users", "user"],
       })
     }
   })

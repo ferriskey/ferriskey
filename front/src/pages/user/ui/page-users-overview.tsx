@@ -12,11 +12,17 @@ export interface PageUsersOverviewOverviewProps {
   data: User[]
   realmName: string
   handleDeleteSelected: (items: User[]) => void
+  handleClickRow: (userId: string) => void
 }
 
-export default function PageUsersOverview(props: PageUsersOverviewOverviewProps) {
+export default function PageUsersOverview({
+  isLoading,
+  data,
+  realmName,
+  handleClickRow,
+  handleDeleteSelected
+}: PageUsersOverviewOverviewProps) {
   const navigate = useNavigate()
-  const { data, isLoading, handleDeleteSelected } = props
 
   return (
     <Fragment>
@@ -24,15 +30,18 @@ export default function PageUsersOverview(props: PageUsersOverviewOverviewProps)
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher un utilisateur..."
+        searchPlaceholder="Search a user..."
         searchKeys={["username", "id"]}
         enableSelection={true}
+        onRowClick={(user) => {
+          handleClickRow(user.id)
+        }}
         onDeleteSelected={handleDeleteSelected}
         rowActions={[
           {
-            label: "Éditer",
+            label: "Edit",
             icon: <Edit className="h-4 w-4" />,
-            onClick: (user) => navigate(`/realms/${props.realmName}/users/${user.id}/overview`),
+            onClick: (user) => navigate(`/realms/${realmName}/users/${user.id}/overview`),
           },
           {
             label: "Voir les détails",

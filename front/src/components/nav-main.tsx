@@ -10,7 +10,7 @@ import { CLIENTS_URL, OVERVIEW_URL } from "@/routes/sub-router/client.router"
 import { BookOpen, Bot, SquareAsterisk } from "lucide-react"
 import { useNavigate, useParams } from "react-router"
 import { ROLE_OVERVIEW_URL, ROLES_URL } from '../routes/sub-router/role.router'
-import { USER_OVERVIEW_URL, USER_URL } from '../routes/sub-router/user.router'
+import { USER_OVERVIEW_URL, USERS_URL } from '../routes/sub-router/user.router'
 
 export function NavMain() {
   const { realm_name } = useParams<RouterParams>()
@@ -31,7 +31,7 @@ export function NavMain() {
             <span>Clients</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem onClick={() => handleClick(`${USER_URL(realm_name)}${USER_OVERVIEW_URL}`)}>
+        <SidebarMenuItem onClick={() => handleClick(`${USERS_URL(realm_name)}${USER_OVERVIEW_URL}`)}>
           <SidebarMenuButton className="flex items-center gap-2 cursor-pointer">
             {/* icon */}
             <Bot />

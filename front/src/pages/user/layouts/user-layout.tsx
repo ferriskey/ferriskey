@@ -4,6 +4,7 @@ import { Heading } from '../../../components/ui/heading'
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import { UserRouterParams } from '../../../routes/sub-router/user.router'
 import EditUserOverviewFeature from '../feature/edit-user-overview-feature'
+import PageCredentialFeature from '../feature/page-credential-feature'
 
 export default function UserLayout() {
   const navigate = useNavigate()
@@ -35,7 +36,7 @@ export default function UserLayout() {
 
       <Routes>
         <Route path="overview" element={<EditUserOverviewFeature />} />
-        <Route path="credentials" element={<p>credentials</p>} />
+        <Route path="credentials" element={<PageCredentialFeature />} />
         <Route path="role-mapping" element={<p>role-mapping</p>} />
       </Routes>
     </div>

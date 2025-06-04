@@ -4,7 +4,7 @@ import { Client, Permissions } from "@/api/api.interface";
 import { FormField } from "@/components/ui/form";
 import { InputText } from "@/components/ui/input-text";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Smile, X } from "lucide-react";
+import { ArrowLeft, Smile, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { formatPermissionName } from "@/utils";
 import BadgeColor, { BadgeColorScheme } from "@/components/ui/badge-color";
