@@ -26,6 +26,11 @@ pub struct ResetPasswordRoute {
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),
     ),
+    request_body(
+        content = ResetPasswordValidator,
+        description = "New password for the user",
+        content_type = "application/json",
+    )
 )]
 pub async fn reset_password(
     ResetPasswordRoute {

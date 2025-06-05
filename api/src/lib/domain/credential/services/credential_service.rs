@@ -54,10 +54,21 @@ where
 
     async fn reset_password(
         &self,
-        _user_id: uuid::Uuid,
-        _password: String,
+        user_id: uuid::Uuid,
+        password: String,
     ) -> Result<(), CredentialError> {
-        unimplemented!("Reset password")
+        let hash_result = self
+            .crypto_service
+            .hash_password(&password)
+            .await
+            .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
+
+        self.credential_repository
+            .create_credential(user_id, "password".into(), hash_result, "".into())
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(())
     }
 
     async fn verify_password(
