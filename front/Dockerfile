@@ -25,7 +25,7 @@ FROM dependencies AS build
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
-FROM nginx:latest
+FROM nginx:1.28.0-alpine3.21-slim
 
 COPY --from=build /home/node/app/dist/ /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
