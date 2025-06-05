@@ -52,7 +52,7 @@ export const useGetUser = ({ realm, userId }: GetUserQueryParams) => {
 
 export const useGetUserCredentials = ({ realm, userId }: GetUserQueryParams) => {
   return useQuery({
-    queryKey: ["user", userId, "credentials"],
+    queryKey: ["user", "credentials"],
     queryFn: async (): Promise<CredentialOverview[]> => {
       const accessToken = authStore.getState().accessToken
 
@@ -135,7 +135,7 @@ export const useResetUserPassword = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ realm, userId, payload }: UserMutateContract<{ password: string }>): Promise<UpdateUserResponse> => {
+    mutationFn: async ({ realm, userId, payload }: UserMutateContract<{ value: string, credential_type: string, temporary: boolean }>): Promise<UpdateUserResponse> => {
       const accessToken = authStore.getState().accessToken
       const response = await apiClient.put(`/realms/${realm}/users/${userId}/reset-password`, payload, {
         headers: {
@@ -147,7 +147,7 @@ export const useResetUserPassword = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["users", "user"],
+        queryKey: ["user", "credentials"],
       })
     }
   })

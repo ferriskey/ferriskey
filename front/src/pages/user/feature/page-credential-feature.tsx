@@ -19,7 +19,6 @@ export default function PageCredentialFeature() {
       </div>
     )
   }
-
   return (
     <PageCredentials 
       credentials={credentials}

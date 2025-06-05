@@ -93,7 +93,10 @@ function App() {
 
         <Route path='*' element={<Navigate to="/realms/master/authentication/login" replace />} />
       </Routes>
-      <Toaster richColors />
+      <Toaster 
+        richColors 
+        theme='light'
+      />
     </>
   )
 }
