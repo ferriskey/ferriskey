@@ -47,17 +47,27 @@ async fn main() -> Result<(), anyhow::Error> {
     let app_server = AppServer::new(Arc::clone(&env)).await?;
     let app_state = app_server.create_app_state(env.clone());
 
-    app_state
-        .mediator_service
-        .initialize_master_realm()
-        .await
-        .expect("Failed to initialize master realm");
+    match app_state.mediator_service.initialize_master_realm().await {
+        Ok(_) => tracing::info!("Master realm initialized successfully"),
+        Err(e) => {
+            tracing::error!("Failed to initialize master realm: {}", e);
+            return Err(e.into());
+        }
+    }
 
-    app_state
+    match app_state
         .mediator_service
         .initialize_admin_redirect_uris()
         .await
-        .expect("Failed to initialize admin redirect uris");
+    {
+        Ok(_) => tracing::info!("Admin redirect URIs initialized successfully"),
+        Err(e) => {
+            tracing::error!("Failed to initialize admin redirect URIs: {}", e);
+            return Err(e.into());
+        }
+    }
+
+    tracing::info!("FerrisKey API is starting...");
 
     let server_config = HttpServerConfig::new(env.port.clone());
 
@@ -65,5 +75,6 @@ async fn main() -> Result<(), anyhow::Error> {
 
     http_server.run().await?;
 
+    tracing::info!("FerrisKey API is running on port {}", env.port);
     Ok(())
 }
