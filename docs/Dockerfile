@@ -12,7 +12,7 @@ COPY . .
 
 RUN pnpm build
 
-FROM nginx:latest AS runtime
+FROM nginx:1.28.0-alpine3.21-slim AS runtime
 
 COPY ./nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
