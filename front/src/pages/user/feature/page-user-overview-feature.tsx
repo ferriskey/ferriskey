@@ -43,7 +43,7 @@ export default function PageUserOverviewFeature() {
     })
   }
 
-  if (!user_id || isLoading) return
+  if (!user_id || isLoading) return null
 
   return (
     <Form {...form}>
