@@ -2,6 +2,8 @@ import { Route, Routes } from "react-router";
 import PageUsersOverviewFeature from './feature/page-users-overview-feature';
 import UserLayout from './layouts/user-layout';
 import UsersLayout from './layouts/users-layout';
+import PageUserOverviewFeature from "./feature/page-user-overview-feature.tsx";
+import PageCredentialFeature from "./feature/page-credential-feature";
 
 export default function PageUser() {
   return (
@@ -9,7 +11,12 @@ export default function PageUser() {
       <Route element={<UsersLayout />}>
         <Route path="/overview" element={<PageUsersOverviewFeature />} />
       </Route>
-      <Route path="/:user_id/*" element={<UserLayout />} />
+
+      <Route element={<UserLayout />}>
+        <Route path="/:user_id/overview" element={<PageUserOverviewFeature />} />
+        <Route path="/:user_id/credentials" element={<PageCredentialFeature />} />
+        <Route path="/:user_id/role-mapping" element={<p>role-mapping</p>} />
+      </Route>
     </Routes>
   )
 }

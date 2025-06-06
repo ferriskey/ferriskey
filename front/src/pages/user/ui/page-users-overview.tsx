@@ -4,7 +4,7 @@ import { Edit, ExternalLink, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router';
 import { Fragment } from 'react/jsx-runtime';
 import { columns } from "../columns/list-user.column";
-import EditUserModalFeature from '../feature/edit-user-overview-feature';
+import EditUserModalFeature from '../feature/page-user-overview-feature.tsx';
 
 
 export interface PageUsersOverviewOverviewProps {

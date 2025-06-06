@@ -34,7 +34,7 @@ export const useGetUsers = ({ realm }: BaseQuery) => {
 
 export const useGetUser = ({ realm, userId }: GetUserQueryParams) => {
   return useQuery({
-    queryKey: ["user", userId],
+    queryKey: ["user"],
     queryFn: async (): Promise<User> => {
       const accessToken = authStore.getState().accessToken
 
@@ -103,7 +103,7 @@ export const useUpdateUser = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["users", "user"],
+        queryKey: ["user"],
       })
     }
   })
