@@ -23,6 +23,7 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   build-doc:
     runs-on: ubuntu-latest
+    needs: sonarqube
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +47,7 @@ jobs:
           tags: ghcr.io/ferriskey/ferriskey-docs:latest
   build-api:
     runs-on: ubuntu-latest
+    needs: sonarqube
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,6 +71,7 @@ jobs:
           tags: ghcr.io/ferriskey/ferriskey-api:latest
   build-front:
     runs-on: ubuntu-latest
+    needs: sonarqube
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
