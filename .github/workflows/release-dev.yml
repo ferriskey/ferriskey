@@ -21,6 +21,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=test
+            -Dsonar.sources=front,api
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/target/**
+            -Dsonar.javascript.node.maxspace=8192
   build-doc:
     runs-on: ubuntu-latest
     needs: sonarqube
