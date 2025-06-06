@@ -105,6 +105,9 @@ export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
           }
         ]}
         description="You have unsaved changes. Click 'Save' to apply them."
+        onCancel={() => {
+            form.reset()
+        }}
       />
     </div>
   )
