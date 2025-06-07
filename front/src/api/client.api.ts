@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
-import { Client, ClientsResponse, GetClientResponse } from "./api.interface"
+import { Client, ClientsResponse, DeleteClientResponse, GetClientResponse } from './api.interface'
 import { CreateClientSchema } from "@/pages/client/feature/create-client-modal-feature"
 import { authStore } from "@/store/auth.store"
 
@@ -67,7 +67,28 @@ export const useCreateClient = () => {
       queryClient.invalidateQueries({
         queryKey: ["clients"],
       })
+    }
+  })
+}
 
+export const useDeleteClient = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ realm, clientId }: BaseQuery & { clientId: string }) => {
+      const accessToken = authStore.getState().accessToken
+
+      const response = await apiClient.delete<DeleteClientResponse>(`/realms/${realm}/clients/${clientId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["clients"],
+      })
     }
   })
 }

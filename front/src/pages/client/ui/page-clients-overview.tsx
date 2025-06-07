@@ -9,10 +9,11 @@ export interface PageClientsOverviewProps {
   realmName: string
   handleDeleteSelected: (items: Client[]) => void
   handleClickRow: (clientId: string) => void
+  handleDeleteClient: (clientId: string) => void
 
 }
 
-export default function PageClientsOverview({ data, isLoading, handleDeleteSelected, handleClickRow }: PageClientsOverviewProps) {
+export default function PageClientsOverview({ data, isLoading, handleDeleteSelected, handleClickRow, handleDeleteClient }: PageClientsOverviewProps) {
   return (
     <div>
       <DataTable
@@ -28,20 +29,20 @@ export default function PageClientsOverview({ data, isLoading, handleDeleteSelec
         onDeleteSelected={handleDeleteSelected}
         rowActions={[
           {
-            label: "Éditer",
+            label: "Edit",
             icon: <Edit className="h-4 w-4" />,
             onClick: (client) => console.log("Edit", client),
           },
           {
-            label: "Voir les détails",
+            label: "View",
             icon: <ExternalLink className="h-4 w-4" />,
             onClick: (client) => console.log("View", client),
           },
           {
-            label: "Supprimer",
+            label: "Delete",
             icon: <Trash2 className="h-4 w-4" />,
             variant: "destructive",
-            onClick: (client) => console.log("Delete", client),
+            onClick: (client) => handleDeleteClient(client.id),
           },
         ]}
       />

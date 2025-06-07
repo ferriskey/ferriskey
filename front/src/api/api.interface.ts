@@ -110,6 +110,10 @@ export interface CredentialOverview {
 	updated_at: Date;
 }
 
+export interface DeleteClientResponse {
+	message: string;
+}
+
 export interface GetClientResponse {
 	data: Client;
 }

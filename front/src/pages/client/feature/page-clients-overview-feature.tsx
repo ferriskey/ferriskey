@@ -1,23 +1,47 @@
 import { Client } from "@/api/api.interface"
-import { useGetClients } from "@/api/client.api"
+import { useDeleteClient, useGetClients } from '@/api/client.api'
 import { RouterParams } from "@/routes/router"
 import { useNavigate, useParams } from "react-router"
 import PageClientsOverview from "../ui/page-clients-overview"
 import { CLIENT_OVERVIEW_URL } from "@/routes/sub-router/client.router"
+import { useEffect } from 'react'
+import { toast } from 'sonner'
 
 export default function PageClientsOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const { data, isLoading } = useGetClients({ realm: realm_name ?? 'master' })
+  const { mutate: deleteClient, data: responseDeleteClient } = useDeleteClient()
 
   const handleDeleteSelected = (items: Client[]) => {
-    console.log("Deleting", items);
-    // Logique de suppression en lot
-  };
+    if (!realm_name) return
+
+    items.forEach((item) => {
+      deleteClient({
+        realm: realm_name,
+        clientId: item.id
+      })
+    })
+  }
+
+  const handleDeleteClient = (clientId: string) => {
+    if (!realm_name) return
+
+    deleteClient({
+      realm: realm_name,
+      clientId
+    })
+  }
 
   const handleClickRow = (clientId: string) => {
     navigate(`${CLIENT_OVERVIEW_URL(realm_name, clientId)}`)
   }
+
+  useEffect(() => {
+    if (responseDeleteClient) {
+      toast.success('Client deleted successfully')
+    }
+  }, [responseDeleteClient])
 
   return (
     <PageClientsOverview
@@ -26,6 +50,7 @@ export default function PageClientsOverviewFeature() {
       realmName={realm_name ?? "master"}
       handleDeleteSelected={handleDeleteSelected}
       handleClickRow={handleClickRow}
+      handleDeleteClient={handleDeleteClient}
     />
   )
 }
