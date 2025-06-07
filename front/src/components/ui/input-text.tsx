@@ -9,6 +9,7 @@ export interface InputTextProps {
   type?: "text" | "number" | "password" | "email"
   className?: string
   onChange?: (value: string | number) => void
+  onEnterPress?: () => void
   error?: string
   disabled?: boolean
   // variable to control the toggle visibility of the password even if it's in disable
@@ -20,6 +21,7 @@ export function InputText({
   label,
   value = "",
   onChange,
+  onEnterPress,
   type = "text",
   error,
   className = "",
@@ -81,6 +83,12 @@ export function InputText({
               }}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && onEnterPress) {
+                  e.preventDefault()
+                  onEnterPress()
+                }
+              }}
             />
 
             {(currentValue as string)?.length > 0 && type === "password" && (

@@ -72,6 +72,7 @@ export default function PageCreateRole({
                 label="Role Name"
                 name="name"
                 error={form.formState.errors.name?.message}
+                onEnterPress={handleSubmit}
               />
             )}
           />
@@ -85,6 +86,7 @@ export default function PageCreateRole({
                 label="Description"
                 name="description"
                 error={form.formState.errors.description?.message}
+                onEnterPress={handleSubmit}
               />
             )}
           />
