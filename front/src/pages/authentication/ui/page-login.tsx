@@ -46,6 +46,7 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                               label='Username'
                               name='username'
                               className="w-full"
+                              onEnterPress={() => onSubmit(form.getValues())}
                             />
                           )}
                         />
@@ -61,6 +62,7 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                               name='password'
                               type='password'
                               className="w-full"
+                              onEnterPress={() => onSubmit(form.getValues())}
                             />
                           )}
                         />
