@@ -1,0 +1,24 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-api-scaled-object
+  namespace: {{ .Release.Namespace }}
+spec:
+  scaleTargetRef:
+    name: {{ .Values.api.name }}
+  pollingInterval: 30
+  cooldownPeriod: 30
+  minReplicaCount: {{ .Values.api.minReplicas }}
+  maxReplicaCount: {{ .Values.api.maxReplicas }}
+  triggers:
+    - type: postgresql
+      metadata:
+        query: "SELECT COUNT(*) FROM realms;"
+        targetQueryValue: 1
+        dbName: app  # ou utilise `.Values.database.name` si templatisé
+        host: {{ .Values.database.host }}  # ex: `mydb-rw.ferriskey.svc.cluster.local`
+        port: "5432"
+        userName: app
+        sslmode: disable
+      authenticationRef:
+        name: {{ .Release.Name }}-pg-auth

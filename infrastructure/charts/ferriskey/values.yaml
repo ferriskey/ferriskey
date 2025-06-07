@@ -7,7 +7,7 @@
 front:
   image:
     repository: ghcr.io/ferriskey/ferriskey-front
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     tag: "latest"
   labels:
     app: ferriskey-front
@@ -19,13 +19,17 @@ api:
   replicaCount: 1
   image:
     repository: ghcr.io/ferriskey/ferriskey-api
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     tag: "latest"
   service:
     type: ClusterIP
     port: 3333
+  database:
+    existingSecret: infrastructure-ferriskey-stack-db-app
+    existingSecretUrlKey: uri
 
 ingress:
+  enabled: true
   apiHost: "api.ferriskey.bonnal.cloud"
   frontHost: "console.ferriskey.bonnal.cloud"
 

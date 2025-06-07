@@ -37,7 +37,10 @@ spec:
             - name: ENV
               value: {{ .Values.env | quote }}
             - name: DATABASE_URL
-              value: {{ .Values.databaseUrl | quote }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ .Values.api.database.existingSecretUrlKey }}
+                  name: {{ .Values.api.database.existingSecret }}
             - name: ADMIN_PASSWORD
               value: {{ .Values.auth.password }}
             - name: ADMIN_USERNAME
@@ -60,7 +63,10 @@ spec:
             - name: ENV
               value: {{ .Values.env | quote }}
             - name: DATABASE_URL
-              value: {{ .Values.databaseUrl | quote }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ .Values.api.database.existingSecretUrlKey }}
+                  name: {{ .Values.api.database.existingSecret }}
             - name: ADMIN_PASSWORD
               value: {{ .Values.auth.password }}
             - name: ADMIN_USERNAME

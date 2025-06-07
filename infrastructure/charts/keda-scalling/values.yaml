@@ -1,0 +1,6 @@
+api:
+  name: ferriskey-api
+  minReplicas: 1
+  maxReplicas: 10
+database:
+  host: infrastructure-ferriskey-stack-db-rw.ferriskey.svc.cluster.local
