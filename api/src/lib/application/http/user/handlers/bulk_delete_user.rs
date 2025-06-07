@@ -32,7 +32,7 @@ pub struct BulkDeleteUserRoute {
 
 #[utoipa::path(
     delete,
-    path = "/{realm_name}/users/bulk",
+    path = "/bulk",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),

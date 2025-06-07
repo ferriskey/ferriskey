@@ -37,7 +37,7 @@ pub struct CreateUserResponse {
 
 #[utoipa::path(
     post,
-    path = "/{realm_name}/users",
+    path = "",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),

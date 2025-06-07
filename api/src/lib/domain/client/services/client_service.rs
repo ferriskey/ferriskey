@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use uuid::Uuid;
 use crate::application::http::client::validators::CreateClientValidator;
 use crate::domain::client::entities::dto::CreateClientDto;
 use crate::domain::client::entities::{error::ClientError, model::Client};
@@ -116,5 +116,11 @@ where
             .get_by_realm_id(realm_id)
             .await
             .map_err(|_| ClientError::NotFound)
+    }
+
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
+        self.client_repository
+            .delete_by_id(id)
+            .await
     }
 }

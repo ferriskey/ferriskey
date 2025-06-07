@@ -26,7 +26,7 @@ pub struct AssignRoleRoute {
 
 #[utoipa::path(
     post,
-    path = "/{realm_name}/users/{user_id}/roles/{role_id}",
+    path = "/{user_id}/roles/{role_id}",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),

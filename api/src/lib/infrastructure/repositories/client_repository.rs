@@ -3,7 +3,7 @@ use entity::clients::{ActiveModel, Entity as ClientEntity};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
-
+use uuid::Uuid;
 use crate::domain::{
     client::{
         entities::{dto::CreateClientDto, error::ClientError, model::Client},
@@ -113,5 +113,23 @@ impl ClientRepository for PostgresClientRepository {
         let clients: Vec<Client> = clients.into_iter().map(|c| c.into()).collect();
 
         Ok(clients)
+    }
+
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
+        let result = ClientEntity::delete_many()
+            .filter(entity::clients::Column::Id.eq(id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to delete client: {}", e);
+                ClientError::InternalServerError
+
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(ClientError::InternalServerError);
+        }
+
+        Ok(())
     }
 }

@@ -29,7 +29,7 @@ pub struct UsersResponse {
 
 #[utoipa::path(
     get,
-    path = "/{realm_name}/users",
+    path = "",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),  
