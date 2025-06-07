@@ -35,11 +35,17 @@ where
     }
 
     async fn delete_by_id(&self, _id: Uuid) -> Result<(), RoleError> {
-        todo!("delete role");
+        self.role_repository
+            .delete_by_id(_id)
+            .await
+            .map_err(|_| RoleError::NotFound)
     }
 
     async fn get_by_client_id(&self, _client_id: Uuid) -> Result<Vec<Role>, RoleError> {
-        todo!("get role by client id");
+        self.role_repository
+            .get_by_client_id(_client_id)
+            .await
+            .map_err(|_| RoleError::NotFound)
     }
 
     async fn get_by_client_id_text(
