@@ -37,7 +37,6 @@ export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
               <InputText
                 label='Email'
                 type='email'
-                onEnterPress={form.handleSubmit(onSubmit)}
                 {...field}
               />
             )}
@@ -49,7 +48,6 @@ export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
             render={({ field }) => (
               <InputText
                 label='First Name'
-                onEnterPress={form.handleSubmit(onSubmit)}
                 {...field}
               />
             )}
@@ -61,7 +59,6 @@ export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
             render={({ field }) => (
               <InputText
                 label='Last Name'
-                onEnterPress={form.handleSubmit(onSubmit)}
                 {...field}
               />
             )}
