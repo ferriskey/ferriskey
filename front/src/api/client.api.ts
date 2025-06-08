@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { Client, ClientsResponse, DeleteClientResponse, GetClientResponse } from './api.interface'
-import { CreateClientSchema } from "@/pages/client/feature/create-client-modal-feature"
 import { authStore } from "@/store/auth.store"
+import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
 
 
 export const useGetClients = ({ realm }: BaseQuery) => {
