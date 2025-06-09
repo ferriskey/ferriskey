@@ -1,6 +1,6 @@
 import { CredentialOverview } from "@/api/api.interface";
 import { ColumnDef } from "@/components/ui/data-table";
-import SetPasswordFeature from '@/pages/user/feature/modals/set-password-feature.tsx'
+import SetPasswordFeature from '@/pages/user/feature/modals/set-password-feature'
 
 export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
   {
@@ -40,6 +40,7 @@ export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
   },
   {
     id: 'actions',
+    header: '',
     cell: (credential) => {
       if (credential.credential_type !== 'password') return null
 
