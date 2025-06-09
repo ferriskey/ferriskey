@@ -37,15 +37,4 @@ export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
       );
     }
   },
-  // {
-  //   id: "actions",
-  //   header: "Actions",
-  //   cell: (credential) => {
-  //     return (
-  //       <div className="flex items-center gap-2">
-  //         {/* Add action buttons here if needed */}
-  //       </div>
-  //     );
-  //   }
-  // }
 ]

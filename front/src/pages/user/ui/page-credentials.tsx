@@ -2,20 +2,31 @@ import { CredentialOverview } from "@/api/api.interface";
 import { DataTable } from "@/components/ui/data-table";
 import { columnsUserCredential } from "../columns/list-user-credential.column";
 import SetPasswordFeature from "../feature/modals/set-password-feature";
+import { Trash2 } from 'lucide-react'
 
 export interface PageCredentialsProps {
   credentials: CredentialOverview[]
+  handleDeleteUserCredential: (credentialId: string) => void
 }
 
-export default function PageCredentials({ credentials }: PageCredentialsProps) {
-
+export default function PageCredentials({ credentials, handleDeleteUserCredential }: PageCredentialsProps) {
   return (
-      <DataTable 
+    <DataTable
       data={credentials}
       columns={columnsUserCredential}
       searchPlaceholder="Search a credential..."
       enableSelection={true}
       emptyState={<EmptyCredential />}
+      rowActions={[
+        {
+          label: 'Delete',
+          icon: <Trash2 className="w-4 h-4" />,
+          variant: "destructive",
+          onClick: (credential) => {
+            handleDeleteUserCredential(credential.id)
+          }
+        }
+      ]}
     />
   )
 }

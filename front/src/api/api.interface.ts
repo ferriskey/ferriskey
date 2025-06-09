@@ -114,6 +114,10 @@ export interface DeleteClientResponse {
 	message: string;
 }
 
+export interface DeleteUserCredentialResponse {
+	message: string;
+}
+
 export interface GetClientResponse {
 	data: Client;
 }
