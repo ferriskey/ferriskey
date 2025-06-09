@@ -57,6 +57,10 @@ where
         user_id: uuid::Uuid,
         password: String,
     ) -> Result<(), CredentialError> {
+        self
+            .credential_repository
+            .delete_password_credential(user_id)
+            .await?;
         let hash_result = self
             .crypto_service
             .hash_password(&password)

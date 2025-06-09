@@ -14,16 +14,17 @@ export interface SetPasswordProps {
   setOpen: Dispatch<SetStateAction<boolean>>
   handleCloseModal: () => void
   handleSubmit: () => void
+  contentText?: string
 }
 
-export default function SetPassword({ form, open, setOpen, handleCloseModal, handleSubmit }: SetPasswordProps) {
+export default function SetPassword({ form, open, setOpen, handleCloseModal, handleSubmit, contentText }: SetPasswordProps) {
   const isValid = form.formState.isValid
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          Set Password
+          {contentText || "Set Password"}
         </Button>
       </DialogTrigger>
 

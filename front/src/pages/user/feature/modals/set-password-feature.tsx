@@ -9,7 +9,11 @@ import { useParams } from "react-router";
 import { RouterParams } from "@/routes/router";
 import { toast } from "sonner";
 
-export default function SetPasswordFeature() {
+export interface SetPasswordFeatureProps {
+  contentText?: string
+}
+
+export default function SetPasswordFeature({ contentText }: SetPasswordFeatureProps) {
   const [open, setOpen] = useState(false)
   const { realm_name, user_id } = useParams<RouterParams>()
   const { mutate: resetPassword, data } = useResetUserPassword()
@@ -59,6 +63,7 @@ export default function SetPasswordFeature() {
         setOpen={setOpen}
         handleCloseModal={handleCloseModal}
         handleSubmit={handleSubmit}
+        contentText={contentText}
        />
 
     </Form>
