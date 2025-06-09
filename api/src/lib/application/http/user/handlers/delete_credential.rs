@@ -1,6 +1,7 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -21,6 +22,7 @@ pub struct DeleteUserCredentialRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[typeshare]
 pub struct DeleteUserCredentialResponse {
     pub message: String,
 }

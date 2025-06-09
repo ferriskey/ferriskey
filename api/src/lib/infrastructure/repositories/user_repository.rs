@@ -183,7 +183,10 @@ impl UserRepository for PostgresUserRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|e| {
+                error!("error deleting users: {:?}", e);
+                UserError::NotFound
+            })?;
 
         Ok(rows.rows_affected)
     }
