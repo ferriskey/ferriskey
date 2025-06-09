@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use tracing::{error, info};
 use crate::domain::credential::entities::error::CredentialError;
 use crate::domain::credential::entities::model::Credential;
 use crate::domain::credential::ports::credential_repository::CredentialRepository;
@@ -57,10 +57,12 @@ where
         user_id: uuid::Uuid,
         password: String,
     ) -> Result<(), CredentialError> {
-        self
-            .credential_repository
-            .delete_password_credential(user_id)
-            .await?;
+        if let Ok(e) = self.credential_repository.get_password_credential(user_id).await {
+            self.credential_repository
+                .delete_password_credential(user_id)
+                .await?;
+        }
+
         let hash_result = self
             .crypto_service
             .hash_password(&password)

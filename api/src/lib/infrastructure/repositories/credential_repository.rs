@@ -4,7 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
     QueryFilter,
 };
-
+use tracing::error;
 use crate::domain::{
     credential::{
         entities::{
@@ -108,13 +108,19 @@ impl CredentialRepository for PostgresCredentialRepository {
             .filter(entity::credentials::Column::CredentialType.eq("password"))
             .one(&self.db)
             .await
-            .map_err(|_| CredentialError::DeletePasswordCredentialError)?
+            .map_err(|e| {
+                error!("Error fetching password credential: {:?}", e);
+                CredentialError::DeletePasswordCredentialError
+            })?
             .ok_or(CredentialError::DeletePasswordCredentialError)?;
 
         credential
             .delete(&self.db)
             .await
-            .map_err(|_| CredentialError::DeletePasswordCredentialError)?;
+            .map_err(|e| {
+                error!("Error deleting password credential: {:?}", e);
+                CredentialError::DeletePasswordCredentialError
+            })?;
 
         Ok(())
     }
