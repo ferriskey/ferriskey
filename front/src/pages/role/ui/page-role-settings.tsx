@@ -1,18 +1,25 @@
-import { Role } from "@/api/api.interface";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { Role } from '@/api/api.interface'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
+import BlockContent from '@/components/ui/block-content.tsx'
+import { FormField } from '@/components/ui/form.tsx'
+import { UseFormReturn } from 'react-hook-form'
+import { UpdateRoleSchema } from '@/pages/role/schemas/update-role.schema.ts'
+import { InputText } from '@/components/ui/input-text.tsx'
+import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
 
 export interface PageRoleSettingsProps {
-  role?: Role;
-  isLoading?: boolean;
-  realmName: string;
+  role?: Role
+  form: UseFormReturn<UpdateRoleSchema>
+  isLoading?: boolean
+  realmName: string
 }
 
-export default function PageRoleSettings({ role, isLoading, realmName }: PageRoleSettingsProps) {
+export default function PageRoleSettings({ role, isLoading, realmName, form }: PageRoleSettingsProps) {
   const navigate = useNavigate();
 
   const handleBackClick = () => {
@@ -69,6 +76,57 @@ export default function PageRoleSettings({ role, isLoading, realmName }: PageRol
 
   return (
     <div className="">
+      <div>
+        <BlockContent title={"Role informations"}>
+          <div className="flex flex-col gap-3">
+            <FormField
+              control={form.control}
+              name={"name"}
+              render={({ field }) => (
+                <InputText
+                  name={field.name}
+                  label={"Name"}
+                  {...field}
+                />
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name={"description"}
+              render={({ field }) => (
+                <InputText
+                  name={field.name}
+                  label={"Description"}
+                  {...field}
+                />
+              )}
+            />
+
+          </div>
+        </BlockContent>
+
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+
+        <div className="border p-4 rounded-sm flex flex-col">
+          <span className="text-xs text-muted-foreground">
+            Number of permissions
+          </span>
+
+          <div>
+            <BadgeColor color={BadgeColorScheme.BLUE}>
+              {role.permissions.length}
+            </BadgeColor>
+          </div>
+
+
+
+        </div>
+
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Informations générales</CardTitle>
