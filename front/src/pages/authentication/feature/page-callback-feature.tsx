@@ -14,7 +14,7 @@ export default function PageCallbackFeature() {
   const { realm_name } = useParams()
   const { setAuthTokens } = useAuth()
 
-  const { mutate: exchangeToken, data } = useTokenMutation()
+  const { mutate: exchangeToken, data, error } = useTokenMutation()
   const hasProcessedToken = useRef(false)
 
   useEffect(() => {
@@ -49,6 +49,15 @@ export default function PageCallbackFeature() {
       navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
     }
   }, [data, realm_name, navigate, setAuthTokens])
+
+  useEffect(() => {
+    if (error && !hasProcessedToken.current) {
+      document.cookie = "FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;"
+      hasProcessedToken.current = true
+      navigate(`/realms/${realm_name ?? 'master'}/authentication/login`, { replace: true })
+
+    }
+  }, [error, hasProcessedToken])
 
   return <PageCallback code={code} setup={setup} />
 }
