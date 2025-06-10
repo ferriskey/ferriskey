@@ -65,10 +65,6 @@ export function DataTable<T extends { id: string }>({
   const [currentPage, setCurrentPage] = useState(1)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
 
-  useEffect(() => {
-    console.log(selectedItems)
-  }, [selectedItems]);
-
   const filteredData = useMemo(() => {
     if (!search || search.length === 0 || searchKeys.length === 0) return data
 
