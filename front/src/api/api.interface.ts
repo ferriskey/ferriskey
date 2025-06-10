@@ -118,6 +118,16 @@ export interface DeleteUserCredentialResponse {
 	message: string;
 }
 
+export interface JwkKey {
+	kid: string;
+	kty: string;
+	use_: string;
+	alg: string;
+	x5c: string;
+	n: string;
+	e: string;
+}
+
 export interface GetCertsResponse {
 	keys: JwkKey[];
 }

@@ -8,6 +8,7 @@ use rsa::{
     pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
 };
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -29,6 +30,7 @@ pub struct JwtKeyPair {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[typeshare]
 pub struct JwkKey {
     pub kid: String,
     pub kty: String,
