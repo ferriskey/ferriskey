@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
 import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
-import {ReactNode, useEffect, useMemo, useState} from "react"
+import {ReactNode, useMemo, useState} from "react"
 import { Button } from "./button"
 import { Checkbox } from "./checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./dropdown-menu"
