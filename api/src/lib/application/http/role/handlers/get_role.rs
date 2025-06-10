@@ -30,7 +30,7 @@ pub struct GetRoleResponse {
 #[utoipa::path(
     get,
     summary = "Get a role by ID in a realm",
-    path = "/realms/{realm_name}/roles/{role_id}",
+    path = "/{role_id}",
     tag = "role",
     params(
         ("realm_name" = String, Path, description = "Realm name"),

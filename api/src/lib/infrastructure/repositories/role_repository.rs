@@ -1,9 +1,3 @@
-use chrono::{TimeZone, Utc};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-};
-use uuid::Uuid;
-
 use crate::domain::{
     role::{
         entities::{CreateRoleDto, errors::RoleError, models::Role, permission::Permissions},
@@ -11,6 +5,11 @@ use crate::domain::{
     },
     utils::generate_uuid_v7,
 };
+use chrono::{TimeZone, Utc};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
+use uuid::Uuid;
 
 impl From<entity::roles::Model> for Role {
     fn from(model: entity::roles::Model) -> Self {
@@ -70,20 +69,6 @@ impl RoleRepository for PostgresRoleRepository {
         Ok(result.into())
     }
 
-    async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {
-        let result = entity::roles::Entity::delete_many()
-            .filter(entity::roles::Column::Id.eq(id))
-            .exec(&self.db)
-            .await
-            .map_err(|_| RoleError::InternalServerError)?;
-
-        if result.rows_affected == 0 {
-            return Err(RoleError::InternalServerError);
-        }
-
-        Ok(())
-    }
-
     async fn get_by_client_id(&self, client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
         let roles = entity::roles::Entity::find()
             .filter(entity::roles::Column::ClientId.eq(client_id))
@@ -98,14 +83,40 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<Option<Role>, RoleError> {
-        let role = entity::roles::Entity::find()
+        let roles_with_clients = entity::roles::Entity::find()
             .filter(entity::roles::Column::Id.eq(id))
-            .one(&self.db)
+            .find_with_related(entity::clients::Entity)
+            .all(&self.db)
             .await
-            .map_err(|_| RoleError::InternalServerError)?
-            .map(Role::from);
+            .map_err(|_| RoleError::InternalServerError)?;
 
-        Ok(role)
+        if roles_with_clients.is_empty() {
+            return Ok(None);
+        }
+
+        let (role_model, related_clients) = &roles_with_clients[0];
+        let mut role: Role = role_model.clone().into();
+
+        // Only set client if it exists
+        if let Some(client_model) = related_clients.first() {
+            role.client = Some(client_model.clone().into());
+        }
+
+        Ok(Some(role))
+    }
+
+    async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {
+        let result = entity::roles::Entity::delete_many()
+            .filter(entity::roles::Column::Id.eq(id))
+            .exec(&self.db)
+            .await
+            .map_err(|_| RoleError::InternalServerError)?;
+
+        if result.rows_affected == 0 {
+            return Err(RoleError::InternalServerError);
+        }
+
+        Ok(())
     }
 
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Role>, RoleError> {
