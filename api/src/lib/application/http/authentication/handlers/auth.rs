@@ -50,6 +50,7 @@ pub struct AuthRoute {
     pub realm_name: String,
 }
 
+#[utoipa::path(get, path = "/protocol/openid-connect/auth", tag = "auth")]
 pub async fn auth(
     AuthRoute { realm_name }: AuthRoute,
     State(state): State<AppState>,

@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use crate::domain::credential::entities::error::CredentialError;
 use crate::domain::credential::entities::model::Credential;
 use crate::domain::credential::ports::credential_repository::CredentialRepository;
@@ -6,6 +5,7 @@ use crate::domain::credential::ports::credential_service::CredentialService;
 use crate::domain::crypto::ports::crypto_service::CryptoService;
 use crate::domain::crypto::services::crypto_service::DefaultCryptoService;
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
+use std::sync::Arc;
 
 pub type DefaultCredentialService = CredentialServiceImpl<PostgresCredentialRepository>;
 
@@ -56,7 +56,11 @@ where
         user_id: uuid::Uuid,
         password: String,
     ) -> Result<(), CredentialError> {
-        if let Ok(_) = self.credential_repository.get_password_credential(user_id).await {
+        if let Ok(_) = self
+            .credential_repository
+            .get_password_credential(user_id)
+            .await
+        {
             self.credential_repository
                 .delete_password_credential(user_id)
                 .await?;

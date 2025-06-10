@@ -1,9 +1,12 @@
+use base64::Engine;
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use jsonwebtoken::{DecodingKey, EncodingKey};
+use rsa::pkcs8::DecodePublicKey;
+use rsa::traits::PublicKeyParts;
 use rsa::{
-    RsaPrivateKey,
+    RsaPrivateKey, RsaPublicKey,
     pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding},
 };
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -22,6 +25,18 @@ pub struct JwtKeyPair {
     pub realm_id: Uuid,
     pub encoding_key: EncodingKey,
     pub decoding_key: DecodingKey,
+    pub public_key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+pub struct JwkKey {
+    pub kid: String,
+    pub kty: String,
+    pub use_: String,
+    pub alg: String,
+    pub x5c: String,
+    pub n: String,
+    pub e: String,
 }
 
 impl JwtKeyPair {
@@ -42,6 +57,7 @@ impl JwtKeyPair {
             realm_id,
             encoding_key,
             decoding_key,
+            public_key: public_pem.to_string(),
         })
     }
 
@@ -62,5 +78,24 @@ impl JwtKeyPair {
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
         Ok((private_pem, public_pem))
+    }
+
+    pub fn to_jwk_key(&self) -> Result<JwkKey, JwtError> {
+        let public_key = RsaPublicKey::from_public_key_pem(&self.public_key)
+            .map_err(|e| JwtError::InvalidKey(e.to_string()))?;
+
+        let n = BASE64_URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
+        let e = BASE64_URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
+        let x5c = BASE64_URL_SAFE_NO_PAD.encode(self.public_key.as_bytes());
+
+        Ok(JwkKey {
+            kid: self.id.to_string(),
+            kty: "RSA".to_string(),
+            use_: "sig".to_string(),
+            alg: "RS256".to_string(),
+            x5c,
+            n,
+            e,
+        })
     }
 }

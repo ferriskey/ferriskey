@@ -1,9 +1,3 @@
-use chrono::{TimeZone, Utc};
-use entity::clients::{ActiveModel, Entity as ClientEntity};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-};
-use uuid::Uuid;
 use crate::domain::{
     client::{
         entities::{dto::CreateClientDto, error::ClientError, model::Client},
@@ -11,6 +5,12 @@ use crate::domain::{
     },
     utils::{generate_timestamp, generate_uuid_v7},
 };
+use chrono::{TimeZone, Utc};
+use entity::clients::{ActiveModel, Entity as ClientEntity};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
+use uuid::Uuid;
 
 impl From<entity::clients::Model> for Client {
     fn from(model: entity::clients::Model) -> Self {
@@ -123,7 +123,6 @@ impl ClientRepository for PostgresClientRepository {
             .map_err(|e| {
                 tracing::error!("Failed to delete client: {}", e);
                 ClientError::InternalServerError
-
             })?;
 
         if result.rows_affected == 0 {

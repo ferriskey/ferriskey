@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use uuid::Uuid;
 use crate::application::http::client::validators::CreateClientValidator;
 use crate::domain::client::entities::dto::CreateClientDto;
 use crate::domain::client::entities::{error::ClientError, model::Client};
@@ -13,6 +11,8 @@ use crate::domain::utils::generate_random_string;
 use crate::infrastructure::repositories::{
     client_repository::PostgresClientRepository, user_repository::PostgresUserRepository,
 };
+use std::sync::Arc;
+use uuid::Uuid;
 
 pub type DefaultClientService = ClientServiceImpl<PostgresClientRepository, PostgresUserRepository>;
 
@@ -77,8 +77,7 @@ where
             .map_err(|_| ClientError::InternalServerError)?;
 
         if schema.service_account_enabled {
-            self
-                .user_repository
+            self.user_repository
                 .create_user(CreateUserDto {
                     realm_id: realm.id,
                     client_id: Some(client.id),
@@ -121,8 +120,6 @@ where
     }
 
     async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
-        self.client_repository
-            .delete_by_id(id)
-            .await
+        self.client_repository.delete_by_id(id).await
     }
 }

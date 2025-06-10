@@ -11,7 +11,7 @@ impl ClientPolicy {
     pub async fn delete(
         identity: Identity,
         state: AppState,
-        target_realm: Realm
+        target_realm: Realm,
     ) -> Result<bool, ApiError> {
         let policy = PolicyEnforcer::new(state);
 
@@ -23,7 +23,7 @@ impl ClientPolicy {
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ManageClients]
+            &[Permissions::ManageRealm, Permissions::ManageClients],
         );
 
         Ok(has_permission)

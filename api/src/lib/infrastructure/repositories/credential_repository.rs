@@ -1,10 +1,3 @@
-use chrono::{TimeZone, Utc};
-use entity::credentials::{ActiveModel, Entity as CredentialEntity};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
-    QueryFilter,
-};
-use tracing::error;
 use crate::domain::{
     credential::{
         entities::{
@@ -16,6 +9,13 @@ use crate::domain::{
     crypto::entities::hash_result::HashResult,
     utils::{generate_timestamp, generate_uuid_v7},
 };
+use chrono::{TimeZone, Utc};
+use entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
+    QueryFilter,
+};
+use tracing::error;
 
 impl From<entity::credentials::Model> for Credential {
     fn from(model: entity::credentials::Model) -> Self {
@@ -114,13 +114,10 @@ impl CredentialRepository for PostgresCredentialRepository {
             })?
             .ok_or(CredentialError::DeletePasswordCredentialError)?;
 
-        credential
-            .delete(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Error deleting password credential: {:?}", e);
-                CredentialError::DeletePasswordCredentialError
-            })?;
+        credential.delete(&self.db).await.map_err(|e| {
+            error!("Error deleting password credential: {:?}", e);
+            CredentialError::DeletePasswordCredentialError
+        })?;
 
         Ok(())
     }

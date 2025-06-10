@@ -19,8 +19,5 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
         &self,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Client>, ClientError>> + Send;
-    fn delete_by_id(
-        &self,
-        id: Uuid,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send;
+    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
 }
