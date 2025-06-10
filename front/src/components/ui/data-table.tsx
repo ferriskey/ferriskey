@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
 import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
-import { ReactNode, useMemo, useState } from "react"
+import {ReactNode, useEffect, useMemo, useState} from "react"
 import { Button } from "./button"
 import { Checkbox } from "./checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./dropdown-menu"
@@ -64,6 +64,10 @@ export function DataTable<T extends { id: string }>({
   const [selectedItems, setSelectedItems] = useState<T[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+
+  useEffect(() => {
+    console.log(selectedItems)
+  }, [selectedItems]);
 
   const filteredData = useMemo(() => {
     if (!search || search.length === 0 || searchKeys.length === 0) return data
@@ -130,18 +134,6 @@ export function DataTable<T extends { id: string }>({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* {selectedItems.length > 0 && onDeleteSelected && (
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={() => onDeleteSelected(selectedItems)}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              {selectedItems.length} {selectedItems.length === 1 ? "élément" : "éléments"}
-            </Button>
-          )} */}
-
             {searchKeys.length > 0 && (
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -327,10 +319,10 @@ export function DataTable<T extends { id: string }>({
                 </div>
                 <div>
                   <p className="font-medium">
-                    {selectedItems.length} {selectedItems.length === 1 ? "élément" : "éléments"} sélectionné{selectedItems.length === 1 ? "" : "s"}
+                    {selectedItems.length} {selectedItems.length === 1 ? "element" : "elements"} selected
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Que souhaitez-vous faire ?
+                    What would you like to do ?
                   </p>
                 </div>
               </div>
@@ -340,14 +332,14 @@ export function DataTable<T extends { id: string }>({
                   size="sm"
                   onClick={() => setSelectedItems([])}
                 >
-                  Annuler
+                  Cancel
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={isConfirmingDelete ? handleConfirmDelete : () => setIsConfirmingDelete(true)}
                 >
-                  {isConfirmingDelete ? "Confirmer" : "Supprimer"}
+                  {isConfirmingDelete ? "Confirm": "Delete" }
                 </Button>
               </div>
             </div>

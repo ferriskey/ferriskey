@@ -17,6 +17,11 @@ export default function PageCredentials({ credentials, handleDeleteUserCredentia
       searchPlaceholder="Search a credential..."
       enableSelection={true}
       emptyState={<EmptyCredential />}
+      onDeleteSelected={() => {
+        credentials.forEach(c => {
+          handleDeleteUserCredential(c.id)
+        })
+      }}
       rowActions={[
         {
           label: 'Delete',
