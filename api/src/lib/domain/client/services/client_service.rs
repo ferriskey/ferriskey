@@ -76,20 +76,22 @@ where
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let _ = self
-            .user_repository
-            .create_user(CreateUserDto {
-                realm_id: realm.id,
-                client_id: Some(client.id),
-                username: format!("service-account-{}", client.name),
-                firstname: "".to_string(),
-                lastname: "".to_string(),
-                email: "".to_string(),
-                email_verified: false,
-                enabled: true,
-            })
-            .await
-            .map_err(|_| ClientError::InternalServerError)?;
+        if schema.service_account_enabled {
+            self
+                .user_repository
+                .create_user(CreateUserDto {
+                    realm_id: realm.id,
+                    client_id: Some(client.id),
+                    username: format!("service-account-{}", client.name),
+                    firstname: "".to_string(),
+                    lastname: "".to_string(),
+                    email: "".to_string(),
+                    email_verified: false,
+                    enabled: true,
+                })
+                .await
+                .map_err(|_| ClientError::InternalServerError)?;
+        }
 
         Ok(client)
     }

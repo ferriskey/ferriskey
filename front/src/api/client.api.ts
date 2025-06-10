@@ -55,6 +55,7 @@ export const useCreateClient = () => {
         client_id: payload.clientId,
         client_type: payload.clientAuthentication ? "confidential" : "public",
         public_client: payload.clientAuthentication ? false : true,
+        service_account_enabled: payload.clientAuthentication ? true : false,
       }, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
