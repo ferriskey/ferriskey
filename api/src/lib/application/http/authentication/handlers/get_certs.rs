@@ -23,16 +23,10 @@ pub struct GetCertsResponse {
     get,
     path = "/protocol/openid-connect/certs",
     tag = "auth",
-    params(
-        ("realm_name" = String, Path, description = "Realm name"),
-    ),
-    responses(
-        (status = 200, description = "Public keys for the realm", body = Response<()>) // Adjust the body type as needed
-    )
 )]
 pub async fn get_certs(
     GetCertsRoute { realm_name }: GetCertsRoute,
     State(state): State<AppState>
-) -> Result<Response<>, ApiError> {
+) -> Result<Response<GetCertsResponse>, ApiError> {
     todo!("Implement the logic to retrieve the public keys for the realm: {}", realm_name);
 }
