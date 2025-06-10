@@ -102,33 +102,6 @@ impl AuthenticationServiceImpl {
 }
 
 impl AuthenticationService for AuthenticationServiceImpl {
-    async fn authenticate(&self, data: AuthenticateDto) -> Result<JwtToken, AuthenticationError> {
-        let realm = self
-            .realm_service
-            .get_by_name(data.realm_name.clone())
-            .await
-            .map_err(|_| AuthenticationError::InternalServerError)?;
-
-        let params = GrantTypeParams {
-            realm_id: realm.id,
-            realm_name: realm.name,
-            client_id: data.client_id.clone(),
-            client_secret: data.client_secret.clone(),
-            code: data.code.clone(),
-            username: data.username.clone(),
-            password: data.password.clone(),
-            refresh_token: data.refresh_token.clone(),
-            redirect_uri: None,
-        };
-
-        match data.grant_type {
-            GrantType::Code => self.authorization_code_strategy.execute(params).await,
-            GrantType::Password => self.password_strategy.execute(params).await,
-            GrantType::Credentials => self.client_credentials_strategy.execute(params).await,
-            GrantType::RefreshToken => self.refresh_token_strategy.execute(params).await,
-        }
-    }
-
     async fn using_session_code(
         &self,
         realm_name: String,
@@ -170,6 +143,33 @@ impl AuthenticationService for AuthenticationServiceImpl {
             Ok(generate_random_string())
         } else {
             Err(AuthenticationError::InvalidPassword)
+        }
+    }
+
+    async fn authenticate(&self, data: AuthenticateDto) -> Result<JwtToken, AuthenticationError> {
+        let realm = self
+            .realm_service
+            .get_by_name(data.realm_name.clone())
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        let params = GrantTypeParams {
+            realm_id: realm.id,
+            realm_name: realm.name,
+            client_id: data.client_id.clone(),
+            client_secret: data.client_secret.clone(),
+            code: data.code.clone(),
+            username: data.username.clone(),
+            password: data.password.clone(),
+            refresh_token: data.refresh_token.clone(),
+            redirect_uri: None,
+        };
+
+        match data.grant_type {
+            GrantType::Code => self.authorization_code_strategy.execute(params).await,
+            GrantType::Password => self.password_strategy.execute(params).await,
+            GrantType::Credentials => self.client_credentials_strategy.execute(params).await,
+            GrantType::RefreshToken => self.refresh_token_strategy.execute(params).await,
         }
     }
 }

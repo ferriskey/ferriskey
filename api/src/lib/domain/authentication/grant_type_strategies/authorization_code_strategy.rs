@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use chrono::{TimeZone, Utc};
-
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, jwt_token::JwtToken},
@@ -20,6 +18,8 @@ use crate::domain::{
     },
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
 };
+use chrono::{TimeZone, Utc};
+use tracing::error;
 
 #[derive(Clone)]
 pub struct AuthorizationCodeStrategy {
@@ -56,7 +56,10 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
             .auth_session_service
             .get_by_code(code)
             .await
-            .map_err(|_| AuthenticationError::Invalid)?;
+            .map_err(|e| {
+                error!("Failed to retrieve authorization code session: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
 
         let user_id = auth_session.user_id.ok_or(AuthenticationError::Invalid)?;
 

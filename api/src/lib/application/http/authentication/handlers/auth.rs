@@ -64,7 +64,7 @@ pub async fn auth(
 
     let client = state
         .client_service
-        .get_by_client_id(params.client_id, realm.id)
+        .get_by_client_id(params.client_id.clone(), realm.id)
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
@@ -122,6 +122,11 @@ pub async fn auth(
         session.id
     );
 
+    let session_cookie = format!(
+        "FERRISKEY_SESSION={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
+        session.id
+    );
+
     let mut headers = HeaderMap::new();
 
     headers.insert(
@@ -132,6 +137,12 @@ pub async fn auth(
 
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
+    headers.insert(
+        SET_COOKIE,
+        HeaderValue::from_str(&session_cookie)
+            .map_err(|_| ApiError::InternalServerError("".to_string()))?,
+    );
+
     let response = AuthResponse { url: login_url };
     let json_body = serde_json::to_string(&response)
         .map_err(|_| ApiError::InternalServerError("Failed to serialize response".to_string()))?;
@@ -140,6 +151,7 @@ pub async fn auth(
         .status(StatusCode::OK)
         .header(http::header::CONTENT_TYPE, "application/json")
         .header(http::header::SET_COOKIE, cookie_value)
+        .header(SET_COOKIE, session_cookie)
         .body(json_body)
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
 
