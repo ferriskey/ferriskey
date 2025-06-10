@@ -75,6 +75,7 @@ impl AuthenticationServiceImpl {
             jwt_service.clone(),
             user_service.clone(),
             credential_service.clone(),
+            client_service.clone()
         );
 
         let authorization_code_strategy = AuthorizationCodeStrategy::new(

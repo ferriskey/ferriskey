@@ -18,12 +18,15 @@ use crate::domain::{
     },
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
 };
+use crate::domain::client::ports::client_service::ClientService;
+use crate::domain::client::services::client_service::DefaultClientService;
 
 #[derive(Clone)]
 pub struct PasswordStrategy {
     pub jwt_service: Arc<DefaultJwtService>,
     pub user_service: Arc<DefaultUserService>,
     pub credential_service: Arc<DefaultCredentialService>,
+    pub client_service: Arc<DefaultClientService>,
 }
 
 impl PasswordStrategy {
@@ -31,11 +34,13 @@ impl PasswordStrategy {
         jwt_service: Arc<DefaultJwtService>,
         user_service: Arc<DefaultUserService>,
         credential_service: Arc<DefaultCredentialService>,
+        client_service: Arc<DefaultClientService>,
     ) -> Self {
         Self {
             jwt_service,
             user_service,
             credential_service,
+            client_service
         }
     }
 }
@@ -44,6 +49,16 @@ impl GrantTypeStrategy for PasswordStrategy {
     async fn execute(&self, params: GrantTypeParams) -> Result<JwtToken, AuthenticationError> {
         let username = params.username.ok_or(AuthenticationError::Invalid)?;
         let password = params.password.ok_or(AuthenticationError::Invalid)?;
+
+        let client = self.client_service
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|_| AuthenticationError::Invalid)?;
+
+        if client.secret != params.client_secret {
+            return Err(AuthenticationError::InvalidClientSecret);
+        }
+
 
         let user = self
             .user_service
