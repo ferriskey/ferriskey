@@ -1,0 +1,16 @@
+apiVersion: ferriskey.io/v1
+kind: FerriskeyCluster
+metadata:
+  name: ferriskey
+spec:
+  version: "latest"
+  frontend:
+    enabled: true
+  backend:
+    replicas: 2
+    username: nathael
+    password: nathael
+    email: nathael@ferriskey.dev
+  postgres:
+    image: postgres:17
+    storage: 5Gi

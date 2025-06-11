@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferriskey-operator
+  namespace: ferriskey-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ferriskey-operator
+  template:
+    metadata:
+      labels:
+        app: ferriskey-operator
+    spec:
+      serviceAccountName: ferriskey-operator-sa
+      containers:
+        - name: operator
+          image: "ferriskey-registry:5000/ferriskey/operator:latest"
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ferriskey-operator-sa
+  namespace: ferriskey-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ferriskey-operator-role
+rules:
+  - apiGroups: [""]  # Core API
+    resources: ["pods", "services", "events"]
+    verbs: ["get", "watch", "list", "create", "update", "patch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["ferriskey.io"]
+    resources: ["ferriskeyclusters", "ferriskeyclusters/status", "ferriskeyclusters/finalizers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["example.com"]  # <- ici la CRD nginxdeployment
+    resources: ["nginxdeployments", "nginxdeployments/status"]
+    verbs: ["get", "watch", "list", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ferriskey-operator-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ferriskey-operator-role
+subjects:
+  - kind: ServiceAccount
+    name: ferriskey-operator-sa
+    namespace: ferriskey-system
