@@ -1,0 +1,11 @@
+image:
+  repository: ghcr.io/ferriskey/ferriskey-operator
+  tag: latest
+  pullPolicy: Always
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: ferriskey-operator-sa
