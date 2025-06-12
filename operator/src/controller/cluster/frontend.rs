@@ -1,8 +1,11 @@
 use crate::btreemap;
 use crate::crd::cluster::FerriskeyCluster;
 use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
-use k8s_openapi::api::core::v1::{Container, ContainerPort, EnvVar, PodSpec, PodTemplateSpec};
+use k8s_openapi::api::core::v1::{
+    Container, ContainerPort, EnvVar, PodSpec, PodTemplateSpec, Service, ServicePort, ServiceSpec,
+};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta};
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int;
 use kube::api::{DeleteParams, PostParams};
 use kube::{Api, Client, Resource, ResourceExt};
 use tracing::info;
@@ -78,5 +81,56 @@ pub async fn reconcile_frontend(
         info!("🔁 Frontend '{}' déjà présent", name);
     }
 
+    Ok(())
+}
+
+pub async fn reconcile_frontend_service(
+    cluster: &FerriskeyCluster,
+    client: &Client,
+) -> Result<(), kube::Error> {
+    let ns = cluster.namespace().unwrap_or("default".to_string());
+    let name = format!("{}-front", cluster.name_any());
+    let svc_name = name.clone();
+    let svc_api: Api<Service> = Api::namespaced(client.clone(), &ns);
+
+    if cluster.meta().deletion_timestamp.is_some() {
+        if svc_api.get_opt(&svc_name).await?.is_some() {
+            svc_api
+                .delete(&svc_name, &DeleteParams::default())
+                .await
+                .ok();
+            info!("🧹 Service '{}' supprimé", svc_name);
+        }
+        return Ok(());
+    }
+
+    let service = Service {
+        metadata: ObjectMeta {
+            name: Some(svc_name.clone()),
+            labels: Some(btreemap! {
+                "app".to_string() => cluster.name_any(),
+                "component".to_string() => "front".to_string(),
+            }),
+            ..Default::default()
+        },
+        spec: Some(ServiceSpec {
+            selector: Some(btreemap! {
+                "app".to_string() => cluster.name_any(),
+                "component".to_string() => "front".to_string(),
+            }),
+            ports: Some(vec![ServicePort {
+                port: 80,
+                target_port: Some(Int(80)),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    if svc_api.get_opt(&svc_name).await?.is_none() {
+        svc_api.create(&PostParams::default(), &service).await?;
+        info!("🔌 Service Frontend '{}' créé", svc_name);
+    }
     Ok(())
 }

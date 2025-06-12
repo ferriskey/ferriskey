@@ -1,6 +1,8 @@
 use crate::btreemap;
 use crate::crd::cluster::FerriskeyCluster;
 
+use k8s_openapi::api::core::v1::{Service, ServicePort, ServiceSpec};
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int;
 use k8s_openapi::{
     api::{
         apps::v1::{Deployment, DeploymentSpec},
@@ -11,7 +13,6 @@ use k8s_openapi::{
     },
     apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta},
 };
-
 use kube::{
     Api, Client, Resource, ResourceExt,
     api::{DeleteParams, PostParams},
@@ -167,5 +168,58 @@ pub async fn reconcile_api(cluster: &FerriskeyCluster, client: &Client) -> Resul
         .create(&PostParams::default(), &deployment)
         .await?;
     info!("🚀 Déployé : {}", api_name);
+    Ok(())
+}
+
+pub async fn reconcile_api_service(
+    cluster: &FerriskeyCluster,
+    client: &Client,
+) -> Result<(), kube::Error> {
+    let ns = cluster.namespace().unwrap_or("default".to_string());
+    let name = format!("{}-api", cluster.name_any());
+    let svc_name = name.clone(); // same name as Deployment
+    let svc_api: Api<Service> = Api::namespaced(client.clone(), &ns);
+
+    if cluster.meta().deletion_timestamp.is_some() {
+        if svc_api.get_opt(&svc_name).await?.is_some() {
+            svc_api
+                .delete(&svc_name, &DeleteParams::default())
+                .await
+                .ok();
+            info!("🧹 Service '{}' supprimé", svc_name);
+        }
+
+        return Ok(());
+    }
+
+    let service = Service {
+        metadata: ObjectMeta {
+            name: Some(svc_name.clone()),
+            labels: Some(btreemap! {
+                "app".to_string() => cluster.name_any(),
+                "component".to_string() => "api".to_string(),
+            }),
+            ..Default::default()
+        },
+        spec: Some(ServiceSpec {
+            selector: Some(btreemap! {
+                "app".to_string() => cluster.name_any(),
+                "component".to_string() => "api".to_string(),
+            }),
+            ports: Some(vec![ServicePort {
+                port: 3333,
+                target_port: Some(Int(3333)),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    if svc_api.get_opt(&svc_name).await?.is_none() {
+        svc_api.create(&PostParams::default(), &service).await?;
+        info!("🔌 Service API '{}' créé", svc_name);
+    }
+
     Ok(())
 }
