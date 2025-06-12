@@ -1,4 +1,5 @@
 use crate::btreemap;
+use crate::controller::cluster::build_owner_reference;
 use crate::crd::cluster::FerriskeyCluster;
 use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
@@ -36,6 +37,7 @@ pub async fn reconcile_frontend(
         metadata: ObjectMeta {
             name: Some(name.clone()),
             labels: Some(labels.clone()),
+            owner_references: Some(vec![build_owner_reference(cluster)]),
             ..Default::default()
         },
 
@@ -111,6 +113,7 @@ pub async fn reconcile_frontend_service(
                 "app".to_string() => cluster.name_any(),
                 "component".to_string() => "front".to_string(),
             }),
+            owner_references: Some(vec![build_owner_reference(cluster)]),
             ..Default::default()
         },
         spec: Some(ServiceSpec {

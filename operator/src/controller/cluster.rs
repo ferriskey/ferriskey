@@ -1,4 +1,5 @@
 use crate::crd::cluster::FerriskeyCluster;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::api::{Patch, PatchParams};
 use kube::{Api, Client, Resource, ResourceExt};
 use serde_json::json;
@@ -6,6 +7,17 @@ use serde_json::json;
 pub mod api;
 pub mod frontend;
 pub mod postgres;
+
+fn build_owner_reference(cluster: &FerriskeyCluster) -> OwnerReference {
+    OwnerReference {
+        api_version: "ferriskey.io/v1".to_string(),
+        kind: "FerriskeyCluster".to_string(),
+        name: cluster.name_any(),
+        uid: cluster.meta().uid.clone().unwrap_or_default(),
+        controller: Some(true),
+        block_owner_deletion: Some(true),
+    }
+}
 
 async fn ensure_finalizer(cluster: &FerriskeyCluster, client: &Client) -> Result<(), kube::Error> {
     if cluster

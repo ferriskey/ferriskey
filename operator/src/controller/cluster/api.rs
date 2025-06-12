@@ -1,6 +1,7 @@
 use crate::btreemap;
 use crate::crd::cluster::FerriskeyCluster;
 
+use crate::controller::cluster::build_owner_reference;
 use k8s_openapi::api::core::v1::{Service, ServicePort, ServiceSpec};
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int;
 use k8s_openapi::{
@@ -123,6 +124,7 @@ pub async fn reconcile_api(cluster: &FerriskeyCluster, client: &Client) -> Resul
             name: Some(api_name.clone()),
             namespace: Some(ns.clone()),
             labels: Some(labels.clone()),
+            owner_references: Some(vec![build_owner_reference(cluster)]),
             ..Default::default()
         },
         spec: Some(DeploymentSpec {
@@ -199,6 +201,7 @@ pub async fn reconcile_api_service(
                 "app".to_string() => cluster.name_any(),
                 "component".to_string() => "api".to_string(),
             }),
+            owner_references: Some(vec![build_owner_reference(cluster)]),
             ..Default::default()
         },
         spec: Some(ServiceSpec {
