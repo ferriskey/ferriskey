@@ -5,3 +5,74 @@ permalink: kubernetes-operator
 icon: lucide:box
 order: 1
 ---
+
+## ✨ Fonctionnalités
+- Provisionnement automatique de:
+    - Cluster PostgreSQL via CloudNative PostgreSQL
+    - Backend (API Rust)
+    - Frontend (React)
+- Déploiement configurable via une ressource `FerriskeyCluster`
+- Nettoyage automatique des ressources liés lors de la suppression du cluster.
+- Synchronisation automatique des ressources (Deployments/Services) sont supprimées manuellement.
+
+## 🧰 Prérequis
+- Kubernetes 1.24+
+- Helm 3+
+
+## 🚀 Installation
+
+### 1. Installer l'opérateur CloudNativePG (si non présent)
+
+```
+kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.21/releases/cnpg-1.21.1.yaml
+```
+
+### 2. Installer le chart Helm de l'opérateur FerrisKey
+
+```
+helm install ferriskey-operator oci://ghcr.io/ferriskey/charts/ferriskey-operator --version 0.1.0
+```
+
+## 🖊️ Utilisation
+
+### Créer une ressource FerriskeyCluster
+
+```
+apiVersion: ferriskey.io/v1
+kind: FerriskeyCluster
+metadata:
+  name: ferriskey
+spec:
+  version: "latest"
+  frontend:
+    enabled: true
+  backend:
+    replicas: 2
+    username: admin
+    password: admin
+    email: admin@ferriskey.fr
+    allowedOrigins: "http://localhost:3000"
+  postgres:
+    image: ghcr.io/cloudnative-pg/postgresql:16
+    storage: 5Gi
+```
+
+```
+kubectl apply -f ferriskey-cluster.yaml
+```
+
+### Vérifier les ressources créées
+
+```
+kubectl get deployments -l app=ferriskey
+kubectl get services -l app=ferriskey
+kubectl get cluster.postgresql.cnpg.io
+```
+
+### Supprimer le cluster Ferriskey
+
+```
+kubectl delete ferriskeyclsuters.ferriskey.io ferriskey
+```
+
+Cela détruira automatiquement le frontend, l'API et la base PostgreSQL associée.
