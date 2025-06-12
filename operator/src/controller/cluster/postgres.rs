@@ -43,7 +43,7 @@ pub async fn reconcile_postgres(
         "clusters", // ⚠️ Doit être le pluriel défini dans la CRD CNPG
     );
 
-    let api: Api<DynamicObject> = Api::namespaced_with(client.clone(), &ns, &cluster_ar);
+    let api: Api<DynamicObject> = Api::namespaced_with(client.clone(), ns, &cluster_ar);
 
     if cluster.meta().deletion_timestamp.is_some() {
         if api.get_opt(&name).await?.is_some() {
