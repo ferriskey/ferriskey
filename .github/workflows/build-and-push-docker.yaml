@@ -1,0 +1,86 @@
+name: Build And Push
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+      repository:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+      registry_username:
+        type: string
+        required: true
+      dockerfile:
+        type: string
+        required: false
+        default: "Dockerfile"
+      context:
+        type: string
+        required: false
+        default: "."
+      build-args:
+        required: false
+        type: string
+        description: "List of build args"
+      tag:
+        required: false
+        type: string
+        description: "The git tag to checkout"
+      push:
+        required: false
+        type: boolean
+        default: true
+      include_latest_tag:
+        required: false
+        type: boolean
+        default: false
+        description: "Whether to include the latest tag"
+
+    secrets:
+      PAT:
+        required: true
+      CR_TOKEN:
+        required: true
+
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Add docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.registry }}/${{ github.repository }}
+          tags: |
+            ${{ inputs.include_latest_tag == true && 'latest' || '' }}
+            ${{ inputs.tag }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.registry_username }}
+          password: ${{ secrets.CR_TOKEN }}
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          file: ${{ inputs.dockerfile }}
+          context: ${{ inputs.context }}
+          provenance: false
+          build-args: ${{ inputs.build-args }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels}}
