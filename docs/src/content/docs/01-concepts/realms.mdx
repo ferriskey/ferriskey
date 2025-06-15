@@ -89,7 +89,7 @@ CREATE TABLE users (
 -- Add unique constraint to username and realm_id
 ALTER TABLE users ADD CONSTRAINT unique_username_realm_id UNIQUE (username, realm_id);
 
--- Add unique constraint to realm_id
+-- Add unique constraint to client_id
 ALTER TABLE users ADD CONSTRAINT unique_client_id UNIQUE (client_id);
 ```
 
