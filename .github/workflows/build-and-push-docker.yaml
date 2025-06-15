@@ -40,7 +40,13 @@ on:
         type: boolean
         default: false
         description: "Whether to include the latest tag"
-
+      image_name:
+        required: true
+        type: string
+      organization:
+        required: false
+        type: string
+        default: "ferriskey"
     secrets:
       PAT:
         required: true
@@ -63,7 +69,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ inputs.registry }}/${{ github.repository }}
+          images: ${{ inputs.registry }}/${{ inputs.organization }}/${{ inputs.image_name }}
           tags: |
             ${{ inputs.include_latest_tag == true && 'latest' || '' }}
             ${{ inputs.tag }}
