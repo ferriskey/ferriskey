@@ -9,7 +9,6 @@ permissions:
   contents: read
   packages: write
 
-
 jobs:
   prepare-ci:
     runs-on: ubuntu-latest
@@ -98,4 +97,4 @@ jobs:
 
           helm package infrastructure/charts/ferriskey --destination .cr_releases
           ls -a .cr_releases
-          helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/ferriskey
+          helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
