@@ -65,7 +65,7 @@ jobs:
       repository: ferriskey/ferriskey
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
-      context: 'opeartor'
+      context: 'operator'
       dockerfile: ''
     secrets:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
