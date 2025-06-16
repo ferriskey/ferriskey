@@ -50,10 +50,13 @@ export default function PageRolePermissions({ role }: PageRolePermissionsProps) 
                     .join(' ')
                   const inRolePermissions = permissions.includes(permission.toString())
                   return (
-                    <div className={cn(
+                    <div
+                      className={cn(
                       "p-2 border rounded-sm",
-                      inRolePermissions ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/10 hover:bg-muted/20",
-                    )}>
+                        inRolePermissions ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/10 hover:bg-muted/20",
+                      )}
+                      key={permission}
+                    >
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-sm",
