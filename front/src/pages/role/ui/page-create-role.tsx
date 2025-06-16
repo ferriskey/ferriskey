@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Heading } from "@/components/ui/heading";
 import FloatingActionBar from "@/components/ui/floating-action-bar";
 import SelectClientBox from "./components/select-client-box";
+import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
 
 export interface PageCreateRoleProps {
   form: UseFormReturn<CreateRoleSchema>
@@ -34,42 +35,6 @@ export default function PageCreateRole({
   handleSelectAllInGroup, 
   handlePermissionToggle 
 }: PageCreateRoleProps) {
-  const permissionGroups = {
-    "User Management": [
-      Permissions.ManageUsers,
-      Permissions.ViewUsers,
-      Permissions.QueryUsers,
-    ],
-    "Client Management": [
-      Permissions.CreateClient,
-      Permissions.ManageClients,
-      Permissions.ViewClients,
-      Permissions.QueryClients,
-    ],
-    "Role & Authorization": [
-      Permissions.ManageRoles,
-      Permissions.ViewRoles,
-      Permissions.ManageAuthorization,
-      Permissions.ViewAuthorization,
-    ],
-    "Realm Management": [
-      Permissions.ManageRealm,
-      Permissions.ViewRealm,
-      Permissions.QueryRealms,
-    ],
-    "Identity Providers": [
-      Permissions.ManageIdentityProviders,
-      Permissions.ViewIdentityProviders,
-    ],
-    "Events & Audit": [
-      Permissions.ManageEvents,
-      Permissions.ViewEvents,
-    ],
-    "Groups": [
-      Permissions.QueryGroups,
-    ],
-  }
-
   const isValid = form.formState.isValid
 
   return (

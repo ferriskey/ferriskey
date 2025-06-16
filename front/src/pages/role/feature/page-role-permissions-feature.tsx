@@ -1,10 +1,19 @@
+import { useParams } from 'react-router'
+import { RouterParams } from '@/routes/router.ts'
+import { useGetRole } from '@/api/role.api.ts'
+import PageRolePermissions from '@/pages/role/ui/page-role-permissions.tsx'
+
 export default function PageRolePermissionsFeature() {
+  const { realm_name, role_id } = useParams<RouterParams>()
+
+  const { data: role } = useGetRole({
+    realm: realm_name || 'master',
+    roleId: role_id,
+  })
+
+  if (!role) return null
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold tracking-tight">Permissions</h1>
-      <p className="text-muted-foreground">
-        This feature is under development. Please check back later.
-      </p>
-    </div>
-  );
+    <PageRolePermissions role={role} />
+  )
 }

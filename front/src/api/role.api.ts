@@ -36,6 +36,7 @@ export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) =
 
       return response.data
     },
+    staleTime: 5 * 60 * 1000,
     enabled: !!realm && !!roleId,
   })
 }
