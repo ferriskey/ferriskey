@@ -101,3 +101,34 @@ jobs:
           helm package infrastructure/charts/ferriskey --destination .cr_releases
           ls -a .cr_releases
           helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
+  build-ferriskey-operator-chart:
+    runs-on: ubuntu-latest
+    needs: [prepare-ci, build-ferriskey-api, build-ferriskey-front, build-ferriskey-operator]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Extract version from tag
+        id: extract
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Authenticate to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ferriskey --password-stdin
+      - name: Build and push chart
+        run: |
+          ls infrastructure/charts/ferriskey-operator
+          echo "📦 Processing Ferriskey Operator chart"
+          cp infrastructure/charts/ferriskey-operator/Chart.yaml /tmp/Chart.yaml.orig
+          cp infrastructure/charts/ferriskey-operator/values.yaml /tmp/values.yaml.orig
+
+          yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey-operator/Chart.yaml
+          yq eval ".image.tag = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey-operator/values.yaml
+          
+          helm package infrastructure/charts/ferriskey-operator --destination .cr_releases
+          ls -a .cr_releases
+          helm push .cr_releases/ferriskey-operator-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts

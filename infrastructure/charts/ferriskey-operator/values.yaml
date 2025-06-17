@@ -1,7 +1,7 @@
 image:
   repository: ghcr.io/ferriskey/ferriskey-operator
-  tag: latest
-  pullPolicy: Always
+  tag: 0.1.0-rc5
+  pullPolicy: IfNotPresent
 
 rbac:
   create: true

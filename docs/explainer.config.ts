@@ -30,12 +30,6 @@ export default defineExplainerConfig({
       href: '/docs/tutorials/quickstart',
       baseUrl: '/docs/tutorials',
     },
-    tasks: {
-      icon: 'lucide:clipboard-list',
-      label: 'Tasks',
-      href: '/docs/tasks/manage-users',
-      baseUrl: '/docs/tasks',
-    },
     reference: {
       icon: 'lucide:braces',
       label: 'Reference',

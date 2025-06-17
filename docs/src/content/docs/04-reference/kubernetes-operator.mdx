@@ -1,41 +1,41 @@
 ---
 title: Kubernetes Operator
-description: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+description: Manage FerrisKey clusters on Kubernetes with the FerrisKey Operator. Automate deployment, scaling, and cleanup of PostgreSQL, backend, and frontend resources for secure IAM.
 permalink: kubernetes-operator
 icon: lucide:box
 order: 1
 ---
 
-## ✨ Fonctionnalités
-- Provisionnement automatique de:
+## ✨ Features
+- Automatic provisioning of:
     - Cluster PostgreSQL via CloudNative PostgreSQL
     - Backend (API Rust)
     - Frontend (React)
-- Déploiement configurable via une ressource `FerriskeyCluster`
-- Nettoyage automatique des ressources liés lors de la suppression du cluster.
-- Synchronisation automatique des ressources (Deployments/Services) sont supprimées manuellement.
+- Configurable deployment via a `FerriskeyCluster` resource
+- Automatic cleanup of related resources when the clsuter is deleted.
+- Automatic synchronization of resources (Deployments/Services) if they are manually deleted.
 
-## 🧰 Prérequis
+## 🧰 Prerequisites
 - Kubernetes 1.24+
 - Helm 3+
 
 ## 🚀 Installation
 
-### 1. Installer l'opérateur CloudNativePG (si non présent)
+### 1. Install the CloudNativePG operator (if not already present)
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.21/releases/cnpg-1.21.1.yaml
 ```
 
-### 2. Installer le chart Helm de l'opérateur FerrisKey
+### 2. Install the FerrisKey operator Helm chart
 
 ```
-helm install ferriskey-operator oci://ghcr.io/ferriskey/charts/ferriskey-operator --version 0.1.0
+helm install ferriskey-operator oci://ghcr.io/ferriskey/charts/ferriskey-operator
 ```
 
-## 🖊️ Utilisation
+## 🖊️ Usage
 
-### Créer une ressource FerriskeyCluster
+### Create a FerriskeyCluster resource
 
 ```
 apiVersion: ferriskey.io/v1
@@ -61,7 +61,7 @@ spec:
 kubectl apply -f ferriskey-cluster.yaml
 ```
 
-### Vérifier les ressources créées
+### Check the created resources
 
 ```
 kubectl get deployments -l app=ferriskey
@@ -69,10 +69,10 @@ kubectl get services -l app=ferriskey
 kubectl get cluster.postgresql.cnpg.io
 ```
 
-### Supprimer le cluster Ferriskey
+### Delete the Ferriskey Cluster
 
 ```
 kubectl delete ferriskeyclsuters.ferriskey.io ferriskey
 ```
 
-Cela détruira automatiquement le frontend, l'API et la base PostgreSQL associée.
+This will automatically destroy the associated frontend, API, and PostgreSQL database.
