@@ -55,7 +55,7 @@ export default function ClientLayout() {
             <TabsList className="flex items-center gap-4">
               <TabsTrigger value={"settings"}>Settings</TabsTrigger>
               <TabsTrigger value={"credentials"}>Credentials</TabsTrigger>
-              <TabsTrigger disabled value={"roles"}>Roles</TabsTrigger>
+              <TabsTrigger value={"roles"}>Roles</TabsTrigger>
               <TabsTrigger disabled value={"client-scopes"}>Client scopes</TabsTrigger>
             </TabsList>
           </Tabs>
