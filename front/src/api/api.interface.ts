@@ -141,6 +141,16 @@ export interface GetConfigResponse {
 	environment: string;
 }
 
+export interface GetOpenIdConfigurationResponse {
+	issuer: string;
+	authorization_endpoint: string;
+	token_endpoint: string;
+	introspection_endpoint: string;
+	userinfo_endpoint: string;
+	jwks_uri: string;
+	grant_types_supported: string[];
+}
+
 export interface GetRoleResponse {
 	data: Role;
 }
