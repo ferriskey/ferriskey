@@ -2,7 +2,7 @@ import { authStore } from "@/store/auth.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { CreateUserSchema, UpdateUserSchema } from '../pages/user/validators'
-import { BulkDeleteUserResponse, CreateUserResponse, CredentialOverview, GetUserCredentialsResponse, UpdateUserResponse, User, UserResponse, UsersResponse } from "./api.interface"
+import { BulkDeleteUserResponse, CreateUserResponse, CredentialOverview, GetUserCredentialsResponse, UpdateUserResponse, User, UserResponse, UsersResponse, GetUserRolesResponse } from "./api.interface"
 
 export interface UserMutateContract<T> {
   realm?: string,
@@ -150,5 +150,23 @@ export const useResetUserPassword = () => {
         queryKey: ["user", "credentials"],
       })
     }
+  })
+}
+
+export const useGetUserRoles = ({ realm, userId }: BaseQuery & { userId: string }) => {
+  return useQuery({
+    queryKey: ["user-roles", realm, userId],
+    queryFn: async (): Promise<GetUserRolesResponse> => {
+      const accessToken = authStore.getState().accessToken
+
+      const response = await apiClient.get<GetUserRolesResponse>(`/realms/${realm}/users/${userId}/roles`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    enabled: !!realm && !!userId,
   })
 }

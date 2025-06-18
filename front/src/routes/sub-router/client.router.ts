@@ -8,3 +8,9 @@ export const CLIENT_OVERVIEW_URL = (realmNam = ":realm_name", clientId = ":clien
 export const OVERVIEW_URL = '/overview'
 export const SETTINGS_URL = '/settings'
 export const CLIENT_CREATE_URL = '/create'
+
+export type ClientRouterParams = {
+  realm_name: string
+  client_id: string
+  current_view: 'settings' | 'credentials' | 'roles'
+}

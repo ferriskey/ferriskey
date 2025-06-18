@@ -11,6 +11,7 @@ use super::handlers::{
     delete_credential::{__path_delete_user_credential, delete_user_credential},
     get_credentials::{__path_get_user_credentials, get_user_credentials},
     get_user::{__path_get_user, get_user},
+    get_user_roles::{__path_get_user_roles, get_user_roles},
     get_users::{__path_get_users, get_users},
     reset_password::{__path_reset_password, reset_password},
     update_user::{__path_update_user, update_user},
@@ -20,6 +21,7 @@ use super::handlers::{
 #[openapi(paths(
     get_users,
     get_user,
+    get_user_roles,
     assign_role,
     create_user,
     update_user,
@@ -34,6 +36,7 @@ pub fn user_routes() -> Router<AppState> {
     Router::new()
         .typed_get(get_users)
         .typed_get(get_user)
+        .typed_get(get_user_roles)
         .typed_get(get_user_credentials)
         .typed_post(create_user)
         .typed_put(update_user)
