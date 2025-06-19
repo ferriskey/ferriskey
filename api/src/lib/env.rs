@@ -37,6 +37,9 @@ pub struct Env {
     pub database_url: String,
 
     #[clap(env)]
+    pub portal_url: String,
+
+    #[clap(env)]
     pub allowed_origins: String,
 
     #[clap(env)]
