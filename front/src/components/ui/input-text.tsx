@@ -9,7 +9,6 @@ export interface InputTextProps {
   type?: "text" | "number" | "password" | "email"
   className?: string
   onChange?: (value: string | number) => void
-  onEnterPress?: () => void
   error?: string
   disabled?: boolean
   // variable to control the toggle visibility of the password even if it's in disable
@@ -21,7 +20,6 @@ export function InputText({
   label,
   value = "",
   onChange,
-  onEnterPress,
   type = "text",
   error,
   className = "",

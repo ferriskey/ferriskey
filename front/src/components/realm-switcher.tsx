@@ -194,7 +194,6 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
                   label="Realm Name"
                   value={field.value}
                   onChange={field.onChange}
-                  onEnterPress={handleSubmit}
                 />
               )}
             />
