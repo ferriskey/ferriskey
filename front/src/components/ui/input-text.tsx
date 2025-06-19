@@ -83,12 +83,6 @@ export function InputText({
               }}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && onEnterPress) {
-                  e.preventDefault()
-                  onEnterPress()
-                }
-              }}
             />
 
             {(currentValue as string)?.length > 0 && type === "password" && (
