@@ -185,31 +185,33 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
         </DialogHeader>
         <div>
           <Form {...form}>
-            <FormField
-              name="name"
-              control={form.control}
-              render={({ field }) => (
-                <InputText
-                  name={"name"}
-                  label="Realm Name"
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
+            <form onSubmit={form.handleSubmit(handleSubmit)} >
+              <FormField
+                name="name"
+                control={form.control}
+                render={({ field }) => (
+                  <InputText
+                    name={"name"}
+                    label="Realm Name"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
 
-            <DialogFooter className="mt-4">
-              <Button variant="destructive">
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                disabled={!isValid}
-                onClick={handleSubmit}
-              >
-                Create Realm
-              </Button>
-            </DialogFooter>
+              <DialogFooter className="mt-4">
+                <Button variant="destructive">
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!isValid}
+                  onClick={handleSubmit}
+                >
+                  Create Realm
+                </Button>
+              </DialogFooter>
+            </form>
           </Form>
         </div>
       </DialogContent>
