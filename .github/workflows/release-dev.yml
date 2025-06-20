@@ -27,97 +27,65 @@ jobs:
             -Dsonar.sources=front,api
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/target/**
             -Dsonar.javascript.node.maxspace=8192
+  prepare-ci:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.result }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Extract version from short-sha
+        id: extract_version
+        run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "RELEASE_TAG=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_VERSION=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "::set-output name=result::${SHORT_SHA}"
   build-doc:
-    runs-on: ubuntu-latest
-    needs: sonarqube
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # build docker imag
-      - name: Login to container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ferriskey
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: docs
-          push: true
-          cache-from: type=gha
-          provenance: false
-          tags: ghcr.io/ferriskey/ferriskey-docs:latest
+    needs: [sonarqube, prepare-ci]
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-docs
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      context: 'docs'
+      dockerfile: ''
   build-api:
-    runs-on: ubuntu-latest
-    needs: sonarqube
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # build docker imag
-      - name: Login to container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ferriskey
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: api
-          push: true
-          cache-from: type=gha
-          provenance: false
-          tags: ghcr.io/ferriskey/ferriskey-api:latest
+    needs: [sonarqube, prepare-ci]
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-api
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      context: 'api'
+      dockerfile: ''
   build-operator:
-    runs-on: ubuntu-latest
-    needs: sonarqube
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Login to container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ferriskey
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: operator
-          push: true
-          cache-from: type=gha
-          provenance: false
-          tags: ghcr.io/ferriskey/ferriskey-operator:latest
+    needs: [sonarqube, prepare-ci]
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-operator
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      context: 'operator'
+      dockerfile: ''
   build-front:
-    runs-on: ubuntu-latest
-    needs: sonarqube
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # build docker imag
-      - name: Login to container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ferriskey
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: front
-          push: true
-          cache-from: type=gha
-          provenance: false
-          tags: ghcr.io/ferriskey/ferriskey-front:latest
+    needs: [sonarqube, prepare-ci]
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-front
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      context: 'front'
+      dockerfile: ''
