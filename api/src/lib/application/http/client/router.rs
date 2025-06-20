@@ -8,6 +8,7 @@ use super::handlers::{
     delete_client::{__path_delete_client, delete_client},
     delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
     get_client::{__path_get_client, get_client},
+    get_client_roles::{__path_get_client_roles, get_client_roles},
     get_clients::{__path_get_clients, get_clients},
     get_redirect_uris::{__path_get_redirect_uris, get_redirect_uris},
     update_redirect_uri::{__path_update_redirect_uri, update_redirect_uri},
@@ -24,8 +25,8 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
         create_redirect_uri,
         get_redirect_uris,
         update_redirect_uri,
-        delete_redirect_uri
-
+        delete_redirect_uri,
+        get_client_roles
     ),
 
     tags(
@@ -44,5 +45,6 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
         .typed_put(update_redirect_uri)
         .typed_delete(delete_client)
         .typed_delete(delete_redirect_uri)
+        .typed_get(get_client_roles)
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }
