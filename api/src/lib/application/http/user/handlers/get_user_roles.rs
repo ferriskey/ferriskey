@@ -1,4 +1,7 @@
-use crate::domain::user::ports::user_service::UserService;
+use crate::{
+    application::http::user::policies::user_role_policies::UserRolePolicy,
+    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
@@ -47,21 +50,24 @@ pub struct GetUserRolesResponse {
 )]
 pub async fn get_user_roles(
     GetUserRolesRoute {
-        realm_name: _,
+        realm_name,
         user_id,
     }: GetUserRolesRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetUserRolesResponse>, ApiError> {
-    // Get the user from identity to verify permissions
-    let _requesting_user = match identity {
-        Identity::User(user) => user,
-        Identity::Client(client) => state
-            .user_service
-            .get_by_client_id(client.id)
-            .await
-            .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?,
-    };
+    let realm = state
+        .realm_service
+        .get_by_name(realm_name)
+        .await
+        .map_err(ApiError::from)?;
+
+    let has_permission = UserRolePolicy::view(identity, state.clone(), realm).await?;
+    if !has_permission {
+        return Err(ApiError::Forbidden(
+            "User not allowed to view roles".to_string(),
+        ));
+    }
 
     info!("Fetching roles for user: {}", user_id);
 
