@@ -81,8 +81,8 @@ export default defineExplainerConfig({
       ],
     },
     {
-      label: 'API',
-      href: '/api',
+      label: 'About',
+      href: '/about',
     },
     {
       label: 'Blog',

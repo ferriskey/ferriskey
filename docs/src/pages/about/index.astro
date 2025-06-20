@@ -1,0 +1,58 @@
+---
+import TrustedByLogos from "@/components/elements/trusted-by-logos";
+import AboutLayout from "../../lib/layouts/AboutLayout.astro";
+import CoreTeam from "@/components/elements/core-team";
+import Contributors from "@/components/elements/contributors";
+---
+
+<AboutLayout>
+    <div>
+        <section class="space-y-12 mt-20">
+            <div>
+                <h1 class="text-6xl font-bold tracking-tight">Unlike any other IAM platform</h1>
+                <p class="mt-4 text-lg text-muted-foreground">
+                    FerrisKey is not just another wrapper around OAuth2 or OpenID Connect.
+                    It’s a ground-up, Rust-powered solution focused on performance, modularity, and developer happiness.
+                </p>
+                <p class="mt-2 text-muted-foreground font-medium">
+                    <span class="bg-yellow-200 px-1 rounded">If you have worked with Keycloak or Auth0, FerrisKey will feel like home — just faster and friendlier.</span>
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="flex items-center gap-2 text-xl font-semibold">
+                        Built for Cloud-Native Environments
+                    </h3>
+                    <p class="mt-2 text-muted-foreground">
+                        FerrisKey is designed from the ground up to thrive in Kubernetes environments. Thanks to its operator model and per-realm deployments, you can scale authentication workloads independently — no more scaling the whole system for a single busy tenant.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="flex items-center gap-2 text-xl font-semibold">
+                        Rust-Powered Performance & Safety
+                    </h3>
+                    <p class="mt-2 text-muted-foreground">
+                        Unlike Java-based IAM solutions, FerrisKey leverages Rust for both performance and security. That means memory safety, blazing-fast startup times, and low CPU usage — perfect for modern containerized workloads.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="flex items-center gap-2 text-xl font-semibold">
+                        Modular and Extensible by Design
+                    </h3>
+                    <p class="mt-2 text-muted-foreground">
+                        FerrisKey follows a hexagonal architecture that makes it easy to plug in custom logic. Want to integrate a bespoke login flow, an external MFA service, or custom credential backends? Everything is built to be cleanly extended — without forking the core.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <TrustedByLogos />
+
+        <CoreTeam />
+
+        <Contributors />
+    </div>
+</AboutLayout>
