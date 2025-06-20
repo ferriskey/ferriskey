@@ -20,8 +20,6 @@ use crate::domain::user::ports::user_service::UserService;
 #[typeshare]
 pub struct AuthenticateQueryParams {
     client_id: String,
-    // #[typeshare(serialized_as = "string")]
-    // session_code: Uuid,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -68,6 +66,7 @@ pub async fn authenticate(
     let session_code = session_code.value().to_string();
 
     let session_code = Uuid::parse_str(&session_code).unwrap();
+
     let auth_session = state
         .auth_session_service
         .get_by_session_code(session_code)
@@ -98,11 +97,17 @@ pub async fn authenticate(
         .await
         .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
-    state
-        .auth_session_service
-        .update_code(session_code, code.clone(), user.id)
-        .await
-        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
+    let code = if auth_session.code.is_none() {
+        let t = state
+            .auth_session_service
+            .update_code(session_code, code.clone(), user.id)
+            .await
+            .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
+
+        t.code.clone().unwrap_or_default()
+    } else {
+        auth_session.code.clone().unwrap_or_default()
+    };
 
     let current_state = auth_session
         .state

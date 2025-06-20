@@ -1,3 +1,4 @@
+use axum::http::header::{LOCATION, ORIGIN};
 use axum::{
     extract::{Query, State},
     http::{
@@ -115,7 +116,12 @@ pub async fn auth(
         params.state.unwrap_or_default()
     );
 
-    // set session id in cookie
+    let full_url = format!(
+        "{}/realms/{}/authentication/login{}",
+        state.env.portal_url.clone(),
+        realm.name,
+        login_url.clone()
+    );
 
     let cookie_value = format!(
         "session_code={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
@@ -143,16 +149,19 @@ pub async fn auth(
             .map_err(|_| ApiError::InternalServerError("".to_string()))?,
     );
 
-    let response = AuthResponse { url: login_url };
+    let response = AuthResponse {
+        url: full_url.clone(),
+    };
     let json_body = serde_json::to_string(&response)
         .map_err(|_| ApiError::InternalServerError("Failed to serialize response".to_string()))?;
 
     let axum_response = axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, "application/json")
+        .status(StatusCode::FOUND)
         .header(http::header::SET_COOKIE, cookie_value)
         .header(SET_COOKIE, session_cookie)
-        .body(json_body)
+        .header(LOCATION, full_url)
+        .header(ORIGIN, state.env.portal_url.clone())
+        .body(axum::body::Body::from(json_body))
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
 
     Ok(axum_response)

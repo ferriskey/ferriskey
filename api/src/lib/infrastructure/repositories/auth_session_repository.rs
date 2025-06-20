@@ -3,7 +3,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
     prelude::Expr,
 };
-use tracing::error;
+use tracing::{error};
 use uuid::Uuid;
 
 use crate::domain::authentication::{

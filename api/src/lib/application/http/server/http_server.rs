@@ -64,6 +64,7 @@ impl HttpServer {
             HeaderValue::from_static("http://localhost:5173"),
             HeaderValue::from_static("http://localhost:5174"),
             HeaderValue::from_static("http://localhost:4321"),
+            HeaderValue::from_static("http://localhost:5555"),
         ]
         .into_iter()
         .chain(allowed_origins_from_env.into_iter())

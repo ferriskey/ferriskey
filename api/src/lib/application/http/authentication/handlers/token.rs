@@ -1,10 +1,11 @@
+use axum::Form;
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 use tracing::info;
 
 use crate::application::http::authentication::validators::TokenRequestValidator;
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::domain::authentication::entities::dto::AuthenticateDto;
@@ -29,7 +30,7 @@ pub struct TokenRoute {
 pub async fn exchange_token(
     TokenRoute { realm_name }: TokenRoute,
     State(state): State<AppState>,
-    ValidateJson(payload): ValidateJson<TokenRequestValidator>,
+    Form(payload): Form<TokenRequestValidator>,
 ) -> Result<Response<JwtToken>, ApiError> {
     info!("request login with \"{:?}\" grant_type", payload.grant_type);
     state
