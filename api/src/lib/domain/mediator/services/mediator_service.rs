@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use tracing::info;
 
 use crate::{
@@ -204,9 +203,16 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
-        self.user_role_service
+        match self
+            .user_role_service
             .assign_role("master".to_string(), user.id, role.id)
-            .await?;
+            .await
+        {
+            Ok(_) => info!("Role 'master' assigned to user {}", user.username),
+            Err(_) => {
+                info!("The role might already be assigned.");
+            }
+        }
 
         let _ = match self
             .credential_service

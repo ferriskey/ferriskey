@@ -1,6 +1,8 @@
+use crate::domain::user::ports::user_service::UserService;
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -32,7 +34,7 @@ pub struct GetUserRolesResponse {
 #[utoipa::path(
     get,
     summary = "Get all roles for a specific user",
-    path = "",
+    path = "/{user_id}/roles",
     tag = "user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
@@ -44,21 +46,24 @@ pub struct GetUserRolesResponse {
     )
 )]
 pub async fn get_user_roles(
-    GetUserRolesRoute { realm_name: _, user_id }: GetUserRolesRoute,
+    GetUserRolesRoute {
+        realm_name: _,
+        user_id,
+    }: GetUserRolesRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetUserRolesResponse>, ApiError> {
     // Get the user from identity to verify permissions
-    let requesting_user = match identity {
+    let _requesting_user = match identity {
         Identity::User(user) => user,
-        Identity::Client(client) => {
-            state
-                .user_service
-                .get_by_client_id(client.id)
-                .await
-                .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?
-        }
+        Identity::Client(client) => state
+            .user_service
+            .get_by_client_id(client.id)
+            .await
+            .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?,
     };
+
+    info!("Fetching roles for user: {}", user_id);
 
     // Get the target user's roles
     let roles = state
@@ -67,5 +72,7 @@ pub async fn get_user_roles(
         .await
         .map_err(ApiError::from)?;
 
+    info!("Roles retrieved for user: {}", user_id);
+
     Ok(Response::OK(GetUserRolesResponse { data: roles }))
-} 
+}

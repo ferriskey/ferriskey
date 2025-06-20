@@ -94,7 +94,7 @@ impl HttpServer {
             .typed_get(get_config)
             .merge(realm_routes(state.clone()))
             .merge(client_routes(state.clone()))
-            .merge(user_routes())
+            .merge(user_routes(state.clone()))
             .merge(authentication_routes())
             .merge(role_routes(state.clone()))
             .layer(trace_layer)

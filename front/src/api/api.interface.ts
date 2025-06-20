@@ -159,12 +159,12 @@ export interface GetRolesResponse {
 	data: Role[];
 }
 
-export interface GetUserRolesResponse {
-	data: Role[];
-}
-
 export interface GetUserCredentialsResponse {
 	data: CredentialOverview[];
+}
+
+export interface GetUserRolesResponse {
+	data: Role[];
 }
 
 export interface JwtToken {

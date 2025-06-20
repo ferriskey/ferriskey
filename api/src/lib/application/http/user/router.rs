@@ -1,4 +1,5 @@
-use axum::Router;
+use crate::application::auth::auth;
+use axum::{Router, middleware};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
 
@@ -32,7 +33,7 @@ use super::handlers::{
 ))]
 pub struct UserApiDoc;
 
-pub fn user_routes() -> Router<AppState> {
+pub fn user_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .typed_get(get_users)
         .typed_get(get_user)
@@ -44,4 +45,5 @@ pub fn user_routes() -> Router<AppState> {
         .typed_delete(bulk_delete_user)
         .typed_delete(delete_user_credential)
         .typed_post(assign_role)
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
 }
