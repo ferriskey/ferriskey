@@ -36,7 +36,7 @@ impl PolicyEnforcer {
                     .await
                     .map_err(|_| ApiError::Forbidden("Client not found".to_string()))?;
 
-                return Ok(service_account);
+                Ok(service_account)
             }
         }
     }
@@ -133,10 +133,10 @@ impl PolicyEnforcer {
                 .await
                 .map_err(|_| ApiError::Forbidden("Client not found for target realm".into()))?;
 
-            let client_permissions = self.get_client_specific_permissions(&user, &client).await?;
+            let client_permissions = self.get_client_specific_permissions(user, &client).await?;
             permissions.extend(client_permissions);
         } else {
-            let user_permissions = self.get_user_permissions(&user).await?;
+            let user_permissions = self.get_user_permissions(user).await?;
             permissions.extend(user_permissions);
         }
 

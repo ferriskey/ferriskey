@@ -80,10 +80,10 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
         let refresh_claims = JwtClaim::new_refresh_token(
-            new_claims.sub.clone(),
-            new_claims.iss.clone(),
-            new_claims.aud.clone(),
-            new_claims.azp.clone(),
+            new_claims.sub,
+            new_claims.iss,
+            new_claims.aud,
+            new_claims.azp,
         );
 
         let refresh_token = self
@@ -101,7 +101,7 @@ impl GrantTypeStrategy for RefreshTokenStrategy {
         self.jwt_service
             .refresh_token_repository
             .create(
-                refresh_claims.jti.clone(),
+                refresh_claims.jti,
                 user.id,
                 Some(Utc.timestamp_opt(refresh_token.expires_at, 0).unwrap()),
             )

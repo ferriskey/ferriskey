@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::{Parser, ValueEnum};
 use typeshare::typeshare;
 
@@ -19,11 +21,11 @@ impl From<String> for AppEnv {
     }
 }
 
-impl ToString for AppEnv {
-    fn to_string(&self) -> String {
+impl Display for AppEnv {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AppEnv::Development => "development".to_string(),
-            AppEnv::Production => "production".to_string(),
+            AppEnv::Development => write!(f, "development"),
+            AppEnv::Production => write!(f, "production"),
         }
     }
 }

@@ -1,3 +1,4 @@
+pub mod client_config;
 pub mod dto;
 pub mod error;
 pub mod model;

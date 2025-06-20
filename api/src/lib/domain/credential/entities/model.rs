@@ -5,6 +5,8 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::credential::entities::credential_config::CredentialConfig;
+
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema, FromRow,
 )]
@@ -21,27 +23,17 @@ pub struct Credential {
 }
 
 impl Credential {
-    pub fn new(
-        id: Uuid,
-        salt: String,
-        credential_type: String,
-        user_id: Uuid,
-        user_label: String,
-        secret_data: String,
-        credential_data: CredentialData,
-        created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
-    ) -> Self {
+    pub fn new(config: CredentialConfig) -> Self {
         Self {
-            id,
-            salt: Some(salt),
-            credential_type,
-            user_id,
-            user_label: Some(user_label),
-            secret_data,
-            credential_data,
-            created_at,
-            updated_at,
+            id: config.id,
+            salt: config.salt,
+            credential_type: config.credential_type,
+            user_id: config.user_id,
+            user_label: config.user_label,
+            secret_data: config.secret_data,
+            credential_data: config.credential_data,
+            created_at: config.created_at,
+            updated_at: config.updated_at,
         }
     }
 }

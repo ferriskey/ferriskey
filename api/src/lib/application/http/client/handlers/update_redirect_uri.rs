@@ -51,5 +51,5 @@ pub async fn update_redirect_uri(
         .update_enabled(uri_id, payload.enabled)
         .await
         .map_err(ApiError::from)
-        .map(|uri| Response::OK(uri))
+        .map(Response::OK)
 }

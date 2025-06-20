@@ -32,7 +32,10 @@ use crate::{
             },
             services::jwt_service::DefaultJwtService,
         },
-        mediator::services::mediator_service::DefaultMediatorService,
+        mediator::{
+            entities::mediator_config::MediatorConfig,
+            services::mediator_service::DefaultMediatorService,
+        },
         realm::{
             ports::realm_repository::RealmRepository, services::realm_service::DefaultRealmService,
         },
@@ -187,17 +190,19 @@ impl
             self.realm_repository.clone(),
         );
 
-        let mediator_service = Arc::new(DefaultMediatorService::new(
-            Arc::clone(&env),
-            client_service.clone(),
-            realm_service.clone(),
-            user_service.clone(),
-            credential_service.clone(),
-            redirect_uri_service.clone(),
-            role_service.clone(),
-            user_role_service.clone(),
-            jwt_service.clone(),
-        ));
+        let mediator_config = MediatorConfig {
+            env: Arc::clone(&env),
+            client_service: client_service.clone(),
+            realm_service: realm_service.clone(),
+            user_service: user_service.clone(),
+            credential_service: credential_service.clone(),
+            redirect_uri_service: redirect_uri_service.clone(),
+            role_service: role_service.clone(),
+            user_role_service: user_role_service.clone(),
+            jwt_service: jwt_service.clone(),
+        };
+
+        let mediator_service = Arc::new(DefaultMediatorService::new(mediator_config));
 
         AppState {
             realm_service,

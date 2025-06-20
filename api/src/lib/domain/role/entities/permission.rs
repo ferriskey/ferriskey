@@ -34,7 +34,7 @@ pub enum Permissions {
 
 impl Permissions {
     pub fn from_bitfield(bitfield: u64) -> Vec<Self> {
-        let all_permissions = vec![
+        let all_permissions = [
             Self::CreateClient,
             Self::ManageAuthorization,
             Self::ManageClients,

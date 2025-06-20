@@ -42,5 +42,5 @@ pub async fn get_redirect_uris(
         .get_by_client_id(client_id)
         .await
         .map_err(ApiError::from)
-        .map(|uris| Response::OK(uris))
+        .map(Response::OK)
 }

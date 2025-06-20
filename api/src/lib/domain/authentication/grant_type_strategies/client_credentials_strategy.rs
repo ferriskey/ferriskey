@@ -78,12 +78,8 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
                     .await
                     .map_err(|_| AuthenticationError::InternalServerError)?;
 
-                let refresh_claims = JwtClaim::new_refresh_token(
-                    claims.sub.clone(),
-                    claims.iss.clone(),
-                    claims.aud.clone(),
-                    claims.azp.clone(),
-                );
+                let refresh_claims =
+                    JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
 
                 let refresh_token = self
                     .jwt_service

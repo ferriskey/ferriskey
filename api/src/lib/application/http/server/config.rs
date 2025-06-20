@@ -30,8 +30,8 @@ pub async fn get_config(
     let app_version = env!("CARGO_PKG_VERSION").to_string();
 
     let response = GetConfigResponse {
-        environment: environment,
-        app_version: app_version,
+        environment,
+        app_version,
     };
 
     Ok(Response::OK(response))

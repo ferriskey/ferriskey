@@ -16,6 +16,7 @@ use crate::{
             services::credential_service::DefaultCredentialService,
         },
         jwt::{ports::jwt_service::JwtService, services::jwt_service::DefaultJwtService},
+        mediator::entities::mediator_config::MediatorConfig,
         realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
         role::{
             entities::{CreateRoleDto, permission::Permissions},
@@ -51,27 +52,17 @@ pub struct MediatorServiceImpl {
 }
 
 impl MediatorServiceImpl {
-    pub fn new(
-        env: Arc<Env>,
-        client_service: Arc<DefaultClientService>,
-        realm_service: Arc<DefaultRealmService>,
-        user_service: Arc<DefaultUserService>,
-        credential_service: Arc<DefaultCredentialService>,
-        redirect_uri_service: DefaultRedirectUriService,
-        role_service: DefaultRoleService,
-        user_role_service: DefaultUserRoleService,
-        jwt_service: Arc<DefaultJwtService>,
-    ) -> Self {
+    pub fn new(config: MediatorConfig) -> Self {
         Self {
-            env,
-            client_service,
-            realm_service,
-            user_service,
-            credential_service,
-            redirect_uri_service,
-            role_service,
-            user_role_service,
-            jwt_service,
+            env: config.env,
+            client_service: config.client_service,
+            realm_service: config.realm_service,
+            user_service: config.user_service,
+            credential_service: config.credential_service,
+            redirect_uri_service: config.redirect_uri_service,
+            role_service: config.role_service,
+            user_role_service: config.user_role_service,
+            jwt_service: config.jwt_service,
         }
     }
 }
@@ -258,10 +249,11 @@ impl MediatorService for MediatorServiceImpl {
         ];
 
         // Vérification des URIs existantes
-        let existing_uris = match self.redirect_uri_service.get_by_client_id(client.id).await {
-            Ok(uris) => uris,
-            Err(_) => Vec::new(),
-        };
+        let existing_uris = self
+            .redirect_uri_service
+            .get_by_client_id(client.id)
+            .await
+            .unwrap_or_default();
 
         for pattern in admin_redirect_patterns {
             let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);

@@ -56,11 +56,12 @@ where
         user_id: uuid::Uuid,
         password: String,
     ) -> Result<(), CredentialError> {
-        if let Ok(_) = self
+        let password_credential = self
             .credential_repository
             .get_password_credential(user_id)
-            .await
-        {
+            .await;
+
+        if password_credential.is_ok() {
             self.credential_repository
                 .delete_password_credential(user_id)
                 .await?;

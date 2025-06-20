@@ -51,7 +51,7 @@ impl JwtClaim {
             aud,
             typ,
             azp,
-            email: email,
+            email,
             client_id: None,
         }
     }

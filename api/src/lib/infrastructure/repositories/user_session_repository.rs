@@ -60,7 +60,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
     async fn find_by_user_id(&self, user_id: &Uuid) -> Result<UserSession, SessionError> {
         let user_session = entity::user_sessions::Entity::find()
-            .filter(entity::user_sessions::Column::UserId.eq(user_id.clone()))
+            .filter(entity::user_sessions::Column::UserId.eq(*user_id))
             .one(&self.db)
             .await
             .map_err(|_| SessionError::NotFound)?
@@ -70,7 +70,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
-        entity::user_sessions::Entity::delete_by_id(id.clone())
+        entity::user_sessions::Entity::delete_by_id(*id)
             .exec(&self.db)
             .await
             .map_err(|_| SessionError::DeleteError)?;

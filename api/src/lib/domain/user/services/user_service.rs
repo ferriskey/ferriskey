@@ -82,7 +82,7 @@ where
             .map_err(|_| UserError::InternalServerError)?
             .ok_or(UserError::InternalServerError)?;
 
-        if realm.name != "master".to_string() {
+        if realm.name != *"master" {
             return Ok(vec![realm.clone()]);
         }
 
