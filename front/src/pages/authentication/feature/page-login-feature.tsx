@@ -64,7 +64,6 @@ export default function PageLoginFeature() {
     )
 
     const sessionCode = cookies['FERRISKEY_SESSION'] || '123456' // Fallback to default if not found
-    console.log("try authenticate with session code", sessionCode)
     authenticate({
       data,
       realm: 'master',
