@@ -1,41 +1,12 @@
-import { useAuthenticateMutation, useAuthQuery } from '@/api/auth.api'
+import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
-
-export const initiateOAuthLogin = async (realmName: string) => {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'security-admin-console',
-    redirect_uri: 'http://localhost:5173/realms/master/authentication/callback', // URL de callback de votre app
-    scope: 'openid profile email',
-    state: crypto.randomUUID(), // Générer un état unique pour la sécurité
-  })
-
-  const authUrl = `http://localhost:3333/realms/${realmName}/protocol/openid-connect/auth?${params.toString()}`
-  window.location.href = authUrl
-}
-
-export const initiateOAuthLoginQuery = (realmName: string) => {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'security-admin-console',
-    redirect_uri: 'http://localhost:5173/realms/master/authentication/callback', // URL de callback de votre app
-    scope: 'openid profile email',
-    state: crypto.randomUUID(), // Générer un état unique pour la sécurité
-  })
-
-  return {
-    query: params.toString(),
-    realm: realmName,
-  }
-}
-
-// J'aimerais que si j'ai une erreur de connexion, je puisse afficher un message d'erreur proprement
+import { apiUrl } from '@/api'
 
 const authenticateSchema = z.object({
   username: z.string().min(1),
@@ -46,7 +17,6 @@ export type AuthenticateSchema = z.infer<typeof authenticateSchema>
 
 export default function PageLoginFeature() {
   const { realm_name } = useParams()
-  const navigate = useNavigate()
   const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
   const [isSetup, setIsSetup] = useState(false)
 
@@ -66,7 +36,6 @@ export default function PageLoginFeature() {
     }
   }
 
-  const { data, isError } = useAuthQuery(getOAuthParams())
   const { mutate: authenticate, data: authenticateData, status: authenticateStatus } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
@@ -79,13 +48,12 @@ export default function PageLoginFeature() {
 
   useEffect(() => {    
     if (authenticateData) {
-      const [_, query] = authenticateData.url.split('?')
-      const newUrl = `/realms/${realm_name}/authentication/callback?${query}`
-      navigate(newUrl)
+      window.location.href = authenticateData.url
     }
   }, [authenticateData])
 
-  const onSubmit = (data: AuthenticateSchema) => {
+
+  function onSubmit(data: AuthenticateSchema) {
     const cookies = document.cookie.split(';').reduce(
       (acc, cookie) => {
         const [key, value] = cookie.trim().split('=')
@@ -95,7 +63,8 @@ export default function PageLoginFeature() {
       {} as Record<string, string>
     )
 
-    const sessionCode = cookies['session_code'] || '123456' // Fallback to default if not found
+    const sessionCode = cookies['FERRISKEY_SESSION'] || '123456' // Fallback to default if not found
+    console.log("try authenticate with session code", sessionCode)
     authenticate({
       data,
       realm: 'master',
@@ -117,17 +86,19 @@ export default function PageLoginFeature() {
   }, [])
 
   useEffect(() => {
+    if (isSetup && !isAuthInitiated) {
+      const { query, realm } = getOAuthParams()
+      window.location.href = `${apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+
+    }
+  }, [isSetup, isAuthInitiated])
+
+  useEffect(() => {
     if (authenticateStatus === 'error') {
       toast.error('Authentication failed. Please check your credentials and try again.')
       form.reset()
     }
   }, [authenticateStatus])
 
-  useEffect(() => {
-    if (data && isSetup && !isAuthInitiated) {
-      navigate(data.url)
-    }
-  }, [data, isSetup])
-
-  return <PageLogin form={form} onSubmit={onSubmit} isError={isError} />
+  return <PageLogin form={form} onSubmit={onSubmit} isError={undefined} />
 }

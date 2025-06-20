@@ -33,7 +33,7 @@ export default function PageCallbackFeature() {
         realm: realm_name ?? 'master',
         data: {
           client_id: 'security-admin-console',
-          code: code,
+          code,
           grant_type: GrantType.Code,
         },
       })
@@ -54,8 +54,6 @@ export default function PageCallbackFeature() {
     if (error && !hasProcessedToken.current) {
       document.cookie = "FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;"
       hasProcessedToken.current = true
-      navigate(`/realms/${realm_name ?? 'master'}/authentication/login`, { replace: true })
-
     }
   }, [error, hasProcessedToken])
 

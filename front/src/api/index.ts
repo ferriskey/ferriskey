@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 
-const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
+export const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
 
 export interface BaseQuery {
   realm: string

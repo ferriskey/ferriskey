@@ -35,7 +35,11 @@ function App() {
   }, [pathname])
 
   useEffect(() => {
-    if (isLoading || pathname.includes('/authentication/callback')) return
+    const urlParams = new URLSearchParams(window.location.search)
+    const clientId = urlParams.get('client_id')
+    const redirectUri = urlParams.get('redirect_uri')
+
+    if (isLoading || pathname.includes('/authentication/callback') || (clientId && redirectUri)) return
     const realm = realm_name ?? 'master'
 
     if (!isAuthenticated && !authenticateRoute) {

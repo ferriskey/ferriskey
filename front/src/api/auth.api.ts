@@ -29,7 +29,7 @@ export const useAuthQuery = (params: AuthQuery) => {
       )
 
       return response.data
-    },
+    }
   })
 }
 
@@ -54,9 +54,36 @@ export interface TokenPayload {
 export const useTokenMutation = () => {
   return useMutation({
     mutationFn: async (params: TokenPayload): Promise<JwtToken> => {
+      const formData = new URLSearchParams()
+
+      formData.append('grant_type', params.data.grant_type!)
+      formData.append('client_id', params.data.client_id!)
+
+      if (params.data.client_secret) {
+        formData.append('client_secret', params.data.client_secret)
+      }
+      if (params.data.code) {
+        formData.append('code', params.data.code)
+      }
+      if (params.data.username) {
+        formData.append('username', params.data.username)
+      }
+      if (params.data.password) {
+        formData.append('password', params.data.password)
+      }
+      if (params.data.refresh_token) {
+        formData.append('refresh_token', params.data.refresh_token)
+      }
+
       const response = await apiClient.post<JwtToken>(
         `/realms/${params.realm}/protocol/openid-connect/token`,
-        params.data
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          withCredentials: true
+        }
       )
 
       return response.data
