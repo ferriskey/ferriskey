@@ -41,9 +41,9 @@ where
             .map_err(|_| RoleError::NotFound)
     }
 
-    async fn get_by_client_id(&self, _client_id: Uuid) -> Result<Vec<Role>, RoleError> {
+    async fn get_by_client_id(&self, client_id: Uuid) -> Result<Vec<Role>, RoleError> {
         self.role_repository
-            .get_by_client_id(_client_id)
+            .get_by_client_id(client_id)
             .await
             .map_err(|_| RoleError::NotFound)
     }
