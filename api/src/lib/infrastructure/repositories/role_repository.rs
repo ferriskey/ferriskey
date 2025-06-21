@@ -122,11 +122,25 @@ impl RoleRepository for PostgresRoleRepository {
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Role>, RoleError> {
         let roles = entity::roles::Entity::find()
             .filter(entity::roles::Column::RealmId.eq(realm_id))
+            .find_with_related(entity::clients::Entity)
             .all(&self.db)
             .await
             .map_err(|_| RoleError::NotFound)?;
 
-        let roles: Vec<Role> = roles.into_iter().map(|role| role.into()).collect();
+        if roles.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let roles: Vec<Role> = roles
+            .into_iter()
+            .map(|(role, clients)| {
+                let mut role: Role = role.into();
+                if let Some(client) = clients.first() {
+                    role.client = Some(client.clone().into());
+                }
+                role
+            })
+            .collect();
 
         Ok(roles)
     }
