@@ -5,7 +5,7 @@ import { authStore } from "@/store/auth.store"
 import { CreateRoleSchema } from "@/pages/role/schemas/create-role.schema"
 
 
-export const useGetRoles = ({ realm }: BaseQuery) => {
+export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
   return useQuery({
     queryKey: ["roles", realm],
     queryFn: async (): Promise<GetRolesResponse> => {
