@@ -35,35 +35,3 @@ pub struct AppState {
     pub mediator_service: Arc<DefaultMediatorService>,
     pub env: Arc<Env>,
 }
-
-impl AppState {
-    pub fn new(
-        realm_service: Arc<DefaultRealmService>,
-        client_service: Arc<DefaultClientService>,
-        credential_service: Arc<DefaultCredentialService>,
-        authentication_service: Arc<DefaultAuthenticationService>,
-        auth_session_service: Arc<DefaultAuthSessionService>,
-        user_service: Arc<DefaultUserService>,
-        jwt_service: Arc<DefaultJwtService>,
-        redirect_uri_service: DefaultRedirectUriService,
-        role_service: DefaultRoleService,
-        user_role_service: DefaultUserRoleService,
-        mediator_service: Arc<DefaultMediatorService>,
-        env: Arc<Env>,
-    ) -> Self {
-        Self {
-            realm_service,
-            client_service,
-            credential_service,
-            authentication_service,
-            auth_session_service,
-            user_service,
-            jwt_service,
-            redirect_uri_service,
-            role_service,
-            user_role_service,
-            mediator_service,
-            env,
-        }
-    }
-}

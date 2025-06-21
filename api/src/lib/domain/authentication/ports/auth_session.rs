@@ -1,18 +1,14 @@
 use uuid::Uuid;
 
-use crate::domain::authentication::entities::auth_session::{AuthSession, AuthSessionError};
+use crate::domain::authentication::entities::{
+    auth_session::{AuthSession, AuthSessionError},
+    dto::CreateAuthSessionDto,
+};
 
 pub trait AuthSessionService: Clone + Send + Sync + 'static {
     fn create_session(
         &self,
-        realm_id: Uuid,
-        client_id: Uuid,
-        redirect_uri: String,
-        response_type: String,
-        scope: String,
-        state: Option<String>,
-        nonce: Option<String>,
-        user_id: Option<Uuid>,
+        dto: CreateAuthSessionDto,
     ) -> impl Future<Output = Result<AuthSession, AuthSessionError>> + Send;
 
     fn get_by_session_code(

@@ -13,6 +13,7 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 use validator::Validate;
 
+use crate::domain::authentication::entities::dto::CreateAuthSessionDto;
 use crate::{
     application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
     domain::{
@@ -69,7 +70,6 @@ pub async fn auth(
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
-    let params_state = params.state.clone();
     let redirect_uri = params.redirect_uri.clone();
 
     let client_redirect_uris = state
@@ -94,20 +94,22 @@ pub async fn auth(
         return Err(ApiError::Unauthorized("Invalid redirect_uri".to_string()));
     }
 
+    let dto = CreateAuthSessionDto::new(realm.id, client.id, redirect_uri).with_oauth_params(
+        params.response_type,
+        params.scope.unwrap_or_default(),
+        params.state.clone(),
+        None,
+    );
+
     let session = state
         .auth_session_service
-        .create_session(
-            realm.id,
-            client.id,
-            redirect_uri,
-            params.response_type,
-            params.scope.unwrap_or_default(),
-            params_state,
-            None,
-            None,
-        )
+        .create_session(dto)
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(
+            |e: crate::domain::authentication::entities::auth_session::AuthSessionError| {
+                ApiError::InternalServerError(e.to_string())
+            },
+        )?;
 
     let login_url = format!(
         "?client_id={}&redirect_uri={}&state={}",

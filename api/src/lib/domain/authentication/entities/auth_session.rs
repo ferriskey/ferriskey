@@ -17,6 +17,20 @@ pub enum AuthSessionError {
     CreateSessionError,
 }
 
+#[derive(Debug, Clone)]
+pub struct AuthSessionParams {
+    pub realm_id: Uuid,
+    pub client_id: Uuid,
+    pub redirect_uri: String,
+    pub response_type: String,
+    pub scope: String,
+    pub state: Option<String>,
+    pub nonce: Option<String>,
+    pub user_id: Option<Uuid>,
+    pub code: Option<String>,
+    pub authenticated: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthSession {
     pub id: Uuid,
@@ -35,18 +49,7 @@ pub struct AuthSession {
 }
 
 impl AuthSession {
-    pub fn new(
-        realm_id: Uuid,
-        client_id: Uuid,
-        redirect_uri: String,
-        response_type: String,
-        scope: String,
-        state: Option<String>,
-        nonce: Option<String>,
-        user_id: Option<Uuid>,
-        code: Option<String>,
-        authenticated: bool,
-    ) -> Self {
+    pub fn new(params: AuthSessionParams) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);
 
@@ -54,16 +57,16 @@ impl AuthSession {
 
         Self {
             id: Uuid::new_v7(timestamp),
-            realm_id,
-            client_id,
-            redirect_uri,
-            response_type,
-            scope,
-            state,
-            nonce,
-            user_id,
-            code,
-            authenticated,
+            realm_id: params.realm_id,
+            client_id: params.client_id,
+            redirect_uri: params.redirect_uri,
+            response_type: params.response_type,
+            scope: params.scope,
+            state: params.state,
+            nonce: params.nonce,
+            user_id: params.user_id,
+            code: params.code,
+            authenticated: params.authenticated,
             created_at: now,
             expires_at: now + Duration::minutes(10),
         }

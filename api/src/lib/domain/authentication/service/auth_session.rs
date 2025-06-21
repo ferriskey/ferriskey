@@ -2,7 +2,10 @@ use uuid::Uuid;
 
 use crate::{
     domain::authentication::{
-        entities::auth_session::{AuthSession, AuthSessionError},
+        entities::{
+            auth_session::{AuthSession, AuthSessionError, AuthSessionParams},
+            dto::CreateAuthSessionDto,
+        },
         ports::auth_session::{AuthSessionRepository, AuthSessionService},
     },
     infrastructure::repositories::auth_session_repository::PostgresAuthSessionRepository,
@@ -24,27 +27,29 @@ impl<R: AuthSessionRepository> AuthSessionServiceImpl<R> {
 impl<R: AuthSessionRepository> AuthSessionService for AuthSessionServiceImpl<R> {
     async fn create_session(
         &self,
-        realm_id: Uuid,
-        client_id: Uuid,
-        redirect_uri: String,
-        response_type: String,
-        scope: String,
-        state: Option<String>,
-        nonce: Option<String>,
-        user_id: Option<Uuid>,
+        dto: CreateAuthSessionDto,
+        // realm_id: Uuid,
+        // client_id: Uuid,
+        // redirect_uri: String,
+        // response_type: String,
+        // scope: String,
+        // state: Option<String>,
+        // nonce: Option<String>,
+        // user_id: Option<Uuid>,
     ) -> Result<AuthSession, AuthSessionError> {
-        let session = AuthSession::new(
-            realm_id,
-            client_id,
-            redirect_uri,
-            response_type,
-            scope,
-            state,
-            nonce,
-            user_id,
-            None,
-            false,
-        );
+        let params = AuthSessionParams {
+            realm_id: dto.realm_id,
+            client_id: dto.client_id,
+            redirect_uri: dto.redirect_uri,
+            response_type: dto.response_type,
+            scope: dto.scope,
+            state: dto.state,
+            nonce: dto.nonce,
+            user_id: dto.user_id,
+            code: None,
+            authenticated: false,
+        };
+        let session = AuthSession::new(params);
         self.repository.create(&session).await?;
         Ok(session)
     }
