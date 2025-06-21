@@ -21,7 +21,6 @@ export default function PageUserRoleMapping({
   userRoles,
   isLoading,
   isError,
-  userId,
 }: PageUserRoleMappingProps) {
   if (isLoading) {
     return <div>Loading user roles...</div>

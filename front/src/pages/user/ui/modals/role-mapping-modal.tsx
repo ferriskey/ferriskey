@@ -1,5 +1,4 @@
 import { Role, User } from '@/api/api.interface'
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
