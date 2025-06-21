@@ -170,3 +170,26 @@ export const useGetUserRoles = ({ realm, userId }: BaseQuery & { userId: string 
     enabled: !!realm && !!userId,
   })
 }
+
+export const useAssignUserRole = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ realm, userId, payload }: UserMutateContract<{ roleId: string }>) => {
+      const accessToken = authStore.getState().accessToken
+
+      const response = await apiClient.post(`/realms/${realm}/users/${userId}/roles/${payload.roleId}`, {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["user-roles"]
+      })
+    }
+  })
+}

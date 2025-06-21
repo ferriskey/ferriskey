@@ -15,6 +15,8 @@ export interface RoleMappingModalProps {
   roles: Role[]
   user: User
   form: UseFormReturn<AssignRoleSchema>
+  isValid: boolean
+  handleSubmit: () => void
 }
 
 export default function RoleMappingModal({
@@ -23,6 +25,8 @@ export default function RoleMappingModal({
   roles,
   user,
   form,
+  isValid,
+  handleSubmit,
 }: RoleMappingModalProps) {
   console.log('RoleMappingModal roles:', roles)
 
@@ -35,31 +39,33 @@ export default function RoleMappingModal({
       <DialogContent className="!max-w-4xl">
         <DialogTitle>Assign roles to {user.username}</DialogTitle>
 
-        <div className="flex flex-col gap-4">
-          <FormField
-            control={form.control}
-            name="roleIds"
-            render={({ field }) => (
-              <DataTable
-                onSelectionChange={(e) => {
-                  const ids = e.map((role) => role.id)
-                  field.onChange(ids)
-                }}
-                columns={columns}
-                enableSelection
-                data={roles}
-              />
-            )}
-          />
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-4">
+            <FormField
+              control={form.control}
+              name="roleIds"
+              render={({ field }) => (
+                <DataTable
+                  onSelectionChange={(e) => {
+                    const ids = e.map((role) => role.id)
+                    field.onChange(ids)
+                  }}
+                  columns={columns}
+                  enableSelection
+                  data={roles}
+                />
+              )}
+            />
 
-          <div className="mt-4 flex gap-4">
-            <Button>Assign</Button>
+            <div className="mt-4 flex gap-4">
+              <Button disabled={!isValid}>Assign</Button>
 
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   )
