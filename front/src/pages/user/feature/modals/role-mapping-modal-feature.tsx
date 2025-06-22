@@ -9,13 +9,14 @@ import { assignRoleSchema, AssignRoleSchema } from '../../schemas/assign-role.sc
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { Role } from '@/api/api.interface'
+import { toast } from 'sonner'
 
 export default function RoleMappingModalFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
   const [open, setOpen] = useState(false)
   const [availableRoles, setAvailableRoles] = useState<Role[]>([])
 
-  const { mutate: assignRole } = useAssignUserRole()
+  const { mutate: assignRole, data } = useAssignUserRole()
   const { data: rolesResponse } = useGetRoles({ realm: realm_name })
   const { data: user } = useGetUser({
     realm: realm_name,
@@ -44,10 +45,6 @@ export default function RoleMappingModalFeature() {
     }
   }, [userRoles, rolesResponse])
 
-  if (!user) {
-    return null // or handle loading state
-  }
-
   const handleSubmit = form.handleSubmit((values) => {
     for (const roleId of values.roleIds) {
       assignRole({
@@ -58,9 +55,21 @@ export default function RoleMappingModalFeature() {
         },
       })
     }
+    form.reset()
+    setOpen(false)
   })
 
   const isValid = form.formState.isValid
+
+  useEffect(() => {
+    if (data) {
+      toast.success('Role(s) assigned successfully')
+    }
+  }, [data])
+
+  if (!user) {
+    return null
+  }
 
   return (
     <Form {...form}>
