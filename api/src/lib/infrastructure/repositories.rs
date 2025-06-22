@@ -7,5 +7,4 @@ pub mod realm_repository;
 pub mod redirect_uri_repository;
 pub mod refresh_token_repository;
 pub mod role_repository;
-pub mod user_repository;
 pub mod user_session_repository;

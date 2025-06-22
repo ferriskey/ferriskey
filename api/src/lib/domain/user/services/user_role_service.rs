@@ -9,9 +9,11 @@ use crate::{
             ports::{user_repository::UserRepository, user_role_service::UserRoleService},
         },
     },
-    infrastructure::repositories::{
-        realm_repository::PostgresRealmRepository, role_repository::PostgresRoleRepository,
-        user_repository::PostgresUserRepository,
+    infrastructure::{
+        repositories::{
+            realm_repository::PostgresRealmRepository, role_repository::PostgresRoleRepository,
+        },
+        user::repository::PostgresUserRepository,
     },
 };
 

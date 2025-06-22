@@ -12,8 +12,9 @@ use crate::{
             ports::{user_repository::UserRepository, user_service::UserService},
         },
     },
-    infrastructure::repositories::{
-        realm_repository::PostgresRealmRepository, user_repository::PostgresUserRepository,
+    infrastructure::{
+        repositories::realm_repository::PostgresRealmRepository,
+        user::repository::PostgresUserRepository,
     },
 };
 

@@ -1,13 +1,4 @@
-use chrono::{TimeZone, Utc};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    JoinType, ModelTrait, QueryFilter, QuerySelect, RelationTrait, prelude::Expr,
-    sea_query::IntoCondition,
-};
-use uuid::Uuid;
-
 use crate::domain::{
-    realm::entities::realm::Realm,
     role::entities::models::Role,
     user::{
         dtos::user_dto::{CreateUserDto, UpdateUserDto},
@@ -15,30 +6,12 @@ use crate::domain::{
         ports::user_repository::UserRepository,
     },
 };
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    JoinType, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
+};
 use tracing::error;
-
-impl From<entity::users::Model> for User {
-    fn from(model: entity::users::Model) -> Self {
-        let created_at = Utc.from_utc_datetime(&model.created_at);
-        let updated_at = Utc.from_utc_datetime(&model.updated_at);
-
-        User {
-            id: model.id,
-            realm_id: model.realm_id,
-            username: model.username,
-            firstname: model.firstname,
-            lastname: model.lastname,
-            email: model.email,
-            email_verified: model.email_verified,
-            enabled: model.enabled,
-            client_id: model.client_id,
-            roles: Vec::new(),
-            realm: None,
-            created_at,
-            updated_at,
-        }
-    }
-}
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct PostgresUserRepository {
@@ -106,24 +79,23 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
-        let user_model = entity::users::Entity::find()
+        let users_model = entity::users::Entity::find()
             .filter(entity::users::Column::Id.eq(id))
-            .one(&self.db)
+            .find_also_related(entity::realms::Entity)
+            .all(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?
-            .ok_or(UserError::NotFound)?;
+            .map_err(|_| UserError::NotFound)?;
 
-        let realm = user_model
-            .find_related(entity::realms::Entity)
-            .one(&self.db)
-            .await
-            .map_err(|_| UserError::NotFound)?
-            .ok_or(UserError::NotFound)?;
+        if users_model.is_empty() {
+            return Err(UserError::NotFound);
+        }
 
-        let realm: Realm = realm.into();
+        let (user_model, realm_models) = &users_model[0];
+        let mut user: User = user_model.clone().into();
 
-        let mut user: User = user_model.into();
-        user.realm = Some(realm);
+        if let Some(realm_model) = realm_models.as_ref() {
+            user.realm = Some(realm_model.clone().into());
+        }
 
         Ok(user)
     }

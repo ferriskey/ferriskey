@@ -13,7 +13,8 @@ use crate::domain::utils::generate_random_string;
 use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
 use crate::infrastructure::repositories::realm_repository::PostgresRealmRepository;
 use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
-use crate::infrastructure::repositories::user_repository::PostgresUserRepository;
+use crate::infrastructure::user::repository::PostgresUserRepository;
+
 use tracing::{error, info};
 use uuid::Uuid;
 

@@ -8,9 +8,8 @@ use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::user::dtos::user_dto::CreateUserDto;
 use crate::domain::user::ports::user_repository::UserRepository;
 use crate::domain::utils::generate_random_string;
-use crate::infrastructure::repositories::{
-    client_repository::PostgresClientRepository, user_repository::PostgresUserRepository,
-};
+use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
+use crate::infrastructure::user::repository::PostgresUserRepository;
 use std::sync::Arc;
 use uuid::Uuid;
 

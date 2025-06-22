@@ -59,8 +59,9 @@ use crate::{
             realm_repository::PostgresRealmRepository,
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
-            role_repository::PostgresRoleRepository, user_repository::PostgresUserRepository,
+            role_repository::PostgresRoleRepository,
         },
+        user::repository::PostgresUserRepository,
     },
 };
 
