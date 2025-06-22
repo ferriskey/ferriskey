@@ -27,8 +27,6 @@ export default function RoleMappingModal({
   isValid,
   handleSubmit,
 }: RoleMappingModalProps) {
-  console.log('RoleMappingModal roles:', roles)
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -51,7 +49,7 @@ export default function RoleMappingModal({
                   }}
                   emptyState={
                     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-                      <div className="w-30 h-30">
+                      <div className="w-32 h-32">
                         <img src="/icons/cadenas.png" alt="" />
                       </div>
 
