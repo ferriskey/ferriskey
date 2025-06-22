@@ -1,22 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import RoleMappingModal from '../../ui/modals/role-mapping-modal'
 import { useGetRoles } from '@/api/role.api'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { useAssignUserRole, useGetUser } from '@/api/user.api'
+import { useAssignUserRole, useGetUser, useGetUserRoles } from '@/api/user.api'
 import { useForm } from 'react-hook-form'
 import { assignRoleSchema, AssignRoleSchema } from '../../schemas/assign-role.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
+import { Role } from '@/api/api.interface'
 
 export default function RoleMappingModalFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
   const [open, setOpen] = useState(false)
+  const [availableRoles, setAvailableRoles] = useState<Role[]>([])
+
   const { mutate: assignRole } = useAssignUserRole()
   const { data: rolesResponse } = useGetRoles({ realm: realm_name })
   const { data: user } = useGetUser({
     realm: realm_name,
     userId: user_id,
+  })
+  const { data: userRoles } = useGetUserRoles({
+    realm: realm_name,
+    userId: user_id || '',
   })
 
   const form = useForm<AssignRoleSchema>({
@@ -26,6 +33,16 @@ export default function RoleMappingModalFeature() {
       roleIds: [],
     },
   })
+
+  useEffect(() => {
+    if (userRoles && rolesResponse) {
+      const allRoles = rolesResponse.data
+      const assignedRoleIds = userRoles.data.map((role) => role.id)
+
+      const unassignedRoles = allRoles.filter((role) => !assignedRoleIds.includes(role.id))
+      setAvailableRoles(unassignedRoles)
+    }
+  }, [userRoles, rolesResponse])
 
   if (!user) {
     return null // or handle loading state
@@ -50,7 +67,7 @@ export default function RoleMappingModalFeature() {
       <RoleMappingModal
         open={open}
         setOpen={setOpen}
-        roles={rolesResponse?.data ?? []}
+        roles={availableRoles}
         user={user}
         form={form}
         isValid={isValid}

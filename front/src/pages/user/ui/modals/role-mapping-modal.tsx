@@ -49,6 +49,15 @@ export default function RoleMappingModal({
                     const ids = e.map((role) => role.id)
                     field.onChange(ids)
                   }}
+                  emptyState={
+                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+                      <div className="w-30 h-30">
+                        <img src="/icons/cadenas.png" alt="" />
+                      </div>
+
+                      <span className="text-lg">No role is available</span>
+                    </div>
+                  }
                   columns={columns}
                   enableSelection
                   data={roles}

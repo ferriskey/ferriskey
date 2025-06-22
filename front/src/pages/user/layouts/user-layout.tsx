@@ -8,6 +8,7 @@ import { REALM_OVERVIEW_URL } from '@/routes/router'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 
 export default function UserLayout() {
   const navigate = useNavigate()
@@ -17,7 +18,7 @@ export default function UserLayout() {
 
   const { data: user } = useGetUser({
     realm: realm_name,
-    userId: user_id
+    userId: user_id,
   })
 
   const handleBack = () => {
@@ -38,10 +39,10 @@ export default function UserLayout() {
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className='h-3 w-3' />
+              <ArrowLeft className="h-3 w-3" />
             </Button>
 
-            <span className='text-gray-500 text-sm font-medium'>Back to users</span>
+            <span className="text-gray-500 text-sm font-medium">Back to users</span>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -49,9 +50,7 @@ export default function UserLayout() {
 
             <div className="flex items-center gap-2">
               <span>User ID</span>
-              <BadgeColor color={BadgeColorScheme.GRAY}>
-                {user?.id}
-              </BadgeColor>
+              <BadgeColor color={BadgeColorScheme.GRAY}>{user?.id}</BadgeColor>
             </div>
           </div>
         </div>
@@ -67,11 +66,13 @@ export default function UserLayout() {
               <TabsTrigger value="credentials">Credentials</TabsTrigger>
               <TabsTrigger value="role-mapping">Role Mapping</TabsTrigger>
             </TabsList>
+
+            <RoleMappingModalFeature />
           </div>
         </Tabs>
       </div>
 
-     <Outlet />
+      <Outlet />
     </div>
   )
 }
