@@ -57,7 +57,7 @@ pub async fn assign_role(
         .await
         .map_err(ApiError::from)?;
 
-    if UserRolePolicy::store(identity, state.clone(), realm).await? {
+    if !UserRolePolicy::store(identity, state.clone(), realm).await? {
         return Err(ApiError::Forbidden(
             "You do not have permission to assign roles".to_string(),
         ));

@@ -65,7 +65,7 @@ pub async fn unassign_role(
         .await
         .map_err(ApiError::from)?;
 
-    if UserRolePolicy::delete(identity, state.clone(), realm).await? {
+    if !UserRolePolicy::delete(identity, state.clone(), realm).await? {
         return Err(ApiError::Forbidden(
             "You do not have permission to unassign roles".to_string(),
         ));
