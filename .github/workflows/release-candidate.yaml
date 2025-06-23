@@ -34,7 +34,7 @@ jobs:
       repository: ferriskey/ferriskey
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
-      include_latest_tag: 'true'
+      include_latest_tag: true
       context: 'api'
       dockerfile: ''
     secrets:
@@ -50,7 +50,7 @@ jobs:
       repository: ferriskey/ferriskey
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
-      include_latest_tag: 'true'
+      include_latest_tag: true
       context: 'front'
       dockerfile: ''
     secrets:
@@ -66,7 +66,7 @@ jobs:
       repository: ferriskey/ferriskey
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
-      include_latest_tag: 'true'
+      include_latest_tag: true
       context: 'operator'
       dockerfile: ''
     secrets:
