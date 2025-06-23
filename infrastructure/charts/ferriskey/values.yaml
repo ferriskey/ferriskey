@@ -11,6 +11,7 @@ front:
   apiUrl: "https://api.ferriskey.bonnal.cloud"
 api:
   replicaCount: 1
+  portalUrl: "https://console.ferriskey.bonnal.cloud"
   image:
     repository: ghcr.io/ferriskey/ferriskey-api
     pullPolicy: Always

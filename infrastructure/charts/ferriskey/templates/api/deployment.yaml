@@ -75,3 +75,5 @@ spec:
               value: {{ .Values.auth.email | quote }}
             - name: ALLOWED_ORIGINS
               value: {{ .Values.allowedOrigins | quote }}
+            - name: PORTAL_URL
+              value: {{ .Values.api.portalUrl | quote }}
