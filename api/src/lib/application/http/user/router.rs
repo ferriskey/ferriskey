@@ -10,6 +10,7 @@ use super::handlers::{
     bulk_delete_user::{__path_bulk_delete_user, bulk_delete_user},
     create_user::{__path_create_user, create_user},
     delete_credential::{__path_delete_user_credential, delete_user_credential},
+    delete_user::{__path_delete_user, delete_user},
     get_credentials::{__path_get_user_credentials, get_user_credentials},
     get_user::{__path_get_user, get_user},
     get_user_roles::{__path_get_user_roles, get_user_roles},
@@ -45,6 +46,7 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
         .typed_put(update_user)
         .typed_put(reset_password)
         .typed_delete(bulk_delete_user)
+        .typed_delete(delete_user)
         .typed_delete(delete_user_credential)
         .typed_post(assign_role)
         .typed_delete(unassign_role)

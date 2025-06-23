@@ -10,10 +10,7 @@ use crate::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
     },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        user::{entities::model::User, ports::user_service::UserService},
-    },
+    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -38,7 +35,7 @@ pub struct DeleteUserResponse {
         ("user_id" = String, Path, description = "User ID"),
     ),
 )]
-pub async fn get_user(
+pub async fn delete_user(
     DeleteUserRoute {
         realm_name,
         user_id,
