@@ -192,6 +192,10 @@ export interface TokenRequestValidator {
 	refresh_token?: string;
 }
 
+export interface UnassignRoleResponse {
+	message: string;
+}
+
 export interface UpdateUserResponse {
 	data: User;
 }
