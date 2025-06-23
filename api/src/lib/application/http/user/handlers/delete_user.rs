@@ -27,7 +27,7 @@ pub struct DeleteUserResponse {
 }
 
 #[utoipa::path(
-    get,
+    delete,
     path = "/{user_id}",
     tag = "user",
     params(

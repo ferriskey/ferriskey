@@ -29,6 +29,7 @@ use super::handlers::{
     create_user,
     update_user,
     bulk_delete_user,
+    delete_user,
     reset_password,
     get_user_credentials,
     delete_user_credential,
