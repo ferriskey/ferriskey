@@ -15,6 +15,7 @@ use super::handlers::{
     get_user_roles::{__path_get_user_roles, get_user_roles},
     get_users::{__path_get_users, get_users},
     reset_password::{__path_reset_password, reset_password},
+    unassign_role::{__path_unassign_role, unassign_role},
     update_user::{__path_update_user, update_user},
 };
 
@@ -29,7 +30,8 @@ use super::handlers::{
     bulk_delete_user,
     reset_password,
     get_user_credentials,
-    delete_user_credential
+    delete_user_credential,
+    unassign_role,
 ))]
 pub struct UserApiDoc;
 
@@ -45,5 +47,6 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
         .typed_delete(bulk_delete_user)
         .typed_delete(delete_user_credential)
         .typed_post(assign_role)
+        .typed_delete(unassign_role)
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

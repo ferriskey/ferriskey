@@ -9,10 +9,12 @@ use crate::domain::role::entities::permission::Permissions;
 use crate::domain::role::ports::RoleRepository;
 use crate::domain::user::entities::model::User;
 use crate::domain::user::ports::user_repository::UserRepository;
+use crate::domain::user::ports::user_role_repository::UserRoleRepository;
 use crate::domain::utils::generate_random_string;
 use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
 use crate::infrastructure::repositories::realm_repository::PostgresRealmRepository;
 use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
+use crate::infrastructure::user::repositories::user_role_repository::PostgresUserRoleRepository;
 use crate::infrastructure::user::repository::PostgresUserRepository;
 
 use tracing::{error, info};
@@ -23,50 +25,57 @@ pub type DefaultRealmService = RealmServiceImpl<
     PostgresClientRepository,
     PostgresRoleRepository,
     PostgresUserRepository,
+    PostgresUserRoleRepository,
 >;
 
 #[derive(Debug, Clone)]
-pub struct RealmServiceImpl<R, C, RO, U>
+pub struct RealmServiceImpl<R, C, RO, U, UR>
 where
     R: RealmRepository,
     C: ClientRepository,
     RO: RoleRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
     pub role_repository: RO,
     pub user_repository: U,
+    pub user_role_repository: UR,
 }
 
-impl<R, C, RO, U> RealmServiceImpl<R, C, RO, U>
+impl<R, C, RO, U, UR> RealmServiceImpl<R, C, RO, U, UR>
 where
     R: RealmRepository,
     C: ClientRepository,
     RO: RoleRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
 {
     pub fn new(
         realm_repository: R,
         client_repository: C,
         role_repository: RO,
         user_repository: U,
+        user_role_repository: UR,
     ) -> Self {
         Self {
             realm_repository,
             client_repository,
             role_repository,
             user_repository,
+            user_role_repository,
         }
     }
 }
 
-impl<R, C, RO, U> RealmService for RealmServiceImpl<R, C, RO, U>
+impl<R, C, RO, U, UR> RealmService for RealmServiceImpl<R, C, RO, U, UR>
 where
     R: RealmRepository,
     C: ClientRepository,
     RO: RoleRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
 {
     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
         self.realm_repository.fetch_realm().await
@@ -129,8 +138,8 @@ where
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
-        self.user_repository
-            .assign_role_to_user(user.id, role.id)
+        self.user_role_repository
+            .assign_role(user.id, role.id)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 

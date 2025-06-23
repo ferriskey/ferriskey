@@ -178,6 +178,24 @@ impl UserRepository for PostgresUserRepository {
         Ok(())
     }
 
+    async fn unassign_role_from_user(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+        let rows = entity::user_role::Entity::delete_many()
+            .filter(
+                Condition::all()
+                    .add(entity::user_role::Column::UserId.eq(user_id))
+                    .add(entity::user_role::Column::RoleId.eq(role_id)),
+            )
+            .exec(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        if rows.rows_affected == 0 {
+            return Err(UserError::NotFound);
+        }
+
+        Ok(())
+    }
+
     async fn update_user(&self, user_id: Uuid, dto: UpdateUserDto) -> Result<User, UserError> {
         let user = entity::users::Entity::find()
             .filter(entity::users::Column::Id.eq(user_id))

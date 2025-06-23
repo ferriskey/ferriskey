@@ -41,7 +41,7 @@ use crate::{
         },
         role::{ports::RoleRepository, services::DefaultRoleService},
         user::{
-            ports::user_repository::UserRepository,
+            ports::{user_repository::UserRepository, user_role_repository::UserRoleRepository},
             services::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
             },
@@ -61,13 +61,16 @@ use crate::{
             refresh_token_repository::PostgresRefreshTokenRepository,
             role_repository::PostgresRoleRepository,
         },
-        user::repository::PostgresUserRepository,
+        user::{
+            repositories::user_role_repository::PostgresUserRoleRepository,
+            repository::PostgresUserRepository,
+        },
     },
 };
 
 use super::http::server::app_state::AppState;
 
-pub struct AppServer<R, C, U, CR, H, AS, RR, RU, RO, K>
+pub struct AppServer<R, C, U, CR, H, AS, RR, RU, RO, K, UR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -79,6 +82,7 @@ where
     RU: RedirectUriRepository,
     RO: RoleRepository,
     K: KeyStoreRepository,
+    UR: UserRoleRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -90,6 +94,7 @@ where
     pub redirect_uri_repository: RU,
     pub role_repository: RO,
     pub keystore_repository: K,
+    pub user_role_repository: UR,
 }
 
 impl
@@ -104,6 +109,7 @@ impl
         PostgresRedirectUriRepository,
         PostgresRoleRepository,
         PostgresKeyStoreRepository,
+        PostgresUserRoleRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -118,6 +124,7 @@ impl
         let redirect_uri_repository = PostgresRedirectUriRepository::new(postgres.get_db());
         let role_repository = PostgresRoleRepository::new(postgres.get_db());
         let keystore_repository = PostgresKeyStoreRepository::new(postgres.get_db());
+        let user_role_repository = PostgresUserRoleRepository::new(postgres.get_db());
 
         Ok(Self {
             realm_repository,
@@ -130,6 +137,7 @@ impl
             redirect_uri_repository,
             role_repository,
             keystore_repository,
+            user_role_repository,
         })
     }
 
@@ -139,6 +147,7 @@ impl
             self.client_repository.clone(),
             self.role_repository.clone(),
             self.user_repository.clone(),
+            self.user_role_repository.clone(),
         ));
         let client_service = Arc::new(DefaultClientService::new(
             self.client_repository.clone(),
@@ -155,6 +164,7 @@ impl
         let user_service = Arc::new(DefaultUserService::new(
             self.user_repository.clone(),
             self.realm_repository.clone(),
+            self.user_role_repository.clone(),
         ));
 
         let crypto_service = Arc::new(DefaultCryptoService::new(self.hasher_repository.clone()));
@@ -189,6 +199,7 @@ impl
             self.user_repository.clone(),
             self.role_repository.clone(),
             self.realm_repository.clone(),
+            self.user_role_repository.clone(),
         );
 
         let mediator_config = MediatorConfig {

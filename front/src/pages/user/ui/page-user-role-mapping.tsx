@@ -2,15 +2,21 @@ import { Role } from '@/api/api.interface'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 import { DataTable } from '@/components/ui/data-table'
 import { columns } from '../columns/list-user-roles.column'
+import { Delete } from 'lucide-react'
 
 interface PageUserRoleMappingProps {
   userRoles: Role[]
   isLoading: boolean
   isError: boolean
+  handleUnassignRole: (roleId: string) => void
   userId?: string
 }
 
-export default function PageUserRoleMapping({ userRoles, isLoading }: PageUserRoleMappingProps) {
+export default function PageUserRoleMapping({
+  userRoles,
+  isLoading,
+  handleUnassignRole,
+}: PageUserRoleMappingProps) {
   return (
     <div className="">
       <DataTable
@@ -18,6 +24,15 @@ export default function PageUserRoleMapping({ userRoles, isLoading }: PageUserRo
         data={userRoles ?? []}
         isLoading={isLoading}
         emptyState={<NoUserRoles />}
+        rowActions={[
+          {
+            label: 'Unassign',
+            icon: <Delete className="h-4 w-4" />,
+            onClick: (role) => {
+              handleUnassignRole(role.id)
+            },
+          },
+        ]}
       />
     </div>
   )

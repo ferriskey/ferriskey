@@ -1,6 +1,8 @@
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
@@ -19,21 +21,22 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct AssignRoleResponse {
-    pub message: String,
-}
-
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users/{user_id}/roles/{role_id}")]
-pub struct AssignRoleRoute {
+pub struct UnassignRoleRoute {
     pub realm_name: String,
     pub user_id: Uuid,
     pub role_id: Uuid,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[typeshare]
+pub struct UnassignRoleResponse {
+    pub message: String,
+}
+
 #[utoipa::path(
-    post,
+    delete,
     path = "/{user_id}/roles/{role_id}",
     tag = "user",
     params(
@@ -41,37 +44,41 @@ pub struct AssignRoleRoute {
         ("user_id" = Uuid, Path, description = "User ID"),
         ("role_id" = Uuid, Path, description = "Role ID"),
     ),
+    responses(
+        (status = 200, body = UnassignRoleResponse, description = "Role unassigned successfully"),
+        (status = 403, description = "Forbidden - You do not have permission to unassign roles"),
+        (status = 404, description = "User or role not found")
+    )
 )]
-pub async fn assign_role(
-    AssignRoleRoute {
+pub async fn unassign_role(
+    UnassignRoleRoute {
         realm_name,
         user_id,
         role_id,
-    }: AssignRoleRoute,
+    }: UnassignRoleRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<AssignRoleResponse>, ApiError> {
+) -> Result<Response<UnassignRoleResponse>, ApiError> {
     let realm = state
         .realm_service
         .get_by_name(realm_name.clone())
         .await
         .map_err(ApiError::from)?;
 
-    if UserRolePolicy::store(identity, state.clone(), realm).await? {
+    if UserRolePolicy::delete(identity, state.clone(), realm).await? {
         return Err(ApiError::Forbidden(
-            "You do not have permission to assign roles".to_string(),
+            "You do not have permission to unassign roles".to_string(),
         ));
     }
 
     state
         .user_role_service
-        .assign_role(realm_name.clone(), user_id, role_id)
-        .await
-        .map_err(ApiError::from)?;
+        .revoke_role(user_id, role_id)
+        .await?;
 
-    Ok(Response::OK(AssignRoleResponse {
+    Ok(Response::OK(UnassignRoleResponse {
         message: format!(
-            "Role {} assigned to user {} in realm {}",
+            "Role {} unassigned from user {} in realm {}",
             role_id, user_id, realm_name
         ),
     }))

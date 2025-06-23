@@ -55,6 +55,85 @@ impl UserRolePolicy {
         ))
     }
 
+    /// Check if the user can store user roles in the target realm
+    ///
+    /// # Arguments
+    /// * `identity` - The authenticated user's identity
+    /// * `state` - Application state containing services
+    /// * `target_realm` - The realm where the user roles are being stored
+    ///
+    /// # Returns
+    /// * `Ok(true)` - User has permission to store user roles
+    /// * `Ok(false)` - User does not have sufficient permissions
+    /// * `Err(ApiError)` - Error occurred during permission check
+    pub async fn store(
+        identity: Identity,
+        state: AppState,
+        target_realm: Realm,
+    ) -> Result<bool, ApiError> {
+        let policy = PolicyEnforcer::new(state.clone());
+        let user = policy.get_user_from_identity(&identity).await?;
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let permissions_vec: Vec<Permissions> = permissions.iter().cloned().collect();
+
+        if Self::has_realm_management_permissions(&permissions_vec) {
+            return Ok(true);
+        }
+
+        Ok(Self::has_role_and_user_management_permissions(
+            &permissions_vec,
+        ))
+    }
+
+    /// Check if the user can delete user roles in the target realm
+    ///
+    /// # Arguments
+    /// * `identity` - The authenticated user's identity
+    /// * `state` - Application state containing services
+    /// * `target_realm` - The realm where the user roles are being deleted
+    ///
+    /// # Returns
+    /// * `Ok(true)` - User has permission to delete user roles
+    /// * `Ok(false)` - User does not have sufficient permissions
+    /// * `Err(ApiError)` - Error occurred during permission check
+    pub async fn delete(
+        identity: Identity,
+        state: AppState,
+        target_realm: Realm,
+    ) -> Result<bool, ApiError> {
+        let policy = PolicyEnforcer::new(state.clone());
+        let user = policy.get_user_from_identity(&identity).await?;
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let permissions_vec: Vec<Permissions> = permissions.iter().cloned().collect();
+
+        if Self::has_realm_management_permissions(&permissions_vec) {
+            return Ok(true);
+        }
+
+        Ok(Self::has_role_and_user_management_permissions(
+            &permissions_vec,
+        ))
+    }
+
+    /// Check if user has both role management and user management permissions
+    ///
+    /// Users with these permissions can manage user roles and users in a restricted manner
+    #[inline]
+    fn has_role_and_user_management_permissions(permissions: &[Permissions]) -> bool {
+        Permissions::has_permissions(
+            permissions,
+            &[Permissions::ManageUsers, Permissions::ManageRoles],
+        )
+    }
+
     /// Check if user has realm management permissions
     ///
     /// Users with these permissions have full access to view user roles

@@ -9,44 +9,56 @@ use crate::{
         user::{
             dtos::user_dto::{CreateUserDto, UpdateUserDto},
             entities::{error::UserError, model::User},
-            ports::{user_repository::UserRepository, user_service::UserService},
+            ports::{
+                user_repository::UserRepository, user_role_repository::UserRoleRepository,
+                user_service::UserService,
+            },
         },
     },
     infrastructure::{
         repositories::realm_repository::PostgresRealmRepository,
-        user::repository::PostgresUserRepository,
+        user::{
+            repositories::user_role_repository::PostgresUserRoleRepository,
+            repository::PostgresUserRepository,
+        },
     },
 };
 
-pub type DefaultUserService = UserServiceImpl<PostgresUserRepository, PostgresRealmRepository>;
+pub type DefaultUserService =
+    UserServiceImpl<PostgresUserRepository, PostgresRealmRepository, PostgresUserRoleRepository>;
 
 #[derive(Debug, Clone)]
-pub struct UserServiceImpl<U, R>
+pub struct UserServiceImpl<U, R, UR>
 where
     U: UserRepository,
     R: RealmRepository,
+    UR: UserRoleRepository,
 {
     pub user_repository: U,
     pub realm_repository: R,
+    pub user_role_repository: UR,
 }
 
-impl<U, R> UserServiceImpl<U, R>
+impl<U, R, UR> UserServiceImpl<U, R, UR>
 where
     U: UserRepository,
     R: RealmRepository,
+    UR: UserRoleRepository,
 {
-    pub fn new(user_repository: U, realm_repository: R) -> Self {
+    pub fn new(user_repository: U, realm_repository: R, user_role_repository: UR) -> Self {
         Self {
             user_repository,
             realm_repository,
+            user_role_repository,
         }
     }
 }
 
-impl<U, R> UserService for UserServiceImpl<U, R>
+impl<U, R, UR> UserService for UserServiceImpl<U, R, UR>
 where
     U: UserRepository,
     R: RealmRepository,
+    UR: UserRoleRepository,
 {
     async fn create_user(&self, dto: CreateUserDto) -> Result<User, UserError> {
         self.user_repository.create_user(dto).await
@@ -67,7 +79,7 @@ where
     }
 
     async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
-        let roles = self.user_repository.get_roles_by_user_id(user_id).await?;
+        let roles = self.user_role_repository.get_user_roles(user_id).await?;
         Ok(roles)
     }
 
@@ -87,7 +99,7 @@ where
             return Ok(vec![realm.clone()]);
         }
 
-        let user_roles = self.user_repository.get_roles_by_user_id(user.id).await?;
+        let user_roles = self.user_role_repository.get_user_roles(user.id).await?;
 
         let realms = self
             .realm_repository

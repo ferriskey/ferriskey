@@ -7,4 +7,5 @@ pub mod get_user;
 pub mod get_user_roles;
 pub mod get_users;
 pub mod reset_password;
+pub mod unassign_role;
 pub mod update_user;
