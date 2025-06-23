@@ -40,7 +40,7 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
         ids: Vec<Uuid>,
     ) -> impl Future<Output = Result<u64, UserError>> + Send;
 
-    fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<(), UserError>> + Send;
+    fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, UserError>> + Send;
 
     #[deprecated(
         note = "Use `assign_role` in UserRoleRepository. This method will be removed in future versions."

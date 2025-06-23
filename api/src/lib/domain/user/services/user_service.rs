@@ -155,7 +155,7 @@ where
         self.user_repository.bulk_delete_user(ids).await
     }
 
-    async fn delete_user(&self, user_id: Uuid) -> Result<(), UserError> {
+    async fn delete_user(&self, user_id: Uuid) -> Result<u64, UserError> {
         self.user_repository.delete_user(user_id).await
     }
 
