@@ -12,22 +12,15 @@ export function useTheme() {
 
   useEffect(() => {
     const root = window.document.documentElement
-    const body = window.document.body
-
     root.classList.remove('light', 'dark')
-    body.classList.remove('light-mode', 'dark-mode')
 
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       root.classList.add(systemTheme)
-
-      const systemThemeBody = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark-mode' : 'light-mode'
-      body.classList.add(systemThemeBody)
       return
     }
 
     root.classList.add(theme)
-    body.classList.add(theme === 'dark' ? 'dark-mode' : 'light-mode')
   }, [theme])
 
   const setThemeMode = (newTheme: Theme) => {

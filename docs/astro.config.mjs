@@ -23,6 +23,7 @@ import remarkReadMoreDirective from './src/lib/plugins/read-more/remark-directiv
 // https://astro.build/config
 export default defineConfig({
   output: 'static',
+  prefetch: true,
   server: {
     port: 8081,
   },

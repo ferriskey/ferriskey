@@ -158,3 +158,8 @@
 .references-navigation-list {
   top: 61px !important;
 }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s !important;
+}

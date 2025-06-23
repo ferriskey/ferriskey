@@ -3,6 +3,7 @@ import Footer from "@/components/elements/footer";
 import Navbar from "@/components/elements/navbar";
 import config from "../../../explainer.config";
 import "../../assets/css/global.css";
+import { ClientRouter } from "astro:transitions";
 
 const { title = config.meta.title } = Astro.props;
 ---
@@ -28,6 +29,23 @@ const { title = config.meta.title } = Astro.props;
     <meta property="og:image:alt" content={config.meta.title} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+
+    <ClientRouter />
+
+    <script>
+      const root = window.document.documentElement;
+      const theme = localStorage.getItem("theme") ?? "system";
+
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light";
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.add(theme);
+      }
+    </script>
   </head>
   <body class="relative min-h-screen">
     <div class="min-h-screen flex flex-col">
