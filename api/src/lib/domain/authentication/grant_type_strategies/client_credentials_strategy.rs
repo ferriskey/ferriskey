@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
-use tracing::info;
 
 use crate::domain::{
     authentication::{
@@ -53,8 +52,6 @@ impl GrantTypeStrategy for ClientCredentialsStrategy {
                 if client.secret != params.client_secret {
                     return Err(AuthenticationError::InvalidClientSecret);
                 }
-
-                info!("success to login with client: {:?}", client.name);
 
                 let user = self
                     .user_service

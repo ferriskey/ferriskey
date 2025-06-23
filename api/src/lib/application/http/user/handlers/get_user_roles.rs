@@ -5,7 +5,6 @@ use crate::{
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -69,16 +68,11 @@ pub async fn get_user_roles(
         ));
     }
 
-    info!("Fetching roles for user: {}", user_id);
-
-    // Get the target user's roles
     let roles = state
         .user_service
         .get_user_roles(user_id)
         .await
         .map_err(ApiError::from)?;
-
-    info!("Roles retrieved for user: {}", user_id);
 
     Ok(Response::OK(GetUserRolesResponse { data: roles }))
 }
