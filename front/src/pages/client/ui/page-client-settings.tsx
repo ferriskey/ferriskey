@@ -1,6 +1,7 @@
-import { Client } from "@/api/api.interface";
-import { Heading } from "@/components/ui/heading";
-import { InputText } from "@/components/ui/input-text";
+import { Client } from '@/api/api.interface'
+import BlockContent from '@/components/ui/block-content'
+import { InputText } from '@/components/ui/input-text'
+import ManageRedirectUris from '../components/manage-redirect-uris'
 
 export interface PageClientSettingsProps {
   client: Client
@@ -10,29 +11,19 @@ export default function PageClientSettings({ client }: PageClientSettingsProps) 
   return (
     <div>
       <div className="flex flex-col gap-4">
-        <Heading size={4} className="text-gray-900">General Settings</Heading>
+        <BlockContent title="General Settings" className="w-full md:w-2/3 2xl:w-1/3">
+          <div className="flex flex-col gap-4">
+            <InputText name="client_name" label="Client Name" value={client.name} disabled />
 
-        <div className="flex w-1/3">
-          <div className="flex flex-col gap-4 p-4 bg-gray-50 border rounded-md w-full">
-            <div className="flex flex-col gap-2">
-              <InputText 
-                name="client_id"
-                label="Client ID"
-                value={client.client_id}
-                disabled
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <InputText 
-                name="client_name"
-                label="Client Name"
-                value={client.name}
-                disabled
-              />
-            </div>
+            <InputText name="client_id" label="Client ID" value={client.client_id} disabled />
           </div>
-        </div>
+        </BlockContent>
+
+        <BlockContent title="Access Settings" className="w-full md:w-2/3 2xl:w-1/3">
+          <div>
+            <ManageRedirectUris redirectUris={client.redirect_uris ?? []} />
+          </div>
+        </BlockContent>
       </div>
     </div>
   )
