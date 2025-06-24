@@ -1,6 +1,10 @@
 use crate::domain::{
     client::{
-        entities::{dto::CreateClientDto, error::ClientError, model::Client},
+        entities::{
+            dto::{CreateClientDto, UpdateClientDto},
+            error::ClientError,
+            model::Client,
+        },
         ports::client_repository::ClientRepository,
     },
     utils::{generate_timestamp, generate_uuid_v7},
@@ -113,6 +117,44 @@ impl ClientRepository for PostgresClientRepository {
         let clients: Vec<Client> = clients.into_iter().map(|c| c.into()).collect();
 
         Ok(clients)
+    }
+
+    async fn update_client(
+        &self,
+        client_id: Uuid,
+        data: UpdateClientDto,
+    ) -> Result<Client, ClientError> {
+        let client = ClientEntity::find()
+            .filter(entity::clients::Column::Id.eq(client_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?
+            .ok_or(ClientError::NotFound)?;
+
+        let mut client: ActiveModel = client.into();
+        client.name = match data.name {
+            Some(name) => Set(name),
+            None => client.name,
+        };
+
+        client.client_id = match data.client_id {
+            Some(client_id) => Set(client_id),
+            None => client.client_id,
+        };
+
+        client.enabled = match data.enabled {
+            Some(enabled) => Set(enabled),
+            None => client.enabled,
+        };
+
+        client.updated_at = Set(Utc::now().naive_utc());
+
+        let client = client
+            .update(&self.db)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        Ok(client.into())
     }
 
     async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {

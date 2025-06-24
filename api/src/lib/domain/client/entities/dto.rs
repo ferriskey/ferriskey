@@ -13,3 +13,11 @@ pub struct CreateClientDto {
     pub service_account_enabled: bool,
     pub client_type: String,
 }
+
+/// Data transfer object for updating a client
+#[derive(Debug, Clone)]
+pub struct UpdateClientDto {
+    pub name: Option<String>,
+    pub client_id: Option<String>,
+    pub enabled: Option<bool>,
+}

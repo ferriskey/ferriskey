@@ -6,4 +6,5 @@ pub mod get_client;
 pub mod get_client_roles;
 pub mod get_clients;
 pub mod get_redirect_uris;
+pub mod update_client;
 pub mod update_redirect_uri;

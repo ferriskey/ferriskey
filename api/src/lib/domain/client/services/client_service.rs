@@ -1,5 +1,5 @@
 use crate::application::http::client::validators::CreateClientValidator;
-use crate::domain::client::entities::dto::CreateClientDto;
+use crate::domain::client::entities::dto::{CreateClientDto, UpdateClientDto};
 use crate::domain::client::entities::{error::ClientError, model::Client};
 use crate::domain::client::ports::client_repository::ClientRepository;
 use crate::domain::client::ports::client_service::ClientService;
@@ -90,6 +90,27 @@ where
                 .await
                 .map_err(|_| ClientError::InternalServerError)?;
         }
+
+        Ok(client)
+    }
+
+    async fn update_client(
+        &self,
+        client_id: Uuid,
+        realm_name: String,
+        schema: UpdateClientDto,
+    ) -> Result<Client, ClientError> {
+        let _: crate::domain::realm::entities::realm::Realm = self
+            .realm_service
+            .get_by_name(realm_name)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let client = self
+            .client_repository
+            .update_client(client_id, schema)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
 
         Ok(client)
     }

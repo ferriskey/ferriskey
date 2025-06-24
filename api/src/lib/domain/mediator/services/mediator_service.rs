@@ -25,7 +25,7 @@ use crate::{
         },
         user::{
             dtos::user_dto::CreateUserDto,
-            ports::{user_role_service::UserRoleService, user_service::UserService},
+            ports::user_service::UserService,
             services::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
             },

@@ -118,6 +118,10 @@ export interface DeleteUserCredentialResponse {
 	message: string;
 }
 
+export interface DeleteUserResponse {
+	count: number;
+}
+
 export interface JwkKey {
 	kid: string;
 	kty: string;

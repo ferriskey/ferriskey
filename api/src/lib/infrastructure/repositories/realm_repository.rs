@@ -124,6 +124,7 @@ impl RealmRepository for PostgresRealmRepository {
             .update(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
+
         let updated_realm = RealmEntity::find()
             .filter(entity::realms::Column::Name.eq(name))
             .one(&self.db)

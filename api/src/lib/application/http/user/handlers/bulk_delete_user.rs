@@ -54,9 +54,8 @@ pub async fn bulk_delete_user(
         .await
         .map_err(ApiError::from)?;
 
-    let hasPermission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
-
-    if !hasPermission {
+    let has_permission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
+    if !has_permission {
         return Err(ApiError::Forbidden(
             "You do not have permission to delete users".to_string(),
         ));
