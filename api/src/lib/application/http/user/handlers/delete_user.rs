@@ -55,7 +55,7 @@ pub async fn delete_user(
         .await
         .map_err(ApiError::from)?;
 
-    let hasPermission = UserPolicy::delete(identity.clone(), state.clone(), realm.clone()).await?;
+    let hasPermission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
 
     if !hasPermission {
         return Err(ApiError::Forbidden(
