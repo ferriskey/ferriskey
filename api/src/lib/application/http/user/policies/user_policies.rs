@@ -49,6 +49,9 @@ impl UserPolicy {
     /// * `false` - User does not have sufficient permissions
     #[inline]
     fn has_user_management_permissions(permissions: &[Permissions]) -> bool {
-        Permissions::has_one_of_permissions(permissions, &[Permissions::ManageUsers])
+        Permissions::has_one_of_permissions(
+            permissions,
+            &[Permissions::ManageUsers, Permissions::ManageRealm],
+        )
     }
 }
