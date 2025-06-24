@@ -28,7 +28,7 @@ pub struct UpdateClientRoute {
 }
 
 #[utoipa::path(
-    post,
+    patch,
     path = "",
     params(
         ("realm_name" = String, Path, description = "Realm name"),

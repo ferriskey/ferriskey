@@ -100,9 +100,9 @@ where
         realm_name: String,
         schema: UpdateClientDto,
     ) -> Result<Client, ClientError> {
-        let _: crate::domain::realm::entities::realm::Realm = self
+        let _ = self
             .realm_service
-            .get_by_name(realm_name)
+            .get_by_name(realm _name)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
