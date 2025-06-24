@@ -4,6 +4,7 @@ use crate::domain::{
             dto::{CreateClientDto, UpdateClientDto},
             error::ClientError,
             model::Client,
+            redirect_uri::RedirectUri,
         },
         ports::client_repository::ClientRepository,
     },

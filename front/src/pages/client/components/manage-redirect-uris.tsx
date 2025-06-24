@@ -20,7 +20,6 @@ export default function ManageRedirectUris({ redirectUris }: ManageRedirectUrisP
 
   const handleDeleteRedirectUri = (uriId: string) => {
     if (!realm_name || !client_id) return
-    console.log('Dropping redirect URI with ID:', uriId)
 
     deleteRedirectUri({
       realmName: realm_name,
