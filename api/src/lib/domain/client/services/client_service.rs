@@ -1,4 +1,3 @@
-use crate::application::http::client::validators::CreateClientValidator;
 use crate::domain::client::entities::dto::{CreateClientDto, UpdateClientDto};
 use crate::domain::client::entities::{error::ClientError, model::Client};
 use crate::domain::client::ports::client_repository::ClientRepository;
@@ -7,7 +6,6 @@ use crate::domain::realm::ports::realm_service::RealmService;
 use crate::domain::realm::services::realm_service::DefaultRealmService;
 use crate::domain::user::dtos::user_dto::CreateUserDto;
 use crate::domain::user::ports::user_repository::UserRepository;
-use crate::domain::utils::generate_random_string;
 use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
 use crate::infrastructure::user::repository::PostgresUserRepository;
 use std::sync::Arc;
@@ -50,7 +48,7 @@ where
 {
     async fn create_client(
         &self,
-        schema: CreateClientValidator,
+        schema: CreateClientDto,
         realm_name: String,
     ) -> Result<Client, ClientError> {
         let realm = self
@@ -61,17 +59,7 @@ where
 
         let client = self
             .client_repository
-            .create_client(CreateClientDto {
-                realm_id: realm.id,
-                name: schema.name,
-                client_id: schema.client_id,
-                secret: generate_random_string(),
-                enabled: schema.enabled,
-                protocol: schema.protocol,
-                public_client: schema.public_client,
-                service_account_enabled: schema.service_account_enabled,
-                client_type: schema.client_type,
-            })
+            .create_client(schema.clone())
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 

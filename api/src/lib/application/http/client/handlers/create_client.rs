@@ -3,15 +3,24 @@ use axum_macros::TypedPath;
 use serde::Deserialize;
 
 use crate::{
-    application::http::server::app_state::AppState,
     application::http::{
         client::validators::CreateClientValidator,
         server::{
-            api_entities::api_error::{ApiError, ValidateJson},
-            api_entities::response::Response,
+            api_entities::{
+                api_error::{ApiError, ValidateJson},
+                response::Response,
+            },
+            app_state::AppState,
         },
     },
-    domain::client::{entities::model::Client, ports::client_service::ClientService},
+    domain::{
+        client::{
+            entities::{dto::CreateClientDto, model::Client},
+            ports::client_service::ClientService,
+        },
+        realm::ports::realm_service::RealmService,
+        utils::generate_random_string,
+    },
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -34,9 +43,24 @@ pub async fn create_client(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
+    let realm = state.realm_service.get_by_name(realm_name.clone()).await?;
+
     state
         .client_service
-        .create_client(payload, realm_name)
+        .create_client(
+            CreateClientDto {
+                realm_id: realm.id,
+                name: payload.name,
+                client_id: payload.client_id,
+                secret: generate_random_string(),
+                enabled: payload.enabled,
+                protocol: payload.protocol,
+                public_client: payload.public_client,
+                service_account_enabled: payload.service_account_enabled,
+                client_type: payload.client_type,
+            },
+            realm_name,
+        )
         .await
         .map_err(ApiError::from)
         .map(Response::Created)

@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     application::http::{
-        client::validators::{CreateClientValidator, UpdateClientValidator},
+        client::validators::UpdateClientValidator,
         server::{
             api_entities::{
                 api_error::{ApiError, ValidateJson},

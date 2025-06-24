@@ -1,13 +1,12 @@
 use uuid::Uuid;
 
-use crate::application::http::client::validators::CreateClientValidator;
-use crate::domain::client::entities::dto::UpdateClientDto;
+use crate::domain::client::entities::dto::{CreateClientDto, UpdateClientDto};
 use crate::domain::client::entities::{error::ClientError, model::Client};
 
 pub trait ClientService: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
-        schema: CreateClientValidator,
+        schema: CreateClientDto,
         realm_name: String,
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
 

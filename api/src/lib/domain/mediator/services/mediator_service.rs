@@ -2,9 +2,10 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::{
-    application::http::client::validators::{CreateClientValidator, CreateRedirectUriValidator},
+    application::http::client::validators::CreateRedirectUriValidator,
     domain::{
         client::{
+            entities::dto::CreateClientDto,
             ports::{client_service::ClientService, redirect_uri_service::RedirectUriService},
             services::{
                 client_service::DefaultClientService,
@@ -30,6 +31,7 @@ use crate::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
             },
         },
+        utils::generate_random_string,
     },
     env::Env,
 };
@@ -107,14 +109,16 @@ impl MediatorService for MediatorServiceImpl {
                 let _client = self
                     .client_service
                     .create_client(
-                        CreateClientValidator {
+                        CreateClientDto {
+                            realm_id: realm.id,
+                            name: client_id.clone(),
                             client_id: client_id.clone(),
                             enabled: true,
-                            name: client_id.clone(),
                             protocol: "openid-connect".to_string(),
                             public_client: false,
                             service_account_enabled: false,
                             client_type: "confidential".to_string(),
+                            secret: generate_random_string(),
                         },
                         realm.name.clone(),
                     )
@@ -142,14 +146,16 @@ impl MediatorService for MediatorServiceImpl {
                 let _client = self
                     .client_service
                     .create_client(
-                        CreateClientValidator {
+                        CreateClientDto {
+                            realm_id: realm.id,
+                            name: master_realm_client_id.clone(),
                             client_id: master_realm_client_id.clone(),
                             enabled: true,
-                            name: master_realm_client_id.clone(),
                             protocol: "openid-connect".to_string(),
                             public_client: false,
                             service_account_enabled: false,
                             client_type: "confidential".to_string(),
+                            secret: generate_random_string(),
                         },
                         realm.name.clone(),
                     )
