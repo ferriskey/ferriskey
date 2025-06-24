@@ -1,4 +1,4 @@
-use axum::extract::State;
+use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
@@ -13,7 +13,7 @@ use crate::{
             },
             app_state::AppState,
         },
-        user::validators::BulkDeleteUserValidator,
+        user::{policies::user_policies::UserPolicy, validators::BulkDeleteUserValidator},
     },
     domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
 };
@@ -42,13 +42,22 @@ pub struct BulkDeleteUserRoute {
 pub async fn bulk_delete_user(
     BulkDeleteUserRoute { realm_name }: BulkDeleteUserRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
 ) -> Result<Response<BulkDeleteUserResponse>, ApiError> {
-    let _ = state
+    let realm = state
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(ApiError::from)?;
+
+    let hasPermission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
+
+    if !hasPermission {
+        return Err(ApiError::Forbidden(
+            "You do not have permission to delete users".to_string(),
+        ));
+    }
 
     let count = state
         .user_service
