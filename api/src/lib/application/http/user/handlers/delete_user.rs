@@ -1,4 +1,4 @@
-use axum::extract::State;
+use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
@@ -6,9 +6,15 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    application::http::server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
+    application::{
+        auth::Identity,
+        http::{
+            server::{
+                api_entities::{api_error::ApiError, response::Response},
+                app_state::AppState,
+            },
+            user::policies::user_policies::UserPolicy,
+        },
     },
     domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
 };
@@ -41,12 +47,21 @@ pub async fn delete_user(
         user_id,
     }: DeleteUserRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserResponse>, ApiError> {
-    let _ = state
+    let realm = state
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(ApiError::from)?;
+
+    let hasPermission = UserPolicy::delete(identity.clone(), state.clone(), realm.clone()).await?;
+
+    if !hasPermission {
+        return Err(ApiError::Forbidden(
+            "You do not have permission to delete users".to_string(),
+        ));
+    }
 
     let count = state
         .user_service
