@@ -5,15 +5,18 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use crate::{
-    application::http::{
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
+    application::{
+        auth::Identity,
+        http::{
+            server::{
+                api_entities::{
+                    api_error::{ApiError, ValidateJson},
+                    response::Response,
+                },
+                app_state::AppState,
             },
-            app_state::AppState,
+            user::{policies::user_policies::UserPolicy, validators::BulkDeleteUserValidator},
         },
-        user::{policies::user_policies::UserPolicy, validators::BulkDeleteUserValidator},
     },
     domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
 };
