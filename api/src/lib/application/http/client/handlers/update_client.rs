@@ -32,6 +32,7 @@ pub struct UpdateClientRoute {
     path = "",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = Uuid, Path, description = "Client ID"),
     ),
     tag = "client",
     request_body = CreateClientValidator,
