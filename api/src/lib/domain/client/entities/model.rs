@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 use validator::Validate;
 
-use crate::domain::client::entities::client_config::ClientConfig;
+use crate::domain::client::entities::{client_config::ClientConfig, redirect_uri::RedirectUri};
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
@@ -25,6 +25,7 @@ pub struct Client {
     pub service_account_enabled: bool,
     pub client_type: String,
     pub name: String,
+    pub redirect_uris: Option<Vec<RedirectUri>>,
     #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
     #[typeshare(serialized_as = "Date")]
@@ -56,6 +57,7 @@ impl Client {
             service_account_enabled: config.service_account_enabled,
             client_type: config.client_type,
             name: config.name,
+            redirect_uris: None,
             created_at: now,
             updated_at: now,
         }

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 use validator::Validate;
@@ -8,12 +9,17 @@ use validator::Validate;
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, FromRow, ToSchema,
 )]
+#[typeshare]
 pub struct RedirectUri {
+    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
+    #[typeshare(serialized_as = "string")]
     pub client_id: Uuid,
     pub value: String,
     pub enabled: bool,
+    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 

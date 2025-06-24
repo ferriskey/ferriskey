@@ -23,6 +23,15 @@ export interface BulkDeleteUserResponse {
 	count: number;
 }
 
+export interface RedirectUri {
+	id: string;
+	client_id: string;
+	value: string;
+	enabled: boolean;
+	created_at: Date;
+	updated_at: Date;
+}
+
 export interface Client {
 	id: string;
 	enabled: boolean;
@@ -34,6 +43,7 @@ export interface Client {
 	service_account_enabled: boolean;
 	client_type: string;
 	name: string;
+	redirect_uris?: RedirectUri[];
 	created_at: Date;
 	updated_at: Date;
 }
