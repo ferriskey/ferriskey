@@ -102,7 +102,7 @@ where
     ) -> Result<Client, ClientError> {
         let _ = self
             .realm_service
-            .get_by_name(realm _name)
+            .get_by_name(realm_name)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
