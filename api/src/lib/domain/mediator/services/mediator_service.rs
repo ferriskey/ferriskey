@@ -78,17 +78,13 @@ impl MediatorService for MediatorServiceImpl {
             }
             Err(_) => {
                 info!("Creating master realm");
-                let _realm = match self.realm_service.create_realm("master".to_string()).await {
-                    Ok(realm) => {
-                        info!("Master realm created");
-                        realm
-                    }
-                    Err(_) => {
-                        info!("Failed to create master realm");
-                        return Err(anyhow::anyhow!("failed to create master realm"));
-                    }
-                };
-                info!("Master realm created");
+                let _realm = self
+                    .realm_service
+                    .create_realm("master".to_string())
+                    .await
+                    .map_err(|_| anyhow::anyhow!("failed to create master realm"))?;
+
+                info!("Master realm created with ID: {}", _realm.id);
                 _realm
             }
         };
@@ -108,7 +104,7 @@ impl MediatorService for MediatorServiceImpl {
             }
             Err(_) => {
                 info!("Creating client {:}", client_id.clone());
-                let _client = match self
+                let _client = self
                     .client_service
                     .create_client(
                         CreateClientValidator {
@@ -123,17 +119,9 @@ impl MediatorService for MediatorServiceImpl {
                         realm.name.clone(),
                     )
                     .await
-                {
-                    Ok(client) => {
-                        info!("client {:} created", client_id.clone());
-                        client
-                    }
-                    Err(_) => {
-                        info!("failed to create client {:}", client_id.clone());
-                        return Err(anyhow::anyhow!("failed to create client"));
-                    }
-                };
+                    .map_err(|_| anyhow::anyhow!("failed to create client"))?;
 
+                info!("client {:} created", client_id.clone());
                 _client
             }
         };
@@ -151,7 +139,7 @@ impl MediatorService for MediatorServiceImpl {
             }
             Err(_) => {
                 info!("Creating client {:}", master_realm_client_id.clone());
-                let _client = match self
+                let _client = self
                     .client_service
                     .create_client(
                         CreateClientValidator {
@@ -166,20 +154,9 @@ impl MediatorService for MediatorServiceImpl {
                         realm.name.clone(),
                     )
                     .await
-                {
-                    Ok(client) => {
-                        info!("client {:} created", master_realm_client_id.clone());
-                        client
-                    }
-                    Err(_) => {
-                        info!(
-                            "failed to create client {:}",
-                            master_realm_client_id.clone()
-                        );
-                        return Err(anyhow::anyhow!("failed to create client"));
-                    }
-                };
+                    .map_err(|_| anyhow::anyhow!("failed to create client"))?;
 
+                info!("client {:} created", master_realm_client_id.clone());
                 _client
             }
         };
@@ -195,7 +172,7 @@ impl MediatorService for MediatorServiceImpl {
             }
             Err(_) => {
                 info!("Creating user for client {:}", client_id.clone());
-                let _user = match self
+                let _user = self
                     .user_service
                     .create_user(CreateUserDto {
                         email: self.env.admin_email.clone(),
@@ -208,13 +185,7 @@ impl MediatorService for MediatorServiceImpl {
                         username: self.env.admin_username.clone(),
                     })
                     .await
-                {
-                    Ok(user) => user,
-                    Err(_) => {
-                        info!("failed to create user {:}", self.env.admin_username);
-                        return Err(anyhow::anyhow!("failed to create user"));
-                    }
-                };
+                    .map_err(|_| anyhow::anyhow!("failed to create user"))?;
 
                 info!("user {:} created", _user.username);
                 _user
@@ -238,7 +209,7 @@ impl MediatorService for MediatorServiceImpl {
                 role
             }
             None => {
-                let _role = match self
+                let _role = self
                     .role_service
                     .create(CreateRoleDto {
                         client_id: Some(master_realm_client.id.clone()),
@@ -248,26 +219,9 @@ impl MediatorService for MediatorServiceImpl {
                         description: None,
                     })
                     .await
-                {
-                    Ok(role) => {
-                        info!("role {:} created", role.name.clone());
+                    .map_err(|_| anyhow::anyhow!("failed to create role"))?;
 
-                        info!("role {:} created", role.name.clone());
-
-                        self.user_role_service
-                            .assign_role(realm.name.clone(), user.id.clone(), role.id.clone())
-                            .await?;
-
-                        info!("role {:} assigned to user {:}", role.name, user.username);
-
-                        role
-                    }
-                    Err(_) => {
-                        info!("failed to create role {:}", master_realm_client_id);
-                        return Err(anyhow::anyhow!("failed to create role"));
-                    }
-                };
-
+                info!("role {:} created", master_realm_client_id.clone());
                 _role
             }
         };
