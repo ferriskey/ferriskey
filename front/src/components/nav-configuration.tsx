@@ -1,44 +1,38 @@
-import {
-  Folder,
-  Forward,
-  MoreHorizontal,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react"
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Folder, ScanFace, Settings } from 'lucide-react'
 import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar'
 
-export function NavProjects({
-  projects,
-}: {
-  projects: {
-    name: string
-    url: string
-    icon: LucideIcon
-  }[]
-}) {
-  const { isMobile } = useSidebar()
-
+export function NavConfiguration() {
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Configure</SidebarGroupLabel>
       <SidebarMenu>
-        {projects.map((item) => (
+        <SidebarMenuItem>
+          <SidebarMenuButton className="flex items-center gap-2 cursor-not-allowed text-gray-400 hover:text-gray-400">
+            <Settings />
+            <span>Realm settings</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton className="flex items-center gap-2 cursor-not-allowed text-gray-400 hover:text-gray-400">
+            <Folder />
+            <span>Authentication</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton className="flex items-center gap-2 cursor-not-allowed text-gray-400 hover:text-gray-400">
+            <ScanFace />
+            <span>Identity Providers</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        {/* {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton asChild>
               <a href={item.url}>
@@ -74,7 +68,7 @@ export function NavProjects({
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
-        ))}
+        ))} */}
       </SidebarMenu>
     </SidebarGroup>
   )
