@@ -6,4 +6,121 @@ icon: lucide:building-2
 order: 2
 ---
 
-# Overview
+# 🚀 Deploy FerrisKey on Kubernetes
+
+This tutorial guides you through deploying **FerrisKey**, your cloud-native Identity and Access Management solution, onto a Kubernetes cluster using **PostgreSQL managed by CloudNativePG**.
+
+Whether you're experimenting locally or setting up a production-grade system, this guide will help you get FerrisKey up and running with minimal hassle.
+
+--- 
+
+## 📋 Prerequisites
+
+Make sure you have the following tools installed:
+
+- [`kubectl`](https://kubernetes.io/docs/tasks/tools/)
+- [`helm`](https://helm.sh/docs/intro/install/)
+- A Kubernetes cluster (e.g. `k3d`, `minikube`, GKE)
+- [`git`](https://git-scm.com/)
+- (Optional) [`k9s`](https://k9scli.io/) for terminal-based Kubernetes management
+
+---
+
+## 🗃️ Deploy PostgreSQL with CloudNativePG
+
+FerrisKey requires a PostgreSQL-compatible database. We’ll use [CloudNativePG](https://cloudnative-pg.io/) to deploy a production-grade PostgreSQL cluster inside Kubernetes.
+
+### 🔹 Step 1 – Install the CNPG Operator
+
+```bash
+kubectl apply -f https://github.com/cloudnative-pg/cloudnative-pg/releases/latest/download/cnpg-operator.yaml
+```
+
+Wait a few seconds for the operator to be ready.
+
+### 🔹 Step 2 – Deploy PostgreSQL Cluster
+
+Create a file called `ferriskey-db.yaml`:
+
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ferriskey-db
+  namespace: ferriskey
+spec:
+  instances: 1
+  storage:
+    storageClass: standard
+    size: 1Gi
+  bootstrap:
+    initdb:
+      owner: ferris
+      database: ferriskey
+```
+
+Then apply it:
+
+```bash
+kubectl create namespace ferriskey
+kubectl apply -f ferriskey-db.yaml -n ferriskey
+```
+
+## 📦 Prepare the values.yaml file
+
+Create a minimal `values.yaml`:
+
+```yaml
+api:
+  image:
+    tag: <tag>
+  portalUrl: https://console.<domain>
+  database:
+    existingSecret: ferriskey-db-secret
+ingress:
+  apiHost: api.<domain>
+  frontHost: console.<domain>
+allowedOrigins: "https://console.<domain>"
+front:
+  image:
+    tag: <tag>
+  apiUrl: https://api.<domain>
+```
+
+
+## 🚀 Deploy FerrisKey using the OCI chart
+
+
+This chart and its documentation are available on Artifact Hub.
+For more information, please visit the [Artifact Hub link](https://artifacthub.io/packages/helm/ferriskey/ferriskey).
+
+
+<div class="artifacthub-widget" data-url="https://artifacthub.io/packages/helm/ferriskey/ferriskey" data-theme="light" data-header="true" data-stars="true" data-responsive="true"><blockquote><p lang="en" dir="ltr"><b>ferriskey</b>: A Helm chart for Kubernetes</p>&mdash; Open in <a href="https://artifacthub.io/packages/helm/ferriskey/ferriskey">Artifact Hub</a></blockquote></div><script async src="https://artifacthub.io/artifacthub-widget.js"></script>
+
+### 🔹 Step 1 - Pull and install the Helm chart
+
+```bash
+helm upgrade --install ferriskey oci://ghcr.io/ferriskey/charts/ferriskey \
+  --namespace ferriskey \
+  --create-namespace \
+  -f values.yaml \
+  --version <chart-version>
+```
+
+## 🔍 Verify the deployment
+
+```bash
+kubectl get pods -n ferriskey
+kubectl get ingress -n ferriskey
+```
+
+You should now be able to access FerrisKey at:
+- 🛠️ API: `https://api.<domain>`
+- 💻 Console UI: `https://console.<domain>`
+
+## 🧪 First login
+1. Log in with the default admin credentials (defined via environment variables).
+2. Create your first realm.
+3. Add a client, user, and role.
+
+
