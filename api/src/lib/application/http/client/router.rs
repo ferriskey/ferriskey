@@ -42,7 +42,7 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
         .typed_get(get_clients)
         .typed_get(get_client)
         .typed_post(create_client)
-        .typed_put(update_client)
+        .typed_patch(update_client)
         .typed_post(create_redirect_uri)
         .typed_get(get_redirect_uris)
         .typed_put(update_redirect_uri)
