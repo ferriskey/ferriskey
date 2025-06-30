@@ -83,12 +83,12 @@ impl UserBuilder {
             id,
             realm_id: generate_uuid_v7(), // Sera remplacé lors de la création
             client_id: None,
-            username: self.username.unwrap_or_else(|| format!("user-{}", id)),
+            username: self.username.unwrap_or_else(|| format!("user-{id}")),
             firstname: self.firstname.unwrap_or_else(|| "Test".to_string()),
             lastname: self.lastname.unwrap_or_else(|| "User".to_string()),
             email: self
                 .email
-                .unwrap_or_else(|| format!("test-{}@example.com", id)),
+                .unwrap_or_else(|| format!("test-{id}@example.com")),
             email_verified: self.email_verified.unwrap_or(true),
             enabled: self.enabled.unwrap_or(true),
             roles: self.roles,

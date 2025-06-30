@@ -77,9 +77,6 @@ pub async fn unassign_role(
         .await?;
 
     Ok(Response::OK(UnassignRoleResponse {
-        message: format!(
-            "Role {} unassigned from user {} in realm {}",
-            role_id, user_id, realm_name
-        ),
+        message: format!("Role {role_id} unassigned from user {user_id} in realm {realm_name}"),
     }))
 }

@@ -52,16 +52,16 @@ pub async fn get_openid_configuration(
             .unwrap_or("http")
     });
 
-    let base_url = format!("{}://{}", scheme, host);
-    let issuer = format!("{}/realms/{}", base_url, realm_name);
+    let base_url = format!("{scheme}://{host}");
+    let issuer = format!("{base_url}/realms/{realm_name}");
 
     Ok(Response::OK(GetOpenIdConfigurationResponse {
         issuer: issuer.clone(),
-        authorization_endpoint: format!("{}/protocol/openid-connect/auth", issuer),
-        token_endpoint: format!("{}/protocol/openid-connect/token", issuer),
-        introspection_endpoint: format!("{}/protocol/openid-connect/token/introspect", issuer),
-        userinfo_endpoint: format!("{}/protocol/openid-connect/userinfo", issuer),
-        jwks_uri: format!("{}/protocol/openid-connect/certs", issuer),
+        authorization_endpoint: format!("{issuer}/protocol/openid-connect/auth"),
+        token_endpoint: format!("{issuer}/protocol/openid-connect/token"),
+        introspection_endpoint: format!("{issuer}/protocol/openid-connect/token/introspect"),
+        userinfo_endpoint: format!("{issuer}/protocol/openid-connect/userinfo"),
+        jwks_uri: format!("{issuer}/protocol/openid-connect/certs"),
         grant_types_supported: vec![
             "authorization_code".to_string(),
             "refresh_token".to_string(),

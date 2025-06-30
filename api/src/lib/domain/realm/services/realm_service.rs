@@ -83,7 +83,7 @@ where
 
     async fn create_realm_with_user(&self, name: String, user: &User) -> Result<Realm, RealmError> {
         let realm = self.realm_repository.create_realm(name.clone()).await?;
-        println!("Created realm: {:?}", realm);
+        println!("Created realm: {realm:?}");
         self.realm_repository
             .create_realm_settings(realm.id, "RS256".to_string())
             .await?;
@@ -100,7 +100,7 @@ where
         let realm_master = realm_master.ok_or(RealmError::InternalServerError)?;
 
         // Create client for realm master
-        let client_id = format!("{}-realm", name);
+        let client_id = format!("{name}-realm");
 
         let client = self
             .client_repository
@@ -130,10 +130,10 @@ where
             .role_repository
             .create(CreateRoleDto {
                 client_id: Some(client.id),
-                name: format!("{}-realm-admin", name),
+                name: format!("{name}-realm-admin"),
                 permissions,
                 realm_id: realm_master.id,
-                description: Some(format!("role for manage realm {}", name)),
+                description: Some(format!("role for manage realm {name}")),
             })
             .await
             .map_err(|_| RealmError::InternalServerError)?;

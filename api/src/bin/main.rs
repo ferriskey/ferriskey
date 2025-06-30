@@ -51,7 +51,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(_) => tracing::info!("Master realm initialized successfully"),
         Err(e) => {
             tracing::error!("Failed to initialize master realm: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
 
@@ -63,7 +63,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(_) => tracing::info!("Admin redirect URIs initialized successfully"),
         Err(e) => {
             tracing::error!("Failed to initialize admin redirect URIs: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
 

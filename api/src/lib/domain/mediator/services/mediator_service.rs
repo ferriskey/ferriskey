@@ -134,7 +134,7 @@ impl MediatorService for MediatorServiceImpl {
 
         let master_realm_client = match self
             .client_service
-            .get_by_client_id(master_realm_client_id.clone(), realm.id.clone())
+            .get_by_client_id(master_realm_client_id.clone(), realm.id)
             .await
         {
             Ok(client) => {
@@ -169,15 +169,17 @@ impl MediatorService for MediatorServiceImpl {
 
         let user = match self
             .user_service
-            .get_by_username(self.env.admin_username.clone(), realm.id.clone())
+            .get_by_username(self.env.admin_username.clone(), realm.id)
             .await
         {
             Ok(user) => {
-                info!("user {:} already exists", user.username);
+                let username = user.username.clone();
+                info!("user {username:} already exists");
                 user
             }
             Err(_) => {
-                info!("Creating user for client {:}", client_id.clone());
+                let client_id = client_id.clone();
+                info!("Creating user for client {client_id:}");
                 let _user = self
                     .user_service
                     .create_user(CreateUserDto {
@@ -198,14 +200,11 @@ impl MediatorService for MediatorServiceImpl {
             }
         };
 
-        let roles = match self
+        let roles = self
             .role_service
-            .get_by_client_id(master_realm_client.id.clone())
+            .get_by_client_id(master_realm_client.id) // Updated to remove clone()
             .await
-        {
-            Ok(roles) => roles,
-            Err(_) => Vec::new(),
-        };
+            .unwrap_or_default();
         let _ = match roles
             .into_iter()
             .find(|r| r.name == master_realm_client_id.clone())
@@ -218,7 +217,7 @@ impl MediatorService for MediatorServiceImpl {
                 let _role = self
                     .role_service
                     .create(CreateRoleDto {
-                        client_id: Some(master_realm_client.id.clone()),
+                        client_id: Some(master_realm_client.id),
                         name: master_realm_client_id.clone(),
                         permissions: Permissions::to_names(&[Permissions::ManageRealm]),
                         realm_id: realm.id,

@@ -72,9 +72,6 @@ pub async fn delete_client(
         .map_err(ApiError::from)?;
 
     Ok(Response::OK(DeleteClientResponse {
-        message: format!(
-            "Client with ID {} in realm {} deleted successfully",
-            client_id, realm_name
-        ),
+        message: format!("Client with ID {client_id} in realm {realm_name} deleted successfully"),
     }))
 }

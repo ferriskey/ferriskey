@@ -88,7 +88,7 @@ impl From<validator::ValidationErrors> for ApiError {
                     .message
                     .as_ref()
                     .map(|cow| cow.to_string())
-                    .unwrap_or_else(|| format!("Validation failed on {}", field));
+                    .unwrap_or_else(|| format!("Validation failed on {field}"));
 
                 validation_errors.push(ValidationError {
                     message,
@@ -149,7 +149,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_INTERNAL_SERVER_ERROR".to_string(),
                     status: 500,
-                    message: format!("Internal Server Error: {}", e),
+                    message: format!("Internal Server Error: {e}"),
                 }),
             )
                 .into_response(),

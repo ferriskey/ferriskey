@@ -70,9 +70,6 @@ pub async fn assign_role(
         .map_err(ApiError::from)?;
 
     Ok(Response::OK(AssignRoleResponse {
-        message: format!(
-            "Role {} assigned to user {} in realm {}",
-            role_id, user_id, realm_name
-        ),
+        message: format!("Role {role_id} assigned to user {user_id} in realm {realm_name}"),
     }))
 }

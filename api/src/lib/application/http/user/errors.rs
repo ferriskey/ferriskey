@@ -31,7 +31,7 @@ impl From<CredentialError> for ApiError {
                 ApiError::InternalServerError("Failed to delete credential".to_string())
             }
             CredentialError::VerifyPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to verify password: {}", error))
+                ApiError::InternalServerError(format!("Failed to verify password: {error}"))
             }
             CredentialError::DeletePasswordCredentialError => {
                 ApiError::InternalServerError("Failed to delete password credential".to_string())
@@ -40,7 +40,7 @@ impl From<CredentialError> for ApiError {
                 ApiError::InternalServerError("Failed to get password credential".to_string())
             }
             CredentialError::HashPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to hash password: {}", error))
+                ApiError::InternalServerError(format!("Failed to hash password: {error}"))
             }
         }
     }

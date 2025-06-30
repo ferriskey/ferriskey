@@ -56,8 +56,7 @@ pub async fn delete_user_credential(
 
     Ok(Response::OK(DeleteUserCredentialResponse {
         message: format!(
-            "Credential with ID {} for user {} in realm {} deleted successfully",
-            credential_id, user_id, realm_name
+            "Credential with ID {credential_id} for user {user_id} in realm {realm_name} deleted successfully"
         ),
     }))
 }
