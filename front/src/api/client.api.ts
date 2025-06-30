@@ -3,6 +3,8 @@ import { apiClient, BaseQuery } from "."
 import { Client, ClientsResponse, DeleteClientResponse, GetClientResponse, GetRolesResponse } from './api.interface'
 import { authStore } from "@/store/auth.store"
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
+import { UpdateClientSchema } from "@/pages/client/schemas/update-client.schema"
+import { toast } from "sonner"
 
 
 export const useGetClients = ({ realm }: BaseQuery) => {
@@ -67,6 +69,32 @@ export const useCreateClient = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["clients"],
+      })
+    }
+  })
+}
+
+export const useUpdateClient = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ realm, clientId, payload }: BaseQuery & { clientId: string, payload: UpdateClientSchema }): Promise<Client> => {
+      const accessToken = authStore.getState().accessToken
+
+      const response = await apiClient.patch<Client>(`/realms/${realm}/clients/${clientId}`, {
+        ...payload,
+        client_id: payload.clientId,
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess: (client) => {
+      toast.success(`Client ${client.name} was updated successfully`)
+      queryClient.invalidateQueries({
+        queryKey: ["client", client.id],
       })
     }
   })
