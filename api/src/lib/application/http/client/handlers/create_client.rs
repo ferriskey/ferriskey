@@ -45,6 +45,8 @@ pub async fn create_client(
 ) -> Result<Response<Client>, ApiError> {
     let realm = state.realm_service.get_by_name(realm_name.clone()).await?;
 
+    let secret = (!payload.public_client).then(generate_random_string);
+
     state
         .client_service
         .create_client(
@@ -52,7 +54,7 @@ pub async fn create_client(
                 realm_id: realm.id,
                 name: payload.name,
                 client_id: payload.client_id,
-                secret: generate_random_string(),
+                secret,
                 enabled: payload.enabled,
                 protocol: payload.protocol,
                 public_client: payload.public_client,

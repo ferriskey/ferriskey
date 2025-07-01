@@ -6,7 +6,7 @@ pub struct CreateClientDto {
     pub realm_id: Uuid,
     pub name: String,
     pub client_id: String,
-    pub secret: String,
+    pub secret: Option<String>,
     pub enabled: bool,
     pub protocol: String,
     pub public_client: bool,

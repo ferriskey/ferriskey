@@ -60,7 +60,7 @@ impl ClientRepository for PostgresClientRepository {
             realm_id: Set(data.realm_id),
             name: Set(data.name),
             client_id: Set(data.client_id),
-            secret: Set(Some(data.secret)),
+            secret: Set(data.secret),
             enabled: Set(data.enabled),
             protocol: Set(data.protocol),
             public_client: Set(data.public_client),

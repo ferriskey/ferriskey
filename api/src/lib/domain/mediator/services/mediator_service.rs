@@ -26,7 +26,7 @@ use crate::{
         },
         user::{
             dtos::user_dto::CreateUserDto,
-            ports::user_service::UserService,
+            ports::{user_role_service::UserRoleService, user_service::UserService},
             services::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
             },
@@ -118,7 +118,7 @@ impl MediatorService for MediatorServiceImpl {
                             public_client: false,
                             service_account_enabled: false,
                             client_type: "confidential".to_string(),
-                            secret: generate_random_string(),
+                            secret: Some(generate_random_string()),
                         },
                         realm.name.clone(),
                     )
@@ -155,7 +155,7 @@ impl MediatorService for MediatorServiceImpl {
                             public_client: false,
                             service_account_enabled: false,
                             client_type: "confidential".to_string(),
-                            secret: generate_random_string(),
+                            secret: Some(generate_random_string()),
                         },
                         realm.name.clone(),
                     )
@@ -205,7 +205,7 @@ impl MediatorService for MediatorServiceImpl {
             .get_by_client_id(master_realm_client.id) // Updated to remove clone()
             .await
             .unwrap_or_default();
-        let _ = match roles
+        let role = match roles
             .into_iter()
             .find(|r| r.name == master_realm_client_id.clone())
         {
@@ -214,7 +214,7 @@ impl MediatorService for MediatorServiceImpl {
                 role
             }
             None => {
-                let _role = self
+                let role = self
                     .role_service
                     .create(CreateRoleDto {
                         client_id: Some(master_realm_client.id),
@@ -227,9 +227,25 @@ impl MediatorService for MediatorServiceImpl {
                     .map_err(|_| anyhow::anyhow!("failed to create role"))?;
 
                 info!("role {:} created", master_realm_client_id.clone());
-                _role
+                role
             }
         };
+
+        match self
+            .user_role_service
+            .assign_role(realm.name, user.id, role.id)
+            .await
+        {
+            Ok(_) => {
+                info!("role {:} assigned to user {:}", role.name, user.username);
+            }
+            Err(_) => {
+                info!(
+                    "role {:} already assigned to user {:}",
+                    role.name, user.username
+                );
+            }
+        }
 
         let _ = match self
             .credential_service
