@@ -83,7 +83,6 @@ where
 
     async fn create_realm_with_user(&self, name: String, user: &User) -> Result<Realm, RealmError> {
         let realm = self.realm_repository.create_realm(name.clone()).await?;
-        println!("Created realm: {realm:?}");
         self.realm_repository
             .create_realm_settings(realm.id, "RS256".to_string())
             .await?;
