@@ -21,11 +21,6 @@ impl ClientPolicy {
             .get_permission_for_target_realm(&user, &target_realm)
             .await?;
 
-        println!(
-            "Checking delete permissions for user {} in realm {}: {:?}",
-            user.id, target_realm.name, permissions
-        );
-
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
             &[Permissions::ManageRealm, Permissions::ManageClients],
