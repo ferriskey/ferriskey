@@ -1,15 +1,15 @@
-import { useGetClient } from "@/api/client.api";
-import BadgeColor, { BadgeColorScheme } from "@/components/ui/badge-color";
-import { Heading } from "@/components/ui/heading";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RouterParams } from "@/routes/router";
-import { CLIENT_URL } from "@/routes/sub-router/client.router";
-import { useEffect, useState } from "react";
-import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import { useGetClient } from '@/api/client.api'
+import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import { Heading } from '@/components/ui/heading'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RouterParams } from '@/routes/router'
+import { CLIENT_URL } from '@/routes/sub-router/client.router'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
 
 export default function ClientLayout() {
   const { realm_name, client_id } = useParams<RouterParams>()
-  const [defaultValue, setDefaultValue] = useState<string>("")
+  const [defaultValue, setDefaultValue] = useState<string>('')
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -34,15 +34,12 @@ export default function ClientLayout() {
 
   return (
     <div className="p-4">
-      
       <div className="border-b pb-4 mb-4">
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center gap-4">
             <Heading size={3}>{data?.client_id}</Heading>
             <div>
-              <BadgeColor color={BadgeColorScheme.PRIMARY}>
-                {data?.protocol}
-              </BadgeColor>
+              <BadgeColor color={BadgeColorScheme.PRIMARY}>{data?.protocol}</BadgeColor>
             </div>
           </div>
           <p className="text-sm text-gray-500">
@@ -53,15 +50,17 @@ export default function ClientLayout() {
         <div>
           <Tabs value={defaultValue} defaultValue={defaultValue} onValueChange={handleTabChange}>
             <TabsList className="flex items-center gap-4">
-              <TabsTrigger value={"settings"}>Settings</TabsTrigger>
-              <TabsTrigger value={"credentials"}>Credentials</TabsTrigger>
-              <TabsTrigger value={"roles"}>Roles</TabsTrigger>
-              <TabsTrigger disabled value={"client-scopes"}>Client scopes</TabsTrigger>
+              <TabsTrigger value={'settings'}>Settings</TabsTrigger>
+              {data?.secret && <TabsTrigger value={'credentials'}>Credentials</TabsTrigger>}
+
+              <TabsTrigger value={'roles'}>Roles</TabsTrigger>
+              <TabsTrigger disabled value={'client-scopes'}>
+                Client scopes
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       </div>
-      
 
       <Outlet />
     </div>
