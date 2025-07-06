@@ -1,7 +1,7 @@
-import { DataTable } from "@/components/ui/data-table";
-import { Edit, ExternalLink, Trash2 } from "lucide-react";
-import { columns } from "../columns/list-client.column";
-import { Client } from "@/api/api.interface";
+import { DataTable } from '@/components/ui/data-table'
+import { Edit, ExternalLink, Trash2 } from 'lucide-react'
+import { columns } from '../columns/list-client.column'
+import { Client } from '@/api/api.interface'
 
 export interface PageClientsOverviewProps {
   isLoading?: boolean
@@ -10,10 +10,17 @@ export interface PageClientsOverviewProps {
   handleDeleteSelected: (items: Client[]) => void
   handleClickRow: (clientId: string) => void
   handleDeleteClient: (clientId: string) => void
-
+  handleCreateClient: () => void
 }
 
-export default function PageClientsOverview({ data, isLoading, handleDeleteSelected, handleClickRow, handleDeleteClient }: PageClientsOverviewProps) {
+export default function PageClientsOverview({
+  data,
+  isLoading,
+  handleDeleteSelected,
+  handleClickRow,
+  handleDeleteClient,
+  handleCreateClient,
+}: PageClientsOverviewProps) {
   return (
     <div>
       <DataTable
@@ -21,7 +28,11 @@ export default function PageClientsOverview({ data, isLoading, handleDeleteSelec
         columns={columns}
         isLoading={isLoading}
         searchPlaceholder="Rechercher un client..."
-        searchKeys={["name", "client_id"]}
+        createData={{
+          label: 'Create Client',
+          onClick: handleCreateClient,
+        }}
+        searchKeys={['name', 'client_id']}
         enableSelection={true}
         onRowClick={(client) => {
           handleClickRow(client.id)
@@ -29,19 +40,19 @@ export default function PageClientsOverview({ data, isLoading, handleDeleteSelec
         onDeleteSelected={handleDeleteSelected}
         rowActions={[
           {
-            label: "Edit",
+            label: 'Edit',
             icon: <Edit className="h-4 w-4" />,
-            onClick: (client) => console.log("Edit", client),
+            onClick: (client) => console.log('Edit', client),
           },
           {
-            label: "View",
+            label: 'View',
             icon: <ExternalLink className="h-4 w-4" />,
-            onClick: (client) => console.log("View", client),
+            onClick: (client) => console.log('View', client),
           },
           {
-            label: "Delete",
+            label: 'Delete',
             icon: <Trash2 className="h-4 w-4" />,
-            variant: "destructive",
+            variant: 'destructive',
             onClick: (client) => handleDeleteClient(client.id),
           },
         ]}

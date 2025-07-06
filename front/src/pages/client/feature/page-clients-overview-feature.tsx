@@ -1,9 +1,13 @@
-import { Client } from "@/api/api.interface"
+import { Client } from '@/api/api.interface'
 import { useDeleteClient, useGetClients } from '@/api/client.api'
-import { RouterParams } from "@/routes/router"
-import { useNavigate, useParams } from "react-router"
-import PageClientsOverview from "../ui/page-clients-overview"
-import { CLIENT_OVERVIEW_URL } from "@/routes/sub-router/client.router"
+import { RouterParams } from '@/routes/router'
+import { useNavigate, useParams } from 'react-router'
+import PageClientsOverview from '../ui/page-clients-overview'
+import {
+  CLIENT_CREATE_URL,
+  CLIENT_OVERVIEW_URL,
+  CLIENTS_URL,
+} from '@/routes/sub-router/client.router'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 
@@ -19,9 +23,13 @@ export default function PageClientsOverviewFeature() {
     items.forEach((item) => {
       deleteClient({
         realm: realm_name,
-        clientId: item.id
+        clientId: item.id,
       })
     })
+  }
+
+  const handleCreateClient = () => {
+    navigate(`${CLIENTS_URL(realm_name)}${CLIENT_CREATE_URL}`)
   }
 
   const handleDeleteClient = (clientId: string) => {
@@ -29,7 +37,7 @@ export default function PageClientsOverviewFeature() {
 
     deleteClient({
       realm: realm_name,
-      clientId
+      clientId,
     })
   }
 
@@ -47,10 +55,11 @@ export default function PageClientsOverviewFeature() {
     <PageClientsOverview
       data={data?.data || []}
       isLoading={isLoading}
-      realmName={realm_name ?? "master"}
+      realmName={realm_name ?? 'master'}
       handleDeleteSelected={handleDeleteSelected}
       handleClickRow={handleClickRow}
       handleDeleteClient={handleDeleteClient}
+      handleCreateClient={handleCreateClient}
     />
   )
 }

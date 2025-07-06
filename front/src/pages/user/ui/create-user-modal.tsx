@@ -1,15 +1,30 @@
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Dispatch, SetStateAction } from 'react';
-import { useFormContext } from "react-hook-form";
-import { Fragment } from 'react/jsx-runtime';
-import { Switch } from '../../../components/ui/switch';
-import { CreateUserSchema } from '../validators';
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Dispatch, SetStateAction } from 'react'
+import { useFormContext } from 'react-hook-form'
+import { Fragment } from 'react/jsx-runtime'
+import { Switch } from '../../../components/ui/switch'
+import { CreateUserSchema } from '../validators'
 
 type Props = {
-  realm: string,
+  realm: string
   onSubmit: (data: CreateUserSchema) => void
   openState: [boolean, Dispatch<SetStateAction<boolean>>]
 }
@@ -20,12 +35,6 @@ export default function CreateUserModal(props: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          Create User
-        </Button>
-      </DialogTrigger>
-
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
@@ -45,11 +54,7 @@ export default function CreateUserModal(props: Props) {
                     <FormLabel htmlFor="name" className="text-right">
                       Username
                     </FormLabel>
-                    <Input
-                      id="username"
-                      className="col-span-3"
-                      {...field}
-                    />
+                    <Input id="username" className="col-span-3" {...field} />
                     <FormMessage />
                   </Fragment>
                 )}
@@ -65,11 +70,7 @@ export default function CreateUserModal(props: Props) {
                     <FormLabel htmlFor="firstname" className="text-right">
                       Firstname
                     </FormLabel>
-                    <Input
-                      id="firstname"
-                      className="col-span-3"
-                      {...field}
-                    />
+                    <Input id="firstname" className="col-span-3" {...field} />
                     <FormMessage />
                   </Fragment>
                 )}
@@ -85,11 +86,7 @@ export default function CreateUserModal(props: Props) {
                     <FormLabel htmlFor="lastname" className="text-right">
                       Lastname
                     </FormLabel>
-                    <Input
-                      id="lastname"
-                      className="col-span-3"
-                      {...field}
-                    />
+                    <Input id="lastname" className="col-span-3" {...field} />
                     <FormMessage />
                   </Fragment>
                 )}
@@ -105,17 +102,12 @@ export default function CreateUserModal(props: Props) {
                     <FormLabel htmlFor="email" className="text-right">
                       Email
                     </FormLabel>
-                    <Input
-                      id="email"
-                      className="col-span-3"
-                      {...field}
-                    />
+                    <Input id="email" className="col-span-3" {...field} />
                     <FormMessage />
                   </Fragment>
                 )}
               />
             </div>
-
 
             <div className="flex flex-col gap-1">
               <FormField
@@ -130,10 +122,7 @@ export default function CreateUserModal(props: Props) {
                       </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
                   </FormItem>
                 )}
