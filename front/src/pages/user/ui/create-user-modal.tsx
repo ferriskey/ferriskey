@@ -7,20 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Dispatch, SetStateAction } from 'react'
 import { useFormContext } from 'react-hook-form'
-import { Fragment } from 'react/jsx-runtime'
 import { Switch } from '../../../components/ui/switch'
 import { CreateUserSchema } from '../validators'
+import { InputText } from '@/components/ui/input-text'
 
 type Props = {
   realm: string
@@ -49,13 +41,12 @@ export default function CreateUserModal(props: Props) {
                 control={form.control}
                 name="username"
                 render={({ field }) => (
-                  <Fragment>
-                    <FormLabel htmlFor="name" className="text-right">
-                      Username
-                    </FormLabel>
-                    <Input id="username" className="col-span-3" {...field} />
-                    <FormMessage />
-                  </Fragment>
+                  <InputText
+                    label="Username"
+                    name="username"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -65,13 +56,12 @@ export default function CreateUserModal(props: Props) {
                 control={form.control}
                 name="firstname"
                 render={({ field }) => (
-                  <Fragment>
-                    <FormLabel htmlFor="firstname" className="text-right">
-                      Firstname
-                    </FormLabel>
-                    <Input id="firstname" className="col-span-3" {...field} />
-                    <FormMessage />
-                  </Fragment>
+                  <InputText
+                    label="Fisrtname"
+                    name="firstname"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -81,13 +71,12 @@ export default function CreateUserModal(props: Props) {
                 control={form.control}
                 name="lastname"
                 render={({ field }) => (
-                  <Fragment>
-                    <FormLabel htmlFor="lastname" className="text-right">
-                      Lastname
-                    </FormLabel>
-                    <Input id="lastname" className="col-span-3" {...field} />
-                    <FormMessage />
-                  </Fragment>
+                  <InputText
+                    label="Lastname"
+                    name="lastname"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -97,13 +86,12 @@ export default function CreateUserModal(props: Props) {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <Fragment>
-                    <FormLabel htmlFor="email" className="text-right">
-                      Email
-                    </FormLabel>
-                    <Input id="email" className="col-span-3" {...field} />
-                    <FormMessage />
-                  </Fragment>
+                  <InputText
+                    label="Email"
+                    name="email"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </div>
