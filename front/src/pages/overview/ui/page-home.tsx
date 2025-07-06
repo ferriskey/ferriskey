@@ -1,9 +1,9 @@
 import { Heading } from '@/components/ui/heading'
 import { REALM_URL, RouterParams } from '@/routes/router'
-import { CLIENT_OVERVIEW_URL, OVERVIEW_URL } from '@/routes/sub-router/client.router'
+import { OVERVIEW_URL } from '@/routes/sub-router/client.router'
 import { ROLE_OVERVIEW_URL } from '@/routes/sub-router/role.router'
 import { USER_OVERVIEW_URL } from '@/routes/sub-router/user.router'
-import { Clock, Columns3, Pyramid, ShieldUser, TablePropertiesIcon, Users } from 'lucide-react'
+import { Pyramid, ShieldUser, Users } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 
 export interface PageHomeProps {}

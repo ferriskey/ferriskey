@@ -1,14 +1,5 @@
 import { Role } from '@/api/api.interface'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/ui/data-table'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { columns } from '../columns/list-client-roles.column'
 
 interface PageClientRolesProps {
@@ -18,12 +9,7 @@ interface PageClientRolesProps {
   clientId?: string
 }
 
-export default function PageClientRoles({
-  roles,
-  isLoading,
-  isError,
-  clientId,
-}: PageClientRolesProps) {
+export default function PageClientRoles({ roles, isLoading, isError }: PageClientRolesProps) {
   if (isLoading) {
     return <div>Loading roles...</div>
   }

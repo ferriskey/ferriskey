@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
-import { GitBranch, Heart, Star, X } from 'lucide-react'
+import { GitBranch, Heart, Star } from 'lucide-react'
 
 const STORAGE_KEY = 'ferriskey-github-star-modal-dismissed'
 

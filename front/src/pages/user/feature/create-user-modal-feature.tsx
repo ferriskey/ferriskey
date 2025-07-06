@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Dispatch, SetStateAction, useState } from 'react'
+import { Dispatch, SetStateAction } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useCreateUser } from '../../../api/user.api'

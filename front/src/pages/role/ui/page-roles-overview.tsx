@@ -4,7 +4,6 @@ import { Edit, ExternalLink, Trash2, Settings } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
 import { Heading } from '@/components/ui/heading'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
 import { ROLE_CREATE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
 
 export interface PageRolesOverviewProps {
