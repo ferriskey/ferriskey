@@ -29,6 +29,9 @@ const contributors = [
   {
     avatarUrl: "https://avatars.githubusercontent.com/u/129272769?s=120&v=4",
   },
+  {
+    avatarUrl: "https://avatars.githubusercontent.com/u/378539?s=120&v=4",
+  },
 ];
 
 export default function Contributors() {

@@ -14,8 +14,6 @@ const sponsors = [
   },
 ];
 
-const trustedBy = [];
-
 export default function TrustedByLogos() {
   return (
     <section className="py-20">
@@ -31,6 +29,7 @@ export default function TrustedByLogos() {
             <a
               href={sponsor.link}
               target="_blank"
+              rel="noopener noreferrer"
               key={sponsor.name}
               className="group relative overflow-hidden rounded-2xl  bg-gradient-to-br from-blue-50 to-indigo-50  p-8 border border-blue-200"
             >
