@@ -4,7 +4,6 @@ import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Fragment } from 'react/jsx-runtime'
 import { columns } from '../columns/list-user.column'
-import EditUserModalFeature from '../feature/page-user-overview-feature.tsx'
 import CreateUserModalFeature from '../feature/create-user-modal-feature.tsx'
 import { Dispatch, SetStateAction } from 'react'
 
@@ -67,7 +66,6 @@ export default function PageUsersOverview({
         ]}
       />
 
-      <EditUserModalFeature />
       <CreateUserModalFeature
         realm={realmName}
         open={openCreateUserModal}
