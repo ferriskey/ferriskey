@@ -36,10 +36,10 @@ export default function CoreTeam() {
     <div className="py-20">
       <div className="mx-auto">
         <div className="">
-          <h2 className="text-34l text-balance font-semibold tracking-tight sm:text-5xl">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Core Team
           </h2>
-          <p className="mt-6 text-md text-gray-600 max-w-2xl">
+          <p className="mt-4 text-md text-muted-foreground max-w-2xl">
             Meet the core team behind Ferriskey, dedicated to building a secure
             and user-friendly platform for managing your secrets.
           </p>
