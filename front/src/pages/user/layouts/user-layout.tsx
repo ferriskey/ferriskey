@@ -3,7 +3,7 @@ import { useGetUser } from '../../../api/user.api'
 import { Heading } from '../../../components/ui/heading'
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import { UserRouterParams, USERS_URL } from '../../../routes/sub-router/user.router'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { REALM_OVERVIEW_URL } from '@/routes/router'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -20,6 +20,10 @@ export default function UserLayout() {
     realm: realm_name,
     userId: user_id,
   })
+
+  const isRoleMappingTab = useCallback(() => {
+    return pathname.includes('role-mapping')
+  }, [pathname])
 
   const handleBack = () => {
     navigate(`${USERS_URL(realm_name)}${REALM_OVERVIEW_URL}`)
@@ -67,7 +71,7 @@ export default function UserLayout() {
               <TabsTrigger value="role-mapping">Role Mapping</TabsTrigger>
             </TabsList>
 
-            <RoleMappingModalFeature />
+            {isRoleMappingTab() && <RoleMappingModalFeature />}
           </div>
         </Tabs>
       </div>
