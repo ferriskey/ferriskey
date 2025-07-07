@@ -4,7 +4,7 @@ export default defineExplainerConfig({
   meta: {
     title: 'FerrisKey',
     description: 'FerrisKey is an open-source IAM (Identity and Access Management) solution designed for modern cloud-native environments. ',
-    thumbnail: 'https://placehold.co/1200x630',
+    thumbnail: '/logo_ferriskey.png',
   },
   urls: {
     github: 'https://github.com/ferriskey/ferriskey',
