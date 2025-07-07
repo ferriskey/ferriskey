@@ -94,6 +94,10 @@ pub async fn auth(
         return Err(ApiError::Unauthorized("Invalid redirect_uri".to_string()));
     }
 
+    if !client.enabled {
+        return Err(ApiError::Unauthorized("Client is disabled".to_string()));
+    }
+
     let dto = CreateAuthSessionDto::new(realm.id, client.id, redirect_uri).with_oauth_params(
         params.response_type,
         params.scope.unwrap_or_default(),

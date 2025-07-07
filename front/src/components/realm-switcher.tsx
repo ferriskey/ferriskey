@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router"
+import { useNavigate, useParams } from 'react-router'
 
 import {
   DropdownMenu,
@@ -8,21 +8,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu'
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
-import { Realm } from "@/api/api.interface"
-import useRealmStore from "@/store/realm.store"
-import { ChevronsUpDown, Command, Map, Plus } from "lucide-react"
+import { Realm } from '@/api/api.interface'
+import useRealmStore from '@/store/realm.store'
+import { ChevronsUpDown, Command, Map, Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription, DialogFooter,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog.tsx'
@@ -34,8 +35,7 @@ import { FormField } from '@/components/ui/form.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useCreateRealm } from '@/api/realm.api.ts'
 import { toast } from 'sonner'
-import { REALM_OVERVIEW_URL, REALM_URL } from "@/routes/router"
-
+import { REALM_OVERVIEW_URL, REALM_URL } from '@/routes/router'
 
 export default function RealmSwitcher() {
   const { realm_name } = useParams<{ realm_name: string }>()
@@ -51,7 +51,6 @@ export default function RealmSwitcher() {
     setActiveRealm(realm)
     navigate(`${REALM_URL(realm.name)}${REALM_OVERVIEW_URL}`)
   }
-
 
   useEffect(() => {
     if (userRealms && realm_name) {
@@ -76,16 +75,13 @@ export default function RealmSwitcher() {
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-gray-100 border shadow-2xs"
               >
-                <div
-                  className="bg-white border text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-lg">
+                <div className="bg-white border text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-lg">
                   <Command className="text-slate-900 size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{activeRealm?.name}</span>
                   {activeRealm.name === 'master' && (
-                    <span className="text-xs text-muted-foreground">
-                    master
-                  </span>
+                    <span className="text-xs text-muted-foreground">master</span>
                   )}
                 </div>
                 <ChevronsUpDown className="ml-auto" />
@@ -94,7 +90,7 @@ export default function RealmSwitcher() {
             <DropdownMenuContent
               className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
               align="start"
-              side={isMobile ? "bottom" : "right"}
+              side={isMobile ? 'bottom' : 'right'}
               sideOffset={4}
             >
               <DropdownMenuLabel className="text-muted-foreground text-xs">
@@ -143,7 +139,7 @@ interface ModalCreateRealmProps {
 }
 
 const createRealmSchema = z.object({
-  name: z.string().min(1, { message: "Realm name is required" }),
+  name: z.string().min(1, { message: 'Realm name is required' }),
 })
 
 type CreateRealmSchema = z.infer<typeof createRealmSchema>
@@ -154,13 +150,13 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
   const form = useForm<CreateRealmSchema>({
     resolver: zodResolver(createRealmSchema),
     defaultValues: {
-      name: ""
-    }
+      name: '',
+    },
   })
 
   const handleSubmit = () => {
     createRealm({
-      payload: form.getValues()
+      payload: form.getValues(),
     })
   }
   const isValid = form.formState.isValid
@@ -172,50 +168,41 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
     }
   }, [data])
 
-
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Realm</DialogTitle>
           <DialogDescription>
-            A realm manages a set of users, credentials, roles, and groups. A user belongs to and logs into a realm. Realms are isolated from one another and can only manage and authenticate the users that they control.
+            A realm manages a set of users, credentials, roles, and groups. A user belongs to and
+            logs into a realm. Realms are isolated from one another and can only manage and
+            authenticate the users that they control.
           </DialogDescription>
         </DialogHeader>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} >
-              <FormField
-                name="name"
-                control={form.control}
-                render={({ field }) => (
-                  <InputText
-                    name={"name"}
-                    label="Realm Name"
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
+            <FormField
+              name="name"
+              control={form.control}
+              render={({ field }) => (
+                <InputText
+                  name={'name'}
+                  label="Realm Name"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
 
-              <DialogFooter className="mt-4">
-                <Button variant="destructive">
-                  Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!isValid}
-                  onClick={handleSubmit}
-                >
-                  Create Realm
-                </Button>
-              </DialogFooter>
-            </form>
+            <DialogFooter className="mt-4">
+              <Button variant="destructive">Cancel</Button>
+              <Button variant="outline" disabled={!isValid} onClick={handleSubmit}>
+                Create Realm
+              </Button>
+            </DialogFooter>
           </Form>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
-

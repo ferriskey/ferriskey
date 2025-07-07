@@ -99,10 +99,10 @@ impl RealmRepository for PostgresRealmRepository {
             updated_at: Set(realm.updated_at.naive_utc()),
         };
 
-        let result_insert = new_realm
-            .insert(&self.db)
-            .await
-            .map_err(|_| RealmError::InternalServerError)?;
+        let result_insert = new_realm.insert(&self.db).await.map_err(|e| {
+            tracing::error!("Failed to insert realm: {:?}", e);
+            RealmError::InternalServerError
+        })?;
 
         let realm = result_insert.into();
 
@@ -166,7 +166,10 @@ impl RealmRepository for PostgresRealmRepository {
         let model: RealmSetting = active_model
             .insert(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
+            .map_err(|e| {
+                tracing::error!("Failed to insert realm setting: {:?}", e);
+                RealmError::InternalServerError
+            })?
             .into();
 
         Ok(model)

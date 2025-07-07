@@ -2,7 +2,6 @@ use axum::Form;
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
-use tracing::info;
 
 use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::api_entities::api_error::ApiError;
@@ -32,7 +31,6 @@ pub async fn exchange_token(
     State(state): State<AppState>,
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<Response<JwtToken>, ApiError> {
-    info!("request login with \"{:?}\" grant_type", payload.grant_type);
     state
         .authentication_service
         .authenticate(AuthenticateDto {

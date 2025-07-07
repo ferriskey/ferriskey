@@ -70,10 +70,10 @@ impl ClientRepository for PostgresClientRepository {
             updated_at: Set(now.naive_local()),
         };
 
-        let client = payload
-            .insert(&self.db)
-            .await
-            .map_err(|_| ClientError::InternalServerError)?;
+        let client = payload.insert(&self.db).await.map_err(|e| {
+            tracing::error!("Failed to insert client: {}", e);
+            ClientError::InternalServerError
+        })?;
 
         let client = client.into();
 
