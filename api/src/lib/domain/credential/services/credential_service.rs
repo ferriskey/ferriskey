@@ -5,7 +5,6 @@ use crate::domain::credential::ports::credential_service::CredentialService;
 use crate::domain::crypto::ports::crypto_service::CryptoService;
 use crate::domain::crypto::services::crypto_service::DefaultCryptoService;
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
-use std::sync::Arc;
 
 pub type DefaultCredentialService = CredentialServiceImpl<PostgresCredentialRepository>;
 
@@ -15,14 +14,14 @@ where
     C: CredentialRepository,
 {
     credential_repository: C,
-    crypto_service: Arc<DefaultCryptoService>,
+    crypto_service: DefaultCryptoService,
 }
 
 impl<C> CredentialServiceImpl<C>
 where
     C: CredentialRepository,
 {
-    pub fn new(credential_repository: C, crypto_service: Arc<DefaultCryptoService>) -> Self {
+    pub fn new(credential_repository: C, crypto_service: DefaultCryptoService) -> Self {
         Self {
             credential_repository,
             crypto_service,

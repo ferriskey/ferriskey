@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use uuid::Uuid;
 
 use crate::domain::{
@@ -38,12 +36,12 @@ pub type DefaultAuthenticationService = AuthenticationServiceImpl;
 
 #[derive(Clone)]
 pub struct AuthenticationServiceImpl {
-    pub realm_service: Arc<DefaultRealmService>,
-    pub client_service: Arc<DefaultClientService>,
-    pub credential_service: Arc<DefaultCredentialService>,
-    pub user_service: Arc<DefaultUserService>,
-    pub jwt_service: Arc<DefaultJwtService>,
-    pub auth_session_service: Arc<DefaultAuthSessionService>,
+    pub realm_service: DefaultRealmService,
+    pub client_service: DefaultClientService,
+    pub credential_service: DefaultCredentialService,
+    pub user_service: DefaultUserService,
+    pub jwt_service: DefaultJwtService,
+    pub auth_session_service: DefaultAuthSessionService,
     pub client_credentials_strategy: ClientCredentialsStrategy,
     pub refresh_token_strategy: RefreshTokenStrategy,
     pub password_strategy: PasswordStrategy,
@@ -52,12 +50,12 @@ pub struct AuthenticationServiceImpl {
 
 impl AuthenticationServiceImpl {
     pub fn new(
-        realm_service: Arc<DefaultRealmService>,
-        client_service: Arc<DefaultClientService>,
-        credential_service: Arc<DefaultCredentialService>,
-        user_service: Arc<DefaultUserService>,
-        jwt_service: Arc<DefaultJwtService>,
-        auth_session_service: Arc<DefaultAuthSessionService>,
+        realm_service: DefaultRealmService,
+        client_service: DefaultClientService,
+        credential_service: DefaultCredentialService,
+        user_service: DefaultUserService,
+        jwt_service: DefaultJwtService,
+        auth_session_service: DefaultAuthSessionService,
     ) -> Self {
         let client_credentials_strategy = ClientCredentialsStrategy::new(
             client_service.clone(),

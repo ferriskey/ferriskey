@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use chrono::{TimeZone, Utc};
 use tracing::info;
 
@@ -19,16 +17,16 @@ use crate::domain::{
 
 #[derive(Clone)]
 pub struct RefreshTokenStrategy {
-    pub jwt_service: Arc<DefaultJwtService>,
-    pub client_service: Arc<DefaultClientService>,
-    pub user_service: Arc<DefaultUserService>,
+    pub jwt_service: DefaultJwtService,
+    pub client_service: DefaultClientService,
+    pub user_service: DefaultUserService,
 }
 
 impl RefreshTokenStrategy {
     pub fn new(
-        jwt_service: Arc<DefaultJwtService>,
-        client_service: Arc<DefaultClientService>,
-        user_service: Arc<DefaultUserService>,
+        jwt_service: DefaultJwtService,
+        client_service: DefaultClientService,
+        user_service: DefaultUserService,
     ) -> Self {
         Self {
             jwt_service,

@@ -19,7 +19,6 @@ name = "ferriskey"
 entity = { path = "entity" }
 anyhow = "1.0.97"
 argon2 = "0.5.3"
-async-trait = "0.1.77"
 axum = "0.8.1"
 axum-cookie = "0.2.3"
 axum-extra = { version = "0.10.0", features = [

@@ -43,14 +43,14 @@ pub type DefaultMediatorService = MediatorServiceImpl;
 #[derive(Clone)]
 pub struct MediatorServiceImpl {
     pub env: Arc<Env>,
-    pub client_service: Arc<DefaultClientService>,
-    pub realm_service: Arc<DefaultRealmService>,
-    pub user_service: Arc<DefaultUserService>,
-    pub credential_service: Arc<DefaultCredentialService>,
+    pub client_service: DefaultClientService,
+    pub realm_service: DefaultRealmService,
+    pub user_service: DefaultUserService,
+    pub credential_service: DefaultCredentialService,
     pub redirect_uri_service: DefaultRedirectUriService,
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
-    pub jwt_service: Arc<DefaultJwtService>,
+    pub jwt_service: DefaultJwtService,
 }
 
 impl MediatorServiceImpl {

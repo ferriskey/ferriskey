@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::domain::{
     authentication::{
         entities::{error::AuthenticationError, jwt_token::JwtToken},
@@ -23,20 +21,20 @@ use tracing::error;
 
 #[derive(Clone)]
 pub struct AuthorizationCodeStrategy {
-    pub jwt_service: Arc<DefaultJwtService>,
-    pub client_service: Arc<DefaultClientService>,
-    pub user_service: Arc<DefaultUserService>,
-    pub credential_service: Arc<DefaultCredentialService>,
-    pub auth_session_service: Arc<DefaultAuthSessionService>,
+    pub jwt_service: DefaultJwtService,
+    pub client_service: DefaultClientService,
+    pub user_service: DefaultUserService,
+    pub credential_service: DefaultCredentialService,
+    pub auth_session_service: DefaultAuthSessionService,
 }
 
 impl AuthorizationCodeStrategy {
     pub fn new(
-        jwt_service: Arc<DefaultJwtService>,
-        client_service: Arc<DefaultClientService>,
-        user_service: Arc<DefaultUserService>,
-        credential_service: Arc<DefaultCredentialService>,
-        auth_session_service: Arc<DefaultAuthSessionService>,
+        jwt_service: DefaultJwtService,
+        client_service: DefaultClientService,
+        user_service: DefaultUserService,
+        credential_service: DefaultCredentialService,
+        auth_session_service: DefaultAuthSessionService,
     ) -> Self {
         Self {
             jwt_service,

@@ -8,7 +8,6 @@ use crate::domain::user::dtos::user_dto::CreateUserDto;
 use crate::domain::user::ports::user_repository::UserRepository;
 use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
 use crate::infrastructure::user::repository::PostgresUserRepository;
-use std::sync::Arc;
 use uuid::Uuid;
 
 pub type DefaultClientService = ClientServiceImpl<PostgresClientRepository, PostgresUserRepository>;
@@ -20,7 +19,7 @@ where
 {
     pub client_repository: C,
     pub user_repository: U,
-    pub realm_service: Arc<DefaultRealmService>,
+    pub realm_service: DefaultRealmService,
 }
 
 impl<C, U> ClientServiceImpl<C, U>
@@ -31,7 +30,7 @@ where
     pub fn new(
         client_repository: C,
         user_repository: U,
-        realm_service: Arc<DefaultRealmService>,
+        realm_service: DefaultRealmService,
     ) -> Self {
         Self {
             client_repository,

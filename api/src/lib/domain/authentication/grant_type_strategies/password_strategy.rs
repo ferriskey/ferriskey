@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use chrono::{TimeZone, Utc};
 
 use crate::domain::client::ports::client_service::ClientService;
@@ -23,18 +21,18 @@ use crate::domain::{
 
 #[derive(Clone)]
 pub struct PasswordStrategy {
-    pub jwt_service: Arc<DefaultJwtService>,
-    pub user_service: Arc<DefaultUserService>,
-    pub credential_service: Arc<DefaultCredentialService>,
-    pub client_service: Arc<DefaultClientService>,
+    pub jwt_service: DefaultJwtService,
+    pub user_service: DefaultUserService,
+    pub credential_service: DefaultCredentialService,
+    pub client_service: DefaultClientService,
 }
 
 impl PasswordStrategy {
     pub fn new(
-        jwt_service: Arc<DefaultJwtService>,
-        user_service: Arc<DefaultUserService>,
-        credential_service: Arc<DefaultCredentialService>,
-        client_service: Arc<DefaultClientService>,
+        jwt_service: DefaultJwtService,
+        user_service: DefaultUserService,
+        credential_service: DefaultCredentialService,
+        client_service: DefaultClientService,
     ) -> Self {
         Self {
             jwt_service,

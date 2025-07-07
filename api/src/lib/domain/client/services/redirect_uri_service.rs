@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
@@ -28,8 +27,8 @@ where
     R: RedirectUriRepository,
 {
     pub redirect_uri_repository: R,
-    pub realm_service: Arc<DefaultRealmService>,
-    pub client_service: Arc<DefaultClientService>,
+    pub realm_service: DefaultRealmService,
+    pub client_service: DefaultClientService,
 }
 
 impl<R> RedirectUriServiceImpl<R>
@@ -38,8 +37,8 @@ where
 {
     pub fn new(
         redirect_uri_repository: R,
-        realm_service: Arc<DefaultRealmService>,
-        client_service: Arc<DefaultClientService>,
+        realm_service: DefaultRealmService,
+        client_service: DefaultClientService,
     ) -> Self {
         Self {
             redirect_uri_repository,
