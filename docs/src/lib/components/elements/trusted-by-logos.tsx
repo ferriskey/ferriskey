@@ -24,7 +24,7 @@ export default function TrustedByLogos() {
         <p className="mb-12 text-lg text-muted-foreground">
           Ferriskey is made possible by the generous support of our sponsors.
         </p>
-        <div className="-mx-6 grid grid-cols-2 gap-3 overflow-hidden sm:mx-0 sm:rounded-2xl md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 overflow-hidden sm:rounded-2xl md:grid-cols-2">
           {sponsors.map((sponsor) => (
             <a
               href={sponsor.link}
@@ -53,7 +53,7 @@ export default function TrustedByLogos() {
                   <img
                     src={sponsor.logo}
                     alt={sponsor.name}
-                    className="max-h-24 min-h-24 object-contain"
+                    className="max-h-24 min-h-24 w-full object-contain"
                   />
                 </div>
               </div>
