@@ -23,9 +23,9 @@ use tracing::info;
 pub async fn reconcile_api(cluster: &FerriskeyCluster, client: &Client) -> Result<(), kube::Error> {
     let ns = cluster.namespace().unwrap();
     let name = cluster.name_any();
+    let api_name = name.clone();
     let spec = &cluster.spec;
 
-    let api_name = format!("{name}-api");
     let deploy_api: Api<Deployment> = Api::namespaced(client.clone(), &ns);
 
     if cluster.meta().deletion_timestamp.is_some() {

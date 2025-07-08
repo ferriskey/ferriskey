@@ -1,1 +1,98 @@
-{"apiVersion":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition","metadata":{"name":"ferriskeyclusters.ferriskey.io"},"spec":{"group":"ferriskey.io","names":{"categories":[],"kind":"FerriskeyCluster","plural":"ferriskeyclusters","shortNames":["fkc"],"singular":"ferriskeycluster"},"scope":"Namespaced","versions":[{"additionalPrinterColumns":[],"name":"v1","schema":{"openAPIV3Schema":{"description":"Auto-generated derived type for FerriskeyClusterSpec via `CustomResource`","properties":{"spec":{"properties":{"backend":{"properties":{"allowed_origins":{"items":{"type":"string"},"nullable":true,"type":"array"},"email":{"nullable":true,"type":"string"},"image":{"nullable":true,"type":"string"},"password":{"nullable":true,"type":"string"},"portal_url":{"nullable":true,"type":"string"},"replicas":{"format":"uint8","minimum":0.0,"type":"integer"},"username":{"nullable":true,"type":"string"}},"required":["replicas"],"type":"object"},"frontend":{"properties":{"enabled":{"type":"boolean"},"image":{"nullable":true,"type":"string"}},"required":["enabled"],"type":"object"},"postgres":{"properties":{"image":{"nullable":true,"type":"string"},"storage":{"nullable":true,"type":"string"}},"type":"object"},"version":{"nullable":true,"type":"string"}},"required":["backend","frontend","postgres"],"type":"object"},"status":{"nullable":true,"properties":{"message":{"nullable":true,"type":"string"},"ready":{"type":"boolean"}},"required":["ready"],"type":"object"}},"required":["spec"],"title":"FerriskeyCluster","type":"object"}},"served":true,"storage":true,"subresources":{"status":{}}}]}}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ferriskeyclusters.ferriskey.io
+spec:
+  group: ferriskey.io
+  names:
+    categories: []
+    kind: FerriskeyCluster
+    plural: ferriskeyclusters
+    shortNames:
+    - fkc
+    singular: ferriskeycluster
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for FerriskeyClusterSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              backend:
+                properties:
+                  allowed_origins:
+                    items:
+                      type: string
+                    nullable: true
+                    type: array
+                  email:
+                    nullable: true
+                    type: string
+                  image:
+                    nullable: true
+                    type: string
+                  password:
+                    nullable: true
+                    type: string
+                  portal_url:
+                    nullable: true
+                    type: string
+                  replicas:
+                    format: uint8
+                    minimum: 0.0
+                    type: integer
+                  username:
+                    nullable: true
+                    type: string
+                required:
+                - replicas
+                type: object
+              frontend:
+                properties:
+                  enabled:
+                    type: boolean
+                  image:
+                    nullable: true
+                    type: string
+                required:
+                - enabled
+                type: object
+              postgres:
+                properties:
+                  image:
+                    nullable: true
+                    type: string
+                  storage:
+                    nullable: true
+                    type: string
+                type: object
+              version:
+                nullable: true
+                type: string
+            required:
+            - backend
+            - frontend
+            - postgres
+            type: object
+          status:
+            nullable: true
+            properties:
+              message:
+                nullable: true
+                type: string
+              ready:
+                type: boolean
+            required:
+            - ready
+            type: object
+        required:
+        - spec
+        title: FerriskeyCluster
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

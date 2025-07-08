@@ -5,7 +5,7 @@ use std::path::Path;
 
 fn main() {
     let crd = FerriskeyCluster::crd();
-    let bytes = serde_json::to_vec(&crd).unwrap();
+    let bytes = serde_yaml::to_string(&crd).unwrap();
 
     let dir_path = Path::new("crds");
     if !dir_path.exists() {
