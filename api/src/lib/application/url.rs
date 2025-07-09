@@ -7,13 +7,22 @@ impl<S> FromRequestParts<S> for FullUrl
 where
     S: Send + Sync,
 {
-    type Rejection = std::convert::Infallible;
+    type Rejection = axum::response::Response;
 
     async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        let uri = parts.extract::<Uri>().await.unwrap();
+        let uri = match parts.extract::<Uri>().await {
+            Ok(uri) => uri,
+            Err(_) => {
+                let response = axum::response::Response::builder()
+                    .status(axum::http::StatusCode::BAD_REQUEST)
+                    .body("Invalid URI".into())
+                    .unwrap_or_default();
+                return Err(response);
+            }
+        };
 
         let headers = &parts.headers;
 
@@ -35,7 +44,7 @@ where
 
         let base_url = format!("{}://{}", scheme, host);
 
-        let full_url = format!("{}://{}{}", scheme, host, uri.path());
+        let full_url = uri.to_string();
 
         Ok(FullUrl(full_url, base_url))
     }
