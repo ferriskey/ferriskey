@@ -17,5 +17,6 @@ pub trait AuthenticationService: Clone + Send + Sync + 'static {
     fn authenticate(
         &self,
         data: AuthenticateDto,
+        base_url: String,
     ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 }

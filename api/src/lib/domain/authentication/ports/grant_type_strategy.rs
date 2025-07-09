@@ -4,6 +4,7 @@ use crate::domain::authentication::entities::{error::AuthenticationError, jwt_to
 
 pub struct GrantTypeParams {
     pub realm_id: Uuid,
+    pub base_url: String,
     pub realm_name: String,
     pub client_id: String,
     pub client_secret: Option<String>,

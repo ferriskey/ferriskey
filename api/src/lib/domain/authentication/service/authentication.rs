@@ -144,7 +144,11 @@ impl AuthenticationService for AuthenticationServiceImpl {
         }
     }
 
-    async fn authenticate(&self, data: AuthenticateDto) -> Result<JwtToken, AuthenticationError> {
+    async fn authenticate(
+        &self,
+        data: AuthenticateDto,
+        base_url: String,
+    ) -> Result<JwtToken, AuthenticationError> {
         let realm = self
             .realm_service
             .get_by_name(data.realm_name.clone())
@@ -153,6 +157,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
 
         let params = GrantTypeParams {
             realm_id: realm.id,
+            base_url,
             realm_name: realm.name,
             client_id: data.client_id.clone(),
             client_secret: data.client_secret.clone(),

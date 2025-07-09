@@ -67,11 +67,14 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
             .await
             .map_err(|_| AuthenticationError::Invalid)?;
 
+        let iss = format!("{}/realms/{}", params.base_url, params.realm_name);
+        let realm_audit = format!("{}-realm", params.realm_name);
+
         let claims = JwtClaim::new(
             user.id,
             user.username,
-            "http://localhost:3333/realms/master".to_string(),
-            vec!["master-realm".to_string(), "account".to_string()],
+            iss,
+            vec![realm_audit, "account".to_string()],
             ClaimsTyp::Bearer,
             params.client_id,
             Some(user.email.clone()),
