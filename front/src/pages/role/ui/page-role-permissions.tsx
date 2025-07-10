@@ -31,37 +31,51 @@ export default function PageRolePermissions({ role }: PageRolePermissionsProps) 
       <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Object.entries(permissionGroups).map(([groupName, groupPermissions]) => {
           const numberOfPermissions = groupPermissions.length
-          const numberOfEnabledPermissions = groupPermissions.filter(permission => permissions.includes(permission.toString())).length
+          const numberOfEnabledPermissions = groupPermissions.filter((permission) =>
+            permissions.includes(permission.toString())
+          ).length
           return (
-            <div key={groupName} className="border rounded-md p-4 shadow-2xl">
+            <div key={groupName} className="border rounded-md p-4 shadow">
               <div className="flex items-center gap-4">
                 <div className="rounded-md bg-primary/20 p-2">
                   <Users className="text-primary" />
                 </div>
                 <div>
                   <h3 className="font-bold ">{groupName}</h3>
-                  <span className="text-muted-foreground text-sm">{numberOfEnabledPermissions} of {numberOfPermissions} permissions enabled</span>
+                  <span className="text-muted-foreground text-sm">
+                    {numberOfEnabledPermissions} of {numberOfPermissions} permissions enabled
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col gap-3 mt-4">
                 {groupPermissions.map((permission) => {
-                  const permissionName = permission.toString().split('_')
-                    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+                  const permissionName = permission
+                    .toString()
+                    .split('_')
+                    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
                     .join(' ')
                   const inRolePermissions = permissions.includes(permission.toString())
                   return (
                     <div
                       className={cn(
-                      "p-2 border rounded-sm",
-                        inRolePermissions ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/10 hover:bg-muted/20",
+                        'p-2 border rounded-sm',
+                        inRolePermissions
+                          ? 'bg-primary/10 hover:bg-primary/20'
+                          : 'bg-muted/10 hover:bg-muted/20'
                       )}
                       key={permission}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-sm",
-                          inRolePermissions ? "text-primary font-semibold" : "text-muted-foreground"
-                        )}>{permissionName}</span>
+                        <span
+                          className={cn(
+                            'text-sm',
+                            inRolePermissions
+                              ? 'text-primary font-semibold'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {permissionName}
+                        </span>
                         <div>
                           <BadgeColor
                             color={

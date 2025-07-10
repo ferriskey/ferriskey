@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
-import { GetRoleResponse, GetRolesResponse, Role } from "./api.interface"
+import { GetRoleResponse, GetRolesResponse, Role, UpdateRoleResponse } from "./api.interface"
 import { authStore } from "@/store/auth.store"
 import { CreateRoleSchema } from "@/pages/role/schemas/create-role.schema"
+import { UpdateRoleSchema } from "@/pages/role/schemas/update-role.schema"
+import { toast } from "sonner"
 
 
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
@@ -24,7 +26,7 @@ export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
 
 export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) => {
   return useQuery({
-    queryKey: ["roles", realm, roleId],
+    queryKey: ["role", roleId],
     queryFn: async (): Promise<Role> => {
       const accessToken = authStore.getState().accessToken
 
@@ -59,5 +61,38 @@ export const useCreateRole = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] })
     }
+  })
+}
+
+export const useUpdateRole = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ realmName, roleId, payload }: { realmName: string, roleId: string, payload: UpdateRoleSchema }): Promise<Role> => {
+
+      const accessToken = authStore.getState().accessToken
+
+      const { data: response } = await apiClient.put<UpdateRoleResponse>(`/realms/${realmName}/roles/${roleId}`, payload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      return response.data
+    },
+    onSuccess(data) {
+      queryClient.invalidateQueries({
+        queryKey: ["role", data.id]
+      })
+
+      toast.success("Role updated successfully", {
+        description: `Role ${data.name} has been updated successfully.`,
+      })
+    },
+    onError(error) {
+      toast.error("Failed to update role", {
+        description: error.message,
+      })
+    },
   })
 }

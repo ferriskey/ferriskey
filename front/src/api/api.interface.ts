@@ -210,6 +210,15 @@ export interface UnassignRoleResponse {
 	message: string;
 }
 
+export interface UpdateRoleResponse {
+	data: Role;
+}
+
+export interface UpdateRoleValidator {
+	name?: string;
+	description?: string;
+}
+
 export interface UpdateUserResponse {
 	data: User;
 }

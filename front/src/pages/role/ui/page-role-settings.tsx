@@ -10,20 +10,30 @@ import { UseFormReturn } from 'react-hook-form'
 import { UpdateRoleSchema } from '@/pages/role/schemas/update-role.schema.ts'
 import { InputText } from '@/components/ui/input-text.tsx'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
+import FloatingActionBar from '@/components/ui/floating-action-bar'
 
 export interface PageRoleSettingsProps {
   role?: Role
   form: UseFormReturn<UpdateRoleSchema>
   isLoading?: boolean
   realmName: string
+  hasChanges: boolean
+  handleSubmit: () => void
 }
 
-export default function PageRoleSettings({ role, isLoading, realmName, form }: PageRoleSettingsProps) {
-  const navigate = useNavigate();
+export default function PageRoleSettings({
+  role,
+  isLoading,
+  realmName,
+  form,
+  hasChanges,
+  handleSubmit,
+}: PageRoleSettingsProps) {
+  const navigate = useNavigate()
 
   const handleBackClick = () => {
-    navigate(`/realms/${realmName}/roles`);
-  };
+    navigate(`/realms/${realmName}/roles`)
+  }
 
   if (isLoading) {
     return (
@@ -52,7 +62,7 @@ export default function PageRoleSettings({ role, isLoading, realmName, form }: P
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   if (!role) {
@@ -70,52 +80,35 @@ export default function PageRoleSettings({ role, isLoading, realmName, form }: P
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="">
       <div>
-        <BlockContent title={"Role informations"}>
+        <BlockContent title={'Role informations'}>
           <div className="flex flex-col gap-3">
             <FormField
               control={form.control}
-              name={"name"}
-              render={({ field }) => (
-                <InputText
-                  label={"Name"}
-                  {...field}
-                />
-              )}
+              name={'name'}
+              render={({ field }) => <InputText label={'Name'} {...field} />}
             />
 
             <FormField
               control={form.control}
-              name={"description"}
-              render={({ field }) => (
-                <InputText
-                  label={"Description"}
-                  {...field}
-                />
-              )}
+              name={'description'}
+              render={({ field }) => <InputText label={'Description'} {...field} />}
             />
-
           </div>
         </BlockContent>
-
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-
         <div className="border p-4 rounded-sm flex flex-col gap-3">
-          <span className="text-xs text-muted-foreground">
-            Number of permissions
-          </span>
+          <span className="text-xs text-muted-foreground">Number of permissions</span>
 
           <div>
-            <BadgeColor color={BadgeColorScheme.BLUE}>
-              {role.permissions.length}
-            </BadgeColor>
+            <BadgeColor color={BadgeColorScheme.BLUE}>{role.permissions.length}</BadgeColor>
           </div>
         </div>
 
@@ -123,9 +116,7 @@ export default function PageRoleSettings({ role, isLoading, realmName, form }: P
           <span className="text-xs text-muted-foreground">Client</span>
 
           <div>
-            <BadgeColor color={BadgeColorScheme.PRIMARY}>
-              {role.client?.client_id}
-            </BadgeColor>
+            <BadgeColor color={BadgeColorScheme.PRIMARY}>{role.client?.client_id}</BadgeColor>
           </div>
         </div>
 
@@ -137,10 +128,22 @@ export default function PageRoleSettings({ role, isLoading, realmName, form }: P
               {new Date(role.created_at).toLocaleDateString('fr-FR')}
             </BadgeColor>
           </div>
-
         </div>
-
       </div>
+
+      <FloatingActionBar
+        show={hasChanges}
+        title="Save changes"
+        actions={[
+          {
+            label: 'Save',
+            variant: 'default',
+            onClick: form.handleSubmit(handleSubmit),
+          },
+        ]}
+        description="You have unsaved changes. Do you want to save them?"
+        onCancel={() => form.reset()}
+      />
     </div>
-  );
+  )
 }
