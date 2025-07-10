@@ -36,8 +36,6 @@ export default function PageRoleSettingsFeature() {
   )
 
   const handleSubmit = form.handleSubmit((values) => {
-    console.log('Submitting role update:', values)
-
     udpateRole({
       payload: values,
       realmName: realm_name || 'master',

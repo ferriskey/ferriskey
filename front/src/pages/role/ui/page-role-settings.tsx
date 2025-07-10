@@ -86,7 +86,7 @@ export default function PageRoleSettings({
   return (
     <div className="">
       <div>
-        <BlockContent title={'Role informations'}>
+        <BlockContent title={'Role details'}>
           <div className="flex flex-col gap-3">
             <FormField
               control={form.control}

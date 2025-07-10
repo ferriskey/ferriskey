@@ -24,7 +24,7 @@ export const columns: ColumnDef<Role>[] = [
     cell: (role) => (
       <div className="flex items-center gap-1">
         <BadgeColor color={BadgeColorScheme.PRIMARY}>
-          {role.permissions.length} permission{role.permissions.length > 1 ? 's' : ''}
+          {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
         </BadgeColor>
       </div>
     ),
