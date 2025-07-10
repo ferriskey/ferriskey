@@ -42,7 +42,7 @@ where
             .and_then(|h| h.to_str().ok())
             .unwrap_or("localhost");
 
-        let base_url = format!("{}://{}", scheme, host);
+        let base_url = format!("{scheme}://{host}");
 
         let full_url = uri.to_string();
 

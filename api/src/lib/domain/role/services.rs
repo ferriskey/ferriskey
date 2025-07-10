@@ -1,6 +1,9 @@
 use uuid::Uuid;
 
-use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
+use crate::{
+    domain::role::entities::UpdateRoleDto,
+    infrastructure::repositories::role_repository::PostgresRoleRepository,
+};
 
 use super::{
     entities::{CreateRoleDto, errors::RoleError, models::Role},
@@ -72,5 +75,12 @@ where
             .find_by_name(name, realm_id)
             .await?
             .ok_or(RoleError::NotFound)
+    }
+
+    async fn update_by_id(&self, id: Uuid, payload: UpdateRoleDto) -> Result<Role, RoleError> {
+        self.role_repository
+            .update_by_id(id, payload)
+            .await
+            .map_err(|_| RoleError::NotFound)
     }
 }

@@ -24,6 +24,7 @@ pub struct GetClientRolesResponse {
 #[utoipa::path(
     get,
     path = "/{client_id}/roles",
+    tag = "client",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID")

@@ -1,5 +1,6 @@
 pub mod create_client;
 pub mod create_redirect_uri;
+pub mod create_role;
 pub mod delete_client;
 pub mod delete_redirect_uri;
 pub mod get_client;

@@ -55,4 +55,24 @@ impl RolePolicy {
 
         Ok(has_permission)
     }
+
+    pub async fn update(
+        identity: Identity,
+        state: AppState,
+        target_realm: Realm,
+    ) -> Result<bool, ApiError> {
+        let policy = PolicyEnforcer::new(state.clone());
+        let user = policy.get_user_from_identity(&identity).await?;
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageRoles],
+        );
+
+        Ok(has_permission)
+    }
 }

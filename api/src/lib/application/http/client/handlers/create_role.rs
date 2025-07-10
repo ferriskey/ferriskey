@@ -25,30 +25,30 @@ use crate::{
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/clients/{client_id}/roles")]
-pub struct CreateRoleRoute {
+pub struct CreateClientRoleRoute {
     pub realm_name: String,
     pub client_id: Uuid,
 }
 
 #[utoipa::path(
-    post,
-    summary = "Create a new role",
-    path = "",
-    tag = "role",
-    params(
-        ("realm_name" = String, Path, description = "Realm name"),
-        ("client_id" = Uuid, Path, description = "Client ID"),
-    ),
-    request_body = CreateRoleValidator,
-    responses(
-        (status = 201, body = Role)
-    )
+  post,
+  summary = "Create a new role",
+  path = "/{client_id}/roles",
+  tag = "client",
+  params(
+      ("realm_name" = String, Path, description = "Realm name"),
+      ("client_id" = Uuid, Path, description = "Client ID"),
+  ),
+  request_body = CreateRoleValidator,
+  responses(
+      (status = 201, body = Role)
+  )
 )]
 pub async fn create_role(
-    CreateRoleRoute {
+    CreateClientRoleRoute {
         realm_name,
         client_id,
-    }: CreateRoleRoute,
+    }: CreateClientRoleRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRoleValidator>,
@@ -73,7 +73,7 @@ pub async fn create_role(
         .role_service
         .create(payload)
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(ApiError::from)?;
 
     Ok(Response::Created(role))
 }

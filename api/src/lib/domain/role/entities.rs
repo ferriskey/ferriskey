@@ -17,3 +17,9 @@ pub struct CreateRoleDto {
     #[typeshare(serialized_as = "string", optional)]
     pub client_id: Option<Uuid>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRoleDto {
+    pub name: Option<String>,
+    pub description: Option<String>,
+}

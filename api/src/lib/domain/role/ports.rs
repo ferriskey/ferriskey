@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+use crate::domain::role::entities::UpdateRoleDto;
+
 use super::entities::{CreateRoleDto, errors::RoleError, models::Role};
 
 pub trait RoleService: Send + Sync + Clone {
@@ -27,6 +29,11 @@ pub trait RoleService: Send + Sync + Clone {
         name: String,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Role, RoleError>> + Send;
+    fn update_by_id(
+        &self,
+        id: Uuid,
+        payload: UpdateRoleDto,
+    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
 }
 
 pub trait RoleRepository: Send + Sync + Clone {
@@ -50,4 +57,10 @@ pub trait RoleRepository: Send + Sync + Clone {
         name: String,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Option<Role>, RoleError>> + Send;
+
+    fn update_by_id(
+        &self,
+        id: Uuid,
+        payload: UpdateRoleDto,
+    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
 }

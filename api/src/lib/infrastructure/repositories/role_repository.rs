@@ -1,6 +1,8 @@
 use crate::domain::{
     role::{
-        entities::{CreateRoleDto, errors::RoleError, models::Role, permission::Permissions},
+        entities::{
+            CreateRoleDto, UpdateRoleDto, errors::RoleError, models::Role, permission::Permissions,
+        },
         ports::RoleRepository,
     },
     utils::generate_uuid_v7,
@@ -155,5 +157,29 @@ impl RoleRepository for PostgresRoleRepository {
             .map(Role::from);
 
         Ok(role)
+    }
+
+    async fn update_by_id(&self, id: Uuid, payload: UpdateRoleDto) -> Result<Role, RoleError> {
+        let role = entity::roles::Entity::find()
+            .filter(entity::roles::Column::Id.eq(id))
+            .one(&self.db)
+            .await
+            .map_err(|_| RoleError::InternalServerError)?
+            .ok_or(RoleError::NotFound)?;
+
+        let mut role: entity::roles::ActiveModel = role.into();
+        if let Some(name) = payload.name {
+            role.name = Set(name);
+        }
+
+        role.description = Set(payload.description);
+
+        let updated_role: Role = role
+            .update(&self.db)
+            .await
+            .map_err(|_| RoleError::InternalServerError)?
+            .into();
+
+        Ok(updated_role)
     }
 }

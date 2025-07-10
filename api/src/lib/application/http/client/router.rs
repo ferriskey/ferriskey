@@ -5,6 +5,7 @@ use utoipa::OpenApi;
 use super::handlers::{
     create_client::{__path_create_client, create_client},
     create_redirect_uri::{__path_create_redirect_uri, create_redirect_uri},
+    create_role::{__path_create_role, create_role},
     delete_client::{__path_delete_client, delete_client},
     delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
     get_client::{__path_get_client, get_client},
@@ -24,6 +25,7 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
         create_client,
         delete_client,
         create_redirect_uri,
+        create_role,
         get_redirect_uris,
         update_client,
         update_redirect_uri,
@@ -44,6 +46,7 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
         .typed_post(create_client)
         .typed_patch(update_client)
         .typed_post(create_redirect_uri)
+        .typed_post(create_role)
         .typed_get(get_redirect_uris)
         .typed_put(update_redirect_uri)
         .typed_delete(delete_client)

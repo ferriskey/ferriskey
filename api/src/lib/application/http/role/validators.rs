@@ -14,6 +14,13 @@ pub struct CreateRoleValidator {
     pub permissions: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+#[typeshare]
+pub struct UpdateRoleValidator {
+    pub name: Option<String>,
+    pub description: Option<String>,
+}
+
 impl CreateRoleValidator {
     pub fn to_dto(self, realm_id: Uuid, client_id: Option<Uuid>) -> CreateRoleDto {
         CreateRoleDto {
