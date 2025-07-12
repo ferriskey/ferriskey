@@ -24,6 +24,12 @@ export default defineExplainerConfig({
       href: '/docs/concepts/overview',
       baseUrl: '/docs/concepts',
     },
+    modules: {
+      icon: 'lucide:code',
+      label: 'Modules',
+      href: '/docs/modules/trident',
+      baseUrl: '/docs/modules',
+    },
     tutorials: {
       icon: 'lucide:graduation-cap',
       label: 'Tutorials',

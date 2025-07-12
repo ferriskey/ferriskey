@@ -29,6 +29,11 @@ const tutorials = defineCollection({
   schema: docSchema
 })
 
+const modules = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/modules" }),
+  schema: docSchema,
+})
+
 const tasks = defineCollection({
   loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs/03-tasks" }),
   schema: docSchema
@@ -51,4 +56,4 @@ const blog = defineCollection({
   }),
 })
 
-export const collections = { blog, framework, concepts, tutorials, tasks, reference, welcome };
+export const collections = { blog, framework, concepts, tutorials, tasks, reference, welcome, modules };
