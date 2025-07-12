@@ -1,67 +1,84 @@
-import { useFormContext } from 'react-hook-form';
-import { FormField } from '@/components/ui/form.tsx';
-import { FormSwitch } from '@/components/ui/switch.tsx';
-import { UpdateUserSchema } from '../validators';
-import BlockContent from '@/components/ui/block-content';
-import { InputText } from '@/components/ui/input-text';
+import { useFormContext } from 'react-hook-form'
+import { FormField } from '@/components/ui/form.tsx'
+import { FormSwitch } from '@/components/ui/switch.tsx'
+import { UpdateUserSchema } from '../validators'
+import BlockContent from '@/components/ui/block-content'
+import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar.tsx'
+import { User } from '@/api/api.interface'
+import MultipleSelector from '@/components/ui/multiselect'
+import { Label } from '@/components/ui/label'
 
 type Props = {
   onSubmit: (data: UpdateUserSchema) => void
   hasChanges: boolean
+  user: User
 }
 
-export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
+export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) {
   const form = useFormContext<UpdateUserSchema>()
 
   return (
     <div className="max-w-2xl">
-      <BlockContent title='General information'>
-        <div className='flex flex-col gap-4'>
-          <FormField 
+      <BlockContent title="User details">
+        <div className="flex flex-col gap-3">
+          <InputText label="User ID" value={user.id} disabled={true} name="id" />
+
+          <InputText
+            label="Created At"
+            value={new Date(user.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            })}
+            disabled={true}
+            name="created_at"
+          />
+
+          <div>
+            <Label>Required Actions</Label>
+            <MultipleSelector
+              commandProps={{
+                label: 'Required Actions',
+              }}
+              defaultOptions={[
+                {
+                  label: 'Configure OTP',
+                  value: 'configure_otp',
+                },
+                {
+                  label: 'Update Password',
+                  value: 'update_password',
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </BlockContent>
+      <BlockContent title="General information">
+        <div className="flex flex-col gap-4">
+          <FormField
             control={form.control}
             name="username"
-            render={({ field }) => (
-              <InputText 
-                label='Username'
-                disabled
-                {...field} 
-              />
-            )}
+            render={({ field }) => <InputText label="Username" disabled {...field} />}
           />
 
           <FormField
             control={form.control}
             name="email"
-            render={({ field }) => (
-              <InputText
-                label='Email'
-                type='email'
-                {...field}
-              />
-            )}
+            render={({ field }) => <InputText label="Email" type="email" {...field} />}
           />
 
           <FormField
             control={form.control}
             name="firstname"
-            render={({ field }) => (
-              <InputText
-                label='First Name'
-                {...field}
-              />
-            )}
+            render={({ field }) => <InputText label="First Name" {...field} />}
           />
 
           <FormField
             control={form.control}
             name="lastname"
-            render={({ field }) => (
-              <InputText
-                label='Last Name'
-                {...field}
-              />
-            )}
+            render={({ field }) => <InputText label="Last Name" {...field} />}
           />
 
           <FormField
@@ -83,30 +100,28 @@ export default function PageUserOverview({ onSubmit, hasChanges }: Props) {
             render={({ field }) => (
               <FormSwitch
                 label="Email Verified"
-                description={(value) => value ? "Email is verified" : "Email is not verified"}
+                description={(value) => (value ? 'Email is verified' : 'Email is not verified')}
                 checked={field.value}
                 onChange={field.onChange}
               />
             )}
           />
-
         </div>
-
       </BlockContent>
 
       <FloatingActionBar
         show={hasChanges}
-        title={"Save changes"}
+        title={'Save changes'}
         actions={[
           {
             label: 'Save',
             variant: 'default',
-            onClick: form.handleSubmit(onSubmit)
-          }
+            onClick: form.handleSubmit(onSubmit),
+          },
         ]}
         description="You have unsaved changes. Click 'Save' to apply them."
         onCancel={() => {
-            form.reset()
+          form.reset()
         }}
       />
     </div>

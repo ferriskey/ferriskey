@@ -27,30 +27,33 @@ export default function PageUserOverviewFeature() {
     },
   })
 
-  const hasChanges = useFormChanges(form, data && {
-    username: data.username ?? '',
-    firstname: data.firstname ?? '',
-    lastname: data.lastname ?? '',
-    email: data.email ?? '',
-    enabled: data.enabled,
-    email_verified: data.email_verified,
-  })
+  const hasChanges = useFormChanges(
+    form,
+    data && {
+      username: data.username ?? '',
+      firstname: data.firstname ?? '',
+      lastname: data.lastname ?? '',
+      email: data.email ?? '',
+      enabled: data.enabled,
+      email_verified: data.email_verified,
+    }
+  )
 
   function handleSubmit(payload: UpdateUserSchema) {
-    updateUser({ realm: realm_name, userId: user_id, payload }, {
-      onSuccess: () => toast.success("User was updated"),
-      onError: (error) => toast.error(error.message)
-    })
+    updateUser(
+      { realm: realm_name, userId: user_id, payload },
+      {
+        onSuccess: () => toast.success('User was updated'),
+        onError: (error) => toast.error(error.message),
+      }
+    )
   }
 
-  if (!user_id || isLoading) return null
+  if (!user_id || isLoading || !data) return null
 
   return (
     <Form {...form}>
-      <PageUserOverview
-        onSubmit={handleSubmit}
-        hasChanges={hasChanges}
-      />
-    </Form >
+      <PageUserOverview onSubmit={handleSubmit} hasChanges={hasChanges} user={data} />
+    </Form>
   )
 }

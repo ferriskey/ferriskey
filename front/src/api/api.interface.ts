@@ -97,6 +97,7 @@ export interface User {
 	enabled: boolean;
 	roles: Role[];
 	realm?: Realm;
+	required_actions: RequiredAction[];
 	created_at: Date;
 	updated_at: Date;
 }
