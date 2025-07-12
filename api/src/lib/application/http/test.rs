@@ -93,6 +93,7 @@ impl UserBuilder {
             enabled: self.enabled.unwrap_or(true),
             roles: self.roles,
             realm: None,
+            required_actions: Vec::new(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

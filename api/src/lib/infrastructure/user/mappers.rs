@@ -1,6 +1,9 @@
 use chrono::{TimeZone, Utc};
 
-use crate::domain::user::entities::model::User;
+use crate::domain::user::entities::{
+    model::User,
+    required_action::{RequiredAction, RequiredActionError},
+};
 
 impl From<entity::users::Model> for User {
     fn from(value: entity::users::Model) -> Self {
@@ -19,8 +22,16 @@ impl From<entity::users::Model> for User {
             client_id: value.client_id,
             roles: Vec::new(),
             realm: None,
+            required_actions: Vec::new(),
             created_at,
             updated_at,
         }
+    }
+}
+
+impl TryFrom<entity::user_required_actions::Model> for RequiredAction {
+    type Error = RequiredActionError;
+    fn try_from(value: entity::user_required_actions::Model) -> Result<Self, Self::Error> {
+        RequiredAction::try_from(value.action)
     }
 }

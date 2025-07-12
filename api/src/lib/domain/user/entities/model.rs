@@ -6,8 +6,9 @@ use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
 use crate::domain::{
-    realm::entities::realm::Realm, role::entities::models::Role,
-    user::dtos::user_dto::CreateUserDto,
+    realm::entities::realm::Realm,
+    role::entities::models::Role,
+    user::{dtos::user_dto::CreateUserDto, entities::required_action::RequiredAction},
 };
 
 #[derive(
@@ -29,6 +30,7 @@ pub struct User {
     pub enabled: bool,
     pub roles: Vec<Role>,
     pub realm: Option<Realm>,
+    pub required_actions: Vec<RequiredAction>,
     #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
     #[typeshare(serialized_as = "Date")]
@@ -64,6 +66,7 @@ impl User {
             enabled: dto.enabled,
             roles: Vec::new(),
             realm: None,
+            required_actions: Vec::new(),
             created_at: now,
             updated_at: now,
         }
@@ -86,6 +89,7 @@ impl User {
             enabled: user_config.enabled,
             roles: Vec::new(),
             realm: None,
+            required_actions: Vec::new(),
             created_at: now,
             updated_at: now,
         }

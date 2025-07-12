@@ -100,8 +100,8 @@ impl RelationTrait for Relation {
                 .to(super::realms::Column::Id)
                 .into(),
             Self::Users => Entity::belongs_to(super::users::Entity)
-                .from(Column::UserId)
-                .to(super::users::Column::Id)
+                .from((Column::UserId, Column::UserId))
+                .to((super::users::Column::Id, super::users::Column::Id))
                 .into(),
         }
     }
