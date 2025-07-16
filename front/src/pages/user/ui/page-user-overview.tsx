@@ -5,9 +5,10 @@ import { UpdateUserSchema } from '../validators'
 import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar.tsx'
-import { User } from '@/api/api.interface'
+import { RequiredAction, User } from '@/api/api.interface'
 import MultipleSelector from '@/components/ui/multiselect'
 import { Label } from '@/components/ui/label'
+import { formatRequiredAction, formatSnakeCaseToTitleCase } from '@/utils'
 
 type Props = {
   onSubmit: (data: UpdateUserSchema) => void
@@ -17,6 +18,13 @@ type Props = {
 
 export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) {
   const form = useFormContext<UpdateUserSchema>()
+
+  const requiredActions = Object.values(RequiredAction).map((action) => {
+    return {
+      label: formatRequiredAction(action),
+      value: action,
+    }
+  })
 
   return (
     <div className="max-w-2xl">
@@ -36,21 +44,26 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
           />
 
           <div>
-            <Label>Required Actions</Label>
-            <MultipleSelector
-              commandProps={{
-                label: 'Required Actions',
-              }}
-              defaultOptions={[
-                {
-                  label: 'Configure OTP',
-                  value: 'configure_otp',
-                },
-                {
-                  label: 'Update Password',
-                  value: 'update_password',
-                },
-              ]}
+            <FormField
+              control={form.control}
+              name="required_actions"
+              render={({ field }) => (
+                <div>
+                  <Label>Required Actions</Label>
+                  <MultipleSelector
+                    commandProps={{
+                      label: 'Required Actions',
+                    }}
+                    onChange={(value) => field.onChange(value.map((v) => v.value))}
+                    value={field.value?.map((action) => ({
+                      label: formatSnakeCaseToTitleCase(action),
+                      value: action,
+                    }))}
+                    options={requiredActions}
+                    //defaultOptions={requiredActions}
+                  />
+                </div>
+              )}
             />
           </div>
         </div>

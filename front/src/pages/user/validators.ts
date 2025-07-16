@@ -15,6 +15,7 @@ export const updateUserValidator = z.object({
   enabled: z.boolean().optional(),
   email: z.string().email().min(1),
   email_verified: z.boolean().optional(),
+  required_actions: z.array(z.string()).optional(),
 })
 
 

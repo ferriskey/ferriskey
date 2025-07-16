@@ -24,6 +24,7 @@ export default function PageUserOverviewFeature() {
       email: data?.email ?? '',
       enabled: data?.enabled,
       email_verified: data?.email_verified,
+      required_actions: data?.required_actions,
     },
   })
 
@@ -36,6 +37,7 @@ export default function PageUserOverviewFeature() {
       email: data.email ?? '',
       enabled: data.enabled,
       email_verified: data.email_verified,
+      required_actions: data.required_actions ?? [],
     }
   )
 

@@ -85,6 +85,12 @@ export interface Realm {
 	updated_at: Date;
 }
 
+export enum RequiredAction {
+	ConfigureOtp = "configure_otp",
+	VerifyEmail = "verify_email",
+	UpdatePassword = "update_password",
+}
+
 export interface User {
 	id: string;
 	realm_id: string;
