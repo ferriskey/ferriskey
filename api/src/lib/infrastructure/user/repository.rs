@@ -2,13 +2,14 @@ use crate::domain::{
     role::entities::models::Role,
     user::{
         dtos::user_dto::{CreateUserDto, UpdateUserDto},
-        entities::{error::UserError, model::User},
+        entities::{error::UserError, model::User, required_action::RequiredAction},
         ports::user_repository::UserRepository,
     },
 };
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    JoinType, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
+    JoinType, ModelTrait, QueryFilter, QuerySelect, RelationTrait, prelude::Expr,
+    sea_query::IntoCondition,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -84,20 +85,53 @@ impl UserRepository for PostgresUserRepository {
             .find_also_related(entity::realms::Entity)
             .all(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|e| {
+                error!("Error retrieving user by ID: {:?}", e);
+                UserError::NotFound
+            })?;
 
-        if users_model.is_empty() {
-            return Err(UserError::NotFound);
-        }
+        let user_model = users_model.first().cloned();
 
-        let (user_model, realm_models) = &users_model[0];
+        let (user_model, realm_models) = user_model.ok_or(UserError::NotFound)?;
+        tracing::info!("user_model: {:?}", user_model);
+
+        let required_actions: Vec<RequiredAction> = user_model
+            .find_related(entity::user_required_actions::Entity)
+            .all(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?
+            .into_iter()
+            .map(|action| {
+                action
+                    .action
+                    .try_into()
+                    .map_err(|_| UserError::InternalServerError)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
         let mut user: User = user_model.clone().into();
+
+        user.required_actions = required_actions;
 
         if let Some(realm_model) = realm_models.as_ref() {
             user.realm = Some(realm_model.clone().into());
         }
 
         Ok(user)
+
+        // let user_model = entity::users::Entity::find()
+        //     .filter(entity::users::Column::Id.eq(id))
+        //     .join_as(
+        //         JoinType::InnerJoin,
+        //         entity::users::Relation::UserRequiredActions.def(),
+        //         entity::user_required_actions::Entity,
+        //     )
+        //     .one(&self.db)
+        //     .await
+        //     .map_err(|_| UserError::NotFound)?
+        //     .ok_or(UserError::NotFound)?;
+        // let user: User = user_model.into();
+        // Ok(user)
     }
 
     async fn get_roles_by_user_id(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {

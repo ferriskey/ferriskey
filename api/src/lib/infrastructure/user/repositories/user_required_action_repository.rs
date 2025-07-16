@@ -13,6 +13,8 @@ use crate::domain::{
     utils::generate_uuid_v7,
 };
 
+use entity::user_required_actions::Entity as UserRequiredActionsEntity;
+
 #[derive(Debug, Clone)]
 pub struct PostgresUserRequiredActionRepository {
     pub db: DatabaseConnection,
@@ -49,7 +51,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<RequiredAction>, RequiredActionError> {
-        let actions = entity::user_required_actions::Entity::find()
+        let actions = UserRequiredActionsEntity::find()
             .filter(entity::user_required_actions::Column::UserId.eq(user_id))
             .all(&self.db)
             .await
@@ -73,7 +75,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         user_id: Uuid,
         action: RequiredAction,
     ) -> Result<(), RequiredActionError> {
-        let action = entity::user_required_actions::Entity::find()
+        let action = UserRequiredActionsEntity::find()
             .filter(
                 entity::user_required_actions::Column::UserId
                     .eq(user_id)
@@ -90,5 +92,16 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
             .map_err(|_| RequiredActionError::InternalServerError)?;
 
         Ok(())
+    }
+
+    async fn clear_required_actions(&self, user_id: Uuid) -> Result<u64, RequiredActionError> {
+        let rows_affected = UserRequiredActionsEntity::delete_many()
+            .filter(entity::user_required_actions::Column::UserId.eq(user_id))
+            .exec(&self.db)
+            .await
+            .map_err(|_| RequiredActionError::InternalServerError)?
+            .rows_affected;
+
+        Ok(rows_affected)
     }
 }

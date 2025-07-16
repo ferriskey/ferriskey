@@ -17,7 +17,7 @@ use crate::domain::{
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
 };
 use chrono::{TimeZone, Utc};
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct AuthorizationCodeStrategy {
@@ -59,13 +59,14 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
                 AuthenticationError::Invalid
             })?;
 
+        info!("Authorization code session retrieved: {:?}", auth_session);
+
         let user_id = auth_session.user_id.ok_or(AuthenticationError::Invalid)?;
 
-        let user = self
-            .user_service
-            .get_by_id(user_id)
-            .await
-            .map_err(|_| AuthenticationError::Invalid)?;
+        let user = self.user_service.get_by_id(user_id).await.map_err(|e| {
+            error!("Error retrieving user by ID: {:?}", e);
+            AuthenticationError::Invalid
+        })?;
 
         let iss = format!("{}/realms/{}", params.base_url, params.realm_name);
         let realm_audit = format!("{}-realm", params.realm_name);

@@ -63,4 +63,7 @@ pub struct UpdateUserValidator {
 
     #[serde(default)]
     pub enabled: Option<bool>,
+
+    #[serde(default)]
+    pub required_actions: Option<Vec<String>>,
 }

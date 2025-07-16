@@ -41,7 +41,11 @@ use crate::{
         },
         role::{ports::RoleRepository, services::DefaultRoleService},
         user::{
-            ports::{user_repository::UserRepository, user_role_repository::UserRoleRepository},
+            ports::{
+                user_repository::UserRepository,
+                user_required_action::UserRequiredActionRepository,
+                user_role_repository::UserRoleRepository,
+            },
             services::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
             },
@@ -62,7 +66,10 @@ use crate::{
             role_repository::PostgresRoleRepository,
         },
         user::{
-            repositories::user_role_repository::PostgresUserRoleRepository,
+            repositories::{
+                user_required_action_repository::PostgresUserRequiredActionRepository,
+                user_role_repository::PostgresUserRoleRepository,
+            },
             repository::PostgresUserRepository,
         },
     },
@@ -70,7 +77,7 @@ use crate::{
 
 use super::http::server::app_state::AppState;
 
-pub struct AppServer<R, C, U, CR, H, AS, RR, RU, RO, K, UR>
+pub struct AppServer<R, C, U, CR, H, AS, RR, RU, RO, K, UR, URA>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -83,6 +90,7 @@ where
     RO: RoleRepository,
     K: KeyStoreRepository,
     UR: UserRoleRepository,
+    URA: UserRequiredActionRepository,
 {
     pub realm_repository: R,
     pub client_repository: C,
@@ -95,6 +103,7 @@ where
     pub role_repository: RO,
     pub keystore_repository: K,
     pub user_role_repository: UR,
+    pub user_required_action_repository: URA,
 }
 
 impl
@@ -110,6 +119,7 @@ impl
         PostgresRoleRepository,
         PostgresKeyStoreRepository,
         PostgresUserRoleRepository,
+        PostgresUserRequiredActionRepository,
     >
 {
     pub async fn new(env: Arc<Env>) -> Result<Self, anyhow::Error> {
@@ -125,6 +135,8 @@ impl
         let role_repository = PostgresRoleRepository::new(postgres.get_db());
         let keystore_repository = PostgresKeyStoreRepository::new(postgres.get_db());
         let user_role_repository = PostgresUserRoleRepository::new(postgres.get_db());
+        let user_required_action_repository =
+            PostgresUserRequiredActionRepository::new(postgres.get_db());
 
         Ok(Self {
             realm_repository,
@@ -138,6 +150,7 @@ impl
             role_repository,
             keystore_repository,
             user_role_repository,
+            user_required_action_repository,
         })
     }
 
@@ -165,6 +178,7 @@ impl
             self.user_repository.clone(),
             self.realm_repository.clone(),
             self.user_role_repository.clone(),
+            self.user_required_action_repository.clone(),
         );
 
         let crypto_service = DefaultCryptoService::new(self.hasher_repository.clone());

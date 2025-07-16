@@ -19,4 +19,9 @@ pub trait UserRequiredActionRepository: Clone + Send + Sync + 'static {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<RequiredAction>, RequiredActionError>> + Send;
+
+    fn clear_required_actions(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, RequiredActionError>> + Send;
 }

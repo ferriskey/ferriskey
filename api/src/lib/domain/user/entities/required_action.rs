@@ -2,12 +2,17 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub enum RequiredAction {
+    #[serde(rename = "configure_otp")]
     ConfigureOtp,
+    #[serde(rename = "verify_email")]
     VerifyEmail,
+    #[serde(rename = "update_password")]
     UpdatePassword,
 }
 

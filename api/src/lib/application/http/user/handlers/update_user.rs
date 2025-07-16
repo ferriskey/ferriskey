@@ -14,7 +14,7 @@ use crate::{
             },
             app_state::AppState,
         },
-        user::validators::{CreateUserValidator, UpdateUserValidator},
+        user::validators::UpdateUserValidator,
     },
     domain::{
         realm::ports::realm_service::RealmService,
@@ -46,8 +46,8 @@ pub struct UpdateUserResponse {
         ("user_id" = String, Path, description = "User ID"),
     ),
     request_body(
-        content = CreateUserValidator,
-        description = "User to create",
+        content = UpdateUserValidator,
+        description = "User to update",
         content_type = "application/json",
     ),
 )]
@@ -74,7 +74,8 @@ pub async fn update_user(
                 lastname: payload.lastname,
                 email: payload.email,
                 email_verified: payload.email_verified.unwrap_or(false),
-                enabled: true,
+                enabled: payload.enabled.unwrap_or(true),
+                required_actions: payload.required_actions,
             },
         )
         .await
