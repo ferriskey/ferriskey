@@ -1,4 +1,4 @@
-import { Permissions, RequiredAction } from "@/api/api.interface";
+import { Permissions, RequiredAction, User } from "@/api/api.interface";
 import { BadgeColorScheme } from "@/components/ui/badge-color";
 
 export function getBadgeColorFromPermissionVariant (permission: Permissions): BadgeColorScheme {
@@ -59,4 +59,8 @@ export function deepEqual<T>(a: T, b: T): boolean {
   }
   
   return false
+}
+
+export function isServiceAccount(user: User): boolean {
+  return !!user.client_id
 }

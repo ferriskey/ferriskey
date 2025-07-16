@@ -21,19 +21,8 @@ export function useFormChanges<T extends Record<string, any>>(
   useEffect(() => {
     if (!originalRef.current || !formValues) return
     const data = originalRef.current
-
-    console.log('Checking for changes:', {
-      original: data,
-      current: formValues,
-    })
     
-
     const isDifferent = Object.keys(originalRef.current).some(key => {
-      console.log(`Comparing key "${key}":`, {
-        original: data[key],
-        current: formValues[key],
-      });
-
       const areEqual = deepEqual(data[key], formValues[key])
       
       return !areEqual

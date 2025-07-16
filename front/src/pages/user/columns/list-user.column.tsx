@@ -2,11 +2,8 @@ import { User } from '@/api/api.interface'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { ColumnDef } from '@/components/ui/data-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { isServiceAccount } from '@/utils'
 import { Info } from 'lucide-react'
-
-function isServiceAccount(user: User) {
-  return user.client_id
-}
 
 export const columns: ColumnDef<User>[] = [
   {

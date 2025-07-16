@@ -60,7 +60,6 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
                       value: action,
                     }))}
                     options={requiredActions}
-                    //defaultOptions={requiredActions}
                   />
                 </div>
               )}
