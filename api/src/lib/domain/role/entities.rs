@@ -23,3 +23,8 @@ pub struct UpdateRoleDto {
     pub name: Option<String>,
     pub description: Option<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRolePermissionsDto {
+    pub permissions: Vec<String>,
+}

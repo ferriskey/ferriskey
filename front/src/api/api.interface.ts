@@ -217,6 +217,14 @@ export interface UnassignRoleResponse {
 	message: string;
 }
 
+export interface UpdateRolePermissionsResponse {
+	data: Role;
+}
+
+export interface UpdateRolePermissionsValidator {
+	permissions: string[];
+}
+
 export interface UpdateRoleResponse {
 	data: Role;
 }

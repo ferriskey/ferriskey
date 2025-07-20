@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::{
-    domain::role::entities::UpdateRoleDto,
+    domain::role::entities::{UpdateRoleDto, UpdateRolePermissionsDto},
     infrastructure::repositories::role_repository::PostgresRoleRepository,
 };
 
@@ -80,6 +80,17 @@ where
     async fn update_by_id(&self, id: Uuid, payload: UpdateRoleDto) -> Result<Role, RoleError> {
         self.role_repository
             .update_by_id(id, payload)
+            .await
+            .map_err(|_| RoleError::NotFound)
+    }
+
+    async fn update_permissions_by_id(
+        &self,
+        id: Uuid,
+        payload: UpdateRolePermissionsDto,
+    ) -> Result<Role, RoleError> {
+        self.role_repository
+            .update_permissions_by_id(id, payload)
             .await
             .map_err(|_| RoleError::NotFound)
     }
