@@ -3,20 +3,25 @@ import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils.ts'
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
-import { Shield, Users } from 'lucide-react'
+import { CheckIcon, LockKeyholeIcon, Shield, Users } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
+import FloatingActionBar from '../../../components/ui/floating-action-bar'
 import { UpdateRolePermissionsSchema } from '../schemas/update-role.schema'
 
 export interface PageRolePermissionsProps {
   role: Role
   togglePermission: (permission: string) => void
+  handleSubmit: () => void
 }
 
 export default function PageRolePermissions(props: PageRolePermissionsProps) {
-  const { role, togglePermission } = props
+  const { role, togglePermission, handleSubmit } = props
 
   const { watch } = useFormContext<UpdateRolePermissionsSchema>()
   const permissions = watch('permissions')
+
+  const hasDifferentPermissions = permissions.length !== role.permissions.length
+    || !permissions.every((permission) => role.permissions.includes(permission))
 
   function normalizePermissionName(permission: string) {
     return permission
@@ -34,9 +39,7 @@ export default function PageRolePermissions(props: PageRolePermissionsProps) {
             <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10">
               <Shield className="h-5 w-5 text-primary" />
             </div>
-            <CardTitle className="text-xl font-bold">
-              {role.name} {permissions.length}
-            </CardTitle>
+            <CardTitle className="text-xl font-bold">{role.name}</CardTitle>
           </div>
           <CardDescription className="mt-1">
             {role.description || 'No description provided'}
@@ -106,6 +109,19 @@ export default function PageRolePermissions(props: PageRolePermissionsProps) {
           )
         })}
       </div>
+      <FloatingActionBar
+        title="Update permissions"
+        show={hasDifferentPermissions}
+        actions={[
+          {
+            icon: <CheckIcon className="h-4 w-4" />,
+            label: "Submit changes",
+            onClick: handleSubmit,
+          }
+        ]}
+        description="Update the role permissions from the selected permissions."
+        icon={<LockKeyholeIcon className="h-4 w-4" />}
+      />
     </div>
   )
 }

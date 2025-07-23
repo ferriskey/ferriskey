@@ -1,4 +1,4 @@
-import { useGetRole } from '@/api/role.api.ts'
+import { useGetRole, useUpdateRolePermissions } from '@/api/role.api.ts'
 import PageRolePermissions from '@/pages/role/ui/page-role-permissions.tsx'
 import { RouterParams } from '@/routes/router.ts'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +9,7 @@ import { updateRolePermissionsSchema, UpdateRolePermissionsSchema } from '../sch
 
 export default function PageRolePermissionsFeature() {
   const { realm_name, role_id } = useParams<RouterParams>()
+  const { mutate: updatePermissions } = useUpdateRolePermissions()
 
   const { data: role } = useGetRole({
     realm: realm_name || 'master',
@@ -31,6 +32,14 @@ export default function PageRolePermissionsFeature() {
     form.setValue('permissions', copy, { shouldDirty: true });
   }
 
+  function handleSubmit() {
+    updatePermissions({
+      realmName: realm_name || 'master',
+      roleId: role_id!,
+      payload: form.getValues(),
+    })
+  }
+
   if (!role) return null
 
   return (
@@ -38,6 +47,7 @@ export default function PageRolePermissionsFeature() {
       <PageRolePermissions
         role={role}
         togglePermission={togglePermission}
+        handleSubmit={handleSubmit}
       />
     </Form>
   )

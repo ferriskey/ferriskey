@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react"
 import { ReactNode } from "react"
+import { cn } from '../../lib/utils'
 import { Button } from "./button"
 
 export interface FloatingAction {
@@ -18,19 +19,19 @@ export interface FloatingActionBarProps {
   actions: FloatingAction[]
   cancelLabel?: string
   className?: string
-
 }
 
-export default function FloatingActionBar({
-  show,
-  icon,
-  title,
-  description,
-  actions,
-  onCancel,
-  cancelLabel = "Cancel",
-  className = "",
-}: FloatingActionBarProps) {
+export default function FloatingActionBar(props: FloatingActionBarProps) {
+  const {
+    show,
+    icon,
+    title,
+    description,
+    actions,
+    onCancel,
+    cancelLabel = "Cancel",
+    className = ""
+  } = props
 
   return (
     <AnimatePresence>
@@ -40,7 +41,10 @@ export default function FloatingActionBar({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg bg-background shadow-lg rounded-lg border px-4 py-3 ${className}`}
+          className={cn(
+            'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg bg-background shadow-lg rounded-lg border px-4 py-3',
+            className,
+          )}
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -60,7 +64,7 @@ export default function FloatingActionBar({
 
             <div className="flex gap-2">
               {onCancel && (
-                <Button 
+                <Button
                   variant="ghost"
                   size="sm"
                   onClick={onCancel}
@@ -73,7 +77,6 @@ export default function FloatingActionBar({
                 <Button
                   key={index}
                   variant={action.variant || "default"}
-
                   onClick={action.onClick}
                   className="flex items-center gap-2"
                 >
