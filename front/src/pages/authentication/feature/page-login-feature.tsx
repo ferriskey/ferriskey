@@ -2,11 +2,12 @@ import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
 import { apiUrl } from '@/api'
+import { AuthenticationStatus } from '@/api/api.interface'
 
 const authenticateSchema = z.object({
   username: z.string().min(1),
@@ -19,6 +20,7 @@ export default function PageLoginFeature() {
   const { realm_name } = useParams()
   const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
   const [isSetup, setIsSetup] = useState(false)
+  const navigate = useNavigate()
 
   function getOAuthParams() {
     const state = crypto.randomUUID()
@@ -36,7 +38,11 @@ export default function PageLoginFeature() {
     }
   }
 
-  const { mutate: authenticate, data: authenticateData, status: authenticateStatus } = useAuthenticateMutation()
+  const {
+    mutate: authenticate,
+    data: authenticateData,
+    status: authenticateStatus,
+  } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
@@ -46,12 +52,28 @@ export default function PageLoginFeature() {
     },
   })
 
-  useEffect(() => {    
-    if (authenticateData) {
+  useEffect(() => {
+    console.log('Authenticate Data:', authenticateData)
+
+    if (authenticateData && authenticateData.url) {
       window.location.href = authenticateData.url
     }
-  }, [authenticateData])
 
+    if (
+      authenticateData &&
+      authenticateData.status === AuthenticationStatus.RequiresActions &&
+      authenticateData.required_actions &&
+      authenticateData.required_actions.length > 0 &&
+      authenticateData.token
+    ) {
+      const firstRequiredAction = authenticateData.required_actions[0]
+      console.log(firstRequiredAction.toUpperCase())
+
+      navigate(
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`
+      )
+    }
+  }, [authenticateData])
 
   function onSubmit(data: AuthenticateSchema) {
     const cookies = document.cookie.split(';').reduce(
@@ -88,7 +110,6 @@ export default function PageLoginFeature() {
     if (isSetup && !isAuthInitiated) {
       const { query, realm } = getOAuthParams()
       window.location.href = `${apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
-
     }
   }, [isSetup, isAuthInitiated])
 

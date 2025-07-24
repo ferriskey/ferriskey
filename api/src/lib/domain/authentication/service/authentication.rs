@@ -13,7 +13,7 @@ use crate::domain::{
         },
         ports::{
             auth_session::AuthSessionService,
-            authentication::AuthenticationService,
+            authentication::{AuthenticationResult, AuthenticationService},
             grant_type_strategy::{GrantTypeParams, GrantTypeStrategy},
         },
     },
@@ -24,7 +24,11 @@ use crate::domain::{
         ports::credential_service::CredentialService,
         services::credential_service::DefaultCredentialService,
     },
-    jwt::services::jwt_service::DefaultJwtService,
+    jwt::{
+        entities::jwt_claim::{ClaimsTyp, JwtClaim},
+        ports::jwt_service::JwtService,
+        services::jwt_service::DefaultJwtService,
+    },
     realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
     utils::generate_random_string,
@@ -107,7 +111,8 @@ impl AuthenticationService for AuthenticationServiceImpl {
         session_code: Uuid,
         username: String,
         password: String,
-    ) -> Result<String, AuthenticationError> {
+        base_url: String,
+    ) -> Result<AuthenticationResult, AuthenticationError> {
         let realm = self
             .realm_service
             .get_by_name(realm_name)
@@ -116,7 +121,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
 
         let _ = self
             .client_service
-            .get_by_client_id(client_id, realm.id)
+            .get_by_client_id(client_id.clone(), realm.id)
             .await
             .map_err(|_| AuthenticationError::InvalidClient);
 
@@ -130,18 +135,47 @@ impl AuthenticationService for AuthenticationServiceImpl {
             .credential_service
             .verify_password(user.id, password)
             .await
-            .map_err(|_| AuthenticationError::InvalidPassword);
+            .map_err(|_| AuthenticationError::InvalidPassword)?;
 
-        if has_valid_password? {
-            self.auth_session_service
-                .get_by_session_code(session_code)
+        if !has_valid_password {
+            return Err(AuthenticationError::InvalidPassword);
+        }
+
+        if !user.required_actions.is_empty() {
+            let iss = format!("{}/realms/{}", base_url, realm.name);
+            let jwt_claim = JwtClaim::new(
+                user.id,
+                user.username.clone(),
+                iss,
+                vec![format!("{}-realm", realm.name), "account".to_string()],
+                ClaimsTyp::Bearer,
+                client_id.clone(),
+                Some(user.email.clone()),
+            );
+            let jwt_token = self
+                .jwt_service
+                .generate_token(jwt_claim, realm.id)
                 .await
                 .map_err(|_| AuthenticationError::InternalServerError)?;
-
-            Ok(generate_random_string())
-        } else {
-            Err(AuthenticationError::InvalidPassword)
+            return Ok(AuthenticationResult {
+                code: None,
+                required_actions: user.required_actions.clone(),
+                user_id: user.id,
+                token: Some(jwt_token.token),
+            });
         }
+
+        self.auth_session_service
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        Ok(AuthenticationResult {
+            code: Some(generate_random_string()),
+            required_actions: Vec::new(),
+            user_id: user.id,
+            token: None,
+        })
     }
 
     async fn authenticate(

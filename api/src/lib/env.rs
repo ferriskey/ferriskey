@@ -11,6 +11,15 @@ pub enum AppEnv {
     Production,
 }
 
+#[derive(Debug, Clone, ValueEnum, Default)]
+pub enum LogLevel {
+    Debug,
+    #[default]
+    Info,
+    Warn,
+    Error,
+}
+
 impl From<String> for AppEnv {
     fn from(value: String) -> Self {
         match value.as_str() {
@@ -26,6 +35,29 @@ impl Display for AppEnv {
         match self {
             AppEnv::Development => write!(f, "development"),
             AppEnv::Production => write!(f, "production"),
+        }
+    }
+}
+
+impl From<String> for LogLevel {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "debug" => LogLevel::Debug,
+            "info" => LogLevel::Info,
+            "warn" => LogLevel::Warn,
+            "error" => LogLevel::Error,
+            _ => LogLevel::Info, // Default to Info if unknown
+        }
+    }
+}
+
+impl Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogLevel::Debug => write!(f, "debug"),
+            LogLevel::Info => write!(f, "info"),
+            LogLevel::Warn => write!(f, "warn"),
+            LogLevel::Error => write!(f, "error"),
         }
     }
 }
@@ -53,4 +85,18 @@ pub struct Env {
 
     #[clap(env, default_value = "development", value_enum)]
     pub env: AppEnv,
+
+    #[clap(env, default_value = "info", value_enum)]
+    pub log_level: LogLevel,
+}
+
+impl From<LogLevel> for tracing::Level {
+    fn from(value: LogLevel) -> Self {
+        match value {
+            LogLevel::Debug => tracing::Level::DEBUG,
+            LogLevel::Info => tracing::Level::INFO,
+            LogLevel::Warn => tracing::Level::WARN,
+            LogLevel::Error => tracing::Level::ERROR,
+        }
+    }
 }

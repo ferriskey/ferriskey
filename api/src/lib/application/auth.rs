@@ -157,13 +157,22 @@ where
         }
 
         let payload = t[1];
-        let decoded = general_purpose::STANDARD
-            .decode(payload)
-            .map_err(|_| AuthError::InvalidToken)?;
 
-        let payload_str = String::from_utf8(decoded).map_err(|_| AuthError::InvalidToken)?;
-        let claims: JwtClaim =
-            serde_json::from_str(&payload_str).map_err(|_| AuthError::InvalidToken)?;
+        let decoded = general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .map_err(|e| {
+                tracing::error!("Failed to decode JWT payload: {:?}", e);
+                AuthError::InvalidToken
+            })?;
+
+        let payload_str = String::from_utf8(decoded).map_err(|e| {
+            tracing::error!("Failed to decode JWT payload: {:?}", e);
+            AuthError::InvalidToken
+        })?;
+        let claims: JwtClaim = serde_json::from_str(&payload_str).map_err(|e| {
+            tracing::error!("Failed to deserialize JWT claims: {:?}", e);
+            AuthError::InvalidToken
+        })?;
 
         Ok(Jwt {
             claims,
@@ -203,7 +212,10 @@ pub async fn auth(
         .jwt_service
         .verify_token(jwt.token, user.realm_id)
         .await
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        .map_err(|e| {
+            tracing::error!("JWT verification failed: {:?}", e);
+            StatusCode::UNAUTHORIZED
+        })?;
 
     let identity: Identity = match claims.is_service_account() {
         true => {

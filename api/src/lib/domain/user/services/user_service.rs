@@ -199,4 +199,15 @@ where
 
         Ok(user)
     }
+
+    async fn remove_required_action(
+        &self,
+        user_id: Uuid,
+        required_action: RequiredAction,
+    ) -> Result<(), UserError> {
+        self.user_required_action_repository
+            .remove_required_action(user_id, required_action)
+            .await
+            .map_err(|_| UserError::InternalServerError)
+    }
 }

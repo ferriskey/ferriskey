@@ -4,6 +4,7 @@ use crate::application::http::realm::router::realm_routes;
 use crate::application::http::role::router::role_routes;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
+use crate::application::http::trident::router::trident_routes;
 use crate::application::http::user::router::user_routes;
 
 use crate::env::Env;
@@ -97,6 +98,7 @@ impl HttpServer {
             .merge(user_routes(state.clone()))
             .merge(authentication_routes())
             .merge(role_routes(state.clone()))
+            .merge(trident_routes(state.clone()))
             .layer(trace_layer)
             .layer(cors)
             .layer(CookieLayer::default())

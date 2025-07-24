@@ -153,4 +153,34 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         Ok(())
     }
+
+    async fn create_custom_credential(
+        &self,
+        user_id: uuid::Uuid,
+        credential_type: String, // "TOTP", "WEBAUTHN", etc.
+        secret_data: String,     // base32 pour TOTP
+        label: Option<String>,
+        credential_data: serde_json::Value,
+    ) -> Result<Credential, CredentialError> {
+        let (now, _) = generate_timestamp();
+
+        let payload = ActiveModel {
+            id: Set(generate_uuid_v7()),
+            salt: Set(None),
+            credential_type: Set(credential_type),
+            user_id: Set(user_id),
+            user_label: Set(label),
+            secret_data: Set(secret_data),
+            credential_data: Set(credential_data),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
+        };
+
+        let model = payload
+            .insert(&self.db)
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(model.into())
+    }
 }

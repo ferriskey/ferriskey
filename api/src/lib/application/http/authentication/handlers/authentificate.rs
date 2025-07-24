@@ -7,14 +7,18 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::application::decoded_token::{DecodedToken, OptionalToken};
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::authentication::entities::jwt_token::JwtToken;
-use crate::domain::authentication::ports::auth_session::AuthSessionService;
-use crate::domain::authentication::ports::authentication::AuthenticationService;
+use crate::application::url::FullUrl;
+use crate::domain::authentication::ports::{
+    auth_session::AuthSessionService, authentication::AuthenticationService,
+};
+use crate::domain::jwt::ports::jwt_service::JwtService;
 use crate::domain::realm::ports::realm_service::RealmService;
-use crate::domain::user::ports::user_service::UserService;
+use crate::domain::user::entities::required_action::RequiredAction;
+use crate::domain::utils::generate_random_string;
 
 #[derive(Serialize, Deserialize)]
 #[typeshare]
@@ -22,10 +26,22 @@ pub struct AuthenticateQueryParams {
     client_id: String,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+#[typeshare]
+pub enum AuthenticationStatus {
+    Success,
+    RequiresActions,
+    Failed,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
 #[typeshare]
 pub struct AuthenticateResponse {
-    url: String,
+    pub status: AuthenticationStatus,
+    pub url: Option<String>,
+    pub required_actions: Option<Vec<RequiredAction>>,
+    pub token: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -52,12 +68,14 @@ pub struct TokenRoute {
     tag = "auth",
     request_body = AuthenticateRequest,
     responses(
-        (status = 200, body = JwtToken)
+        (status = 200, body = AuthenticateResponse)
     )
 )]
 pub async fn authenticate(
     TokenRoute { realm_name }: TokenRoute,
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
+    OptionalToken(optional_token): OptionalToken,
     Query(query): Query<AuthenticateQueryParams>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
@@ -73,7 +91,54 @@ pub async fn authenticate(
         .await
         .map_err(|_| ApiError::Unauthorized("invalid session code".to_string()))?;
 
-    let code = state
+    let realm = state
+        .realm_service
+        .get_by_name(realm_name.clone())
+        .await
+        .map_err(|_| ApiError::Unauthorized("invalid realm name".to_string()))?;
+
+    if let Some(result_token) = optional_token {
+        let token = state
+            .jwt_service
+            .verify_refresh_token(result_token.token, realm.id)
+            .await
+            .map_err(|_| ApiError::Unauthorized("invalid token".to_string()))?;
+
+        let auth_session = state
+            .auth_session_service
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| ApiError::Unauthorized("invalid session code".to_string()))?;
+
+        let code = generate_random_string();
+        let user_id = Uuid::parse_str(&result_token.decoded_token.sub)
+            .map_err(|_| ApiError::Unauthorized("invalid sub id".to_string()))?;
+        state
+            .auth_session_service
+            .update_code(session_code, code.clone(), user_id)
+            .await
+            .map_err(|_| ApiError::Unauthorized("invalid session code".to_string()))?;
+
+        let current_state = auth_session
+            .state
+            .ok_or(ApiError::Unauthorized("Invlaid session state".to_string()))?;
+        let login_url = format!(
+            "{}?code={}&state={}",
+            auth_session.redirect_uri, code, current_state
+        );
+
+        let response = AuthenticateResponse {
+            status: AuthenticationStatus::Success,
+            url: Some(login_url),
+            required_actions: None,
+            message: None,
+            token: None,
+        };
+
+        return Ok(Response::OK(response));
+    }
+
+    let auth_result = state
         .authentication_service
         .using_session_code(
             realm_name.clone(),
@@ -81,44 +146,52 @@ pub async fn authenticate(
             auth_session.id,
             payload.username.clone(),
             payload.password,
+            base_url,
         )
         .await
         .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(|_| ApiError::Unauthorized("invalid realm".to_string()))?;
+    if !auth_result.required_actions.is_empty() {
+        let response = AuthenticateResponse {
+            status: AuthenticationStatus::RequiresActions,
+            url: None,
+            required_actions: Some(auth_result.required_actions),
+            message: Some("Additional actions required before login".to_string()),
+            token: auth_result.token,
+        };
 
-    let user = state
-        .user_service
-        .get_by_username(payload.username, realm.id)
-        .await
-        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
+        return Ok(Response::OK(response));
+    }
 
-    let code = if auth_session.code.is_none() {
-        let t = state
+    let code = auth_result.code.ok_or(ApiError::Unauthorized(
+        "No authorization code generated".to_string(),
+    ))?;
+
+    // Mettre à jour la session avec le code
+    if auth_session.code.is_none() {
+        state
             .auth_session_service
-            .update_code(session_code, code.clone(), user.id)
+            .update_code(session_code, code.clone(), auth_result.user_id)
             .await
-            .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
-
-        t.code.clone().unwrap_or_default()
-    } else {
-        auth_session.code.clone().unwrap_or_default()
-    };
+            .map_err(|_| ApiError::Unauthorized("Failed to update session".to_string()))?;
+    }
 
     let current_state = auth_session
         .state
-        .ok_or(ApiError::Unauthorized("invalid credentials".to_string()))?;
+        .ok_or(ApiError::Unauthorized("Invalid session state".to_string()))?;
 
     let login_url = format!(
         "{}?code={}&state={}",
         auth_session.redirect_uri, code, current_state
     );
 
-    let response = AuthenticateResponse { url: login_url };
+    let response = AuthenticateResponse {
+        status: AuthenticationStatus::Success,
+        url: Some(login_url),
+        required_actions: None,
+        message: None,
+        token: auth_result.token,
+    };
 
     Ok(Response::OK(response))
 }
