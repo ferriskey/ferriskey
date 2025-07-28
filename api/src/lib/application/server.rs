@@ -8,6 +8,7 @@ use crate::{
                 auth_session::DefaultAuthSessionService,
                 authentication::DefaultAuthenticationService,
             },
+            use_cases::authenticate_use_case::AuthenticateUseCase,
         },
         client::{
             ports::{
@@ -232,6 +233,13 @@ impl
 
         let totp_service = DefaultTotpService::new();
 
+        let authenticate_use_case = AuthenticateUseCase::new(
+            realm_service.clone(),
+            auth_session_service.clone(),
+            jwt_service.clone(),
+            authentication_service.clone(),
+        );
+
         AppState {
             realm_service,
             client_service,
@@ -246,6 +254,9 @@ impl
             mediator_service,
             totp_service,
             env: Arc::clone(&env),
+
+            // Use-cases
+            authenticate_use_case,
         }
     }
 }
