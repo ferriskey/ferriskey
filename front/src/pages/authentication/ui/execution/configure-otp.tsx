@@ -167,8 +167,6 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-4">
-                    {/* <InputText label="One-time Code" name="otpCode" /> */}
-
                     <div>
                       <FormField
                         control={form.control}
@@ -218,7 +216,6 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                           name="deviceName"
                           value={field.value}
                           onChange={field.onChange}
-                          //placeholder="My Phone"
                         />
                       )}
                     />

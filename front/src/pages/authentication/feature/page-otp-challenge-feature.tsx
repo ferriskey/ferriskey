@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { challengeOtpSchema, ChallengeOtpSchema } from '../schemas/challange-otp.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -15,6 +15,13 @@ export default function PageOtpChallengeFeature() {
   const { mutate: challengeOtp, data: challengeOtpData } = useChallengeOtp()
 
   const token = searchParams.get('token')
+
+  const email = useCallback(() => {
+    // le token est un JWT il faut le decode pour récupérer le claim "email"
+    if (!token) return ''
+    const decodedToken = JSON.parse(atob(token.split('.')[1]))
+    return decodedToken.email
+  }, [token])
 
   const form = useForm<ChallengeOtpSchema>({
     resolver: zodResolver(challengeOtpSchema),
@@ -46,7 +53,11 @@ export default function PageOtpChallengeFeature() {
 
   return (
     <Form {...form}>
-      <PageOtpChallenge handleCancelClick={handleCancelClick} handleClick={handleClick} />
+      <PageOtpChallenge
+        handleCancelClick={handleCancelClick}
+        handleClick={handleClick}
+        email={email()}
+      />
     </Form>
   )
 }

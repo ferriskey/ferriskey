@@ -65,7 +65,6 @@ export default function PageLoginFeature() {
       authenticateData.token
     ) {
       const firstRequiredAction = authenticateData.required_actions[0]
-      console.log(firstRequiredAction.toUpperCase())
 
       navigate(
         `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`

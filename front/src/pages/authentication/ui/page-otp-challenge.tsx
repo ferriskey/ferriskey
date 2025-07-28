@@ -11,11 +11,13 @@ import { FormControl, FormField, FormItem } from '@/components/ui/form'
 export interface PageOtpChallengeProps {
   handleCancelClick: () => void
   handleClick: (values: ChallengeOtpSchema) => void
+  email?: string
 }
 
 export default function PageOtpChallenge({
   handleCancelClick,
   handleClick,
+  email,
 }: PageOtpChallengeProps) {
   const form = useFormContext<ChallengeOtpSchema>()
 
@@ -37,7 +39,7 @@ export default function PageOtpChallenge({
                   <CardDescription className="text-gray-600">
                     Enter the 6-digit code from your authenticator app
                     <span className="block text-sm font-medium text-gray-800 mt-1">
-                      for nathael@bonnal.cloud
+                      for {email}
                     </span>
                   </CardDescription>
                 </div>
