@@ -120,4 +120,23 @@ where
     async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
         self.credential_repository.delete_by_id(credential_id).await
     }
+
+    async fn create_custom_credential(
+        &self,
+        user_id: uuid::Uuid,
+        credential_type: String,
+        secret_data: String,
+        label: Option<String>,
+        credential_data: serde_json::Value,
+    ) -> Result<Credential, CredentialError> {
+        self.credential_repository
+            .create_custom_credential(
+                user_id,
+                credential_type,
+                secret_data,
+                label,
+                credential_data,
+            )
+            .await
+    }
 }

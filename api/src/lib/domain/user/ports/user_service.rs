@@ -1,6 +1,7 @@
 use crate::domain::realm::entities::realm::Realm;
 use crate::domain::role::entities::models::Role;
 use crate::domain::user::dtos::user_dto::{CreateUserDto, UpdateUserDto};
+use crate::domain::user::entities::required_action::RequiredAction;
 use crate::domain::user::entities::{error::UserError, model::User};
 use uuid::Uuid;
 
@@ -50,4 +51,10 @@ pub trait UserService: Clone + Send + Sync + 'static {
         user_id: Uuid,
         dto: UpdateUserDto,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
+
+    fn remove_required_action(
+        &self,
+        user_id: Uuid,
+        required_action: RequiredAction,
+    ) -> impl Future<Output = Result<(), UserError>> + Send;
 }

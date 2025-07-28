@@ -15,8 +15,24 @@ export interface AuthenticateRequest {
 	password?: string;
 }
 
+export enum AuthenticationStatus {
+	Success = "Success",
+	RequiresActions = "RequiresActions",
+	Failed = "Failed",
+}
+
+export enum RequiredAction {
+	ConfigureOtp = "configure_otp",
+	VerifyEmail = "verify_email",
+	UpdatePassword = "update_password",
+}
+
 export interface AuthenticateResponse {
-	url: string;
+	status: AuthenticationStatus;
+	url?: string;
+	required_actions?: RequiredAction[];
+	token?: string;
+	message?: string;
 }
 
 export interface BulkDeleteUserResponse {
@@ -83,12 +99,6 @@ export interface Realm {
 	name: string;
 	created_at: Date;
 	updated_at: Date;
-}
-
-export enum RequiredAction {
-	ConfigureOtp = "configure_otp",
-	VerifyEmail = "verify_email",
-	UpdatePassword = "update_password",
 }
 
 export interface User {
@@ -196,6 +206,18 @@ export interface JwtToken {
 	id_token: string;
 }
 
+export interface OtpVerifyRequest {
+	code: string;
+	label: string;
+	secret: string;
+}
+
+export interface SetupOtpResponse {
+	secret: string;
+	otpauth_url: string;
+	issuer: string;
+}
+
 export enum GrantType {
 	Code = "authorization_code",
 	Password = "password",
@@ -248,6 +270,10 @@ export interface UserResponse {
 
 export interface UsersResponse {
 	data: User[];
+}
+
+export interface VerifyOtpResponse {
+	message: string;
 }
 
 export enum AppEnv {

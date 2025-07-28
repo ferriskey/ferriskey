@@ -40,6 +40,7 @@ use crate::{
             ports::realm_repository::RealmRepository, services::realm_service::DefaultRealmService,
         },
         role::{ports::RoleRepository, services::DefaultRoleService},
+        trident::services::DefaultTotpService,
         user::{
             ports::{
                 user_repository::UserRepository,
@@ -229,6 +230,8 @@ impl
 
         let mediator_service = DefaultMediatorService::new(mediator_config);
 
+        let totp_service = DefaultTotpService::new();
+
         AppState {
             realm_service,
             client_service,
@@ -241,6 +244,7 @@ impl
             role_service,
             user_role_service,
             mediator_service,
+            totp_service,
             env: Arc::clone(&env),
         }
     }

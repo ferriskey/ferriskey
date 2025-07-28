@@ -54,15 +54,42 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
-        let user = entity::users::Entity::find()
+        let users_model = entity::users::Entity::find()
             .filter(entity::users::Column::Username.eq(username.clone()))
             .filter(entity::users::Column::RealmId.eq(realm_id))
-            .one(&self.db)
+            .find_also_related(entity::realms::Entity)
+            .all(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?
-            .ok_or(UserError::NotFound)?;
+            .map_err(|e| {
+                error!("error retrieving user by username: {:?}", e);
+                UserError::NotFound
+            })?;
 
-        let user = user.into();
+        let user_model = users_model.first().cloned();
+
+        let (user_model, realm_model) = user_model.ok_or(UserError::NotFound)?;
+
+        let required_actions: Vec<RequiredAction> = user_model
+            .find_related(entity::user_required_actions::Entity)
+            .all(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?
+            .into_iter()
+            .map(|action| {
+                action
+                    .action
+                    .try_into()
+                    .map_err(|_| UserError::InternalServerError)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut user: User = user_model.clone().into();
+
+        user.required_actions = required_actions;
+
+        if let Some(realm_model) = realm_model.as_ref() {
+            user.realm = Some(realm_model.clone().into());
+        }
 
         Ok(user)
     }
@@ -93,7 +120,6 @@ impl UserRepository for PostgresUserRepository {
         let user_model = users_model.first().cloned();
 
         let (user_model, realm_models) = user_model.ok_or(UserError::NotFound)?;
-        tracing::info!("user_model: {:?}", user_model);
 
         let required_actions: Vec<RequiredAction> = user_model
             .find_related(entity::user_required_actions::Entity)

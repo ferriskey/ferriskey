@@ -30,4 +30,12 @@ pub trait CredentialRepository: Clone + Send + Sync + 'static {
         &self,
         credential_id: Uuid,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
+    fn create_custom_credential(
+        &self,
+        user_id: Uuid,
+        credential_type: String, // "TOTP", "WEBAUTHN", etc.
+        secret_data: String,     // base32 pour TOTP
+        label: Option<String>,
+        credential_data: serde_json::Value,
+    ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
 }

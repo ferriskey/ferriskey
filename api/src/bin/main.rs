@@ -23,14 +23,18 @@ use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 use ferriskey::env::{AppEnv, Env};
 
 fn init_logger(env: Arc<Env>) {
+    let filter: tracing::Level = env.log_level.clone().into();
     match env.env {
         AppEnv::Development => {
-            tracing_subscriber::fmt::init();
+            tracing_subscriber::fmt()
+                .with_max_level(filter)
+                .with_writer(std::io::stdout)
+                .init();
         }
         AppEnv::Production => {
             tracing_subscriber::fmt()
                 .json()
-                .with_max_level(tracing::Level::INFO)
+                .with_max_level(filter)
                 .with_writer(std::io::stdout)
                 .init();
         }

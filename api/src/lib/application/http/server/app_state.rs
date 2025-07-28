@@ -13,6 +13,7 @@ use crate::{
         mediator::services::mediator_service::DefaultMediatorService,
         realm::services::realm_service::DefaultRealmService,
         role::services::DefaultRoleService,
+        trident::services::DefaultTotpService,
         user::services::{
             user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
         },
@@ -33,5 +34,6 @@ pub struct AppState {
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub mediator_service: DefaultMediatorService,
+    pub totp_service: DefaultTotpService,
     pub env: Arc<Env>,
 }
