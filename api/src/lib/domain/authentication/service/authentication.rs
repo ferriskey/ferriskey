@@ -131,6 +131,17 @@ impl AuthenticationService for AuthenticationServiceImpl {
             .await
             .map_err(|_| AuthenticationError::InvalidUser)?;
 
+        let user_credentials = self
+            .credential_service
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| AuthenticationError::InvalidUser)?;
+
+        let credentials: Vec<String> = user_credentials
+            .iter()
+            .map(|cred| cred.credential_type.clone())
+            .collect();
+
         let has_valid_password = self
             .credential_service
             .verify_password(user.id, password)
@@ -141,17 +152,17 @@ impl AuthenticationService for AuthenticationServiceImpl {
             return Err(AuthenticationError::InvalidPassword);
         }
 
+        let iss = format!("{}/realms/{}", base_url, realm.name);
+        let jwt_claim = JwtClaim::new(
+            user.id,
+            user.username.clone(),
+            iss,
+            vec![format!("{}-realm", realm.name), "account".to_string()],
+            ClaimsTyp::Bearer,
+            client_id.clone(),
+            Some(user.email.clone()),
+        );
         if !user.required_actions.is_empty() {
-            let iss = format!("{}/realms/{}", base_url, realm.name);
-            let jwt_claim = JwtClaim::new(
-                user.id,
-                user.username.clone(),
-                iss,
-                vec![format!("{}-realm", realm.name), "account".to_string()],
-                ClaimsTyp::Bearer,
-                client_id.clone(),
-                Some(user.email.clone()),
-            );
             let jwt_token = self
                 .jwt_service
                 .generate_token(jwt_claim, realm.id)
@@ -162,6 +173,24 @@ impl AuthenticationService for AuthenticationServiceImpl {
                 required_actions: user.required_actions.clone(),
                 user_id: user.id,
                 token: Some(jwt_token.token),
+                credentials,
+            });
+        }
+
+        let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
+        if has_otp_credentials {
+            let jwt_token = self
+                .jwt_service
+                .generate_token(jwt_claim, realm.id)
+                .await
+                .map_err(|_| AuthenticationError::InternalServerError)?;
+
+            return Ok(AuthenticationResult {
+                code: None,
+                required_actions: user.required_actions.clone(),
+                user_id: user.id,
+                token: Some(jwt_token.token),
+                credentials,
             });
         }
 
@@ -175,6 +204,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
             required_actions: Vec::new(),
             user_id: user.id,
             token: None,
+            credentials,
         })
     }
 

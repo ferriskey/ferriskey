@@ -10,15 +10,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { Skeleton } from '@/components/ui/skeleton'
+import { VerifyOtpSchema } from '../../schemas/verify-otp.schema'
+import { useFormContext } from 'react-hook-form'
+import { FormControl, FormField, FormItem } from '@/components/ui/form'
 
 export interface ConfigureOtpProps {
   secret?: string
   qrCodeUrl?: string
+  handleSubmit: (values: VerifyOtpSchema) => void
 }
 
-export default function ConfigureOtp({ secret, qrCodeUrl }: ConfigureOtpProps) {
+export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: ConfigureOtpProps) {
   const [secretCopied, setSecretCopied] = useState<boolean>(false)
-  //const qrCodeUrl = `otpauth://totp/FerrisKey:user@example.com?secret=${secret}&issuer=FerrisKey`
+  const form = useFormContext<VerifyOtpSchema>()
 
   const copySecret = () => {
     if (!secret) return
@@ -27,6 +31,8 @@ export default function ConfigureOtp({ secret, qrCodeUrl }: ConfigureOtpProps) {
 
     setTimeout(() => setSecretCopied(false), 2000)
   }
+
+  const formIsValid = form.formState.isValid
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -164,39 +170,57 @@ export default function ConfigureOtp({ secret, qrCodeUrl }: ConfigureOtpProps) {
                     {/* <InputText label="One-time Code" name="otpCode" /> */}
 
                     <div>
-                      <InputOTP className="" maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
-                        <div className="flex w-full items-center justify-between">
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={0} />
-                          </InputOTPGroup>
+                      <FormField
+                        control={form.control}
+                        name="pin"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <InputOTP {...field} maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
+                                <div className="flex w-full items-center justify-between">
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={0} />
+                                  </InputOTPGroup>
 
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={1} />
-                          </InputOTPGroup>
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={1} />
+                                  </InputOTPGroup>
 
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={2} />
-                          </InputOTPGroup>
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={2} />
+                                  </InputOTPGroup>
 
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={3} />
-                          </InputOTPGroup>
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={3} />
+                                  </InputOTPGroup>
 
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={4} />
-                          </InputOTPGroup>
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={4} />
+                                  </InputOTPGroup>
 
-                          <InputOTPGroup>
-                            <InputOTPSlot className="w-11 h-11" index={5} />
-                          </InputOTPGroup>
-                        </div>
-                      </InputOTP>
+                                  <InputOTPGroup>
+                                    <InputOTPSlot className="w-11 h-11" index={5} />
+                                  </InputOTPGroup>
+                                </div>
+                              </InputOTP>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
                     </div>
 
-                    <InputText
-                      label="Device Name (Optional)"
+                    <FormField
+                      control={form.control}
                       name="deviceName"
-                      //placeholder="My Phone"
+                      render={({ field }) => (
+                        <InputText
+                          label="Device Name (Optional)"
+                          name="deviceName"
+                          value={field.value}
+                          onChange={field.onChange}
+                          //placeholder="My Phone"
+                        />
+                      )}
                     />
                   </div>
 
@@ -209,7 +233,12 @@ export default function ConfigureOtp({ secret, qrCodeUrl }: ConfigureOtpProps) {
                   </Alert>
 
                   <div className="space-y-3">
-                    <Button className="w-full" size="lg">
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      disabled={!formIsValid}
+                      onClick={form.handleSubmit(handleSubmit)}
+                    >
                       <Shield className="mr-2 h-4 w-4" />
                       Enable Two-Factor Authentication
                     </Button>

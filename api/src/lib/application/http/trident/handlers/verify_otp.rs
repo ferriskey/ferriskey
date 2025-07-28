@@ -1,6 +1,7 @@
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use typeshare::typeshare;
 use utoipa::ToSchema;
 
@@ -37,8 +38,17 @@ pub struct VerifyOtpRoute {
     pub realm_name: String,
 }
 
+#[utoipa::path(
+  post,
+  path = "/login-actions/verify-otp",
+  tag = "auth",
+  request_body = OtpVerifyRequest,
+  responses(
+    (status = 200, body = VerifyOtpResponse)
+  )
+)]
 pub async fn verify_otp(
-    VerifyOtpRoute { realm_name }: VerifyOtpRoute,
+    VerifyOtpRoute { realm_name: _ }: VerifyOtpRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
@@ -58,9 +68,7 @@ pub async fn verify_otp(
         _ => return Err(ApiError::Forbidden("Only users can verify OTP".to_string())),
     };
 
-    let mut bytes = [0u8; 20];
-    bytes.copy_from_slice(&decoded);
-    let secret = TotpSecret::from_bytes(bytes);
+    let secret = TotpSecret::from_base32(&payload.secret);
 
     let is_valid = state
         .totp_service
@@ -68,6 +76,7 @@ pub async fn verify_otp(
         .map_err(|_| ApiError::InternalServerError("Failed to verify OTP".to_string()))?;
 
     if !is_valid {
+        error!("Invalid OTP code");
         return Err(ApiError::Unauthorized("Invalid OTP code".to_string()));
     }
 

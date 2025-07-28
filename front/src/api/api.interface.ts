@@ -18,6 +18,7 @@ export interface AuthenticateRequest {
 export enum AuthenticationStatus {
 	Success = "Success",
 	RequiresActions = "RequiresActions",
+	RequiresOtpChallenge = "RequiresOtpChallenge",
 	Failed = "Failed",
 }
 
@@ -37,6 +38,14 @@ export interface AuthenticateResponse {
 
 export interface BulkDeleteUserResponse {
 	count: number;
+}
+
+export interface ChallengeOtpRequest {
+	code?: string;
+}
+
+export interface ChallengeOtpResponse {
+	url: string;
 }
 
 export interface RedirectUri {

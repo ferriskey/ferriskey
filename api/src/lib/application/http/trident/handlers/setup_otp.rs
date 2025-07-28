@@ -37,7 +37,7 @@ pub async fn setup_otp(
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
 ) -> Result<Response<SetupOtpResponse>, ApiError> {
-    let issuer = format!("{}/realms/{}", base_url, realm_name);
+    let issuer = format!("{base_url}/realms/{realm_name}");
     let user = match identity {
         Identity::User(user) => user,
         _ => return Err(ApiError::Forbidden("Only users can set up OTP".to_string())),
@@ -52,7 +52,7 @@ pub async fn setup_otp(
         .generate_otpauth_uri(&issuer, &user.email, &secret);
 
     let response = SetupOtpResponse {
-        issuer: format!("{}/realms/{}", base_url, realm_name),
+        issuer: format!("{base_url}/realms/{realm_name}"),
         otpauth_url,
         secret: secret.base32_encoded().to_string(),
     };

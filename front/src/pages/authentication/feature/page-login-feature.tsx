@@ -53,14 +53,12 @@ export default function PageLoginFeature() {
   })
 
   useEffect(() => {
-    console.log('Authenticate Data:', authenticateData)
-
-    if (authenticateData && authenticateData.url) {
+    if (!authenticateData) return
+    if (authenticateData.url) {
       window.location.href = authenticateData.url
     }
 
     if (
-      authenticateData &&
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
       authenticateData.required_actions.length > 0 &&
@@ -72,6 +70,10 @@ export default function PageLoginFeature() {
       navigate(
         `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`
       )
+    }
+
+    if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
+      navigate(`/realms/${realm_name}/authentication/otp?token=${authenticateData.token}`)
     }
   }, [authenticateData])
 
@@ -88,7 +90,7 @@ export default function PageLoginFeature() {
     const sessionCode = cookies['FERRISKEY_SESSION'] || '123456' // Fallback to default if not found
     authenticate({
       data,
-      realm: 'master',
+      realm: realm_name ?? 'master',
       clientId: 'security-admin-console',
       sessionCode,
     })

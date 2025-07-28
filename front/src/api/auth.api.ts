@@ -13,6 +13,8 @@ export interface AuthenticatePayload {
   realm: string
   clientId: string
   sessionCode: string
+  useToken?: boolean
+  token?: string
 }
 
 export interface AuthQuery {
@@ -29,16 +31,25 @@ export const useAuthQuery = (params: AuthQuery) => {
       )
 
       return response.data
-    }
+    },
   })
 }
 
 export const useAuthenticateMutation = () => {
   return useMutation({
     mutationFn: async (params: AuthenticatePayload): Promise<AuthenticateResponse> => {
+      const headers: Record<string, string> = {}
+
+      if (params.token !== undefined) {
+        headers.Authorization = `Bearer ${params.token}`
+      }
+
       const response = await apiClient.post<AuthenticateResponse>(
         `/realms/${params.realm}/login-actions/authenticate?client_id=${params.clientId}&session_code=${params.sessionCode}`,
-        params.data
+        params.data,
+        {
+          headers,
+        }
       )
 
       return response.data
@@ -80,9 +91,9 @@ export const useTokenMutation = () => {
         formData,
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
-          withCredentials: true
+          withCredentials: true,
         }
       )
 

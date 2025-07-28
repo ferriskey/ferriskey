@@ -14,6 +14,7 @@ pub struct AuthenticationResult {
     pub required_actions: Vec<RequiredAction>,
     pub user_id: Uuid,
     pub token: Option<String>,
+    pub credentials: Vec<String>,
 }
 
 pub trait AuthenticationService: Clone + Send + Sync + 'static {

@@ -2,12 +2,13 @@ use axum::extract::{Query, State};
 use axum_cookie::CookieManager;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::application::decoded_token::{DecodedToken, OptionalToken};
+use crate::application::decoded_token::OptionalToken;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
@@ -31,6 +32,7 @@ pub struct AuthenticateQueryParams {
 pub enum AuthenticationStatus {
     Success,
     RequiresActions,
+    RequiresOtpChallenge,
     Failed,
 }
 
@@ -49,11 +51,11 @@ pub struct AuthenticateResponse {
 pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "username is required"))]
     #[serde(default)]
-    pub username: String,
+    pub username: Option<String>,
 
     #[validate(length(min = 1, message = "password is required"))]
     #[serde(default)]
-    pub password: String,
+    pub password: Option<String>,
 }
 
 #[derive(TypedPath, Deserialize)]
@@ -85,6 +87,8 @@ pub async fn authenticate(
 
     let session_code = Uuid::parse_str(&session_code).unwrap();
 
+    info!("Authenticating user with session code: {}", session_code);
+
     let auth_session = state
         .auth_session_service
         .get_by_session_code(session_code)
@@ -98,11 +102,15 @@ pub async fn authenticate(
         .map_err(|_| ApiError::Unauthorized("invalid realm name".to_string()))?;
 
     if let Some(result_token) = optional_token {
-        let token = state
+        info!("optional_token present");
+        state
             .jwt_service
-            .verify_refresh_token(result_token.token, realm.id)
+            .verify_token(result_token.token, realm.id)
             .await
-            .map_err(|_| ApiError::Unauthorized("invalid token".to_string()))?;
+            .map_err(|e| {
+                error!("invalid token: {}", e);
+                ApiError::Unauthorized("invalid token".to_string())
+            })?;
 
         let auth_session = state
             .auth_session_service
@@ -138,14 +146,22 @@ pub async fn authenticate(
         return Ok(Response::OK(response));
     }
 
+    let username = payload
+        .username
+        .ok_or(ApiError::Unauthorized("username is required".to_string()))?;
+
+    let password = payload
+        .password
+        .ok_or(ApiError::Unauthorized("password is required".to_string()))?;
+
     let auth_result = state
         .authentication_service
         .using_session_code(
             realm_name.clone(),
             query.client_id,
             auth_session.id,
-            payload.username.clone(),
-            payload.password,
+            username,
+            password,
             base_url,
         )
         .await
@@ -163,11 +179,28 @@ pub async fn authenticate(
         return Ok(Response::OK(response));
     }
 
+    let has_otp_credentials = auth_result.credentials.iter().any(|cred| cred == "otp");
+
+    if has_otp_credentials
+        && !auth_result
+            .required_actions
+            .contains(&RequiredAction::ConfigureOtp)
+    {
+        let response = AuthenticateResponse {
+            status: AuthenticationStatus::RequiresOtpChallenge,
+            url: None,
+            required_actions: None,
+            message: Some("OTP verification required".to_string()),
+            token: auth_result.token,
+        };
+
+        return Ok(Response::OK(response));
+    }
+
     let code = auth_result.code.ok_or(ApiError::Unauthorized(
         "No authorization code generated".to_string(),
     ))?;
 
-    // Mettre à jour la session avec le code
     if auth_session.code.is_none() {
         state
             .auth_session_service

@@ -17,7 +17,7 @@ use crate::domain::{
     user::{ports::user_service::UserService, services::user_service::DefaultUserService},
 };
 use chrono::{TimeZone, Utc};
-use tracing::{error, info};
+use tracing::error;
 
 #[derive(Clone)]
 pub struct AuthorizationCodeStrategy {
@@ -58,8 +58,6 @@ impl GrantTypeStrategy for AuthorizationCodeStrategy {
                 error!("Failed to retrieve authorization code session: {:?}", e);
                 AuthenticationError::Invalid
             })?;
-
-        info!("Authorization code session retrieved: {:?}", auth_session);
 
         let user_id = auth_session.user_id.ok_or(AuthenticationError::Invalid)?;
 
