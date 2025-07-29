@@ -1,25 +1,25 @@
-use axum::extract::State;
+use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use crate::{
-    application::http::{
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
+    application::{
+        auth::Identity,
+        http::{
+            server::{
+                api_entities::{
+                    api_error::{ApiError, ValidateJson},
+                    response::Response,
+                },
+                app_state::AppState,
             },
-            app_state::AppState,
+            user::validators::CreateUserValidator,
         },
-        user::validators::CreateUserValidator,
     },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        user::{
-            dtos::user_dto::CreateUserDto, entities::model::User, ports::user_service::UserService,
-        },
+    domain::user::{
+        entities::model::User, use_cases::create_user_use_case::CreateUserUseCaseParams,
     },
 };
 
@@ -51,28 +51,23 @@ pub struct CreateUserResponse {
 pub async fn create_user(
     CreateUserRoute { realm_name }: CreateUserRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateUserValidator>,
 ) -> Result<Response<CreateUserResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
     let user = state
-        .user_service
-        .create_user(CreateUserDto {
-            client_id: None,
-            realm_id: realm.id,
-            username: payload.username,
-            firstname: payload.firstname,
-            lastname: payload.lastname,
-            email: payload.email,
-            email_verified: payload.email_verified.unwrap_or(false),
-            enabled: true,
-        })
-        .await
-        .map_err(ApiError::from)?;
+        .user_orchestrator
+        .create_user(
+            identity,
+            CreateUserUseCaseParams {
+                realm_name,
+                username: payload.username,
+                firstname: payload.firstname,
+                lastname: payload.lastname,
+                email: payload.email,
+                email_verified: payload.email_verified,
+            },
+        )
+        .await?;
 
     Ok(Response::OK(CreateUserResponse { data: user }))
 }

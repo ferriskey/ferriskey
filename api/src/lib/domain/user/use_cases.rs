@@ -1,1 +1,3 @@
 pub mod assign_role_use_case;
+pub mod bulk_delete_user;
+pub mod create_user_use_case;

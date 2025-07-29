@@ -15,10 +15,10 @@ use crate::{
                 },
                 app_state::AppState,
             },
-            user::{policies::user_policies::UserPolicy, validators::BulkDeleteUserValidator},
+            user::validators::BulkDeleteUserValidator,
         },
     },
-    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
+    domain::user::use_cases::bulk_delete_user::BulkDeleteUserUseCaseParams,
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
@@ -48,22 +48,15 @@ pub async fn bulk_delete_user(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
 ) -> Result<Response<BulkDeleteUserResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
-    let has_permission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
-    if !has_permission {
-        return Err(ApiError::Forbidden(
-            "You do not have permission to delete users".to_string(),
-        ));
-    }
-
     let count = state
-        .user_service
-        .bulk_delete_user(payload.ids)
+        .user_orchestrator
+        .bulk_delete_user(
+            identity,
+            BulkDeleteUserUseCaseParams {
+                realm_name,
+                ids: payload.ids,
+            },
+        )
         .await
         .map_err(ApiError::from)?;
 
