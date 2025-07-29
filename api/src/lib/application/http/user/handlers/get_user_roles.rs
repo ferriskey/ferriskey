@@ -1,7 +1,4 @@
-use crate::{
-    application::http::user::policies::user_role_policies::UserRolePolicy,
-    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
-};
+use crate::domain::user::use_cases::get_user_roles_use_case::GetUserRolesUseCaseParams;
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
@@ -55,24 +52,15 @@ pub async fn get_user_roles(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetUserRolesResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
-    let has_permission = UserRolePolicy::view(identity, state.clone(), realm).await?;
-    if !has_permission {
-        return Err(ApiError::Forbidden(
-            "User not allowed to view roles".to_string(),
-        ));
-    }
-
     let roles = state
-        .user_service
-        .get_user_roles(user_id)
-        .await
-        .map_err(ApiError::from)?;
-
+        .user_orchestrator
+        .get_user_roles(
+            identity,
+            GetUserRolesUseCaseParams {
+                realm_name,
+                user_id,
+            },
+        )
+        .await?;
     Ok(Response::OK(GetUserRolesResponse { data: roles }))
 }

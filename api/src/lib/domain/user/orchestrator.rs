@@ -3,6 +3,7 @@ use crate::{
     domain::{
         client::services::client_service::DefaultClientService,
         realm::services::realm_service::DefaultRealmService,
+        role::entities::models::Role,
         user::{
             entities::{error::UserError, model::User},
             services::{
@@ -13,6 +14,7 @@ use crate::{
                 bulk_delete_user::{BulkDeleteUserUseCase, BulkDeleteUserUseCaseParams},
                 create_user_use_case::{CreateUserUseCase, CreateUserUseCaseParams},
                 delete_user_use_case::{DeleteUserUseCase, DeleteUserUseCaseParams},
+                get_user_roles_use_case::{GetUserRolesUseCase, GetUserRolesUseCaseParams},
             },
         },
     },
@@ -24,6 +26,7 @@ pub struct UserOrchestrator {
     bulk_delete_user_use_case: BulkDeleteUserUseCase,
     create_user_use_case: CreateUserUseCase,
     delete_user_use_case: DeleteUserUseCase,
+    get_user_roles_use_case: GetUserRolesUseCase,
 }
 
 impl UserOrchestrator {
@@ -58,11 +61,18 @@ impl UserOrchestrator {
             client_service.clone(),
         );
 
+        let get_user_roles_use_case = GetUserRolesUseCase::new(
+            realm_service.clone(),
+            user_service.clone(),
+            client_service.clone(),
+        );
+
         Self {
             assign_role_use_case,
             bulk_delete_user_use_case,
             create_user_use_case,
             delete_user_use_case,
+            get_user_roles_use_case,
         }
     }
 
@@ -98,5 +108,13 @@ impl UserOrchestrator {
         params: DeleteUserUseCaseParams,
     ) -> Result<u64, UserError> {
         self.delete_user_use_case.execute(identity, params).await
+    }
+
+    pub async fn get_user_roles(
+        &self,
+        identity: Identity,
+        params: GetUserRolesUseCaseParams,
+    ) -> Result<Vec<Role>, UserError> {
+        self.get_user_roles_use_case.execute(identity, params).await
     }
 }
