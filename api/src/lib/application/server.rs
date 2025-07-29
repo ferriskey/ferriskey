@@ -3,12 +3,12 @@ use std::sync::Arc;
 use crate::{
     domain::{
         authentication::{
+            orchestrator::AuthenticationOrchestrator,
             ports::auth_session::AuthSessionRepository,
             service::{
                 auth_session::DefaultAuthSessionService,
                 authentication::DefaultAuthenticationService,
             },
-            use_cases::authenticate_use_case::AuthenticateUseCase,
         },
         client::{
             ports::{
@@ -233,7 +233,7 @@ impl
 
         let totp_service = DefaultTotpService::new();
 
-        let authenticate_use_case = AuthenticateUseCase::new(
+        let auth_orchestrator = AuthenticationOrchestrator::new(
             realm_service.clone(),
             auth_session_service.clone(),
             jwt_service.clone(),
@@ -255,8 +255,8 @@ impl
             totp_service,
             env: Arc::clone(&env),
 
-            // Use-cases
-            authenticate_use_case,
+            // Orchestrators
+            auth_orchestrator,
         }
     }
 }

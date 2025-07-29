@@ -1,2 +1,2 @@
 pub mod authenticate_use_case;
-pub mod entities;
+pub mod get_certs_use_case;

@@ -3,11 +3,11 @@ use std::sync::Arc;
 use crate::{
     domain::{
         authentication::{
+            orchestrator::AuthenticationOrchestrator,
             service::{
                 auth_session::DefaultAuthSessionService,
                 authentication::DefaultAuthenticationService,
             },
-            use_cases::authenticate_use_case::AuthenticateUseCase,
         },
         client::services::{
             client_service::DefaultClientService, redirect_uri_service::DefaultRedirectUriService,
@@ -41,6 +41,6 @@ pub struct AppState {
     pub totp_service: DefaultTotpService,
     pub env: Arc<Env>,
 
-    // Use cases
-    pub authenticate_use_case: AuthenticateUseCase,
+    // Orchestrators per domain
+    pub auth_orchestrator: AuthenticationOrchestrator,
 }

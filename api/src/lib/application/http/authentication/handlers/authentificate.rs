@@ -13,7 +13,7 @@ use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
 
-use crate::domain::authentication::use_cases::entities::{
+use crate::domain::authentication::use_cases::authenticate_use_case::{
     AuthenticateCommand, AuthenticateResult, AuthenticationStepStatus,
 };
 
@@ -153,8 +153,8 @@ pub async fn authenticate(
     };
 
     let result = state
-        .authenticate_use_case
-        .execute(command)
+        .auth_orchestrator
+        .authenticate(command)
         .await
         .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
 
