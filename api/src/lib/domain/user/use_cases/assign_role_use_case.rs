@@ -5,10 +5,9 @@ use crate::{
     domain::{
         client::services::client_service::DefaultClientService,
         realm::{ports::realm_service::RealmService, services::realm_service::DefaultRealmService},
-        session::entities::error,
         user::{
             entities::error::UserError,
-            policies::{user_policy::UserPolicy, user_role_policy::UserRolePolicy},
+            policies::user_role_policy::UserRolePolicy,
             ports::user_role_service::UserRoleService,
             services::{
                 user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
