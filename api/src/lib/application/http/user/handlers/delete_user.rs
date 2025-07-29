@@ -8,15 +8,12 @@ use uuid::Uuid;
 use crate::{
     application::{
         auth::Identity,
-        http::{
-            server::{
-                api_entities::{api_error::ApiError, response::Response},
-                app_state::AppState,
-            },
-            user::policies::user_policies::UserPolicy,
+        http::server::{
+            api_entities::{api_error::ApiError, response::Response},
+            app_state::AppState,
         },
     },
-    domain::{realm::ports::realm_service::RealmService, user::ports::user_service::UserService},
+    domain::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -49,24 +46,16 @@ pub async fn delete_user(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
-    let has_permission = UserPolicy::delete(identity, state.clone(), realm.clone()).await?;
-    if !has_permission {
-        return Err(ApiError::Forbidden(
-            "You do not have permission to delete users".to_string(),
-        ));
-    }
-
     let count = state
-        .user_service
-        .delete_user(user_id)
-        .await
-        .map_err(ApiError::from)?;
+        .user_orchestrator
+        .delete_user(
+            identity,
+            DeleteUserUseCaseParams {
+                realm_name,
+                user_id,
+            },
+        )
+        .await?;
 
     Ok(Response::OK(DeleteUserResponse {
         count: count as u32,

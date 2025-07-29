@@ -12,6 +12,7 @@ use crate::{
                 assign_role_use_case::{AssignRoleUseCase, AssignRoleUseCaseParams},
                 bulk_delete_user::{BulkDeleteUserUseCase, BulkDeleteUserUseCaseParams},
                 create_user_use_case::{CreateUserUseCase, CreateUserUseCaseParams},
+                delete_user_use_case::{DeleteUserUseCase, DeleteUserUseCaseParams},
             },
         },
     },
@@ -22,6 +23,7 @@ pub struct UserOrchestrator {
     assign_role_use_case: AssignRoleUseCase,
     bulk_delete_user_use_case: BulkDeleteUserUseCase,
     create_user_use_case: CreateUserUseCase,
+    delete_user_use_case: DeleteUserUseCase,
 }
 
 impl UserOrchestrator {
@@ -50,10 +52,17 @@ impl UserOrchestrator {
             client_service.clone(),
         );
 
+        let delete_user_use_case = DeleteUserUseCase::new(
+            realm_service.clone(),
+            user_service.clone(),
+            client_service.clone(),
+        );
+
         Self {
             assign_role_use_case,
             bulk_delete_user_use_case,
             create_user_use_case,
+            delete_user_use_case,
         }
     }
 
@@ -81,5 +90,13 @@ impl UserOrchestrator {
         params: CreateUserUseCaseParams,
     ) -> Result<User, UserError> {
         self.create_user_use_case.execute(identity, params).await
+    }
+
+    pub async fn delete_user(
+        &self,
+        identity: Identity,
+        params: DeleteUserUseCaseParams,
+    ) -> Result<u64, UserError> {
+        self.delete_user_use_case.execute(identity, params).await
     }
 }
