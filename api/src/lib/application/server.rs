@@ -43,6 +43,7 @@ use crate::{
         role::{ports::RoleRepository, services::DefaultRoleService},
         trident::services::DefaultTotpService,
         user::{
+            orchestrator::UserOrchestrator,
             ports::{
                 user_repository::UserRepository,
                 user_required_action::UserRequiredActionRepository,
@@ -240,6 +241,13 @@ impl
             authentication_service.clone(),
         );
 
+        let user_orchestrator = UserOrchestrator::new(
+            realm_service.clone(),
+            user_role_service.clone(),
+            user_service.clone(),
+            client_service.clone(),
+        );
+
         AppState {
             realm_service,
             client_service,
@@ -257,6 +265,7 @@ impl
 
             // Orchestrators
             auth_orchestrator,
+            user_orchestrator,
         }
     }
 }

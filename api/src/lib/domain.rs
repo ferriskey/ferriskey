@@ -1,5 +1,6 @@
 pub mod authentication;
 pub mod client;
+pub mod core;
 pub mod credential;
 pub mod crypto;
 pub mod jwt;

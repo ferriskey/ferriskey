@@ -14,6 +14,7 @@ impl From<UserError> for ApiError {
             UserError::InternalServerError => {
                 ApiError::InternalServerError("Internal server error".to_string())
             }
+            UserError::Forbidden(message) => ApiError::Forbidden(message),
         }
     }
 }

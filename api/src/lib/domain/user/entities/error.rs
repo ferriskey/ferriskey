@@ -10,4 +10,7 @@ pub enum UserError {
     Invalid,
     #[error("Internal server error")]
     InternalServerError,
+
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
 }

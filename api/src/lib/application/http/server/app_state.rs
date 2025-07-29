@@ -18,8 +18,11 @@ use crate::{
         realm::services::realm_service::DefaultRealmService,
         role::services::DefaultRoleService,
         trident::services::DefaultTotpService,
-        user::services::{
-            user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
+        user::{
+            orchestrator::UserOrchestrator,
+            services::{
+                user_role_service::DefaultUserRoleService, user_service::DefaultUserService,
+            },
         },
     },
     env::Env,
@@ -43,4 +46,5 @@ pub struct AppState {
 
     // Orchestrators per domain
     pub auth_orchestrator: AuthenticationOrchestrator,
+    pub user_orchestrator: UserOrchestrator,
 }
