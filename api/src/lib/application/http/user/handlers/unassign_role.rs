@@ -8,17 +8,12 @@ use uuid::Uuid;
 use crate::{
     application::{
         auth::Identity,
-        http::{
-            server::{
-                api_entities::{api_error::ApiError, response::Response},
-                app_state::AppState,
-            },
-            user::policies::user_role_policies::UserRolePolicy,
+        http::server::{
+            api_entities::{api_error::ApiError, response::Response},
+            app_state::AppState,
         },
     },
-    domain::{
-        realm::ports::realm_service::RealmService, user::ports::user_role_service::UserRoleService,
-    },
+    domain::user::use_cases::unassign_role_use_case::UnassignRoleUseCaseParams,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -59,21 +54,16 @@ pub async fn unassign_role(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UnassignRoleResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name.clone())
-        .await
-        .map_err(ApiError::from)?;
-
-    if !UserRolePolicy::delete(identity, state.clone(), realm).await? {
-        return Err(ApiError::Forbidden(
-            "You do not have permission to unassign roles".to_string(),
-        ));
-    }
-
     state
-        .user_role_service
-        .revoke_role(user_id, role_id)
+        .user_orchestrator
+        .unassign_role(
+            identity,
+            UnassignRoleUseCaseParams {
+                realm_name: realm_name.clone(),
+                role_id,
+                user_id,
+            },
+        )
         .await?;
 
     Ok(Response::OK(UnassignRoleResponse {

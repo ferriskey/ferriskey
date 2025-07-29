@@ -15,6 +15,8 @@ use crate::{
                 create_user_use_case::{CreateUserUseCase, CreateUserUseCaseParams},
                 delete_user_use_case::{DeleteUserUseCase, DeleteUserUseCaseParams},
                 get_user_roles_use_case::{GetUserRolesUseCase, GetUserRolesUseCaseParams},
+                unassign_role_use_case::{UnassignRoleUseCase, UnassignRoleUseCaseParams},
+                update_user_use_case::{UpdateUserUseCase, UpdateUserUseCaseParams},
             },
         },
     },
@@ -27,6 +29,8 @@ pub struct UserOrchestrator {
     create_user_use_case: CreateUserUseCase,
     delete_user_use_case: DeleteUserUseCase,
     get_user_roles_use_case: GetUserRolesUseCase,
+    unassign_role_use_case: UnassignRoleUseCase,
+    update_user_use_case: UpdateUserUseCase,
 }
 
 impl UserOrchestrator {
@@ -67,12 +71,27 @@ impl UserOrchestrator {
             client_service.clone(),
         );
 
+        let unassign_role_use_case = UnassignRoleUseCase::new(
+            realm_service.clone(),
+            user_service.clone(),
+            client_service.clone(),
+            user_role_service.clone(),
+        );
+
+        let update_user_use_case = UpdateUserUseCase::new(
+            realm_service.clone(),
+            user_service.clone(),
+            client_service.clone(),
+        );
+
         Self {
             assign_role_use_case,
             bulk_delete_user_use_case,
             create_user_use_case,
             delete_user_use_case,
             get_user_roles_use_case,
+            unassign_role_use_case,
+            update_user_use_case,
         }
     }
 
@@ -116,5 +135,21 @@ impl UserOrchestrator {
         params: GetUserRolesUseCaseParams,
     ) -> Result<Vec<Role>, UserError> {
         self.get_user_roles_use_case.execute(identity, params).await
+    }
+
+    pub async fn unassign_role(
+        &self,
+        identity: Identity,
+        params: UnassignRoleUseCaseParams,
+    ) -> Result<(), UserError> {
+        self.unassign_role_use_case.execute(identity, params).await
+    }
+
+    pub async fn update_user(
+        &self,
+        identity: Identity,
+        params: UpdateUserUseCaseParams,
+    ) -> Result<User, UserError> {
+        self.update_user_use_case.execute(identity, params).await
     }
 }

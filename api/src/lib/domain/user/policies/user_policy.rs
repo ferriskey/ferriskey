@@ -45,7 +45,53 @@ impl UserPolicy {
         Ok(Self::has_user_management_permissions(&permissions_vec))
     }
 
+    /// Check if the user can store users in the target realm
+    ///
+    /// # Arguments
+    /// * `identity` - The identity of the user
+    /// * `target_realm` - The realm in which the user wants to store users
+    /// * `user_service` - The service used to manage users
+    /// * `client_service` - The service used to manage clients
+    ///
+    /// # Returns
+    /// * `Ok(true)` if the user can store users in the target realm
+    /// * `Ok(false)` if the user cannot store users in the target realm
+    /// * `Err(UserError)` if an error occurs
     pub async fn store(
+        identity: Identity,
+        target_realm: Realm,
+        user_service: DefaultUserService,
+        client_service: DefaultClientService,
+    ) -> Result<bool, UserError> {
+        let policy = PolicyEnforcer::new(user_service, client_service);
+        let user = policy
+            .get_user_from_identity(&identity)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        let permissions_vec: Vec<Permissions> = permissions.iter().cloned().collect();
+
+        Ok(Self::has_user_management_permissions(&permissions_vec))
+    }
+
+    /// Check if the user can update users in the target realm
+    ///
+    /// # Arguments
+    /// * `identity` - The identity of the user
+    /// * `target_realm` - The realm to check permissions for
+    /// * `user_service` - The user service to use for user management
+    /// * `client_service` - The client service to use for client management
+    ///
+    /// # Returns
+    /// * `Ok(true)` if the user can update users in the target realm
+    /// * `Ok(false)` if the user cannot update users in the target realm
+    /// * `Err(UserError)` if an error occurred while checking permissions
+    pub async fn update(
         identity: Identity,
         target_realm: Realm,
         user_service: DefaultUserService,

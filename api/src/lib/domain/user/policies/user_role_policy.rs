@@ -176,3 +176,51 @@ impl UserRolePolicy {
         can_view_roles && can_view_users
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::domain::{
+        role::entities::permission::Permissions, user::policies::user_role_policy::UserRolePolicy,
+    };
+
+    #[test]
+    fn test_has_realm_management_permissions() {
+        let permissions = vec![Permissions::ManageRealm];
+        assert!(UserRolePolicy::has_realm_management_permissions(
+            &permissions
+        ));
+
+        let permissions = vec![Permissions::ManageRoles];
+        assert!(UserRolePolicy::has_realm_management_permissions(
+            &permissions
+        ));
+
+        let permissions = vec![Permissions::ViewRoles, Permissions::ViewUsers];
+        assert!(!UserRolePolicy::has_realm_management_permissions(
+            &permissions
+        ));
+    }
+
+    #[test]
+    fn test_has_role_and_user_viewing_permissions() {
+        let permissions = vec![Permissions::ViewRoles, Permissions::ViewUsers];
+        assert!(UserRolePolicy::has_role_and_user_viewing_permissions(
+            &permissions
+        ));
+
+        let permissions = vec![Permissions::ManageRoles, Permissions::ManageUsers];
+        assert!(UserRolePolicy::has_role_and_user_viewing_permissions(
+            &permissions
+        ));
+
+        let permissions = vec![Permissions::ViewRoles];
+        assert!(!UserRolePolicy::has_role_and_user_viewing_permissions(
+            &permissions
+        ));
+
+        let permissions = vec![Permissions::ViewUsers];
+        assert!(!UserRolePolicy::has_role_and_user_viewing_permissions(
+            &permissions
+        ));
+    }
+}

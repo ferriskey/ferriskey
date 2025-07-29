@@ -1,4 +1,4 @@
-use axum::extract::State;
+use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
@@ -6,21 +6,21 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    application::http::{
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
+    application::{
+        auth::Identity,
+        http::{
+            server::{
+                api_entities::{
+                    api_error::{ApiError, ValidateJson},
+                    response::Response,
+                },
+                app_state::AppState,
             },
-            app_state::AppState,
+            user::validators::UpdateUserValidator,
         },
-        user::validators::UpdateUserValidator,
     },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        user::{
-            dtos::user_dto::UpdateUserDto, entities::model::User, ports::user_service::UserService,
-        },
+    domain::user::{
+        entities::model::User, use_cases::update_user_use_case::UpdateUserUseCaseParams,
     },
 };
 
@@ -57,29 +57,25 @@ pub async fn update_user(
         user_id,
     }: UpdateUserRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateUserValidator>,
 ) -> Result<Response<UpdateUserResponse>, ApiError> {
-    let _realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
     let user = state
-        .user_service
+        .user_orchestrator
         .update_user(
-            user_id,
-            UpdateUserDto {
+            identity,
+            UpdateUserUseCaseParams {
+                user_id,
+                realm_name,
                 firstname: payload.firstname,
                 lastname: payload.lastname,
                 email: payload.email,
-                email_verified: payload.email_verified.unwrap_or(false),
+                email_verified: payload.email_verified,
                 enabled: payload.enabled.unwrap_or(true),
                 required_actions: payload.required_actions,
             },
         )
-        .await
-        .map_err(ApiError::from)?;
+        .await?;
 
     Ok(Response::OK(UpdateUserResponse { data: user }))
 }
