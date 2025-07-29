@@ -7,7 +7,7 @@ use crate::domain::client::entities::redirect_uri::RedirectUri;
 
 pub mod redirect_uri;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Client {
     pub id: Uuid,
     pub enabled: bool,
