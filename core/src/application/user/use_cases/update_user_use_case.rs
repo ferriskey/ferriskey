@@ -1,7 +1,10 @@
 use uuid::Uuid;
 
 use crate::{
-    application::user::policies::user_policy::UserPolicy,
+    application::{
+        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        user::policies::user_policy::UserPolicy,
+    },
     domain::{
         authentication::value_objects::Identity,
         client::ports::ClientService,
@@ -27,24 +30,18 @@ pub struct UpdateUserUseCaseParams {
 }
 
 #[derive(Clone)]
-pub struct UpdateUserUseCase<R, U, C>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-{
-    pub realm_service: R,
-    pub user_service: U,
-    pub client_service: C,
+pub struct UpdateUserUseCase {
+    pub realm_service: DefaultRealmService,
+    pub user_service: DefaultUserService,
+    pub client_service: DefaultClientService,
 }
 
-impl<R, U, C> UpdateUserUseCase<R, U, C>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-{
-    pub fn new(realm_service: R, user_service: U, client_service: C) -> Self {
+impl UpdateUserUseCase {
+    pub fn new(
+        realm_service: DefaultRealmService,
+        user_service: DefaultUserService,
+        client_service: DefaultClientService,
+    ) -> Self {
         Self {
             realm_service,
             user_service,

@@ -9,6 +9,7 @@ use crate::domain::{
     },
 };
 
+#[derive(Clone)]
 pub struct UserRoleServiceImpl<U, R, RM, UR>
 where
     U: UserRepository,

@@ -1,27 +1,22 @@
-use crate::domain::{
-    jwt::{
-        entities::{JwkKey, JwtError},
-        ports::JwtService,
+use crate::{
+    application::common::services::{DefaultJwtService, DefaultRealmService},
+    domain::{
+        jwt::{
+            entities::{JwkKey, JwtError},
+            ports::JwtService,
+        },
+        realm::ports::RealmService,
     },
-    realm::ports::RealmService,
 };
 
 #[derive(Clone)]
-pub struct GetCertsUseCase<R, J>
-where
-    R: RealmService,
-    J: JwtService,
-{
-    pub realm_service: R,
-    pub jwt_service: J,
+pub struct GetCertsUseCase {
+    pub realm_service: DefaultRealmService,
+    pub jwt_service: DefaultJwtService,
 }
 
-impl<R, J> GetCertsUseCase<R, J>
-where
-    R: RealmService,
-    J: JwtService,
-{
-    pub fn new(realm_service: R, jwt_service: J) -> Self {
+impl GetCertsUseCase {
+    pub fn new(realm_service: DefaultRealmService, jwt_service: DefaultJwtService) -> Self {
         Self {
             realm_service,
             jwt_service,

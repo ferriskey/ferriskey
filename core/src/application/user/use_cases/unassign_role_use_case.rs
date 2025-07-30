@@ -1,7 +1,12 @@
 use uuid::Uuid;
 
 use crate::{
-    application::user::policies::user_role_policy::UserRolePolicy,
+    application::{
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserRoleService, DefaultUserService,
+        },
+        user::policies::user_role_policy::UserRolePolicy,
+    },
     domain::{
         authentication::value_objects::Identity,
         client::ports::ClientService,
@@ -21,31 +26,19 @@ pub struct UnassignRoleUseCaseParams {
 }
 
 #[derive(Clone)]
-pub struct UnassignRoleUseCase<R, U, C, UR>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-    UR: UserRoleService,
-{
-    pub realm_service: R,
-    pub user_service: U,
-    pub client_service: C,
-    pub user_role_service: UR,
+pub struct UnassignRoleUseCase {
+    pub realm_service: DefaultRealmService,
+    pub user_service: DefaultUserService,
+    pub client_service: DefaultClientService,
+    pub user_role_service: DefaultUserRoleService,
 }
 
-impl<R, U, C, UR> UnassignRoleUseCase<R, U, C, UR>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-    UR: UserRoleService,
-{
+impl UnassignRoleUseCase {
     pub fn new(
-        realm_service: R,
-        user_service: U,
-        client_service: C,
-        user_role_service: UR,
+        realm_service: DefaultRealmService,
+        user_service: DefaultUserService,
+        client_service: DefaultClientService,
+        user_role_service: DefaultUserRoleService,
     ) -> Self {
         Self {
             realm_service,

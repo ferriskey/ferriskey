@@ -1,11 +1,16 @@
-use crate::domain::{
-    authentication::{
-        entities::{AuthenticationError, GrantType, JwtToken},
-        ports::GrantTypeService,
-        value_objects::GrantTypeParams,
+use crate::{
+    application::common::services::{
+        DefaultClientService, DefaultGrantTypeService, DefaultRealmService,
     },
-    client::ports::ClientService,
-    realm::ports::RealmService,
+    domain::{
+        authentication::{
+            entities::{AuthenticationError, GrantType, JwtToken},
+            ports::GrantTypeService,
+            value_objects::GrantTypeParams,
+        },
+        client::ports::ClientService,
+        realm::ports::RealmService,
+    },
 };
 
 /// Input for authentication use case
@@ -22,24 +27,18 @@ pub struct AuthenticateUserInput {
     pub base_url: String,
 }
 
-pub struct AuthenticateUserUseCase<R, C, G>
-where
-    R: RealmService,
-    C: ClientService,
-    G: GrantTypeService,
-{
-    realm_service: R,
-    client_service: C,
-    grant_type_service: G,
+pub struct AuthenticateUserUseCase {
+    realm_service: DefaultRealmService,
+    client_service: DefaultClientService,
+    grant_type_service: DefaultGrantTypeService,
 }
 
-impl<R, C, G> AuthenticateUserUseCase<R, C, G>
-where
-    R: RealmService,
-    C: ClientService,
-    G: GrantTypeService,
-{
-    pub fn new(realm_service: R, client_service: C, grant_type_service: G) -> Self {
+impl AuthenticateUserUseCase {
+    pub fn new(
+        realm_service: DefaultRealmService,
+        client_service: DefaultClientService,
+        grant_type_service: DefaultGrantTypeService,
+    ) -> Self {
         Self {
             realm_service,
             client_service,

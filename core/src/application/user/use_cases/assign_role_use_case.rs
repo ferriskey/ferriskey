@@ -1,7 +1,12 @@
 use uuid::Uuid;
 
 use crate::{
-    application::user::policies::user_role_policy::UserRolePolicy,
+    application::{
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserRoleService, DefaultUserService,
+        },
+        user::policies::user_role_policy::UserRolePolicy,
+    },
     domain::{
         authentication::value_objects::Identity,
         client::ports::ClientService,
@@ -14,17 +19,11 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct AssignRoleUseCase<R, UR, U, C>
-where
-    R: RealmService,
-    UR: UserRoleService,
-    U: UserService,
-    C: ClientService,
-{
-    pub realm_service: R,
-    pub user_role_service: UR,
-    pub user_service: U,
-    pub client_service: C,
+pub struct AssignRoleUseCase {
+    pub realm_service: DefaultRealmService,
+    pub user_role_service: DefaultUserRoleService,
+    pub user_service: DefaultUserService,
+    pub client_service: DefaultClientService,
 }
 
 #[derive(Debug, Clone)]
@@ -34,18 +33,12 @@ pub struct AssignRoleUseCaseParams {
     pub role_id: Uuid,
 }
 
-impl<R, UR, U, C> AssignRoleUseCase<R, UR, U, C>
-where
-    R: RealmService,
-    UR: UserRoleService,
-    U: UserService,
-    C: ClientService,
-{
+impl AssignRoleUseCase {
     pub fn new(
-        realm_service: R,
-        user_role_service: UR,
-        user_service: U,
-        client_service: C,
+        realm_service: DefaultRealmService,
+        user_role_service: DefaultUserRoleService,
+        user_service: DefaultUserService,
+        client_service: DefaultClientService,
     ) -> Self {
         Self {
             realm_service,
