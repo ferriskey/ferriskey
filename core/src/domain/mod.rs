@@ -1,5 +1,12 @@
+pub mod authentication;
 pub mod client;
 pub mod common;
+pub mod credential;
+pub mod crypto;
+pub mod jwt;
+pub mod mediator;
 pub mod realm;
 pub mod role;
+pub mod session;
+pub mod trident;
 pub mod user;

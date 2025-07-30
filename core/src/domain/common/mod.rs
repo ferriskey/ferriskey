@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rand::{Rng, distr::Alphanumeric};
+use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
@@ -16,7 +16,7 @@ pub fn generate_uuid_v7() -> Uuid {
 }
 
 pub fn generate_random_string() -> String {
-    rand::rng()
+    rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(16)
         .map(char::from)

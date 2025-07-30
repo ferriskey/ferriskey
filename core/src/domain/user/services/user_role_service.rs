@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     realm::ports::RealmRepository,
-    role::ports::RoleRepository,
+    role::{entities::Role, ports::RoleRepository},
     user::{
         entities::UserError,
         ports::{UserRepository, UserRoleRepository, UserRoleService},

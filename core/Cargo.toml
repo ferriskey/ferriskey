@@ -11,10 +11,14 @@ path = "src/lib.rs"
 [dependencies]
 anyhow = "1.0.98"
 argon2 = "0.5.3"
+base64 = "0.22.1"
 base64-url = "3.0.0"
 chrono = { version = "0.4.41", features = ["serde"] }
-rand = "0.9.2"
+jsonwebtoken = "9.3.1"
+rand = "0.8.0"
+rsa = { version = "0.9.8", features = ["pem"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 thiserror = "2.0.12"
+tracing = "0.1.41"
 uuid.workspace = true
