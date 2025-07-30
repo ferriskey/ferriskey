@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::domain::{common::generate_uuid_v7, realm::entities::Realm, role::entities::Role};
 
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: Uuid,
     pub realm_id: Uuid,
