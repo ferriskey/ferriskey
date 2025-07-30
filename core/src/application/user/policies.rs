@@ -1,2 +1,2 @@
-mod user_policy;
-mod user_role_policy;
+pub mod user_policy;
+pub mod user_role_policy;
