@@ -3,7 +3,12 @@ use crate::{
         authentication::services::{
             auth_session_service::AuthSessionServiceImpl, grant_type_service::GrantTypeServiceImpl,
         },
-        client::services::client_service::ClientServiceImpl,
+        client::{
+            ports::RedirectUriService,
+            services::{
+                client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
+            },
+        },
         credential::services::CredentialServiceImpl,
         crypto::services::CryptoServiceImpl,
         jwt::services::JwtServiceImpl,
@@ -20,6 +25,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             realm_repository::PostgresRealmRepository,
+            redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             role_repository::PostgresRoleRepository,
             user_session_repository::PostgresUserSessionRepository,
@@ -86,4 +92,10 @@ pub type DefaultJwtService = JwtServiceImpl<
     PostgresRefreshTokenRepository,
     PostgresKeyStoreRepository,
     PostgresRealmRepository,
+>;
+
+pub type DefaultRedirectUriService = RedirectUriServiceImpl<
+    PostgresRealmRepository,
+    PostgresRedirectUriRepository,
+    PostgresClientRepository,
 >;

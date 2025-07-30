@@ -9,7 +9,7 @@ pub struct Postgres {
 }
 
 pub struct PostgresConfig {
-    database_url: String,
+    pub database_url: String,
 }
 
 impl Postgres {
