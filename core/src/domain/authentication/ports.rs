@@ -2,27 +2,8 @@ use uuid::Uuid;
 
 use crate::domain::authentication::{
     entities::{AuthSession, AuthenticationError, GrantType, JwtToken},
-    value_objects::{
-        AuthenticateRequest, AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams,
-    },
+    value_objects::{CreateAuthSessionRequest, GrantTypeParams},
 };
-
-pub trait AuthenticationService: Clone + Send + Sync + 'static {
-    fn using_session_code(
-        &self,
-        realm_name: String,
-        client_id: String,
-        session_code: Uuid,
-        username: String,
-        password: String,
-        base_url: String,
-    ) -> impl Future<Output = Result<AuthenticationResult, AuthenticationError>> + Send;
-    fn authenticate(
-        &self,
-        data: AuthenticateRequest,
-        base_url: String,
-    ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
-}
 
 pub trait GrantTypeStrategy: Clone + Send + Sync + 'static {
     fn execute(
@@ -32,7 +13,7 @@ pub trait GrantTypeStrategy: Clone + Send + Sync + 'static {
 }
 
 pub trait GrantTypeService: Clone + Send + Sync + 'static {
-    fn authenticate(
+    fn authenticate_with_grant_type(
         &self,
         grant_type: GrantType,
         params: GrantTypeParams,
