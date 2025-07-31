@@ -1,8 +1,6 @@
+use crate::application::http::server::api_entities::api_error::ApiError;
 use ferriskey_core::domain::client::entities::ClientError;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUriError;
-use crate::{
-    application::http::server::api_entities::api_error::ApiError,
-};
 
 impl From<ClientError> for ApiError {
     fn from(value: ClientError) -> Self {

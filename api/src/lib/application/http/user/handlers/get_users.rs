@@ -1,17 +1,15 @@
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 use axum::extract::State;
 use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
-use utoipa::ToSchema;
 use ferriskey_core::domain::realm::ports::RealmService;
 use ferriskey_core::domain::user::entities::User;
 use ferriskey_core::domain::user::ports::UserService;
-use crate::{
-    application::http::server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
-    },
-};
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users")]

@@ -1,19 +1,17 @@
+use crate::application::{
+    http::server::{
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
+    },
+    url::FullUrl,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::trident::ports::TotpService;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::trident::ports::TotpService;
-use crate::{
-    application::{
-        http::server::{
-            api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
-        },
-        url::FullUrl,
-    },
-};
 
 #[derive(Debug, Serialize, PartialEq, Eq, ToSchema)]
 #[typeshare]
@@ -47,10 +45,11 @@ pub async fn setup_otp(
         .generate_secret()
         .map_err(|_| ApiError::InternalServerError("Failed to generate OTP secret".to_string()))?;
 
-    let otpauth_url = state
-        .service_bundle
-        .totp_service
-        .generate_otpauth_uri(&issuer, &user.email, &secret);
+    let otpauth_url =
+        state
+            .service_bundle
+            .totp_service
+            .generate_otpauth_uri(&issuer, &user.email, &secret);
 
     let response = SetupOtpResponse {
         issuer: format!("{base_url}/realms/{realm_name}"),

@@ -1,7 +1,7 @@
-use typeshare::typeshare;
-use crate::application::common::services::{DefaultAuthSessionService, DefaultClientService, DefaultCredentialService, DefaultJwtService, DefaultRealmService, DefaultUserService};
-use crate::domain::user::entities::RequiredAction;
-use uuid::Uuid;
+use crate::application::common::services::{
+    DefaultAuthSessionService, DefaultClientService, DefaultCredentialService, DefaultJwtService,
+    DefaultRealmService, DefaultUserService,
+};
 use crate::domain::authentication::entities::{AuthSession, AuthenticationError};
 use crate::domain::authentication::ports::AuthSessionService;
 use crate::domain::authentication::value_objects::AuthenticationResult;
@@ -12,7 +12,10 @@ use crate::domain::jwt::entities::{ClaimsTyp, JwtClaim};
 use crate::domain::jwt::ports::JwtService;
 use crate::domain::realm::entities::Realm;
 use crate::domain::realm::ports::RealmService;
+use crate::domain::user::entities::RequiredAction;
 use crate::domain::user::ports::UserService;
+use typeshare::typeshare;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AuthenticateUseCase {
@@ -21,7 +24,7 @@ pub struct AuthenticateUseCase {
     jwt_service: DefaultJwtService,
     client_service: DefaultClientService,
     credential_service: DefaultCredentialService,
-    user_service: DefaultUserService
+    user_service: DefaultUserService,
 }
 
 pub struct AuthenticateUseCaseResponse {
@@ -180,24 +183,34 @@ impl AuthenticateUseCase {
 
     pub async fn execute(
         &self,
-        params: AuthenticateUseCaseParams
+        params: AuthenticateUseCaseParams,
     ) -> Result<AuthenticateUseCaseResponse, AuthenticationError> {
         let (realm, auth_session) = self.validate_session_and_realm(&params).await?;
 
         match params.auth_method {
             AuthenticationMethod::ExistingToken { token } => {
-                todo!()
+                self.handle_token_refresh(token, realm.id, auth_session, params.session_code)
+                    .await
             }
             AuthenticationMethod::UserCredentials { username, password } => {
+                let params = CredentialsAuthParams {
+                    realm_name: params.realm_name,
+                    client_id: params.client_id,
+                    session_code: params.session_code,
+                    base_url: params.base_url,
+                    username,
+                    password,
+                };
 
+                self.handle_user_credentials_authentication(params, auth_session)
+                    .await
             }
         }
-        todo!()
     }
 
     async fn validate_session_and_realm(
         &self,
-        params: &AuthenticateUseCaseParams
+        params: &AuthenticateUseCaseParams,
     ) -> Result<(Realm, AuthSession), AuthenticationError> {
         let auth_session = self
             .auth_session_service
@@ -238,14 +251,16 @@ impl AuthenticateUseCase {
         auth_session: AuthSession,
     ) -> Result<AuthenticateUseCaseResponse, AuthenticationError> {
         // Delegate authentication to the existing service
-        let auth_result = self.using_session_code(
-            params.realm_name,
-            params.client_id,
-            params.session_code,
-            params.username,
-            params.password,
-            params.base_url,
-        ).await?;
+        let auth_result = self
+            .using_session_code(
+                params.realm_name,
+                params.client_id,
+                params.session_code,
+                params.username,
+                params.password,
+                params.base_url,
+            )
+            .await?;
 
         self.determine_next_step(auth_result, params.session_code, auth_session)
             .await
@@ -428,4 +443,3 @@ impl AuthenticateUseCase {
         })
     }
 }
-

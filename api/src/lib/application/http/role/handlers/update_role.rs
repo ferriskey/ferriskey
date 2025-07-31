@@ -1,26 +1,22 @@
+use crate::application::http::{
+    role::validators::UpdateRoleValidator,
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::application::role::use_cases::update_role_use_case::UpdateRoleUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use ferriskey_core::application::role::use_cases::update_role_use_case::UpdateRoleUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::role::entities::Role;
-use crate::{
-    application::{
-        http::{
-            role::{validators::UpdateRoleValidator},
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
-            },
-        },
-    },
-};
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/roles/{role_id}")]
@@ -69,9 +65,10 @@ pub async fn update_role(
                 name: payload.name,
                 description: payload.description,
                 role_id,
-                realm_name
-            }
-        ).await?;
+                realm_name,
+            },
+        )
+        .await?;
 
     Ok(Response::OK(UpdateRoleResponse { data: role }))
 }

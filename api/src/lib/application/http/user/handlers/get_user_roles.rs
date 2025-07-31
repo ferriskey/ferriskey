@@ -1,20 +1,16 @@
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::application::user::use_cases::get_user_roles_use_case::GetUserRolesUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use ferriskey_core::application::user::use_cases::get_user_roles_use_case::GetUserRolesUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::role::entities::Role;
-use crate::{
-    application::{
-        http::server::{
-            api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
-        },
-    },
-};
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users/{user_id}/roles")]

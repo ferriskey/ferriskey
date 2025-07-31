@@ -1,24 +1,20 @@
+use crate::application::http::{
+    role::validators::CreateRoleValidator,
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
-use serde::Deserialize;
-use uuid::Uuid;
 use ferriskey_core::application::client::use_cases::create_role_use_case::CreateRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
-use crate::{
-    application::{
-        http::{
-            role::{validators::CreateRoleValidator},
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
-            },
-        },
-    },
-};
+use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/clients/{client_id}/roles")]
@@ -60,8 +56,8 @@ pub async fn create_role(
                 permissions: payload.permissions,
                 realm_name,
                 description: payload.description,
-                name: payload.name
-            }
+                name: payload.name,
+            },
         )
         .await?;
 

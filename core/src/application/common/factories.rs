@@ -1,7 +1,5 @@
 use crate::application::authentication::use_cases::authenticate_use_case::AuthenticateUseCase;
-use crate::application::authentication::use_cases::exchange_token_use_case::{
-    ExchangeTokenUseCase,
-};
+use crate::application::authentication::use_cases::exchange_token_use_case::ExchangeTokenUseCase;
 use crate::application::authentication::use_cases::get_certs_use_case::GetCertsUseCase;
 use crate::application::client::use_cases::create_client_use_case::CreateClientUseCase;
 use crate::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCase;

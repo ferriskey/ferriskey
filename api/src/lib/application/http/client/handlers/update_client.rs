@@ -1,22 +1,20 @@
+use crate::application::http::{
+    client::validators::UpdateClientValidator,
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+};
 use axum::extract::State;
 use axum_macros::TypedPath;
-use serde::Deserialize;
-use uuid::Uuid;
 use ferriskey_core::domain::client::entities::Client;
 use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::client::value_objects::UpdateClientRequest;
-use crate::{
-    application::http::{
-        client::validators::UpdateClientValidator,
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
-            },
-            app_state::AppState,
-        },
-    },
-};
+use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/clients/{client_id}")]

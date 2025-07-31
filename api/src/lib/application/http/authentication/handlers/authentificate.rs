@@ -1,21 +1,20 @@
-use axum::extract::{Query, State};
-use axum_cookie::CookieManager;
-use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
-use utoipa::ToSchema;
-use uuid::Uuid;
-use validator::Validate;
-use ferriskey_core::application::authentication::use_cases::authenticate_use_case::{AuthenticateUseCaseParams, AuthenticateUseCaseResponse, AuthenticationStepStatus};
-use ferriskey_core::domain::authentication::value_objects::AuthenticationResult;
-use ferriskey_core::domain::user::entities::RequiredAction;
 use crate::application::decoded_token::OptionalToken;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
-
-
+use axum::extract::{Query, State};
+use axum_cookie::CookieManager;
+use axum_macros::TypedPath;
+use ferriskey_core::application::authentication::use_cases::authenticate_use_case::{
+    AuthenticateUseCaseParams, AuthenticateUseCaseResponse, AuthenticationStepStatus,
+};
+use ferriskey_core::domain::user::entities::RequiredAction;
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+use utoipa::ToSchema;
+use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Serialize, Deserialize)]
 #[typeshare]
@@ -128,7 +127,7 @@ pub async fn authenticate(
             query.client_id,
             session_code,
             base_url,
-            token.token
+            token.token,
         )
     } else {
         let username = payload
@@ -152,9 +151,8 @@ pub async fn authenticate(
     let result = state
         .use_case_bundle
         .authenticate_use_case
-        .execute(
-            authenticate_params
-        ).await?;
+        .execute(authenticate_params)
+        .await?;
 
     let response: AuthenticateResponse = result.into();
     Ok(Response::OK(response))

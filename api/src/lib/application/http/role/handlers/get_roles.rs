@@ -1,21 +1,15 @@
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
-use utoipa::ToSchema;
 use ferriskey_core::application::role::use_cases::get_roles_use_case::GetRolesUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
-use crate::{
-    application::{
-        http::{
-            server::{
-                api_entities::{api_error::ApiError, response::Response},
-                app_state::AppState,
-            },
-        },
-    }
-};
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/roles")]
@@ -49,9 +43,7 @@ pub async fn get_roles(
     let roles = state
         .use_case_bundle
         .get_roles_use_case
-        .execute(identity, GetRolesUseCaseParams {
-            realm_name
-        })
+        .execute(identity, GetRolesUseCaseParams { realm_name })
         .await
         .map_err(ApiError::from)?;
 

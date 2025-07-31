@@ -5,13 +5,13 @@ use crate::application::http::server::app_state::AppState;
 use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
+use ferriskey_core::application::client::use_cases::delete_client_use_case::DeleteClientUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use ferriskey_core::application::client::use_cases::delete_client_use_case::DeleteClientUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/clients/{client_id}")]
@@ -50,13 +50,17 @@ pub async fn delete_client(
         "Deleting client with ID {} in realm {}",
         client_id, realm_name
     );
-    state.use_case_bundle
+    state
+        .use_case_bundle
         .delete_client_use_case
-        .execute(identity, DeleteClientUseCaseParams {
-            client_id,
-            realm_name: realm_name.clone()
-        }).await?;
-
+        .execute(
+            identity,
+            DeleteClientUseCaseParams {
+                client_id,
+                realm_name: realm_name.clone(),
+            },
+        )
+        .await?;
 
     Ok(Response::OK(DeleteClientResponse {
         message: format!("Client with ID {client_id} in realm {realm_name} deleted successfully"),

@@ -1,3 +1,4 @@
+use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
@@ -11,7 +12,6 @@ use crate::application::http::server::app_state::AppState;
 use axum::{Router, middleware};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
-use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 
 #[derive(OpenApi)]
 #[openapi(paths(

@@ -8,20 +8,17 @@ use axum::{
     response::IntoResponse,
 };
 use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
-use utoipa::ToSchema;
-use validator::Validate;
 use ferriskey_core::domain::authentication::entities::AuthenticationError;
 use ferriskey_core::domain::authentication::ports::AuthSessionService;
 use ferriskey_core::domain::authentication::value_objects::CreateAuthSessionRequest;
 use ferriskey_core::domain::client::ports::{ClientService, RedirectUriService};
 use ferriskey_core::domain::realm::ports::RealmService;
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
+use utoipa::ToSchema;
+use validator::Validate;
 
-use crate::{
-    application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
-};
-
+use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct AuthRequest {
@@ -101,7 +98,6 @@ pub async fn auth(
         return Err(ApiError::Unauthorized("Client is disabled".to_string()));
     }
 
-
     let session = state
         .service_bundle
         .auth_session_service
@@ -116,11 +112,7 @@ pub async fn auth(
             user_id: None,
         })
         .await
-        .map_err(
-            |e: AuthenticationError| {
-                ApiError::InternalServerError(e.to_string())
-            },
-        )?;
+        .map_err(|e: AuthenticationError| ApiError::InternalServerError(e.to_string()))?;
 
     let login_url = format!(
         "?client_id={}&redirect_uri={}&state={}",

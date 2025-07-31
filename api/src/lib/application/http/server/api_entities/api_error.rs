@@ -1,14 +1,13 @@
-
 use axum::{
     Json,
     extract::{Form, FromRequest, Request, rejection::FormRejection},
     http::StatusCode,
     response::IntoResponse,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use validator::Validate;
 use ferriskey_core::domain::authentication::entities::AuthenticationError;
 use ferriskey_core::domain::jwt::entities::JwtError;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ApiErrorData {
@@ -142,8 +141,9 @@ impl From<JwtError> for ApiError {
             JwtError::ExpiredToken => Self::InternalServerError("Token expired".to_string()),
             JwtError::InvalidKey(e) => Self::InternalServerError(e),
             JwtError::ParsingError(e) => Self::InternalServerError(e),
-            JwtError::RealmKeyNotFound => Self::InternalServerError("Realm key not found".to_string()),
-
+            JwtError::RealmKeyNotFound => {
+                Self::InternalServerError("Realm key not found".to_string())
+            }
         }
     }
 }

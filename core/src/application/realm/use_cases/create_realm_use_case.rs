@@ -8,7 +8,6 @@ use crate::domain::realm::entities::{Realm, RealmError};
 use crate::domain::realm::ports::RealmService;
 use crate::domain::user::ports::UserService;
 
-
 #[derive(Clone)]
 pub struct CreateRealmUseCase {
     pub realm_service: DefaultRealmService,

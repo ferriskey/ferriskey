@@ -1,17 +1,13 @@
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use ferriskey_core::application::user::use_cases::assign_role_use_case::AssignRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use crate::{
-    application::{
-        http::server::{
-            api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
-        },
-    },
-};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AssignRoleResponse {

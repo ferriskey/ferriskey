@@ -1,15 +1,13 @@
-use axum::extract::State;
-use tracing::info;
-use ferriskey_core::domain::client::ports::RedirectUriService;
-use crate::{
-    application::http::{
-        client::routes::client_routes::DeleteRedirectUriRoute,
-        server::{
-            api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
-        },
+use crate::application::http::{
+    client::routes::client_routes::DeleteRedirectUriRoute,
+    server::{
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
     },
 };
+use axum::extract::State;
+use ferriskey_core::domain::client::ports::RedirectUriService;
+use tracing::info;
 
 #[utoipa::path(
     delete,

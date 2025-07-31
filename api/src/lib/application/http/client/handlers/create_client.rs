@@ -1,19 +1,17 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
-use serde::Deserialize;
 use ferriskey_core::application::client::use_cases::create_client_use_case::CreateClientUseCaseParams;
 use ferriskey_core::domain::client::entities::Client;
+use serde::Deserialize;
 
-use crate::{
-    application::http::{
-        client::validators::CreateClientValidator,
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
-            },
-            app_state::AppState,
+use crate::application::http::{
+    client::validators::CreateClientValidator,
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
         },
+        app_state::AppState,
     },
 };
 
@@ -49,10 +47,8 @@ pub async fn create_client(
             name: payload.name,
             protocol: payload.protocol,
             service_account_enabled: payload.service_account_enabled,
-
-        }).await?;
+        })
+        .await?;
 
     Ok(Response::Created(client))
-
-
 }

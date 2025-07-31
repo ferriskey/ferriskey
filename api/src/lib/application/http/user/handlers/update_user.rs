@@ -1,26 +1,22 @@
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+    user::validators::UpdateUserValidator,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::application::user::use_cases::update_user_use_case::UpdateUserUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::entities::User;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use ferriskey_core::application::user::use_cases::update_user_use_case::UpdateUserUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::user::entities::User;
-use crate::{
-    application::{
-        http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
-            },
-            user::validators::UpdateUserValidator,
-        },
-    },
-};
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users/{user_id}")]

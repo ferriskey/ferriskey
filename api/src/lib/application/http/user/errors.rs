@@ -1,8 +1,6 @@
+use crate::application::http::server::api_entities::api_error::ApiError;
 use ferriskey_core::domain::credential::entities::CredentialError;
 use ferriskey_core::domain::user::entities::UserError;
-use crate::{
-    application::http::server::api_entities::api_error::ApiError,
-};
 
 impl From<UserError> for ApiError {
     fn from(value: UserError) -> Self {

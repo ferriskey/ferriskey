@@ -1,9 +1,7 @@
-use std::sync::Arc;
-use ferriskey_core::application::common::factories::{UseCaseBundle};
+use crate::env::Env;
+use ferriskey_core::application::common::factories::UseCaseBundle;
 use ferriskey_core::infrastructure::common::factories::service_factory::ServiceBundle;
-use crate::{
-    env::Env,
-};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,7 +12,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(env: Arc<Env>, service_bundle: ServiceBundle, use_case_bundle: UseCaseBundle) -> Self {
+    pub fn new(
+        env: Arc<Env>,
+        service_bundle: ServiceBundle,
+        use_case_bundle: UseCaseBundle,
+    ) -> Self {
         Self {
             env,
             service_bundle,

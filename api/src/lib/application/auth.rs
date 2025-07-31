@@ -10,15 +10,14 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use base64::{Engine, engine::general_purpose};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use uuid::Uuid;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::jwt::entities::{ClaimsTyp, JwtClaim};
 use ferriskey_core::domain::jwt::ports::JwtService;
 use ferriskey_core::domain::user::ports::UserService;
-
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use uuid::Uuid;
 
 use super::http::server::app_state::AppState;
 

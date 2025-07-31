@@ -1,24 +1,20 @@
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+    user::validators::BulkDeleteUserValidator,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
-use ferriskey_core::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use crate::{
-    application::{
-        http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
-            },
-            user::validators::BulkDeleteUserValidator,
-        },
-    },
-};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[typeshare]

@@ -1,9 +1,9 @@
+use ferriskey_core::domain::role::value_objects::CreateRoleRequest;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
-use ferriskey_core::domain::role::value_objects::CreateRoleRequest;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 #[typeshare]

@@ -17,7 +17,6 @@ use clap::Parser;
 use ferriskey::application::http::server::app_state::AppState;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 
-
 use ferriskey::env::{AppEnv, Env};
 use ferriskey_core::application::common::factories::UseCaseFactory;
 use ferriskey_core::application::orchestrators::startup_orchestrator::{

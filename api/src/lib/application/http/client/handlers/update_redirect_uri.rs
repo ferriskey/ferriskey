@@ -1,21 +1,19 @@
-use axum::extract::State;
-use tracing::info;
-use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
-use ferriskey_core::domain::client::ports::RedirectUriService;
-use crate::{
-    application::http::{
-        client::{
-            routes::client_routes::UpdateRedirectUriRoute, validators::UpdateRedirectUriValidator,
+use crate::application::http::{
+    client::{
+        routes::client_routes::UpdateRedirectUriRoute, validators::UpdateRedirectUriValidator,
+    },
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
         },
-        server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response,
-            },
-            app_state::AppState,
-        },
+        app_state::AppState,
     },
 };
+use axum::extract::State;
+use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
+use ferriskey_core::domain::client::ports::RedirectUriService;
+use tracing::info;
 
 #[utoipa::path(
     put,

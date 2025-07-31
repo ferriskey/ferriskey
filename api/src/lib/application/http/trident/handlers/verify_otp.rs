@@ -1,29 +1,25 @@
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
+    },
+    trident::validators::OtpVerifyRequest,
+};
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
-use serde::{Deserialize, Serialize};
-use tracing::error;
-use typeshare::typeshare;
-use utoipa::ToSchema;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::credential::ports::CredentialService;
 use ferriskey_core::domain::trident::entities::TotpSecret;
 use ferriskey_core::domain::trident::ports::TotpService;
 use ferriskey_core::domain::user::entities::RequiredAction;
 use ferriskey_core::domain::user::ports::UserService;
-use crate::{
-    application::{
-        http::{
-            server::{
-                api_entities::{
-                    api_error::{ApiError, ValidateJson},
-                    response::Response,
-                },
-                app_state::AppState,
-            },
-            trident::validators::OtpVerifyRequest,
-        },
-    },
-};
+use serde::{Deserialize, Serialize};
+use tracing::error;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 #[typeshare]
