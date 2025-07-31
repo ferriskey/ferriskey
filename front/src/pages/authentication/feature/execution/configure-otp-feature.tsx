@@ -16,7 +16,6 @@ export default function ConfigureOtpFeature() {
   const {
     mutate: authenticate,
     data: authenticateData,
-    status: authenticateStatus,
   } = useAuthenticateMutation()
   const { mutate: verifyOtp, data: verifyOtpData, status: verifyOtpStatus } = useVerifyOtp()
 
