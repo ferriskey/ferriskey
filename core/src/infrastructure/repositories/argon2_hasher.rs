@@ -79,9 +79,8 @@ impl HasherRepository for Argon2HasherRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::test;
 
-    #[test]
+    #[tokio::test]
     async fn test_hash_password_success() {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
@@ -104,7 +103,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_verify_password_success() {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
@@ -124,7 +123,7 @@ mod tests {
         assert!(result.unwrap(), "Password should be verified");
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_verify_password_wrong_password() {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
@@ -145,7 +144,7 @@ mod tests {
         assert!(!result.unwrap(), "Bad password should not be verified");
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_verify_password_invalid_hash() {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
@@ -166,7 +165,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_different_passwords_different_hashes() {
         let hasher = Argon2HasherRepository::new();
         let password1 = "first_password";
@@ -181,7 +180,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_same_password_different_hashes() {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";

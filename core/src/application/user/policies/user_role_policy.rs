@@ -191,8 +191,9 @@ impl UserRolePolicy {
 
 #[cfg(test)]
 mod tests {
+    use crate::application::user::policies::user_role_policy::UserRolePolicy;
     use crate::domain::{
-        role::entities::permission::Permissions, user::policies::user_role_policy::UserRolePolicy,
+        role::entities::permission::Permissions,
     };
 
     #[test]
