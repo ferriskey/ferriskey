@@ -1,8 +1,9 @@
 use std::vec;
 
-use tracing::info;
-use uuid::Uuid;
-
+use crate::application::common::services::{
+    DefaultClientService, DefaultCredentialService, DefaultJwtService, DefaultRealmService,
+    DefaultRedirectUriService, DefaultRoleService, DefaultUserRoleService, DefaultUserService,
+};
 use crate::domain::{
     client::{
         ports::{ClientService, RedirectUriService},
@@ -20,6 +21,8 @@ use crate::domain::{
         value_objects::CreateUserRequest,
     },
 };
+use tracing::info;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct StartupConfig {
@@ -38,47 +41,27 @@ pub struct InitializationResult {
     pub default_client_id: Uuid,
 }
 
-pub struct StartupOrchestrator<R, U, C, RO, J, UR, CR, RU>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-    RO: RoleService,
-    J: JwtService,
-    UR: UserRoleService,
-    CR: CredentialService,
-    RU: RedirectUriService,
-{
-    realm_service: R,
-    user_service: U,
-    client_service: C,
-    role_service: RO,
-    jwt_service: J,
-    user_role_service: UR,
-    credential_service: CR,
-    redirect_uri_service: RU,
+pub struct StartupOrchestrator {
+    realm_service: DefaultRealmService,
+    user_service: DefaultUserService,
+    client_service: DefaultClientService,
+    role_service: DefaultRoleService,
+    jwt_service: DefaultJwtService,
+    user_role_service: DefaultUserRoleService,
+    credential_service: DefaultCredentialService,
+    redirect_uri_service: DefaultRedirectUriService,
 }
 
-impl<R, U, C, RO, J, UR, CR, RU> StartupOrchestrator<R, U, C, RO, J, UR, CR, RU>
-where
-    R: RealmService,
-    U: UserService,
-    C: ClientService,
-    RO: RoleService,
-    J: JwtService,
-    UR: UserRoleService,
-    CR: CredentialService,
-    RU: RedirectUriService,
-{
+impl StartupOrchestrator {
     pub fn new(
-        realm_service: R,
-        user_service: U,
-        client_service: C,
-        role_service: RO,
-        jwt_service: J,
-        user_role_service: UR,
-        credential_service: CR,
-        redirect_uri_service: RU,
+        realm_service: DefaultRealmService,
+        user_service: DefaultUserService,
+        client_service: DefaultClientService,
+        role_service: DefaultRoleService,
+        jwt_service: DefaultJwtService,
+        user_role_service: DefaultUserRoleService,
+        credential_service: DefaultCredentialService,
+        redirect_uri_service: DefaultRedirectUriService,
     ) -> Self {
         Self {
             realm_service,

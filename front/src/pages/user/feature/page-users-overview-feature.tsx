@@ -1,4 +1,4 @@
-import { User } from '@/api/api.interface'
+import { User } from '@/api/core.interface'
 import { RouterParams } from '@/routes/router'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'

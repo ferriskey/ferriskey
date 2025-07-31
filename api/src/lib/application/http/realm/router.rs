@@ -11,7 +11,6 @@ use crate::application::http::server::app_state::AppState;
 use axum::{Router, middleware};
 use axum_extra::routing::RouterExt;
 use utoipa::OpenApi;
-
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 
 #[derive(OpenApi)]

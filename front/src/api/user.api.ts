@@ -2,7 +2,8 @@ import { authStore } from "@/store/auth.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
 import { CreateUserSchema, UpdateUserSchema } from '../pages/user/validators'
-import { BulkDeleteUserResponse, CreateUserResponse, CredentialOverview, GetUserCredentialsResponse, UpdateUserResponse, User, UserResponse, UsersResponse, GetUserRolesResponse } from "./api.interface"
+import { CredentialOverview, User } from "./core.interface"
+import { BulkDeleteUserResponse, CreateUserResponse, GetUserCredentialsResponse, UpdateUserResponse, UserResponse, UsersResponse, GetUserRolesResponse } from './api.interface'
 
 export interface UserMutateContract<T> {
   realm?: string,

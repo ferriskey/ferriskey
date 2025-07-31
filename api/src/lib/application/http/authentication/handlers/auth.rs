@@ -12,16 +12,16 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use validator::Validate;
+use ferriskey_core::domain::authentication::entities::AuthenticationError;
+use ferriskey_core::domain::authentication::ports::AuthSessionService;
+use ferriskey_core::domain::authentication::value_objects::CreateAuthSessionRequest;
+use ferriskey_core::domain::client::ports::{ClientService, RedirectUriService};
+use ferriskey_core::domain::realm::ports::RealmService;
 
-use crate::domain::authentication::entities::dto::CreateAuthSessionDto;
 use crate::{
     application::http::server::{api_entities::api_error::ApiError, app_state::AppState},
-    domain::{
-        authentication::ports::auth_session::AuthSessionService,
-        client::ports::{client_service::ClientService, redirect_uri_service::RedirectUriService},
-        realm::ports::realm_service::RealmService,
-    },
 };
+
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct AuthRequest {
@@ -59,12 +59,14 @@ pub async fn auth(
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let realm = state
+        .service_bundle
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(|_| ApiError::InternalServerError("".to_string()))?;
 
     let client = state
+        .service_bundle
         .client_service
         .get_by_client_id(params.client_id.clone(), realm.id)
         .await
@@ -73,6 +75,7 @@ pub async fn auth(
     let redirect_uri = params.redirect_uri.clone();
 
     let client_redirect_uris = state
+        .service_bundle
         .redirect_uri_service
         .get_enabled_by_client_id(client.id)
         .await
@@ -98,19 +101,23 @@ pub async fn auth(
         return Err(ApiError::Unauthorized("Client is disabled".to_string()));
     }
 
-    let dto = CreateAuthSessionDto::new(realm.id, client.id, redirect_uri).with_oauth_params(
-        params.response_type,
-        params.scope.unwrap_or_default(),
-        params.state.clone(),
-        None,
-    );
 
     let session = state
+        .service_bundle
         .auth_session_service
-        .create_session(dto)
+        .create_session(CreateAuthSessionRequest {
+            state: params.state.clone(),
+            client_id: client.id,
+            redirect_uri,
+            scope: params.scope.unwrap_or_default(),
+            nonce: None,
+            response_type: params.response_type,
+            realm_id: realm.id,
+            user_id: None,
+        })
         .await
         .map_err(
-            |e: crate::domain::authentication::entities::auth_session::AuthSessionError| {
+            |e: AuthenticationError| {
                 ApiError::InternalServerError(e.to_string())
             },
         )?;

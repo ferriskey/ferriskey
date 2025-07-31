@@ -4,12 +4,13 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
+use ferriskey_core::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::role::entities::Role;
 use crate::{
     application::{
-        auth::Identity,
         http::{
-            role::{policies::RolePolicy, validators::UpdateRolePermissionsValidator},
+            role::{validators::UpdateRolePermissionsValidator},
             server::{
                 api_entities::{
                     api_error::{ApiError, ValidateJson},
@@ -17,13 +18,6 @@ use crate::{
                 },
                 app_state::AppState,
             },
-        },
-    },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        role::{
-            entities::{UpdateRolePermissionsDto, models::Role},
-            ports::RoleService,
         },
     },
 };
@@ -66,27 +60,18 @@ pub async fn update_role_permissions(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRolePermissionsValidator>,
 ) -> Result<Response<UpdateRolePermissionsResponse>, ApiError> {
-    let realm = state
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
-    if !RolePolicy::update(identity, state.clone(), realm).await? {
-        return Err(ApiError::Forbidden(
-            "User not allowed to update role".to_string(),
-        ));
-    }
     let role = state
-        .role_service
-        .update_permissions_by_id(
-            role_id,
-            UpdateRolePermissionsDto {
+        .use_case_bundle
+        .update_role_permissions_use_case
+        .execute(
+            identity,
+            UpdateRolePermissionsUseCaseParams {
                 permissions: payload.permissions,
-            },
-        )
-        .await
-        .map_err(ApiError::from)?;
+                role_id,
+                realm_name
+            }
+        ).await?;
+
 
     Ok(Response::OK(UpdateRolePermissionsResponse { data: role }))
 }

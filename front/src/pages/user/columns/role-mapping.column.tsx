@@ -1,4 +1,4 @@
-import { Role } from '@/api/api.interface'
+import { Role } from '@/api/core.interface'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { ColumnDef } from '@/components/ui/data-table'
 

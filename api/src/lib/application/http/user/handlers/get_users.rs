@@ -3,15 +3,13 @@ use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
-
+use ferriskey_core::domain::realm::ports::RealmService;
+use ferriskey_core::domain::user::entities::User;
+use ferriskey_core::domain::user::ports::UserService;
 use crate::{
     application::http::server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
-    },
-    domain::{
-        realm::ports::realm_service::RealmService,
-        user::{entities::model::User, ports::user_service::UserService},
     },
 };
 
@@ -40,12 +38,14 @@ pub async fn get_users(
     State(state): State<AppState>,
 ) -> Result<Response<UsersResponse>, ApiError> {
     let realm = state
+        .service_bundle
         .realm_service
         .get_by_name(realm_name)
         .await
         .map_err(ApiError::from)?;
 
     let users = state
+        .service_bundle
         .user_service
         .find_by_realm_id(realm.id)
         .await

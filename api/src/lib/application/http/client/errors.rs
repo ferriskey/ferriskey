@@ -1,6 +1,7 @@
+use ferriskey_core::domain::client::entities::ClientError;
+use ferriskey_core::domain::client::entities::redirect_uri::RedirectUriError;
 use crate::{
     application::http::server::api_entities::api_error::ApiError,
-    domain::client::entities::{error::ClientError, redirect_uri_error::RedirectUriError},
 };
 
 impl From<ClientError> for ApiError {
@@ -20,6 +21,7 @@ impl From<ClientError> for ApiError {
             ClientError::InvalidRedirectUri => {
                 ApiError::validation_error("Redirect URI format is invalid", "redirect_uri")
             }
+            ClientError::Forbidden(e) => ApiError::Forbidden(e),
         }
     }
 }

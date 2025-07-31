@@ -1,4 +1,4 @@
-import { RedirectUri } from '@/api/api.interface'
+import { RedirectUri } from '@/api/core.interface'
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
 import { Button } from '@/components/ui/button'
 import { InputText } from '@/components/ui/input-text'

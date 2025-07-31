@@ -1,15 +1,14 @@
 use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
-
-use crate::application::auth::Identity;
-use crate::application::http::realm::policies::RealmPolicy;
+use ferriskey_core::application::realm::use_cases::create_realm_use_case::CreateRealmUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::realm::entities::Realm;
 use crate::application::http::realm::validators::CreateRealmValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
-use crate::domain::user::ports::user_service::UserService;
+
 
 #[derive(TypedPath)]
 #[typed_path("/realms")]
@@ -30,27 +29,16 @@ pub async fn create_realm(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRealmValidator>,
 ) -> Result<Response<Realm>, ApiError> {
-    let c = RealmPolicy::create(identity.clone(), state.clone()).await?;
+    let realm = state
+        .use_case_bundle
+        .create_realm_use_case
+        .execute(
+            identity,
+            CreateRealmUseCaseParams {
+                realm_name: payload.name
+            }
+        ).await?;
 
-    if !c {
-        return Err(ApiError::Forbidden(
-            "You do not have permission to create a realm".into(),
-        ));
-    }
 
-    let user = match identity {
-        Identity::User(user) => user,
-        Identity::Client(client) => state
-            .user_service
-            .get_by_client_id(client.id)
-            .await
-            .map_err(|_| ApiError::Forbidden("Service account not found".to_string()))?,
-    };
-
-    state
-        .realm_service
-        .create_realm_with_user(payload.name, &user)
-        .await
-        .map_err(ApiError::from)
-        .map(Response::Created)
+    Ok(Response::Created(realm))
 }

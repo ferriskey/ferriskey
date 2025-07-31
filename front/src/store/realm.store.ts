@@ -1,4 +1,4 @@
-import { Realm } from "@/api/api.interface";
+import { Realm } from "@/api/core.interface";
 import { create } from "zustand";
 
 interface State {

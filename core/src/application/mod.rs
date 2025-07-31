@@ -1,5 +1,7 @@
 pub mod authentication;
+pub mod client;
 pub mod common;
-mod orchestrators;
+pub mod orchestrators;
+pub mod realm;
 pub mod role;
-mod user;
+pub mod user;

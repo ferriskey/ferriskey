@@ -4,10 +4,14 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use typeshare::typeshare;
 use utoipa::ToSchema;
-
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::credential::ports::CredentialService;
+use ferriskey_core::domain::trident::entities::TotpSecret;
+use ferriskey_core::domain::trident::ports::TotpService;
+use ferriskey_core::domain::user::entities::RequiredAction;
+use ferriskey_core::domain::user::ports::UserService;
 use crate::{
     application::{
-        auth::Identity,
         http::{
             server::{
                 api_entities::{
@@ -18,11 +22,6 @@ use crate::{
             },
             trident::validators::OtpVerifyRequest,
         },
-    },
-    domain::{
-        credential::ports::credential_service::CredentialService,
-        trident::{entities::TotpSecret, ports::TotpService},
-        user::{entities::required_action::RequiredAction, ports::user_service::UserService},
     },
 };
 
@@ -71,6 +70,7 @@ pub async fn verify_otp(
     let secret = TotpSecret::from_base32(&payload.secret);
 
     let is_valid = state
+        .service_bundle
         .totp_service
         .verify(&secret, &payload.code)
         .map_err(|_| ApiError::InternalServerError("Failed to verify OTP".to_string()))?;
@@ -89,6 +89,7 @@ pub async fn verify_otp(
     });
 
     state
+        .service_bundle
         .credential_service
         .create_custom_credential(
             user.id,
@@ -100,6 +101,7 @@ pub async fn verify_otp(
         .await?;
 
     state
+        .service_bundle
         .user_service
         .remove_required_action(user.id, RequiredAction::ConfigureOtp)
         .await?;

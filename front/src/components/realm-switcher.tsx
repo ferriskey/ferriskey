@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
-import { Realm } from '@/api/api.interface'
+import { Realm } from '@/api/core.interface'
 import useRealmStore from '@/store/realm.store'
 import { ChevronsUpDown, Command, Map, Plus } from 'lucide-react'
 import {

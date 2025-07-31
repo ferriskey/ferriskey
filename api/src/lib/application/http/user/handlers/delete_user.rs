@@ -4,16 +4,15 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
+use ferriskey_core::application::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use crate::{
     application::{
-        auth::Identity,
         http::server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
         },
     },
-    domain::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -47,8 +46,9 @@ pub async fn delete_user(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserResponse>, ApiError> {
     let count = state
-        .user_orchestrator
-        .delete_user(
+        .use_case_bundle
+        .delete_user_use_case
+        .execute(
             identity,
             DeleteUserUseCaseParams {
                 realm_name,

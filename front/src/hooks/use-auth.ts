@@ -1,4 +1,4 @@
-import { GrantType } from '@/api/api.interface'
+import { GrantType } from '@/api/core.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'

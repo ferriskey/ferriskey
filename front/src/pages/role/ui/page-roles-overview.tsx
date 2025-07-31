@@ -1,4 +1,4 @@
-import { Role } from '@/api/api.interface'
+import { Role } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2, Settings } from 'lucide-react'
 import { columns } from '../columns/list-client.column'

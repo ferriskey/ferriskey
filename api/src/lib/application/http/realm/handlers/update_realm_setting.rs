@@ -3,11 +3,12 @@ use crate::application::http::realm::validators::UpdateRealmSettingValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::realm::entities::realm_setting::RealmSetting;
-use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
+
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
+use ferriskey_core::domain::realm::entities::{Realm, RealmSetting};
+use ferriskey_core::domain::realm::ports::RealmService;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}/settings")]
@@ -33,12 +34,14 @@ pub async fn update_realm_setting(
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
 ) -> Result<Response<RealmSetting>, ApiError> {
     let realm = state
+        .service_bundle
         .realm_service
         .get_by_name(name)
         .await
         .map_err(ApiError::from)?;
 
     state
+        .service_bundle
         .realm_service
         .update_realm_setting(realm.id, payload.default_signing_algorithm)
         .await

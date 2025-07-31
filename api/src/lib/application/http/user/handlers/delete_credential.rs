@@ -4,13 +4,12 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
+use ferriskey_core::domain::credential::ports::CredentialService;
 use crate::{
     application::http::server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
     },
-    domain::credential::ports::credential_service::CredentialService,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -49,6 +48,7 @@ pub async fn delete_user_credential(
     State(state): State<AppState>,
 ) -> Result<Response<DeleteUserCredentialResponse>, ApiError> {
     state
+        .service_bundle
         .credential_service
         .delete_by_id(credential_id)
         .await

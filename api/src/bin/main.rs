@@ -14,13 +14,18 @@
 use std::sync::Arc;
 
 use clap::Parser;
+use ferriskey::application::http::server::app_state::AppState;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 
-use ferriskey::application::server::AppServer;
-
-use ferriskey::domain::mediator::ports::mediator_service::MediatorService;
 
 use ferriskey::env::{AppEnv, Env};
+use ferriskey_core::application::common::factories::UseCaseFactory;
+use ferriskey_core::application::orchestrators::startup_orchestrator::{
+    StartupConfig, StartupOrchestrator,
+};
+use ferriskey_core::infrastructure::common::factories::service_factory::{
+    ServiceFactory, ServiceFactoryConfig,
+};
 
 fn init_logger(env: Arc<Env>) {
     let filter: tracing::Level = env.log_level.clone().into();
@@ -48,28 +53,35 @@ async fn main() -> Result<(), anyhow::Error> {
     let env = Arc::new(Env::parse());
     init_logger(Arc::clone(&env));
 
-    let app_server = AppServer::new(Arc::clone(&env)).await?;
-    let app_state = app_server.create_app_state(env.clone());
+    let service_bundle = ServiceFactory::create_all_services(ServiceFactoryConfig {
+        database_url: env.database_url.clone(),
+    })
+    .await?;
 
-    match app_state.mediator_service.initialize_master_realm().await {
-        Ok(_) => tracing::info!("Master realm initialized successfully"),
-        Err(e) => {
-            tracing::error!("Failed to initialize master realm: {}", e);
-            return Err(e);
-        }
-    }
+    let use_case_bundle = UseCaseFactory::new(service_bundle.clone());
 
-    match app_state
-        .mediator_service
-        .initialize_admin_redirect_uris()
-        .await
-    {
-        Ok(_) => tracing::info!("Admin redirect URIs initialized successfully"),
-        Err(e) => {
-            tracing::error!("Failed to initialize admin redirect URIs: {}", e);
-            return Err(e);
-        }
-    }
+    let app_state = AppState::new(env.clone(), service_bundle.clone(), use_case_bundle);
+
+    let startup_orchestrator = StartupOrchestrator::new(
+        service_bundle.realm_service.clone(),
+        service_bundle.user_service.clone(),
+        service_bundle.client_service.clone(),
+        service_bundle.role_service.clone(),
+        service_bundle.jwt_service.clone(),
+        service_bundle.user_role_service.clone(),
+        service_bundle.credential_service.clone(),
+        service_bundle.redirect_uri_service.clone(),
+    );
+
+    startup_orchestrator
+        .initialize_application(StartupConfig {
+            admin_email: env.admin_email.clone(),
+            admin_password: env.admin_password.clone(),
+            admin_username: env.admin_username.clone(),
+            default_client_id: "security-admin-console".to_string(),
+            master_realm_name: "master".to_string(),
+        })
+        .await?;
 
     tracing::info!("FerrisKey API is starting...");
 

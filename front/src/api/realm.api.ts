@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from "."
-import { Realm, UserRealmsResponse } from "./api.interface"
+import { Realm } from "./core.interface"
+import { UserRealmsResponse } from './api.interface'
 import { authStore } from "@/store/auth.store"
 
 export interface UserRealmsQuery {

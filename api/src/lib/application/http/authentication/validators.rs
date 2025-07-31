@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use validator::Validate;
-
-use crate::domain::authentication::entities::grant_type::GrantType;
+use ferriskey_core::domain::authentication::entities::GrantType;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 #[typeshare]

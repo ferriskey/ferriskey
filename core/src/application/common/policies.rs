@@ -1,5 +1,5 @@
+use anyhow::anyhow;
 use std::collections::HashSet;
-
 use thiserror::Error;
 
 use crate::domain::{
@@ -163,5 +163,16 @@ where
 
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == "master" && user_realm.name != target_realm.name
+    }
+}
+
+pub fn ensure_permissions(
+    result_has_permission: Result<bool, anyhow::Error>,
+    error_message: &str,
+) -> Result<(), anyhow::Error> {
+    match result_has_permission {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(anyhow!("{}", error_message)),
+        Err(e) => Err(anyhow!("{}: {}", error_message, e)),
     }
 }

@@ -1,12 +1,12 @@
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::jwt::entities::jwt::JwkKey;
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
+use ferriskey_core::domain::jwt::entities::JwkKey;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/protocol/openid-connect/certs")]
@@ -35,7 +35,10 @@ pub async fn get_certs(
     GetCertsRoute { realm_name }: GetCertsRoute,
     State(state): State<AppState>,
 ) -> Result<Response<GetCertsResponse>, ApiError> {
-    let jwk_keys = state.auth_orchestrator.get_certs(realm_name).await?;
+    let jwk_keys = state.use_case_bundle.get_certs_use_case
+        .execute(realm_name)
+        .await
+        .map_err(ApiError::from)?;
 
     Ok(Response::OK(GetCertsResponse { keys: jwk_keys }))
 }

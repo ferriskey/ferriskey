@@ -1,4 +1,4 @@
-import { CredentialOverview } from "@/api/api.interface";
+import { CredentialOverview } from "@/api/core.interface";
 import { ColumnDef } from "@/components/ui/data-table";
 import SetPasswordFeature from '@/pages/user/feature/modals/set-password-feature'
 

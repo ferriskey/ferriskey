@@ -4,7 +4,8 @@ import { authStore } from "@/store/auth.store"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { apiClient, BaseQuery } from "."
-import { GetRoleResponse, GetRolesResponse, Role, UpdateRoleResponse } from "./api.interface"
+import { GetRoleResponse, GetRolesResponse, UpdateRoleResponse } from "./api.interface"
+import { Role } from "./core.interface"
 
 
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {

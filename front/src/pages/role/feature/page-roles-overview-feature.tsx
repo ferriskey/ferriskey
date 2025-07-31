@@ -1,4 +1,4 @@
-import { Role } from "@/api/api.interface"
+import { Role } from "@/api/core.interface"
 import { RouterParams } from "@/routes/router"
 import { useNavigate, useParams } from "react-router"
 import { useGetRoles } from '../../../api/role.api'

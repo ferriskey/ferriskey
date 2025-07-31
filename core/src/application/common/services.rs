@@ -3,11 +3,8 @@ use crate::{
         authentication::services::{
             auth_session_service::AuthSessionServiceImpl, grant_type_service::GrantTypeServiceImpl,
         },
-        client::{
-            ports::RedirectUriService,
-            services::{
-                client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
-            },
+        client::services::{
+            client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
         },
         credential::services::CredentialServiceImpl,
         crypto::services::CryptoServiceImpl,

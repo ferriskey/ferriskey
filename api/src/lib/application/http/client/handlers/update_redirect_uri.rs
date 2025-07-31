@@ -1,6 +1,7 @@
 use axum::extract::State;
 use tracing::info;
-
+use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
+use ferriskey_core::domain::client::ports::RedirectUriService;
 use crate::{
     application::http::{
         client::{
@@ -13,9 +14,6 @@ use crate::{
             },
             app_state::AppState,
         },
-    },
-    domain::client::{
-        entities::redirect_uri::RedirectUri, ports::redirect_uri_service::RedirectUriService,
     },
 };
 
@@ -47,6 +45,7 @@ pub async fn update_redirect_uri(
         realm_name, client_id, uri_id
     );
     state
+        .service_bundle
         .redirect_uri_service
         .update_enabled(uri_id, payload.enabled)
         .await

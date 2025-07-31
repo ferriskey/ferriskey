@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2024"
 authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
 
-[workspace]
-members = [".", "entity"]
-
 [[bin]]
 path = "src/bin/main.rs"
 name = "ferriskey-server"
@@ -16,8 +13,7 @@ path = "src/lib/lib.rs"
 name = "ferriskey"
 
 [dependencies]
-ferriskey-core = { path = "../core" }
-entity = { path = "entity" }
+ferriskey_core = { path = "../core" }
 anyhow = "1.0.97"
 argon2 = "0.5.3"
 axum = "0.8.1"
@@ -35,7 +31,11 @@ dotenv = "0.15.0"
 jsonwebtoken = "9.3.1"
 rand = "0.8.0"
 regex = "1.11.1"
-sea-orm = { version = "1.1.11", features = ["sqlx-postgres", "macros", "with-uuid"] }
+sea-orm = { version = "1.1.11", features = [
+    "sqlx-postgres",
+    "macros",
+    "with-uuid",
+] }
 serde = "1.0.219"
 serde_json = "1.0.140"
 sqlx = { version = "0.8.3", features = [

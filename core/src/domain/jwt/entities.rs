@@ -10,9 +10,12 @@ use rsa::{
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[typeshare]
 pub enum ClaimsTyp {
     Refresh,
     Bearer,
@@ -102,7 +105,8 @@ pub struct JwtKeyPair {
     pub public_key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[typeshare]
 pub struct JwkKey {
     pub kid: String,
     pub kty: String,

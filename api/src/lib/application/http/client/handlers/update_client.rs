@@ -2,7 +2,9 @@ use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
 use uuid::Uuid;
-
+use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::ports::ClientService;
+use ferriskey_core::domain::client::value_objects::UpdateClientRequest;
 use crate::{
     application::http::{
         client::validators::UpdateClientValidator,
@@ -13,10 +15,6 @@ use crate::{
             },
             app_state::AppState,
         },
-    },
-    domain::client::{
-        entities::{dto::UpdateClientDto, model::Client},
-        ports::client_service::ClientService,
     },
 };
 
@@ -46,11 +44,12 @@ pub async fn update_client(
     ValidateJson(payload): ValidateJson<UpdateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
     state
+        .service_bundle
         .client_service
         .update_client(
             client_id,
             realm_name,
-            UpdateClientDto {
+            UpdateClientRequest {
                 name: payload.name,
                 client_id: payload.client_id,
                 enabled: payload.enabled,

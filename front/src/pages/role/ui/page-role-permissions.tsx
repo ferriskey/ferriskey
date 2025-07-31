@@ -1,4 +1,4 @@
-import { Role } from '@/api/api.interface.ts'
+import { Role } from '@/api/core.interface.ts'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils.ts'

@@ -1,5 +1,5 @@
+use ferriskey_core::domain::realm::entities::RealmError;
 use crate::application::http::server::api_entities::api_error::ApiError;
-use crate::domain::realm::entities::error::RealmError;
 
 impl From<RealmError> for ApiError {
     fn from(value: RealmError) -> Self {

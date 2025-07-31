@@ -1,4 +1,4 @@
-import { Client } from '@/api/api.interface'
+import { Client } from '@/api/core.interface'
 import { useDeleteClient, useGetClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
 import { useNavigate, useParams } from 'react-router'

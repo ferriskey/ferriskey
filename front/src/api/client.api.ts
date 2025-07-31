@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, BaseQuery } from "."
-import { Client, ClientsResponse, DeleteClientResponse, GetClientResponse, GetRolesResponse } from './api.interface'
+import { ClientsResponse, DeleteClientResponse, GetClientResponse, GetRolesResponse } from './api.interface'
+import { Client } from "./core.interface"
 import { authStore } from "@/store/auth.store"
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
 import { UpdateClientSchema } from "@/pages/client/schemas/update-client.schema"

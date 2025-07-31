@@ -1,4 +1,4 @@
-use crate::domain::authentication::entities::error::AuthenticationError;
+
 use axum::{
     Json,
     extract::{Form, FromRequest, Request, rejection::FormRejection},
@@ -7,6 +7,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use validator::Validate;
+use ferriskey_core::domain::authentication::entities::AuthenticationError;
+use ferriskey_core::domain::jwt::entities::JwtError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ApiErrorData {
@@ -126,6 +128,22 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InvalidClientSecret => {
                 Self::Unauthorized("Invalid client secret".to_string())
             }
+        }
+    }
+}
+
+impl From<JwtError> for ApiError {
+    fn from(error: JwtError) -> Self {
+        match error {
+            JwtError::InvalidToken => Self::Unauthorized("Invalid token".to_string()),
+            JwtError::ValidationError(e) => Self::InternalServerError(e),
+            JwtError::ExpirationError(e) => Self::InternalServerError(e),
+            JwtError::GenerationError(e) => Self::InternalServerError(e),
+            JwtError::ExpiredToken => Self::InternalServerError("Token expired".to_string()),
+            JwtError::InvalidKey(e) => Self::InternalServerError(e),
+            JwtError::ParsingError(e) => Self::InternalServerError(e),
+            JwtError::RealmKeyNotFound => Self::InternalServerError("Realm key not found".to_string()),
+
         }
     }
 }

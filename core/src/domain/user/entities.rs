@@ -3,14 +3,20 @@ use std::fmt::Display;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::{common::generate_uuid_v7, realm::entities::Realm, role::entities::Role};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+#[typeshare]
 pub struct User {
+    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
+    #[typeshare(serialized_as = "string")]
     pub realm_id: Uuid,
+    #[typeshare(serialized_as = "string")]
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
@@ -21,7 +27,9 @@ pub struct User {
     pub roles: Vec<Role>,
     pub realm: Option<Realm>,
     pub required_actions: Vec<RequiredAction>,
+    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -51,7 +59,8 @@ pub enum UserError {
     Forbidden(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub enum RequiredAction {
     #[serde(rename = "configure_otp")]
     ConfigureOtp,

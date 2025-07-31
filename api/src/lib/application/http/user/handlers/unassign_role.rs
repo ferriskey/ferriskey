@@ -4,16 +4,15 @@ use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
+use ferriskey_core::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use crate::{
     application::{
-        auth::Identity,
         http::server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
         },
     },
-    domain::user::use_cases::unassign_role_use_case::UnassignRoleUseCaseParams,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -55,8 +54,9 @@ pub async fn unassign_role(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UnassignRoleResponse>, ApiError> {
     state
-        .user_orchestrator
-        .unassign_role(
+        .use_case_bundle
+        .unassign_role_use_case
+        .execute(
             identity,
             UnassignRoleUseCaseParams {
                 realm_name: realm_name.clone(),

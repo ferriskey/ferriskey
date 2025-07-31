@@ -6,18 +6,16 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
-
+use ferriskey_core::application::authentication::use_cases::authenticate_use_case::{AuthenticateUseCaseParams, AuthenticateUseCaseResponse, AuthenticationStepStatus};
+use ferriskey_core::domain::authentication::value_objects::AuthenticationResult;
+use ferriskey_core::domain::user::entities::RequiredAction;
 use crate::application::decoded_token::OptionalToken;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
 
-use crate::domain::authentication::use_cases::authenticate_use_case::{
-    AuthenticateCommand, AuthenticateResult, AuthenticationStepStatus,
-};
 
-use crate::domain::user::entities::required_action::RequiredAction;
 
 #[derive(Serialize, Deserialize)]
 #[typeshare]
@@ -62,8 +60,8 @@ pub struct TokenRoute {
     realm_name: String,
 }
 
-impl From<AuthenticateResult> for AuthenticateResponse {
-    fn from(result: AuthenticateResult) -> Self {
+impl From<AuthenticateUseCaseResponse> for AuthenticateResponse {
+    fn from(result: AuthenticateUseCaseResponse) -> Self {
         match result.status {
             AuthenticationStepStatus::Success => AuthenticateResponse {
                 status: AuthenticationStatus::Success,
@@ -124,13 +122,13 @@ pub async fn authenticate(
 
     let session_code = Uuid::parse_str(&session_code).unwrap();
 
-    let command = if let Some(token) = optional_token {
-        AuthenticateCommand::with_existing_token(
+    let authenticate_params = if let Some(token) = optional_token {
+        AuthenticateUseCaseParams::with_existing_token(
             realm_name,
             query.client_id,
             session_code,
             base_url,
-            token.token,
+            token.token
         )
     } else {
         let username = payload
@@ -142,7 +140,7 @@ pub async fn authenticate(
             .clone()
             .ok_or_else(|| ApiError::BadRequest("password is required".to_string()))?;
 
-        AuthenticateCommand::with_user_credentials(
+        AuthenticateUseCaseParams::with_user_credentials(
             realm_name.clone(),
             query.client_id.clone(),
             session_code,
@@ -151,14 +149,13 @@ pub async fn authenticate(
             password,
         )
     };
-
     let result = state
-        .auth_orchestrator
-        .authenticate(command)
-        .await
-        .map_err(|_| ApiError::Unauthorized("invalid credentials".to_string()))?;
+        .use_case_bundle
+        .authenticate_use_case
+        .execute(
+            authenticate_params
+        ).await?;
 
     let response: AuthenticateResponse = result.into();
-
     Ok(Response::OK(response))
 }

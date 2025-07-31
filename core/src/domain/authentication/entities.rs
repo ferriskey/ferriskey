@@ -3,11 +3,14 @@ use std::fmt::Display;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub struct JwtToken {
     access_token: String,
     token_type: String,
@@ -137,7 +140,8 @@ impl AuthSession {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ToSchema)]
+#[typeshare]
 pub enum GrantType {
     #[default]
     #[serde(rename = "authorization_code")]

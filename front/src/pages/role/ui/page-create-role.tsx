@@ -1,6 +1,6 @@
 import { UseFormReturn } from "react-hook-form";
 import { CreateRoleSchema } from "../schemas/create-role.schema";
-import { Client, Permissions } from "@/api/api.interface";
+import { Client, Permissions } from "@/api/core.interface";
 import { FormField } from "@/components/ui/form";
 import { InputText } from "@/components/ui/input-text";
 import { Button } from "@/components/ui/button";

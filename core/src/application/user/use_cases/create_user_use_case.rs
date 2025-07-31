@@ -5,7 +5,6 @@ use crate::{
     },
     domain::{
         authentication::value_objects::Identity,
-        client::ports::ClientService,
         realm::ports::RealmService,
         user::{
             entities::{User, UserError},

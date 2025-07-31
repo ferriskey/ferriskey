@@ -7,7 +7,7 @@ import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
 import { apiUrl } from '@/api'
-import { AuthenticationStatus } from '@/api/api.interface'
+import { AuthenticationStatus } from '@/api/api.interface.ts'
 
 const authenticateSchema = z.object({
   username: z.string().min(1),

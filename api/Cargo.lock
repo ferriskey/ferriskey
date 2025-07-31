@@ -137,8 +137,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenv",
- "entity",
- "ferriskey-core",
+ "ferriskey_core",
  "hmac",
  "jsonwebtoken",
  "rand 0.8.5",
@@ -906,7 +905,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
-name = "ferriskey-core"
+name = "ferriskey_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -915,10 +914,12 @@ dependencies = [
  "base64 0.22.1",
  "base64-url",
  "chrono",
+ "entity",
  "hmac",
  "jsonwebtoken",
  "rand 0.8.5",
  "rsa",
+ "sea-orm",
  "serde",
  "serde_json",
  "sha1",
@@ -2286,9 +2287,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm"
-version = "1.1.11"
+version = "1.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7cf58b28bcf1e053539c38afbb60d963ac8e1db87f6109db7b0eff4cbeaefb3"
+checksum = "34963b2d68331ef5fbc8aa28a53781471c15f90ba1ad4f2689d21ce8b9a9d1f1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2315,9 +2316,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-macros"
-version = "1.1.11"
+version = "1.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cac37512fde1f5b9ef71ec773cfabb90ad3b68c27e53131ff38763c247fcbb2d"
+checksum = "a489127c872766445b4e28f846825f89a076ac3af2591d1365503a68f93e974c"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",

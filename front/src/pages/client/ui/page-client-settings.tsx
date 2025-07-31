@@ -1,4 +1,4 @@
-import { Client } from '@/api/api.interface'
+import { Client } from '@/api/core.interface'
 import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import ManageRedirectUris from '../components/manage-redirect-uris'

@@ -1,4 +1,4 @@
-import { CredentialOverview } from "@/api/api.interface";
+import { CredentialOverview } from "@/api/core.interface";
 import { DataTable } from "@/components/ui/data-table";
 import { columnsUserCredential } from "../columns/list-user-credential.column";
 import SetPasswordFeature from "../feature/modals/set-password-feature";

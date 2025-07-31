@@ -1,20 +1,19 @@
-use crate::domain::user::use_cases::get_user_roles_use_case::GetUserRolesUseCaseParams;
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
+use ferriskey_core::application::user::use_cases::get_user_roles_use_case::GetUserRolesUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::role::entities::Role;
 use crate::{
     application::{
-        auth::Identity,
         http::server::{
             api_entities::{api_error::ApiError, response::Response},
             app_state::AppState,
         },
     },
-    domain::role::entities::models::Role,
 };
 
 #[derive(TypedPath, Deserialize)]
@@ -53,8 +52,9 @@ pub async fn get_user_roles(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetUserRolesResponse>, ApiError> {
     let roles = state
-        .user_orchestrator
-        .get_user_roles(
+        .use_case_bundle
+        .get_user_roles_use_case
+        .execute(
             identity,
             GetUserRolesUseCaseParams {
                 realm_name,

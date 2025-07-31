@@ -1,4 +1,4 @@
-import { Permissions } from "@/api/api.interface";
+import { Permissions } from "@/api/core.interface";
 import { useGetClients } from "@/api/client.api";
 import { useCreateRole } from "@/api/role.api";
 import { RouterParams } from "@/routes/router";

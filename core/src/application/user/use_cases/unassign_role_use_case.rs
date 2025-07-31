@@ -9,12 +9,8 @@ use crate::{
     },
     domain::{
         authentication::value_objects::Identity,
-        client::ports::ClientService,
         realm::ports::RealmService,
-        user::{
-            entities::UserError,
-            ports::{UserRoleService, UserService},
-        },
+        user::{entities::UserError, ports::UserRoleService},
     },
 };
 

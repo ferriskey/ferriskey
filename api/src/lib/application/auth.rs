@@ -13,15 +13,12 @@ use base64::{Engine, engine::general_purpose};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::client::ports::ClientService;
+use ferriskey_core::domain::jwt::entities::{ClaimsTyp, JwtClaim};
+use ferriskey_core::domain::jwt::ports::JwtService;
+use ferriskey_core::domain::user::ports::UserService;
 
-use crate::domain::{
-    client::{entities::model::Client, ports::client_service::ClientService},
-    jwt::{
-        entities::jwt_claim::{ClaimsTyp, JwtClaim},
-        ports::jwt_service::JwtService,
-    },
-    user::{entities::model::User, ports::user_service::UserService},
-};
 
 use super::http::server::app_state::AppState;
 
@@ -90,54 +87,6 @@ impl IntoResponse for AuthError {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Identity {
-    User(User),
-    Client(Client),
-}
-
-impl Identity {
-    pub fn id(&self) -> Uuid {
-        match self {
-            Self::User(user) => user.id,
-            Self::Client(client) => client.id,
-        }
-    }
-
-    pub fn is_service_account(&self) -> bool {
-        matches!(self, Self::Client(_))
-    }
-
-    pub fn is_regular_user(&self) -> bool {
-        matches!(self, Self::User(user) if user.client_id.is_none())
-    }
-
-    pub fn as_user(&self) -> Option<&User> {
-        match self {
-            Self::User(user) => Some(user),
-            _ => None,
-        }
-    }
-
-    pub fn as_client(&self) -> Option<&Client> {
-        match self {
-            Self::Client(client) => Some(client),
-            _ => None,
-        }
-    }
-
-    pub fn realm_id(&self) -> Uuid {
-        match self {
-            Self::User(user) => user.realm_id,
-            Self::Client(client) => client.realm_id,
-        }
-    }
-
-    pub fn has_access_to_realm(&self, realm_id: Uuid) -> bool {
-        self.realm_id() == realm_id
-    }
-}
-
 impl<S> FromRequestParts<S> for Jwt
 where
     S: Send + Sync,
@@ -203,12 +152,14 @@ pub async fn auth(
     }
 
     let user = state
+        .service_bundle
         .user_service
         .get_by_id(claims.sub)
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     let _ = state
+        .service_bundle
         .jwt_service
         .verify_token(jwt.token, user.realm_id)
         .await
@@ -226,6 +177,7 @@ pub async fn auth(
 
             let client_id = Uuid::parse_str(&client_id).map_err(|_| StatusCode::UNAUTHORIZED)?;
             let client = state
+                .service_bundle
                 .client_service
                 .get_by_id(client_id)
                 .await

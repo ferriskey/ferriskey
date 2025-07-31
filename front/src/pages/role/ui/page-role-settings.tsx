@@ -1,4 +1,4 @@
-import { Role } from '@/api/api.interface'
+import { Role } from '@/api/core.interface'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft } from 'lucide-react'

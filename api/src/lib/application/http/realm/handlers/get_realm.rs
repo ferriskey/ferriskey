@@ -1,11 +1,12 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
-
+use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::realm::ports::RealmService;
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::realm::{entities::realm::Realm, ports::realm_service::RealmService};
+
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}")]
@@ -29,6 +30,7 @@ pub async fn get_realm(
     State(state): State<AppState>,
 ) -> Result<Response<Realm>, ApiError> {
     state
+        .service_bundle
         .realm_service
         .get_by_name(name)
         .await

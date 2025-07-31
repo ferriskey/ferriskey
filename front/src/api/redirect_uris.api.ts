@@ -1,7 +1,7 @@
 import { authStore } from "@/store/auth.store"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "."
-import { RedirectUri } from "./api.interface"
+import { RedirectUri } from "./core.interface"
 
 export interface CreateRedirectUriMutate {
   realmName: string,

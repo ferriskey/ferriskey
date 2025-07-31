@@ -1,4 +1,4 @@
-import { Client } from "@/api/api.interface";
+import { Client } from "@/api/core.interface";
 import { InputText } from "@/components/ui/input-text";
 import { Label } from "@/components/ui/label";
 

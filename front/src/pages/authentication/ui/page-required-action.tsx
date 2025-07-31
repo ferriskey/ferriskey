@@ -1,4 +1,4 @@
-import { RequiredAction } from '@/api/api.interface'
+import { RequiredAction } from '@/api/core.interface'
 import { match } from 'ts-pattern'
 import ConfigureOtpFeature from '../feature/execution/configure-otp-feature'
 

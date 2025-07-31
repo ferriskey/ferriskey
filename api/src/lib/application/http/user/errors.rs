@@ -1,6 +1,7 @@
+use ferriskey_core::domain::credential::entities::CredentialError;
+use ferriskey_core::domain::user::entities::UserError;
 use crate::{
     application::http::server::api_entities::api_error::ApiError,
-    domain::{credential::entities::error::CredentialError, user::entities::error::UserError},
 };
 
 impl From<UserError> for ApiError {

@@ -1,4 +1,4 @@
-import { Role } from '@/api/api.interface'
+import { Role } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { columns } from '../columns/list-client-roles.column'
 

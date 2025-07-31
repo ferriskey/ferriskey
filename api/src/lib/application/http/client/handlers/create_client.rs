@@ -1,6 +1,8 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Deserialize;
+use ferriskey_core::application::client::use_cases::create_client_use_case::CreateClientUseCaseParams;
+use ferriskey_core::domain::client::entities::Client;
 
 use crate::{
     application::http::{
@@ -12,14 +14,6 @@ use crate::{
             },
             app_state::AppState,
         },
-    },
-    domain::{
-        client::{
-            entities::{dto::CreateClientDto, model::Client},
-            ports::client_service::ClientService,
-        },
-        realm::ports::realm_service::RealmService,
-        utils::generate_random_string,
     },
 };
 
@@ -43,27 +37,22 @@ pub async fn create_client(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
-    let realm = state.realm_service.get_by_name(realm_name.clone()).await?;
-
-    let secret = (!payload.public_client).then(generate_random_string);
-
-    state
-        .client_service
-        .create_client(
-            CreateClientDto {
-                realm_id: realm.id,
-                name: payload.name,
-                client_id: payload.client_id,
-                secret,
-                enabled: payload.enabled,
-                protocol: payload.protocol,
-                public_client: payload.public_client,
-                service_account_enabled: payload.service_account_enabled,
-                client_type: payload.client_type,
-            },
+    let client = state
+        .use_case_bundle
+        .create_client_use_case
+        .execute(CreateClientUseCaseParams {
+            client_id: payload.client_id,
+            client_type: payload.client_type,
+            public_client: payload.public_client,
             realm_name,
-        )
-        .await
-        .map_err(ApiError::from)
-        .map(Response::Created)
+            enabled: payload.enabled,
+            name: payload.name,
+            protocol: payload.protocol,
+            service_account_enabled: payload.service_account_enabled,
+
+        }).await?;
+
+    Ok(Response::Created(client))
+
+
 }

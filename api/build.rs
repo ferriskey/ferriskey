@@ -4,7 +4,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-env-changed=FORCE_REBUILD");
     println!("cargo:rerun-if-changed=migrations");
-
+    
     let _ = Command::new("typeshare")
         .args([
             "./",

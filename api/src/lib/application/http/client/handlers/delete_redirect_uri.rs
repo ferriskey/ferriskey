@@ -1,6 +1,6 @@
 use axum::extract::State;
 use tracing::info;
-
+use ferriskey_core::domain::client::ports::RedirectUriService;
 use crate::{
     application::http::{
         client::routes::client_routes::DeleteRedirectUriRoute,
@@ -9,7 +9,6 @@ use crate::{
             app_state::AppState,
         },
     },
-    domain::client::ports::redirect_uri_service::RedirectUriService,
 };
 
 #[utoipa::path(
@@ -38,6 +37,7 @@ pub async fn delete_redirect_uri(
         realm_name, client_id, uri_id
     );
     state
+        .service_bundle
         .redirect_uri_service
         .delete(uri_id)
         .await

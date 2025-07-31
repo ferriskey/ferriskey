@@ -4,9 +4,10 @@ import {
   AuthenticateRequest,
   AuthenticateResponse,
   AuthResponse,
-  JwtToken,
   TokenRequestValidator,
 } from './api.interface'
+
+import { JwtToken } from './core.interface'
 
 export interface AuthenticatePayload {
   data: AuthenticateRequest

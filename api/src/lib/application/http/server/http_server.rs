@@ -20,7 +20,6 @@ use tracing::info_span;
 use tracing::log::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-
 use super::config::get_config;
 
 pub struct HttpServerConfig {

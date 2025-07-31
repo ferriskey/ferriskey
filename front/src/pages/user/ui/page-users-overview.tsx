@@ -1,4 +1,4 @@
-import { User } from '@/api/api.interface'
+import { User } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'

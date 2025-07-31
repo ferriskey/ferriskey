@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use typeshare::typeshare;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -14,6 +16,36 @@ pub struct Credential {
     pub credential_data: CredentialData,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[typeshare]
+pub struct CredentialOverview {
+    #[typeshare(serialized_as = "string")]
+    pub id: Uuid,
+    #[typeshare(serialized_as = "string")]
+    pub user_id: Uuid,
+    pub credential_type: String,
+    pub user_label: Option<String>,
+    pub credential_data: CredentialData,
+    #[typeshare(serialized_as = "Date")]
+    pub created_at: DateTime<Utc>,
+    #[typeshare(serialized_as = "Date")]
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<Credential> for CredentialOverview {
+    fn from(credential: Credential) -> Self {
+        Self {
+            id: credential.id,
+            user_id: credential.user_id,
+            credential_type: credential.credential_type,
+            user_label: credential.user_label,
+            credential_data: credential.credential_data,
+            created_at: credential.created_at,
+            updated_at: credential.updated_at,
+        }
+    }
 }
 
 impl Credential {
@@ -32,7 +64,8 @@ impl Credential {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
+#[typeshare]
 pub struct CredentialData {
     pub hash_iterations: u32,
     pub algorithm: String,

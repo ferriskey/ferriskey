@@ -3,17 +3,17 @@ use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
-
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::user::ports::UserService;
 use crate::{
     application::{
-        auth::Identity,
         http::server::{
             api_entities::{api_error::ApiError, response::Response},
-            app_state::AppState,
         },
     },
-    domain::{realm::entities::realm::Realm, user::ports::user_service::UserService},
 };
+use crate::application::http::server::app_state::AppState;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{realm_name}/users/@me/realms")]
@@ -49,6 +49,7 @@ pub async fn get_user_realms(
     let user = match identity {
         Identity::User(user) => user,
         Identity::Client(client) => state
+            .service_bundle
             .user_service
             .get_by_client_id(client.id)
             .await
@@ -60,6 +61,7 @@ pub async fn get_user_realms(
     ))?;
 
     let realms = state
+        .service_bundle
         .user_service
         .get_user_realms(user, realm.name)
         .await

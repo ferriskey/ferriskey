@@ -1,3 +1,8 @@
+use crate::application::common::services::DefaultGrantTypeService;
+use crate::domain::authentication::strategies::authorization_code_strategy::AuthorizationCodeStrategy;
+use crate::domain::authentication::strategies::client_credentials_strategy::ClientCredentialsStrategy;
+use crate::domain::authentication::strategies::password_strategy::PasswordStrategy;
+use crate::domain::authentication::strategies::refresh_token_strategy::RefreshTokenStrategy;
 use crate::{
     application::common::services::{
         DefaultAuthSessionService, DefaultClientService, DefaultCredentialService,
@@ -17,7 +22,6 @@ use crate::{
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             role_repository::PostgresRoleRepository,
-            user_session_repository::PostgresUserSessionRepository,
         },
         user::{
             repositories::{
@@ -109,6 +113,32 @@ impl ServiceFactory {
 
         let totp_service = OauthTotpService::new();
 
+        let grant_type_service = DefaultGrantTypeService::new(
+            AuthorizationCodeStrategy::new(
+                jwt_service.clone(),
+                client_service.clone(),
+                user_service.clone(),
+                credential_service.clone(),
+                auth_session_service.clone(),
+            ),
+            ClientCredentialsStrategy::new(
+                client_service.clone(),
+                user_service.clone(),
+                jwt_service.clone(),
+            ),
+            PasswordStrategy::new(
+                jwt_service.clone(),
+                user_service.clone(),
+                credential_service.clone(),
+                client_service.clone(),
+            ),
+            RefreshTokenStrategy::new(
+                jwt_service.clone(),
+                client_service.clone(),
+                user_service.clone(),
+            ),
+        );
+
         Ok(ServiceBundle {
             realm_service,
             client_service,
@@ -120,6 +150,7 @@ impl ServiceFactory {
             role_service,
             user_role_service,
             totp_service,
+            grant_type_service,
         })
     }
 }
@@ -136,4 +167,5 @@ pub struct ServiceBundle {
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
+    pub grant_type_service: DefaultGrantTypeService,
 }

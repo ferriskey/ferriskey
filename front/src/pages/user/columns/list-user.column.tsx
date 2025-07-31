@@ -1,4 +1,4 @@
-import { User } from '@/api/api.interface'
+import { User } from '@/api/core.interface'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { ColumnDef } from '@/components/ui/data-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

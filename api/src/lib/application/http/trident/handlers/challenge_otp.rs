@@ -7,10 +7,14 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
-
+use ferriskey_core::domain::authentication::ports::AuthSessionService;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::generate_random_string;
+use ferriskey_core::domain::credential::ports::CredentialService;
+use ferriskey_core::domain::trident::entities::TotpSecret;
+use ferriskey_core::domain::trident::ports::TotpService;
 use crate::{
     application::{
-        auth::Identity,
         http::server::{
             api_entities::{
                 api_error::{ApiError, ValidateJson},
@@ -19,13 +23,8 @@ use crate::{
             app_state::AppState,
         },
     },
-    domain::{
-        authentication::ports::auth_session::AuthSessionService,
-        credential::ports::credential_service::CredentialService,
-        trident::{entities::TotpSecret, ports::TotpService},
-        utils::generate_random_string,
-    },
 };
+
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 #[typeshare]
@@ -76,12 +75,14 @@ pub async fn challenge_otp(
     };
 
     let auth_session = state
+        .service_bundle
         .auth_session_service
         .get_by_session_code(session_code)
         .await
         .map_err(|_| ApiError::Unauthorized("invalid session code".to_string()))?;
 
     let user_credentials = state
+        .service_bundle
         .credential_service
         .get_credentials_by_user_id(user.id)
         .await
@@ -97,6 +98,7 @@ pub async fn challenge_otp(
     let secret = TotpSecret::from_base32(&otp_credential.secret_data);
 
     let is_valid = state
+        .service_bundle
         .totp_service
         .verify(&secret, &payload.code)
         .map_err(|_| ApiError::InternalServerError("Failed to verify OTP".to_string()))?;
@@ -109,6 +111,7 @@ pub async fn challenge_otp(
     let authorization_code = generate_random_string();
 
     state
+        .service_bundle
         .auth_session_service
         .update_code(session_code, authorization_code.clone(), user.id)
         .await

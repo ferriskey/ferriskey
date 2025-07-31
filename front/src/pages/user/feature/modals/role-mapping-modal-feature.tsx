@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form'
 import { assignRoleSchema, AssignRoleSchema } from '../../schemas/assign-role.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { Role } from '@/api/api.interface'
+import { Role } from '@/api/core.interface'
 import { toast } from 'sonner'
 
 export default function RoleMappingModalFeature() {

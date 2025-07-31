@@ -2,11 +2,11 @@ use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
 use tracing::info;
-
+use ferriskey_core::domain::realm::ports::RealmService;
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use crate::domain::realm::ports::realm_service::RealmService;
+
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}")]
@@ -34,6 +34,7 @@ pub async fn delete_realm(
 ) -> Result<Response<String>, ApiError> {
     info!("try to delete realm: {}", name);
     state
+        .service_bundle
         .realm_service
         .delete_by_name(name)
         .await

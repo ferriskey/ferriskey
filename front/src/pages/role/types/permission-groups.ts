@@ -1,4 +1,4 @@
-import { Permissions } from '@/api/api.interface.ts'
+import { Permissions } from '@/api/core.interface.ts'
 
 export const permissionGroups = {
   "User Management": [

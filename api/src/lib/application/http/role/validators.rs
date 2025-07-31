@@ -3,8 +3,7 @@ use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
-
-use crate::domain::role::entities::CreateRoleDto;
+use ferriskey_core::domain::role::value_objects::CreateRoleRequest;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 #[typeshare]
@@ -28,8 +27,8 @@ pub struct UpdateRolePermissionsValidator {
 }
 
 impl CreateRoleValidator {
-    pub fn to_dto(self, realm_id: Uuid, client_id: Option<Uuid>) -> CreateRoleDto {
-        CreateRoleDto {
+    pub fn to_dto(self, realm_id: Uuid, client_id: Option<Uuid>) -> CreateRoleRequest {
+        CreateRoleRequest {
             name: self.name,
             description: self.description,
             permissions: self.permissions,
