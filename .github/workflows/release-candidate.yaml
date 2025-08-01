@@ -35,8 +35,8 @@ jobs:
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
       include_latest_tag: true
-      context: 'api'
-      dockerfile: ''
+      context: '.'
+      dockerfile: 'docker/Dockerfile'
     secrets:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PAT: ${{ secrets.GITHUB_TOKEN }}

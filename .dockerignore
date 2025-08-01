@@ -1,0 +1,14 @@
+./api/target
+./core/target
+./operator/target
+/target
+docs
+front
+infrastructure
+
+/.github
+/.dockerignore
+/.gitignore
+/.pre-commit-config.yaml
+/docker-compose.yaml
+/*.md

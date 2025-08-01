@@ -50,8 +50,8 @@ jobs:
       repository: ferriskey/ferriskey
       tag: ${{ needs.prepare-ci.outputs.version }}
       ref: main
-      context: 'api'
-      dockerfile: ''
+      context: '.'
+      dockerfile: 'docker/Dockerfile'
     secrets:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PAT: ${{ secrets.GITHUB_TOKEN }}
