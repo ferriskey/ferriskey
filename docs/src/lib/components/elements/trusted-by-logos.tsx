@@ -12,6 +12,12 @@ const sponsors = [
     link: "https://cloud-iam.com",
     type: SPONSOR_TYPE.PLATINUM,
   },
+  {
+    name: "Nudibranches Technologies",
+    logo: "/sponsors/nudibranches.svg",
+    link: "https://nudibranches.tech",
+    type: SPONSOR_TYPE.GOLD,
+  },
 ];
 
 export default function TrustedByLogos() {

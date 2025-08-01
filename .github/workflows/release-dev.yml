@@ -11,22 +11,6 @@ permissions:
 
 
 jobs:
-  sonarqube:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - uses: SonarSource/sonarqube-scan-action@v5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.projectKey=test
-            -Dsonar.sources=front,api
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/target/**
-            -Dsonar.javascript.node.maxspace=8192
   prepare-ci:
     runs-on: ubuntu-latest
     outputs:
@@ -42,7 +26,7 @@ jobs:
           echo "RELEASE_VERSION=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "::set-output name=result::${SHORT_SHA}"
   build-doc:
-    needs: [sonarqube, prepare-ci]
+    needs: [prepare-ci]
     uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
     with:
       registry: ghcr.io
@@ -57,7 +41,7 @@ jobs:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PAT: ${{ secrets.GITHUB_TOKEN }}
   build-api:
-    needs: [sonarqube, prepare-ci]
+    needs: [prepare-ci]
     uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
     with:
       registry: ghcr.io
@@ -72,7 +56,7 @@ jobs:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PAT: ${{ secrets.GITHUB_TOKEN }}
   build-operator:
-    needs: [sonarqube, prepare-ci]
+    needs: [prepare-ci]
     uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
     with:
       registry: ghcr.io
@@ -87,7 +71,7 @@ jobs:
       CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PAT: ${{ secrets.GITHUB_TOKEN }}
   build-front:
-    needs: [sonarqube, prepare-ci]
+    needs: [prepare-ci]
     uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
     with:
       registry: ghcr.io
