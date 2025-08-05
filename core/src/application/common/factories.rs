@@ -86,6 +86,7 @@ impl UseCaseBundle {
         let create_client_use_case = CreateClientUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.user_service.clone(),
         );
 
         let create_redirect_uri_use_case = CreateRedirectUriUseCase::new(
