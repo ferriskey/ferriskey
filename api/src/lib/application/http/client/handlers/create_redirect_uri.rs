@@ -10,9 +10,11 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
+use axum::Extension;
 use axum::extract::State;
+use ferriskey_core::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
-use ferriskey_core::domain::client::ports::RedirectUriService;
 use ferriskey_core::domain::client::value_objects::CreateRedirectUriRequest;
 
 #[utoipa::path(
@@ -31,18 +33,22 @@ pub async fn create_redirect_uri(
         client_id,
     }: CreateRedirectUriRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {
     state
-        .service_bundle
-        .redirect_uri_service
-        .add_redirect_uri(
-            CreateRedirectUriRequest {
-                enabled: payload.enabled,
-                value: payload.value,
+        .use_case_bundle
+        .create_redirect_uri_use_case
+        .execute(
+            identity,
+            CreateRedirectUriUseCaseParams {
+                client_id,
+                realm_name,
+                payload: CreateRedirectUriRequest {
+                    value: payload.value,
+                    enabled: payload.enabled,
+                },
             },
-            realm_name,
-            client_id,
         )
         .await
         .map_err(ApiError::from)

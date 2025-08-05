@@ -52,4 +52,33 @@ impl ClientPolicy {
 
         Ok(has_permission)
     }
+
+    pub async fn create<C, U>(
+        identity: Identity,
+        target_realm: Realm,
+        user_service: U,
+        client_service: C,
+    ) -> Result<bool, ClientError>
+    where
+        U: UserService,
+        C: ClientService,
+    {
+        let policy = PolicyEnforcer::new(user_service, client_service);
+        let user = policy
+            .get_user_from_identity(&identity)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageClients],
+        );
+
+        Ok(has_permission)
+    }
 }

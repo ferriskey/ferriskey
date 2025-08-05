@@ -87,8 +87,12 @@ impl UseCaseFactory {
             service_bundle.client_service.clone(),
         );
 
-        let create_redirect_uri_use_case =
-            CreateRedirectUriUseCase::new(service_bundle.redirect_uri_service.clone());
+        let create_redirect_uri_use_case = CreateRedirectUriUseCase::new(
+            service_bundle.redirect_uri_service.clone(),
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
 
         let create_role_use_case = CreateRoleUseCase::new(
             service_bundle.realm_service.clone(),

@@ -192,9 +192,7 @@ impl UserRolePolicy {
 #[cfg(test)]
 mod tests {
     use crate::application::user::policies::user_role_policy::UserRolePolicy;
-    use crate::domain::{
-        role::entities::permission::Permissions,
-    };
+    use crate::domain::role::entities::permission::Permissions;
 
     #[test]
     fn test_has_realm_management_permissions() {
