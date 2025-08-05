@@ -10,6 +10,8 @@ use crate::application::client::use_cases::get_client_roles_use_case::GetClientR
 use crate::application::client::use_cases::get_client_use_case::GetClientUseCase;
 use crate::application::client::use_cases::get_clients_use_case::GetClientsUseCase;
 use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedirectUrisUseCase;
+use crate::application::client::use_cases::update_client_use_case::UpdateClientUseCase;
+use crate::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
@@ -43,6 +45,8 @@ pub struct UseCaseBundle {
     pub get_client_roles_use_case: GetClientRolesUseCase,
     pub get_clients_use_case: GetClientsUseCase,
     pub get_redirect_uris_use_case: GetRedirectUrisUseCase,
+    pub update_client_use_case: UpdateClientUseCase,
+    pub update_redirect_uri_use_case: UpdateRedirectUriUseCase,
 
     // User (use-cases)
     pub assign_role_use_case: AssignRoleUseCase,
@@ -148,6 +152,19 @@ impl UseCaseBundle {
             service_bundle.redirect_uri_service.clone(),
         );
 
+        let update_client_use_case = UpdateClientUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let update_redirect_uri_use_case = UpdateRedirectUriUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+            service_bundle.redirect_uri_service.clone(),
+        );
+
         // User (use-cases)
         let assign_role_use_case = AssignRoleUseCase::new(
             service_bundle.realm_service.clone(),
@@ -234,6 +251,8 @@ impl UseCaseBundle {
             get_client_roles_use_case,
             get_clients_use_case,
             get_redirect_uris_use_case,
+            update_client_use_case,
+            update_redirect_uri_use_case,
 
             // User (use-cases)
             assign_role_use_case,

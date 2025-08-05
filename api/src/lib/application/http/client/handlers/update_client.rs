@@ -8,10 +8,12 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
+use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
+use ferriskey_core::application::client::use_cases::update_client_use_case::UpdateClientUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
-use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::client::value_objects::UpdateClientRequest;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -39,18 +41,22 @@ pub async fn update_client(
         client_id,
     }: UpdateClientRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
     state
-        .service_bundle
-        .client_service
-        .update_client(
-            client_id,
-            realm_name,
-            UpdateClientRequest {
-                name: payload.name,
-                client_id: payload.client_id,
-                enabled: payload.enabled,
+        .use_case_bundle
+        .update_client_use_case
+        .execute(
+            identity,
+            UpdateClientUseCaseParams {
+                client_id,
+                realm_name,
+                payload: UpdateClientRequest {
+                    name: payload.name,
+                    client_id: payload.client_id,
+                    enabled: payload.enabled,
+                },
             },
         )
         .await
