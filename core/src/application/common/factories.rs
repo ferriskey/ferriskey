@@ -6,6 +6,7 @@ use crate::application::client::use_cases::create_redirect_uri_use_case::CreateR
 use crate::application::client::use_cases::create_role_use_case::CreateRoleUseCase;
 use crate::application::client::use_cases::delete_client_use_case::DeleteClientUseCase;
 use crate::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCase;
+use crate::application::client::use_cases::get_client_use_case::GetClientUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
@@ -18,9 +19,6 @@ use crate::application::user::use_cases::get_user_roles_use_case::GetUserRolesUs
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
 use crate::infrastructure::common::factories::service_factory::ServiceBundle;
-
-#[derive(Clone)]
-pub struct UseCaseFactory;
 
 #[derive(Clone)]
 pub struct UseCaseBundle {
@@ -38,6 +36,7 @@ pub struct UseCaseBundle {
     pub create_role_use_case: CreateRoleUseCase,
     pub delete_client_use_case: DeleteClientUseCase,
     pub delete_redirect_uri_use_case: DeleteRedirectUriUseCase,
+    pub get_client_use_case: GetClientUseCase,
 
     // User (use-cases)
     pub assign_role_use_case: AssignRoleUseCase,
@@ -54,8 +53,8 @@ pub struct UseCaseBundle {
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
 }
 
-impl UseCaseFactory {
-    pub fn new(service_bundle: ServiceBundle) -> UseCaseBundle {
+impl UseCaseBundle {
+    pub fn new(service_bundle: ServiceBundle) -> Self {
         // Auth (use-cases)
 
         let exchange_token_use_case = ExchangeTokenUseCase::new(
@@ -111,6 +110,12 @@ impl UseCaseFactory {
 
         let delete_redirect_uri_use_case = DeleteRedirectUriUseCase::new(
             service_bundle.redirect_uri_service.clone(),
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let get_client_use_case = GetClientUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
@@ -183,7 +188,7 @@ impl UseCaseFactory {
             service_bundle.role_service.clone(),
         );
 
-        UseCaseBundle {
+        Self {
             // Auth (use-cases)
             exchange_token_use_case,
             get_certs_use_case,
@@ -198,6 +203,7 @@ impl UseCaseFactory {
             create_role_use_case,
             delete_client_use_case,
             delete_redirect_uri_use_case,
+            get_client_use_case,
 
             // User (use-cases)
             assign_role_use_case,

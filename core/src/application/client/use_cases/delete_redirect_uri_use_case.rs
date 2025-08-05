@@ -1,10 +1,12 @@
-use uuid::Uuid;
 use crate::application::client::policies::ClientPolicy;
-use crate::application::common::services::{DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService};
+use crate::application::common::services::{
+    DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
+};
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::entities::ClientError;
 use crate::domain::client::ports::RedirectUriService;
 use crate::domain::realm::ports::RealmService;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct DeleteRedirectUriUseCase {
@@ -38,7 +40,7 @@ impl DeleteRedirectUriUseCase {
     pub async fn execute(
         &self,
         identity: Identity,
-        params: DeleteRedirectUriUseCaseParams
+        params: DeleteRedirectUriUseCaseParams,
     ) -> Result<(), ClientError> {
         let realm = self
             .realm_service
@@ -53,10 +55,17 @@ impl DeleteRedirectUriUseCase {
             self.client_service.clone(),
         )
         .await
-            .map_err(|_| ClientError::Forbidden("Insufficient permissions to delete redirect URI".to_string()))?
-            .then_some(())
-            .ok_or_else(|| ClientError::Forbidden("Insufficient permissions to delete redirect URI".to_string()))?;
+        .map_err(|_| {
+            ClientError::Forbidden("Insufficient permissions to delete redirect URI".to_string())
+        })?
+        .then_some(())
+        .ok_or_else(|| {
+            ClientError::Forbidden("Insufficient permissions to delete redirect URI".to_string())
+        })?;
 
-        self.redirect_uri_service.delete(params.uri_id).await.map_err(|_| ClientError::InternalServerError)
+        self.redirect_uri_service
+            .delete(params.uri_id)
+            .await
+            .map_err(|_| ClientError::InternalServerError)
     }
 }

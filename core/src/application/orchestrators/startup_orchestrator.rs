@@ -52,26 +52,28 @@ pub struct StartupOrchestrator {
     redirect_uri_service: DefaultRedirectUriService,
 }
 
+pub struct StartupOrchestratorBuilder {
+    pub realm_service: DefaultRealmService,
+    pub user_service: DefaultUserService,
+    pub client_service: DefaultClientService,
+    pub role_service: DefaultRoleService,
+    pub jwt_service: DefaultJwtService,
+    pub user_role_service: DefaultUserRoleService,
+    pub credential_service: DefaultCredentialService,
+    pub redirect_uri_service: DefaultRedirectUriService,
+}
+
 impl StartupOrchestrator {
-    pub fn new(
-        realm_service: DefaultRealmService,
-        user_service: DefaultUserService,
-        client_service: DefaultClientService,
-        role_service: DefaultRoleService,
-        jwt_service: DefaultJwtService,
-        user_role_service: DefaultUserRoleService,
-        credential_service: DefaultCredentialService,
-        redirect_uri_service: DefaultRedirectUriService,
-    ) -> Self {
+    pub fn new(params: StartupOrchestratorBuilder) -> Self {
         Self {
-            realm_service,
-            user_service,
-            client_service,
-            role_service,
-            jwt_service,
-            user_role_service,
-            credential_service,
-            redirect_uri_service,
+            realm_service: params.realm_service,
+            user_service: params.user_service,
+            client_service: params.client_service,
+            role_service: params.role_service,
+            jwt_service: params.jwt_service,
+            user_role_service: params.user_role_service,
+            credential_service: params.credential_service,
+            redirect_uri_service: params.redirect_uri_service,
         }
     }
 

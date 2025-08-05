@@ -18,9 +18,9 @@ use ferriskey::application::http::server::app_state::AppState;
 use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
 
 use ferriskey::env::{AppEnv, Env};
-use ferriskey_core::application::common::factories::UseCaseFactory;
+use ferriskey_core::application::common::factories::UseCaseBundle;
 use ferriskey_core::application::orchestrators::startup_orchestrator::{
-    StartupConfig, StartupOrchestrator,
+    StartupConfig, StartupOrchestrator, StartupOrchestratorBuilder,
 };
 use ferriskey_core::infrastructure::common::factories::service_factory::{
     ServiceFactory, ServiceFactoryConfig,
@@ -57,20 +57,20 @@ async fn main() -> Result<(), anyhow::Error> {
     })
     .await?;
 
-    let use_case_bundle = UseCaseFactory::new(service_bundle.clone());
+    let use_case_bundle = UseCaseBundle::new(service_bundle.clone());
 
     let app_state = AppState::new(env.clone(), service_bundle.clone(), use_case_bundle);
 
-    let startup_orchestrator = StartupOrchestrator::new(
-        service_bundle.realm_service.clone(),
-        service_bundle.user_service.clone(),
-        service_bundle.client_service.clone(),
-        service_bundle.role_service.clone(),
-        service_bundle.jwt_service.clone(),
-        service_bundle.user_role_service.clone(),
-        service_bundle.credential_service.clone(),
-        service_bundle.redirect_uri_service.clone(),
-    );
+    let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
+        realm_service: service_bundle.realm_service.clone(),
+        user_service: service_bundle.user_service.clone(),
+        client_service: service_bundle.client_service.clone(),
+        role_service: service_bundle.role_service.clone(),
+        jwt_service: service_bundle.jwt_service.clone(),
+        user_role_service: service_bundle.user_role_service.clone(),
+        credential_service: service_bundle.credential_service.clone(),
+        redirect_uri_service: service_bundle.redirect_uri_service.clone(),
+    });
 
     startup_orchestrator
         .initialize_application(StartupConfig {
