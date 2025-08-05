@@ -6,7 +6,10 @@ use crate::application::client::use_cases::create_redirect_uri_use_case::CreateR
 use crate::application::client::use_cases::create_role_use_case::CreateRoleUseCase;
 use crate::application::client::use_cases::delete_client_use_case::DeleteClientUseCase;
 use crate::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCase;
+use crate::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCase;
 use crate::application::client::use_cases::get_client_use_case::GetClientUseCase;
+use crate::application::client::use_cases::get_clients_use_case::GetClientsUseCase;
+use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedirectUrisUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
@@ -37,6 +40,9 @@ pub struct UseCaseBundle {
     pub delete_client_use_case: DeleteClientUseCase,
     pub delete_redirect_uri_use_case: DeleteRedirectUriUseCase,
     pub get_client_use_case: GetClientUseCase,
+    pub get_client_roles_use_case: GetClientRolesUseCase,
+    pub get_clients_use_case: GetClientsUseCase,
+    pub get_redirect_uris_use_case: GetRedirectUrisUseCase,
 
     // User (use-cases)
     pub assign_role_use_case: AssignRoleUseCase,
@@ -122,6 +128,26 @@ impl UseCaseBundle {
             service_bundle.client_service.clone(),
         );
 
+        let get_client_roles_use_case = GetClientRolesUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+            service_bundle.role_service.clone(),
+        );
+
+        let get_clients_use_case = GetClientsUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let get_redirect_uris_use_case = GetRedirectUrisUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+            service_bundle.redirect_uri_service.clone(),
+        );
+
         // User (use-cases)
         let assign_role_use_case = AssignRoleUseCase::new(
             service_bundle.realm_service.clone(),
@@ -205,6 +231,9 @@ impl UseCaseBundle {
             delete_client_use_case,
             delete_redirect_uri_use_case,
             get_client_use_case,
+            get_client_roles_use_case,
+            get_clients_use_case,
+            get_redirect_uris_use_case,
 
             // User (use-cases)
             assign_role_use_case,

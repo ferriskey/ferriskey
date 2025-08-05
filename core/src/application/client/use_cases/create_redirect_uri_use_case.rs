@@ -55,7 +55,7 @@ impl CreateRedirectUriUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        ClientPolicy::create(
+        let can_create_redirect_uri = ClientPolicy::create(
             identity,
             realm,
             self.user_service.clone(),
@@ -64,11 +64,13 @@ impl CreateRedirectUriUseCase {
         .await
         .map_err(|_| {
             ClientError::Forbidden("Insufficient permissions to create redirect URI".to_string())
-        })?
-        .then_some(())
-        .ok_or_else(|| {
-            ClientError::Forbidden("Insufficient permissions to create redirect URI".to_string())
         })?;
+
+        if !can_create_redirect_uri {
+            return Err(ClientError::Forbidden(
+                "Insufficient permissions to create redirect URI".to_string(),
+            ));
+        }
 
         self.redirect_uri_service
             .add_redirect_uri(params.payload, params.realm_name, params.client_id)

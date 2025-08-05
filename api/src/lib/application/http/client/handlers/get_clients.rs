@@ -4,10 +4,9 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_macros::TypedPath;
+use ferriskey_core::application::client::use_cases::get_clients_use_case::GetClientsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
-use ferriskey_core::domain::client::ports::ClientService;
-use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
@@ -38,21 +37,13 @@ pub struct ClientsResponse {
 pub async fn get_clients(
     GetClientsRoute { realm_name }: GetClientsRoute,
     State(state): State<AppState>,
-    Extension(_identity): Extension<Identity>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<ClientsResponse>, ApiError> {
-    let realm = state
-        .service_bundle
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
     let clients = state
-        .service_bundle
-        .client_service
-        .get_by_realm_id(realm.id)
-        .await
-        .map_err(ApiError::from)?;
+        .use_case_bundle
+        .get_clients_use_case
+        .execute(identity, GetClientsUseCaseParams { realm_name })
+        .await?;
 
     Ok(Response::OK(ClientsResponse { data: clients }))
 }

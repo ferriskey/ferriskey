@@ -1,10 +1,12 @@
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
+use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
+use ferriskey_core::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
-use ferriskey_core::domain::role::ports::RoleService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -36,15 +38,22 @@ pub struct GetClientRolesResponse {
 )]
 pub async fn get_client_roles(
     GetClientRolesRoute {
-        realm_name: _,
+        realm_name,
         client_id,
     }: GetClientRolesRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientRolesResponse>, ApiError> {
     let roles = state
-        .service_bundle
-        .role_service
-        .get_by_client_id(client_id)
+        .use_case_bundle
+        .get_client_roles_use_case
+        .execute(
+            identity,
+            GetClientRolesUseCaseParams {
+                client_id,
+                realm_name,
+            },
+        )
         .await?;
 
     Ok(Response::OK(GetClientRolesResponse { data: roles }))
