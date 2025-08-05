@@ -47,7 +47,7 @@ impl CreateRealmUseCase {
                 self.client_service.clone(),
             )
             .await
-            .map_err(|e| anyhow::Error::new(e)),
+            .map_err(anyhow::Error::new),
             "Insufficient permissions to create a realm",
         )
         .map_err(|_| RealmError::Forbidden)?;

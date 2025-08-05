@@ -5,6 +5,7 @@ use crate::application::client::use_cases::create_client_use_case::CreateClientU
 use crate::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCase;
 use crate::application::client::use_cases::create_role_use_case::CreateRoleUseCase;
 use crate::application::client::use_cases::delete_client_use_case::DeleteClientUseCase;
+use crate::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
@@ -36,6 +37,7 @@ pub struct UseCaseBundle {
     pub create_redirect_uri_use_case: CreateRedirectUriUseCase,
     pub create_role_use_case: CreateRoleUseCase,
     pub delete_client_use_case: DeleteClientUseCase,
+    pub delete_redirect_uri_use_case: DeleteRedirectUriUseCase,
 
     // User (use-cases)
     pub assign_role_use_case: AssignRoleUseCase,
@@ -102,6 +104,13 @@ impl UseCaseFactory {
         );
 
         let delete_client_use_case = DeleteClientUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let delete_redirect_uri_use_case = DeleteRedirectUriUseCase::new(
+            service_bundle.redirect_uri_service.clone(),
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
@@ -188,6 +197,7 @@ impl UseCaseFactory {
             create_redirect_uri_use_case,
             create_role_use_case,
             delete_client_use_case,
+            delete_redirect_uri_use_case,
 
             // User (use-cases)
             assign_role_use_case,
