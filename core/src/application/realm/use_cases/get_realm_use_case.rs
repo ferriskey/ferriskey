@@ -48,7 +48,8 @@ impl GetRealmUseCase {
             .await
             .map_err(anyhow::Error::new),
             "Insufficient permissions to view realm",
-        ).map_err(|_| RealmError::Forbidden)?;
+        )
+        .map_err(|_| RealmError::Forbidden)?;
 
         Ok(realm)
     }

@@ -1,14 +1,14 @@
-use axum::Extension;
 use crate::application::http::realm::validators::UpdateRealmValidator;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
+use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
-use ferriskey_core::domain::realm::entities::Realm;
-use serde::Deserialize;
 use ferriskey_core::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::realm::entities::Realm;
+use serde::Deserialize;
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/realms/{name}")]
@@ -37,10 +37,13 @@ pub async fn update_realm(
     state
         .use_case_bundle
         .update_realm_use_case
-        .execute(identity, UpdateRealmUseCaseParams {
-            realm_name: name,
-            new_realm_name: payload.name
-        })
+        .execute(
+            identity,
+            UpdateRealmUseCaseParams {
+                realm_name: name,
+                new_realm_name: payload.name,
+            },
+        )
         .await
         .map_err(ApiError::from)
         .map(Response::Created)

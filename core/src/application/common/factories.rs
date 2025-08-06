@@ -1,6 +1,7 @@
 use crate::application::authentication::use_cases::authenticate_use_case::AuthenticateUseCase;
 use crate::application::authentication::use_cases::exchange_token_use_case::ExchangeTokenUseCase;
 use crate::application::authentication::use_cases::get_certs_use_case::GetCertsUseCase;
+use crate::application::client::use_cases::ClientUseCase;
 use crate::application::client::use_cases::create_client_use_case::CreateClientUseCase;
 use crate::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCase;
 use crate::application::client::use_cases::create_role_use_case::CreateRoleUseCase;
@@ -21,11 +22,17 @@ use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseC
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
+use crate::application::user::use_cases::UserUseCase;
 use crate::application::user::use_cases::assign_role_use_case::AssignRoleUseCase;
 use crate::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCase;
 use crate::application::user::use_cases::create_user_use_case::CreateUserUseCase;
+use crate::application::user::use_cases::delete_credential_use_case::DeleteCredentialUseCase;
 use crate::application::user::use_cases::delete_user_use_case::DeleteUserUseCase;
+use crate::application::user::use_cases::get_credentials_use_case::GetCredentialsUseCase;
 use crate::application::user::use_cases::get_user_roles_use_case::GetUserRolesUseCase;
+use crate::application::user::use_cases::get_user_use_case::GetUserUseCase;
+use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
+use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
 use crate::infrastructure::common::factories::service_factory::ServiceBundle;
@@ -66,6 +73,11 @@ pub struct UseCaseBundle {
     pub get_user_roles_use_case: GetUserRolesUseCase,
     pub unassign_role_use_case: UnassignRoleUseCase,
     pub update_user_use_case: UpdateUserUseCase,
+    pub delete_credential_use_case: DeleteCredentialUseCase,
+    pub get_credentials_use_case: GetCredentialsUseCase,
+    pub get_user_use_case: GetUserUseCase,
+    pub get_users_use_case: GetUsersUseCase,
+    pub reset_password_use_case: ResetPasswordUseCase,
 
     // Role (use-cases)
     pub get_roles_use_case: GetRolesUseCase,
@@ -114,9 +126,8 @@ impl UseCaseBundle {
             service_bundle.client_service.clone(),
         );
 
-        let get_user_realms_use_case = GetUserRealmsUseCase::new(
-            service_bundle.user_service.clone(),
-        );
+        let get_user_realms_use_case =
+            GetUserRealmsUseCase::new(service_bundle.user_service.clone());
 
         let update_realm_use_case = UpdateRealmUseCase::new(
             service_bundle.realm_service.clone(),
@@ -131,122 +142,10 @@ impl UseCaseBundle {
         );
 
         // Client (use-cases)
-        let create_client_use_case = CreateClientUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.user_service.clone(),
-        );
-
-        let create_redirect_uri_use_case = CreateRedirectUriUseCase::new(
-            service_bundle.redirect_uri_service.clone(),
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let create_role_use_case = CreateRoleUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.role_service.clone(),
-        );
-
-        let delete_client_use_case = DeleteClientUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let delete_redirect_uri_use_case = DeleteRedirectUriUseCase::new(
-            service_bundle.redirect_uri_service.clone(),
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let get_client_use_case = GetClientUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let get_client_roles_use_case = GetClientRolesUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.role_service.clone(),
-        );
-
-        let get_clients_use_case = GetClientsUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let get_redirect_uris_use_case = GetRedirectUrisUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.redirect_uri_service.clone(),
-        );
-
-        let update_client_use_case = UpdateClientUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let update_redirect_uri_use_case = UpdateRedirectUriUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.redirect_uri_service.clone(),
-        );
+        let client_use_case = ClientUseCase::new(service_bundle.clone());
 
         // User (use-cases)
-        let assign_role_use_case = AssignRoleUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_role_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let bulk_delete_user_use_case = BulkDeleteUserUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let create_user_use_case = CreateUserUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let delete_user_use_case = DeleteUserUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let get_user_roles_use_case = GetUserRolesUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
-
-        let unassign_role_use_case = UnassignRoleUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.user_role_service.clone(),
-        );
-
-        let update_user_use_case = UpdateUserUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-        );
+        let user_use_case = UserUseCase::new(service_bundle.clone());
 
         // Role (use-cases)
         let get_roles_use_case = GetRolesUseCase::new(
@@ -285,26 +184,31 @@ impl UseCaseBundle {
             update_realm_settings_use_case,
 
             // Client (use-cases)
-            create_client_use_case,
-            create_redirect_uri_use_case,
-            create_role_use_case,
-            delete_client_use_case,
-            delete_redirect_uri_use_case,
-            get_client_use_case,
-            get_client_roles_use_case,
-            get_clients_use_case,
-            get_redirect_uris_use_case,
-            update_client_use_case,
-            update_redirect_uri_use_case,
+            create_client_use_case: client_use_case.create_client_use_case,
+            create_redirect_uri_use_case: client_use_case.create_redirect_uri_use_case,
+            create_role_use_case: client_use_case.create_role_use_case,
+            delete_client_use_case: client_use_case.delete_client_use_case,
+            delete_redirect_uri_use_case: client_use_case.delete_redirect_uri_use_case,
+            get_client_use_case: client_use_case.get_client_use_case,
+            get_client_roles_use_case: client_use_case.get_client_roles_use_case,
+            get_clients_use_case: client_use_case.get_clients_use_case,
+            get_redirect_uris_use_case: client_use_case.get_redirect_uris_use_case,
+            update_client_use_case: client_use_case.update_client_use_case,
+            update_redirect_uri_use_case: client_use_case.update_redirect_uri_use_case,
 
             // User (use-cases)
-            assign_role_use_case,
-            bulk_delete_user_use_case,
-            create_user_use_case,
-            delete_user_use_case,
-            get_user_roles_use_case,
-            unassign_role_use_case,
-            update_user_use_case,
+            assign_role_use_case: user_use_case.assign_role_use_case,
+            bulk_delete_user_use_case: user_use_case.bulk_delete_user_use_case,
+            create_user_use_case: user_use_case.create_user_use_case,
+            delete_user_use_case: user_use_case.delete_user_use_case,
+            get_user_roles_use_case: user_use_case.get_user_roles_use_case,
+            unassign_role_use_case: user_use_case.unassign_role_use_case,
+            update_user_use_case: user_use_case.update_user_use_case,
+            delete_credential_use_case: user_use_case.delete_credential_use_case,
+            get_credentials_use_case: user_use_case.get_credentials_use_case,
+            get_user_use_case: user_use_case.get_user_use_case,
+            get_users_use_case: user_use_case.get_users_use_case,
+            reset_password_use_case: user_use_case.reset_password_use_case,
 
             // Role (use-cases)
             get_roles_use_case,

@@ -2,11 +2,12 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
+use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
-use ferriskey_core::domain::realm::ports::RealmService;
+use ferriskey_core::application::user::use_cases::get_user_use_case::GetUserUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
-use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 use utoipa::ToSchema;
@@ -40,18 +41,18 @@ pub async fn get_user(
         user_id,
     }: GetUserRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<UserResponse>, ApiError> {
-    let _ = state
-        .service_bundle
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
     let user = state
-        .service_bundle
-        .user_service
-        .get_by_id(user_id)
+        .use_case_bundle
+        .get_user_use_case
+        .execute(
+            identity,
+            GetUserUseCaseParams {
+                user_id,
+                realm_name,
+            },
+        )
         .await
         .map_err(ApiError::from)?;
 

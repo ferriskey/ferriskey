@@ -1,5 +1,7 @@
 use crate::application::common::policies::ensure_permissions;
-use crate::application::common::services::{DefaultClientService, DefaultRealmService, DefaultUserService};
+use crate::application::common::services::{
+    DefaultClientService, DefaultRealmService, DefaultUserService,
+};
 use crate::application::realm::policies::RealmPolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::entities::{RealmError, RealmSetting};
@@ -52,7 +54,8 @@ impl UpdateRealmSettingsUseCase {
             .await
             .map_err(anyhow::Error::new),
             "Insufficient permissions to update realm settings",
-        ).map_err(|_| RealmError::Forbidden)?;
+        )
+        .map_err(|_| RealmError::Forbidden)?;
 
         self.realm_service
             .update_realm_setting(realm_id, params.algorithm)

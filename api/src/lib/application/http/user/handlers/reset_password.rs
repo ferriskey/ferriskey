@@ -2,10 +2,12 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::api_success::ApiSuccess;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::user::validators::ResetPasswordValidator;
+use axum::Extension;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum_macros::TypedPath;
-use ferriskey_core::domain::credential::ports::CredentialService;
+use ferriskey_core::application::user::use_cases::reset_password_use_case::ResetPasswordUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::Deserialize;
 use tracing::info;
 use uuid::Uuid;
@@ -37,6 +39,7 @@ pub async fn reset_password(
         realm_name,
     }: ResetPasswordRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<ResetPasswordValidator>,
 ) -> Result<ApiSuccess<String>, ApiError> {
     info!(
@@ -44,11 +47,19 @@ pub async fn reset_password(
         user_id, realm_name
     );
     state
-        .service_bundle
-        .credential_service
-        .reset_password(user_id, payload.value)
+        .use_case_bundle
+        .reset_password_use_case
+        .execute(
+            identity,
+            ResetPasswordUseCaseParams {
+                realm_name,
+                user_id,
+                value: payload.value,
+            },
+        )
         .await
         .map_err(|_| ApiError::InternalServerError("Internal server error".to_string()))?;
+
     Ok(ApiSuccess::new(
         StatusCode::OK,
         "Password reset successfully".to_string(),
