@@ -13,6 +13,11 @@ use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedire
 use crate::application::client::use_cases::update_client_use_case::UpdateClientUseCase;
 use crate::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
+use crate::application::realm::use_cases::delete_realm_use_case::DeleteRealmUseCase;
+use crate::application::realm::use_cases::get_realm_use_case::GetRealmUseCase;
+use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCase;
+use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
+use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
@@ -34,6 +39,11 @@ pub struct UseCaseBundle {
 
     // Realm (use-cases
     pub create_realm_use_case: CreateRealmUseCase,
+    pub delete_realm_use_case: DeleteRealmUseCase,
+    pub get_realm_use_case: GetRealmUseCase,
+    pub get_user_realms_use_case: GetUserRealmsUseCase,
+    pub update_realm_use_case: UpdateRealmUseCase,
+    pub update_realm_settings_use_case: UpdateRealmSettingsUseCase,
 
     // Client (use-cases)
     pub create_client_use_case: CreateClientUseCase,
@@ -87,6 +97,34 @@ impl UseCaseBundle {
 
         // Realm (use-cases)
         let create_realm_use_case = CreateRealmUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let delete_realm_use_case = DeleteRealmUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let get_realm_use_case = GetRealmUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let get_user_realms_use_case = GetUserRealmsUseCase::new(
+            service_bundle.user_service.clone(),
+        );
+
+        let update_realm_use_case = UpdateRealmUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+        );
+
+        let update_realm_settings_use_case = UpdateRealmSettingsUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
@@ -240,6 +278,11 @@ impl UseCaseBundle {
 
             // Realm (use-cases)
             create_realm_use_case,
+            delete_realm_use_case,
+            get_realm_use_case,
+            get_user_realms_use_case,
+            update_realm_use_case,
+            update_realm_settings_use_case,
 
             // Client (use-cases)
             create_client_use_case,
