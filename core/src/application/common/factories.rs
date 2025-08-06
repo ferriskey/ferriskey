@@ -19,7 +19,9 @@ use crate::application::realm::use_cases::get_realm_use_case::GetRealmUseCase;
 use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCase;
 use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
 use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
+use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
+use crate::application::role::use_cases::RoleUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
 use crate::application::user::use_cases::UserUseCase;
@@ -81,6 +83,7 @@ pub struct UseCaseBundle {
 
     // Role (use-cases)
     pub get_roles_use_case: GetRolesUseCase,
+    pub get_role_use_case: GetRoleUseCase,
     pub update_role_use_case: UpdateRoleUseCase,
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
 }
@@ -148,26 +151,7 @@ impl UseCaseBundle {
         let user_use_case = UserUseCase::new(service_bundle.clone());
 
         // Role (use-cases)
-        let get_roles_use_case = GetRolesUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.role_service.clone(),
-        );
-
-        let update_role_use_case = UpdateRoleUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.role_service.clone(),
-        );
-
-        let update_role_permissions_use_case = UpdateRolePermissionsUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.role_service.clone(),
-        );
+        let role_use_case = RoleUseCase::new(service_bundle.clone());
 
         Self {
             // Auth (use-cases)
@@ -211,9 +195,10 @@ impl UseCaseBundle {
             reset_password_use_case: user_use_case.reset_password_use_case,
 
             // Role (use-cases)
-            get_roles_use_case,
-            update_role_use_case,
-            update_role_permissions_use_case,
+            get_roles_use_case: role_use_case.get_roles_use_case,
+            get_role_use_case: role_use_case.get_role_use_case,
+            update_role_use_case: role_use_case.update_role_use_case,
+            update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
         }
     }
 }
