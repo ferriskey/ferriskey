@@ -54,7 +54,7 @@ impl GetUsersUseCase {
             )
             .await
             .map_err(anyhow::Error::new),
-            "Insufficient permissions to view user",
+            "Insufficient permissions to view users",
         )
         .map_err(|e| UserError::Forbidden(e.to_string()))?;
 
