@@ -17,6 +17,8 @@ use axum::http::{HeaderValue, Method};
 use axum_cookie::prelude::*;
 use axum_extra::routing::RouterExt;
 use std::sync::Arc;
+use axum::routing::get;
+use axum_prometheus::PrometheusMetricLayer;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
 use tracing::log::info;
@@ -90,6 +92,8 @@ impl HttpServer {
             ])
             .allow_credentials(true);
 
+        let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
         let router = axum::Router::new()
             .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .typed_get(get_config)
@@ -100,9 +104,11 @@ impl HttpServer {
             .merge(role_routes(state.clone()))
             .merge(trident_routes(state.clone()))
             .merge(health_routes())
+            .route("/metrics", get(|| async move { metric_handle.render() }))
             .layer(trace_layer)
             .layer(cors)
             .layer(CookieLayer::default())
+            .layer(prometheus_layer)
             .with_state(state);
 
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
