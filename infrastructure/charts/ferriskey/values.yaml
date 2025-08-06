@@ -22,6 +22,20 @@ api:
   database:
     existingSecret: infrastructure-ferriskey-stack-db-app
     existingSecretUrlKey: uri
+  healthCheck:
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+      successThreshold: 1
 
 ingress:
   enabled: true

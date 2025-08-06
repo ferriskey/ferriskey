@@ -36,6 +36,8 @@ use crate::{
         },
     },
 };
+use crate::domain::health::services::HealthCheckServiceImpl;
+use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 
 pub type DefaultUserService = UserServiceImpl<
     PostgresUserRepository,
@@ -96,3 +98,5 @@ pub type DefaultRedirectUriService = RedirectUriServiceImpl<
     PostgresRedirectUriRepository,
     PostgresClientRepository,
 >;
+
+pub type DefaultHealthCheckService = HealthCheckServiceImpl<PostgresHealthCheckRepository>;

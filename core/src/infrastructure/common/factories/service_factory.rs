@@ -1,4 +1,4 @@
-use crate::application::common::services::DefaultGrantTypeService;
+use crate::application::common::services::{DefaultGrantTypeService, DefaultHealthCheckService};
 use crate::domain::authentication::strategies::authorization_code_strategy::AuthorizationCodeStrategy;
 use crate::domain::authentication::strategies::client_credentials_strategy::ClientCredentialsStrategy;
 use crate::domain::authentication::strategies::password_strategy::PasswordStrategy;
@@ -32,6 +32,7 @@ use crate::{
         },
     },
 };
+use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 
 pub struct ServiceFactory;
 
@@ -61,6 +62,7 @@ impl ServiceFactory {
         let user_role_repository = PostgresUserRoleRepository::new(postgres.get_db());
         let user_required_action_repository =
             PostgresUserRequiredActionRepository::new(postgres.get_db());
+        let health_check_repository = PostgresHealthCheckRepository::new(postgres.get_db());
 
         let realm_service = DefaultRealmService::new(
             realm_repository.clone(),
@@ -139,6 +141,10 @@ impl ServiceFactory {
             ),
         );
 
+        let health_check_service = DefaultHealthCheckService::new(
+            health_check_repository.clone(),
+        );
+
         Ok(ServiceBundle {
             realm_service,
             client_service,
@@ -151,6 +157,7 @@ impl ServiceFactory {
             user_role_service,
             totp_service,
             grant_type_service,
+            health_check_service,
         })
     }
 }
@@ -168,4 +175,5 @@ pub struct ServiceBundle {
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
     pub grant_type_service: DefaultGrantTypeService,
+    pub health_check_service: DefaultHealthCheckService,
 }

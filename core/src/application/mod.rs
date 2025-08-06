@@ -5,3 +5,4 @@ pub mod orchestrators;
 pub mod realm;
 pub mod role;
 pub mod user;
+pub mod health;

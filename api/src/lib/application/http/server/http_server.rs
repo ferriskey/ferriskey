@@ -21,6 +21,7 @@ use tracing::info_span;
 use tracing::log::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use crate::application::http::health::health_routes;
 
 pub struct HttpServerConfig {
     port: String,
@@ -98,6 +99,7 @@ impl HttpServer {
             .merge(authentication_routes())
             .merge(role_routes(state.clone()))
             .merge(trident_routes(state.clone()))
+            .merge(health_routes())
             .layer(trace_layer)
             .layer(cors)
             .layer(CookieLayer::default())

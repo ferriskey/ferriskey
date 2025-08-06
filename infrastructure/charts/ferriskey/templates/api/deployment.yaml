@@ -57,6 +57,27 @@ spec:
             - name: http
               containerPort: {{ .Values.api.service.port }}
               protocol: TCP
+          {{- if .Values.api.healthCheck.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.api.service.port }}
+            initialDelaySeconds: {{ .Values.api.healthCheck.livenessProbe.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .Values.api.healthCheck.livenessProbe.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.api.healthCheck.livenessProbe.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.api.healthCheck.livenessProbe.failureThreshold | default 3 }}
+          {{- end }}
+          {{- if .Values.api.healthCheck.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: {{ .Values.api.healthCheck.readinessProbe.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .Values.api.healthCheck.readinessProbe.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.api.healthCheck.readinessProbe.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.api.healthCheck.readinessProbe.failureThreshold | default 3 }}
+            successThreshold: {{ .Values.api.healthCheck.readinessProbe.successThreshold | default 1 }}
+          {{- end }}
           env:
             - name: PORT
               value: {{ .Values.api.service.port | quote }}
