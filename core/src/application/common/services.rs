@@ -1,3 +1,5 @@
+use crate::domain::health::services::HealthCheckServiceImpl;
+use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 use crate::{
     domain::{
         authentication::services::{
@@ -36,8 +38,6 @@ use crate::{
         },
     },
 };
-use crate::domain::health::services::HealthCheckServiceImpl;
-use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 
 pub type DefaultUserService = UserServiceImpl<
     PostgresUserRepository,

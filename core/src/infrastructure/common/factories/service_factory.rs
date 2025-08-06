@@ -3,6 +3,7 @@ use crate::domain::authentication::strategies::authorization_code_strategy::Auth
 use crate::domain::authentication::strategies::client_credentials_strategy::ClientCredentialsStrategy;
 use crate::domain::authentication::strategies::password_strategy::PasswordStrategy;
 use crate::domain::authentication::strategies::refresh_token_strategy::RefreshTokenStrategy;
+use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 use crate::{
     application::common::services::{
         DefaultAuthSessionService, DefaultClientService, DefaultCredentialService,
@@ -32,7 +33,6 @@ use crate::{
         },
     },
 };
-use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 
 pub struct ServiceFactory;
 
@@ -141,9 +141,7 @@ impl ServiceFactory {
             ),
         );
 
-        let health_check_service = DefaultHealthCheckService::new(
-            health_check_repository.clone(),
-        );
+        let health_check_service = DefaultHealthCheckService::new(health_check_repository.clone());
 
         Ok(ServiceBundle {
             realm_service,

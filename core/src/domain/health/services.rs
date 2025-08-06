@@ -6,19 +6,21 @@ pub struct HealthCheckServiceImpl<H>
 where
     H: HealthCheckRepository,
 {
-    health_check_repository: H
+    health_check_repository: H,
 }
 
-impl <H> HealthCheckServiceImpl<H>
+impl<H> HealthCheckServiceImpl<H>
 where
     H: HealthCheckRepository,
 {
     pub fn new(health_check_repository: H) -> Self {
-        Self { health_check_repository }
+        Self {
+            health_check_repository,
+        }
     }
 }
 
-impl <H> HealthCheckService for HealthCheckServiceImpl<H>
+impl<H> HealthCheckService for HealthCheckServiceImpl<H>
 where
     H: HealthCheckRepository,
 {
@@ -26,7 +28,9 @@ where
         self.health_check_repository.check_health()
     }
 
-    fn check_database_status(&self) -> impl Future<Output = Result<DatabaseHealthStatus, HealthCheckError>> + Send {
+    fn check_database_status(
+        &self,
+    ) -> impl Future<Output = Result<DatabaseHealthStatus, HealthCheckError>> + Send {
         self.health_check_repository.check_database_status()
     }
 }

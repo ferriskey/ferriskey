@@ -8,6 +8,7 @@ use crate::application::http::trident::router::trident_routes;
 use crate::application::http::user::router::user_routes;
 
 use super::config::get_config;
+use crate::application::http::health::health_routes;
 use crate::env::Env;
 use anyhow::Context;
 use axum::Router;
@@ -21,7 +22,6 @@ use tracing::info_span;
 use tracing::log::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use crate::application::http::health::health_routes;
 
 pub struct HttpServerConfig {
     port: String,

@@ -1,7 +1,7 @@
-use chrono::Utc;
 use crate::application::common::services::DefaultHealthCheckService;
 use crate::domain::health::entities::{DatabaseHealthStatus, HealthCheckError, ReadinessResponse};
 use crate::domain::health::ports::HealthCheckService;
+use chrono::Utc;
 
 #[derive(Clone)]
 pub struct HealthCheckUseCase {
@@ -10,7 +10,9 @@ pub struct HealthCheckUseCase {
 
 impl HealthCheckUseCase {
     pub fn new(health_check_service: DefaultHealthCheckService) -> Self {
-        Self { health_check_service }
+        Self {
+            health_check_service,
+        }
     }
 
     pub async fn execute_readiness(&self) -> Result<ReadinessResponse, HealthCheckError> {
@@ -24,11 +26,14 @@ impl HealthCheckUseCase {
         };
 
         let overall_status = match database_health.status.as_str() {
-            "ok" => "ok".to_string(),
+            "ok" | "healthy" => "ok".to_string(),
             _ => "unhealthy".to_string(),
         };
 
+        let is_healthy = overall_status == "ok";
+
         Ok(ReadinessResponse {
+            is_healthy,
             status: overall_status,
             timestamp: Utc::now().to_rfc3339(),
             database: database_health,
@@ -39,4 +44,3 @@ impl HealthCheckUseCase {
         self.health_check_service.check_health().await.map(|_| ())
     }
 }
-

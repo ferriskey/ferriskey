@@ -25,6 +25,7 @@ pub struct DatabaseHealthStatus {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ReadinessResponse {
+    pub is_healthy: bool,
     pub status: String,
     pub database: DatabaseHealthStatus,
     pub timestamp: String,

@@ -10,7 +10,6 @@ pub mod get_roles_use_case;
 pub mod update_role_permissions_use_case;
 pub mod update_role_use_case;
 
-
 pub struct RoleUseCase {
     pub get_role_use_case: GetRoleUseCase,
     pub get_roles_use_case: GetRolesUseCase,
@@ -19,9 +18,7 @@ pub struct RoleUseCase {
 }
 
 impl RoleUseCase {
-    pub fn new(
-       service_bundle: ServiceBundle,
-    ) -> Self {
+    pub fn new(service_bundle: ServiceBundle) -> Self {
         Self {
             get_role_use_case: GetRoleUseCase::new(
                 service_bundle.realm_service.clone(),

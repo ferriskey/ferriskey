@@ -28,6 +28,7 @@ pub enum ApiError {
     Unauthorized(String),
     Forbidden(String),
     BadRequest(String),
+    ServiceUnavailable(String),
 }
 
 impl ApiError {
@@ -209,6 +210,15 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_BAD_REQUEST".to_string(),
                     status: 400,
+                    message,
+                }),
+            )
+                .into_response(),
+            ApiError::ServiceUnavailable(message) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(ApiErrorResponse {
+                    code: "E_SERVICE_UNAVAILABLE".to_string(),
+                    status: 503,
                     message,
                 }),
             )

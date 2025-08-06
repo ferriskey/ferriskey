@@ -20,9 +20,9 @@ use crate::application::realm::use_cases::get_realm_use_case::GetRealmUseCase;
 use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCase;
 use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
 use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
+use crate::application::role::use_cases::RoleUseCase;
 use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
-use crate::application::role::use_cases::RoleUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
 use crate::application::user::use_cases::UserUseCase;
@@ -156,9 +156,8 @@ impl UseCaseBundle {
         // Role (use-cases)
         let role_use_case = RoleUseCase::new(service_bundle.clone());
 
-        let health_check_use_case = HealthCheckUseCase::new(
-            service_bundle.health_check_service.clone(),
-        );
+        let health_check_use_case =
+            HealthCheckUseCase::new(service_bundle.health_check_service.clone());
 
         Self {
             // Auth (use-cases)
