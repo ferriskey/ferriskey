@@ -1,0 +1,14 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v0.1.0",
+    "name": "v0.1.0 🦀",
+    "draft": false,
+    "prerelease": false,
+    "upload_url": "https://uploads.github.com/repos/ferriskey/ferriskey/releases/1/assets{?name,label}"
+  },
+  "repository": {
+    "name": "ferriskey",
+    "full_name": "ferriskey/ferriskey"
+  }
+}

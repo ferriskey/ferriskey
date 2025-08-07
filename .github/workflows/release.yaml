@@ -1,0 +1,139 @@
+name: 🚀 Production Release
+on:
+  release:
+    types: [published]
+
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare-ci:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+      tag: ${{ steps.extract_version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Extract version from release
+        id: extract_version
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+  print-version:
+    needs: prepare-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print version
+        run: |
+          echo "Version: ${{ needs.prepare-ci.outputs.version }}"
+          echo "Tag: ${{ needs.prepare-ci.outputs.tag }}"
+  build-ferriskey-api:
+    needs: [prepare-ci]
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-api
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      include_latest_tag: true
+      context: '.'
+      dockerfile: 'docker/Dockerfile'
+    secrets:
+      CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PAT: ${{ secrets.GITHUB_TOKEN }}
+  build-ferriskey-front:
+    needs: prepare-ci
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-front
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      include_latest_tag: true
+      context: 'front'
+      dockerfile: ''
+    secrets:
+      CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PAT: ${{ secrets.GITHUB_TOKEN }}
+  build-ferriskey-operator:
+    needs: prepare-ci
+    uses: ferriskey/ferriskey/.github/workflows/build-and-push-docker.yaml@main
+    with:
+      registry: ghcr.io
+      registry_username: ferriskey
+      image_name: ferriskey-operator
+      repository: ferriskey/ferriskey
+      tag: ${{ needs.prepare-ci.outputs.version }}
+      ref: main
+      include_latest_tag: true
+      context: 'operator'
+      dockerfile: ''
+    secrets:
+      CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PAT: ${{ secrets.GITHUB_TOKEN }}
+  build-ferriskey-chart:
+    runs-on: ubuntu-latest
+    needs: [prepare-ci, build-ferriskey-api, build-ferriskey-front, build-ferriskey-operator]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-ci.outputs.tag }}
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Authenticate to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ferriskey --password-stdin
+      - name: Build and push production chart
+        run: |
+          echo "🚀 Processing Ferriskey production chart"
+          cp infrastructure/charts/ferriskey/Chart.yaml /tmp/Chart.yaml.orig
+          cp infrastructure/charts/ferriskey/values.yaml /tmp/values.yaml.orig
+
+          # Update chart with production version
+          yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey/Chart.yaml
+          
+          # Update values with production tags and set to IfNotPresent for production
+          yq eval ".front.image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .api.image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .front.image.pullPolicy = \"IfNotPresent\" | .api.image.pullPolicy = \"IfNotPresent\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey/values.yaml
+
+          helm package infrastructure/charts/ferriskey --destination .cr_releases
+          helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
+          
+          # Also tag as latest for production
+          helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts --version latest
+
+  build-ferriskey-operator-chart:
+    runs-on: ubuntu-latest
+    needs: [prepare-ci, build-ferriskey-api, build-ferriskey-front, build-ferriskey-operator]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-ci.outputs.tag }}
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Authenticate to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ferriskey --password-stdin
+      - name: Build and push production operator chart
+        run: |
+          echo "🚀 Processing Ferriskey Operator production chart"
+          cp infrastructure/charts/ferriskey-operator/Chart.yaml /tmp/Chart.yaml.orig
+          cp infrastructure/charts/ferriskey-operator/values.yaml /tmp/values.yaml.orig
+
+          yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey-operator/Chart.yaml
+          yq eval ".image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .image.pullPolicy = \"IfNotPresent\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey-operator/values.yaml
+          
+          helm package infrastructure/charts/ferriskey-operator --destination .cr_releases
+          helm push .cr_releases/ferriskey-operator-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
