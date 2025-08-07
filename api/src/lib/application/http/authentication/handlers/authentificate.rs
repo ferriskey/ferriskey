@@ -116,7 +116,10 @@ pub async fn authenticate(
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<Response<AuthenticateResponse>, ApiError> {
-    let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
+    let session_code = match cookie.get("FERRISKEY_SESSION"){
+        Some(cookie) => cookie,
+        None => return Err(ApiError::Unauthorized("Missing session cookie".to_string()))
+    };
     let session_code = session_code.value().to_string();
 
     let session_code = Uuid::parse_str(&session_code).unwrap();
