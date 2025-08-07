@@ -1,0 +1,23 @@
+{{- if .Values.api.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ferriskey.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ferriskey.labels" . | nindent 4 }}
+    component: api
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name:  {{ include "ferriskey.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.api.monitoring.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.api.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+      honorLabels: true
+{{- end }}
