@@ -2,7 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "ferriskey.fullname" . }}-api
-  labels: {{ include "ferriskey.labels" . | nindent 4 }}
+  labels:
+    {{ include "ferriskey.labels" . | nindent 4 }}
+    component: api
 spec:
   type: {{ .Values.api.service.type }}
   ports:
