@@ -1,7 +1,7 @@
 front:
   image:
     repository: ghcr.io/ferriskey/ferriskey-front
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
     tag: "latest"
   labels:
     app: ferriskey-front
@@ -14,13 +14,13 @@ api:
   portalUrl: "https://console.ferriskey.bonnal.cloud"
   image:
     repository: ghcr.io/ferriskey/ferriskey-api
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
     tag: "latest"
   service:
     type: ClusterIP
     port: 3333
   database:
-    existingSecret: infrastructure-ferriskey-stack-db-app
+    existingSecret: ferriskey-db-app
     existingSecretUrlKey: uri
   healthCheck:
     livenessProbe:
@@ -36,9 +36,15 @@ api:
       timeoutSeconds: 3
       failureThreshold: 3
       successThreshold: 1
+  monitoring:
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+
 
 ingress:
-  enabled: true
+  enabled: false
   apiHost: "api.ferriskey.bonnal.cloud"
   frontHost: "console.ferriskey.bonnal.cloud"
 
@@ -48,7 +54,6 @@ ingress:
 
   tls:
     enabled: true
-
 
 env: "development"
 
