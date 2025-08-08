@@ -41,3 +41,8 @@ uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
 base32 = "0.5.1"
 axum-prometheus = "0.8.0"
+
+[dev-dependencies]
+test-context = "*"
+axum-test = "*"
+sea-orm = { version = "1.1.14", features = ["sqlx-postgres"]}
