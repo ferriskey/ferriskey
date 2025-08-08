@@ -12,34 +12,6 @@ use crate::domain::realm::{
     ports::RealmRepository,
 };
 
-impl From<entity::realms::Model> for Realm {
-    fn from(model: entity::realms::Model) -> Self {
-        let created_at = Utc.from_utc_datetime(&model.created_at);
-        let updated_at = Utc.from_utc_datetime(&model.updated_at);
-
-        Realm {
-            id: model.id,
-            name: model.name,
-            created_at,
-            updated_at,
-        }
-    }
-}
-
-impl From<&entity::realms::Model> for Realm {
-    fn from(model: &entity::realms::Model) -> Self {
-        let created_at = Utc.from_utc_datetime(&model.created_at);
-        let updated_at = Utc.from_utc_datetime(&model.updated_at);
-
-        Realm {
-            id: model.id,
-            name: model.name.clone(),
-            created_at,
-            updated_at,
-        }
-    }
-}
-
 impl From<entity::realm_settings::Model> for RealmSetting {
     fn from(value: entity::realm_settings::Model) -> Self {
         let updated_at: DateTime<Utc> = Utc.from_utc_datetime(&value.updated_at);
