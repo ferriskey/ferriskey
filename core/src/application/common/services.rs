@@ -1,5 +1,8 @@
 use crate::domain::health::services::HealthCheckServiceImpl;
+use crate::infrastructure::client::ClientRepoAny;
 use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
+use crate::infrastructure::realm::RealmRepoAny;
+use crate::infrastructure::user::UserRepoAny;
 use crate::{
     domain::{
         authentication::services::{
@@ -20,10 +23,8 @@ use crate::{
         repositories::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
-            client_repository::PostgresClientRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
-            realm_repository::PostgresRealmRepository,
             redirect_uri_repository::PostgresRedirectUriRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             role_repository::PostgresRoleRepository,
@@ -34,23 +35,22 @@ use crate::{
                 user_required_action_repository::PostgresUserRequiredActionRepository,
                 user_role_repository::PostgresUserRoleRepository,
             },
-            repository::PostgresUserRepository,
         },
     },
 };
 
 pub type DefaultUserService = UserServiceImpl<
-    PostgresUserRepository,
-    PostgresRealmRepository,
+    UserRepoAny,
+    RealmRepoAny,
     PostgresUserRoleRepository,
     PostgresUserRequiredActionRepository,
 >;
 
 pub type DefaultRealmService = RealmServiceImpl<
-    PostgresRealmRepository,
-    PostgresClientRepository,
+    RealmRepoAny,
+    ClientRepoAny,
     PostgresRoleRepository,
-    PostgresUserRepository,
+    UserRepoAny,
     PostgresUserRoleRepository,
 >;
 
@@ -58,9 +58,9 @@ pub type DefaultAuthSessionService = AuthSessionServiceImpl<PostgresAuthSessionR
 pub type DefaultGrantTypeService = GrantTypeServiceImpl<
     PostgresRefreshTokenRepository,
     PostgresKeyStoreRepository,
-    PostgresRealmRepository,
-    PostgresClientRepository,
-    PostgresUserRepository,
+    RealmRepoAny,
+    ClientRepoAny,
+    UserRepoAny,
     PostgresUserRoleRepository,
     PostgresUserRequiredActionRepository,
     PostgresCredentialRepository,
@@ -68,8 +68,7 @@ pub type DefaultGrantTypeService = GrantTypeServiceImpl<
     PostgresAuthSessionRepository,
 >;
 
-pub type DefaultClientService =
-    ClientServiceImpl<PostgresClientRepository, PostgresUserRepository, PostgresRealmRepository>;
+pub type DefaultClientService = ClientServiceImpl<ClientRepoAny, UserRepoAny, RealmRepoAny>;
 
 pub type DefaultCredentialService =
     CredentialServiceImpl<PostgresCredentialRepository, Argon2HasherRepository>;
@@ -79,24 +78,18 @@ pub type DefaultCryptoService = CryptoServiceImpl<Argon2HasherRepository>;
 pub type DefaultRoleService = RoleServiceImpl<PostgresRoleRepository>;
 
 pub type DefaultUserRoleService = UserRoleServiceImpl<
-    PostgresUserRepository,
+    UserRepoAny,
     PostgresRoleRepository,
-    PostgresRealmRepository,
+    RealmRepoAny,
     PostgresUserRoleRepository,
 >;
 
 pub type DefaultUserSessionService = UserSessionServiceImpl<PostgresUserSessionRepository>;
 
-pub type DefaultJwtService = JwtServiceImpl<
-    PostgresRefreshTokenRepository,
-    PostgresKeyStoreRepository,
-    PostgresRealmRepository,
->;
+pub type DefaultJwtService =
+    JwtServiceImpl<PostgresRefreshTokenRepository, PostgresKeyStoreRepository, RealmRepoAny>;
 
-pub type DefaultRedirectUriService = RedirectUriServiceImpl<
-    PostgresRealmRepository,
-    PostgresRedirectUriRepository,
-    PostgresClientRepository,
->;
+pub type DefaultRedirectUriService =
+    RedirectUriServiceImpl<RealmRepoAny, PostgresRedirectUriRepository, ClientRepoAny>;
 
 pub type DefaultHealthCheckService = HealthCheckServiceImpl<PostgresHealthCheckRepository>;

@@ -2,6 +2,10 @@ use chrono::{DateTime, Utc};
 use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
+pub struct AppConfig {
+    pub database_url: String,
+}
+
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
     let now = Utc::now();
     let seconds = now.timestamp().try_into().unwrap_or(0);
