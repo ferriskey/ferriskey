@@ -13,18 +13,14 @@
 
 use std::sync::Arc;
 
+use anyhow::Context;
 use clap::Parser;
-use ferriskey::application::http::server::app_state::AppState;
-use ferriskey::application::http::server::http_server::{HttpServer, HttpServerConfig};
-
-use ferriskey::env::{AppEnv, Env};
-use ferriskey_core::application::common::factories::UseCaseBundle;
 use ferriskey_core::application::orchestrators::startup_orchestrator::{
     StartupConfig, StartupOrchestrator, StartupOrchestratorBuilder,
 };
-use ferriskey_core::infrastructure::common::factories::service_factory::{
-    ServiceFactory, ServiceFactoryConfig,
-};
+
+use ferriskey::application::http::server::http_server::{router, state};
+use ferriskey::env::{AppEnv, Env};
 
 fn init_logger(env: Arc<Env>) {
     let filter: tracing::Level = env.log_level.clone().into();
@@ -50,22 +46,19 @@ async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
 
     let env = Arc::new(Env::parse());
-    init_logger(Arc::clone(&env));
+    init_logger(env.clone());
 
-    let service_bundle = ServiceFactory::create_all_services(ServiceFactoryConfig {
-        database_url: env.database_url.clone(),
-    })
-    .await?;
+    let app_state = state(env.clone()).await?;
 
     let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
-        realm_service: service_bundle.realm_service.clone(),
-        user_service: service_bundle.user_service.clone(),
-        client_service: service_bundle.client_service.clone(),
-        role_service: service_bundle.role_service.clone(),
-        jwt_service: service_bundle.jwt_service.clone(),
-        user_role_service: service_bundle.user_role_service.clone(),
-        credential_service: service_bundle.credential_service.clone(),
-        redirect_uri_service: service_bundle.redirect_uri_service.clone(),
+        realm_service: app_state.service_bundle.realm_service.clone(),
+        user_service: app_state.service_bundle.user_service.clone(),
+        client_service: app_state.service_bundle.client_service.clone(),
+        role_service: app_state.service_bundle.role_service.clone(),
+        jwt_service: app_state.service_bundle.jwt_service.clone(),
+        user_role_service: app_state.service_bundle.user_role_service.clone(),
+        credential_service: app_state.service_bundle.credential_service.clone(),
+        redirect_uri_service: app_state.service_bundle.redirect_uri_service.clone(),
     });
 
     startup_orchestrator
@@ -80,14 +73,20 @@ async fn main() -> Result<(), anyhow::Error> {
 
     tracing::info!("FerrisKey API is starting...");
 
-    let server_config = HttpServerConfig::new(env.port.clone());
+    let router = router(app_state)?;
 
-    let use_case_bundle = UseCaseBundle::new(&service_bundle);
-    let app_state = AppState::new(env.clone(), service_bundle, use_case_bundle);
-    let http_server = HttpServer::new(env.clone(), server_config, app_state).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", env.port))
+        .await
+        .with_context(|| format!("Failed to bind to port {}", env.port))?;
 
-    http_server.run().await?;
+    tracing::info!(
+        "FerrisKey API is running on {}:{}",
+        listener.local_addr()?,
+        env.port,
+    );
 
-    tracing::info!("FerrisKey API is running on port {}", env.port);
+    axum::serve(listener, router)
+        .await
+        .context("received error while running server")?;
     Ok(())
 }
