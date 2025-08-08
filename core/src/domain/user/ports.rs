@@ -82,13 +82,7 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
 
     fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
 
-    #[deprecated(
-        note = "Use `get_user_roles` in UserRoleRepository. This method will be removed in future versions."
-    )]
-    fn get_roles_by_user_id(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
+
 
     fn find_by_realm_id(
         &self,
@@ -101,24 +95,6 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<u64, UserError>> + Send;
 
     fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, UserError>> + Send;
-
-    #[deprecated(
-        note = "Use `assign_role` in UserRoleRepository. This method will be removed in future versions."
-    )]
-    fn assign_role_to_user(
-        &self,
-        user_id: Uuid,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<(), UserError>> + Send;
-
-    #[deprecated(
-        note = "Use `revoke_role` in UserRoleRepository. This method will be removed in future versions."
-    )]
-    fn unassign_role_from_user(
-        &self,
-        user_id: Uuid,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<(), UserError>> + Send;
 
     fn update_user(
         &self,

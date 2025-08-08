@@ -25,14 +25,15 @@ impl HealthCheckRepository for PostgresHealthCheckRepository {
             self.db.query_one(Statement::from_string(
                 DatabaseBackend::Postgres,
                 "SELECT 1".to_owned(),
-            ))
-        ).await;
+            )),
+        )
+        .await;
 
         match result {
             Ok(Ok(_)) => Ok(start.elapsed().as_millis() as u64),
             Ok(Err(e)) => Err(HealthCheckError::DatabaseConnectionError(e.to_string())),
             Err(_) => Err(HealthCheckError::DatabaseConnectionError(
-                "Database query timeout after 3 seconds".to_string()
+                "Database query timeout after 3 seconds".to_string(),
             )),
         }
     }
@@ -52,9 +53,7 @@ impl HealthCheckRepository for PostgresHealthCheckRepository {
                     error: None,
                 })
             }
-            Err(e) => {
-                Err(HealthCheckError::ServiceUnavailable(e.to_string()))
-            },
+            Err(e) => Err(HealthCheckError::ServiceUnavailable(e.to_string())),
         }
     }
 }
