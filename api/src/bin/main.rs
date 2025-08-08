@@ -57,10 +57,6 @@ async fn main() -> Result<(), anyhow::Error> {
     })
     .await?;
 
-    let use_case_bundle = UseCaseBundle::new(service_bundle.clone());
-
-    let app_state = AppState::new(env.clone(), service_bundle.clone(), use_case_bundle);
-
     let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
         realm_service: service_bundle.realm_service.clone(),
         user_service: service_bundle.user_service.clone(),
@@ -86,6 +82,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let server_config = HttpServerConfig::new(env.port.clone());
 
+    let use_case_bundle = UseCaseBundle::new(&service_bundle);
+    let app_state = AppState::new(env.clone(), service_bundle, use_case_bundle);
     let http_server = HttpServer::new(env.clone(), server_config, app_state).await?;
 
     http_server.run().await?;

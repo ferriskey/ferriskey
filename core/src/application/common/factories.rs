@@ -92,7 +92,7 @@ pub struct UseCaseBundle {
 }
 
 impl UseCaseBundle {
-    pub fn new(service_bundle: ServiceBundle) -> Self {
+    pub fn new(service_bundle: &ServiceBundle) -> Self {
         // Auth (use-cases)
 
         let exchange_token_use_case = ExchangeTokenUseCase::new(
