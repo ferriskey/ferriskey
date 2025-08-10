@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:17
@@ -15,8 +13,8 @@ services:
 
   api-migration:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     environment:
       - PORT=3333
       - ENV=development
@@ -35,8 +33,8 @@ services:
     restart: "no"
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     environment:
       - PORT=3333
       - ENV=development
@@ -45,6 +43,7 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_EMAIL=super@ferriskey.local
       - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
+      - PORTAL_URL=http://localhost:5555
     depends_on:
       api-migration:
         condition: service_completed_successfully
@@ -52,8 +51,8 @@ services:
       - "3333:3333"
   frontend:
     build:
-      context: ./front
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./front/Dockerfile
     ports:
       - "5555:80"
     environment:

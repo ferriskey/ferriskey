@@ -8,6 +8,7 @@ FROM rust AS cacher
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY --from=planner /app/recipe.json recipe.json
+COPY --from=planner /app/core/Cargo.toml /core/cargo.toml
 RUN cargo chef cook --release --recipe-path recipe.json
 
 FROM rust AS builder
@@ -24,7 +25,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/ferriskey-server /usr/local/bin
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin
-COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/core/migrations /app/migrations
 
 EXPOSE 80
 
