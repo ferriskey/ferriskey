@@ -18,7 +18,7 @@ use crate::infrastructure::client::ClientRepoAny;
 use crate::infrastructure::client::repositories::RedirectUriRepoAny;
 use crate::infrastructure::credential::CredentialRepoAny;
 use crate::infrastructure::hasher::HasherRepoAny;
-use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
+use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::RealmRepoAny;
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
@@ -63,4 +63,4 @@ pub type DefaultJwtService = JwtServiceImpl<RefreshTokenRepoAny, KeyStoreRepoAny
 pub type DefaultRedirectUriService =
     RedirectUriServiceImpl<RealmRepoAny, RedirectUriRepoAny, ClientRepoAny>;
 
-pub type DefaultHealthCheckService = HealthCheckServiceImpl<PostgresHealthCheckRepository>;
+pub type DefaultHealthCheckService = HealthCheckServiceImpl<HealthCheckRepoAny>;

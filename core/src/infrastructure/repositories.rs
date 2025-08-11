@@ -5,6 +5,7 @@ use crate::infrastructure::client::repositories::RedirectUriRepoAny;
 use crate::infrastructure::credential::CredentialRepoAny;
 use crate::infrastructure::db::postgres::{Postgres, PostgresConfig};
 use crate::infrastructure::hasher::HasherRepoAny;
+use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::RealmRepoAny;
@@ -52,7 +53,7 @@ pub struct RepoBundle {
     pub keystore_repository: KeyStoreRepoAny,
     pub user_role_repository: UserRoleRepoAny,
     pub user_required_action_repository: UserRequiredActionRepoAny,
-    pub health_check_repository: PostgresHealthCheckRepository,
+    pub health_check_repository: HealthCheckRepoAny,
 }
 
 pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::Error> {
@@ -82,7 +83,7 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
     let user_required_action_repository = UserRequiredActionRepoAny::Postgres(
         PostgresUserRequiredActionRepository::new(postgres.get_db()),
     );
-    let health_check_repository = PostgresHealthCheckRepository::new(postgres.get_db());
+    let health_check_repository = HealthCheckRepoAny::Postgres(PostgresHealthCheckRepository::new(postgres.get_db()));
 
     Ok(RepoBundle {
         realm_repository,
