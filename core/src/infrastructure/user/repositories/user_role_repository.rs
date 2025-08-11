@@ -15,9 +15,40 @@ pub struct PostgresUserRoleRepository {
     pub db: DatabaseConnection,
 }
 
+#[derive(Clone)]
+pub enum UserRoleRepoAny {
+    Postgres(PostgresUserRoleRepository),
+}
+
 impl PostgresUserRoleRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+}
+
+impl UserRoleRepository for UserRoleRepoAny {
+    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+        match self {
+            UserRoleRepoAny::Postgres(repo) => repo.assign_role(user_id, role_id).await,
+        }
+    }
+
+    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+        match self {
+            UserRoleRepoAny::Postgres(repo) => repo.revoke_role(user_id, role_id).await,
+        }
+    }
+
+    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+        match self {
+            UserRoleRepoAny::Postgres(repo) => repo.get_user_roles(user_id).await,
+        }
+    }
+
+    async fn has_role(&self, user_id: Uuid, role_id: Uuid) -> Result<bool, UserError> {
+        match self {
+            UserRoleRepoAny::Postgres(repo) => repo.has_role(user_id, role_id).await,
+        }
     }
 }
 
@@ -33,6 +64,24 @@ impl UserRoleRepository for PostgresUserRoleRepository {
             .insert(&self.db)
             .await
             .map_err(|_| UserError::InternalServerError)?;
+
+        Ok(())
+    }
+
+    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+        let rows = entity::user_role::Entity::delete_many()
+            .filter(
+                Condition::all()
+                    .add(entity::user_role::Column::UserId.eq(user_id))
+                    .add(entity::user_role::Column::RoleId.eq(role_id)),
+            )
+            .exec(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        if rows.rows_affected == 0 {
+            return Err(UserError::NotFound);
+        }
 
         Ok(())
     }
@@ -73,23 +122,5 @@ impl UserRoleRepository for PostgresUserRoleRepository {
 
     async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, UserError> {
         todo!("Implement has_role in PostgresUserRoleRepository");
-    }
-
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
-        let rows = entity::user_role::Entity::delete_many()
-            .filter(
-                Condition::all()
-                    .add(entity::user_role::Column::UserId.eq(user_id))
-                    .add(entity::user_role::Column::RoleId.eq(role_id)),
-            )
-            .exec(&self.db)
-            .await
-            .map_err(|_| UserError::InternalServerError)?;
-
-        if rows.rows_affected == 0 {
-            return Err(UserError::NotFound);
-        }
-
-        Ok(())
     }
 }

@@ -20,9 +20,55 @@ pub struct PostgresUserRequiredActionRepository {
     pub db: DatabaseConnection,
 }
 
+#[derive(Clone)]
+pub enum UserRequiredActionRepoAny {
+    Postgres(PostgresUserRequiredActionRepository),
+}
+
 impl PostgresUserRequiredActionRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+}
+
+impl UserRequiredActionRepository for UserRequiredActionRepoAny {
+    async fn add_required_action(
+        &self,
+        user_id: Uuid,
+        action: RequiredAction,
+    ) -> Result<(), RequiredActionError> {
+        match self {
+            UserRequiredActionRepoAny::Postgres(repo) => {
+                repo.add_required_action(user_id, action).await
+            }
+        }
+    }
+
+    async fn remove_required_action(
+        &self,
+        user_id: Uuid,
+        action: RequiredAction,
+    ) -> Result<(), RequiredActionError> {
+        match self {
+            UserRequiredActionRepoAny::Postgres(repo) => {
+                repo.remove_required_action(user_id, action).await
+            }
+        }
+    }
+
+    async fn get_required_actions(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<RequiredAction>, RequiredActionError> {
+        match self {
+            UserRequiredActionRepoAny::Postgres(repo) => repo.get_required_actions(user_id).await,
+        }
+    }
+
+    async fn clear_required_actions(&self, user_id: Uuid) -> Result<u64, RequiredActionError> {
+        match self {
+            UserRequiredActionRepoAny::Postgres(repo) => repo.clear_required_actions(user_id).await,
+        }
     }
 }
 

@@ -5,6 +5,7 @@ use crate::infrastructure::repositories::client_repository::PostgresClientReposi
 use uuid::Uuid;
 
 mod mappers;
+pub mod repositories;
 
 #[derive(Clone)]
 pub enum ClientRepoAny {
