@@ -27,7 +27,7 @@ export default function PageClientsOverview({
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher un client..."
+        searchPlaceholder="Search a client..."
         createData={{
           label: 'Create Client',
           onClick: handleCreateClient,
