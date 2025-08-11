@@ -109,9 +109,6 @@ jobs:
 
           helm package infrastructure/charts/ferriskey --destination .cr_releases
           helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
-          
-          # Also tag as latest for production
-          helm push .cr_releases/ferriskey-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts --version latest
 
   build-ferriskey-operator-chart:
     runs-on: ubuntu-latest
