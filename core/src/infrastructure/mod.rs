@@ -1,5 +1,6 @@
 pub mod client;
 pub mod common;
+pub mod credential;
 pub mod db;
 pub mod health;
 pub mod realm;

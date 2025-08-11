@@ -30,11 +30,9 @@ use crate::{
             role_repository::PostgresRoleRepository,
             user_session_repository::PostgresUserSessionRepository,
         },
-        user::{
-            repositories::{
-                user_required_action_repository::PostgresUserRequiredActionRepository,
-                user_role_repository::PostgresUserRoleRepository,
-            },
+        user::repositories::{
+            user_required_action_repository::PostgresUserRequiredActionRepository,
+            user_role_repository::PostgresUserRoleRepository,
         },
     },
 };

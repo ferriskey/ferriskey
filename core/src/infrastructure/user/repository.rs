@@ -1,16 +1,14 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    ModelTrait, QueryFilter
+    ModelTrait, QueryFilter,
 };
 use tracing::error;
 use uuid::Uuid;
 
-use crate::domain::{
-    user::{
-        entities::{RequiredAction, User, UserConfig, UserError},
-        ports::UserRepository,
-        value_objects::{CreateUserRequest, UpdateUserRequest},
-    },
+use crate::domain::user::{
+    entities::{RequiredAction, User, UserConfig, UserError},
+    ports::UserRepository,
+    value_objects::{CreateUserRequest, UpdateUserRequest},
 };
 
 #[derive(Debug, Clone)]
@@ -167,7 +165,6 @@ impl UserRepository for PostgresUserRepository {
         // let user: User = user_model.into();
         // Ok(user)
     }
-
 
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
         let users = entity::users::Entity::find()
