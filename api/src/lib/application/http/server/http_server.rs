@@ -19,7 +19,6 @@ use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_extra::routing::RouterExt;
 use axum_prometheus::PrometheusMetricLayer;
-use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
 use utoipa::OpenApi;
@@ -68,7 +67,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         HeaderValue::from_static("http://localhost:5555"),
     ]
     .into_iter()
-    .chain(allowed_origins_from_env.into_iter())
+    .chain(allowed_origins_from_env)
     .collect::<Vec<HeaderValue>>();
 
     let cors = CorsLayer::new()

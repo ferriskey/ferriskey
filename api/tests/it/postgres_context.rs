@@ -16,7 +16,7 @@ fn start_db() -> String {
     ];
     start_container("docker", &args, |id| {
         std::process::Command::new("docker")
-            .args(["exec", &id, "pg_isready", "-t", "90"])
+            .args(["exec", id, "pg_isready", "-t", "90"])
             .output()
             .unwrap()
             .status
