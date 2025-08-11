@@ -83,7 +83,8 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
     let user_required_action_repository = UserRequiredActionRepoAny::Postgres(
         PostgresUserRequiredActionRepository::new(postgres.get_db()),
     );
-    let health_check_repository = HealthCheckRepoAny::Postgres(PostgresHealthCheckRepository::new(postgres.get_db()));
+    let health_check_repository =
+        HealthCheckRepoAny::Postgres(PostgresHealthCheckRepository::new(postgres.get_db()));
 
     Ok(RepoBundle {
         realm_repository,

@@ -6,7 +6,7 @@ pub mod repositories;
 
 #[derive(Clone)]
 pub enum HealthCheckRepoAny {
-    Postgres(PostgresHealthCheckRepository)
+    Postgres(PostgresHealthCheckRepository),
 }
 
 impl HealthCheckRepository for HealthCheckRepoAny {
