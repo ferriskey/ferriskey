@@ -27,6 +27,8 @@ pub struct GetClientRolesResponse {
     get,
     path = "/{client_id}/roles",
     tag = "client",
+    summary = "Get client roles",
+    description = "Retrieves all roles associated with a client in a specific realm.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID")

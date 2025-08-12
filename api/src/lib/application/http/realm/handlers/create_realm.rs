@@ -17,6 +17,7 @@ pub struct CreateRealmRoute;
     post,
     path = "",
     tag = "realm",
+    summary = "Create a new realm",
     responses(
         (status = 201, body = Realm)
     ),

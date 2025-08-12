@@ -42,12 +42,14 @@ pub struct ChallengeOtpResponse {
 }
 
 #[utoipa::path(
-  post,
-  path = "/login-actions/challenge-otp",
-  tag = "auth",
-  responses(
-    (status = 200, body = ChallengeOtpResponse)
-  )
+    post,
+    path = "/login-actions/challenge-otp",
+    tag = "auth",
+    summary = "Challenge OTP for user authentication",
+    description = "Challenges the user to provide a One-Time Password (OTP) for authentication. This is typically used in multi-factor authentication scenarios.",
+    responses(
+        (status = 200, body = ChallengeOtpResponse)
+    )
 )]
 pub async fn challenge_otp(
     ChallengeOtpRoute { realm_name: _ }: ChallengeOtpRoute,

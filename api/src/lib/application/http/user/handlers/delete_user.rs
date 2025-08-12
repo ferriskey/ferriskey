@@ -28,6 +28,13 @@ pub struct DeleteUserResponse {
     delete,
     path = "/{user_id}",
     tag = "user",
+    summary = "Delete a user in a realm",
+    description = "Deletes a user in a realm. This action is irreversible and will remove all associated data.",
+    responses(
+        (status = 200, body = DeleteUserResponse, description = "User deleted successfully"),
+        (status = 404, description = "User not found"),
+        (status = 403, description = "Forbidden: User does not have permission to delete this user")
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = String, Path, description = "User ID"),

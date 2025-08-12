@@ -27,7 +27,21 @@ pub struct SetupOtpRoute {
     pub realm_name: String,
 }
 
-#[utoipa::path(get, path = "/login-actions/setup-otp", tag = "auth")]
+#[utoipa::path(
+    get,
+    path = "/login-actions/setup-otp",
+    tag = "auth",
+    summary = "Setup OTP for user authentication",
+    description = "Sets up a One-Time Password (OTP) for user authentication. This is typically used in multi-factor authentication scenarios.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
+    responses(
+        (status = 200, body = SetupOtpResponse, description = "OTP setup successful"),
+        (status = 403, description = "Forbidden - Only users can set up OTP"),
+        (status = 500, description = "Internal Server Error - Failed to generate OTP secret")
+    )
+)]
 pub async fn setup_otp(
     SetupOtpRoute { realm_name }: SetupOtpRoute,
     State(state): State<AppState>,

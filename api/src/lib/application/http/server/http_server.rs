@@ -22,7 +22,7 @@ use axum_prometheus::PrometheusMetricLayer;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_scalar::{Scalar, Servable};
 
 use ferriskey_core::application::common::{
     factories::UseCaseBundle,
@@ -92,7 +92,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let router = axum::Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(Scalar::with_url("/swagger-ui", ApiDoc::openapi()))
         .typed_get(get_config)
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))

@@ -34,13 +34,18 @@ pub struct VerifyOtpRoute {
 }
 
 #[utoipa::path(
-  post,
-  path = "/login-actions/verify-otp",
-  tag = "auth",
-  request_body = OtpVerifyRequest,
-  responses(
-    (status = 200, body = VerifyOtpResponse)
-  )
+    post,
+    path = "/login-actions/verify-otp",
+    tag = "auth",
+    summary = "Verify OTP for user authentication",
+    description = "Verifies the One-Time Password (OTP) provided by the user. This is typically used in multi-factor authentication scenarios.",
+    request_body = OtpVerifyRequest,
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
+    responses(
+        (status = 200, body = VerifyOtpResponse)
+    )
 )]
 pub async fn verify_otp(
     VerifyOtpRoute { realm_name: _ }: VerifyOtpRoute,

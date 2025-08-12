@@ -28,6 +28,11 @@ pub struct UpdateClientRoute {
 #[utoipa::path(
     patch,
     path = "/{client_id}",
+    summary = "Update a client",
+    description = "Updates an existing client in the specified realm. This endpoint allows you to modify client details such as name, client ID, and enabled status.",
+    responses(
+        (status = 200, description = "Client updated successfully", body = Client),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

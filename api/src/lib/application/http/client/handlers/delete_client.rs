@@ -29,6 +29,8 @@ pub struct DeleteClientResponse {
 #[utoipa::path(
     delete,
     path = "/{client_id}",
+    summary = "Delete a client",
+    description = "Deletes a client from the specified realm. This action is irreversible and will remove all associated data.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

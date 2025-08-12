@@ -30,10 +30,17 @@ pub struct UserResponse {
     get,
     path = "/{user_id}",
     tag = "user",
+    summary = "Get a user by ID in a realm",
+    description = "Retrieves a user by their ID in a specific realm. This endpoint returns detailed information about the user.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),  
         ("user_id" = String, Path, description = "User ID"),
     ),
+    responses(
+        (status = 200, body = UserResponse, description = "User retrieved successfully"),
+        (status = 404, description = "User not found"),
+        (status = 403, description = "Forbidden: User does not have permission to access this user")
+    )
 )]
 pub async fn get_user(
     GetUserRoute {

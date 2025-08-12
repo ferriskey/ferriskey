@@ -32,6 +32,11 @@ pub struct BulkDeleteUserRoute {
     delete,
     path = "/bulk",
     tag = "user",
+    summary = "Bulk delete users in a realm",
+    description = "Deletes multiple users in a realm by their IDs. This action is irreversible and will remove all associated data.",
+    responses(
+        (status = 200, body = BulkDeleteUserResponse, description = "Users deleted successfully"),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("ids" = Vec<Uuid>, Path, description = "User IDs"),

@@ -28,6 +28,8 @@ pub struct GetOpenIdConfigurationResponse {
     get,
     path = "/.well-known/openid-configuration",
     tag = "auth",
+    summary = "Get OpenID Connect configuration",
+    description = "Retrieves the OpenID Connect configuration for a specific realm. This endpoint provides metadata about the OpenID Connect provider, including endpoints for authorization, token issuance, introspection, user information, and JWKs.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),

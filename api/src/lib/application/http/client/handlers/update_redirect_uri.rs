@@ -20,6 +20,8 @@ use tracing::info;
 #[utoipa::path(
     put,
     path = "/{client_id}/redirects/{uri_id}",
+    summary = "Update a redirect URI for a client",
+    description = "Updates an existing redirect URI for a client in a specific realm. This endpoint allows you to modify the enabled status of a redirect URI.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

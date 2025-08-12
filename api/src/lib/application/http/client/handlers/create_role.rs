@@ -24,18 +24,19 @@ pub struct CreateClientRoleRoute {
 }
 
 #[utoipa::path(
-  post,
-  summary = "Create a new role",
-  path = "/{client_id}/roles",
-  tag = "client",
-  params(
-      ("realm_name" = String, Path, description = "Realm name"),
-      ("client_id" = Uuid, Path, description = "Client ID"),
-  ),
-  request_body = CreateRoleValidator,
-  responses(
-      (status = 201, body = Role)
-  )
+    post,
+    summary = "Create a new role",
+    description = "Creates a new role for a specific client within a realm. This endpoint allows you to define roles that can be assigned to users or groups in the context of a client application.",
+    path = "/{client_id}/roles",
+    tag = "client",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = Uuid, Path, description = "Client ID"),
+    ),
+    request_body = CreateRoleValidator,
+    responses(
+        (status = 201, body = Role)
+    )
 )]
 pub async fn create_role(
     CreateClientRoleRoute {

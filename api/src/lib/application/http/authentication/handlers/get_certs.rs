@@ -24,6 +24,8 @@ pub struct GetCertsResponse {
     get,
     path = "/protocol/openid-connect/certs",
     tag = "auth",
+    summary = "Get JWK keys for a realm",
+    description = "Retrieves the JSON Web Key (JWK) keys for a specific realm, used for verifying JWT tokens.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),

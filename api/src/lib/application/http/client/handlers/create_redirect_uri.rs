@@ -20,6 +20,11 @@ use ferriskey_core::domain::client::value_objects::CreateRedirectUriRequest;
 #[utoipa::path(
     post,
     path = "/{client_id}/redirects",
+    summary = "Create a new redirect URI for a client",
+    description = "Creates a new redirect URI for the specified client. This endpoint allows you to add a redirect URI that the client can use for OAuth2 or OpenID Connect flows.",
+    responses(
+        (status = 201, body = RedirectUri, description = "Redirect URI created successfully for the client"),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

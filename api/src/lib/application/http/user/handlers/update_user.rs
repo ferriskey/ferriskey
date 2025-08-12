@@ -35,6 +35,8 @@ pub struct UpdateUserResponse {
     post,
     path = "/{user_id}",
     tag = "user",
+    summary = "Update a user in a realm",
+    description = "Updates an existing user in a specific realm. The user must exist and the request must include the necessary fields to update.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = String, Path, description = "User ID"),
@@ -44,6 +46,13 @@ pub struct UpdateUserResponse {
         description = "User to update",
         content_type = "application/json",
     ),
+    responses(
+        (status = 200, body = UpdateUserResponse, description = "User updated successfully"),
+        (status = 400, description = "Bad request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "User not found"),
+    )
 )]
 pub async fn update_user(
     UpdateUserRoute {

@@ -28,6 +28,8 @@ pub struct GetClientResponse {
 #[utoipa::path(
     get,
     path = "/{client_id}",
+    summary = "Get a client",
+    description = "Retrieves a client from the specified realm by its ID.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

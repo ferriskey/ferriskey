@@ -20,6 +20,8 @@ pub struct UpdateRealmRoute {
     put,
     path = "/{name}",
     tag = "realm",
+    summary = "Update a realm by name",
+    description = "Updates the name of an existing realm. This endpoint allows you to change the name of a realm while keeping its associated data intact.",
     params(
         ("name" = String, Path, description = "Realm name"),
     ),

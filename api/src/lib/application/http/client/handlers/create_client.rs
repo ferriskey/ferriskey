@@ -25,6 +25,14 @@ pub struct CreateClientRoute {
 #[utoipa::path(
     post,
     path = "",
+    summary = "Create a new client in a realm",
+    description = "Creates a new client within the specified realm. This endpoint allows you to register a new client application that can interact with the realm's resources.",
+    responses(
+        (status = 201, body = Client, description = "Client created successfully"),
+        (status = 400, description = "Bad request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),

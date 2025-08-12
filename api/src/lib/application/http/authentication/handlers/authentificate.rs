@@ -102,7 +102,11 @@ impl From<AuthenticateUseCaseResponse> for AuthenticateResponse {
     post,
     path = "/login-actions/authenticate",
     tag = "auth",
+    summary = "Authenticate a user in a realm",
     request_body = AuthenticateRequest,
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
     responses(
         (status = 200, body = AuthenticateResponse)
     )

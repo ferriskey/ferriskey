@@ -22,6 +22,8 @@ pub struct UpdateRealmSettingsRoute {
     put,
     path = "/{name}/settings",
     tag = "realm",
+    summary = "Update settings for a realm by name",
+    description = "Updates the settings for a specified realm. This endpoint allows modification of various realm settings.",
     params(
         ("name" = String, Path, description = "Realm name"),
     ),

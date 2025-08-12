@@ -33,6 +33,13 @@ pub struct CreateUserResponse {
     post,
     path = "",
     tag = "user",
+    summary = "Create a new user in a realm",
+    responses(
+        (status = 201, body = CreateUserResponse, description = "User created successfully"),
+        (status = 400, description = "Bad request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),

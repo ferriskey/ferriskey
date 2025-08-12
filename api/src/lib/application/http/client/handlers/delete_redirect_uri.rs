@@ -14,6 +14,8 @@ use tracing::info;
 #[utoipa::path(
     delete,
     path = "/{client_id}/redirects/{uri_id}",
+    summary = "Delete a redirect URI for a client",
+    description = "Deletes a specific redirect URI for a client in a realm. This action is irreversible and will remove the redirect URI from the client's configuration.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

@@ -15,12 +15,12 @@ use ferriskey_core::domain::client::ports::{ClientService, RedirectUriService};
 use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
 use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 
-#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
 pub struct AuthRequest {
     #[validate(length(min = 1, message = "response_type is required"))]
     #[serde(default)]
@@ -49,7 +49,23 @@ pub struct AuthRoute {
     pub realm_name: String,
 }
 
-#[utoipa::path(get, path = "/protocol/openid-connect/auth", tag = "auth")]
+#[utoipa::path(
+    get,
+    path = "/protocol/openid-connect/auth",
+    tag = "auth",
+    summary = "Authenticate a user",
+    description = "Initiates the authentication process for a user in a specific realm.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        AuthRequest
+    ),
+    responses(
+        (status = 302, description = "Redirects to the login page with session cookie set", body = AuthResponse),
+        (status = 400, description = "Bad Request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
 pub async fn auth(
     AuthRoute { realm_name }: AuthRoute,
     State(state): State<AppState>,

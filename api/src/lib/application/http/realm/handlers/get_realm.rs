@@ -19,6 +19,8 @@ pub struct GetRealmRoute {
     get,
     path = "/{name}",
     tag = "realm",
+    summary = "Get a realm by name",
+    description = "Retrieves a realm by its name. This endpoint returns the details of the specified realm.",
     params(
         ("name" = String, Path, description = "Realm name"),
     ),

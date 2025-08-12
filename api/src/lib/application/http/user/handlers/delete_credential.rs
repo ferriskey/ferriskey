@@ -30,6 +30,8 @@ pub struct DeleteUserCredentialResponse {
     delete,
     path = "/{user_id}/credentials/{credential_id}",
     tag = "user",
+    summary = "Delete a user credential in a realm",
+    description = "Deletes a specific credential for a user in a realm. This action is irreversible and will remove all associated data.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),

@@ -41,6 +41,7 @@ uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
 base32 = "0.5.1"
 axum-prometheus = "0.8.0"
+utoipa-scalar = { version = "0.3.0", features = ["axum"] }
 
 [dev-dependencies]
 test-context = "*"

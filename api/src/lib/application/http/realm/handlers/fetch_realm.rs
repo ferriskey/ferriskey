@@ -15,6 +15,8 @@ pub struct GetRealmRoute {}
     get,
     path = "",
     tag = "realm",
+    summary = "Fetch all realms",
+    description = "Retrieves a list of all realms available in the system.",
     responses(
         (status = 200, body = Vec<Realm>)
     ),

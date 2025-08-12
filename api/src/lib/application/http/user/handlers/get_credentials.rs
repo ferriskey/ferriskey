@@ -28,16 +28,18 @@ pub struct GetUserCredentialsResponse {
 }
 
 #[utoipa::path(
-  get,
-  path = "/{user_id}/credentials",
-  tag = "user",
-  params(
-    ("realm_name" = String, Path, description = "Realm name"),
-    ("user_id" = Uuid, Path, description = "User ID"),
-  ),
-  responses(
-    (status = 200, body = GetUserCredentialsResponse, description = "User credentials retrieved successfully"),
-  )
+    get,
+    path = "/{user_id}/credentials",
+    tag = "user",
+    summary = "Get user credentials in a realm",
+    description = "Retrieves all credentials associated with a user in a specific realm.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("user_id" = Uuid, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, body = GetUserCredentialsResponse, description = "User credentials retrieved successfully"),
+    )
 )]
 pub async fn get_user_credentials(
     GetUserCredentialsRoute {

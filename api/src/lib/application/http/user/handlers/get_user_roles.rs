@@ -30,6 +30,7 @@ pub struct GetUserRolesResponse {
     summary = "Get all roles for a specific user",
     path = "/{user_id}/roles",
     tag = "user",
+    description = "Retrieves all roles associated with a user in a specific realm.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),

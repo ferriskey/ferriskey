@@ -15,6 +15,8 @@ use tracing::info;
 #[utoipa::path(
     get,
     path = "/{client_id}/redirects",
+    summary = "Get redirect URIs for a client",
+    description = "Retrieves all redirect URIs associated with a client in a specific realm. This endpoint is useful for OAuth2 or OpenID Connect flows where clients need to know their registered redirect URIs.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),

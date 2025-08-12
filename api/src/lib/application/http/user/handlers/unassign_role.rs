@@ -29,6 +29,8 @@ pub struct UnassignRoleResponse {
     delete,
     path = "/{user_id}/roles/{role_id}",
     tag = "user",
+    summary = "Unassign a role from a user in a realm",
+    description = "Unassigns a specific role from a user in a realm. This action is irreversible and will remove the user's access to the role's permissions.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),

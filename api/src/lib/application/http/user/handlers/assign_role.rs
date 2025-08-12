@@ -7,9 +7,10 @@ use axum_macros::TypedPath;
 use ferriskey_core::application::user::use_cases::assign_role_use_case::AssignRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct AssignRoleResponse {
     pub message: String,
 }
@@ -26,6 +27,13 @@ pub struct AssignRoleRoute {
     post,
     path = "/{user_id}/roles/{role_id}",
     tag = "user",
+    summary = "Assign a role to a user in a realm",
+    description = "Assigns a specified role to a user within a given realm. This endpoint is used to manage user roles in the system.",
+    responses(
+        (status = 200, body = AssignRoleResponse, description = "Role assigned successfully"),
+        (status = 404, description = "User or role not found"),
+        (status = 403, description = "Forbidden - insufficient permissions"),
+    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),
