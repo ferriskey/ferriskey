@@ -9,7 +9,7 @@ name = "ferriskey_core"
 path = "src/lib.rs"
 
 [dependencies]
-entity = { path = "entity" }
+entity = { path = "../entity" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"
 base32 = "0.5.1"
