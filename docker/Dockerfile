@@ -11,6 +11,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY api api
 COPY core core
 COPY operator operator
+COPY entity entity
 
 RUN cargo install sqlx-cli --no-default-features --features postgres
 RUN cargo build --release --bin ferriskey-server && \
