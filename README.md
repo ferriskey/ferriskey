@@ -41,7 +41,6 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - 🧩 **Extensibility** — native modules for MFA, auditability, and webhooks.
 - ☁️ **Cloud‑native** — official Helm chart; ready for Kubernetes.
 
----
 
 ## 🧭 Table of Contents
 
@@ -56,8 +55,6 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Security](#-security)
 - [License](#-license)
 - [Links](#-links)
-
----
 
 
 ## 🌟 Features
