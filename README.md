@@ -198,6 +198,7 @@ Apache‑2.0 — free to use, modify, and distribute.
 ## 🔗 Links
 - 📂 Source: https://github.com/ferriskey/ferriskey
 - 📦 Helm Chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
+- 📖 Documentation: https://ferriskey.rs/docs/welcome/introduction
 - 💬 Discussions: https://github.com/ferriskey/ferriskey/discussions
 - 🏆 Sponsor: https://github.com/sponsors/ferriskey
 
