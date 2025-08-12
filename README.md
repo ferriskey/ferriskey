@@ -178,7 +178,7 @@ FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business l
 
 ## 🤝 Contributing
 We welcome contributions of all kinds bugfixes, features, docs, testing.
-1. Read CONTRIBUTING.md
+1. Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 2. Pick an issue (good first issues labelled)
 3. Open a PR with tests and a concise description
 > Join discussions to help shape modules, APIs, and UX.
