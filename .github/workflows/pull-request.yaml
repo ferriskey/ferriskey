@@ -1,0 +1,53 @@
+name: 🔍 Pull Request Checks
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.changes.outputs.rust }}
+      front: ${{ steps.changes.outputs.front }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            rust:
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'core/**'
+              - 'api/**'
+            front:
+              - 'front/**'
+  cargo-check:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.rust == 'true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            api
+            operator
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Cargo check (API)
+        run: cargo check --manifest-path api/Cargo.toml
+      - name: Clippy (API)
+        run: cargo clippy --manifest-path api/Cargo.toml -- -D warnings
