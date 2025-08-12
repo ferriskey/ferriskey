@@ -22,6 +22,7 @@ pub struct Model {
     pub credential_data: Json,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+    pub temporary: Option<bool>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -35,6 +36,7 @@ pub enum Column {
     CredentialData,
     CreatedAt,
     UpdatedAt,
+    Temporary,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -67,6 +69,7 @@ impl ColumnTrait for Column {
             Self::CredentialData => ColumnType::JsonBinary.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::Temporary => ColumnType::Boolean.def().null(),
         }
     }
 }

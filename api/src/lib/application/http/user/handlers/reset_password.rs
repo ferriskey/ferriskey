@@ -55,6 +55,7 @@ pub async fn reset_password(
                 realm_name,
                 user_id,
                 value: payload.value,
+                temporary: payload.temporary,
             },
         )
         .await

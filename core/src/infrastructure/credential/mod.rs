@@ -17,10 +17,11 @@ impl CredentialRepository for CredentialRepoAny {
         credential_type: String,
         hash_result: HashResult,
         label: String,
+        temporary: bool,
     ) -> Result<Credential, CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => {
-                repo.create_credential(user_id, credential_type, hash_result, label)
+                repo.create_credential(user_id, credential_type, hash_result, label, temporary)
                     .await
             }
         }

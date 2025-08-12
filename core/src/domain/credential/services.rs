@@ -48,7 +48,7 @@ where
             .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
 
         self.credential_repository
-            .create_credential(user_id, "password".to_string(), hash, label)
+            .create_credential(user_id, "password".to_string(), hash, label, false)
             .await
     }
 
@@ -56,6 +56,7 @@ where
         &self,
         user_id: uuid::Uuid,
         password: String,
+        temporary: bool,
     ) -> Result<(), CredentialError> {
         let password_credential = self
             .credential_repository
@@ -75,7 +76,7 @@ where
             .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
 
         self.credential_repository
-            .create_credential(user_id, "password".into(), hash_result, "".into())
+            .create_credential(user_id, "password".into(), hash_result, "".into(), temporary)
             .await
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
