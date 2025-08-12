@@ -37,7 +37,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - 🦀 **Performance-first** — Rust, async I/O, low latency.
 - 🧱 **Hexagonal architecture** — clean domain, clear ports/adapters.
 - 🏢 **Multi‑tenant realms** — strong isolation of users/roles/clients.
-- 🔐 **Modern auth** — OIDC/OAuth2, MFA (TOTP, WebAuthn, Magic Link).
+- 🔐 **Modern auth** — OIDC/OAuth2, MFA (TOTP).
 - 🧩 **Extensibility** — native modules for MFA, auditability, and webhooks.
 - ☁️ **Cloud‑native** — official Helm chart; ready for Kubernetes.
 
