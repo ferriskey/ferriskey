@@ -8,9 +8,9 @@ FerrisKey is an open-source Identity and Access Management (IAM) system written 
 
 ## 🧭 Where to Start
 
-- 📖 Read the [FerrisKey Docs](https://docs.ferriskey.bonnal.cloud)
+- 📖 Read the [FerrisKey Docs](https://ferriskey.rs/docs/welcome/introduction)
 - 🐞 Look at the [open issues](https://github.com/ferriskey/ferriskey/issues)
-- 💬 Join discussions on [Discord](https://discord.ferriskey.bonnal.cloud)
+- 💬 Join discussions on [Discord](https://discord.gg/WVV5rq8ANb)
 - 📝 Check our [GOVERNANCE.md](./GOVERNANCE.md)
 
 ---
