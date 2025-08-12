@@ -1,3 +1,4 @@
+use crate::application::common::services::ServiceBundle;
 use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
 use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::{
@@ -7,7 +8,6 @@ use crate::application::user::use_cases::{
     get_user_roles_use_case::GetUserRolesUseCase, get_user_use_case::GetUserUseCase,
     unassign_role_use_case::UnassignRoleUseCase, update_user_use_case::UpdateUserUseCase,
 };
-use crate::infrastructure::common::factories::service_factory::ServiceBundle;
 
 pub mod assign_role_use_case;
 pub mod bulk_delete_user;
@@ -38,7 +38,7 @@ pub struct UserUseCase {
 }
 
 impl UserUseCase {
-    pub fn new(service_bundle: ServiceBundle) -> Self {
+    pub fn new(service_bundle: &ServiceBundle) -> Self {
         let assign_role_use_case = AssignRoleUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_role_service.clone(),

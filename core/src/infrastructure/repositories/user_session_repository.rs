@@ -32,12 +32,6 @@ pub struct PostgresUserSessionRepository {
     pub db: DatabaseConnection,
 }
 
-impl PostgresUserSessionRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
-    }
-}
-
 impl UserSessionRepository for PostgresUserSessionRepository {
     async fn create(&self, session: &UserSession) -> Result<(), SessionError> {
         let active_model = entity::user_sessions::ActiveModel {

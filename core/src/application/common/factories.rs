@@ -13,6 +13,7 @@ use crate::application::client::use_cases::get_clients_use_case::GetClientsUseCa
 use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedirectUrisUseCase;
 use crate::application::client::use_cases::update_client_use_case::UpdateClientUseCase;
 use crate::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCase;
+use crate::application::common::services::ServiceBundle;
 use crate::application::health::use_cases::HealthCheckUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::realm::use_cases::delete_realm_use_case::DeleteRealmUseCase;
@@ -38,7 +39,6 @@ use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
 use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
-use crate::infrastructure::common::factories::service_factory::ServiceBundle;
 
 #[derive(Clone)]
 pub struct UseCaseBundle {
@@ -148,13 +148,13 @@ impl UseCaseBundle {
         );
 
         // Client (use-cases)
-        let client_use_case = ClientUseCase::new(service_bundle.clone());
+        let client_use_case = ClientUseCase::new(service_bundle);
 
         // User (use-cases)
-        let user_use_case = UserUseCase::new(service_bundle.clone());
+        let user_use_case = UserUseCase::new(service_bundle);
 
         // Role (use-cases)
-        let role_use_case = RoleUseCase::new(service_bundle.clone());
+        let role_use_case = RoleUseCase::new(service_bundle);
 
         let health_check_use_case =
             HealthCheckUseCase::new(service_bundle.health_check_service.clone());

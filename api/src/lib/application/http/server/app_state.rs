@@ -1,6 +1,6 @@
 use crate::env::Env;
 use ferriskey_core::application::common::factories::UseCaseBundle;
-use ferriskey_core::infrastructure::common::factories::service_factory::ServiceBundle;
+use ferriskey_core::application::common::services::ServiceBundle;
 use std::sync::Arc;
 
 #[derive(Clone)]

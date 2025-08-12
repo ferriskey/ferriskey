@@ -8,7 +8,7 @@ use crate::application::client::use_cases::{
     update_client_use_case::UpdateClientUseCase,
     update_redirect_uri_use_case::UpdateRedirectUriUseCase,
 };
-use crate::infrastructure::common::factories::service_factory::ServiceBundle;
+use crate::application::common::services::ServiceBundle;
 
 pub mod create_client_use_case;
 pub mod create_redirect_uri_use_case;
@@ -37,7 +37,7 @@ pub struct ClientUseCase {
 }
 
 impl ClientUseCase {
-    pub fn new(service_bundle: ServiceBundle) -> Self {
+    pub fn new(service_bundle: &ServiceBundle) -> Self {
         Self {
             create_client_use_case: CreateClientUseCase::new(
                 service_bundle.realm_service.clone(),

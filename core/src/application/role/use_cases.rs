@@ -1,8 +1,8 @@
+use crate::application::common::services::ServiceBundle;
 use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
-use crate::infrastructure::common::factories::service_factory::ServiceBundle;
 
 pub mod delete_role_use_case;
 pub mod get_role_use_case;
@@ -18,7 +18,7 @@ pub struct RoleUseCase {
 }
 
 impl RoleUseCase {
-    pub fn new(service_bundle: ServiceBundle) -> Self {
+    pub fn new(service_bundle: &ServiceBundle) -> Self {
         Self {
             get_role_use_case: GetRoleUseCase::new(
                 service_bundle.realm_service.clone(),

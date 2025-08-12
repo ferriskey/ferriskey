@@ -24,9 +24,9 @@ use tracing::info_span;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use ferriskey_core::application::common::factories::UseCaseBundle;
-use ferriskey_core::infrastructure::common::factories::service_factory::{
-    ServiceFactory, ServiceFactoryConfig,
+use ferriskey_core::application::common::{
+    factories::UseCaseBundle,
+    services::{ServiceFactory, ServiceFactoryConfig},
 };
 
 pub async fn state(env: Arc<Env>) -> Result<AppState, anyhow::Error> {
