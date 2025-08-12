@@ -1,42 +1,7 @@
 <!-- PROJECT BANNER -->
 <p align="center">
-  
+  <img src="./front/public/logo_ferriskey.png" alt="FerrisKey — Modern Open‑Source IAM in Rust" width="100" />
 </p>
-
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0ea5e9"/>
-      <stop offset="50%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#22c55e"/>
-    </linearGradient>
-    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.0)"/>
-      <stop offset="50%" stop-color="rgba(255,255,255,0.35)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.0)"/>
-    </linearGradient>
-    <filter id="soft">
-      <feGaussianBlur stdDeviation="18" />
-    </filter>
-  </defs>
-
-  <rect width="1600" height="400" fill="url(#g)"/>
-  <g opacity="0.25">
-    <circle cx="200" cy="100" r="180" fill="white" filter="url(#soft)"/>
-    <circle cx="1200" cy="320" r="220" fill="white" filter="url(#soft)"/>
-  </g>
-
-  <g>
-    <text x="100" y="220" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="80" font-weight="800" fill="#ffffff">
-      🦀 FerrisKey
-    </text>
-    <text x="100" y="270" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="26" fill="#e6f0ff">
-      Open‑Source, High‑Performance IAM • Rust • Cloud‑native • Extensible
-    </text>
-  </g>
-
-  <rect x="100" y="310" width="1400" height="4" fill="url(#glow)" opacity="0.75"/>
-</svg>
 
 <p align="center">
   <strong>FerrisKey</strong> — Open‑Source, High‑Performance Identity & Access Management<br/>
@@ -232,7 +197,7 @@ Apache‑2.0 — free to use, modify, and distribute.
 
 ## 🔗 Links
 - 📂 Source: https://github.com/ferriskey/ferriskey
-- 📦 Helm Chart (OCI): oci://ghcr.io/ferriskey/charts/ferriskey
+- 📦 Helm Chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
 - 💬 Discussions: https://github.com/ferriskey/ferriskey/discussions
 - 🏆 Sponsor: https://github.com/sponsors/ferriskey
 
