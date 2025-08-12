@@ -21,6 +21,7 @@ pub struct ResetPasswordUseCaseParams {
     pub realm_name: String,
     pub user_id: Uuid,
     pub value: String,
+    pub temporary: bool,
 }
 
 impl ResetPasswordUseCase {
@@ -63,7 +64,7 @@ impl ResetPasswordUseCase {
         .map_err(|e| UserError::Forbidden(e.to_string()))?;
 
         self.credential_service
-            .reset_password(params.user_id, params.value)
+            .reset_password(params.user_id, params.value, params.temporary)
             .await
             .map_err(|_| UserError::InternalServerError)
     }

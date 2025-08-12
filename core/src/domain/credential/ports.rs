@@ -17,6 +17,7 @@ pub trait CredentialService: Clone + Send + Sync + 'static {
         &self,
         user_id: Uuid,
         password: String,
+        temporary: bool,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
 
     fn verify_password(
@@ -50,6 +51,7 @@ pub trait CredentialRepository: Clone + Send + Sync + 'static {
         credential_type: String,
         hash_result: HashResult,
         label: String,
+        temporary: bool,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
 
     fn get_password_credential(

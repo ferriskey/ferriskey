@@ -13,6 +13,7 @@ pub struct Credential {
     pub user_label: Option<String>,
     pub secret_data: String,
     pub credential_data: CredentialData,
+    pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -52,6 +53,7 @@ impl Credential {
             user_label: config.user_label,
             secret_data: config.secret_data,
             credential_data: config.credential_data,
+            temporary: config.temporary,
             created_at: config.created_at,
             updated_at: config.updated_at,
         }
@@ -81,6 +83,7 @@ pub struct CredentialConfig {
     pub user_label: Option<String>,
     pub secret_data: String,
     pub credential_data: CredentialData,
+    pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

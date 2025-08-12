@@ -370,6 +370,10 @@ impl AuthenticateUseCase {
             .await
             .map_err(|_| AuthenticationError::InvalidUser)?;
 
+        let has_temporary_password = user_credentials
+            .iter()
+            .any(|cred| cred.temporary == true);
+
         let credentials: Vec<String> = user_credentials
             .iter()
             .map(|cred| cred.credential_type.clone())
@@ -395,15 +399,22 @@ impl AuthenticateUseCase {
             client_id.clone(),
             Some(user.email.clone()),
         );
-        if !user.required_actions.is_empty() {
+        if !user.required_actions.is_empty() || has_temporary_password {
             let jwt_token = self
                 .jwt_service
                 .generate_token(jwt_claim, realm.id)
                 .await
                 .map_err(|_| AuthenticationError::InternalServerError)?;
+
+            let required_actions = if has_temporary_password {
+                vec![RequiredAction::UpdatePassword]
+            } else {
+                user.required_actions.clone()
+            };
+
             return Ok(AuthenticationResult {
                 code: None,
-                required_actions: user.required_actions.clone(),
+                required_actions,
                 user_id: user.id,
                 token: Some(jwt_token.token),
                 credentials,

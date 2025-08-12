@@ -35,6 +35,7 @@ impl From<crate::entity::credentials::Model> for Credential {
             user_label: model.user_label,
             secret_data: model.secret_data,
             credential_data,
+            temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
         }
@@ -59,6 +60,7 @@ impl CredentialRepository for PostgresCredentialRepository {
         credential_type: String,
         hash_result: HashResult,
         label: String,
+        temporary: bool,
     ) -> Result<Credential, CredentialError> {
         let (now, _) = generate_timestamp();
 
@@ -73,6 +75,7 @@ impl CredentialRepository for PostgresCredentialRepository {
                 .map_err(|_| CredentialError::CreateCredentialError)?),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
         };
 
         let t = payload
@@ -172,6 +175,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             credential_data: Set(credential_data),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(false)), // Assuming custom credentials are not temporary
         };
 
         let model = payload
