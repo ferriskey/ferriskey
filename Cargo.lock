@@ -953,14 +953,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "entity"
-version = "0.1.0"
-dependencies = [
- "sea-orm",
- "serde",
-]
-
-[[package]]
 name = "enum-ordinalize"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1033,7 +1025,6 @@ dependencies = [
  "base32",
  "base64",
  "chrono",
- "entity",
  "hmac",
  "jsonwebtoken",
  "rand 0.8.5",
@@ -1050,6 +1041,14 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferriskey_entities"
+version = "0.1.0"
+dependencies = [
+ "sea-orm",
+ "serde",
 ]
 
 [[package]]

@@ -2,8 +2,6 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 
-use entity::realms::{ActiveModel, Entity as RealmEntity};
-
 use chrono::{DateTime, TimeZone, Utc};
 use uuid::Uuid;
 
@@ -12,8 +10,8 @@ use crate::domain::realm::{
     ports::RealmRepository,
 };
 
-impl From<entity::realm_settings::Model> for RealmSetting {
-    fn from(value: entity::realm_settings::Model) -> Self {
+impl From<crate::infrastructure::entities::realm_settings::Model> for RealmSetting {
+    fn from(value: crate::infrastructure::entities::realm_settings::Model) -> Self {
         let updated_at: DateTime<Utc> = Utc.from_utc_datetime(&value.updated_at);
 
         RealmSetting {
@@ -38,7 +36,7 @@ impl PostgresRealmRepository {
 
 impl RealmRepository for PostgresRealmRepository {
     async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
-        let realms = RealmEntity::find()
+        let realms = crate::infrastructure::entities::realms::Entity::find()
             .all(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -50,8 +48,8 @@ impl RealmRepository for PostgresRealmRepository {
     }
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
-        let realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(name))
+        let realm = crate::infrastructure::entities::realms::Entity::find()
+            .filter(crate::infrastructure::entities::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -63,7 +61,7 @@ impl RealmRepository for PostgresRealmRepository {
     async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
         let realm = Realm::new(name);
 
-        let new_realm = ActiveModel {
+        let new_realm = crate::infrastructure::entities::realms::ActiveModel {
             id: Set(realm.id),
             name: Set(realm.name),
             created_at: Set(realm.created_at.naive_utc()),
@@ -81,14 +79,14 @@ impl RealmRepository for PostgresRealmRepository {
     }
 
     async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
-        let realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(realm_name))
+        let realm = crate::infrastructure::entities::realms::Entity::find()
+            .filter(crate::infrastructure::entities::realms::Column::Name.eq(realm_name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
             .ok_or(RealmError::NotFound)?;
 
-        let mut realm: ActiveModel = realm.into();
+        let mut realm: crate::infrastructure::entities::realms::ActiveModel = realm.into();
         realm.name = Set(name.clone());
         realm.updated_at = Set(Utc::now().naive_utc());
         realm
@@ -96,8 +94,8 @@ impl RealmRepository for PostgresRealmRepository {
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
-        let updated_realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(name))
+        let updated_realm = crate::infrastructure::entities::realms::Entity::find()
+            .filter(crate::infrastructure::entities::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -107,8 +105,8 @@ impl RealmRepository for PostgresRealmRepository {
     }
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
-        let res = RealmEntity::delete_many()
-            .filter(entity::realms::Column::Name.eq(name))
+        let res = crate::infrastructure::entities::realms::Entity::delete_many()
+            .filter(crate::infrastructure::entities::realms::Column::Name.eq(name))
             .exec(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
@@ -127,7 +125,7 @@ impl RealmRepository for PostgresRealmRepository {
     ) -> Result<RealmSetting, RealmError> {
         let realm_setting = RealmSetting::new(realm_id, Some(algorithm));
 
-        let active_model = entity::realm_settings::ActiveModel {
+        let active_model = crate::infrastructure::entities::realm_settings::ActiveModel {
             id: Set(realm_setting.id),
             realm_id: Set(realm_setting.realm_id),
             default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
@@ -151,14 +149,14 @@ impl RealmRepository for PostgresRealmRepository {
         realm_id: Uuid,
         algorithm: String,
     ) -> Result<RealmSetting, RealmError> {
-        let realm_setting = entity::realm_settings::Entity::find()
-            .filter(entity::realm_settings::Column::RealmId.eq(realm_id))
+        let realm_setting = crate::infrastructure::entities::realm_settings::Entity::find()
+            .filter(crate::infrastructure::entities::realm_settings::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
             .ok_or(RealmError::NotFound)?;
 
-        let mut realm_setting: entity::realm_settings::ActiveModel = realm_setting.into();
+        let mut realm_setting: crate::infrastructure::entities::realm_settings::ActiveModel = realm_setting.into();
 
         realm_setting.default_signing_algorithm = Set(Some(algorithm));
 

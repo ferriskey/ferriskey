@@ -11,8 +11,8 @@ use crate::domain::authentication::{
     ports::AuthSessionRepository,
 };
 
-impl From<entity::auth_sessions::Model> for AuthSession {
-    fn from(model: entity::auth_sessions::Model) -> Self {
+impl From<crate::infrastructure::entities::auth_sessions::Model> for AuthSession {
+    fn from(model: crate::infrastructure::entities::auth_sessions::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
 
@@ -47,7 +47,7 @@ impl PostgresAuthSessionRepository {
 
 impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn create(&self, session: &AuthSession) -> Result<AuthSession, AuthenticationError> {
-        let model = entity::auth_sessions::ActiveModel {
+        let model = crate::infrastructure::entities::auth_sessions::ActiveModel {
             id: Set(session.id),
             realm_id: Set(session.realm_id),
             client_id: Set(session.client_id),
@@ -79,8 +79,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         &self,
         session_code: Uuid,
     ) -> Result<AuthSession, AuthenticationError> {
-        let session = entity::auth_sessions::Entity::find()
-            .filter(entity::auth_sessions::Column::Id.eq(session_code))
+        let session = crate::infrastructure::entities::auth_sessions::Entity::find()
+            .filter(crate::infrastructure::entities::auth_sessions::Column::Id.eq(session_code))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -94,8 +94,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     }
 
     async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthenticationError> {
-        let session = entity::auth_sessions::Entity::find()
-            .filter(entity::auth_sessions::Column::Code.eq(code))
+        let session = crate::infrastructure::entities::auth_sessions::Entity::find()
+            .filter(crate::infrastructure::entities::auth_sessions::Column::Code.eq(code))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -114,10 +114,10 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         code: String,
         user_id: Uuid,
     ) -> Result<AuthSession, AuthenticationError> {
-        let session = entity::auth_sessions::Entity::update_many()
-            .col_expr(entity::auth_sessions::Column::Code, Expr::value(code))
-            .col_expr(entity::auth_sessions::Column::UserId, Expr::value(user_id))
-            .filter(entity::auth_sessions::Column::Id.eq(session_code))
+        let session = crate::infrastructure::entities::auth_sessions::Entity::update_many()
+            .col_expr(crate::infrastructure::entities::auth_sessions::Column::Code, Expr::value(code))
+            .col_expr(crate::infrastructure::entities::auth_sessions::Column::UserId, Expr::value(user_id))
+            .filter(crate::infrastructure::entities::auth_sessions::Column::Id.eq(session_code))
             .exec_with_returning(&self.db)
             .await
             .map_err(|e| {

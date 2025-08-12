@@ -1,16 +1,16 @@
-use sea_orm::entity::prelude::*;
+use sea_orm::{Linked, RelationDef, RelationTrait};
 
 #[derive(Debug)]
 pub struct UserToRole;
 
 impl Linked for UserToRole {
-    type FromEntity = entity::users::Entity;
-    type ToEntity = entity::roles::Entity;
+    type FromEntity = crate::infrastructure::entities::users::Entity;
+    type ToEntity = crate::infrastructure::entities::roles::Entity;
 
     fn link(&self) -> Vec<RelationDef> {
         vec![
-            entity::users::Relation::UserRole.def(),
-            entity::user_role::Relation::Roles.def(),
+            crate::infrastructure::entities::users::Relation::UserRole.def(),
+            crate::infrastructure::entities::user_role::Relation::Roles.def(),
         ]
     }
 }

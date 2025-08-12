@@ -5,8 +5,6 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
-use entity::user_required_actions::Entity as UserRequiredActionsEntity;
-
 use crate::domain::{
     common::generate_uuid_v7,
     user::{
@@ -79,7 +77,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         action: RequiredAction,
     ) -> Result<(), RequiredActionError> {
         let created_at: NaiveDateTime = chrono::Utc::now().naive_utc();
-        let action_model = entity::user_required_actions::ActiveModel {
+        let action_model = crate::infrastructure::entities::user_required_actions::ActiveModel {
             id: Set(generate_uuid_v7()),
             created_at: Set(created_at),
             action: Set(action.to_string()),
@@ -93,12 +91,36 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         Ok(())
     }
 
+    async fn remove_required_action(
+        &self,
+        user_id: Uuid,
+        action: RequiredAction,
+    ) -> Result<(), RequiredActionError> {
+        let action = crate::infrastructure::entities::user_required_actions::Entity::find()
+            .filter(
+                crate::infrastructure::entities::user_required_actions::Column::UserId
+                    .eq(user_id)
+                    .and(crate::infrastructure::entities::user_required_actions::Column::Action.eq(action.to_string())),
+            )
+            .one(&self.db)
+            .await
+            .map_err(|_| RequiredActionError::InternalServerError)?
+            .ok_or(RequiredActionError::NotFound)?;
+
+        action
+            .delete(&self.db)
+            .await
+            .map_err(|_| RequiredActionError::InternalServerError)?;
+
+        Ok(())
+    }
+
     async fn get_required_actions(
         &self,
         user_id: Uuid,
     ) -> Result<Vec<RequiredAction>, RequiredActionError> {
-        let actions = UserRequiredActionsEntity::find()
-            .filter(entity::user_required_actions::Column::UserId.eq(user_id))
+        let actions = crate::infrastructure::entities::user_required_actions::Entity::find()
+            .filter(crate::infrastructure::entities::user_required_actions::Column::UserId.eq(user_id))
             .all(&self.db)
             .await
             .map_err(|_| RequiredActionError::InternalServerError)?;
@@ -116,33 +138,9 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         Ok(actions)
     }
 
-    async fn remove_required_action(
-        &self,
-        user_id: Uuid,
-        action: RequiredAction,
-    ) -> Result<(), RequiredActionError> {
-        let action = UserRequiredActionsEntity::find()
-            .filter(
-                entity::user_required_actions::Column::UserId
-                    .eq(user_id)
-                    .and(entity::user_required_actions::Column::Action.eq(action.to_string())),
-            )
-            .one(&self.db)
-            .await
-            .map_err(|_| RequiredActionError::InternalServerError)?
-            .ok_or(RequiredActionError::NotFound)?;
-
-        action
-            .delete(&self.db)
-            .await
-            .map_err(|_| RequiredActionError::InternalServerError)?;
-
-        Ok(())
-    }
-
     async fn clear_required_actions(&self, user_id: Uuid) -> Result<u64, RequiredActionError> {
-        let rows_affected = UserRequiredActionsEntity::delete_many()
-            .filter(entity::user_required_actions::Column::UserId.eq(user_id))
+        let rows_affected = crate::infrastructure::entities::user_required_actions::Entity::delete_many()
+            .filter(crate::infrastructure::entities::user_required_actions::Column::UserId.eq(user_id))
             .exec(&self.db)
             .await
             .map_err(|_| RequiredActionError::InternalServerError)?

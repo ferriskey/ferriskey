@@ -1,17 +1,18 @@
 use chrono::{TimeZone, Utc};
-use entity::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
+
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 use uuid::Uuid;
 
+use crate::infrastructure::entities::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
 use crate::domain::client::{
     entities::redirect_uri::{RedirectUri, RedirectUriError},
     ports::RedirectUriRepository,
 };
 
-impl From<entity::redirect_uris::Model> for RedirectUri {
-    fn from(model: entity::redirect_uris::Model) -> Self {
+impl From<crate::infrastructure::entities::redirect_uris::Model> for RedirectUri {
+    fn from(model: crate::infrastructure::entities::redirect_uris::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
@@ -45,7 +46,7 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
     ) -> Result<RedirectUri, RedirectUriError> {
         let redirect_uri = RedirectUri::new(client_id, value, enabled);
 
-        let payload = ActiveModel {
+        let payload = crate::infrastructure::entities::redirect_uris::ActiveModel {
             id: Set(redirect_uri.id),
             client_id: Set(redirect_uri.client_id),
             value: Set(redirect_uri.value),
@@ -66,8 +67,8 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         &self,
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
-        let redirect_uris = RedirectUriEntity::find()
-            .filter(entity::redirect_uris::Column::ClientId.eq(client_id))
+        let redirect_uris = crate::infrastructure::entities::redirect_uris::Entity::find()
+            .filter(crate::infrastructure::entities::redirect_uris::Column::ClientId.eq(client_id))
             .all(&self.db)
             .await
             .map_err(|_| RedirectUriError::DatabaseError)?;
@@ -85,8 +86,8 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         client_id: Uuid,
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
         let redirect_uris = RedirectUriEntity::find()
-            .filter(entity::redirect_uris::Column::ClientId.eq(client_id))
-            .filter(entity::redirect_uris::Column::Enabled.eq(true))
+            .filter(crate::infrastructure::entities::redirect_uris::Column::ClientId.eq(client_id))
+            .filter(crate::infrastructure::entities::redirect_uris::Column::Enabled.eq(true))
             .all(&self.db)
             .await
             .map_err(|_| RedirectUriError::DatabaseError)?
@@ -103,7 +104,7 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         enabled: bool,
     ) -> Result<RedirectUri, RedirectUriError> {
         let redirect_uri = RedirectUriEntity::find()
-            .filter(entity::redirect_uris::Column::Id.eq(id))
+            .filter(crate::infrastructure::entities::redirect_uris::Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|_| RedirectUriError::DatabaseError)?;

@@ -1,5 +1,4 @@
 use chrono::Utc;
-use entity::clients::{ActiveModel, Entity as ClientEntity};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -29,7 +28,7 @@ impl ClientRepository for PostgresClientRepository {
     async fn create_client(&self, data: CreateClientRequest) -> Result<Client, ClientError> {
         let (now, _) = generate_timestamp();
 
-        let payload = ActiveModel {
+        let payload = crate::infrastructure::entities::clients::ActiveModel {
             id: Set(generate_uuid_v7()),
             realm_id: Set(data.realm_id),
             name: Set(data.name),
@@ -59,9 +58,9 @@ impl ClientRepository for PostgresClientRepository {
         client_id: String,
         realm_id: uuid::Uuid,
     ) -> Result<Client, ClientError> {
-        let client = ClientEntity::find()
-            .filter(entity::clients::Column::ClientId.eq(client_id))
-            .filter(entity::clients::Column::RealmId.eq(realm_id))
+        let client = crate::infrastructure::entities::clients::Entity::find()
+            .filter(crate::infrastructure::entities::clients::Column::ClientId.eq(client_id))
+            .filter(crate::infrastructure::entities::clients::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
@@ -72,9 +71,9 @@ impl ClientRepository for PostgresClientRepository {
     }
 
     async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, ClientError> {
-        let clients_model = ClientEntity::find()
-            .filter(entity::clients::Column::Id.eq(id))
-            .find_with_related(entity::redirect_uris::Entity)
+        let clients_model = crate::infrastructure::entities::clients::Entity::find()
+            .filter(crate::infrastructure::entities::clients::Column::Id.eq(id))
+            .find_with_related(crate::infrastructure::entities::redirect_uris::Entity)
             .all(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
@@ -98,8 +97,8 @@ impl ClientRepository for PostgresClientRepository {
     }
 
     async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, ClientError> {
-        let clients = ClientEntity::find()
-            .filter(entity::clients::Column::RealmId.eq(realm_id))
+        let clients = crate::infrastructure::entities::clients::Entity::find()
+            .filter(crate::infrastructure::entities::clients::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?;
@@ -114,14 +113,14 @@ impl ClientRepository for PostgresClientRepository {
         client_id: Uuid,
         data: UpdateClientRequest,
     ) -> Result<Client, ClientError> {
-        let client = ClientEntity::find()
-            .filter(entity::clients::Column::Id.eq(client_id))
+        let client = crate::infrastructure::entities::clients::Entity::find()
+            .filter(crate::infrastructure::entities::clients::Column::Id.eq(client_id))
             .one(&self.db)
             .await
             .map_err(|_| ClientError::InternalServerError)?
             .ok_or(ClientError::NotFound)?;
 
-        let mut client: ActiveModel = client.into();
+        let mut client: crate::infrastructure::entities::clients::ActiveModel = client.into();
         client.name = match data.name {
             Some(name) => Set(name),
             None => client.name,
@@ -148,8 +147,8 @@ impl ClientRepository for PostgresClientRepository {
     }
 
     async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
-        let result = ClientEntity::delete_many()
-            .filter(entity::clients::Column::Id.eq(id))
+        let result = crate::infrastructure::entities::clients::Entity::delete_many()
+            .filter(crate::infrastructure::entities::clients::Column::Id.eq(id))
             .exec(&self.db)
             .await
             .map_err(|e| {
