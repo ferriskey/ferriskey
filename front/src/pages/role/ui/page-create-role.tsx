@@ -1,6 +1,6 @@
 import { UseFormReturn } from "react-hook-form";
 import { CreateRoleSchema } from "../schemas/create-role.schema";
-import { Client, Permissions } from "@/api/core.interface";
+import { Permissions } from "@/api/core.interface";
 import { FormField } from "@/components/ui/form";
 import { InputText } from "@/components/ui/input-text";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { Heading } from "@/components/ui/heading";
 import FloatingActionBar from "@/components/ui/floating-action-bar";
 import SelectClientBox from "./components/select-client-box";
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
 
 export interface PageCreateRoleProps {
   form: UseFormReturn<CreateRoleSchema>

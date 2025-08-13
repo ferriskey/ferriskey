@@ -11,7 +11,7 @@ import { useFormChanges } from '@/hooks/use-form-changes'
 
 export default function PageClientSettingsFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
-  const { data } = useGetClient({
+  const { data: clientResponse } = useGetClient({
     realm: realm_name ?? 'master',
     clientId: client_id ?? '',
   })
@@ -20,47 +20,47 @@ export default function PageClientSettingsFeature() {
   const form = useForm<UpdateClientSchema>({
     resolver: zodResolver(updateClientSchema),
     defaultValues: {
-      clientId: data?.client_id ?? '',
-      name: data?.name ?? '',
-      enabled: data?.enabled ?? false,
+      clientId: clientResponse?.data.client_id ?? '',
+      name: clientResponse?.data.name ?? '',
+      enabled: clientResponse?.data.enabled ?? false,
     },
   })
 
   const hasChanges = useFormChanges(
     form,
-    data && {
-      clientId: data.client_id ?? '',
-      name: data.name ?? '',
-      enabled: data.enabled ?? false,
+    clientResponse && {
+      clientId: clientResponse.data.client_id ?? '',
+      name: clientResponse.data.name ?? '',
+      enabled: clientResponse.data.enabled ?? false,
     }
   )
 
   const handleSubmit = form.handleSubmit((values) => {
-    if (!data) return
+    if (!clientResponse) return
 
     updateClient({
       realm: realm_name,
-      clientId: data.id,
+      clientId: clientResponse.data.id,
       payload: values,
     })
   })
 
   useEffect(() => {
-    if (data) {
+    if (clientResponse) {
       form.reset({
-        clientId: data.client_id,
-        name: data.name,
-        enabled: data.enabled,
+        clientId: clientResponse.data.client_id,
+        name: clientResponse.data.name,
+        enabled: clientResponse.data.enabled,
       })
     }
-  }, [data])
+  }, [clientResponse])
 
   return (
     <Form {...form}>
       <>
-        {data && (
+        {clientResponse && (
           <PageClientSettings
-            client={data}
+            client={clientResponse.data}
             form={form}
             handleSubmit={handleSubmit}
             hasChanges={hasChanges}

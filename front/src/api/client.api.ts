@@ -1,53 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { apiClient, BaseQuery } from "."
-import { ClientsResponse, DeleteClientResponse, GetClientResponse, GetRolesResponse } from './api.interface'
+import { apiClient, BaseQuery, tanstackApi } from '.'
+import { DeleteClientResponse, GetRolesResponse } from './api.interface'
 import { Client } from "./core.interface"
 import { authStore } from "@/store/auth.store"
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
 import { UpdateClientSchema } from "@/pages/client/schemas/update-client.schema"
 import { toast } from "sonner"
-import { tanstackApi } from '@/api/api.ts'
-
-
 
 export const useGetClients = ({ realm }: BaseQuery) => {
-  return useQuery({
-    queryKey: ["clients"],
-    queryFn: async (): Promise<ClientsResponse> => {
-      const accessToken = authStore.getState().accessToken
-
-      const response = await apiClient.get<ClientsResponse>(`/realms/${realm}/clients`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-
-      return response.data
-    }
-  })
-}
-
-export const useTest = ({ realm }: BaseQuery) => {
   return useQuery(
-    tanstackApi.get('/realms/{realm_name}/clients').queryOptions
+    tanstackApi.get('/realms/{realm_name}/clients', {
+      path: {
+        realm_name: realm || 'master',
+      },
+    }).queryOptions
   )
 }
 
-const users = useTest({ realm: 'master' })
-
 export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
   return useQuery({
-    queryKey: ["client", clientId],
-    queryFn: async (): Promise<Client> => {
-      const accessToken = authStore.getState().accessToken
-
-      const { data: response } = await apiClient.get<GetClientResponse>(`/realms/${realm}/clients/${clientId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      return response.data
-    },
+    ...tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
+      path: {
+        client_id: clientId!,
+        realm_name: realm!
+      }
+    }).queryOptions,
     enabled: !!clientId && !!realm,
   })
 }
@@ -67,8 +44,8 @@ export const useCreateClient = () => {
         ...payload,
         client_id: payload.clientId,
         client_type: payload.clientAuthentication ? "confidential" : "public",
-        public_client: payload.clientAuthentication ? false : true,
-        service_account_enabled: payload.clientAuthentication ? true : false,
+        public_client: !payload.clientAuthentication,
+        service_account_enabled: !!payload.clientAuthentication,
       }, {
         headers: {
           Authorization: `Bearer ${accessToken}`,

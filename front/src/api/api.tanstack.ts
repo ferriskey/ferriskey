@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { EndpointByMethod, ApiClient } from "./api.zod.ts";
+import type { EndpointByMethod, ApiClient } from "./api.client.ts";
 
 type EndpointQueryKey<TOptions extends EndpointParameters> = [
   TOptions & {

@@ -1,4 +1,3 @@
-import { Client } from '@/api/core.interface'
 import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import ManageRedirectUris from '../components/manage-redirect-uris'
@@ -7,6 +6,8 @@ import { Switch } from '@/components/ui/switch'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientSchema } from '../schemas/update-client.schema'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
 
 export interface PageClientSettingsProps {
   client: Client

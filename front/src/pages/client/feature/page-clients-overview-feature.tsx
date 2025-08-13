@@ -1,4 +1,3 @@
-import { Client } from '@/api/core.interface'
 import { useDeleteClient, useGetClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
 import { useNavigate, useParams } from 'react-router'
@@ -10,6 +9,8 @@ import {
 } from '@/routes/sub-router/client.router'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
 
 export default function PageClientsOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()

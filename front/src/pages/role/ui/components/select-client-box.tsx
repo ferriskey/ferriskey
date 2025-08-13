@@ -1,10 +1,11 @@
-import { Client } from "@/api/core.interface";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
 
 export interface SelectClientBoxProps {
   clients: Client[]

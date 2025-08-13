@@ -22,7 +22,7 @@ export default function ClientLayout() {
 
   const navigate = useNavigate()
 
-  const { data } = useGetClient({
+  const { data: responseClient } = useGetClient({
     realm: realm_name ?? 'master',
     clientId: client_id,
   })
@@ -37,9 +37,9 @@ export default function ClientLayout() {
       <div className="border-b pb-4 mb-4">
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center gap-4">
-            <Heading size={3}>{data?.client_id}</Heading>
+            <Heading size={3}>{responseClient?.data.client_id}</Heading>
             <div>
-              <BadgeColor color={BadgeColorScheme.PRIMARY}>{data?.protocol}</BadgeColor>
+              <BadgeColor color={BadgeColorScheme.PRIMARY}>{responseClient?.data.protocol}</BadgeColor>
             </div>
           </div>
           <p className="text-sm text-gray-500">
@@ -51,7 +51,7 @@ export default function ClientLayout() {
           <Tabs value={defaultValue} defaultValue={defaultValue} onValueChange={handleTabChange}>
             <TabsList className="flex items-center gap-4">
               <TabsTrigger value={'settings'}>Settings</TabsTrigger>
-              {data?.secret && <TabsTrigger value={'credentials'}>Credentials</TabsTrigger>}
+              {responseClient?.data.secret && <TabsTrigger value={'credentials'}>Credentials</TabsTrigger>}
 
               <TabsTrigger value={'roles'}>Roles</TabsTrigger>
               <TabsTrigger disabled value={'client-scopes'}>

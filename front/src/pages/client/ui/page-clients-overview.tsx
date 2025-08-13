@@ -1,7 +1,9 @@
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
-import { Client } from '@/api/core.interface'
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
+
 
 export interface PageClientsOverviewProps {
   isLoading?: boolean

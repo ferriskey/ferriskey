@@ -1,4 +1,3 @@
-import { RedirectUri } from '@/api/core.interface'
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
 import { Button } from '@/components/ui/button'
 import { InputText } from '@/components/ui/input-text'
@@ -7,6 +6,8 @@ import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
+import { Schemas } from '@/api/api.client.ts'
+import RedirectUri = Schemas.RedirectUri
 
 export interface ManageRedirectUrisProps {
   redirectUris: RedirectUri[]

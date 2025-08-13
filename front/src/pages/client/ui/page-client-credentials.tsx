@@ -1,6 +1,7 @@
-import { Client } from "@/api/core.interface";
 import { InputText } from "@/components/ui/input-text";
 import { Label } from "@/components/ui/label";
+import { Schemas } from '@/api/api.client.ts'
+import Client = Schemas.Client
 
 export interface PageClientCredentialsProps {
   client: Client
@@ -25,7 +26,7 @@ export default function PageClientCredentials({ client }: PageClientCredentialsP
           label="Client Secret"
           name="client_secret"
           type="password"
-          value={client.secret}
+          value={client.secret ?? ''}
           disabled
           togglePasswordVisibility={true}  
         />
