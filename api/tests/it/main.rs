@@ -7,7 +7,7 @@ use axum_test::TestServer;
 use postgres_context::DBContext;
 use test_context::test_context;
 
-use ferriskey::{
+use ferriskey_api::{
     application::http::server::http_server::{router, state},
     env::Env,
 };

@@ -19,8 +19,8 @@ use ferriskey_core::application::orchestrators::startup_orchestrator::{
     StartupConfig, StartupOrchestrator, StartupOrchestratorBuilder,
 };
 
-use ferriskey::application::http::server::http_server::{router, state};
-use ferriskey::env::{AppEnv, Env};
+use ferriskey_api::application::http::server::http_server::{router, state};
+use ferriskey_api::env::{AppEnv, Env};
 
 fn init_logger(env: Arc<Env>) {
     let filter: tracing::Level = env.log_level.clone().into();
