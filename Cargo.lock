@@ -134,41 +134,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
-name = "api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum-cookie",
- "axum-extra",
- "axum-macros",
- "axum-prometheus",
- "axum-test",
- "base32",
- "base64",
- "chrono",
- "clap",
- "dotenv",
- "ferriskey_core",
- "regex",
- "sea-orm",
- "serde",
- "serde_json",
- "test-context",
- "thiserror 2.0.12",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "typeshare",
- "utoipa",
- "utoipa-scalar",
- "utoipa-swagger-ui",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,7 +991,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
-name = "ferriskey_core"
+name = "ferriskey-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "axum-macros",
+ "axum-prometheus",
+ "axum-test",
+ "base32",
+ "base64",
+ "chrono",
+ "clap",
+ "dotenv",
+ "ferriskey-core",
+ "regex",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "test-context",
+ "thiserror 2.0.12",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "typeshare",
+ "utoipa",
+ "utoipa-scalar",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1051,6 +1051,28 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferriskey-operator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "k8s-openapi",
+ "kube",
+ "kube-derive",
+ "kube-runtime",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.12",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2125,28 +2147,6 @@ name = "openssl-probe"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
-
-[[package]]
-name = "operator"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "k8s-openapi",
- "kube",
- "kube-derive",
- "kube-runtime",
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 2.0.12",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "ordered-float"

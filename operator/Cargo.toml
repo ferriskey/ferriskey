@@ -1,7 +1,9 @@
 [package]
-name = "operator"
-version = "0.1.0"
-edition = "2024"
+name = "ferriskey-operator"
+description = "FerrisKey Kubernetes Operator"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 [[bin]]
 path = "src/main.rs"

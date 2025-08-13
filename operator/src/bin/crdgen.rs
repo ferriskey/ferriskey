@@ -1,5 +1,5 @@
 use kube::CustomResourceExt;
-use operator::crd::cluster::FerriskeyCluster;
+use ferriskey_operator::crd::cluster::FerriskeyCluster;
 use std::fs;
 use std::path::Path;
 

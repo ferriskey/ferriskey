@@ -1,8 +1,9 @@
 [package]
-name = "api"
-version = "0.1.0"
-edition = "2024"
-authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
+name = "ferriskey-api"
+description = "FerrisKey API"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 [[bin]]
 path = "src/bin/main.rs"
@@ -13,7 +14,7 @@ path = "src/lib/lib.rs"
 name = "ferriskey"
 
 [dependencies]
-ferriskey_core = { path = "../core" }
+ferriskey-core = { path = "../core" }
 anyhow = "1.0.97"
 axum = "0.8.1"
 axum-cookie = "0.2.3"

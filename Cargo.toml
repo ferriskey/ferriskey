@@ -2,5 +2,7 @@
 members = ["core", "api", "operator", "entity"]
 resolver = "2"
 
-[workspace.dependencies]
-uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
+[workspace.package]
+version = "0.1.0"
+authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
+edition = "2024"
