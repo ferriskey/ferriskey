@@ -1,14 +1,21 @@
-./api/target
-./core/target
-./operator/target
-/target
-docs
-front
-infrastructure
+# docker
+.dockerignore
+Dockerfile
+docker-compose.yaml
+docker-compose.local.yaml
 
+# git
+/.git
+.gitignore
+
+# github
 /.github
-/.dockerignore
-/.gitignore
-/.pre-commit-config.yaml
-/docker-compose.yaml
-/*.md
+
+# project
+/docs
+/infrastructure
+*.md
+LICENSE
+
+# rust
+target
