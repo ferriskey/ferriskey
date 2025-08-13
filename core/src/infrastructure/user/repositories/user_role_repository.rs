@@ -54,7 +54,7 @@ impl UserRoleRepository for UserRoleRepoAny {
 
 impl UserRoleRepository for PostgresUserRoleRepository {
     async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
-        let user_role = entity::user_role::ActiveModel {
+        let user_role = crate::entity::user_role::ActiveModel {
             role_id: Set(role_id),
             user_id: Set(user_id),
             ..Default::default()
@@ -69,11 +69,11 @@ impl UserRoleRepository for PostgresUserRoleRepository {
     }
 
     async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
-        let rows = entity::user_role::Entity::delete_many()
+        let rows = crate::entity::user_role::Entity::delete_many()
             .filter(
                 Condition::all()
-                    .add(entity::user_role::Column::UserId.eq(user_id))
-                    .add(entity::user_role::Column::RoleId.eq(role_id)),
+                    .add(crate::entity::user_role::Column::UserId.eq(user_id))
+                    .add(crate::entity::user_role::Column::RoleId.eq(role_id)),
             )
             .exec(&self.db)
             .await
@@ -87,20 +87,20 @@ impl UserRoleRepository for PostgresUserRoleRepository {
     }
 
     async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
-        let roles = entity::roles::Entity::find()
+        let roles = crate::entity::roles::Entity::find()
             .join(
                 JoinType::InnerJoin,
-                entity::user_role::Relation::Roles
+                crate::entity::user_role::Relation::Roles
                     .def()
                     .rev()
                     .on_condition(move |_left, right| {
-                        Expr::col((right, entity::user_role::Column::UserId))
+                        Expr::col((right, crate::entity::user_role::Column::UserId))
                             .eq(user_id)
                             .into_condition()
                     }),
             )
-            .join(JoinType::LeftJoin, entity::roles::Relation::Clients.def())
-            .select_also(entity::clients::Entity)
+            .join(JoinType::LeftJoin, crate::entity::roles::Relation::Clients.def())
+            .select_also(crate::entity::clients::Entity)
             .all(&self.db)
             .await
             .map_err(|e| {

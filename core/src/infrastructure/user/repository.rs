@@ -35,7 +35,7 @@ impl UserRepository for PostgresUserRepository {
             realm_id: dto.realm_id,
         });
 
-        let model = entity::users::ActiveModel {
+        let model = crate::entity::users::ActiveModel {
             id: Set(user.id),
             realm_id: Set(user.realm_id),
             username: Set(user.username),
@@ -60,10 +60,10 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
-        let users_model = entity::users::Entity::find()
-            .filter(entity::users::Column::Username.eq(username.clone()))
-            .filter(entity::users::Column::RealmId.eq(realm_id))
-            .find_also_related(entity::realms::Entity)
+        let users_model = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Username.eq(username.clone()))
+            .filter(crate::entity::users::Column::RealmId.eq(realm_id))
+            .find_also_related(crate::entity::realms::Entity)
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -76,7 +76,7 @@ impl UserRepository for PostgresUserRepository {
         let (user_model, realm_model) = user_model.ok_or(UserError::NotFound)?;
 
         let required_actions: Vec<RequiredAction> = user_model
-            .find_related(entity::user_required_actions::Entity)
+            .find_related(crate::entity::user_required_actions::Entity)
             .all(&self.db)
             .await
             .map_err(|_| UserError::InternalServerError)?
@@ -101,8 +101,8 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, UserError> {
-        let user = entity::users::Entity::find()
-            .filter(entity::users::Column::ClientId.eq(client_id))
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
             .map_err(|_| UserError::NotFound)?
@@ -113,9 +113,9 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
-        let users_model = entity::users::Entity::find()
-            .filter(entity::users::Column::Id.eq(id))
-            .find_also_related(entity::realms::Entity)
+        let users_model = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(id))
+            .find_also_related(crate::entity::realms::Entity)
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -128,7 +128,7 @@ impl UserRepository for PostgresUserRepository {
         let (user_model, realm_models) = user_model.ok_or(UserError::NotFound)?;
 
         let required_actions: Vec<RequiredAction> = user_model
-            .find_related(entity::user_required_actions::Entity)
+            .find_related(crate::entity::user_required_actions::Entity)
             .all(&self.db)
             .await
             .map_err(|_| UserError::InternalServerError)?
@@ -167,8 +167,8 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
-        let users = entity::users::Entity::find()
-            .filter(entity::users::Column::RealmId.eq(realm_id))
+            let users = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await
             .map_err(|_| UserError::NotFound)?;
@@ -179,11 +179,11 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, UserError> {
-        let rows = entity::users::Entity::delete_many()
+        let rows = crate::entity::users::Entity::delete_many()
             .filter(
                 Condition::all()
-                    .add(entity::users::Column::Id.is_in(ids.clone()))
-                    .add(entity::users::Column::ClientId.is_null()),
+                    .add(crate::entity::users::Column::Id.is_in(ids.clone()))
+                    .add(crate::entity::users::Column::ClientId.is_null()),
             )
             .exec(&self.db)
             .await
@@ -196,7 +196,7 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn delete_user(&self, user_id: Uuid) -> Result<u64, UserError> {
-        let rows = entity::users::Entity::delete_by_id(user_id)
+        let rows = crate::entity::users::Entity::delete_by_id(user_id)
             .exec(&self.db)
             .await
             .map_err(|_| UserError::InternalServerError)?;
@@ -205,15 +205,15 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn update_user(&self, user_id: Uuid, dto: UpdateUserRequest) -> Result<User, UserError> {
-        let user = entity::users::Entity::find()
-            .filter(entity::users::Column::Id.eq(user_id))
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(user_id))
             .one(&self.db)
             .await
             .map_err(|_| UserError::NotFound)?;
 
         let user = user.ok_or(UserError::NotFound)?;
 
-        let mut active_model: entity::users::ActiveModel = user.into();
+        let mut active_model: crate::entity::users::ActiveModel = user.into();
 
         active_model.firstname = Set(dto.firstname);
         active_model.lastname = Set(dto.lastname);

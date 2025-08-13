@@ -1,6 +1,6 @@
 use crate::domain::realm::entities::Realm;
 use chrono::{TimeZone, Utc};
-use entity::realms::Model;
+use crate::entity::realms::Model;
 
 impl From<Model> for Realm {
     fn from(value: Model) -> Self {

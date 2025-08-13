@@ -13,8 +13,8 @@ use crate::domain::{
     },
 };
 
-impl From<entity::roles::Model> for Role {
-    fn from(model: entity::roles::Model) -> Self {
+impl From<crate::entity::roles::Model> for Role {
+    fn from(model: crate::entity::roles::Model) -> Self {
         let permissions = Permissions::from_bitfield(model.permissions as u64);
         let permissions = permissions
             .iter()
@@ -52,7 +52,7 @@ impl RoleRepository for PostgresRoleRepository {
         let permissions = Permissions::from_names(&payload.permissions);
         let bitfield = Permissions::to_bitfield(&permissions);
 
-        let model = entity::roles::ActiveModel {
+        let model = crate::entity::roles::ActiveModel {
             id: Set(id),
             name: Set(payload.name),
             description: Set(payload.description),
@@ -72,8 +72,8 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn get_by_client_id(&self, client_id: uuid::Uuid) -> Result<Vec<Role>, RoleError> {
-        let roles = entity::roles::Entity::find()
-            .filter(entity::roles::Column::ClientId.eq(client_id))
+        let roles = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::ClientId.eq(client_id))
             .all(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?
@@ -85,9 +85,9 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<Option<Role>, RoleError> {
-        let roles_with_clients = entity::roles::Entity::find()
-            .filter(entity::roles::Column::Id.eq(id))
-            .find_with_related(entity::clients::Entity)
+        let roles_with_clients = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::Id.eq(id))
+            .find_with_related(crate::entity::clients::Entity)
             .all(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?;
@@ -108,8 +108,8 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), RoleError> {
-        let result = entity::roles::Entity::delete_many()
-            .filter(entity::roles::Column::Id.eq(id))
+        let result = crate::entity::roles::Entity::delete_many()
+            .filter(crate::entity::roles::Column::Id.eq(id))
             .exec(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?;
@@ -122,9 +122,9 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Role>, RoleError> {
-        let roles = entity::roles::Entity::find()
-            .filter(entity::roles::Column::RealmId.eq(realm_id))
-            .find_with_related(entity::clients::Entity)
+        let roles = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::RealmId.eq(realm_id))
+            .find_with_related(crate::entity::clients::Entity)
             .all(&self.db)
             .await
             .map_err(|_| RoleError::NotFound)?;
@@ -148,9 +148,9 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn find_by_name(&self, name: String, realm_id: Uuid) -> Result<Option<Role>, RoleError> {
-        let role = entity::roles::Entity::find()
-            .filter(entity::roles::Column::Name.eq(name))
-            .filter(entity::roles::Column::RealmId.eq(realm_id))
+        let role = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::Name.eq(name))
+            .filter(crate::entity::roles::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?
@@ -160,14 +160,14 @@ impl RoleRepository for PostgresRoleRepository {
     }
 
     async fn update_by_id(&self, id: Uuid, payload: UpdateRoleRequest) -> Result<Role, RoleError> {
-        let role = entity::roles::Entity::find()
-            .filter(entity::roles::Column::Id.eq(id))
+        let role = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?
             .ok_or(RoleError::NotFound)?;
 
-        let mut role: entity::roles::ActiveModel = role.into();
+        let mut role: crate::entity::roles::ActiveModel = role.into();
         if let Some(name) = payload.name {
             role.name = Set(name);
         }
@@ -188,8 +188,8 @@ impl RoleRepository for PostgresRoleRepository {
         id: Uuid,
         payload: UpdateRolePermissionsRequest,
     ) -> Result<Role, RoleError> {
-        let role = entity::roles::Entity::find()
-            .filter(entity::roles::Column::Id.eq(id))
+        let role = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|_| RoleError::InternalServerError)?
@@ -198,7 +198,7 @@ impl RoleRepository for PostgresRoleRepository {
         let permissions = Permissions::from_names(&payload.permissions);
         let bitfield = Permissions::to_bitfield(&permissions);
 
-        let mut role: entity::roles::ActiveModel = role.into();
+        let mut role: crate::entity::roles::ActiveModel = role.into();
         role.permissions = Set(bitfield as i64);
 
         let updated_role: Role = role

@@ -12,8 +12,8 @@ use crate::domain::{
     },
 };
 
-impl From<entity::refresh_tokens::Model> for RefreshToken {
-    fn from(model: entity::refresh_tokens::Model) -> Self {
+impl From<crate::entity::refresh_tokens::Model> for RefreshToken {
+    fn from(model: crate::entity::refresh_tokens::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = model.expires_at.map(|dt| Utc.from_utc_datetime(&dt));
 
@@ -46,7 +46,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
     ) -> Result<RefreshToken, JwtError> {
-        let model = entity::refresh_tokens::ActiveModel {
+        let model = crate::entity::refresh_tokens::ActiveModel {
             id: Set(generate_uuid_v7()),
             jti: Set(jti),
             user_id: Set(user_id),
@@ -64,8 +64,8 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
     }
 
     async fn get_by_jti(&self, jti: Uuid) -> Result<RefreshToken, JwtError> {
-        let refresh_token = entity::refresh_tokens::Entity::find()
-            .filter(entity::refresh_tokens::Column::Jti.eq(jti))
+        let refresh_token = crate::entity::refresh_tokens::Entity::find()
+            .filter(crate::entity::refresh_tokens::Column::Jti.eq(jti))
             .one(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?
@@ -75,8 +75,8 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
     }
 
     async fn delete(&self, jti: Uuid) -> Result<(), JwtError> {
-        entity::refresh_tokens::Entity::delete_many()
-            .filter(entity::refresh_tokens::Column::Jti.eq(jti))
+        crate::entity::refresh_tokens::Entity::delete_many()
+            .filter(crate::entity::refresh_tokens::Column::Jti.eq(jti))
             .exec(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;

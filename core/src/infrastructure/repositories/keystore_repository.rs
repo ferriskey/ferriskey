@@ -11,10 +11,10 @@ use crate::domain::{
     },
 };
 
-impl TryFrom<entity::jwt_keys::Model> for JwtKeyPair {
+    impl TryFrom<crate::entity::jwt_keys::Model> for JwtKeyPair {
     type Error = JwtError;
 
-    fn try_from(value: entity::jwt_keys::Model) -> Result<Self, Self::Error> {
+    fn try_from(value: crate::entity::jwt_keys::Model) -> Result<Self, Self::Error> {
         let jwt_key_pair = JwtKeyPair::from_pem(
             &value.private_key,
             &value.public_key,
@@ -39,8 +39,8 @@ impl PostgresKeyStoreRepository {
 
 impl KeyStoreRepository for PostgresKeyStoreRepository {
     async fn get_or_generate_key(&self, realm_id: Uuid) -> Result<JwtKeyPair, JwtError> {
-        let key = entity::jwt_keys::Entity::find()
-            .filter(entity::jwt_keys::Column::RealmId.eq(realm_id))
+        let key = crate::entity::jwt_keys::Entity::find()
+            .filter(crate::entity::jwt_keys::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| JwtError::RealmKeyNotFound)?;
@@ -54,7 +54,7 @@ impl KeyStoreRepository for PostgresKeyStoreRepository {
         // Generate a new key pair
         let (private_key, public_key) = JwtKeyPair::generate()?;
 
-        let new_key = entity::jwt_keys::ActiveModel {
+        let new_key = crate::entity::jwt_keys::ActiveModel {
             id: Set(id),
             realm_id: Set(realm_id),
             public_key: Set(public_key),

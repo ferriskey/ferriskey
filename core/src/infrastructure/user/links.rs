@@ -4,13 +4,13 @@ use sea_orm::entity::prelude::*;
 pub struct UserToRole;
 
 impl Linked for UserToRole {
-    type FromEntity = entity::users::Entity;
-    type ToEntity = entity::roles::Entity;
+    type FromEntity = crate::entity::users::Entity;
+    type ToEntity = crate::entity::roles::Entity;
 
     fn link(&self) -> Vec<RelationDef> {
         vec![
-            entity::users::Relation::UserRole.def(),
-            entity::user_role::Relation::Roles.def(),
+            crate::entity::users::Relation::UserRole.def(),
+            crate::entity::user_role::Relation::Roles.def(),
         ]
     }
 }

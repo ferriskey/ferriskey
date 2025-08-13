@@ -5,7 +5,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
-use entity::user_required_actions::Entity as UserRequiredActionsEntity;
+use crate::entity::user_required_actions::Entity as UserRequiredActionsEntity;
 
 use crate::domain::{
     common::generate_uuid_v7,
@@ -79,7 +79,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         action: RequiredAction,
     ) -> Result<(), RequiredActionError> {
         let created_at: NaiveDateTime = chrono::Utc::now().naive_utc();
-        let action_model = entity::user_required_actions::ActiveModel {
+        let action_model = crate::entity::user_required_actions::ActiveModel {
             id: Set(generate_uuid_v7()),
             created_at: Set(created_at),
             action: Set(action.to_string()),
@@ -98,7 +98,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
         user_id: Uuid,
     ) -> Result<Vec<RequiredAction>, RequiredActionError> {
         let actions = UserRequiredActionsEntity::find()
-            .filter(entity::user_required_actions::Column::UserId.eq(user_id))
+            .filter(crate::entity::user_required_actions::Column::UserId.eq(user_id))
             .all(&self.db)
             .await
             .map_err(|_| RequiredActionError::InternalServerError)?;
@@ -123,9 +123,9 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
     ) -> Result<(), RequiredActionError> {
         let action = UserRequiredActionsEntity::find()
             .filter(
-                entity::user_required_actions::Column::UserId
+                crate::entity::user_required_actions::Column::UserId
                     .eq(user_id)
-                    .and(entity::user_required_actions::Column::Action.eq(action.to_string())),
+                    .and(crate::entity::user_required_actions::Column::Action.eq(action.to_string())),
             )
             .one(&self.db)
             .await
@@ -142,7 +142,7 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
 
     async fn clear_required_actions(&self, user_id: Uuid) -> Result<u64, RequiredActionError> {
         let rows_affected = UserRequiredActionsEntity::delete_many()
-            .filter(entity::user_required_actions::Column::UserId.eq(user_id))
+            .filter(crate::entity::user_required_actions::Column::UserId.eq(user_id))
             .exec(&self.db)
             .await
             .map_err(|_| RequiredActionError::InternalServerError)?

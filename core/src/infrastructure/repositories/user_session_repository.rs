@@ -10,8 +10,8 @@ use crate::domain::session::{
     ports::UserSessionRepository,
 };
 
-impl From<entity::user_sessions::Model> for UserSession {
-    fn from(model: entity::user_sessions::Model) -> Self {
+impl From<crate::entity::user_sessions::Model> for UserSession {
+    fn from(model: crate::entity::user_sessions::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
 
@@ -34,7 +34,7 @@ pub struct PostgresUserSessionRepository {
 
 impl UserSessionRepository for PostgresUserSessionRepository {
     async fn create(&self, session: &UserSession) -> Result<(), SessionError> {
-        let active_model = entity::user_sessions::ActiveModel {
+        let active_model = crate::entity::user_sessions::ActiveModel {
             id: Set(session.id),
             user_id: Set(session.user_id),
             realm_id: Set(session.realm_id),
@@ -53,8 +53,8 @@ impl UserSessionRepository for PostgresUserSessionRepository {
     }
 
     async fn find_by_user_id(&self, user_id: &Uuid) -> Result<UserSession, SessionError> {
-        let user_session = entity::user_sessions::Entity::find()
-            .filter(entity::user_sessions::Column::UserId.eq(*user_id))
+        let user_session = crate::entity::user_sessions::Entity::find()
+            .filter(crate::entity::user_sessions::Column::UserId.eq(*user_id))
             .one(&self.db)
             .await
             .map_err(|_| SessionError::NotFound)?
@@ -64,7 +64,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
-        entity::user_sessions::Entity::delete_by_id(*id)
+        crate::entity::user_sessions::Entity::delete_by_id(*id)
             .exec(&self.db)
             .await
             .map_err(|_| SessionError::DeleteError)?;

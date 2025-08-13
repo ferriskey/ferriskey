@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
     QueryFilter,
@@ -15,8 +15,8 @@ use crate::domain::{
     crypto::entities::HashResult,
 };
 
-impl From<entity::credentials::Model> for Credential {
-    fn from(model: entity::credentials::Model) -> Self {
+impl From<crate::entity::credentials::Model> for Credential {
+    fn from(model: crate::entity::credentials::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
@@ -88,8 +88,8 @@ impl CredentialRepository for PostgresCredentialRepository {
         user_id: uuid::Uuid,
     ) -> Result<Credential, CredentialError> {
         let credential = CredentialEntity::find()
-            .filter(entity::credentials::Column::UserId.eq(user_id))
-            .filter(entity::credentials::Column::CredentialType.eq("password"))
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(crate::entity::credentials::Column::CredentialType.eq("password"))
             .one(&self.db)
             .await
             .map_err(|_| CredentialError::GetPasswordCredentialError)?
@@ -102,8 +102,8 @@ impl CredentialRepository for PostgresCredentialRepository {
 
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
-            .filter(entity::credentials::Column::UserId.eq(user_id))
-            .filter(entity::credentials::Column::CredentialType.eq("password"))
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(crate::entity::credentials::Column::CredentialType.eq("password"))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -125,7 +125,7 @@ impl CredentialRepository for PostgresCredentialRepository {
         user_id: uuid::Uuid,
     ) -> Result<Vec<Credential>, CredentialError> {
         let credentials = CredentialEntity::find()
-            .filter(entity::credentials::Column::UserId.eq(user_id))
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
             .all(&self.db)
             .await
             .map_err(|_| CredentialError::GetUserCredentialsError)?
@@ -138,7 +138,7 @@ impl CredentialRepository for PostgresCredentialRepository {
 
     async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
-            .filter(entity::credentials::Column::Id.eq(credential_id))
+            .filter(crate::entity::credentials::Column::Id.eq(credential_id))
             .one(&self.db)
             .await
             .map_err(|_| CredentialError::DeleteCredentialError)?

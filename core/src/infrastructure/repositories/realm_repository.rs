@@ -2,7 +2,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 
-use entity::realms::{ActiveModel, Entity as RealmEntity};
+use crate::entity::realms::{ActiveModel, Entity as RealmEntity};
 
 use chrono::{DateTime, TimeZone, Utc};
 use uuid::Uuid;
@@ -12,8 +12,8 @@ use crate::domain::realm::{
     ports::RealmRepository,
 };
 
-impl From<entity::realm_settings::Model> for RealmSetting {
-    fn from(value: entity::realm_settings::Model) -> Self {
+impl From<crate::entity::realm_settings::Model> for RealmSetting {
+    fn from(value: crate::entity::realm_settings::Model) -> Self {
         let updated_at: DateTime<Utc> = Utc.from_utc_datetime(&value.updated_at);
 
         RealmSetting {
@@ -22,7 +22,7 @@ impl From<entity::realm_settings::Model> for RealmSetting {
             default_signing_algorithm: value.default_signing_algorithm,
             updated_at,
         }
-    }
+    }   
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
         let realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(name))
+            .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -82,7 +82,7 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
         let realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(realm_name))
+            .filter(crate::entity::realms::Column::Name.eq(realm_name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -97,7 +97,7 @@ impl RealmRepository for PostgresRealmRepository {
             .map_err(|_| RealmError::InternalServerError)?;
 
         let updated_realm = RealmEntity::find()
-            .filter(entity::realms::Column::Name.eq(name))
+            .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
@@ -108,7 +108,7 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
         let res = RealmEntity::delete_many()
-            .filter(entity::realms::Column::Name.eq(name))
+            .filter(crate::entity::realms::Column::Name.eq(name))
             .exec(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
@@ -127,7 +127,7 @@ impl RealmRepository for PostgresRealmRepository {
     ) -> Result<RealmSetting, RealmError> {
         let realm_setting = RealmSetting::new(realm_id, Some(algorithm));
 
-        let active_model = entity::realm_settings::ActiveModel {
+        let active_model = crate::entity::realm_settings::ActiveModel {
             id: Set(realm_setting.id),
             realm_id: Set(realm_setting.realm_id),
             default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
@@ -151,14 +151,14 @@ impl RealmRepository for PostgresRealmRepository {
         realm_id: Uuid,
         algorithm: String,
     ) -> Result<RealmSetting, RealmError> {
-        let realm_setting = entity::realm_settings::Entity::find()
-            .filter(entity::realm_settings::Column::RealmId.eq(realm_id))
+        let realm_setting = crate::entity::realm_settings::Entity::find()
+            .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| RealmError::InternalServerError)?
             .ok_or(RealmError::NotFound)?;
 
-        let mut realm_setting: entity::realm_settings::ActiveModel = realm_setting.into();
+        let mut realm_setting: crate::entity::realm_settings::ActiveModel = realm_setting.into();
 
         realm_setting.default_signing_algorithm = Set(Some(algorithm));
 
