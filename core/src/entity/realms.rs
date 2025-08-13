@@ -48,6 +48,7 @@ pub enum Relation {
     Roles,
     UserSessions,
     Users,
+    Webhooks,
 }
 
 impl ColumnTrait for Column {
@@ -72,6 +73,7 @@ impl RelationTrait for Relation {
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
             Self::UserSessions => Entity::has_many(super::user_sessions::Entity).into(),
             Self::Users => Entity::has_many(super::users::Entity).into(),
+            Self::Webhooks => Entity::has_many(super::webhooks::Entity).into(),
         }
     }
 }
@@ -115,6 +117,12 @@ impl Related<super::user_sessions::Entity> for Entity {
 impl Related<super::users::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Users.def()
+    }
+}
+
+impl Related<super::webhooks::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Webhooks.def()
     }
 }
 

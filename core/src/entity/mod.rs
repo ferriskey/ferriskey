@@ -15,3 +15,5 @@ pub mod user_required_actions;
 pub mod user_role;
 pub mod user_sessions;
 pub mod users;
+pub mod webhook_subscribers;
+pub mod webhooks;
