@@ -1,5 +1,5 @@
-use chrono::Utc;
 use crate::entity::clients::{ActiveModel, Entity as ClientEntity};
+use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };

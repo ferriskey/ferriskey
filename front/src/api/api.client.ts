@@ -190,13 +190,6 @@ export namespace Endpoints {
     };
     response: Schemas.Realm;
   };
-  export type get_Get_user_realms = {
-    method: "GET";
-    path: "/realms/users/@me/realms";
-    requestFormat: "json";
-    parameters: never;
-    response: Schemas.UserRealmsResponse;
-  };
   export type get_Get_realm = {
     method: "GET";
     path: "/realms/{name}";
@@ -487,6 +480,15 @@ export namespace Endpoints {
     };
     response: Schemas.CreateUserResponse;
   };
+  export type get_Get_user_realms = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/@me/realms";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    response: Schemas.UserRealmsResponse;
+  };
   export type delete_Bulk_delete_user = {
     method: "DELETE";
     path: "/realms/{realm_name}/users/bulk";
@@ -589,7 +591,6 @@ export namespace Endpoints {
 export type EndpointByMethod = {
   get: {
     "/realms": Endpoints.get_Fetch_realm;
-    "/realms/users/@me/realms": Endpoints.get_Get_user_realms;
     "/realms/{name}": Endpoints.get_Get_realm;
     "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
     "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
@@ -602,6 +603,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
     "/realms/{realm_name}/users": Endpoints.get_Get_users;
+    "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
     "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;

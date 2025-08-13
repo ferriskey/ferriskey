@@ -24,8 +24,11 @@ pub struct UserRealmsResponse {
 #[utoipa::path(
     get,
     summary = "Get user realms",
-    path = "/users/@me/realms",
+    path = "/{realm_name}/users/@me/realms",
     tag = "realm",
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     security(
         ("Authorization" = ["Bearer"]),
     ),

@@ -1,5 +1,6 @@
-import { Realm } from "@/api/core.interface";
 import { create } from "zustand";
+import { Schemas } from '@/api/api.client.ts'
+import Realm = Schemas.Realm
 
 interface State {
   userRealms: Realm[]

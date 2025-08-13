@@ -10,13 +10,13 @@ import GithubStarModal from '../github-star-modal'
 export default function Layout() {
   const { realm_name } = useParams<RouterParams>()
   const { setUserRealms } = useRealmStore()
-  const { data } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
+  const { data: userRealmsResponse } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
 
   useEffect(() => {
-    if (data) {
-      setUserRealms(data)
+    if (userRealmsResponse) {
+      setUserRealms(userRealmsResponse.data)
     }
-  }, [data, setUserRealms])
+  }, [userRealmsResponse, setUserRealms])
 
   return (
     <SidebarProvider>

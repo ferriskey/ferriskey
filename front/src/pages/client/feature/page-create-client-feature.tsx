@@ -38,8 +38,15 @@ export default function PageCreateClientFeature() {
     if (!realm_name) return
 
     createClient({
-      realm: realm_name,
-      payload: data
+      path: {
+        realm_name,
+      },
+      body: {
+        ...data,
+        client_type: data.clientAuthentication ? 'confidential' : 'public',
+        public_client: !data.clientAuthentication,
+        service_account_enabled: !!data.clientAuthentication,
+      }
     })
   }
 

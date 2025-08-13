@@ -16,7 +16,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
-import { Realm } from '@/api/core.interface'
 import useRealmStore from '@/store/realm.store'
 import { ChevronsUpDown, Command, Map, Plus } from 'lucide-react'
 import {
@@ -36,6 +35,8 @@ import { Button } from '@/components/ui/button.tsx'
 import { useCreateRealm } from '@/api/realm.api.ts'
 import { toast } from 'sonner'
 import { REALM_OVERVIEW_URL, REALM_URL } from '@/routes/router'
+import { Schemas } from '@/api/api.client.ts'
+import Realm = Schemas.Realm
 
 export default function RealmSwitcher() {
   const { realm_name } = useParams<{ realm_name: string }>()

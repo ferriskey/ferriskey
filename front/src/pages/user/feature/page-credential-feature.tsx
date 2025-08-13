@@ -19,9 +19,11 @@ export default function PageCredentialFeature() {
   const handleDeleteUserCredential = (credentialId: string) => {
 
     deleteUserCredentia({
-      realm: realm_name ?? '',
-      userId: user_id ?? '',
-      credentialId
+      path: {
+        realm_name: realm_name ?? '',
+        user_id: user_id ?? '',
+        credential_id: credentialId
+      }
     })
 
     toast.success("Credential was deleted")

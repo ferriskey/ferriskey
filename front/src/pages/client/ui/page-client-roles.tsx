@@ -1,6 +1,7 @@
-import { Role } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { columns } from '../columns/list-client-roles.column'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 interface PageClientRolesProps {
   roles: Role[]

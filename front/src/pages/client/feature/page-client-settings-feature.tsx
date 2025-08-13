@@ -39,9 +39,11 @@ export default function PageClientSettingsFeature() {
     if (!clientResponse) return
 
     updateClient({
-      realm: realm_name,
-      clientId: clientResponse.data.id,
-      payload: values,
+      body: values,
+      path: {
+        client_id: clientResponse.data.id,
+        realm_name: realm_name ?? 'master'
+      }
     })
   })
 

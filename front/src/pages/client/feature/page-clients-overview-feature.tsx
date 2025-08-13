@@ -23,8 +23,10 @@ export default function PageClientsOverviewFeature() {
 
     items.forEach((item) => {
       deleteClient({
-        realm: realm_name,
-        clientId: item.id,
+        path: {
+          client_id: item.id,
+          realm_name
+        }
       })
     })
   }
@@ -37,8 +39,10 @@ export default function PageClientsOverviewFeature() {
     if (!realm_name) return
 
     deleteClient({
-      realm: realm_name,
-      clientId,
+      path: {
+        client_id: clientId,
+        realm_name
+      }
     })
   }
 
