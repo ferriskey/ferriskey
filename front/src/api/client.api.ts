@@ -6,6 +6,8 @@ import { authStore } from "@/store/auth.store"
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
 import { UpdateClientSchema } from "@/pages/client/schemas/update-client.schema"
 import { toast } from "sonner"
+import { tanstackApi } from '@/api/api.ts'
+
 
 
 export const useGetClients = ({ realm }: BaseQuery) => {
@@ -24,6 +26,14 @@ export const useGetClients = ({ realm }: BaseQuery) => {
     }
   })
 }
+
+export const useTest = ({ realm }: BaseQuery) => {
+  return useQuery(
+    tanstackApi.get('/realms/{realm_name}/clients').queryOptions
+  )
+}
+
+const users = useTest({ realm: 'master' })
 
 export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
   return useQuery({
