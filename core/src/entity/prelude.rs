@@ -13,3 +13,5 @@ pub use super::user_required_actions::Entity as UserRequiredActions;
 pub use super::user_role::Entity as UserRole;
 pub use super::user_sessions::Entity as UserSessions;
 pub use super::users::Entity as Users;
+pub use super::webhook_subscribers::Entity as WebhookSubscribers;
+pub use super::webhooks::Entity as Webhooks;
