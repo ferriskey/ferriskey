@@ -23,7 +23,7 @@ export default function PageCreateRoleFeature() {
   const handlePermissionToggle = (permission: Permissions) => {
 
     setSelectedPermissions(prev =>
-      prev.includes(permission) 
+      prev.includes(permission)
         ? prev.filter(p => p !== permission)
         : [...prev, permission]
     )
@@ -47,9 +47,15 @@ export default function PageCreateRoleFeature() {
     if (!realm_name) return
 
     createRole({
-      clientId: values.clientId,
-      realmName: realm_name,
-      payload: values
+      body: {
+        name: values.name,
+        permissions: values.permissions,
+        description: values.description
+      },
+      path: {
+        client_id: values.clientId,
+        realm_name: realm_name,
+      }
     })
   }
 
@@ -89,7 +95,7 @@ export default function PageCreateRoleFeature() {
 
   return (
     <Form {...form}>
-      <PageCreateRole 
+      <PageCreateRole
         clients={clientsResponse?.data || []}
         form={form}
         handleBack={handleBack}

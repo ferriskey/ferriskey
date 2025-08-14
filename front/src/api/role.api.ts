@@ -1,14 +1,6 @@
-import { CreateRoleSchema } from '@/pages/role/schemas/create-role.schema'
-import {
-  UpdateRolePermissionsSchema,
-  UpdateRoleSchema,
-} from '@/pages/role/schemas/update-role.schema'
-import { authStore } from '@/store/auth.store'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { apiClient, BaseQuery, tanstackApi } from '.'
-import { UpdateRoleResponse } from './api.interface'
-import { Role } from './core.interface'
+import { BaseQuery, tanstackApi } from '.'
 
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
@@ -37,28 +29,13 @@ export const useCreateRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      realmName,
-      clientId,
-      payload,
-    }: {
-      realmName: string
-      clientId: string
-      payload: CreateRoleSchema
-    }) => {
-      const accessToken = authStore.getState().accessToken
-      const response = await apiClient.post(
-        `/realms/${realmName}/clients/${clientId}/roles`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      return response.data
-    },
+    ...tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/clients/{client_id}/roles',
+      async (res) => {
+        return res.json()
+      }
+    ).mutationOptions,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
     },
@@ -69,32 +46,13 @@ export const useUpdateRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      realmName,
-      roleId,
-      payload,
-    }: {
-      realmName: string
-      roleId: string
-      payload: UpdateRoleSchema
-    }): Promise<Role> => {
-      const accessToken = authStore.getState().accessToken
-      const { data: response } = await apiClient.put<UpdateRoleResponse>(
-        `/realms/${realmName}/roles/${roleId}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      return response.data
-    },
-    onSuccess(data) {
-      queryClient.invalidateQueries({ queryKey: ['role', data.id] })
+    ...tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}', async (res) =>
+      res.json()
+    ).mutationOptions,
+    onSuccess(res) {
+      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role updated successfully', {
-        description: `Role ${data.name} has been updated successfully.`,
+        description: `Role ${res.data.name} has been updated successfully.`,
       })
     },
     onError(error) {
@@ -109,32 +67,15 @@ export const useUpdateRolePermissions = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      realmName,
-      roleId,
-      payload,
-    }: {
-      realmName: string
-      roleId: string
-      payload: UpdateRolePermissionsSchema
-    }): Promise<Role> => {
-      const accessToken = authStore.getState().accessToken
-      const { data: response } = await apiClient.patch<UpdateRoleResponse>(
-        `/realms/${realmName}/roles/${roleId}/permissions`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      return response.data
-    },
-    onSuccess(data) {
-      queryClient.invalidateQueries({ queryKey: ['role', data.id] })
+    ...tanstackApi.mutation(
+      'patch',
+      '/realms/{realm_name}/roles/{role_id}/permissions',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess(res) {
+      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role permissions updated successfully', {
-        description: `Role ${data.name} permissions has been updated successfully.`,
+        description: `Role ${res.data.name} permissions has been updated successfully.`,
       })
     },
     onError(error) {

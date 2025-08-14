@@ -36,10 +36,17 @@ export default function PageRoleSettingsFeature() {
   )
 
   const handleSubmit = form.handleSubmit((values) => {
+    if (!realm_name || !role_id) return
+
     udpateRole({
-      payload: values,
-      realmName: realm_name || 'master',
-      roleId: role_id || '',
+      body: {
+        description: values.description,
+        name: values.name
+      },
+      path: {
+        realm_name: realm_name,
+        role_id: role_id
+      }
     })
   })
 

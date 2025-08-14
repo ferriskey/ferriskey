@@ -33,10 +33,15 @@ export default function PageRolePermissionsFeature() {
   }
 
   function handleSubmit() {
+    if (!realm_name || !role_id) return
     updatePermissions({
-      realmName: realm_name || 'master',
-      roleId: role_id!,
-      payload: form.getValues(),
+      body: {
+        permissions: form.getValues().permissions
+      },
+      path: {
+        realm_name,
+        role_id
+      }
     })
   }
 
