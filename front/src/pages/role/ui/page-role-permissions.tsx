@@ -1,4 +1,3 @@
-import { Role } from '@/api/core.interface.ts'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils.ts'
@@ -7,6 +6,8 @@ import { CheckIcon, LockKeyholeIcon, Shield, Users } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import FloatingActionBar from '../../../components/ui/floating-action-bar'
 import { UpdateRolePermissionsSchema } from '../schemas/update-role.schema'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export interface PageRolePermissionsProps {
   role: Role

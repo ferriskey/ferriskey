@@ -1,6 +1,7 @@
-import { Role } from '@/api/core.interface'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { ColumnDef } from '@/components/ui/data-table'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export const columns: ColumnDef<Role>[] = [
   {

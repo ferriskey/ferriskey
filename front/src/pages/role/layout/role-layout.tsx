@@ -12,9 +12,9 @@ export default function RoleLayout() {
   const { realm_name, role_id } = useParams<RouterParams>()
   const navigate = useNavigate()
 
-  const { data: role } = useGetRole({
+  const { data: roleResponse } = useGetRole({
     realm: realm_name || "master",
-    roleId: role_id,  
+    roleId: role_id,
   })
 
   const handleBack = () => {
@@ -33,17 +33,17 @@ export default function RoleLayout() {
 
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-3 w-3" />
-              
+
             </Button>
             <span className="text-gray-500 text-sm font-medium">Back to roles</span>
           </div>
           <div className="flex flex-col gap-2">
-            <Heading size={3}>{role?.name}</Heading>
+            <Heading size={3}>{roleResponse?.data.name}</Heading>
 
             <div className="flex items-center gap-2">
               <span>Role ID</span>
               <BadgeColor color={BadgeColorScheme.GRAY}>
-                {role?.id}
+                {roleResponse?.data.id}
               </BadgeColor>
             </div>
           </div>

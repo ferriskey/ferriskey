@@ -1,10 +1,11 @@
-import { Role } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2, Settings } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
 import { Heading } from '@/components/ui/heading'
 import { useNavigate } from 'react-router-dom'
 import { ROLE_CREATE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export interface PageRolesOverviewProps {
   isLoading?: boolean

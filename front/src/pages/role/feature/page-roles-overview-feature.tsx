@@ -1,14 +1,15 @@
-import { Role } from "@/api/core.interface"
 import { RouterParams } from "@/routes/router"
 import { useNavigate, useParams } from "react-router"
 import { useGetRoles } from '../../../api/role.api'
 import PageRolesOverview from '../ui/page-roles-overview'
 import { ROLE_SETTINGS_URL, ROLE_URL } from "@/routes/sub-router/role.router"
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export default function PageRolesOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
-  const { data, isLoading } = useGetRoles({ realm: realm_name ?? 'master' })
+  const { data: rolesResponse, isLoading } = useGetRoles({ realm: realm_name ?? 'master' })
 
   const handleDeleteSelected = (items: Role[]) => {
     console.log("Deleting", items);
@@ -22,7 +23,7 @@ export default function PageRolesOverviewFeature() {
 
   return (
     <PageRolesOverview
-      data={data?.data || []}
+      data={rolesResponse?.data || []}
       isLoading={isLoading}
       realmName={realm_name ?? "master"}
       handleDeleteSelected={handleDeleteSelected}

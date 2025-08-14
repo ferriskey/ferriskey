@@ -11,7 +11,7 @@ export default function PageRolePermissionsFeature() {
   const { realm_name, role_id } = useParams<RouterParams>()
   const { mutate: updatePermissions } = useUpdateRolePermissions()
 
-  const { data: role } = useGetRole({
+  const { data: roleResponse } = useGetRole({
     realm: realm_name || 'master',
     roleId: role_id,
   })
@@ -19,7 +19,7 @@ export default function PageRolePermissionsFeature() {
   const form = useForm<UpdateRolePermissionsSchema>({
     resolver: zodResolver(updateRolePermissionsSchema),
     values: {
-      permissions: role?.permissions ?? [],
+      permissions: roleResponse?.data.permissions ?? [],
     },
   })
 
@@ -40,12 +40,12 @@ export default function PageRolePermissionsFeature() {
     })
   }
 
-  if (!role) return null
+  if (!roleResponse) return null
 
   return (
     <Form {...form}>
       <PageRolePermissions
-        role={role}
+        role={roleResponse.data}
         togglePermission={togglePermission}
         handleSubmit={handleSubmit}
       />

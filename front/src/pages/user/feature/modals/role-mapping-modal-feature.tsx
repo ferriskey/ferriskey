@@ -8,8 +8,9 @@ import { useForm } from 'react-hook-form'
 import { assignRoleSchema, AssignRoleSchema } from '../../schemas/assign-role.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { Role } from '@/api/core.interface'
 import { toast } from 'sonner'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export default function RoleMappingModalFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()

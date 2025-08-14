@@ -1,4 +1,3 @@
-import { Role } from '@/api/core.interface'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft } from 'lucide-react'
@@ -11,6 +10,8 @@ import { UpdateRoleSchema } from '@/pages/role/schemas/update-role.schema.ts'
 import { InputText } from '@/components/ui/input-text.tsx'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 export interface PageRoleSettingsProps {
   role?: Role
