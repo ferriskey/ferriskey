@@ -18,6 +18,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ${{ matrix.image }}
@@ -30,9 +34,6 @@ jobs:
           - api
           - operator
           - webapp
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: checkout
         uses: actions/checkout@v5
