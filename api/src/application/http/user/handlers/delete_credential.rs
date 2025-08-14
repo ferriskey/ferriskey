@@ -24,6 +24,8 @@ pub struct DeleteUserCredentialRoute {
 #[typeshare]
 pub struct DeleteUserCredentialResponse {
     pub message: String,
+    pub realm_name: String,
+    pub user_id: Uuid,
 }
 
 #[utoipa::path(
@@ -67,5 +69,7 @@ pub async fn delete_user_credential(
         message: format!(
             "Credential with ID {credential_id} for user {user_id} in realm {realm_name} deleted successfully"
         ),
+        realm_name,
+        user_id,
     }))
 }

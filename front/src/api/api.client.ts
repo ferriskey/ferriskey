@@ -94,7 +94,7 @@ export namespace Schemas {
   };
   export type DeleteClientResponse = { message: string };
   export type DeleteRealmResponse = string;
-  export type DeleteUserCredentialResponse = { message: string };
+  export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
   export type DeleteUserResponse = { count: number };
   export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use_: string; x5c: string };
   export type GetCertsResponse = { keys: Array<JwkKey> };
