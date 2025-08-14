@@ -13,6 +13,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct AssignRoleResponse {
     pub message: String,
+    pub realm_name: String,
+    pub user_id: Uuid,
 }
 
 #[derive(TypedPath, Deserialize)]
@@ -65,5 +67,7 @@ pub async fn assign_role(
 
     Ok(Response::OK(AssignRoleResponse {
         message: format!("Role {role_id} assigned to user {user_id} in realm {realm_name}"),
+        realm_name,
+        user_id,
     }))
 }

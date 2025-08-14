@@ -16,10 +16,13 @@ export default function PageUsersOverviewFeature() {
   const navigate = useNavigate()
 
   const handleDeleteSelected = (items: User[]) => {
+    if (!realm_name) return
     bulkDeleteUser(
       {
-        realm: realm_name ?? 'master',
-        payload: { ids: items.map((item) => item.id) },
+        path: {
+          ids: items.map(i => i.id),
+          realm_name
+        }
       },
       {
         onSuccess: (data) => toast.success(`${data.count} users deleted`),

@@ -46,13 +46,18 @@ export default function RoleMappingModalFeature() {
   }, [userRoles, rolesResponse])
 
   const handleSubmit = form.handleSubmit((values) => {
+    if (!user_id || !realm_name) {
+      toast.error('User or realm not found')
+      return
+    }
+
     for (const roleId of values.roleIds) {
       assignRole({
-        realm: realm_name,
-        userId: user_id,
-        payload: {
-          roleId,
-        },
+        path: {
+          realm_name,
+          user_id,
+          role_id: roleId
+        }
       })
     }
     form.reset()

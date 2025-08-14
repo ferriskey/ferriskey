@@ -12,9 +12,15 @@ export const useUnassignUserRole = () => {
         return data
       }
     ).mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (res) => {
+      const keys = tanstackApi.get('/realms/{realm_name}/users/{user_id}/roles', {
+        path: {
+          realm_name: res.realm_name,
+          user_id: res.user_id,
+        },
+      }).queryKey
       await queryClient.invalidateQueries({
-        queryKey: ['user-roles'],
+        queryKey: keys,
       })
     },
   })

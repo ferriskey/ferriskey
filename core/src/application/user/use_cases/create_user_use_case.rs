@@ -59,7 +59,7 @@ impl CreateUserUseCase {
         Self::ensure_permissions(
             UserPolicy::store(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -67,7 +67,8 @@ impl CreateUserUseCase {
             "Insufficient permissions to create a user",
         )?;
 
-        self.user_service
+        let mut user = self
+            .user_service
             .create_user(CreateUserRequest {
                 client_id: None,
                 realm_id,
@@ -78,7 +79,11 @@ impl CreateUserUseCase {
                 email_verified: params.email_verified.unwrap_or(false),
                 enabled: true,
             })
-            .await
+            .await?;
+
+        user.realm = Some(realm);
+
+        Ok(user)
     }
 
     #[inline]

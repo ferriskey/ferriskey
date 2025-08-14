@@ -1,8 +1,9 @@
-import { Role } from '@/api/core.interface'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 import { DataTable } from '@/components/ui/data-table'
 import { columns } from '../columns/list-user-roles.column'
 import { Delete } from 'lucide-react'
+import { Schemas } from '@/api/api.client'
+import Role = Schemas.Role
 
 interface PageUserRoleMappingProps {
   userRoles: Role[]

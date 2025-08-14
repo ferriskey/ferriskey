@@ -42,8 +42,15 @@ export default function PageUserOverviewFeature() {
   )
 
   function handleSubmit(payload: UpdateUserSchema) {
+    if (!user_id || !realm_name) return;
     updateUser(
-      { realm: realm_name, userId: user_id, payload },
+      {
+        body: payload,
+        path: {
+          realm_name: realm_name,
+          user_id: user_id
+        }
+      },
       {
         onSuccess: () => toast.success('User was updated'),
         onError: (error) => toast.error(error.message),

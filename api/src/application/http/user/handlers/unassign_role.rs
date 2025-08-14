@@ -7,7 +7,6 @@ use axum_macros::TypedPath;
 use ferriskey_core::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -20,9 +19,10 @@ pub struct UnassignRoleRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct UnassignRoleResponse {
     pub message: String,
+    pub realm_name: String,
+    pub user_id: Uuid,
 }
 
 #[utoipa::path(
@@ -66,5 +66,7 @@ pub async fn unassign_role(
 
     Ok(Response::OK(UnassignRoleResponse {
         message: format!("Role {role_id} unassigned from user {user_id} in realm {realm_name}"),
+        realm_name,
+        user_id,
     }))
 }

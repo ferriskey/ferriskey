@@ -32,15 +32,21 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
   }
 
   const handleSubmit = () => {
+    if (!user_id || !realm_name) {
+      toast.error("User ID or Realm Name is missing")
+      return
+    }
     const values = form.getValues()
 
     resetPassword({
-      realm: realm_name || '',
-      userId: user_id || '',
-      payload: {
+      body: {
         credential_type: 'password',
-        value: values.password,
         temporary: values.temporary,
+        value: values.password
+      },
+      path: {
+        realm_name,
+        user_id
       }
     })
 
@@ -57,16 +63,16 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
 
   return (
     <Form {...form}>
-      <SetPassword 
-        form={form} 
-        open={open} 
+      <SetPassword
+        form={form}
+        open={open}
         setOpen={setOpen}
         handleCloseModal={handleCloseModal}
         handleSubmit={handleSubmit}
         contentText={contentText}
-       />
+      />
 
     </Form>
-   
+
   )
 }

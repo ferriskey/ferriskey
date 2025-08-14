@@ -1,6 +1,6 @@
 export namespace Schemas {
   // <Schemas>
-  export type AssignRoleResponse = { message: string };
+  export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
   export type AuthResponse = { url: string };
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
   export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
@@ -130,6 +130,7 @@ export namespace Schemas {
     updated_at: string;
     value: string;
   };
+  export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string };
   export type TokenRequestValidator = Partial<{
@@ -141,7 +142,7 @@ export namespace Schemas {
     refresh_token: string | null;
     username: string | null;
   }>;
-  export type UnassignRoleResponse = { message: string };
+  export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string };
   export type UpdateClientValidator = Partial<{
     client_id: string | null;
     enabled: boolean | null;
@@ -554,7 +555,7 @@ export namespace Endpoints {
 
       body: Schemas.ResetPasswordValidator;
     };
-    response: unknown;
+    response: Schemas.ResetPasswordResponse;
   };
   export type get_Get_user_roles = {
     method: "GET";
