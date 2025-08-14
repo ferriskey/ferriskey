@@ -16,7 +16,7 @@ export default function UserLayout() {
   const [defaultValue, setDefaultValue] = useState<string>('')
   const { pathname } = useLocation()
 
-  const { data: user } = useGetUser({
+  const { data: userResponse } = useGetUser({
     realm: realm_name,
     userId: user_id,
   })
@@ -50,11 +50,11 @@ export default function UserLayout() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Heading size={3}>{user?.username}</Heading>
+            <Heading size={3}>{userResponse?.data.username}</Heading>
 
             <div className="flex items-center gap-2">
               <span>User ID</span>
-              <BadgeColor color={BadgeColorScheme.GRAY}>{user?.id}</BadgeColor>
+              <BadgeColor color={BadgeColorScheme.GRAY}>{userResponse?.data.id}</BadgeColor>
             </div>
           </div>
         </div>

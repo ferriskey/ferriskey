@@ -5,10 +5,12 @@ import { UpdateUserSchema } from '../validators'
 import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar.tsx'
-import { RequiredAction, User } from '@/api/core.interface'
+import { RequiredAction } from '@/api/core.interface'
 import MultipleSelector from '@/components/ui/multiselect'
 import { Label } from '@/components/ui/label'
 import { formatRequiredAction, formatSnakeCaseToTitleCase } from '@/utils'
+import { Schemas } from '@/api/api.client'
+import User = Schemas.User
 
 type Props = {
   onSubmit: (data: UpdateUserSchema) => void

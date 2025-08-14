@@ -18,7 +18,7 @@ export default function RoleMappingModalFeature() {
 
   const { mutate: assignRole, data } = useAssignUserRole()
   const { data: rolesResponse } = useGetRoles({ realm: realm_name })
-  const { data: user } = useGetUser({
+  const { data: userResponse } = useGetUser({
     realm: realm_name,
     userId: user_id,
   })
@@ -67,7 +67,7 @@ export default function RoleMappingModalFeature() {
     }
   }, [data])
 
-  if (!user) {
+  if (!userResponse) {
     return null
   }
 
@@ -77,7 +77,7 @@ export default function RoleMappingModalFeature() {
         open={open}
         setOpen={setOpen}
         roles={availableRoles}
-        user={user}
+        user={userResponse.data}
         form={form}
         isValid={isValid}
         handleSubmit={handleSubmit}

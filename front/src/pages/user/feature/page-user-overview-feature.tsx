@@ -11,33 +11,33 @@ import { useFormChanges } from '@/hooks/use-form-changes.ts'
 
 export default function PageUserOverviewFeature() {
   const { realm_name, user_id } = useParams<UserRouterParams>()
-  const { data, isLoading } = useGetUser({ realm: realm_name, userId: user_id })
+  const { data: userResponse, isLoading } = useGetUser({ realm: realm_name, userId: user_id })
   const { mutate: updateUser } = useUpdateUser()
 
   const form = useForm<UpdateUserSchema>({
     resolver: zodResolver(updateUserValidator),
     mode: 'all',
     values: {
-      username: data?.username ?? '',
-      firstname: data?.firstname ?? '',
-      lastname: data?.lastname ?? '',
-      email: data?.email ?? '',
-      enabled: data?.enabled,
-      email_verified: data?.email_verified,
-      required_actions: data?.required_actions,
+      username: userResponse?.data.username ?? '',
+      firstname: userResponse?.data.firstname ?? '',
+      lastname: userResponse?.data.lastname ?? '',
+      email: userResponse?.data.email ?? '',
+      enabled: userResponse?.data.enabled,
+      email_verified: userResponse?.data.email_verified,
+      required_actions: userResponse?.data.required_actions,
     },
   })
 
   const hasChanges = useFormChanges(
     form,
-    data && {
-      username: data.username ?? '',
-      firstname: data.firstname ?? '',
-      lastname: data.lastname ?? '',
-      email: data.email ?? '',
-      enabled: data.enabled,
-      email_verified: data.email_verified,
-      required_actions: data.required_actions ?? [],
+    userResponse && {
+      username: userResponse.data.username ?? '',
+      firstname: userResponse.data.firstname ?? '',
+      lastname: userResponse.data.lastname ?? '',
+      email: userResponse.data.email ?? '',
+      enabled: userResponse.data.enabled,
+      email_verified: userResponse.data.email_verified,
+      required_actions: userResponse.data.required_actions ?? [],
     }
   )
 
@@ -51,11 +51,11 @@ export default function PageUserOverviewFeature() {
     )
   }
 
-  if (!user_id || isLoading || !data) return null
+  if (!user_id || isLoading || !userResponse) return null
 
   return (
     <Form {...form}>
-      <PageUserOverview onSubmit={handleSubmit} hasChanges={hasChanges} user={data} />
+      <PageUserOverview onSubmit={handleSubmit} hasChanges={hasChanges} user={userResponse.data} />
     </Form>
   )
 }

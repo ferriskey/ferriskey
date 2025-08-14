@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 export default function PageCredentialFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
 
-  const { data: credentials } = useGetUserCredentials({
+  const { data: responseCredentials } = useGetUserCredentials({
     realm: realm_name ?? '',
     userId: user_id ?? ''
   })
@@ -29,7 +29,7 @@ export default function PageCredentialFeature() {
     toast.success("Credential was deleted")
   }
 
-  if (!credentials) {
+  if (!responseCredentials) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold tracking-tight">Credentials</h1>
@@ -38,8 +38,8 @@ export default function PageCredentialFeature() {
     )
   }
   return (
-    <PageCredentials 
-      credentials={credentials}
+    <PageCredentials
+      credentials={responseCredentials.data}
       handleDeleteUserCredential={handleDeleteUserCredential}
     />
   )

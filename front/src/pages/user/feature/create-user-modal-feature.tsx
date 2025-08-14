@@ -29,7 +29,12 @@ export default function CreateUserModalFeature({ realm, open, setOpen }: Props) 
 
   function onSubmit(data: CreateUserSchema) {
     createUser(
-      { realm, payload: data },
+      {
+        body: data,
+        path: {
+          realm_name: realm
+        }
+      },
       {
         onSuccess: () => {
           form.reset()

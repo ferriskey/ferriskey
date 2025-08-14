@@ -1,14 +1,15 @@
-import { BadgeColorScheme } from "@/components/ui/badge-color";
-import { Permissions, RequiredAction, User } from '@/api/core.interface.ts'
+import { BadgeColorScheme } from '@/components/ui/badge-color'
+import { Permissions, RequiredAction } from '@/api/core.interface.ts'
+import { Schemas } from '@/api/api.client.ts'
+import User = Schemas.User
 
-export function getBadgeColorFromPermissionVariant (permission: Permissions): BadgeColorScheme {
+export function getBadgeColorFromPermissionVariant(permission: Permissions): BadgeColorScheme {
   if (permission.toString().startsWith('manage')) return BadgeColorScheme.RED
   if (permission.toString().startsWith('create')) return BadgeColorScheme.GREEN
   if (permission.toString().startsWith('view')) return BadgeColorScheme.BLUE
   if (permission.toString().startsWith('query')) return BadgeColorScheme.YELLOW
   return BadgeColorScheme.GRAY
 }
-
 
 export function formatSnakeCaseToTitleCase(snakeCase: string): string {
   return snakeCase
@@ -18,16 +19,13 @@ export function formatSnakeCaseToTitleCase(snakeCase: string): string {
 }
 
 export function formatPermissionName(permission: string): string {
-  return permission
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase())
+  return permission.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 }
 
 export function formatRequiredAction(action: RequiredAction): string {
   return formatSnakeCaseToTitleCase(action)
 }
 
- 
 export function deepEqual<T>(a: T, b: T): boolean {
   if (a === b) return true
 
@@ -47,17 +45,14 @@ export function deepEqual<T>(a: T, b: T): boolean {
   if (typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
     const keysA = Object.keys(a as Record<string, unknown>)
     const keysB = Object.keys(b as Record<string, unknown>)
-    
+
     if (keysA.length !== keysB.length) return false
-    
-    return keysA.every(key => 
-      deepEqual(
-        (a as Record<string, unknown>)[key], 
-        (b as Record<string, unknown>)[key]
-      )
+
+    return keysA.every((key) =>
+      deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
     )
   }
-  
+
   return false
 }
 

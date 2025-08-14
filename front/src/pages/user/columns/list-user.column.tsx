@@ -1,9 +1,10 @@
-import { User } from '@/api/core.interface'
 import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
 import { ColumnDef } from '@/components/ui/data-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isServiceAccount } from '@/utils'
 import { Info } from 'lucide-react'
+import { Schemas } from '@/api/api.client.ts'
+import User = Schemas.User
 
 export const columns: ColumnDef<User>[] = [
   {

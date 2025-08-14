@@ -20,12 +20,13 @@ export default function PageUserRoleMappingFeature() {
   const { mutate: unassignRole, isSuccess } = useUnassignUserRole()
 
   const handleUnassignRole = (roleId: string) => {
+    if (!realm_name || !user_id) return;
     unassignRole({
-      realm: realm_name,
-      userId: user_id,
-      payload: {
-        roleId,
-      },
+      path: {
+        realm_name,
+        role_id: roleId,
+        user_id,
+      }
     })
   }
 

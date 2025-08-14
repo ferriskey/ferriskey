@@ -1,4 +1,3 @@
-import { User } from '@/api/core.interface'
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
@@ -6,6 +5,8 @@ import { Fragment } from 'react/jsx-runtime'
 import { columns } from '../columns/list-user.column'
 import CreateUserModalFeature from '../feature/create-user-modal-feature.tsx'
 import { Dispatch, SetStateAction } from 'react'
+import { Schemas } from '@/api/api.client.ts'
+import User = Schemas.User
 
 export interface PageUsersOverviewOverviewProps {
   isLoading?: boolean
