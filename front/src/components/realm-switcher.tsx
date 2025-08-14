@@ -157,7 +157,7 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
 
   const handleSubmit = () => {
     createRealm({
-      payload: form.getValues(),
+      body: form.getValues()
     })
   }
   const isValid = form.formState.isValid
