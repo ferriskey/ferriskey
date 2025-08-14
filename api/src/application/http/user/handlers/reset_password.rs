@@ -1,11 +1,9 @@
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
-use crate::application::http::server::api_entities::api_success::ApiSuccess;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::user::validators::ResetPasswordValidator;
 use axum::Extension;
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum_macros::TypedPath;
 use ferriskey_core::application::user::use_cases::reset_password_use_case::ResetPasswordUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
@@ -76,7 +74,7 @@ pub async fn reset_password(
 
     Ok(Response::OK(ResetPasswordResponse {
         message: "Password reset successfully".to_string(),
-        user_id: user_id,
-        realm_name: realm_name,
+        user_id,
+        realm_name,
     }))
 }
