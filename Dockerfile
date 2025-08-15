@@ -1,4 +1,4 @@
-FROM rust:1.86-bookworm AS rust-build
+FROM rust:1.89-bookworm AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -31,8 +31,8 @@ FROM debian:bookworm-slim AS runtime
 RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates=20230311 \
-        libssl3=3.0.16-1~deb12u1 && \
+    ca-certificates=20230311 \
+    libssl3=3.0.16-1~deb12u1 && \
     rm -rf /var/lib/apt/lists/* && \
     adduser --system --group --no-create-home --disabled-login ferriskey
 
