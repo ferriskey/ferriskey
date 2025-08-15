@@ -80,10 +80,10 @@ impl AsyncTestContext for DBContext {
     async fn teardown(self) {
         let mut lock = DB_INSTANCE.lock().unwrap();
         let arc = lock.as_ref();
-        if let Some(arc) = arc {
-            if Arc::strong_count(arc) == 2 {
-                *lock = None; // Remove from static; since static does not call Drop
-            }
+        if let Some(arc) = arc
+            && Arc::strong_count(arc) == 2
+        {
+            *lock = None; // Remove from static; since static does not call Drop
         }
     }
 }

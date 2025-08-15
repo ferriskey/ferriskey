@@ -78,10 +78,10 @@ where
 
         let current_time = chrono::Utc::now().timestamp();
 
-        if let Some(exp) = token_data.claims.exp {
-            if exp < current_time {
-                return Err(JwtError::ExpiredToken);
-            }
+        if let Some(exp) = token_data.claims.exp
+            && exp < current_time
+        {
+            return Err(JwtError::ExpiredToken);
         }
 
         Ok(token_data.claims)
@@ -100,10 +100,10 @@ where
             return Err(JwtError::ExpiredToken);
         }
 
-        if let Some(expires_at) = refresh_token.expires_at {
-            if expires_at < chrono::Utc::now() {
-                return Err(JwtError::ExpiredToken);
-            }
+        if let Some(expires_at) = refresh_token.expires_at
+            && expires_at < chrono::Utc::now()
+        {
+            return Err(JwtError::ExpiredToken);
         }
 
         Ok(claims)

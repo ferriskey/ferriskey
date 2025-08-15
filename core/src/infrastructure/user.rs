@@ -4,7 +4,6 @@ use crate::domain::user::value_objects::{CreateUserRequest, UpdateUserRequest};
 use crate::infrastructure::user::repository::PostgresUserRepository;
 use uuid::Uuid;
 
-pub mod links;
 pub mod mappers;
 pub mod repositories;
 pub mod repository;
