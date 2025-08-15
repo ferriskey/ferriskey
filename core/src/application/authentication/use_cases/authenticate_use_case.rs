@@ -14,7 +14,6 @@ use crate::domain::realm::entities::Realm;
 use crate::domain::realm::ports::RealmService;
 use crate::domain::user::entities::RequiredAction;
 use crate::domain::user::ports::UserService;
-use typeshare::typeshare;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -38,7 +37,6 @@ pub struct AuthenticateUseCaseResponse {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-#[typeshare]
 pub enum AuthenticationStepStatus {
     Success,
     RequiresActions,

@@ -10,12 +10,10 @@ use rsa::{
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-#[typeshare]
 pub enum ClaimsTyp {
     Refresh,
     Bearer,
@@ -31,15 +29,11 @@ pub struct JwtClaim {
     pub azp: String,
     pub aud: Vec<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub exp: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_username: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 }
 
@@ -106,7 +100,6 @@ pub struct JwtKeyPair {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
-#[typeshare]
 pub struct JwkKey {
     pub kid: String,
     pub kty: String,

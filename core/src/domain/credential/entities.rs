@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -19,18 +18,13 @@ pub struct Credential {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct CredentialOverview {
-    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
-    #[typeshare(serialized_as = "string")]
     pub user_id: Uuid,
     pub credential_type: String,
     pub user_label: Option<String>,
     pub credential_data: CredentialData,
-    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
-    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -65,7 +59,6 @@ impl Credential {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
-#[typeshare]
 pub struct CredentialData {
     pub hash_iterations: u32,
     pub algorithm: String,

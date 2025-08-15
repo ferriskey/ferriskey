@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
@@ -10,14 +9,11 @@ use crate::domain::client::entities::redirect_uri::RedirectUri;
 pub mod redirect_uri;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
-#[typeshare]
 pub struct Client {
-    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
     pub enabled: bool,
     pub client_id: String,
     pub secret: Option<String>,
-    #[typeshare(serialized_as = "string")]
     pub realm_id: Uuid,
     pub protocol: String,
     pub public_client: bool,
@@ -25,9 +21,7 @@ pub struct Client {
     pub client_type: String,
     pub name: String,
     pub redirect_uris: Option<Vec<RedirectUri>>,
-    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
-    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 

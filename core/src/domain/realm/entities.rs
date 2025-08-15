@@ -1,21 +1,16 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
-#[typeshare]
 pub struct Realm {
-    #[typeshare(serialized_as = "string")]
     pub id: Uuid,
     pub name: String,
-    #[typeshare(serialized_as = "Date")]
     pub created_at: DateTime<Utc>,
-    #[typeshare(serialized_as = "Date")]
     pub updated_at: DateTime<Utc>,
 }
 

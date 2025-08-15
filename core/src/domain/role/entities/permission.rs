@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 
 #[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[typeshare]
 pub enum Permissions {
     // Permissions de création et de gestion
     CreateClient = 0x0000000000000001,            // 1 << 0
