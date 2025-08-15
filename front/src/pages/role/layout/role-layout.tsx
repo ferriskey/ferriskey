@@ -33,14 +33,10 @@ export default function RoleLayout() {
 
             <Button variant='ghost' size='icon' onClick={handleBack}>
               <ArrowLeft className='h-3 w-3' />
-
-            <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-3 w-3" />
-
             </Button>
             <span className='text-gray-500 text-sm font-medium'>Back to roles</span>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className='flex flex-col gap-2'>
             <Heading size={3}>{roleResponse?.data.name}</Heading>
 
             <div className='flex items-center gap-2'>

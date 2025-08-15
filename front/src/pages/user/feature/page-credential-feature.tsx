@@ -39,7 +39,7 @@ export default function PageCredentialFeature() {
   }
   return (
     <PageCredentials
-      credentials={credentials}
+      credentials={responseCredentials.data}
       handleDeleteUserCredential={handleDeleteUserCredential}
     />
   )
