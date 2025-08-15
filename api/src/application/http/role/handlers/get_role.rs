@@ -10,7 +10,6 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -22,7 +21,6 @@ pub struct GetRoleRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct GetRoleResponse {
     pub data: Role,
 }

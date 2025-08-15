@@ -16,13 +16,11 @@ use ferriskey_core::domain::trident::entities::TotpSecret;
 use ferriskey_core::domain::trident::ports::TotpService;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-#[typeshare]
 pub struct ChallengeOtpRequest {
     #[validate(length(min = 6, max = 6, message = "OTP code must be exactly 6 digits"))]
     #[serde(default)]
@@ -36,7 +34,6 @@ pub struct ChallengeOtpRoute {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
-#[typeshare]
 pub struct ChallengeOtpResponse {
     pub url: String,
 }

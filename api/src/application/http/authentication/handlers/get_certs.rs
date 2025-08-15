@@ -5,7 +5,6 @@ use axum::extract::State;
 use axum_macros::TypedPath;
 use ferriskey_core::domain::jwt::entities::JwkKey;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -15,7 +14,6 @@ pub struct GetCertsRoute {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[typeshare]
 pub struct GetCertsResponse {
     pub keys: Vec<JwkKey>,
 }

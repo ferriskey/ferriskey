@@ -9,7 +9,6 @@ use ferriskey_core::application::client::use_cases::delete_client_use_case::Dele
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -21,7 +20,6 @@ pub struct DeleteClientRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct DeleteClientResponse {
     pub message: String,
 }

@@ -1009,7 +1009,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "typeshare",
  "utoipa",
  "utoipa-scalar",
  "utoipa-swagger-ui",

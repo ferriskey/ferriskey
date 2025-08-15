@@ -8,7 +8,6 @@ use ferriskey_core::application::client::use_cases::get_client_use_case::GetClie
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -20,7 +19,6 @@ pub struct GetClientRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct GetClientResponse {
     pub data: Client,
 }

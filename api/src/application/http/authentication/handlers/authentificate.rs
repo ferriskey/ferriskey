@@ -11,19 +11,16 @@ use ferriskey_core::application::authentication::use_cases::authenticate_use_cas
 };
 use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize)]
-#[typeshare]
 pub struct AuthenticateQueryParams {
     client_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
-#[typeshare]
 pub enum AuthenticationStatus {
     Success,
     RequiresActions,
@@ -32,7 +29,6 @@ pub enum AuthenticationStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
-#[typeshare]
 pub struct AuthenticateResponse {
     pub status: AuthenticationStatus,
     pub url: Option<String>,
@@ -42,7 +38,6 @@ pub struct AuthenticateResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-#[typeshare]
 pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "username is required"))]
     #[serde(default)]

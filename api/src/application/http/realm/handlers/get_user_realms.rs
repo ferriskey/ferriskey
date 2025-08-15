@@ -6,7 +6,6 @@ use ferriskey_core::application::realm::use_cases::get_user_realms_use_case::Get
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -16,7 +15,6 @@ pub struct GetUserRealmsRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct UserRealmsResponse {
     pub data: Vec<Realm>,
 }

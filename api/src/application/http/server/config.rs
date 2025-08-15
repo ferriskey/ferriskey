@@ -1,7 +1,6 @@
 use axum::extract::State;
 use axum_macros::TypedPath;
 use serde::Serialize;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 use super::{
@@ -14,7 +13,6 @@ use super::{
 pub struct GetConfigRoute;
 
 #[derive(Debug, Serialize, PartialEq, ToSchema)]
-#[typeshare]
 pub struct GetConfigResponse {
     pub app_version: String,
     pub environment: String,

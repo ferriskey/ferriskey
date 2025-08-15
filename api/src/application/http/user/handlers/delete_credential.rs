@@ -8,7 +8,6 @@ use axum_macros::TypedPath;
 use ferriskey_core::application::user::use_cases::delete_credential_use_case::DeleteCredentialUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -21,7 +20,6 @@ pub struct DeleteUserCredentialRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct DeleteUserCredentialResponse {
     pub message: String,
     pub realm_name: String,

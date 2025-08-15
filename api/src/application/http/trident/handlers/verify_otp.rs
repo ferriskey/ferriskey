@@ -18,11 +18,9 @@ use ferriskey_core::domain::user::entities::RequiredAction;
 use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
-#[typeshare]
 pub struct VerifyOtpResponse {
     pub message: String,
 }

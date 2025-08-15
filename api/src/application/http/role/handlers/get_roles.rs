@@ -8,7 +8,6 @@ use ferriskey_core::application::role::use_cases::get_roles_use_case::GetRolesUs
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -18,7 +17,6 @@ pub struct GetRolesRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct GetRolesResponse {
     pub data: Vec<Role>,
 }

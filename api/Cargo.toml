@@ -27,7 +27,6 @@ tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["json"] }
-typeshare = "1.0.4"
 utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
@@ -39,4 +38,4 @@ utoipa-scalar = { version = "0.3.0", features = ["axum"] }
 [dev-dependencies]
 test-context = "*"
 axum-test = "*"
-sea-orm = { version = "1.1.14", features = ["sqlx-postgres"]}
+sea-orm = { version = "1.1.14", features = ["sqlx-postgres"] }

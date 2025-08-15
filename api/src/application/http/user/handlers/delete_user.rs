@@ -7,7 +7,6 @@ use axum_macros::TypedPath;
 use ferriskey_core::application::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -19,7 +18,6 @@ pub struct DeleteUserRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct DeleteUserResponse {
     pub count: u32,
 }

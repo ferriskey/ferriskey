@@ -14,7 +14,6 @@ use ferriskey_core::domain::authentication::value_objects::CreateAuthSessionRequ
 use ferriskey_core::domain::client::ports::{ClientService, RedirectUriService};
 use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
@@ -38,7 +37,6 @@ pub struct AuthRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
-#[typeshare]
 pub struct AuthResponse {
     pub url: String,
 }

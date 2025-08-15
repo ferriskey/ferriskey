@@ -14,7 +14,6 @@ use ferriskey_core::application::role::use_cases::update_role_use_case::UpdateRo
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -26,7 +25,6 @@ pub struct UpdateRoleRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct UpdateRoleResponse {
     pub data: Role,
 }

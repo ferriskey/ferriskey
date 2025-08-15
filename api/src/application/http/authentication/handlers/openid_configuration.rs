@@ -3,7 +3,6 @@ use axum::body::Body;
 use axum::http::Request;
 use axum_macros::TypedPath;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -13,7 +12,6 @@ pub struct GetOpenIdConfiguration {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[typeshare]
 pub struct GetOpenIdConfigurationResponse {
     pub issuer: String,
     pub authorization_endpoint: String,

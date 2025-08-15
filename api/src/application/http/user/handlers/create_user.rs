@@ -14,7 +14,6 @@ use ferriskey_core::application::user::use_cases::create_user_use_case::CreateUs
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -24,7 +23,6 @@ pub struct CreateUserRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct CreateUserResponse {
     pub data: User,
 }

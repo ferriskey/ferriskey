@@ -8,7 +8,6 @@ use ferriskey_core::application::client::use_cases::get_clients_use_case::GetCli
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(TypedPath, Deserialize)]
@@ -18,7 +17,6 @@ pub struct GetClientsRoute {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-#[typeshare]
 pub struct ClientsResponse {
     pub data: Vec<Client>,
 }

@@ -10,11 +10,9 @@ use axum_macros::TypedPath;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::TotpService;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, PartialEq, Eq, ToSchema)]
-#[typeshare]
 pub struct SetupOtpResponse {
     pub secret: String,
     pub otpauth_url: String,

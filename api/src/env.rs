@@ -1,10 +1,8 @@
 use std::fmt::Display;
 
 use clap::{Parser, ValueEnum};
-use typeshare::typeshare;
 
 #[derive(Debug, Clone, ValueEnum, Default)]
-#[typeshare]
 pub enum AppEnv {
     #[default]
     Development,
