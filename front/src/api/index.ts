@@ -75,8 +75,6 @@ const fetcher: Fetcher = async (method, apiUrl, params) => {
   if (!response.ok) {
     // You can customize error handling here
     const error = new Error(`HTTP ${response.status}: ${response.statusText}`)
-    ;(error as any).response = response
-    ;(error as any).status = response.status
     throw error
   }
 

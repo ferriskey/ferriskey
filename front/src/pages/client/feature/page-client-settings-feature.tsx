@@ -55,7 +55,7 @@ export default function PageClientSettingsFeature() {
         enabled: clientResponse.data.enabled,
       })
     }
-  }, [clientResponse])
+  }, [clientResponse, form])
 
   return (
     <Form {...form}>

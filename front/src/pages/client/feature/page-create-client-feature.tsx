@@ -59,7 +59,7 @@ export default function PageCreateClientFeature() {
       toast.success('The client has been successfully created')
       navigate(url)
     }
-  }, [responseCreateClient])
+  }, [responseCreateClient, navigate, url])
 
   const formIsValid = form.formState.isValid && form.formState.isDirty
 

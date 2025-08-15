@@ -1,5 +1,6 @@
 import { useGetRole } from '@/api/role.api'
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import BadgeColor from '@/components/ui/badge-color'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { Button } from '@/components/ui/button'
 import { Heading } from '@/components/ui/heading'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -13,7 +14,7 @@ export default function RoleLayout() {
   const navigate = useNavigate()
 
   const { data: roleResponse } = useGetRole({
-    realm: realm_name || "master",
+    realm: realm_name || 'master',
     roleId: role_id,
   })
 

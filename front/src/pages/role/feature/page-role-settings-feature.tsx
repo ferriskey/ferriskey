@@ -57,7 +57,7 @@ export default function PageRoleSettingsFeature() {
         description: roleResponse.data.description || '',
       })
     }
-  }, [roleResponse])
+  }, [roleResponse, form])
 
   return (
     <Form {...form}>

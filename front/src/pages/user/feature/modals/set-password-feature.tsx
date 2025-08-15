@@ -33,7 +33,7 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
 
   const handleSubmit = () => {
     if (!user_id || !realm_name) {
-      toast.error("User ID or Realm Name is missing")
+      toast.error('User ID or Realm Name is missing')
       return
     }
     const values = form.getValues()

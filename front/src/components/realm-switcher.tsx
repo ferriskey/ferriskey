@@ -13,7 +13,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import useRealmStore from '@/store/realm.store'
@@ -37,6 +36,7 @@ import { toast } from 'sonner'
 import { REALM_OVERVIEW_URL, REALM_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client.ts'
 import Realm = Schemas.Realm
+import { useSidebar } from './ui/sidebar-hooks'
 
 export default function RealmSwitcher() {
   const { realm_name } = useParams<{ realm_name: string }>()
@@ -45,7 +45,7 @@ export default function RealmSwitcher() {
   const [open, setOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [activeRealm, setActiveRealm] = useState<Realm | null>(null)
-  const [_, setHasRealmMaster] = useState(false)
+  const [, setHasRealmMaster] = useState(false)
   const { userRealms } = useRealmStore()
 
   const handleClick = (realm: Realm) => {
@@ -167,7 +167,7 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
       toast.success(`Realm ${data.name} created successfully!`)
       setOpen(false)
     }
-  }, [data])
+  }, [data, setOpen])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

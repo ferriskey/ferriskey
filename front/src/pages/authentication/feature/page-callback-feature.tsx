@@ -25,7 +25,7 @@ export default function PageCallbackFeature() {
       setCode(codeParam)
       setSetup(true)
     }
-  }, [])
+  }, [setup])
 
   useEffect(() => {
     if (code && setup && !hasProcessedToken.current) {

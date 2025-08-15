@@ -1,6 +1,6 @@
-import { ColumnDef } from "@/components/ui/data-table";
+import { ColumnDef } from '@/components/ui/data-table'
 import SetPasswordFeature from '@/pages/user/feature/modals/set-password-feature'
-import { Schemas } from "@/api/api.client";
+import { Schemas } from '@/api/api.client'
 import CredentialOverview = Schemas.CredentialOverview
 
 export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [

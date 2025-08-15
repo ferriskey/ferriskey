@@ -1,8 +1,10 @@
 import { Schemas } from '@/api/api.client.ts'
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import BadgeColor from '@/components/ui/badge-color'
+
 import { ColumnDef } from '@/components/ui/data-table'
 
 import Client = Schemas.Client
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 
 export const columns: ColumnDef<Client>[] = [
   {

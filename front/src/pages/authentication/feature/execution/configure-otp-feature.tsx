@@ -3,7 +3,7 @@ import ConfigureOtp from '../../ui/execution/configure-otp'
 import { useParams, useSearchParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useAuthenticateMutation } from '@/api/auth.api'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { verifyOtpSchema, VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,7 +34,8 @@ export default function ConfigureOtpFeature() {
     },
   })
 
-  const handle = () => {
+
+  const handle = useCallback(() => {
     const cookies = document.cookie.split(';').reduce(
       (acc, cookie) => {
         const [key, value] = cookie.trim().split('=')
@@ -54,7 +55,7 @@ export default function ConfigureOtpFeature() {
       useToken: true,
       token: token ?? undefined,
     })
-  }
+  }, [authenticate, realm_name, token])
 
   const handleSubmit = (values: VerifyOtpSchema) => {
     if (!token || !data) {
@@ -77,7 +78,7 @@ export default function ConfigureOtpFeature() {
     if (verifyOtpData && verifyOtpStatus === 'success') {
       handle()
     }
-  }, [verifyOtpData])
+  }, [verifyOtpData, handle, verifyOtpStatus])
 
   useEffect(() => {
     if (authenticateData && authenticateData.url) {

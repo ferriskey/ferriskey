@@ -6,7 +6,6 @@ import { USER_OVERVIEW_URL } from '@/routes/sub-router/user.router'
 import { Pyramid, ShieldUser, Users } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 
-export interface PageHomeProps {}
 
 const items = [
   {
@@ -26,7 +25,7 @@ const items = [
   },
 ]
 
-export default function PageHome({}: PageHomeProps) {
+export default function PageHome() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
 

@@ -25,6 +25,7 @@ export default tseslint.config(
       semi: ["error", "never"],
       quotes: ["error", "single"],
       "jsx-quotes": ["error", "prefer-single"],
+      "@typescript-eslint/no-namespace": "off",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

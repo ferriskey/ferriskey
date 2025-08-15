@@ -42,7 +42,7 @@ export default function PageUserOverviewFeature() {
   )
 
   function handleSubmit(payload: UpdateUserSchema) {
-    if (!user_id || !realm_name) return;
+    if (!user_id || !realm_name) return
     updateUser(
       {
         body: payload,

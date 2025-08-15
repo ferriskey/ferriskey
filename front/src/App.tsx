@@ -25,7 +25,7 @@ function App() {
     if (responseConfig) {
       setConfig(responseConfig)
     }
-  }, [responseConfig])
+  }, [responseConfig, setConfig])
 
   const authenticateRoute = useMemo(() => {
     if (pathname.includes('authentication')) {
@@ -49,7 +49,8 @@ function App() {
     } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
       navigate(`/realms/${realm}/overview`, { replace: true })
     }
-  }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name])
+  }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name, navigate])
+
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

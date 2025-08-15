@@ -11,14 +11,15 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 import { Link, useParams } from 'react-router'
 import RealmSwitcher from './realm-switcher'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
 import { useConfig } from '@/hooks/use-config'
-import BadgeColor, { BadgeColorScheme } from './ui/badge-color'
+import BadgeColor from './ui/badge-color'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
+import { useSidebar } from './ui/sidebar-hooks'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()

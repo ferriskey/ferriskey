@@ -1,18 +1,8 @@
 import clsx from 'clsx'
 import { PropsWithChildren } from 'react'
+import { BadgeColorScheme } from './badge-color.enum'
 
-export enum BadgeColorScheme {
-  PRIMARY = 'primary',
-  GRAY = 'gray',
-  RED = 'red',
-  YELLOW = 'yellow',
-  GREEN = 'green',
-  BLUE = 'blue',
-  INDIGO = 'indigo',
-  PURPLE = 'purple',
-  PINK = 'pink',
-  FLUID = 'fluid',
-}
+
 
 export interface BadgeColorProps {
   color: BadgeColorScheme

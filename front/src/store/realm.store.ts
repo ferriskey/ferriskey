@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand'
 import { Schemas } from '@/api/api.client.ts'
 import Realm = Schemas.Realm
 

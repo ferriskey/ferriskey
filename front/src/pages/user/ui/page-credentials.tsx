@@ -1,8 +1,8 @@
-import { DataTable } from "@/components/ui/data-table";
-import { columnsUserCredential } from "../columns/list-user-credential.column";
-import SetPasswordFeature from "../feature/modals/set-password-feature";
+import { DataTable } from '@/components/ui/data-table'
+import { columnsUserCredential } from '../columns/list-user-credential.column'
+import SetPasswordFeature from '../feature/modals/set-password-feature'
 import { Trash2 } from 'lucide-react'
-import { Schemas } from "@/api/api.client";
+import { Schemas } from '@/api/api.client'
 import CredentialOverview = Schemas.CredentialOverview
 
 export interface PageCredentialsProps {

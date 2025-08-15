@@ -16,9 +16,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
+import { useSidebar } from './ui/sidebar-hooks'
 
 export function NavUser() {
   const { isMobile } = useSidebar()

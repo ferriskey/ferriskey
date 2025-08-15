@@ -1,4 +1,5 @@
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import BadgeColor from '@/components/ui/badge-color'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { ColumnDef } from '@/components/ui/data-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isServiceAccount } from '@/utils'

@@ -85,13 +85,13 @@ export default function PageCreateRoleFeature() {
   useEffect(() => {
     const li = selectedPermissions.map(perm => perm.toString())
     form.setValue('permissions', li)
-  }, [selectedPermissions])
+  }, [selectedPermissions, form])
 
   useEffect(() => {
     if (data) {
       navigate(`${ROLES_URL(realm_name)}${ROLE_OVERVIEW_URL}`)
     }
-  }, [data])
+  }, [data, navigate, realm_name])
 
   return (
     <Form {...form}>

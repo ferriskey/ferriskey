@@ -1,5 +1,6 @@
 import { useGetClient } from '@/api/client.api'
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import BadgeColor from '@/components/ui/badge-color'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { Heading } from '@/components/ui/heading'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RouterParams } from '@/routes/router'

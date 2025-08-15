@@ -1,7 +1,7 @@
-import { BadgeColorScheme } from '@/components/ui/badge-color'
 import { Permissions, RequiredAction } from '@/api/core.interface.ts'
 import { Schemas } from '@/api/api.client.ts'
 import User = Schemas.User
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 
 export function getBadgeColorFromPermissionVariant(permission: Permissions): BadgeColorScheme {
   if (permission.toString().startsWith('manage')) return BadgeColorScheme.RED

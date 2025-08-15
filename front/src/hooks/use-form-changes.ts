@@ -2,7 +2,7 @@ import { UseFormReturn, useWatch } from 'react-hook-form'
 import { useEffect, useRef, useState } from 'react'
 import { deepEqual } from '@/utils'
 
-export function useFormChanges<T extends Record<string, any>>(
+export function useFormChanges<T extends Record<string, unknown>>(
   form: UseFormReturn<T>,
   originalData: T | null | undefined
 ): boolean {
@@ -15,14 +15,13 @@ export function useFormChanges<T extends Record<string, any>>(
     }
   }, [originalData])
 
-
   const formValues = useWatch({ control: form.control })
 
   useEffect(() => {
     if (!originalRef.current || !formValues) return
     const data = originalRef.current
 
-    const isDifferent = Object.keys(originalRef.current).some(key => {
+    const isDifferent = Object.keys(originalRef.current).some((key) => {
       const areEqual = deepEqual(data[key], formValues[key])
 
       return !areEqual

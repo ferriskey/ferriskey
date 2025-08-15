@@ -1,4 +1,5 @@
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color.tsx'
+import BadgeColor from '@/components/ui/badge-color.tsx'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils.ts'
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'

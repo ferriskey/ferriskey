@@ -7,7 +7,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { REALM_OVERVIEW_URL } from '@/routes/router'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
-import BadgeColor, { BadgeColorScheme } from '@/components/ui/badge-color'
+import BadgeColor from '@/components/ui/badge-color'
+import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 
 export default function UserLayout() {
@@ -49,7 +50,7 @@ export default function UserLayout() {
             <span className='text-gray-500 text-sm font-medium'>Back to users</span>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className='flex flex-col gap-2'>
             <Heading size={3}>{userResponse?.data.username}</Heading>
 
             <div className='flex items-center gap-2'>

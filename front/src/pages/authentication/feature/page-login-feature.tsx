@@ -1,6 +1,6 @@
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
@@ -22,7 +22,8 @@ export default function PageLoginFeature() {
   const [isSetup, setIsSetup] = useState(false)
   const navigate = useNavigate()
 
-  function getOAuthParams() {
+
+  const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
     sessionStorage.setItem('oauth_state', state)
 
@@ -36,7 +37,7 @@ export default function PageLoginFeature() {
       }).toString(),
       realm: realm_name ?? 'master',
     }
-  }
+  }, [realm_name])
 
   const {
     mutate: authenticate,
@@ -74,7 +75,7 @@ export default function PageLoginFeature() {
     if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
       navigate(`/realms/${realm_name}/authentication/otp?token=${authenticateData.token}`)
     }
-  }, [authenticateData])
+  }, [authenticateData, form, navigate, realm_name])
 
   function onSubmit(data: AuthenticateSchema) {
     const cookies = document.cookie.split(';').reduce(
@@ -112,14 +113,14 @@ export default function PageLoginFeature() {
       const { query, realm } = getOAuthParams()
       window.location.href = `${apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
     }
-  }, [isSetup, isAuthInitiated])
+  }, [isSetup, isAuthInitiated, getOAuthParams])
 
   useEffect(() => {
     if (authenticateStatus === 'error') {
       toast.error('Authentication failed. Please check your credentials and try again.')
       form.reset()
     }
-  }, [authenticateStatus])
+  }, [authenticateStatus, form])
 
   return <PageLogin form={form} onSubmit={onSubmit} isError={undefined} />
 }
