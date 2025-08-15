@@ -66,7 +66,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN \
     corepack enable && \
     corepack prepare pnpm@9.15.0 --activate && \
-    apk --no-cache add dumb-init
+    apk --no-cache add dumb-init=1.2.5-r3
 
 COPY front/package.json front/pnpm-lock.yaml ./
 

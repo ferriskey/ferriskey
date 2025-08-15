@@ -23,11 +23,15 @@ We use GitHub pull requests for code review.
 - [Rust](https://rustup.rs/)
 - [NodeJS](https://nodejs.org/en/download)
 - [pre-commit](https://pre-commit.com/)
+- [docker](https://docs.docker.com/engine/install/)
 
 1. Fork the repository
 2. Install pre-commit
 ```bash
+npm install -g pnpm
 pre-commit install
+cd front
+pnpm install
 ```
 3. Create a branch (`feat/...`, `fix/...`, `docs/...`)
 4. Implement your changes

@@ -29,3 +29,8 @@ repos:
         language: system
         files: ^(.*)\.((t|j)sx?)$
         pass_filenames: false
+      - id: hadolint
+        name: hadolint
+        entry: bash -c "docker run --rm -i -v ./Dockerfile:/mnt/Dockerfile hadolint/hadolint hadolint /mnt/Dockerfile"
+        language: system
+        files: Dockerfile

@@ -11,6 +11,9 @@ docker-compose.local.yaml
 # github
 /.github
 
+# node
+node_modules
+
 # project
 /docs
 /infrastructure
