@@ -26,7 +26,7 @@ export default function CreateUserModal(props: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
           <DialogDescription>
@@ -35,15 +35,15 @@ export default function CreateUserModal(props: Props) {
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(props.onSubmit)}>
-          <div className="grid gap-5 py-4">
-            <div className="flex flex-col gap-1">
+          <div className='grid gap-5 py-4'>
+            <div className='flex flex-col gap-1'>
               <FormField
                 control={form.control}
-                name="username"
+                name='username'
                 render={({ field }) => (
                   <InputText
-                    label="Username"
-                    name="username"
+                    label='Username'
+                    name='username'
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -51,14 +51,14 @@ export default function CreateUserModal(props: Props) {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className='flex flex-col gap-1'>
               <FormField
                 control={form.control}
-                name="firstname"
+                name='firstname'
                 render={({ field }) => (
                   <InputText
-                    label="Fisrtname"
-                    name="firstname"
+                    label='Fisrtname'
+                    name='firstname'
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -66,14 +66,14 @@ export default function CreateUserModal(props: Props) {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className='flex flex-col gap-1'>
               <FormField
                 control={form.control}
-                name="lastname"
+                name='lastname'
                 render={({ field }) => (
                   <InputText
-                    label="Lastname"
-                    name="lastname"
+                    label='Lastname'
+                    name='lastname'
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -81,14 +81,14 @@ export default function CreateUserModal(props: Props) {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className='flex flex-col gap-1'>
               <FormField
                 control={form.control}
-                name="email"
+                name='email'
                 render={({ field }) => (
                   <InputText
-                    label="Email"
-                    name="email"
+                    label='Email'
+                    name='email'
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -96,13 +96,13 @@ export default function CreateUserModal(props: Props) {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className='flex flex-col gap-1'>
               <FormField
                 control={form.control}
-                name="email_verified"
+                name='email_verified'
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
+                  <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm'>
+                    <div className='space-y-0.5'>
                       <FormLabel>Verified email</FormLabel>
                       <FormDescription>
                         Choose between verified and unverified email as default status.
@@ -117,7 +117,7 @@ export default function CreateUserModal(props: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Save changes</Button>
+            <Button type='submit'>Save changes</Button>
           </DialogFooter>
         </form>
       </DialogContent>

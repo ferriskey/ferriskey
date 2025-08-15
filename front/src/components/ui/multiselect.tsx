@@ -149,8 +149,8 @@ const CommandEmpty = ({
   return (
     <div
       className={cn('px-2 py-4 text-center text-sm', className)}
-      cmdk-empty=""
-      role="presentation"
+      cmdk-empty=''
+      role='presentation'
       {...props}
     />
   )
@@ -333,7 +333,7 @@ const MultipleSelector = ({
     const Item = (
       <CommandItem
         value={inputValue}
-        className="cursor-pointer"
+        className='cursor-pointer'
         onMouseDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -372,7 +372,7 @@ const MultipleSelector = ({
     // For async search that showing emptyIndicator
     if (onSearch && !creatable && Object.keys(options).length === 0) {
       return (
-        <CommandItem value="-" disabled>
+        <CommandItem value='-' disabled>
           {emptyIndicator}
         </CommandItem>
       )
@@ -430,7 +430,7 @@ const MultipleSelector = ({
           inputRef?.current?.focus()
         }}
       >
-        <div className="flex flex-wrap gap-1">
+        <div className='flex flex-wrap gap-1'>
           {selected.map((option) => {
             return (
               <div
@@ -444,7 +444,7 @@ const MultipleSelector = ({
               >
                 {option.label}
                 <button
-                  className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute -inset-y-px -end-px flex size-7 items-center justify-center rounded-e-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]"
+                  className='text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute -inset-y-px -end-px flex size-7 items-center justify-center rounded-e-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]'
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       handleUnselect(option)
@@ -455,9 +455,9 @@ const MultipleSelector = ({
                     e.stopPropagation()
                   }}
                   onClick={() => handleUnselect(option)}
-                  aria-label="Remove"
+                  aria-label='Remove'
                 >
-                  <XIcon size={14} aria-hidden="true" />
+                  <XIcon size={14} aria-hidden='true' />
                 </button>
               </div>
             )
@@ -497,7 +497,7 @@ const MultipleSelector = ({
             )}
           />
           <button
-            type="button"
+            type='button'
             onClick={() => {
               setSelected(selected.filter((s) => s.fixed))
               onChange?.(selected.filter((s) => s.fixed))
@@ -510,13 +510,13 @@ const MultipleSelector = ({
                 selected.filter((s) => s.fixed).length === selected.length) &&
                 'hidden'
             )}
-            aria-label="Clear all"
+            aria-label='Clear all'
           >
-            <XIcon size={16} aria-hidden="true" />
+            <XIcon size={16} aria-hidden='true' />
           </button>
         </div>
       </div>
-      <div className="relative">
+      <div className='relative'>
         <div
           className={cn(
             'border-input absolute top-2 z-10 w-full overflow-hidden rounded-md border',
@@ -527,7 +527,7 @@ const MultipleSelector = ({
         >
           {open && (
             <CommandList
-              className="bg-popover text-popover-foreground shadow-lg outline-hidden"
+              className='bg-popover text-popover-foreground shadow-lg outline-hidden'
               onMouseLeave={() => {
                 setOnScrollbar(false)
               }}
@@ -544,9 +544,9 @@ const MultipleSelector = ({
                 <>
                   {EmptyItem()}
                   {CreatableItem()}
-                  {!selectFirstItem && <CommandItem value="-" className="hidden" />}
+                  {!selectFirstItem && <CommandItem value='-' className='hidden' />}
                   {Object.entries(selectables).map(([key, dropdowns]) => (
-                    <CommandGroup key={key} heading={key} className="h-full overflow-auto">
+                    <CommandGroup key={key} heading={key} className='h-full overflow-auto'>
                       <>
                         {dropdowns.map((option) => {
                           return (

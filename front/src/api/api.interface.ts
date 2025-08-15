@@ -27,10 +27,10 @@ export interface AuthenticateRequest {
 }
 
 export enum AuthenticationStatus {
-	Success = "Success",
-	RequiresActions = "RequiresActions",
-	RequiresOtpChallenge = "RequiresOtpChallenge",
-	Failed = "Failed",
+	Success = 'Success',
+	RequiresActions = 'RequiresActions',
+	RequiresOtpChallenge = 'RequiresOtpChallenge',
+	Failed = 'Failed',
 }
 
 export interface AuthenticateResponse {
@@ -182,7 +182,6 @@ export interface VerifyOtpResponse {
 }
 
 export enum AppEnv {
-	Development = "Development",
-	Production = "Production",
+	Development = 'Development',
+	Production = 'Production',
 }
-

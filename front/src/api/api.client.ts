@@ -3,7 +3,7 @@ export namespace Schemas {
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
   export type AuthResponse = { url: string };
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
-  export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
+  export type AuthenticationStatus = 'Success' | 'RequiresActions' | 'RequiresOtpChallenge' | 'Failed';
   export type AuthenticateResponse = {
     message?: (string | null) | undefined;
     required_actions?: (Array<RequiredAction> | null) | undefined;
@@ -46,7 +46,7 @@ export namespace Schemas {
     permissions: Array<string>;
   };
   export type Realm = { created_at: string; id: string; name: string; updated_at: string };
-  export type RequiredAction = "configure_otp" | "verify_email" | "update_password";
+  export type RequiredAction = 'configure_otp' | 'verify_email' | 'update_password';
   export type Role = {
     client?: (null | Client) | undefined;
     client_id?: (string | null) | undefined;
@@ -113,7 +113,7 @@ export namespace Schemas {
   export type GetRolesResponse = { data: Array<Role> };
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> };
   export type GetUserRolesResponse = { data: Array<Role> };
-  export type GrantType = "authorization_code" | "password" | "client_credentials" | "refresh_token";
+  export type GrantType = 'authorization_code' | 'password' | 'client_credentials' | 'refresh_token';
   export type JwtToken = {
     access_token: string;
     expires_in: number;
@@ -176,34 +176,34 @@ export namespace Endpoints {
   // <Endpoints>
 
   export type get_Fetch_realm = {
-    method: "GET";
-    path: "/realms";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms';
+    requestFormat: 'json';
     parameters: never;
     response: Array<Schemas.Realm>;
   };
   export type post_Create_realm = {
-    method: "POST";
-    path: "/realms";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms';
+    requestFormat: 'json';
     parameters: {
       body: Schemas.CreateRealmValidator;
     };
     response: Schemas.Realm;
   };
   export type get_Get_realm = {
-    method: "GET";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{name}';
+    requestFormat: 'json';
     parameters: {
       path: { name: string };
     };
     response: Schemas.Realm;
   };
   export type put_Update_realm = {
-    method: "PUT";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'PUT';
+    path: '/realms/{name}';
+    requestFormat: 'json';
     parameters: {
       path: { name: string };
 
@@ -212,18 +212,18 @@ export namespace Endpoints {
     response: Schemas.Realm;
   };
   export type delete_Delete_realm = {
-    method: "DELETE";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{name}';
+    requestFormat: 'json';
     parameters: {
       path: { name: string };
     };
     response: Schemas.DeleteRealmResponse;
   };
   export type put_Update_realm_setting = {
-    method: "PUT";
-    path: "/realms/{name}/settings";
-    requestFormat: "json";
+    method: 'PUT';
+    path: '/realms/{name}/settings';
+    requestFormat: 'json';
     parameters: {
       path: { name: string };
 
@@ -232,27 +232,27 @@ export namespace Endpoints {
     response: Schemas.Realm;
   };
   export type get_Get_openid_configuration = {
-    method: "GET";
-    path: "/realms/{realm_name}/.well-known/openid-configuration";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/.well-known/openid-configuration';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.GetOpenIdConfigurationResponse;
   };
   export type get_Get_clients = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/clients';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.ClientsResponse;
   };
   export type post_Create_client = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/clients';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
 
@@ -261,27 +261,27 @@ export namespace Endpoints {
     response: Schemas.Client;
   };
   export type get_Get_client = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/clients/{client_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     response: Schemas.GetClientResponse;
   };
   export type delete_Delete_client = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/clients/{client_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     response: Schemas.DeleteClientResponse;
   };
   export type patch_Update_client = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'PATCH';
+    path: '/realms/{realm_name}/clients/{client_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
 
@@ -290,18 +290,18 @@ export namespace Endpoints {
     response: Schemas.Client;
   };
   export type get_Get_redirect_uris = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/clients/{client_id}/redirects';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     response: Array<Schemas.RedirectUri>;
   };
   export type post_Create_redirect_uri = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/clients/{client_id}/redirects';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
 
@@ -310,9 +310,9 @@ export namespace Endpoints {
     response: Schemas.RedirectUri;
   };
   export type put_Update_redirect_uri = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'PUT';
+    path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string };
 
@@ -321,27 +321,27 @@ export namespace Endpoints {
     response: Schemas.RedirectUri;
   };
   export type delete_Delete_redirect_uri = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string };
     };
     response: unknown;
   };
   export type get_Get_client_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/clients/{client_id}/roles';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     response: Schemas.GetClientRolesResponse;
   };
   export type post_Create_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/clients/{client_id}/roles';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; client_id: string };
 
@@ -350,9 +350,9 @@ export namespace Endpoints {
     response: Schemas.Role;
   };
   export type post_Authenticate = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/authenticate";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/login-actions/authenticate';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
 
@@ -361,25 +361,25 @@ export namespace Endpoints {
     response: Schemas.AuthenticateResponse;
   };
   export type post_Challenge_otp = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/challenge-otp";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/login-actions/challenge-otp';
+    requestFormat: 'json';
     parameters: never;
     response: Schemas.ChallengeOtpResponse;
   };
   export type get_Setup_otp = {
-    method: "GET";
-    path: "/realms/{realm_name}/login-actions/setup-otp";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/login-actions/setup-otp';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.SetupOtpResponse;
   };
   export type post_Verify_otp = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/verify-otp";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/login-actions/verify-otp';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
 
@@ -388,9 +388,9 @@ export namespace Endpoints {
     response: Schemas.VerifyOtpResponse;
   };
   export type get_Auth = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/auth";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/protocol/openid-connect/auth';
+    requestFormat: 'json';
     parameters: {
       path: {
         realm_name: string;
@@ -404,45 +404,45 @@ export namespace Endpoints {
     response: unknown;
   };
   export type get_Get_certs = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/certs";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/protocol/openid-connect/certs';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.GetCertsResponse;
   };
   export type post_Exchange_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/token";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/protocol/openid-connect/token';
+    requestFormat: 'json';
     parameters: {
       body: Schemas.TokenRequestValidator;
     };
     response: Schemas.JwtToken;
   };
   export type get_Get_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/roles";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/roles';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.GetRolesResponse;
   };
   export type get_Get_role = {
-    method: "GET";
-    path: "/realms/{realm_name}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/roles/{role_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; role_id: string };
     };
     response: Schemas.GetRoleResponse;
   };
   export type put_Update_role = {
-    method: "PUT";
-    path: "/realms/{realm_name}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'PUT';
+    path: '/realms/{realm_name}/roles/{role_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; role_id: string };
 
@@ -451,9 +451,9 @@ export namespace Endpoints {
     response: Schemas.UpdateRoleResponse;
   };
   export type patch_Update_role_permissions = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/roles/{role_id}/permissions";
-    requestFormat: "json";
+    method: 'PATCH';
+    path: '/realms/{realm_name}/roles/{role_id}/permissions';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; role_id: string };
 
@@ -462,18 +462,18 @@ export namespace Endpoints {
     response: Schemas.UpdateRolePermissionsResponse;
   };
   export type get_Get_users = {
-    method: "GET";
-    path: "/realms/{realm_name}/users";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/users';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
     };
     response: Schemas.UsersResponse;
   };
   export type post_Create_user = {
-    method: "POST";
-    path: "/realms/{realm_name}/users";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/users';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string };
 
@@ -491,27 +491,27 @@ export namespace Endpoints {
     response: Schemas.UserRealmsResponse;
   };
   export type delete_Bulk_delete_user = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/bulk";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/users/bulk';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; ids: Array<string> };
     };
     response: Schemas.BulkDeleteUserResponse;
   };
   export type get_Get_user = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/users/{user_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
     };
     response: Schemas.UserResponse;
   };
   export type post_Update_user = {
-    method: "POST";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/users/{user_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
 
@@ -520,36 +520,36 @@ export namespace Endpoints {
     response: Schemas.UpdateUserResponse;
   };
   export type delete_Delete_user = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/users/{user_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
     };
     response: Schemas.DeleteUserResponse;
   };
   export type get_Get_user_credentials = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/credentials";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/users/{user_id}/credentials';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
     };
     response: Schemas.GetUserCredentialsResponse;
   };
   export type delete_Delete_user_credential = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string; credential_id: string };
     };
     response: Schemas.DeleteUserCredentialResponse;
   };
   export type put_Reset_password = {
-    method: "PUT";
-    path: "/realms/{realm_name}/users/{user_id}/reset-password";
-    requestFormat: "json";
+    method: 'PUT';
+    path: '/realms/{realm_name}/users/{user_id}/reset-password';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
 
@@ -558,27 +558,27 @@ export namespace Endpoints {
     response: Schemas.ResetPasswordResponse;
   };
   export type get_Get_user_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/roles";
-    requestFormat: "json";
+    method: 'GET';
+    path: '/realms/{realm_name}/users/{user_id}/roles';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string };
     };
     response: Schemas.GetUserRolesResponse;
   };
   export type post_Assign_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/users/{user_id}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'POST';
+    path: '/realms/{realm_name}/users/{user_id}/roles/{role_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string; role_id: string };
     };
     response: Schemas.AssignRoleResponse;
   };
   export type delete_Unassign_role = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'DELETE';
+    path: '/realms/{realm_name}/users/{user_id}/roles/{role_id}';
+    requestFormat: 'json';
     parameters: {
       path: { realm_name: string; user_id: string; role_id: string };
     };
@@ -610,48 +610,48 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
   };
   post: {
-    "/realms": Endpoints.post_Create_realm;
-    "/realms/{realm_name}/clients": Endpoints.post_Create_client;
-    "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
-    "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_role;
-    "/realms/{realm_name}/login-actions/authenticate": Endpoints.post_Authenticate;
-    "/realms/{realm_name}/login-actions/challenge-otp": Endpoints.post_Challenge_otp;
-    "/realms/{realm_name}/login-actions/verify-otp": Endpoints.post_Verify_otp;
-    "/realms/{realm_name}/protocol/openid-connect/token": Endpoints.post_Exchange_token;
-    "/realms/{realm_name}/users": Endpoints.post_Create_user;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.post_Update_user;
-    "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
+    '/realms': Endpoints.post_Create_realm;
+    '/realms/{realm_name}/clients': Endpoints.post_Create_client;
+    '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri;
+    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role;
+    '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate;
+    '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp;
+    '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp;
+    '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token;
+    '/realms/{realm_name}/users': Endpoints.post_Create_user;
+    '/realms/{realm_name}/users/{user_id}': Endpoints.post_Update_user;
+    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role;
   };
   put: {
-    "/realms/{name}": Endpoints.put_Update_realm;
-    "/realms/{name}/settings": Endpoints.put_Update_realm_setting;
-    "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.put_Update_redirect_uri;
-    "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
-    "/realms/{realm_name}/users/{user_id}/reset-password": Endpoints.put_Reset_password;
+    '/realms/{name}': Endpoints.put_Update_realm;
+    '/realms/{name}/settings': Endpoints.put_Update_realm_setting;
+    '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri;
+    '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role;
+    '/realms/{realm_name}/users/{user_id}/reset-password': Endpoints.put_Reset_password;
   };
   delete: {
-    "/realms/{name}": Endpoints.delete_Delete_realm;
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
-    "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
-    "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
-    "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;
-    "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.delete_Unassign_role;
+    '/realms/{name}': Endpoints.delete_Delete_realm;
+    '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client;
+    '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri;
+    '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user;
+    '/realms/{realm_name}/users/{user_id}': Endpoints.delete_Delete_user;
+    '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}': Endpoints.delete_Delete_user_credential;
+    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.delete_Unassign_role;
   };
   patch: {
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.patch_Update_client;
-    "/realms/{realm_name}/roles/{role_id}/permissions": Endpoints.patch_Update_role_permissions;
+    '/realms/{realm_name}/clients/{client_id}': Endpoints.patch_Update_client;
+    '/realms/{realm_name}/roles/{role_id}/permissions': Endpoints.patch_Update_role_permissions;
   };
 };
 
 // </EndpointByMethod>
 
 // <EndpointByMethod.Shorthands>
-export type GetEndpoints = EndpointByMethod["get"];
-export type PostEndpoints = EndpointByMethod["post"];
-export type PutEndpoints = EndpointByMethod["put"];
-export type DeleteEndpoints = EndpointByMethod["delete"];
-export type PatchEndpoints = EndpointByMethod["patch"];
+export type GetEndpoints = EndpointByMethod['get'];
+export type PostEndpoints = EndpointByMethod['post'];
+export type PutEndpoints = EndpointByMethod['put'];
+export type DeleteEndpoints = EndpointByMethod['delete'];
+export type PatchEndpoints = EndpointByMethod['patch'];
 // </EndpointByMethod.Shorthands>
 
 // <ApiClientTypes>
@@ -662,10 +662,10 @@ export type EndpointParameters = {
   path?: Record<string, unknown>;
 };
 
-export type MutationMethod = "post" | "put" | "patch" | "delete";
-export type Method = "get" | "head" | "options" | MutationMethod;
+export type MutationMethod = 'post' | 'put' | 'patch' | 'delete';
+export type Method = 'get' | 'head' | 'options' | MutationMethod;
 
-type RequestFormat = "json" | "form-data" | "form-url" | "binary" | "text";
+type RequestFormat = 'json' | 'form-data' | 'form-url' | 'binary' | 'text';
 
 export type DefaultEndpoint = {
   parameters?: EndpointParameters | undefined;
@@ -678,14 +678,14 @@ export type Endpoint<TConfig extends DefaultEndpoint = DefaultEndpoint> = {
   method: Method;
   path: string;
   requestFormat: RequestFormat;
-  parameters?: TConfig["parameters"];
+  parameters?: TConfig['parameters'];
   meta: {
     alias: string;
     hasParameters: boolean;
     areParametersRequired: boolean;
   };
-  response: TConfig["response"];
-  responseHeaders?: TConfig["responseHeaders"];
+  response: TConfig['response'];
+  responseHeaders?: TConfig['responseHeaders'];
 };
 
 export type Fetcher = (method: Method, url: string, parameters?: EndpointParameters | undefined) => Promise<Response>;
@@ -700,75 +700,75 @@ type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [confi
 
 // <ApiClient>
 export class ApiClient {
-  baseUrl: string = "";
+  baseUrl: string = ''
 
   constructor(public fetcher: Fetcher) {}
 
   setBaseUrl(baseUrl: string) {
-    this.baseUrl = baseUrl;
-    return this;
+    this.baseUrl = baseUrl
+    return this
   }
 
   parseResponse = async <T,>(response: Response): Promise<T> => {
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      return response.json();
+    const contentType = response.headers.get('content-type')
+    if (contentType?.includes('application/json')) {
+      return response.json()
     }
-    return response.text() as unknown as T;
-  };
+    return response.text() as unknown as T
+  }
 
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ): Promise<TEndpoint["response"]> {
-    return this.fetcher("get", this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('get', this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint["response"]>;
+    ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.get>
 
   // <ApiClient.post>
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ): Promise<TEndpoint["response"]> {
-    return this.fetcher("post", this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('post', this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint["response"]>;
+    ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.post>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ): Promise<TEndpoint["response"]> {
-    return this.fetcher("put", this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('put', this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint["response"]>;
+    ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.put>
 
   // <ApiClient.delete>
   delete<Path extends keyof DeleteEndpoints, TEndpoint extends DeleteEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ): Promise<TEndpoint["response"]> {
-    return this.fetcher("delete", this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('delete', this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint["response"]>;
+    ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.delete>
 
   // <ApiClient.patch>
   patch<Path extends keyof PatchEndpoints, TEndpoint extends PatchEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ): Promise<TEndpoint["response"]> {
-    return this.fetcher("patch", this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('patch', this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint["response"]>;
+    ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.patch>
 
@@ -785,18 +785,18 @@ export class ApiClient {
     path: TPath,
     ...params: MaybeOptionalArg<TEndpoint extends { parameters: infer Params } ? Params : never>
   ): Promise<
-    Omit<Response, "json"> & {
+    Omit<Response, 'json'> & {
       /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
       json: () => Promise<TEndpoint extends { response: infer Res } ? Res : never>;
     }
   > {
-    return this.fetcher(method, this.baseUrl + (path as string), params[0] as EndpointParameters);
+    return this.fetcher(method, this.baseUrl + (path as string), params[0] as EndpointParameters)
   }
   // </ApiClient.request>
 }
 
 export function createApiClient(fetcher: Fetcher, baseUrl?: string) {
-  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? "");
+  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? '')
 }
 
 /**

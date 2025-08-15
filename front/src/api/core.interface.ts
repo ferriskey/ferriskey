@@ -80,9 +80,9 @@ export interface Role {
 }
 
 export enum RequiredAction {
-	ConfigureOtp = "configure_otp",
-	VerifyEmail = "verify_email",
-	UpdatePassword = "update_password",
+	ConfigureOtp = 'configure_otp',
+	VerifyEmail = 'verify_email',
+	UpdatePassword = 'update_password',
 }
 
 export interface User {
@@ -103,43 +103,42 @@ export interface User {
 }
 
 export enum AuthenticationStepStatus {
-	Success = "Success",
-	RequiresActions = "RequiresActions",
-	RequiresOtpChallenge = "RequiresOtpChallenge",
-	Failed = "Failed",
+	Success = 'Success',
+	RequiresActions = 'RequiresActions',
+	RequiresOtpChallenge = 'RequiresOtpChallenge',
+	Failed = 'Failed',
 }
 
 export enum ClaimsTyp {
-	Refresh = "Refresh",
-	Bearer = "Bearer",
+	Refresh = 'Refresh',
+	Bearer = 'Bearer',
 }
 
 export enum GrantType {
-	Code = "authorization_code",
-	Password = "password",
-	Credentials = "client_credentials",
-	RefreshToken = "refresh_token",
+	Code = 'authorization_code',
+	Password = 'password',
+	Credentials = 'client_credentials',
+	RefreshToken = 'refresh_token',
 }
 
 export enum Permissions {
-	CreateClient = "create_client",
-	ManageAuthorization = "manage_authorization",
-	ManageClients = "manage_clients",
-	ManageEvents = "manage_events",
-	ManageIdentityProviders = "manage_identity_providers",
-	ManageRealm = "manage_realm",
-	ManageUsers = "manage_users",
-	ManageRoles = "manage_roles",
-	QueryClients = "query_clients",
-	QueryGroups = "query_groups",
-	QueryRealms = "query_realms",
-	QueryUsers = "query_users",
-	ViewAuthorization = "view_authorization",
-	ViewClients = "view_clients",
-	ViewEvents = "view_events",
-	ViewIdentityProviders = "view_identity_providers",
-	ViewRealm = "view_realm",
-	ViewUsers = "view_users",
-	ViewRoles = "view_roles",
+	CreateClient = 'create_client',
+	ManageAuthorization = 'manage_authorization',
+	ManageClients = 'manage_clients',
+	ManageEvents = 'manage_events',
+	ManageIdentityProviders = 'manage_identity_providers',
+	ManageRealm = 'manage_realm',
+	ManageUsers = 'manage_users',
+	ManageRoles = 'manage_roles',
+	QueryClients = 'query_clients',
+	QueryGroups = 'query_groups',
+	QueryRealms = 'query_realms',
+	QueryUsers = 'query_users',
+	ViewAuthorization = 'view_authorization',
+	ViewClients = 'view_clients',
+	ViewEvents = 'view_events',
+	ViewIdentityProviders = 'view_identity_providers',
+	ViewRealm = 'view_realm',
+	ViewUsers = 'view_users',
+	ViewRoles = 'view_roles',
 }
-

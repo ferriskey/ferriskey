@@ -33,11 +33,11 @@ export default function PageRolesOverview({
   }
 
   return (
-    <div className="flex flex-col gap-4 p-8">
-      <div className="flex items-center justify-between">
+    <div className='flex flex-col gap-4 p-8'>
+      <div className='flex items-center justify-between'>
         <div>
           <Heading>Roles</Heading>
-          <p className="text-muted-foreground">Manage roles in {realmName}</p>
+          <p className='text-muted-foreground'>Manage roles in {realmName}</p>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export default function PageRolesOverview({
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Search a client..."
+        searchPlaceholder='Search a client...'
         searchKeys={['name', 'client_id']}
         enableSelection={true}
         onDeleteSelected={handleDeleteSelected}
@@ -59,22 +59,22 @@ export default function PageRolesOverview({
         rowActions={[
           {
             label: 'Paramètres',
-            icon: <Settings className="h-4 w-4" />,
+            icon: <Settings className='h-4 w-4' />,
             onClick: handleViewSettings,
           },
           {
             label: 'Éditer',
-            icon: <Edit className="h-4 w-4" />,
+            icon: <Edit className='h-4 w-4' />,
             onClick: (client) => console.log('Edit', client),
           },
           {
             label: 'Voir les détails',
-            icon: <ExternalLink className="h-4 w-4" />,
+            icon: <ExternalLink className='h-4 w-4' />,
             onClick: (client) => console.log('View', client),
           },
           {
             label: 'Supprimer',
-            icon: <Trash2 className="h-4 w-4" />,
+            icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
             onClick: (client) => console.log('Delete', client),
           },

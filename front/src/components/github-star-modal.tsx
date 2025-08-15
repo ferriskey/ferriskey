@@ -42,68 +42,68 @@ export default function GithubStarModal() {
         }
       }}
     >
-      <DialogContent className="max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg">
-              <Heart className="h-5 w-5 text-white" />
+      <DialogContent className='max-w-md mx-auto'>
+        <div className='flex items-center justify-between mb-4'>
+          <div className='flex items-center gap-2'>
+            <div className='p-2 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg'>
+              <Heart className='h-5 w-5 text-white' />
             </div>
-            <DialogTitle className="text-xl font-semibold">Support FerrisKey! 🦀</DialogTitle>
+            <DialogTitle className='text-xl font-semibold'>Support FerrisKey! 🦀</DialogTitle>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className='space-y-6'>
           {/* Hero Image/Icon */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
-                <GitBranch className="h-10 w-10 text-white" />
+          <div className='flex justify-center'>
+            <div className='relative'>
+              <div className='w-20 h-20 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-pulse'>
+                <GitBranch className='h-10 w-10 text-white' />
               </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce">
-                <Star className="h-3 w-3 text-yellow-800" fill="currentColor" />
+              <div className='absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce'>
+                <Star className='h-3 w-3 text-yellow-800' fill='currentColor' />
               </div>
             </div>
           </div>
 
-          <DialogDescription className="text-center space-y-3">
-            <p className="text-lg font-medium text-foreground">Welcome to FerrisKey! 👋</p>
-            <p className="text-muted-foreground">
+          <DialogDescription className='text-center space-y-3'>
+            <p className='text-lg font-medium text-foreground'>Welcome to FerrisKey! 👋</p>
+            <p className='text-muted-foreground'>
               FerrisKey is an open-source project built with passion. If you find this tool useful,
               support us by adding a star on GitHub!
             </p>
-            <div className="flex items-center justify-center gap-4 py-2">
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="h-4 w-4" />
+            <div className='flex items-center justify-center gap-4 py-2'>
+              <div className='flex items-center gap-1 text-sm text-muted-foreground'>
+                <Star className='h-4 w-4' />
                 <span>Free & Open Source</span>
               </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Heart className="h-4 w-4" />
+              <div className='flex items-center gap-1 text-sm text-muted-foreground'>
+                <Heart className='h-4 w-4' />
                 <span>Made with ❤️</span>
               </div>
             </div>
           </DialogDescription>
 
           {/* Actions */}
-          <div className="flex flex-col gap-3">
+          <div className='flex flex-col gap-3'>
             <Button
               onClick={handleStarProject}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium"
-              size="lg"
+              className='w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium'
+              size='lg'
             >
-              <Star className="h-4 w-4 mr-2" />⭐ Star on GitHub
+              <Star className='h-4 w-4 mr-2' />⭐ Star on GitHub
             </Button>
 
             <Button
-              variant="ghost"
+              variant='ghost'
               onClick={handleDismiss}
-              className="w-full text-muted-foreground hover:text-foreground"
+              className='w-full text-muted-foreground hover:text-foreground'
             >
               Maybe later
             </Button>
           </div>
 
           {/* Footer note */}
-          <p className="text-xs text-center text-muted-foreground border-t pt-4">
+          <p className='text-xs text-center text-muted-foreground border-t pt-4'>
             This popup will only show once. Thank you for your support! 🙏
           </p>
         </div>

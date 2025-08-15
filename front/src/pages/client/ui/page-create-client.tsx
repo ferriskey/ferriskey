@@ -18,53 +18,53 @@ export interface PageCreateClientProps {
 
 export default function PageCreateClient({ form, handleBack, handleSubmit, formIsValid }: PageCreateClientProps) {
   return (
-    <div className="flex flex-col p-4 gap-4">
-      <div className="flex items-center gap-3">
+    <div className='flex flex-col p-4 gap-4'>
+      <div className='flex items-center gap-3'>
         <Button
-          variant="ghost"
-          size="icon"
+          variant='ghost'
+          size='icon'
           onClick={handleBack}
         >
-          <ArrowLeft className="h-3 w-3" />
+          <ArrowLeft className='h-3 w-3' />
         </Button>
-        <span className="text-gray-500 text-sm font-medium">Back to clients</span>
+        <span className='text-gray-500 text-sm font-medium'>Back to clients</span>
       </div>
 
-      <div className="flex flex-col mb-4">
-        <Heading size={3} className="text-gray-800">
+      <div className='flex flex-col mb-4'>
+        <Heading size={3} className='text-gray-800'>
           Create Client
         </Heading>
 
-        <p className="text-sm text-gray-500 mt-1">
+        <p className='text-sm text-gray-500 mt-1'>
           Clients are applications and services that can request authentication of a user.
         </p>
       </div>
 
-      <div className="lg:w-1/3">
-        <BlockContent title="Client Details">
-          <div className="flex flex-col gap-5">
+      <div className='lg:w-1/3'>
+        <BlockContent title='Client Details'>
+          <div className='flex flex-col gap-5'>
             <FormField
               control={form.control}
-              name="clientId"
+              name='clientId'
               render={({ field }) => (
-                <InputText label={"Client ID"} {...field} />
+                <InputText label={'Client ID'} {...field} />
               )}
             />
 
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
-                <InputText label={"Name"} {...field} />
+                <InputText label={'Name'} {...field} />
               )}
             />
 
             <FormField
               control={form.control}
-              name="enabled"
+              name='enabled'
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
+                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm'>
+                  <div className='space-y-0.5'>
                     <FormLabel>Client Enabled</FormLabel>
                     <FormDescription>
                       Toggle to enable or disable the client. Disabled clients cannot authenticate users.
@@ -82,10 +82,10 @@ export default function PageCreateClient({ form, handleBack, handleSubmit, formI
 
             <FormField
               control={form.control}
-              name="clientAuthentication"
+              name='clientAuthentication'
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
+                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm'>
+                  <div className='space-y-0.5'>
                     <FormLabel>Client Authentication</FormLabel>
                     <FormDescription>
                       Toggle to enable or disable client authentication. If enabled, clients must authenticate
@@ -108,14 +108,14 @@ export default function PageCreateClient({ form, handleBack, handleSubmit, formI
 
       <FloatingActionBar
         show={formIsValid ?? false}
-        title={"Create Client"}
+        title={'Create Client'}
         onCancel={() => {
           handleBack()
         }}
-        description={"Create a new client with the specified details."}
+        description={'Create a new client with the specified details.'}
         actions={[
           {
-            label: "Create",
+            label: 'Create',
             onClick: handleSubmit,
           }
         ]}

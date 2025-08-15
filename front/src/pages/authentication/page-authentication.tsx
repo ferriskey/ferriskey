@@ -7,10 +7,10 @@ import PageOtpChallengeFeature from './feature/page-otp-challenge-feature'
 export default function PageAuthentication() {
   return (
     <Routes>
-      <Route path="/login" element={<PageLoginFeature />} />
-      <Route path="/callback" element={<PageCallbackFeature />} />
-      <Route path="/required-action" element={<PageRequiredActionFeature />} />
-      <Route path="/otp" element={<PageOtpChallengeFeature />} />
+      <Route path='/login' element={<PageLoginFeature />} />
+      <Route path='/callback' element={<PageCallbackFeature />} />
+      <Route path='/required-action' element={<PageRequiredActionFeature />} />
+      <Route path='/otp' element={<PageOtpChallengeFeature />} />
     </Routes>
   )
 }

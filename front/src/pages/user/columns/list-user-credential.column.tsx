@@ -5,30 +5,30 @@ import CredentialOverview = Schemas.CredentialOverview
 
 export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
   {
-    id: "type",
-    header: "Type",
+    id: 'type',
+    header: 'Type',
     cell: (credential) => {
       return (
-        <span className="font-medium">{credential.credential_type}</span>
-      );
+        <span className='font-medium'>{credential.credential_type}</span>
+      )
     }
   },
   {
-    id: "user_label",
-    header: "User Label",
+    id: 'user_label',
+    header: 'User Label',
     cell: (credential) => {
       return (
-        <span className="font-medium">{credential.user_label ?? "N/A"}</span>
-      );
+        <span className='font-medium'>{credential.user_label ?? 'N/A'}</span>
+      )
     }
   },
   {
-    id: "created_at",
-    header: "Created At",
+    id: 'created_at',
+    header: 'Created At',
     cell: (credential) => {
       return (
-        <span className="text-xs text-muted-foreground">
-          {new Date(credential.created_at).toLocaleDateString("en-US", {
+        <span className='text-xs text-muted-foreground'>
+          {new Date(credential.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -36,7 +36,7 @@ export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
             minute: '2-digit'
           })}
         </span>
-      );
+      )
     }
   },
   {
@@ -46,7 +46,7 @@ export const columnsUserCredential: ColumnDef<CredentialOverview>[] = [
       if (credential.credential_type !== 'password') return null
 
       return (
-        <SetPasswordFeature contentText="Reset password" />
+        <SetPasswordFeature contentText='Reset password' />
       )
     }
   }

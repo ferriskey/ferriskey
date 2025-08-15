@@ -15,7 +15,7 @@ export default function PageCredentials({ credentials, handleDeleteUserCredentia
     <DataTable
       data={credentials}
       columns={columnsUserCredential}
-      searchPlaceholder="Search a credential..."
+      searchPlaceholder='Search a credential...'
       enableSelection={true}
       emptyState={<EmptyCredential />}
       onDeleteSelected={() => {
@@ -26,8 +26,8 @@ export default function PageCredentials({ credentials, handleDeleteUserCredentia
       rowActions={[
         {
           label: 'Delete',
-          icon: <Trash2 className="w-4 h-4" />,
-          variant: "destructive",
+          icon: <Trash2 className='w-4 h-4' />,
+          variant: 'destructive',
           onClick: (credential) => {
             handleDeleteUserCredential(credential.id)
           }
@@ -39,15 +39,15 @@ export default function PageCredentials({ credentials, handleDeleteUserCredentia
 
 function EmptyCredential() {
   return (
-    <div className="text-center flex flex-col gap-3 py-8">
-      <img src="/event-placeholder-light.svg" alt="No credentials" className="mx-auto mb-4 w-40" />
-      <div className="">
-        <h2 className="text-lg font-semibold text-neutral-600">No Credentials Found</h2>
-        <p className="text-muted-foreground">You have no credentials available.</p>
+    <div className='text-center flex flex-col gap-3 py-8'>
+      <img src='/event-placeholder-light.svg' alt='No credentials' className='mx-auto mb-4 w-40' />
+      <div className=''>
+        <h2 className='text-lg font-semibold text-neutral-600'>No Credentials Found</h2>
+        <p className='text-muted-foreground'>You have no credentials available.</p>
       </div>
       <div>
         <SetPasswordFeature />
       </div>
     </div>
-  );
+  )
 }

@@ -27,4 +27,4 @@ const remarkReadMoreDirective = () => {
   };
 };
 
-export default remarkReadMoreDirective; 
+export default remarkReadMoreDirective;

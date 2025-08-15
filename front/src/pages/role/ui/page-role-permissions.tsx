@@ -33,41 +33,41 @@ export default function PageRolePermissions(props: PageRolePermissionsProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="rounded-sm">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10">
-              <Shield className="h-5 w-5 text-primary" />
+    <div className='space-y-6'>
+      <Card className='rounded-sm'>
+        <CardHeader className='pb-3'>
+          <div className='flex items-center gap-2'>
+            <div className='flex items-center justify-center h-10 w-10 rounded-full bg-primary/10'>
+              <Shield className='h-5 w-5 text-primary' />
             </div>
-            <CardTitle className="text-xl font-bold">{role.name}</CardTitle>
+            <CardTitle className='text-xl font-bold'>{role.name}</CardTitle>
           </div>
-          <CardDescription className="mt-1">
+          <CardDescription className='mt-1'>
             {role.description || 'No description provided'}
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className='grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
         {Object.entries(permissionGroups).map(([groupName, groupPermissions]) => {
           const numberOfPermissions = groupPermissions.length
           const numberOfEnabledPermissions = groupPermissions.filter((permission) =>
             permissions.includes(permission.toString())
           ).length
           return (
-            <div key={groupName} className="border rounded-md p-4 shadow">
-              <div className="flex items-center gap-4">
-                <div className="rounded-md bg-primary/20 p-2">
-                  <Users className="text-primary" />
+            <div key={groupName} className='border rounded-md p-4 shadow'>
+              <div className='flex items-center gap-4'>
+                <div className='rounded-md bg-primary/20 p-2'>
+                  <Users className='text-primary' />
                 </div>
                 <div>
-                  <h3 className="font-bold ">{groupName}</h3>
-                  <span className="text-muted-foreground text-sm">
+                  <h3 className='font-bold '>{groupName}</h3>
+                  <span className='text-muted-foreground text-sm'>
                     {numberOfEnabledPermissions} of {numberOfPermissions} permissions enabled
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 mt-4">
+              <div className='flex flex-col gap-3 mt-4'>
                 {groupPermissions.map((permission) => {
                   const inRolePermissions = permissions.includes(permission.toString())
                   return (
@@ -81,7 +81,7 @@ export default function PageRolePermissions(props: PageRolePermissionsProps) {
                       key={permission}
                       onClick={() => togglePermission(permission)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className='flex items-center gap-2'>
                         <span
                           className={cn(
                             'text-sm',
@@ -111,17 +111,17 @@ export default function PageRolePermissions(props: PageRolePermissionsProps) {
         })}
       </div>
       <FloatingActionBar
-        title="Update permissions"
+        title='Update permissions'
         show={hasDifferentPermissions}
         actions={[
           {
-            icon: <CheckIcon className="h-4 w-4" />,
-            label: "Submit changes",
+            icon: <CheckIcon className='h-4 w-4' />,
+            label: 'Submit changes',
             onClick: handleSubmit,
           }
         ]}
-        description="Update the role permissions from the selected permissions."
-        icon={<LockKeyholeIcon className="h-4 w-4" />}
+        description='Update the role permissions from the selected permissions.'
+        icon={<LockKeyholeIcon className='h-4 w-4' />}
       />
     </div>
   )

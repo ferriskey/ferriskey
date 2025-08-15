@@ -31,7 +31,7 @@ pub struct UsersResponse {
     summary = "Get all users in a realm",
     description = "Retrieves all users associated with a specific realm.",
     params(
-        ("realm_name" = String, Path, description = "Realm name"),  
+        ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
         (status = 200, description = "Users retrieved successfully", body = UsersResponse),

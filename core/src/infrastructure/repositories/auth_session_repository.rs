@@ -115,8 +115,14 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         user_id: Uuid,
     ) -> Result<AuthSession, AuthenticationError> {
         let session = crate::entity::auth_sessions::Entity::update_many()
-            .col_expr(crate::entity::auth_sessions::Column::Code, Expr::value(code))
-            .col_expr(crate::entity::auth_sessions::Column::UserId, Expr::value(user_id))
+            .col_expr(
+                crate::entity::auth_sessions::Column::Code,
+                Expr::value(code),
+            )
+            .col_expr(
+                crate::entity::auth_sessions::Column::UserId,
+                Expr::value(user_id),
+            )
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
             .exec_with_returning(&self.db)
             .await

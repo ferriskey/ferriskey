@@ -1,37 +1,37 @@
 import { Permissions } from '@/api/core.interface.ts'
 
 export const permissionGroups = {
-  "User Management": [
+  'User Management': [
     Permissions.ManageUsers,
     Permissions.ViewUsers,
     Permissions.QueryUsers,
   ],
-  "Client Management": [
+  'Client Management': [
     Permissions.CreateClient,
     Permissions.ManageClients,
     Permissions.ViewClients,
     Permissions.QueryClients,
   ],
-  "Role & Authorization": [
+  'Role & Authorization': [
     Permissions.ManageRoles,
     Permissions.ViewRoles,
     Permissions.ManageAuthorization,
     Permissions.ViewAuthorization,
   ],
-  "Realm Management": [
+  'Realm Management': [
     Permissions.ManageRealm,
     Permissions.ViewRealm,
     Permissions.QueryRealms,
   ],
-  "Identity Providers": [
+  'Identity Providers': [
     Permissions.ManageIdentityProviders,
     Permissions.ViewIdentityProviders,
   ],
-  "Events & Audit": [
+  'Events & Audit': [
     Permissions.ManageEvents,
     Permissions.ViewEvents,
   ],
-  "Groups": [
+  'Groups': [
     Permissions.QueryGroups,
   ],
 }

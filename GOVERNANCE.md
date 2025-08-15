@@ -23,7 +23,7 @@ Maintainers are responsible for:
 
 ## 🔄 Decision Making
 
-We prefer **lazy consensus**. If no one objects to a proposal within 72 hours, it is accepted.  
+We prefer **lazy consensus**. If no one objects to a proposal within 72 hours, it is accepted.
 In case of disagreements, maintainers vote. Majority wins.
 
 For major changes, an [RFC](https://github.com/ferriskey/ferriskey/discussions) should be proposed via GitHub Discussions.

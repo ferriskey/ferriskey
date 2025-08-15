@@ -125,7 +125,9 @@ impl UserRequiredActionRepository for PostgresUserRequiredActionRepository {
             .filter(
                 crate::entity::user_required_actions::Column::UserId
                     .eq(user_id)
-                    .and(crate::entity::user_required_actions::Column::Action.eq(action.to_string())),
+                    .and(
+                        crate::entity::user_required_actions::Column::Action.eq(action.to_string()),
+                    ),
             )
             .one(&self.db)
             .await

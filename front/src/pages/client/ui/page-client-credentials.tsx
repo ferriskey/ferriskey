@@ -1,5 +1,5 @@
-import { InputText } from "@/components/ui/input-text";
-import { Label } from "@/components/ui/label";
+import { InputText } from '@/components/ui/input-text'
+import { Label } from '@/components/ui/label'
 import { Schemas } from '@/api/api.client.ts'
 import Client = Schemas.Client
 
@@ -9,26 +9,26 @@ export interface PageClientCredentialsProps {
 
 export default function PageClientCredentials({ client }: PageClientCredentialsProps) {
   return (
-    <div className="flex w-1/3">
-      <div className="p-4 border flex flex-col gap-4 rounded-md bg-gray-50 shadow-sm w-full">
+    <div className='flex w-1/3'>
+      <div className='p-4 border flex flex-col gap-4 rounded-md bg-gray-50 shadow-sm w-full'>
 
-        <Label className="text-sm font-medium">
+        <Label className='text-sm font-medium'>
           Client Credentials
         </Label>
 
-        <InputText 
-          label="Client ID"
-          name="client_id"
+        <InputText
+          label='Client ID'
+          name='client_id'
           value={client.client_id}
-          disabled        
+          disabled
         />
-         <InputText 
-          label="Client Secret"
-          name="client_secret"
-          type="password"
+         <InputText
+          label='Client Secret'
+          name='client_secret'
+          type='password'
           value={client.secret ?? ''}
           disabled
-          togglePasswordVisibility={true}  
+          togglePasswordVisibility={true}
         />
 
 

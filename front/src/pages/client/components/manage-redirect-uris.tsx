@@ -54,22 +54,22 @@ export default function ManageRedirectUris({ redirectUris }: ManageRedirectUrisP
   }, [deleteRedirectUriSuccess])
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className='flex flex-col gap-4'>
       {redirectUris.map((uri, index) => (
-        <div key={index} className="flex gap-2 items-center">
+        <div key={index} className='flex gap-2 items-center'>
           <InputText
-            name="redirect_uri"
+            name='redirect_uri'
             label={`Redirect URI ${index + 1}`}
             value={uri.value}
             disabled
-            className="flex-grow"
+            className='flex-grow'
           />
 
           <div>
             <Button
-              className="text-red-500"
-              variant="ghost"
-              size="icon"
+              className='text-red-500'
+              variant='ghost'
+              size='icon'
               onClick={() => {
                 handleDeleteRedirectUri(uri.id)
               }}
@@ -80,13 +80,13 @@ export default function ManageRedirectUris({ redirectUris }: ManageRedirectUrisP
         </div>
       ))}
 
-      <div className="flex flex-col gap-2">
+      <div className='flex flex-col gap-2'>
         <InputText
-          name="new_redirect_uri"
-          label="Add new Redirect URI"
+          name='new_redirect_uri'
+          label='Add new Redirect URI'
           onChange={(e) => setNewRedirectUri(e as string)}
           value={newRedirectUri}
-          className="flex-grow"
+          className='flex-grow'
         />
 
         <Button onClick={handleAddRedirectUri} disabled={!newRedirectUri}>

@@ -56,7 +56,7 @@ export default function PageCreateClientFeature() {
 
   useEffect(() => {
     if (responseCreateClient) {
-      toast.success("The client has been successfully created")
+      toast.success('The client has been successfully created')
       navigate(url)
     }
   }, [responseCreateClient])

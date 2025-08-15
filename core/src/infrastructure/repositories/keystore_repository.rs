@@ -11,7 +11,7 @@ use crate::domain::{
     },
 };
 
-    impl TryFrom<crate::entity::jwt_keys::Model> for JwtKeyPair {
+impl TryFrom<crate::entity::jwt_keys::Model> for JwtKeyPair {
     type Error = JwtError;
 
     fn try_from(value: crate::entity::jwt_keys::Model) -> Result<Self, Self::Error> {

@@ -31,7 +31,7 @@
 
 ## ✨ Why FerrisKey?
 
-FerrisKey is a modern **Identity & Access Management (IAM)** platform built with **Rust** and a **hexagonal architecture**.  
+FerrisKey is a modern **Identity & Access Management (IAM)** platform built with **Rust** and a **hexagonal architecture**.
 It aims to be a serious open‑source alternative to heavyweight IAMs fast, modular, and cloud‑native by design.
 
 - 🦀 **Performance-first** — Rust, async I/O, low latency.
@@ -198,5 +198,3 @@ Apache‑2.0 — free to use, modify, and distribute.
 - 📖 Documentation: https://ferriskey.rs/docs/welcome/introduction
 - 💬 Discussions: https://github.com/ferriskey/ferriskey/discussions
 - 🏆 Sponsor: https://github.com/sponsors/ferriskey
-
-

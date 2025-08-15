@@ -35,32 +35,32 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
   const formIsValid = form.formState.isValid
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900'>
+      <div className='container mx-auto px-4 py-8'>
+        <div className='max-w-4xl mx-auto'>
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                <Shield className="h-8 w-8 text-[#19323C] dark:text-blue-400" />
+          <div className='text-center mb-8'>
+            <div className='flex justify-center mb-4'>
+              <div className='p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full'>
+                <Shield className='h-8 w-8 text-[#19323C] dark:text-blue-400' />
               </div>
             </div>
-            <Heading size={2} className="mb-2 text-center">
+            <Heading size={2} className='mb-2 text-center'>
               Enable Two-Factor Authentication
             </Heading>
-            <p className="text-muted-foreground text-lg">
+            <p className='text-muted-foreground text-lg'>
               Secure your account with an additional layer of protection
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className='grid gap-8 md:grid-cols-2'>
             {/* Left Column - Setup Instructions */}
-            <div className="space-y-6">
+            <div className='space-y-6'>
               {/* Step 1 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  <CardTitle className='flex items-center gap-2'>
+                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
                       1
                     </div>
                     Download an Authenticator App
@@ -70,22 +70,22 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2 p-3 border rounded-lg">
-                      <Smartphone className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium">Google Authenticator</span>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
+                      <Smartphone className='h-5 w-5 text-gray-600' />
+                      <span className='text-sm font-medium'>Google Authenticator</span>
                     </div>
-                    <div className="flex items-center gap-2 p-3 border rounded-lg">
-                      <Smartphone className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium">Authy</span>
+                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
+                      <Smartphone className='h-5 w-5 text-gray-600' />
+                      <span className='text-sm font-medium'>Authy</span>
                     </div>
-                    <div className="flex items-center gap-2 p-3 border rounded-lg">
-                      <Smartphone className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium">Microsoft Authenticator</span>
+                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
+                      <Smartphone className='h-5 w-5 text-gray-600' />
+                      <span className='text-sm font-medium'>Microsoft Authenticator</span>
                     </div>
-                    <div className="flex items-center gap-2 p-3 border rounded-lg">
-                      <Smartphone className="h-5 w-5 text-gray-600" />
-                      <span className="text-sm font-medium">1Password</span>
+                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
+                      <Smartphone className='h-5 w-5 text-gray-600' />
+                      <span className='text-sm font-medium'>1Password</span>
                     </div>
                   </div>
                 </CardContent>
@@ -94,8 +94,8 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
               {/* Step 2 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  <CardTitle className='flex items-center gap-2'>
+                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
                       2
                     </div>
                     Scan QR Code or Enter Secret
@@ -104,44 +104,44 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                     Use your authenticator app to scan the QR code or manually enter the secret
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className='space-y-4'>
                   {/* QR Code */}
-                  <div className="flex justify-center p-4 bg-white dark:bg-gray-800 rounded-lg border">
+                  <div className='flex justify-center p-4 bg-white dark:bg-gray-800 rounded-lg border'>
                     {qrCodeUrl ? (
                       <QRCodeSVG
                         value={qrCodeUrl}
                         size={160}
-                        bgColor="transparent"
-                        fgColor="currentColor"
+                        bgColor='transparent'
+                        fgColor='currentColor'
                       />
                     ) : (
-                      <Skeleton className="h-40 w-40" />
+                      <Skeleton className='h-40 w-40' />
                     )}
                   </div>
 
                   <Separator />
 
                   {/* Manual Entry */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Can't scan? Enter this secret manually:</p>
-                    <div className="flex items-center gap-2">
+                  <div className='space-y-2'>
+                    <p className='text-sm font-medium'>Can't scan? Enter this secret manually:</p>
+                    <div className='flex items-center gap-2'>
                       {secret ? (
-                        <code className="flex-1 p-2 bg-muted rounded text-sm break-all font-mono">
+                        <code className='flex-1 p-2 bg-muted rounded text-sm break-all font-mono'>
                           {secret}
                         </code>
                       ) : (
-                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className='h-8 w-full' />
                       )}
-                      <Button variant="outline" size="sm" onClick={copySecret} className="shrink-0">
+                      <Button variant='outline' size='sm' onClick={copySecret} className='shrink-0'>
                         {secretCopied ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <CheckCircle className='h-4 w-4 text-green-500' />
                         ) : (
-                          <Copy className="h-4 w-4" />
+                          <Copy className='h-4 w-4' />
                         )}
                       </Button>
                     </div>
                     {secretCopied && (
-                      <p className="text-sm text-green-600 dark:text-green-400">
+                      <p className='text-sm text-green-600 dark:text-green-400'>
                         Secret copied to clipboard!
                       </p>
                     )}
@@ -151,12 +151,12 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
             </div>
 
             {/* Right Column - Verification */}
-            <div className="space-y-6">
+            <div className='space-y-6'>
               {/* Step 3 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  <CardTitle className='flex items-center gap-2'>
+                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
                       3
                     </div>
                     Verify Setup
@@ -165,39 +165,39 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                     Enter the 6-digit code from your authenticator app to verify the setup
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
+                <CardContent className='space-y-4'>
+                  <div className='space-y-4'>
                     <div>
                       <FormField
                         control={form.control}
-                        name="pin"
+                        name='pin'
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
                               <InputOTP {...field} maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
-                                <div className="flex w-full items-center justify-between">
+                                <div className='flex w-full items-center justify-between'>
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={0} />
+                                    <InputOTPSlot className='w-11 h-11' index={0} />
                                   </InputOTPGroup>
 
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={1} />
+                                    <InputOTPSlot className='w-11 h-11' index={1} />
                                   </InputOTPGroup>
 
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={2} />
+                                    <InputOTPSlot className='w-11 h-11' index={2} />
                                   </InputOTPGroup>
 
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={3} />
+                                    <InputOTPSlot className='w-11 h-11' index={3} />
                                   </InputOTPGroup>
 
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={4} />
+                                    <InputOTPSlot className='w-11 h-11' index={4} />
                                   </InputOTPGroup>
 
                                   <InputOTPGroup>
-                                    <InputOTPSlot className="w-11 h-11" index={5} />
+                                    <InputOTPSlot className='w-11 h-11' index={5} />
                                   </InputOTPGroup>
                                 </div>
                               </InputOTP>
@@ -209,11 +209,11 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
 
                     <FormField
                       control={form.control}
-                      name="deviceName"
+                      name='deviceName'
                       render={({ field }) => (
                         <InputText
-                          label="Device Name (Optional)"
-                          name="deviceName"
+                          label='Device Name (Optional)'
+                          name='deviceName'
                           value={field.value}
                           onChange={field.onChange}
                         />
@@ -222,25 +222,25 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
                   </div>
 
                   <Alert>
-                    <Shield className="h-4 w-4" />
+                    <Shield className='h-4 w-4' />
                     <AlertDescription>
                       Save your backup codes in a secure location. You can use them to recover
                       access if you lose your device.
                     </AlertDescription>
                   </Alert>
 
-                  <div className="space-y-3">
+                  <div className='space-y-3'>
                     <Button
-                      className="w-full"
-                      size="lg"
+                      className='w-full'
+                      size='lg'
                       disabled={!formIsValid}
                       onClick={form.handleSubmit(handleSubmit)}
                     >
-                      <Shield className="mr-2 h-4 w-4" />
+                      <Shield className='mr-2 h-4 w-4' />
                       Enable Two-Factor Authentication
                     </Button>
 
-                    <Button variant="outline" className="w-full">
+                    <Button variant='outline' className='w-full'>
                       Cancel
                     </Button>
                   </div>
@@ -248,14 +248,14 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
               </Card>
 
               {/* Security Tips */}
-              <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
+              <Card className='border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20'>
                 <CardHeader>
-                  <CardTitle className="text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
+                  <CardTitle className='text-yellow-800 dark:text-yellow-200 flex items-center gap-2'>
+                    <Shield className='h-5 w-5' />
                     Security Tips
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-yellow-700 dark:text-yellow-300">
+                <CardContent className='space-y-2 text-sm text-yellow-700 dark:text-yellow-300'>
                   <p>• Keep your authenticator app updated</p>
                   <p>• Store backup codes in a secure location</p>
                   <p>• Don't share your secret key with anyone</p>

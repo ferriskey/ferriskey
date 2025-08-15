@@ -38,21 +38,21 @@ export default function UserLayout() {
   }, [pathname])
 
   return (
-    <div className="p-8">
-      <div className="pb-4 mb-4">
-        <div className="flex flex-col gap-2 mb-4">
-          <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-3 w-3" />
+    <div className='p-8'>
+      <div className='pb-4 mb-4'>
+        <div className='flex flex-col gap-2 mb-4'>
+          <div className='flex items-center'>
+            <Button variant='ghost' size='icon' onClick={handleBack}>
+              <ArrowLeft className='h-3 w-3' />
             </Button>
 
-            <span className="text-gray-500 text-sm font-medium">Back to users</span>
+            <span className='text-gray-500 text-sm font-medium'>Back to users</span>
           </div>
 
           <div className="flex flex-col gap-2">
             <Heading size={3}>{userResponse?.data.username}</Heading>
 
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <span>User ID</span>
               <BadgeColor color={BadgeColorScheme.GRAY}>{userResponse?.data.id}</BadgeColor>
             </div>
@@ -64,11 +64,11 @@ export default function UserLayout() {
           defaultValue={defaultValue}
           value={defaultValue}
         >
-          <div className="flex justify-between items-center w-full border-b pb-4">
+          <div className='flex justify-between items-center w-full border-b pb-4'>
             <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="credentials">Credentials</TabsTrigger>
-              <TabsTrigger value="role-mapping">Role Mapping</TabsTrigger>
+              <TabsTrigger value='overview'>Overview</TabsTrigger>
+              <TabsTrigger value='credentials'>Credentials</TabsTrigger>
+              <TabsTrigger value='role-mapping'>Role Mapping</TabsTrigger>
             </TabsList>
 
             {isRoleMappingTab() && <RoleMappingModalFeature />}

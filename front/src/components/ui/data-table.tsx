@@ -130,24 +130,24 @@ export function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className="space-y-4 flex flex-col">
+    <div className='space-y-4 flex flex-col'>
       {/* Header avec recherche et titre */}
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-col gap-1">
-            {title && <h2 className="text-xl font-semibold">{title}</h2>}
-            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      <div className='flex flex-col gap-4'>
+        <div className='flex flex-col gap-1'>
+          <div className='flex flex-col gap-1'>
+            {title && <h2 className='text-xl font-semibold'>{title}</h2>}
+            {description && <p className='text-sm text-muted-foreground'>{description}</p>}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             {searchKeys.length > 0 && (
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <div className='relative'>
+                <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
                 <Input
-                  type="search"
+                  type='search'
                   placeholder={searchPlaceholder}
-                  className="pl-8 max-w-xs"
+                  className='pl-8 max-w-xs'
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -156,7 +156,7 @@ export function DataTable<T extends { id: string }>({
 
             <div>
               {createData && (
-                <Button variant="default" onClick={createData.onClick}>
+                <Button variant='default' onClick={createData.onClick}>
                   {createData.label}
                 </Button>
               )}
@@ -165,23 +165,23 @@ export function DataTable<T extends { id: string }>({
         </div>
 
         {/* Table */}
-        <div className="rounded-md border">
+        <div className='rounded-md border'>
           {isLoading ? (
             <TableSkeleton columns={columns.length} enableSelection={enableSelection} />
           ) : (
-            <div className="relative w-full overflow-auto">
+            <div className='relative w-full overflow-auto'>
               <Table>
                 <TableHeader>
                   <TableRow>
                     {enableSelection && (
-                      <TableHead className="w-[40px] px-2">
+                      <TableHead className='w-[40px] px-2'>
                         <Checkbox
                           checked={
                             paginatedData.length > 0 &&
                             selectedItems.length === paginatedData.length
                           }
                           onCheckedChange={handleSelectAll}
-                          aria-label="Sélectionner toutes les lignes"
+                          aria-label='Sélectionner toutes les lignes'
                         />
                       </TableHead>
                     )}
@@ -190,7 +190,7 @@ export function DataTable<T extends { id: string }>({
                       <TableHead key={column.id}>{column.header}</TableHead>
                     ))}
 
-                    {rowActions.length > 0 && <TableHead className="w-[80px]"></TableHead>}
+                    {rowActions.length > 0 && <TableHead className='w-[80px]'></TableHead>}
                   </TableRow>
                 </TableHeader>
 
@@ -202,11 +202,11 @@ export function DataTable<T extends { id: string }>({
                         className={cn('hover:bg-muted/50', onRowClick && 'cursor-pointer')}
                       >
                         {enableSelection && (
-                          <TableCell className="px-2">
+                          <TableCell className='px-2'>
                             <Checkbox
                               checked={selectedItems.some((item) => item.id === row.id)}
                               onCheckedChange={() => handleSelectItem(row)}
-                              aria-label={`Sélectionner la ligne`}
+                              aria-label={'Sélectionner la ligne'}
                             />
                           </TableCell>
                         )}
@@ -229,19 +229,19 @@ export function DataTable<T extends { id: string }>({
                         ))}
 
                         {rowActions.length > 0 && (
-                          <TableCell className="text-right">
+                          <TableCell className='text-right'>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 cursor-pointer"
+                                  variant='ghost'
+                                  size='icon'
+                                  className='h-8 w-8 cursor-pointer'
                                 >
-                                  <span className="sr-only">Ouvrir le menu</span>
-                                  <MoreVertical className="h-4 w-4" />
+                                  <span className='sr-only'>Ouvrir le menu</span>
+                                  <MoreVertical className='h-4 w-4' />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align='end'>
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 {rowActions.map((action, index) => (
@@ -271,7 +271,7 @@ export function DataTable<T extends { id: string }>({
                           (enableSelection ? 1 : 0) +
                           (rowActions.length > 0 ? 1 : 0)
                         }
-                        className="h-24 text-center"
+                        className='h-24 text-center'
                       >
                         {emptyState ||
                           (search ? 'Aucun résultat trouvé.' : 'Aucune donnée disponible.')}
@@ -286,28 +286,28 @@ export function DataTable<T extends { id: string }>({
 
         {/* Pagination */}
         {enablePagination && totalPages > 1 && (
-          <div className="flex items-center justify-between py-2">
-            <div className="text-sm text-muted-foreground">
+          <div className='flex items-center justify-between py-2'>
+            <div className='text-sm text-muted-foreground'>
               Page {currentPage} sur {totalPages}
             </div>
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage <= 1}
               >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="sr-only">Page précédente</span>
+                <ChevronLeft className='h-4 w-4' />
+                <span className='sr-only'>Page précédente</span>
               </Button>
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage >= totalPages}
               >
-                <ChevronRight className="h-4 w-4" />
-                <span className="sr-only">Page suivante</span>
+                <ChevronRight className='h-4 w-4' />
+                <span className='sr-only'>Page suivante</span>
               </Button>
             </div>
           </div>
@@ -322,28 +322,28 @@ export function DataTable<T extends { id: string }>({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md bg-background shadow-lg rounded-lg border px-4 py-3"
+            className='fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md bg-background shadow-lg rounded-lg border px-4 py-3'
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 text-primary p-2 rounded-full">
-                  <Trash2 className="h-5 w-5" />
+            <div className='flex items-center justify-between gap-4'>
+              <div className='flex items-center gap-3'>
+                <div className='bg-primary/10 text-primary p-2 rounded-full'>
+                  <Trash2 className='h-5 w-5' />
                 </div>
                 <div>
-                  <p className="font-medium">
+                  <p className='font-medium'>
                     {selectedItems.length} {selectedItems.length === 1 ? 'element' : 'elements'}{' '}
                     selected
                   </p>
-                  <p className="text-sm text-muted-foreground">What would you like to do ?</p>
+                  <p className='text-sm text-muted-foreground'>What would you like to do ?</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setSelectedItems([])}>
+              <div className='flex gap-2'>
+                <Button variant='ghost' size='sm' onClick={() => setSelectedItems([])}>
                   Cancel
                 </Button>
                 <Button
-                  variant="destructive"
-                  size="sm"
+                  variant='destructive'
+                  size='sm'
                   onClick={
                     isConfirmingDelete ? handleConfirmDelete : () => setIsConfirmingDelete(true)
                   }
@@ -371,17 +371,17 @@ function TableSkeleton({
       <TableHeader>
         <TableRow>
           {enableSelection && (
-            <TableHead className="w-[40px]">
-              <Skeleton className="h-4 w-4" />
+            <TableHead className='w-[40px]'>
+              <Skeleton className='h-4 w-4' />
             </TableHead>
           )}
           {Array.from({ length: columns }).map((_, i) => (
             <TableHead key={i}>
-              <Skeleton className="h-4 w-[80px]" />
+              <Skeleton className='h-4 w-[80px]' />
             </TableHead>
           ))}
-          <TableHead className="w-[80px]">
-            <Skeleton className="h-4 w-[40px]" />
+          <TableHead className='w-[80px]'>
+            <Skeleton className='h-4 w-[40px]' />
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -390,16 +390,16 @@ function TableSkeleton({
           <TableRow key={rowIndex}>
             {enableSelection && (
               <TableCell>
-                <Skeleton className="h-4 w-4" />
+                <Skeleton className='h-4 w-4' />
               </TableCell>
             )}
             {Array.from({ length: columns }).map((_, colIndex) => (
               <TableCell key={colIndex}>
-                <Skeleton className="h-4 w-full" />
+                <Skeleton className='h-4 w-full' />
               </TableCell>
             ))}
             <TableCell>
-              <Skeleton className="h-8 w-8" />
+              <Skeleton className='h-8 w-8' />
             </TableCell>
           </TableRow>
         ))}

@@ -99,7 +99,7 @@ jobs:
 
           yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey/Chart.yaml
           yq eval ".front.image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .api.image.tag = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey/values.yaml
-          
+
 
           helm package infrastructure/charts/ferriskey --destination .cr_releases
           ls -a .cr_releases
@@ -131,7 +131,7 @@ jobs:
 
           yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey-operator/Chart.yaml
           yq eval ".image.tag = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey-operator/values.yaml
-          
+
           helm package infrastructure/charts/ferriskey-operator --destination .cr_releases
           ls -a .cr_releases
           helm push .cr_releases/ferriskey-operator-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts

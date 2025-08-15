@@ -26,7 +26,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { config } = useConfig()
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
+    <Sidebar variant='inset' collapsible='icon' {...props}>
       <SidebarHeader>
         <Link
           className={cn(
@@ -35,12 +35,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           )}
           to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
         >
-          <div className="flex items-center gap-2">
-            <div className="size-12">
-              <img src="/logo_ferriskey.png" />
+          <div className='flex items-center gap-2'>
+            <div className='size-12'>
+              <img src='/logo_ferriskey.png' />
             </div>
             <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')}>
-              <span className="text-lg font-medium text-gray-600">FerrisKey</span>
+              <span className='text-lg font-medium text-gray-600'>FerrisKey</span>
             </div>
           </div>
           <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
@@ -53,20 +53,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         {config && (
-          <div className="flex flex-col gap-2">
+          <div className='flex flex-col gap-2'>
             <div>
               <BadgeColor color={BadgeColorScheme.PRIMARY}>{config.app_version}</BadgeColor>
             </div>
 
             {config.environment === 'development' && (
-              <div className="rounded-md bg-primary/10 p-4">
-                <div className="flex">
-                  <div className="shrink-0">
-                    <TriangleAlert aria-hidden="true" className="size-5 text-primary" />
+              <div className='rounded-md bg-primary/10 p-4'>
+                <div className='flex'>
+                  <div className='shrink-0'>
+                    <TriangleAlert aria-hidden='true' className='size-5 text-primary' />
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-primary">Development mode</h3>
-                    <div className="mt-2 text-sm text-primary/75">
+                  <div className='ml-3'>
+                    <h3 className='text-sm font-medium text-primary'>Development mode</h3>
+                    <div className='mt-2 text-sm text-primary/75'>
                       <p>You are currently in development mode.</p>
                     </div>
                   </div>

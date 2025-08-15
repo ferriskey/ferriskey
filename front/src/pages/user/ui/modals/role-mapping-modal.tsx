@@ -32,17 +32,17 @@ export default function RoleMappingModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Add a role</Button>
+        <Button variant='outline'>Add a role</Button>
       </DialogTrigger>
 
-      <DialogContent className="!max-w-4xl">
+      <DialogContent className='!max-w-4xl'>
         <DialogTitle>Assign roles to {user.username}</DialogTitle>
 
         <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-4">
+          <div className='flex flex-col gap-4'>
             <FormField
               control={form.control}
-              name="roleIds"
+              name='roleIds'
               render={({ field }) => (
                 <DataTable
                   onSelectionChange={(e) => {
@@ -50,12 +50,12 @@ export default function RoleMappingModal({
                     field.onChange(ids)
                   }}
                   emptyState={
-                    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-                      <div className="w-32 h-32">
-                        <img src="/icons/cadenas.png" alt="" />
+                    <div className='flex flex-col items-center justify-center gap-4 p-8 text-center'>
+                      <div className='w-32 h-32'>
+                        <img src='/icons/cadenas.png' alt='' />
                       </div>
 
-                      <span className="text-lg">No role is available</span>
+                      <span className='text-lg'>No role is available</span>
                     </div>
                   }
                   columns={columns}
@@ -65,10 +65,10 @@ export default function RoleMappingModal({
               )}
             />
 
-            <div className="mt-4 flex gap-4">
+            <div className='mt-4 flex gap-4'>
               <Button disabled={!isValid}>Assign</Button>
 
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant='outline' onClick={() => setOpen(false)}>
                 Cancel
               </Button>
             </div>

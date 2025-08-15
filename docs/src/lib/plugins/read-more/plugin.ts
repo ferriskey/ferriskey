@@ -21,4 +21,4 @@ const rehypeReadMoreReact = () => {
   };
 };
 
-export default rehypeReadMoreReact; 
+export default rehypeReadMoreReact;

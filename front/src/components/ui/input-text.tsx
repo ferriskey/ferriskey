@@ -1,12 +1,12 @@
-import { cn } from "@/lib/utils"
-import { Eye, EyeClosed } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { cn } from '@/lib/utils'
+import { Eye, EyeClosed } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 export interface InputTextProps {
   name: string
   label: string
   value?: string | number
-  type?: "text" | "number" | "password" | "email"
+  type?: 'text' | 'number' | 'password' | 'email'
   className?: string
   onChange?: (value: string | number) => void
   error?: string
@@ -18,11 +18,11 @@ export interface InputTextProps {
 export function InputText({
   name,
   label,
-  value = "",
+  value = '',
   onChange,
-  type = "text",
+  type = 'text',
   error,
-  className = "",
+  className = '',
   disabled,
   togglePasswordVisibility = false,
 }: InputTextProps) {
@@ -39,31 +39,31 @@ export function InputText({
   const hasLabelUp =
     hasFocus ||
     (currentValue?.toString() && currentValue?.toString().length > 0)
-      ? "input--label-up"
-      : ""
+      ? 'input--label-up'
+      : ''
 
-  const hasError = error && error.length > 0 ? "input--error" : ""
+  const hasError = error && error.length > 0 ? 'input--error' : ''
 
   const inputActions = hasFocus
-    ? "input--focused"
+    ? 'input--focused'
     : disabled && !togglePasswordVisibility
-      ? "input--disabled"
-      : ""
+      ? 'input--disabled'
+      : ''
 
   return (
     <div
       className={className}
-      onClick={() => inputRef.current?.querySelector("input")?.focus()}
+      onClick={() => inputRef.current?.querySelector('input')?.focus()}
     >
-      <div className="relative">
+      <div className='relative'>
         <div
-          className={cn("input", inputActions, hasError, hasLabelUp)}
+          className={cn('input', inputActions, hasError, hasLabelUp)}
           ref={inputRef}
         >
           <div>
             <label
               htmlFor={label}
-              className={cn(hasFocus ? "text-xs" : "translate-y-2 text-sm")}
+              className={cn(hasFocus ? 'text-xs' : 'translate-y-2 text-sm')}
             >
               {label}
             </label>
@@ -71,7 +71,7 @@ export function InputText({
             <input
               name={name}
               id={label}
-              className={`input__value`}
+              className={'input__value'}
               type={currentType}
               disabled={disabled}
               value={currentValue}
@@ -83,21 +83,21 @@ export function InputText({
               onBlur={() => setFocused(false)}
             />
 
-            {(currentValue as string)?.length > 0 && type === "password" && (
+            {(currentValue as string)?.length > 0 && type === 'password' && (
               <div
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors hover:text-neutral-400"
+                className='absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors hover:text-neutral-400'
                 onClick={() => {
-                  console.log("Toggle password visibility");
-                  
+                  console.log('Toggle password visibility')
+
                   setCurrentType(
-                    currentType === "password" ? "text" : "password"
+                    currentType === 'password' ? 'text' : 'password'
                   )
 
                 }}
               >
-                {currentType === "password" && <Eye className="text-sm" />}
-                {currentType !== "password" && (
-                  <EyeClosed className="text-sm" />
+                {currentType === 'password' && <Eye className='text-sm' />}
+                {currentType !== 'password' && (
+                  <EyeClosed className='text-sm' />
                 )}
               </div>
             )}
@@ -106,7 +106,7 @@ export function InputText({
       </div>
 
       {error && (
-        <p className="mt-0.5 px-3 text-xs font-medium text-red-500">{error}</p>
+        <p className='mt-0.5 px-3 text-xs font-medium text-red-500'>{error}</p>
       )}
     </div>
   )

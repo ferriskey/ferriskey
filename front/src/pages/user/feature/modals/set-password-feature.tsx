@@ -1,13 +1,13 @@
-import { useForm } from "react-hook-form";
-import SetPassword from "../../ui/modals/set-password";
-import { setCredentialPasswordSchema, SetCredentialPasswordSchema } from "../../schemas";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form } from "@/components/ui/form";
-import { useEffect, useState } from "react";
-import { useResetUserPassword } from "@/api/user.api";
-import { useParams } from "react-router";
-import { RouterParams } from "@/routes/router";
-import { toast } from "sonner";
+import { useForm } from 'react-hook-form'
+import SetPassword from '../../ui/modals/set-password'
+import { setCredentialPasswordSchema, SetCredentialPasswordSchema } from '../../schemas'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Form } from '@/components/ui/form'
+import { useEffect, useState } from 'react'
+import { useResetUserPassword } from '@/api/user.api'
+import { useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import { toast } from 'sonner'
 
 export interface SetPasswordFeatureProps {
   contentText?: string
@@ -56,7 +56,7 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
 
   useEffect(() => {
     if (data) {
-      toast.success("Password has been set successfully")
+      toast.success('Password has been set successfully')
     }
   }, [data])
 

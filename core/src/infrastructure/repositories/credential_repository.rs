@@ -1,5 +1,5 @@
-use chrono::{TimeZone, Utc};
 use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
     QueryFilter,

@@ -24,17 +24,17 @@ export default function PageClientSettings({
 }: PageClientSettingsProps) {
   return (
     <div>
-      <div className="flex flex-col gap-4">
-        <BlockContent title="General Settings" className="w-full md:w-2/3 2xl:w-1/3">
-          <div className="flex flex-col gap-4">
+      <div className='flex flex-col gap-4'>
+        <BlockContent title='General Settings' className='w-full md:w-2/3 2xl:w-1/3'>
+          <div className='flex flex-col gap-4'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <InputText
-                  label="Client Name"
+                  label='Client Name'
                   value={field.value}
-                  name="client_name"
+                  name='client_name'
                   onChange={field.onChange}
                 />
               )}
@@ -42,23 +42,23 @@ export default function PageClientSettings({
 
             <FormField
               control={form.control}
-              name="clientId"
+              name='clientId'
               render={({ field }) => (
                 <InputText
-                  label="Client ID"
+                  label='Client ID'
                   value={field.value}
-                  name="client_id"
+                  name='client_id'
                   onChange={field.onChange}
                 />
               )}
             />
 
             <FormField
-              name="enabled"
+              name='enabled'
               control={form.control}
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between gap-5 rounded-lg  border p-3 shadow-sm">
-                  <div className="space-y-0.5">
+                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg  border p-3 shadow-sm'>
+                  <div className='space-y-0.5'>
                     <FormLabel>Client Enabled</FormLabel>
                     <FormDescription>
                       Toggle to enable or disable the client. Disabled clients cannot authenticate
@@ -75,7 +75,7 @@ export default function PageClientSettings({
           </div>
         </BlockContent>
 
-        <BlockContent title="Access Settings" className="w-full md:w-2/3 2xl:w-1/3">
+        <BlockContent title='Access Settings' className='w-full md:w-2/3 2xl:w-1/3'>
           <div>
             <ManageRedirectUris redirectUris={client.redirect_uris ?? []} />
           </div>
@@ -84,7 +84,7 @@ export default function PageClientSettings({
 
       <FloatingActionBar
         show={hasChanges}
-        title="Save Changes"
+        title='Save Changes'
         actions={[
           {
             label: 'Save',
@@ -92,7 +92,7 @@ export default function PageClientSettings({
             onClick: form.handleSubmit(handleSubmit),
           },
         ]}
-        description="Save changes to the client settings. Make sure to review all changes before saving."
+        description='Save changes to the client settings. Make sure to review all changes before saving.'
         onCancel={() => form.reset()}
       />
     </div>

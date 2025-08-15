@@ -1,5 +1,5 @@
-use chrono::{TimeZone, Utc};
 use crate::entity::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
+use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };

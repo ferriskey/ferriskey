@@ -19,13 +19,22 @@ FerrisKey is an open-source Identity and Access Management (IAM) system written 
 
 We use GitHub pull requests for code review.
 
-1. Fork the repository
-2. Create a branch (`feat/...`, `fix/...`, `docs/...`)
-3. Implement your changes
-4. Run tests with `cargo test`
-5. Open a PR and fill in the description
+*Prerequisites:*
+- [Rust](https://rustup.rs/)
+- [NodeJS](https://nodejs.org/en/download)
+- [pre-commit](https://pre-commit.com/)
 
-Make sure to follow Rust best practices, respect existing formatting (`cargo fmt`), and try to include unit tests when relavant.
+1. Fork the repository
+2. Install pre-commit
+```bash
+pre-commit install
+```
+3. Create a branch (`feat/...`, `fix/...`, `docs/...`)
+4. Implement your changes
+5. Run tests with `cargo test`
+6. Open a PR and fill in the description
+
+Make sure to follow Rust best practices, and try to include unit tests when relavant.
 
 ---
 

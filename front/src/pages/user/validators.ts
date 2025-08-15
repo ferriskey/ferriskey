@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from 'zod'
 
 export const createUserValidator = z.object({
   username: z.string().min(1),

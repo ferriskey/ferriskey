@@ -22,7 +22,7 @@ impl From<crate::entity::realm_settings::Model> for RealmSetting {
             default_signing_algorithm: value.default_signing_algorithm,
             updated_at,
         }
-    }   
+    }
 }
 
 #[derive(Debug, Clone)]

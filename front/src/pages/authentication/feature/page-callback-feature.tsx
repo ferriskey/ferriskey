@@ -52,7 +52,7 @@ export default function PageCallbackFeature() {
 
   useEffect(() => {
     if (error && !hasProcessedToken.current) {
-      document.cookie = "FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;"
+      document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
       hasProcessedToken.current = true
     }
   }, [error, hasProcessedToken])

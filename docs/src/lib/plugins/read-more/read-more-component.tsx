@@ -39,4 +39,4 @@ export default function ReadMore(props: ReadMoreProps) {
       )}
     </a>
   );
-} 
+}

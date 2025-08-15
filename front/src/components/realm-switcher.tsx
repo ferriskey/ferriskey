@@ -73,38 +73,38 @@ export default function RealmSwitcher() {
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-gray-100 border shadow-2xs"
+                size='lg'
+                className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-gray-100 border shadow-2xs'
               >
-                <div className="bg-white border text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-lg">
-                  <Command className="text-slate-900 size-4" />
+                <div className='bg-white border text-sidebar-primary-foreground flex aspect-square size-10 items-center justify-center rounded-lg'>
+                  <Command className='text-slate-900 size-4' />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{activeRealm?.name}</span>
+                <div className='grid flex-1 text-left text-sm leading-tight'>
+                  <span className='truncate font-medium'>{activeRealm?.name}</span>
                   {activeRealm.name === 'master' && (
-                    <span className="text-xs text-muted-foreground">master</span>
+                    <span className='text-xs text-muted-foreground'>master</span>
                   )}
                 </div>
-                <ChevronsUpDown className="ml-auto" />
+                <ChevronsUpDown className='ml-auto' />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-              align="start"
+              className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+              align='start'
               side={isMobile ? 'bottom' : 'right'}
               sideOffset={4}
             >
-              <DropdownMenuLabel className="text-muted-foreground text-xs">
+              <DropdownMenuLabel className='text-muted-foreground text-xs'>
                 Realms
               </DropdownMenuLabel>
               {userRealms.map((realm, index) => (
                 <DropdownMenuItem
                   key={realm.name}
                   onClick={() => handleClick(realm)}
-                  className="gap-2 p-2"
+                  className='gap-2 p-2'
                 >
-                  <div className="flex size-6 items-center justify-center rounded-md border">
-                    <Map className="size-3.5 shrink-0" />
+                  <div className='flex size-6 items-center justify-center rounded-md border'>
+                    <Map className='size-3.5 shrink-0' />
                   </div>
                   {realm.name}
                   <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
@@ -112,17 +112,17 @@ export default function RealmSwitcher() {
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="gap-2 p-2"
+                className='gap-2 p-2'
                 onSelect={(e) => {
                   e.preventDefault()
                   setOpen(true)
                   setDropdownOpen(false)
                 }}
               >
-                <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                  <Plus className="size-4" />
+                <div className='flex size-6 items-center justify-center rounded-md border bg-transparent'>
+                  <Plus className='size-4' />
                 </div>
-                <div className="text-muted-foreground font-medium">Create Realm</div>
+                <div className='text-muted-foreground font-medium'>Create Realm</div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -183,21 +183,21 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
         <div>
           <Form {...form}>
             <FormField
-              name="name"
+              name='name'
               control={form.control}
               render={({ field }) => (
                 <InputText
                   name={'name'}
-                  label="Realm Name"
+                  label='Realm Name'
                   value={field.value}
                   onChange={field.onChange}
                 />
               )}
             />
 
-            <DialogFooter className="mt-4">
-              <Button variant="destructive">Cancel</Button>
-              <Button variant="outline" disabled={!isValid} onClick={handleSubmit}>
+            <DialogFooter className='mt-4'>
+              <Button variant='destructive'>Cancel</Button>
+              <Button variant='outline' disabled={!isValid} onClick={handleSubmit}>
                 Create Realm
               </Button>
             </DialogFooter>

@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { InputText } from "@/components/ui/input-text";
-import { UseFormReturn } from "react-hook-form";
-import { SetCredentialPasswordSchema } from "../../schemas";
-import { FormField } from "@/components/ui/form";
-import { FormSwitch } from "@/components/ui/switch";
-import { Dispatch, SetStateAction } from "react";
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { InputText } from '@/components/ui/input-text'
+import { UseFormReturn } from 'react-hook-form'
+import { SetCredentialPasswordSchema } from '../../schemas'
+import { FormField } from '@/components/ui/form'
+import { FormSwitch } from '@/components/ui/switch'
+import { Dispatch, SetStateAction } from 'react'
 
 
 export interface SetPasswordProps {
@@ -23,8 +23,8 @@ export default function SetPassword({ form, open, setOpen, handleCloseModal, han
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          {contentText || "Set Password"}
+        <Button variant='outline'>
+          {contentText || 'Set Password'}
         </Button>
       </DialogTrigger>
 
@@ -34,14 +34,14 @@ export default function SetPassword({ form, open, setOpen, handleCloseModal, han
           Please enter your new password below.
         </DialogDescription>
 
-        <div className="flex flex-col gap-4">
+        <div className='flex flex-col gap-4'>
           <FormField
             control={form.control}
-            name="password"
+            name='password'
             render={({ field }) => (
               <InputText
-                label="Password"
-                type="password"
+                label='Password'
+                type='password'
                 {...field}
               />
             )}
@@ -49,11 +49,11 @@ export default function SetPassword({ form, open, setOpen, handleCloseModal, han
 
           <FormField
             control={form.control}
-            name="confirmPassword"
+            name='confirmPassword'
             render={({ field }) => (
               <InputText
-                label="Confirm Password"
-                type="password"
+                label='Confirm Password'
+                type='password'
                 {...field}
               />
             )}
@@ -62,11 +62,11 @@ export default function SetPassword({ form, open, setOpen, handleCloseModal, han
 
           <FormField
             control={form.control}
-            name="temporary"
+            name='temporary'
             render={({ field }) => (
               <FormSwitch
-                label="Temporary"
-                description="This password is temporary and will require the user to change it on next login."
+                label='Temporary'
+                description='This password is temporary and will require the user to change it on next login.'
                 checked={field.value}
                 onChange={field.onChange}
               />
@@ -74,10 +74,10 @@ export default function SetPassword({ form, open, setOpen, handleCloseModal, han
           />
 
 
-         <div className="flex items-center justify-end gap-2 mt-4">
+         <div className='flex items-center justify-end gap-2 mt-4'>
 
           <Button
-            variant={"secondary"}
+            variant={'secondary'}
             onClick={handleCloseModal}
           >
             Cancel

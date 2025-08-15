@@ -20,7 +20,7 @@ export default function PageClientRoles({ roles, isLoading, isError }: PageClien
   }
 
   return (
-    <div className="">
+    <div className=''>
       <DataTable data={roles} columns={columns} />
     </div>
   )

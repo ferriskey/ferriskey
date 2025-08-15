@@ -21,10 +21,10 @@ export function useFormChanges<T extends Record<string, any>>(
   useEffect(() => {
     if (!originalRef.current || !formValues) return
     const data = originalRef.current
-    
+
     const isDifferent = Object.keys(originalRef.current).some(key => {
       const areEqual = deepEqual(data[key], formValues[key])
-      
+
       return !areEqual
     })
 

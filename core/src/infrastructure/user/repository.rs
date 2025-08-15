@@ -167,7 +167,7 @@ impl UserRepository for PostgresUserRepository {
     }
 
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
-            let users = crate::entity::users::Entity::find()
+        let users = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await

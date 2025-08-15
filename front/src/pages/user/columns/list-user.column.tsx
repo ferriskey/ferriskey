@@ -13,29 +13,29 @@ export const columns: ColumnDef<User>[] = [
     cell: (user) => {
       const isSA = isServiceAccount(user)
       return (
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-xs font-medium text-primary">
+        <div className='flex items-center gap-3'>
+          <div className='h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center'>
+            <span className='text-xs font-medium text-primary'>
               {isSA ? 'SA' : user.firstname?.[0]?.toUpperCase() || 'U'}
             </span>
           </div>
           <div>
             {isSA ? (
-              <div className="font-medium">Service Account</div>
+              <div className='font-medium'>Service Account</div>
             ) : (
               <>
-                <div className="font-medium">
+                <div className='font-medium'>
                   {user.firstname} {user.lastname}
                 </div>
               </>
             )}
-            <div className="text-xs text-muted-foreground">{user.username}</div>
+            <div className='text-xs text-muted-foreground'>{user.username}</div>
           </div>
 
           <div>
             {!user.enabled && (
               <BadgeColor color={BadgeColorScheme.RED}>
-                <div className="flex items-center gap-1">
+                <div className='flex items-center gap-1'>
                   <Info size={16} />
                   <span>Disabled</span>
                 </div>
@@ -51,11 +51,11 @@ export const columns: ColumnDef<User>[] = [
     header: 'Email',
     cell(user) {
       return (
-        <div className="flex items-center gap-1">
+        <div className='flex items-center gap-1'>
           {!user.email_verified && !user.client_id && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info size={16} className="text-red-500 cursor-pointer" />
+                <Info size={16} className='text-red-500 cursor-pointer' />
               </TooltipTrigger>
 
               <TooltipContent>
@@ -63,7 +63,7 @@ export const columns: ColumnDef<User>[] = [
               </TooltipContent>
             </Tooltip>
           )}
-          <div className="text-sm font-medium">{user.email || '-'}</div>
+          <div className='text-sm font-medium'>{user.email || '-'}</div>
         </div>
       )
     },

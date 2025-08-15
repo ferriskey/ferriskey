@@ -9,7 +9,7 @@ export const columns: ColumnDef<Role>[] = [
     header: 'Name',
     cell(role) {
       return (
-        <div className="flex items-center gap-2">
+        <div className='flex items-center gap-2'>
           <div>
             <BadgeColor color={BadgeColorScheme.PRIMARY}>{role.client?.client_id}</BadgeColor>
           </div>

@@ -12,8 +12,8 @@ export default function PageRolesOverviewFeature() {
   const { data: rolesResponse, isLoading } = useGetRoles({ realm: realm_name ?? 'master' })
 
   const handleDeleteSelected = (items: Role[]) => {
-    console.log("Deleting", items);
-  };
+    console.log('Deleting', items)
+  }
 
   const handleClickRow = (roleId: string) => {
     navigate(`${ROLE_URL(realm_name, roleId)}${ROLE_SETTINGS_URL}`)
@@ -25,7 +25,7 @@ export default function PageRolesOverviewFeature() {
     <PageRolesOverview
       data={rolesResponse?.data || []}
       isLoading={isLoading}
-      realmName={realm_name ?? "master"}
+      realmName={realm_name ?? 'master'}
       handleDeleteSelected={handleDeleteSelected}
       handleClickRow={handleClickRow}
     />

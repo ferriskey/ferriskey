@@ -1,6 +1,6 @@
-import { AuthState } from "@/contracts/states.interface";
-import { create } from "zustand";
-import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { AuthState } from '@/contracts/states.interface'
+import { create } from 'zustand'
+import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
 export const authStore = create<AuthState>()(
   devtools(

@@ -24,12 +24,12 @@ export default function PageRolePermissionsFeature() {
   })
 
   function togglePermission(permission: string) {
-    const currentPermissions = form.getValues('permissions') || [];
+    const currentPermissions = form.getValues('permissions') || []
     const copy = currentPermissions.includes(permission)
       ? currentPermissions.filter((p) => p !== permission)
-      : [...currentPermissions, permission];
+      : [...currentPermissions, permission]
 
-    form.setValue('permissions', copy, { shouldDirty: true });
+    form.setValue('permissions', copy, { shouldDirty: true })
   }
 
   function handleSubmit() {

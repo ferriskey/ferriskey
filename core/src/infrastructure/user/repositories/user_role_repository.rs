@@ -99,7 +99,10 @@ impl UserRoleRepository for PostgresUserRoleRepository {
                             .into_condition()
                     }),
             )
-            .join(JoinType::LeftJoin, crate::entity::roles::Relation::Clients.def())
+            .join(
+                JoinType::LeftJoin,
+                crate::entity::roles::Relation::Clients.def(),
+            )
             .select_also(crate::entity::clients::Entity)
             .all(&self.db)
             .await

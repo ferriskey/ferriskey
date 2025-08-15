@@ -1,7 +1,7 @@
-import { authStore } from "@/store/auth.store"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { apiClient } from "."
-import { RedirectUri } from "./core.interface"
+import { authStore } from '@/store/auth.store'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '.'
+import { RedirectUri } from './core.interface'
 
 export interface CreateRedirectUriMutate {
   realmName: string,
@@ -15,7 +15,7 @@ export const useCreateRedirectUri = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ realmName, clientId, payload }: CreateRedirectUriMutate) => {
-      const accessToken = authStore.getState().accessToken      
+      const accessToken = authStore.getState().accessToken
 
       const response = await apiClient.post<RedirectUri>(`/realms/${realmName}/clients/${clientId}/redirects`, {
         value: payload.value,

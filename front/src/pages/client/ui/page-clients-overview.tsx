@@ -29,7 +29,7 @@ export default function PageClientsOverview({
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Search a client..."
+        searchPlaceholder='Search a client...'
         createData={{
           label: 'Create Client',
           onClick: handleCreateClient,
@@ -43,17 +43,17 @@ export default function PageClientsOverview({
         rowActions={[
           {
             label: 'Edit',
-            icon: <Edit className="h-4 w-4" />,
+            icon: <Edit className='h-4 w-4' />,
             onClick: (client) => console.log('Edit', client),
           },
           {
             label: 'View',
-            icon: <ExternalLink className="h-4 w-4" />,
+            icon: <ExternalLink className='h-4 w-4' />,
             onClick: (client) => console.log('View', client),
           },
           {
             label: 'Delete',
-            icon: <Trash2 className="h-4 w-4" />,
+            icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
             onClick: (client) => handleDeleteClient(client.id),
           },

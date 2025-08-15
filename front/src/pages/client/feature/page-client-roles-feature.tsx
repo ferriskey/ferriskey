@@ -1,15 +1,15 @@
-import { useParams } from 'react-router';
-import { useGetClientRoles } from '@/api/client.api';
-import { ClientRouterParams } from '@/routes/sub-router/client.router';
-import PageClientRoles from '../ui/page-client-roles';
+import { useParams } from 'react-router'
+import { useGetClientRoles } from '@/api/client.api'
+import { ClientRouterParams } from '@/routes/sub-router/client.router'
+import PageClientRoles from '../ui/page-client-roles'
 
 export default function PageClientRolesFeature() {
-  const { realm_name, client_id } = useParams<ClientRouterParams>();
+  const { realm_name, client_id } = useParams<ClientRouterParams>()
 
-  const { data: roles, isLoading, isError } = useGetClientRoles({ 
-    realm: realm_name || "master", 
-    clientId: client_id 
-  });
+  const { data: roles, isLoading, isError } = useGetClientRoles({
+    realm: realm_name || 'master',
+    clientId: client_id
+  })
 
   return (
     <PageClientRoles
@@ -18,5 +18,5 @@ export default function PageClientRolesFeature() {
       isError={isError}
       clientId={client_id}
     />
-  );
-} 
+  )
+}

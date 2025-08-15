@@ -29,26 +29,26 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
   })
 
   return (
-    <div className="max-w-2xl">
-      <BlockContent title="User details">
-        <div className="flex flex-col gap-3">
-          <InputText label="User ID" value={user.id} disabled={true} name="id" />
+    <div className='max-w-2xl'>
+      <BlockContent title='User details'>
+        <div className='flex flex-col gap-3'>
+          <InputText label='User ID' value={user.id} disabled={true} name='id' />
 
           <InputText
-            label="Created At"
+            label='Created At'
             value={new Date(user.created_at).toLocaleDateString('en-US', {
               year: 'numeric',
               month: '2-digit',
               day: '2-digit',
             })}
             disabled={true}
-            name="created_at"
+            name='created_at'
           />
 
           <div>
             <FormField
               control={form.control}
-              name="required_actions"
+              name='required_actions'
               render={({ field }) => (
                 <div>
                   <Label>Required Actions</Label>
@@ -69,39 +69,39 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
           </div>
         </div>
       </BlockContent>
-      <BlockContent title="General information">
-        <div className="flex flex-col gap-4">
+      <BlockContent title='General information'>
+        <div className='flex flex-col gap-4'>
           <FormField
             control={form.control}
-            name="username"
-            render={({ field }) => <InputText label="Username" disabled {...field} />}
+            name='username'
+            render={({ field }) => <InputText label='Username' disabled {...field} />}
           />
 
           <FormField
             control={form.control}
-            name="email"
-            render={({ field }) => <InputText label="Email" type="email" {...field} />}
+            name='email'
+            render={({ field }) => <InputText label='Email' type='email' {...field} />}
           />
 
           <FormField
             control={form.control}
-            name="firstname"
-            render={({ field }) => <InputText label="First Name" {...field} />}
+            name='firstname'
+            render={({ field }) => <InputText label='First Name' {...field} />}
           />
 
           <FormField
             control={form.control}
-            name="lastname"
-            render={({ field }) => <InputText label="Last Name" {...field} />}
+            name='lastname'
+            render={({ field }) => <InputText label='Last Name' {...field} />}
           />
 
           <FormField
             control={form.control}
-            name="enabled"
+            name='enabled'
             render={({ field }) => (
               <FormSwitch
-                label="User Enabled"
-                description="Choose between enabled and disabled user as default status."
+                label='User Enabled'
+                description='Choose between enabled and disabled user as default status.'
                 checked={field.value}
                 onChange={field.onChange}
               />
@@ -110,10 +110,10 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
 
           <FormField
             control={form.control}
-            name="email_verified"
+            name='email_verified'
             render={({ field }) => (
               <FormSwitch
-                label="Email Verified"
+                label='Email Verified'
                 description={(value) => (value ? 'Email is verified' : 'Email is not verified')}
                 checked={field.value}
                 onChange={field.onChange}

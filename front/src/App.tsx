@@ -44,10 +44,10 @@ function App() {
 
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
-        navigate(`/realms/${realm}/authentication/login`, { replace: true });
+        navigate(`/realms/${realm}/authentication/login`, { replace: true })
       }
     } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
-      navigate(`/realms/${realm}/overview`, { replace: true });
+      navigate(`/realms/${realm}/overview`, { replace: true })
     }
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name])
 
@@ -57,37 +57,37 @@ function App() {
 
       if (isShortcutPressed) {
         const head = document.head
-        let themeLink = document.getElementById("theme-overrides") as HTMLLinkElement
+        let themeLink = document.getElementById('theme-overrides') as HTMLLinkElement
 
         if (!themeLink) {
-          themeLink = document.createElement("link")
-          themeLink.rel = "stylesheet"
-          themeLink.id = "theme-overrides"
+          themeLink = document.createElement('link')
+          themeLink.rel = 'stylesheet'
+          themeLink.id = 'theme-overrides'
           head.appendChild(themeLink)
         }
 
-        const currentTheme = themeLink.getAttribute("href")
+        const currentTheme = themeLink.getAttribute('href')
 
-        if (currentTheme === "/themes/neo-brutalism.theme.css") {
-          themeLink.removeAttribute("href")
+        if (currentTheme === '/themes/neo-brutalism.theme.css') {
+          themeLink.removeAttribute('href')
         } else {
-          themeLink.href = "/themes/neo-brutalism.theme.css"
+          themeLink.href = '/themes/neo-brutalism.theme.css'
         }
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   return (
     <>
       <Routes>
-        <Route path="realms/:realm_name">
-          <Route path="authentication/*" element={<PageAuthentication />} />
+        <Route path='realms/:realm_name'>
+          <Route path='authentication/*' element={<PageAuthentication />} />
 
           <Route element={<Layout />}>
-            <Route path="overview/*" element={<PageOverview />} />
+            <Route path='overview/*' element={<PageOverview />} />
 
             <Route path='clients/*' element={<PageClient />} />
             <Route path='users/*' element={<PageUser />} />
@@ -95,10 +95,10 @@ function App() {
           </Route>
         </Route>
 
-        <Route path='*' element={<Navigate to="/realms/master/authentication/login" replace />} />
+        <Route path='*' element={<Navigate to='/realms/master/authentication/login' replace />} />
       </Routes>
-      <Toaster 
-        richColors 
+      <Toaster
+        richColors
         theme='light'
       />
     </>

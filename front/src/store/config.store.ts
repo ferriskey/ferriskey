@@ -1,5 +1,5 @@
-import { GetConfigResponse } from "@/api/api.interface";
-import { create } from "zustand";
+import { GetConfigResponse } from '@/api/api.interface'
+import { create } from 'zustand'
 
 interface State {
   config: GetConfigResponse | null

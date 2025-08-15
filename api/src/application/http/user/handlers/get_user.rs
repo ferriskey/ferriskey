@@ -33,7 +33,7 @@ pub struct UserResponse {
     summary = "Get a user by ID in a realm",
     description = "Retrieves a user by their ID in a specific realm. This endpoint returns detailed information about the user.",
     params(
-        ("realm_name" = String, Path, description = "Realm name"),  
+        ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = String, Path, description = "User ID"),
     ),
     responses(

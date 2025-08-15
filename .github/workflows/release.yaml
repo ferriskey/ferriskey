@@ -103,7 +103,7 @@ jobs:
 
           # Update chart with production version
           yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey/Chart.yaml
-          
+
           # Update values with production tags and set to IfNotPresent for production
           yq eval ".front.image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .api.image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .front.image.pullPolicy = \"IfNotPresent\" | .api.image.pullPolicy = \"IfNotPresent\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey/values.yaml
 
@@ -131,6 +131,6 @@ jobs:
 
           yq eval ".version = \"${{ needs.prepare-ci.outputs.version }}\" | .appVersion = \"${{ needs.prepare-ci.outputs.version }}\"" /tmp/Chart.yaml.orig > infrastructure/charts/ferriskey-operator/Chart.yaml
           yq eval ".image.tag = \"${{ needs.prepare-ci.outputs.version }}\" | .image.pullPolicy = \"IfNotPresent\"" /tmp/values.yaml.orig > infrastructure/charts/ferriskey-operator/values.yaml
-          
+
           helm package infrastructure/charts/ferriskey-operator --destination .cr_releases
           helm push .cr_releases/ferriskey-operator-${{ needs.prepare-ci.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
