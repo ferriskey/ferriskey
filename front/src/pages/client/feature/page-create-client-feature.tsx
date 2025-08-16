@@ -43,6 +43,7 @@ export default function PageCreateClientFeature() {
       },
       body: {
         ...data,
+        client_id: data.clientId,
         client_type: data.clientAuthentication ? 'confidential' : 'public',
         public_client: !data.clientAuthentication,
         service_account_enabled: !!data.clientAuthentication,
