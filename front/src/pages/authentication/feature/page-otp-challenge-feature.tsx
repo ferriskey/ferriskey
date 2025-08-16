@@ -17,7 +17,7 @@ export default function PageOtpChallengeFeature() {
   const token = searchParams.get('token')
 
   const email = useCallback(() => {
-    // le token est un JWT il faut le decode pour récupérer le claim "email"
+    // the token is a JWT we need to decode it to get the claim "email"
     if (!token) return ''
     const decodedToken = JSON.parse(atob(token.split('.')[1]))
     return decodedToken.email

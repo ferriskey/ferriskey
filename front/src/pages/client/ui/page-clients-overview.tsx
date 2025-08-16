@@ -29,7 +29,7 @@ export default function PageClientsOverview({
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder='Search a client...'
+        searchPlaceholder="Find a client..."
         createData={{
           label: 'Create Client',
           onClick: handleCreateClient,

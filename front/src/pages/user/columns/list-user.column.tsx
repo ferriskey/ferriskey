@@ -10,7 +10,7 @@ import User = Schemas.User
 export const columns: ColumnDef<User>[] = [
   {
     id: 'name',
-    header: 'Utilisateur',
+    header: 'User',
     cell: (user) => {
       const isSA = isServiceAccount(user)
       return (

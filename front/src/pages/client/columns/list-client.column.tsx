@@ -27,19 +27,19 @@ export const columns: ColumnDef<Client>[] = [
     header: 'Type',
     cell: (client) => (
       <BadgeColor color={BadgeColorScheme.PRIMARY}>
-        {client.public_client ? 'Public' : 'Confidentiel'}
+        {client.public_client ? "Public" : "Confidential"}
       </BadgeColor>
     ),
   },
   {
-    id: 'status',
-    header: 'Statut',
+    id: "status",
+    header: "Status",
     cell: (client) => (
       <div className='flex items-center'>
         <span
           className={`h-2 w-2 rounded-full ${client.enabled ? 'bg-emerald-500' : 'bg-red-500'} mr-2`}
         ></span>
-        <span>{client.enabled ? 'Activé' : 'Désactivé'}</span>
+        <span>{client.enabled ? "Activated" : "Deactivated"}</span>
       </div>
     ),
   },

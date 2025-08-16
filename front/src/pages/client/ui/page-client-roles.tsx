@@ -16,7 +16,7 @@ export default function PageClientRoles({ roles, isLoading, isError }: PageClien
   }
 
   if (isError) {
-    return <div>Error loading roles.</div>
+    return <div>Error while loading roles.</div>
   }
 
   return (
