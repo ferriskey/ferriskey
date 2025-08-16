@@ -75,8 +75,8 @@ export default function PageRoleSettings({
             <ArrowLeft className='h-4 w-4' />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Rôle introuvable</h1>
-            <p className="text-muted-foreground">
+            <h1 className='text-2xl font-bold tracking-tight'>Rôle introuvable</h1>
+            <p className='text-muted-foreground'>
               The requested role does not exist in the realm {realmName}
             </p>
           </div>

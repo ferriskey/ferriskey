@@ -59,22 +59,22 @@ export default function PageRolesOverview({
         rowActions={[
           {
             label: 'Settings',
-            icon: <Settings className="h-4 w-4" />,
+            icon: <Settings className='h-4 w-4' />,
             onClick: handleViewSettings,
           },
           {
             label: 'Edit',
-            icon: <Edit className="h-4 w-4" />,
+            icon: <Edit className='h-4 w-4' />,
             onClick: (client) => console.log('Edit', client),
           },
           {
             label: 'See details',
-            icon: <ExternalLink className="h-4 w-4" />,
+            icon: <ExternalLink className='h-4 w-4' />,
             onClick: (client) => console.log('View', client),
           },
           {
             label: 'Delete',
-            icon: <Trash2 className="h-4 w-4" />,
+            icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
             onClick: (client) => console.log('Delete', client),
           },
