@@ -5,6 +5,7 @@ use crate::domain::authentication::strategies::refresh_token_strategy::RefreshTo
 use crate::domain::common::AppConfig;
 use crate::domain::health::services::HealthCheckServiceImpl;
 use crate::domain::trident::services::OauthTotpService;
+use crate::domain::webhook::services::WebhookServiceImpl;
 use crate::domain::{
     authentication::services::{
         auth_session_service::AuthSessionServiceImpl, grant_type_service::GrantTypeServiceImpl,
@@ -33,6 +34,7 @@ use crate::infrastructure::role::RoleRepoAny;
 use crate::infrastructure::user::UserRepoAny;
 use crate::infrastructure::user::repositories::user_required_action_repository::UserRequiredActionRepoAny;
 use crate::infrastructure::user::repositories::user_role_repository::UserRoleRepoAny;
+use crate::infrastructure::webhook::repository::WebhookRepoAny;
 
 pub type DefaultUserService =
     UserServiceImpl<UserRepoAny, RealmRepoAny, UserRoleRepoAny, UserRequiredActionRepoAny>;
@@ -71,6 +73,8 @@ pub type DefaultRedirectUriService =
     RedirectUriServiceImpl<RealmRepoAny, RedirectUriRepoAny, ClientRepoAny>;
 
 pub type DefaultHealthCheckService = HealthCheckServiceImpl<HealthCheckRepoAny>;
+
+pub type DefaultWebhookService = WebhookServiceImpl<WebhookRepoAny>;
 
 pub struct ServiceFactory;
 
@@ -170,6 +174,8 @@ impl ServiceFactory {
         let health_check_service =
             DefaultHealthCheckService::new(repositories.health_check_repository.clone());
 
+        let webhook_service = DefaultWebhookService::new(repositories.webhook_repository.clone());
+
         Ok(ServiceBundle {
             realm_service,
             client_service,
@@ -183,6 +189,7 @@ impl ServiceFactory {
             totp_service,
             grant_type_service,
             health_check_service,
+            webhook_service,
         })
     }
 }
@@ -201,4 +208,5 @@ pub struct ServiceBundle {
     pub totp_service: OauthTotpService,
     pub grant_type_service: DefaultGrantTypeService,
     pub health_check_service: DefaultHealthCheckService,
+    pub webhook_service: DefaultWebhookService,
 }

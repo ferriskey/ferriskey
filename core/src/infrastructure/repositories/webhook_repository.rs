@@ -1,13 +1,14 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
-use crate::domain::webhook::entities::{Webhook, WebhookError, WebhookSubscriber};
+use crate::domain::webhook::entities::{Webhook, WebhookError};
 use crate::domain::webhook::ports::WebhookRepository;
 use crate::entity::webhook_subscribers::{
-    ActiveModel as WebhookSubscriberActiveModel, Entity as WebhookSubscriberEntity,
+    ActiveModel as WebhookSubscriberActiveModel, Column as WebhookSubscriberColumn,
+    Entity as WebhookSubscriberEntity,
 };
 use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
@@ -25,7 +26,7 @@ impl PostgresWebhookRepository {
 }
 
 impl WebhookRepository for PostgresWebhookRepository {
-    async fn fetch_webhook_by_realm(&self, realm_id: Uuid) -> Result<Vec<Webhook>, WebhookError> {
+    async fn fetch_webhooks_by_realm(&self, realm_id: Uuid) -> Result<Vec<Webhook>, WebhookError> {
         let webhooks = WebhookEntity::find()
             .filter(WebhookColumn::RealmId.eq(realm_id))
             .all(&self.db)
@@ -38,7 +39,7 @@ impl WebhookRepository for PostgresWebhookRepository {
         Ok(webhooks)
     }
 
-    async fn get_by_id(
+    async fn get_webhook_by_id(
         &self,
         webhook_id: Uuid,
         realm_id: Uuid,
@@ -63,38 +64,77 @@ impl WebhookRepository for PostgresWebhookRepository {
         let (_, timestamp) = generate_timestamp();
         let subscription_id = Uuid::new_v7(timestamp);
 
-        let new_webhook = WebhookActiveModel {
+        let mut webhook = WebhookEntity::insert(WebhookActiveModel {
             id: Set(subscription_id.clone()),
             endpoint: Set(endpoint),
             realm_id: Set(realm_id),
             triggered_at: Set(None),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
-        };
+        })
+        .exec_with_returning(&self.db)
+        .await
+        .map(Webhook::from)
+        .map_err(|_| WebhookError::InternalServerError)?;
 
-        let result_insert = new_webhook.insert(&self.db).await.map_err(|e| {
-            tracing::error!("Failed to create webhook: {:?}", e);
-            WebhookError::InternalServerError
-        })?;
-
-        let subscribers = subscribers
-            .iter()
-            .map(|value| WebhookSubscriberActiveModel {
+        let subscribers = WebhookSubscriberEntity::insert_many(subscribers.iter().map(|value| {
+            WebhookSubscriberActiveModel {
                 id: Set(Uuid::new_v7(timestamp)),
                 name: Set(value.to_string()),
                 webhook_id: Set(subscription_id),
-            });
+            }
+        }))
+        .exec_with_returning_many(&self.db)
+        .await
+        .map_err(|_| WebhookError::InternalServerError)?
+        .iter()
+        .map(|value| value.clone().into())
+        .collect();
 
-        let subscribers_result_insert = WebhookSubscriberEntity::insert_many(subscribers)
+        webhook.subscribers = subscribers;
+        Ok(webhook)
+    }
+    async fn update_webhook(
+        &self,
+        id: Uuid,
+        endpoint: String,
+        subscribers: Vec<String>,
+    ) -> Result<Webhook, WebhookError> {
+        let mut webhook = WebhookEntity::update(WebhookActiveModel {
+            endpoint: Set(endpoint),
+            updated_at: Set(Utc::now().naive_utc()),
+            ..Default::default()
+        })
+        .filter(WebhookColumn::Id.eq(id))
+        .exec(&self.db)
+        .await
+        .map(Webhook::from)
+        .map_err(|_| WebhookError::InternalServerError)?;
+
+        let _ = WebhookSubscriberEntity::delete_many()
+            .filter(WebhookSubscriberColumn::WebhookId.eq(id))
+            .exec(&self.db)
+            .await
+            .map_err(|_| WebhookError::InternalServerError)?;
+
+        let mut derived_subscribers = Vec::new();
+        for subscriber in subscribers {
+            let (_, timestamp) = generate_timestamp();
+
+            let subscription_id = Uuid::new_v7(timestamp);
+            let subscriber = WebhookSubscriberActiveModel {
+                id: Set(subscription_id),
+                name: Set(subscriber.to_string()),
+                webhook_id: Set(subscription_id),
+            };
+
+            derived_subscribers.push(subscriber);
+        }
+
+        let subscribers = WebhookSubscriberEntity::insert_many(derived_subscribers)
             .exec_with_returning_many(&self.db)
             .await
-            .map_err(|e| {
-                tracing::error!("Failed to create webhook: {:?}", e);
-                WebhookError::InternalServerError
-            })?;
-
-        let mut webhook: Webhook = result_insert.into();
-        let subscribers: Vec<WebhookSubscriber> = subscribers_result_insert
+            .map_err(|_| WebhookError::InternalServerError)?
             .iter()
             .map(|value| value.clone().into())
             .collect();
@@ -102,11 +142,13 @@ impl WebhookRepository for PostgresWebhookRepository {
         webhook.subscribers = subscribers;
         Ok(webhook)
     }
-    async fn update_webhook(&self, id: &str, webhook: Webhook) -> Result<(), WebhookError> {
-        todo!()
-    }
 
-    async fn delete_webhook(&self, id: &str) -> Result<(), WebhookError> {
-        todo!()
+    async fn delete_webhook(&self, id: Uuid) -> Result<(), WebhookError> {
+        let _ = WebhookEntity::delete_by_id(id)
+            .exec(&self.db)
+            .await
+            .map_err(|_| WebhookError::InternalServerError)?;
+
+        Ok(())
     }
 }
