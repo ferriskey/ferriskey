@@ -65,7 +65,7 @@ impl WebhookRepository for PostgresWebhookRepository {
         let subscription_id = Uuid::new_v7(timestamp);
 
         let mut webhook = WebhookEntity::insert(WebhookActiveModel {
-            id: Set(subscription_id.clone()),
+            id: Set(subscription_id),
             endpoint: Set(endpoint),
             realm_id: Set(realm_id),
             triggered_at: Set(None),

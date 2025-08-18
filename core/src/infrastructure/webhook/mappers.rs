@@ -6,13 +6,11 @@ use crate::entity::webhooks::Model as WebhookModel;
 
 impl From<&WebhookModel> for Webhook {
     fn from(value: &WebhookModel) -> Self {
-        let triggered_at = if let Some(triggered_at) = value.triggered_at {
-            Some(Utc.from_utc_datetime(&triggered_at))
-        } else {
-            None
-        };
         let created_at = Utc.from_utc_datetime(&value.created_at);
         let updated_at = Utc.from_utc_datetime(&value.updated_at);
+        let triggered_at = value
+            .triggered_at
+            .map(|triggered_at| Utc.from_utc_datetime(&triggered_at));
 
         Self {
             id: value.id,
@@ -27,13 +25,11 @@ impl From<&WebhookModel> for Webhook {
 
 impl From<WebhookModel> for Webhook {
     fn from(value: WebhookModel) -> Self {
-        let triggered_at = if let Some(triggered_at) = value.triggered_at {
-            Some(Utc.from_utc_datetime(&triggered_at))
-        } else {
-            None
-        };
         let created_at = Utc.from_utc_datetime(&value.created_at);
         let updated_at = Utc.from_utc_datetime(&value.updated_at);
+        let triggered_at = value
+            .triggered_at
+            .map(|triggered_at| Utc.from_utc_datetime(&triggered_at));
 
         Self {
             id: value.id,
