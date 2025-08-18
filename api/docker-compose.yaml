@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: docker.io/postgres:latest
     container_name: ferris_key
     environment:
       POSTGRES_USER: postgres

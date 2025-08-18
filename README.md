@@ -77,7 +77,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 ```yaml
 services:
   postgres:
-    image: postgres:17
+    image: docker.io/postgres:17
     ports:
       - "5432:5432"
     environment:
@@ -127,6 +127,8 @@ volumes:
   postgres_data:
 ```
 
+Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
+
 ### Option B — Helm (Kubernetes)
 > Requires a reachable Postgres (or include it via your platform’s recommended operator).
 
@@ -136,6 +138,41 @@ helm upgrade --install ferriskey oci://ghcr.io/ferriskey/charts/ferriskey \
   --namespace ferriskey --create-namespace \
   --set api.monitoring.serviceMonitor.enabled=false
 ```
+
+### Option C - Cargo
+
+1. Clone the repo
+```bash
+git clone https://github.com/ferriskey/ferriskey
+```
+
+2. Launch the database and execute migrations with sourced env variables
+```bash
+cd api
+# feel free to change the env variables in env.sh to your liking. You can use a .env file as well
+source env.sh
+docker compose up -d
+cd ../core
+# to install sqlx you might need to run `cargo install sqlx-cli`
+sqlx migrate run
+```
+3. Launch the API
+
+```bash
+cd ../api
+cargo run
+```
+
+4. Launch the frontend (optional)
+
+```bash
+cd ../front
+source env.sh
+pnpm install
+pnpm run dev
+```
+
+Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
 ## ⚙️ Configuration
 Common environment variables (example):
@@ -154,6 +191,7 @@ ADMIN_EMAIL=admin@ferriskey.rs
 ALLOWED_ORIGINS=http://localhost:5555
 ```
 
+By default, the API will listen on port 3333 and the frontend on port 5555.
 
 ## 🧩 Modules
 - Trident — MFA & security scopes
