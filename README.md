@@ -147,14 +147,15 @@ git clone https://github.com/ferriskey/ferriskey
 ```
 
 2. Launch the database and execute migrations with sourced env variables
+
 ```bash
 cd api
-# feel free to change the env variables in env.sh to your liking. You can use a .env file as well
-source env.sh
+cp env.example .env
+# feel free to change the env variables in .env to your liking.
 docker compose up -d
 cd ../core
 # to install sqlx you might need to run `cargo install sqlx-cli`
-sqlx migrate run
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/ferriskey sqlx migrate run
 ```
 3. Launch the API
 
