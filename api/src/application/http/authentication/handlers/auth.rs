@@ -137,7 +137,7 @@ pub async fn auth(
 
     let full_url = format!(
         "{}/realms/{}/authentication/login{}",
-        state.env.portal_url.clone(),
+        state.args.webapp_url.clone(),
         realm.name,
         login_url.clone()
     );
@@ -179,7 +179,7 @@ pub async fn auth(
         .header(http::header::SET_COOKIE, cookie_value)
         .header(SET_COOKIE, session_cookie)
         .header(LOCATION, full_url)
-        .header(ORIGIN, state.env.portal_url.clone())
+        .header(ORIGIN, state.args.webapp_url.clone())
         .body(axum::body::Body::from(json_body))
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
 

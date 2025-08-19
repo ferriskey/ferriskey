@@ -9,25 +9,13 @@ use test_context::test_context;
 
 use ferriskey_api::{
     application::http::server::http_server::{router, state},
-    env::Env,
+    args::{Args, DatabaseArgs},
 };
 
 use sea_orm::Database;
 pub use sea_orm::DatabaseConnection;
 use sea_orm::{ConnectionTrait, Statement};
-
-fn mock_env(database_url: &str) -> Env {
-    Env {
-        port: "80".to_string(),
-        database_url: database_url.to_string(),
-        portal_url: "http://localhost:80".to_string(),
-        allowed_origins: "AllowOrigin::any()".to_string(),
-        admin_password: "password".to_string(),
-        admin_username: "admin".to_string(),
-        admin_email: "password".to_string(),
-        ..Default::default()
-    }
-}
+use url::Url;
 
 /// Test that we can interact with the database somehow.
 #[test_context(DBContext)]
@@ -50,7 +38,11 @@ async fn test_db_client(ctx: &mut DBContext) -> Result<(), String> {
 #[test_context(DBContext)]
 #[tokio::test]
 async fn test_404(ctx: &mut DBContext) -> Result<(), String> {
-    let env = mock_env(ctx.url());
+    let db_url = Url::parse(ctx.url()).unwrap();
+    let env = Args {
+        db: DatabaseArgs::from(db_url),
+        ..Default::default()
+    };
     let state = state(Arc::new(env)).await.unwrap();
 
     let app = router(state).unwrap();

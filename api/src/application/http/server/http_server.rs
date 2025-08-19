@@ -8,10 +8,10 @@ use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::trident::router::trident_routes;
 use crate::application::http::user::router::user_routes;
+use crate::args::Args;
 
 use super::config::get_config;
 use crate::application::http::health::health_routes;
-use crate::env::Env;
 use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
 use axum::http::{HeaderValue, Method};
@@ -29,15 +29,18 @@ use ferriskey_core::application::common::{
     services::{ServiceFactory, ServiceFactoryConfig},
 };
 
-pub async fn state(env: Arc<Env>) -> Result<AppState, anyhow::Error> {
+pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let service_bundle = ServiceFactory::create_all_services(ServiceFactoryConfig {
-        database_url: env.database_url.clone(),
+        database_url: format!(
+            "postgresql://{}:{}@{}:{}/{}",
+            args.db.user, args.db.password, args.db.host, args.db.port, args.db.name
+        ),
     })
     .await?;
 
     let use_case = UseCaseBundle::new(&service_bundle);
 
-    Ok(AppState::new(env, service_bundle, use_case))
+    Ok(AppState::new(args, service_bundle, use_case))
 }
 
 ///  Returns the [`Router`] of this application.
@@ -49,26 +52,13 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         },
     );
 
-    // Split the allowed origins from the environment variable (",") after this transform Vec<&str> into Vec<HeaderValue>
-
-    let allowed_origins_from_env = state
-        .env
+    let allowed_origins = state
+        .args
+        .server
         .allowed_origins
-        .clone()
-        .split(",")
+        .iter()
         .map(|origin| HeaderValue::from_str(origin).unwrap())
         .collect::<Vec<HeaderValue>>();
-
-    let allowed_origins: Vec<HeaderValue> = vec![
-        HeaderValue::from_static("http://localhost:3000"),
-        HeaderValue::from_static("http://localhost:5173"),
-        HeaderValue::from_static("http://localhost:5174"),
-        HeaderValue::from_static("http://localhost:4321"),
-        HeaderValue::from_static("http://localhost:5555"),
-    ]
-    .into_iter()
-    .chain(allowed_origins_from_env)
-    .collect::<Vec<HeaderValue>>();
 
     let cors = CorsLayer::new()
         .allow_methods([

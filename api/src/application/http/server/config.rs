@@ -22,15 +22,8 @@ pub async fn get_config(
     GetConfigRoute: GetConfigRoute,
     State(state): State<AppState>,
 ) -> Result<Response<GetConfigResponse>, ApiError> {
-    let environment = state.env.env.clone();
-    let environment = environment.to_string();
-
-    let app_version = env!("CARGO_PKG_VERSION").to_string();
-
-    let response = GetConfigResponse {
-        environment,
-        app_version,
-    };
-
-    Ok(Response::OK(response))
+    Ok(Response::OK(GetConfigResponse {
+        environment: state.args.env.to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+    }))
 }

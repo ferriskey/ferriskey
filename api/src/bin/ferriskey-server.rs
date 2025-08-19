@@ -20,24 +20,22 @@ use ferriskey_core::application::orchestrators::startup_orchestrator::{
 };
 
 use ferriskey_api::application::http::server::http_server::{router, state};
-use ferriskey_api::env::{AppEnv, Env};
+use ferriskey_api::args::{Args, LogArgs};
+use tracing_subscriber::EnvFilter;
 
-fn init_logger(env: Arc<Env>) {
-    let filter: tracing::Level = env.log_level.clone().into();
-    match env.env {
-        AppEnv::Development => {
-            tracing_subscriber::fmt()
-                .with_max_level(filter)
-                .with_writer(std::io::stdout)
-                .init();
-        }
-        AppEnv::Production => {
-            tracing_subscriber::fmt()
-                .json()
-                .with_max_level(filter)
-                .with_writer(std::io::stdout)
-                .init();
-        }
+fn init_logger(args: &LogArgs) {
+    let filter = EnvFilter::try_new(&args.filter).unwrap_or_else(|err| {
+        eprint!("Invalid log filter: {err}");
+        eprint!("Using default log filter: info");
+        EnvFilter::new("info")
+    });
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr);
+    if args.json {
+        subscriber.json().init();
+    } else {
+        subscriber.init();
     }
 }
 
@@ -45,10 +43,10 @@ fn init_logger(env: Arc<Env>) {
 async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
 
-    let env = Arc::new(Env::parse());
-    init_logger(env.clone());
+    let args = Arc::new(Args::parse());
+    init_logger(&args.log);
 
-    let app_state = state(env.clone()).await?;
+    let app_state = state(args.clone()).await?;
 
     let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
         realm_service: app_state.service_bundle.realm_service.clone(),
@@ -63,9 +61,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     startup_orchestrator
         .initialize_application(StartupConfig {
-            admin_email: env.admin_email.clone(),
-            admin_password: env.admin_password.clone(),
-            admin_username: env.admin_username.clone(),
+            admin_email: args.admin.email.clone(),
+            admin_password: args.admin.password.clone(),
+            admin_username: args.admin.username.clone(),
             default_client_id: "security-admin-console".to_string(),
             master_realm_name: "master".to_string(),
         })
@@ -75,14 +73,15 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let router = router(app_state)?;
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", env.port))
-        .await
-        .with_context(|| format!("Failed to bind to port {}", env.port))?;
+    let listener =
+        tokio::net::TcpListener::bind(format!("{}:{}", args.server.host, args.server.port))
+            .await
+            .with_context(|| format!("Failed to bind to port {}", args.server.port))?;
 
     tracing::info!(
         "FerrisKey API is running on {}:{}",
-        listener.local_addr()?,
-        env.port,
+        args.server.host,
+        args.server.port,
     );
 
     axum::serve(listener, router)
