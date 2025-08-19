@@ -30,7 +30,7 @@ pub struct UpdateUserResponse {
 }
 
 #[utoipa::path(
-    post,
+    put,
     path = "/{user_id}",
     tag = "user",
     summary = "Update a user in a realm",

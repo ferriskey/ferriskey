@@ -71,7 +71,7 @@ export const useCreateUser = () => {
 export const useUpdateUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...tanstackApi.mutation('post', '/realms/{realm_name}/users/{user_id}', async (res) => {
+    ...tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}', async (res) => {
       return res.json()
     }).mutationOptions,
     onSuccess: () => {

@@ -76,7 +76,13 @@ where
             .map_err(|e| CredentialError::HashPasswordError(e.to_string()))?;
 
         self.credential_repository
-            .create_credential(user_id, "password".into(), hash_result, "".into(), temporary)
+            .create_credential(
+                user_id,
+                "password".into(),
+                hash_result,
+                "".into(),
+                temporary,
+            )
             .await
             .map_err(|_| CredentialError::CreateCredentialError)?;
 

@@ -5,4 +5,5 @@ pub mod health;
 pub mod orchestrators;
 pub mod realm;
 pub mod role;
+pub mod trident;
 pub mod user;

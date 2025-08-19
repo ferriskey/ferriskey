@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { apiClient, BaseQuery } from '.'
+import { apiClient, BaseQuery, tanstackApi } from '.'
 import {
   ChallengeOtpRequest,
   ChallengeOtpResponse,
@@ -74,5 +74,12 @@ export const useChallengeOtp = () => {
 
       return response.data
     },
+  })
+}
+
+export const useUpdatePassword = () => {
+  return useMutation({
+    ...tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/update-password')
+      .mutationOptions,
   })
 }

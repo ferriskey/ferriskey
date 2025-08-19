@@ -20,6 +20,12 @@ pub enum TotpError {
     VerificationFailed(String),
 }
 
+#[derive(Debug, Clone, Error)]
+pub enum TridentError {
+    #[error("update password error: {0}")]
+    UpdatePasswordFailed(String),
+}
+
 #[derive(Debug, Clone)]
 pub struct TotpSecret {
     base32: String,

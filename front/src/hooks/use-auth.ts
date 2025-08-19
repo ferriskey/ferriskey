@@ -34,14 +34,16 @@ export function useAuth() {
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
 
   const setAuthTokensWrapper = useCallback(
-    (access_token: string, refresh_token: string) => {
+    (access_token: string, refresh_token: string, authenticated: boolean = true) => {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
       setTokens(access_token, refresh_token)
       setExpiration(expiration)
 
-      setAuthenticated(true)
+      if (authenticated) {
+        setAuthenticated(true)
+      }
     },
     [setAuthenticated, setTokens, setExpiration]
   )
@@ -149,7 +151,7 @@ export function useAuth() {
   }, [accessToken, isLoading, setAuthenticated, setLoading, setUser])
 
   return {
-    setAuthToken: (value: string) => setAuthTokensWrapper(value, ''),
+    setAuthToken: (value: string) => setAuthTokensWrapper(value, '', false),
     setAuthTokens: setAuthTokensWrapper,
     isTokenExpired,
     isAuthenticated,

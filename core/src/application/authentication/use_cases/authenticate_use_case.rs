@@ -370,9 +370,7 @@ impl AuthenticateUseCase {
             .await
             .map_err(|_| AuthenticationError::InvalidUser)?;
 
-        let has_temporary_password = user_credentials
-            .iter()
-            .any(|cred| cred.temporary == true);
+        let has_temporary_password = user_credentials.iter().any(|cred| cred.temporary == true);
 
         let credentials: Vec<String> = user_credentials
             .iter()

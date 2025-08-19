@@ -26,6 +26,8 @@ use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
+use crate::application::trident::use_cases::TridentUseCase;
+use crate::application::trident::use_cases::update_password_use_case::UpdatePasswordUseCase;
 use crate::application::user::use_cases::UserUseCase;
 use crate::application::user::use_cases::assign_role_use_case::AssignRoleUseCase;
 use crate::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCase;
@@ -87,6 +89,9 @@ pub struct UseCaseBundle {
     pub get_role_use_case: GetRoleUseCase,
     pub update_role_use_case: UpdateRoleUseCase,
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
+
+    // Trident (use-cases)
+    pub update_password_use_case: UpdatePasswordUseCase,
 
     pub health_check_use_case: HealthCheckUseCase,
 }
@@ -156,6 +161,8 @@ impl UseCaseBundle {
         // Role (use-cases)
         let role_use_case = RoleUseCase::new(service_bundle);
 
+        let trident_use_case = TridentUseCase::new(service_bundle);
+
         let health_check_use_case =
             HealthCheckUseCase::new(service_bundle.health_check_service.clone());
 
@@ -205,6 +212,8 @@ impl UseCaseBundle {
             get_role_use_case: role_use_case.get_role_use_case,
             update_role_use_case: role_use_case.update_role_use_case,
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
+
+            update_password_use_case: trident_use_case.update_password_use_case,
 
             health_check_use_case,
         }

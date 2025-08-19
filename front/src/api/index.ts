@@ -87,6 +87,6 @@ function replacePathParams(url: string, params: Record<string, string>): string 
     .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`)
 }
 
-const api = createApiClient(fetcher, apiUrl)
+export const api = createApiClient(fetcher, apiUrl)
 
 export const tanstackApi = new TanstackQueryApiClient(api)

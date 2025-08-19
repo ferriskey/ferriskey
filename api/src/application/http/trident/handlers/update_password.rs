@@ -1,0 +1,68 @@
+use axum::{Extension, extract::State};
+use axum_macros::TypedPath;
+use ferriskey_core::{
+    application::trident::use_cases::update_password_use_case::UpdatePasswordUseCaseParams,
+    domain::authentication::value_objects::Identity,
+};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use validator::Validate;
+
+use crate::application::http::server::{
+    api_entities::{
+        api_error::{ApiError, ValidateJson},
+        response::Response,
+    },
+    app_state::AppState,
+};
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdatePasswordRequest {
+    #[serde(default)]
+    pub value: String,
+}
+
+#[derive(TypedPath, Deserialize)]
+#[typed_path("/realms/{realm_name}/login-actions/update-password")]
+pub struct UpdatePasswordRoute {
+    pub realm_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+pub struct UpdatePasswordResponse {
+    pub message: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/login-actions/update-password",
+    tag = "auth",
+    summary = "Update Password",
+    request_body = UpdatePasswordRequest,
+    responses(
+        (status = 200, description = "Password updated successfully", body = UpdatePasswordResponse),
+    )
+)]
+pub async fn update_password(
+    UpdatePasswordRoute { realm_name }: UpdatePasswordRoute,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+    ValidateJson(payload): ValidateJson<UpdatePasswordRequest>,
+) -> Result<Response<UpdatePasswordResponse>, ApiError> {
+    state
+        .use_case_bundle
+        .update_password_use_case
+        .execute(
+            identity,
+            UpdatePasswordUseCaseParams {
+                value: payload.value,
+                realm_name,
+            },
+        )
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Response::OK(UpdatePasswordResponse {
+        message: "Password updated successfully".to_string(),
+    }))
+}
