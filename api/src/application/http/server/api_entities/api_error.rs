@@ -4,8 +4,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ferriskey_core::domain::authentication::entities::AuthenticationError;
 use ferriskey_core::domain::jwt::entities::JwtError;
+use ferriskey_core::domain::{
+    authentication::entities::AuthenticationError, webhook::entities::WebhookError,
+};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use validator::Validate;
 
@@ -144,6 +146,18 @@ impl From<JwtError> for ApiError {
             JwtError::ParsingError(e) => Self::InternalServerError(e),
             JwtError::RealmKeyNotFound => {
                 Self::InternalServerError("Realm key not found".to_string())
+            }
+        }
+    }
+}
+
+impl From<WebhookError> for ApiError {
+    fn from(error: WebhookError) -> Self {
+        match error {
+            WebhookError::Forbidden => Self::Unauthorized("Invalid webhook".to_string()),
+            WebhookError::NotFound => Self::NotFound("Webhook not found".to_string()),
+            WebhookError::InternalServerError => {
+                Self::InternalServerError("Internal server error".to_string())
             }
         }
     }

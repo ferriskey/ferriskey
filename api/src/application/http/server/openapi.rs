@@ -1,7 +1,7 @@
 use crate::application::http::{
     authentication::router::AuthenticationApiDoc, client::router::ClientApiDoc,
     realm::router::RealmApiDoc, role::router::RoleApiDoc, trident::router::TridentApiDoc,
-    user::router::UserApiDoc,
+    user::router::UserApiDoc, webhook::router::WebhookApiDoc,
 };
 use utoipa::OpenApi;
 
@@ -16,6 +16,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/users", api = UserApiDoc),
         (path = "/realms/{realm_name}", api = AuthenticationApiDoc),
         (path = "/realms/{realm_name}/roles", api = RoleApiDoc),
+        (path = "/realms/{realm_name}/webhooks", api = WebhookApiDoc),
         (path = "/realms/{realm_name}", api = TridentApiDoc),
     )
 )]

@@ -8,6 +8,7 @@ use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::application::http::trident::router::trident_routes;
 use crate::application::http::user::router::user_routes;
+use crate::application::http::webhook::router::webhook_routes;
 use crate::args::Args;
 
 use super::config::get_config;
@@ -89,6 +90,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(user_routes(state.clone()))
         .merge(authentication_routes())
         .merge(role_routes(state.clone()))
+        .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
         .merge(health_routes())
         .route("/metrics", get(|| async move { metric_handle.render() }))
