@@ -67,6 +67,19 @@ export interface Realm {
 	updated_at: Date;
 }
 
+export interface RealmSettings {
+  id: string;
+  realm_id: string;
+  default_signing_algorithm: SigningAlgorithm;
+  updated_at: Date;
+}
+
+export enum SigningAlgorithm {
+  HS256 = 'HS256',
+  RS256 = 'RS256',
+  ES256 = 'ES256',
+}
+
 export interface Role {
 	id: string;
 	name: string;

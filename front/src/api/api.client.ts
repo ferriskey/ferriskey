@@ -726,7 +726,7 @@ type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [confi
 export class ApiClient {
   baseUrl: string = ''
 
-  constructor(public fetcher: Fetcher) {}
+  constructor(public fetcher: Fetcher) { }
 
   setBaseUrl(baseUrl: string) {
     this.baseUrl = baseUrl
