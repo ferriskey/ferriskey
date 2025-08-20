@@ -98,6 +98,13 @@ pub struct UseCaseBundle {
 
     // Trident (use-cases)
     pub update_password_use_case: UpdatePasswordUseCase,
+    
+    // Webhook (use-cases)
+    pub create_webhook_use_case: CreateWebhookUseCase,
+    pub fetch_realm_webhooks_use_case: FetchRealmWebhooksUseCase,
+    pub get_webhook_use_case: GetWebhookUseCase,
+    pub update_webhook_use_case: UpdateWebhookUseCase,
+    pub delete_webhook_use_case: DeleteWebhookUseCase,
 
     pub health_check_use_case: HealthCheckUseCase,
 }
@@ -168,6 +175,8 @@ impl UseCaseBundle {
         let role_use_case = RoleUseCase::new(service_bundle);
 
         let trident_use_case = TridentUseCase::new(service_bundle);
+        // Webhook (use-cases)
+        let webhook_use_case = WebhookUseCase::new(service_bundle);
 
         let health_check_use_case =
             HealthCheckUseCase::new(service_bundle.health_check_service.clone());
@@ -220,6 +229,12 @@ impl UseCaseBundle {
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
 
             update_password_use_case: trident_use_case.update_password_use_case,
+            // Webhook (use-cases)
+            create_webhook_use_case: webhook_use_case.create_webhook_use_case,
+            fetch_realm_webhooks_use_case: webhook_use_case.fetch_realm_webhooks_use_case,
+            get_webhook_use_case: webhook_use_case.get_webhook_use_case,
+            update_webhook_use_case: webhook_use_case.update_webhook_use_case,
+            delete_webhook_use_case: webhook_use_case.delete_webhook_use_case,
 
             health_check_use_case,
         }
