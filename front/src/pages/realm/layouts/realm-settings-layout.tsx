@@ -4,10 +4,14 @@ import { useLocation, useParams } from "react-router";
 import PageRealmSettings from "../ui/page-realm-settings";
 import { mapRealms } from "@/api/core.mapper";
 import useRealmStore from "@/store/realm.store";
+import { Feature } from "@/lib/features";
+import { useFeature } from "@/hooks/use-feature";
+import WorkInProgress from "@/components/work-in-progress";
 
 export default function RealmsSettingsLayout() {
   const { realm_name } = useParams<RouterParams>()
   const [tab, setTab] = useState<string>('general');
+
   const { pathname } = useLocation();
 
   const { userRealms } = useRealmStore();
@@ -22,7 +26,8 @@ export default function RealmsSettingsLayout() {
     setTab(validTabs.includes(lastPart) ? lastPart : 'general')
   }, [pathname])
 
-  if(!realm) return null;
+
+  if (!realm) return null;
 
   return <PageRealmSettings realm={realm} tab={tab} setTab={setTab} />
 }

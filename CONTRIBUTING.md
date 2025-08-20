@@ -42,6 +42,20 @@ Make sure to follow Rust best practices, and try to include unit tests when rela
 
 ---
 
+## 👩‍🔬 Experimental Features
+
+Ferris key uses feature flags to enable experimental features. For now they are only available on the frontend.
+
+To enable a feature, add the following to your `.env` file at `/front` : 
+
+```env
+VITE_FEATURES="realm-settings"
+```
+
+To look for the features in the code, please refer to the `lib/features.ts` file.
+
+---
+
 ## 📝 Feature Proposals
 
 For large changes, open an issue first and discuss the proposal with the maintainers. We may ask you to write an RFC if it's an architectural change.

@@ -51,7 +51,7 @@ export default function PageUserOverview({ onSubmit, hasChanges, user }: Props) 
               name='required_actions'
               render={({ field }) => (
                 <div>
-                  <Label>Required Actions</Label>
+                  <Label>Required actions</Label>
                   <MultipleSelector
                     commandProps={{
                       label: 'Required Actions',

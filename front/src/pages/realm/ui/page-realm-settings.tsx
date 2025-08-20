@@ -3,6 +3,9 @@ import BadgeColor from "@/components/ui/badge-color";
 import { BadgeColorScheme } from "@/components/ui/badge-color.enum";
 import { Heading } from "@/components/ui/heading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WorkInProgress from "@/components/work-in-progress";
+import { useFeature } from "@/hooks/use-feature";
+import { Feature } from "@/lib/features";
 import { REALM_SETTINGS_URL } from "@/routes/router";
 import { Outlet, useNavigate } from "react-router";
 
@@ -13,6 +16,7 @@ interface PageRealmSettingsProps {
 }
 
 export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSettingsProps) {
+  const enabled = useFeature(Feature.REALM_SETTINGS);
   const navigate = useNavigate()
   return (
     <div className="flex flex-col gap-4 p-8">
@@ -37,7 +41,9 @@ export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSetti
           </Tabs>
         </div>
       </div>
-      <Outlet />
+      {
+        enabled ? <Outlet /> : <WorkInProgress/>
+      }
     </div>
   )
 }

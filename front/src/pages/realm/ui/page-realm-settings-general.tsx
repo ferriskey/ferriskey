@@ -4,17 +4,21 @@ import { InputText } from "@/components/ui/input-text";
 import { UpdateRealmSchema } from "../validators";
 import { useFormContext } from "react-hook-form";
 import { Realm, SigningAlgorithm } from "@/api/core.interface";
-import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SelectContent, SelectItem } from "@radix-ui/react-select";
+import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent  } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import FloatingActionBar from "@/components/ui/floating-action-bar";
+import { useFormChanges } from "@/hooks/use-form-changes";
 
 type Props = {
   hasChanges: boolean;
   realm: Realm;
+  onSubmit: (data: UpdateRealmSchema) => void;
 }
 
 
-export default function PageRealmSettingsGeneral({ realm }: Props) {
+export default function PageRealmSettingsGeneral({ realm, hasChanges, onSubmit }: Props) {
   const form = useFormContext<UpdateRealmSchema>();
+
   return (<div className="w-full">
     <BlockContent title="General settings">
       <div className="flex flex-col gap-3">
@@ -30,14 +34,16 @@ export default function PageRealmSettingsGeneral({ realm }: Props) {
           control={form.control}
           name="default_signing_algorithm"
           render={({ field }) => (
+            <div>
+            <Label>Default Signing Algorithm</Label>
             <Select
               onValueChange={(value) => field.onChange(value)}
               value={field.value}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-1/3">
                 <SelectValue>{field.value}</SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 {
                   Object.values(SigningAlgorithm).map((value) => {
                     return (
@@ -47,9 +53,25 @@ export default function PageRealmSettingsGeneral({ realm }: Props) {
                 }
               </SelectContent>
             </Select>
+            </div>
           )}
         />
       </div>
     </BlockContent>
+    <FloatingActionBar
+      show={hasChanges}
+      title={'Save changes'}
+      actions={[
+        {
+          label: 'Save',
+          variant: 'default',
+          onClick: form.handleSubmit(onSubmit),
+        },
+      ]}
+      description="You have unsaved changes. Click 'Save' to apply them."
+      onCancel={() => {
+        form.reset()
+      }}
+    />
   </div>)
 }
