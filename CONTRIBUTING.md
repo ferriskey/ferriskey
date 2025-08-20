@@ -38,7 +38,7 @@ pnpm install
 5. Run tests with `cargo test`
 6. Open a PR and fill in the description
 
-Make sure to follow Rust best practices, and try to include unit tests when relavant.
+Make sure to follow Rust best practices, and try to include unit tests when relevant.
 
 ---
 
@@ -46,7 +46,7 @@ Make sure to follow Rust best practices, and try to include unit tests when rela
 
 Ferris key uses feature flags to enable experimental features. For now they are only available on the frontend.
 
-To enable a feature, add the following to your `.env` file at `/front` : 
+To enable a feature, add the following to your `.env` file at `/front` :
 
 ```env
 VITE_FEATURES="realm-settings"
