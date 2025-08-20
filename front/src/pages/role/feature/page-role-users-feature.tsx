@@ -1,4 +1,4 @@
-import WorkInProgress from "@/components/work-in-progress";
+import WorkInProgress from '@/components/work-in-progress'
 
 export default function PageRoleUsersFeature() {
   return (

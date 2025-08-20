@@ -1,21 +1,18 @@
-import { RouterParams } from "@/routes/router";
-import { useEffect, useState } from "react";
-import { useLocation, useParams } from "react-router";
-import PageRealmSettings from "../ui/page-realm-settings";
-import { mapRealms } from "@/api/core.mapper";
-import useRealmStore from "@/store/realm.store";
-import { Feature } from "@/lib/features";
-import { useFeature } from "@/hooks/use-feature";
-import WorkInProgress from "@/components/work-in-progress";
+import { RouterParams } from '@/routes/router'
+import { useEffect, useState } from 'react'
+import { useLocation, useParams } from 'react-router'
+import PageRealmSettings from '../ui/page-realm-settings'
+import { mapRealms } from '@/api/core.mapper'
+import useRealmStore from '@/store/realm.store'
 
 export default function RealmsSettingsLayout() {
   const { realm_name } = useParams<RouterParams>()
-  const [tab, setTab] = useState<string>('general');
+  const [tab, setTab] = useState<string>('general')
 
-  const { pathname } = useLocation();
+  const { pathname } = useLocation()
 
-  const { userRealms } = useRealmStore();
-  const realm = mapRealms(userRealms).find((item) => item.name === realm_name);
+  const { userRealms } = useRealmStore()
+  const realm = mapRealms(userRealms).find((item) => item.name === realm_name)
 
 
   useEffect(() => {
@@ -27,7 +24,7 @@ export default function RealmsSettingsLayout() {
   }, [pathname])
 
 
-  if (!realm) return null;
+  if (!realm) return null
 
   return <PageRealmSettings realm={realm} tab={tab} setTab={setTab} />
 }

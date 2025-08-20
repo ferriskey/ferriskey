@@ -22,7 +22,7 @@ export function NavConfiguration() {
       <SidebarGroupLabel>Configure</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem onClick={() => handleClick(`${REALM_SETTINGS_URL(realm_name)}`)}>
-          <SidebarMenuButton className="flex items-center gap-2 cursor-pointer">
+          <SidebarMenuButton className='flex items-center gap-2 cursor-pointer'>
             <Settings />
             <span>Realm settings</span>
           </SidebarMenuButton>
