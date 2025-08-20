@@ -98,7 +98,7 @@ pub struct UseCaseBundle {
 
     // Trident (use-cases)
     pub update_password_use_case: UpdatePasswordUseCase,
-    
+
     // Webhook (use-cases)
     pub create_webhook_use_case: CreateWebhookUseCase,
     pub fetch_realm_webhooks_use_case: FetchRealmWebhooksUseCase,
