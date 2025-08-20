@@ -33,6 +33,9 @@ pub enum WebhookError {
 
     #[error("Forbidden")]
     Forbidden,
+
+    #[error("Realm not found")]
+    RealmNotFound,
 }
 
 impl Webhook {

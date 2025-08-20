@@ -159,6 +159,7 @@ impl From<WebhookError> for ApiError {
             WebhookError::InternalServerError => {
                 Self::InternalServerError("Internal server error".to_string())
             }
+            WebhookError::RealmNotFound => Self::InternalServerError("Realm not found".to_string()),
         }
     }
 }

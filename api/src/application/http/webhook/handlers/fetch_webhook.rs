@@ -1,11 +1,12 @@
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
+use axum::Extension;
 use axum::extract::State;
 use axum_macros::TypedPath;
-use ferriskey_core::domain::realm::ports::RealmService;
+use ferriskey_core::application::webhook::use_cases::fetch_realm_webhooks_use_case::FetchRealmWebhooksUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::Webhook;
-use ferriskey_core::domain::webhook::ports::WebhookService;
 use serde::Deserialize;
 
 #[derive(TypedPath, Deserialize)]
@@ -28,18 +29,12 @@ pub struct FetchWebhookRoute {
 pub async fn fetch_webhooks(
     FetchWebhookRoute { realm_name }: FetchWebhookRoute,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<Vec<Webhook>>, ApiError> {
-    let realm = state
-        .service_bundle
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
     let webhooks = state
-        .service_bundle
-        .webhook_service
-        .fetch_by_realm(realm.id)
+        .use_case_bundle
+        .fetch_realm_webhooks_use_case
+        .execute(identity, FetchRealmWebhooksUseCaseParams { realm_name })
         .await
         .map_err(ApiError::from)?;
 

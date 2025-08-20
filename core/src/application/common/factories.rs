@@ -41,6 +41,12 @@ use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
 use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
+use crate::application::webhook::use_cases::WebhookUseCase;
+use crate::application::webhook::use_cases::create_webhook_use_case::CreateWebhookUseCase;
+use crate::application::webhook::use_cases::delete_webhook_use_case::DeleteWebhookUseCase;
+use crate::application::webhook::use_cases::fetch_realm_webhooks_use_case::FetchRealmWebhooksUseCase;
+use crate::application::webhook::use_cases::get_webhook_use_case::GetWebhookUseCase;
+use crate::application::webhook::use_cases::update_webhook_use_case::UpdateWebhookUseCase;
 
 #[derive(Clone)]
 pub struct UseCaseBundle {

@@ -5,29 +5,33 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Permissions {
     // Permissions de création et de gestion
-    CreateClient = 0x0000000000000001,            // 1 << 0
-    ManageAuthorization = 0x0000000000000002,     // 1 << 1
-    ManageClients = 0x0000000000000004,           // 1 << 2
-    ManageEvents = 0x0000000000000008,            // 1 << 3
-    ManageIdentityProviders = 0x0000000000000010, // 1 << 4
-    ManageRealm = 0x0000000000000020,             // 1 << 5
-    ManageUsers = 0x0000000000000040,             // 1 << 6
-    ManageRoles = 0x0000000000000080,             // 1 << 7
+    CreateClient = 1 << 0,            // 1 << 0
+    ManageAuthorization = 1 << 1,     // 1 << 1
+    ManageClients = 1 << 2,           // 1 << 2
+    ManageEvents = 1 << 3,            // 1 << 3
+    ManageIdentityProviders = 1 << 4, // 1 << 4
+    ManageRealm = 1 << 5,             // 1 << 5
+    ManageUsers = 1 << 6,             // 1 << 6
+    ManageRoles = 1 << 7,             // 1 << 7
 
     // Permissions de requête/lecture
-    QueryClients = 0x0000000000000100, // 1 << 8
-    QueryGroups = 0x0000000000000200,  // 1 << 9
-    QueryRealms = 0x0000000000000400,  // 1 << 10
-    QueryUsers = 0x0000000000000800,   // 1 << 11
+    QueryClients = 1 << 8, // 1 << 8
+    QueryGroups = 1 << 9,  // 1 << 9
+    QueryRealms = 1 << 10, // 1 << 10
+    QueryUsers = 1 << 11,  // 1 << 11
 
     // Permissions de visualisation
-    ViewAuthorization = 0x0000000000001000,     // 1 << 12
-    ViewClients = 0x0000000000002000,           // 1 << 13
-    ViewEvents = 0x0000000000004000,            // 1 << 14
-    ViewIdentityProviders = 0x0000000000008000, // 1 << 15
-    ViewRealm = 0x0000000000010000,             // 1 << 16
-    ViewUsers = 0x0000000000020000,             // 1 << 17
-    ViewRoles = 0x0000000000040000,
+    ViewAuthorization = 1 << 12,     // 1 << 12
+    ViewClients = 1 << 13,           // 1 << 13
+    ViewEvents = 1 << 14,            // 1 << 14
+    ViewIdentityProviders = 1 << 15, // 1 << 15
+    ViewRealm = 1 << 16,             // 1 << 16
+    ViewUsers = 1 << 17,             // 1 << 17
+    ViewRoles = 1 << 18,             // 1 << 18
+
+    ManageWebhooks = 1 << 19, // 1 << 19
+    QueryWebhooks = 1 << 20,  // 1 << 20
+    ViewWebhooks = 1 << 21,   // 1 << 21
 }
 
 impl Permissions {
@@ -71,10 +75,12 @@ impl Permissions {
             Self::ManageRealm => "manage_realm".to_string(),
             Self::ManageUsers => "manage_users".to_string(),
             Self::ManageRoles => "manage_roles".to_string(),
+            Self::ManageWebhooks => "manage_webhooks".to_string(),
             Self::QueryClients => "query_clients".to_string(),
             Self::QueryGroups => "query_groups".to_string(),
             Self::QueryRealms => "query_realms".to_string(),
             Self::QueryUsers => "query_users".to_string(),
+            Self::QueryWebhooks => "query_webhooks".to_string(),
             Self::ViewAuthorization => "view_authorization".to_string(),
             Self::ViewClients => "view_clients".to_string(),
             Self::ViewEvents => "view_events".to_string(),
@@ -82,6 +88,7 @@ impl Permissions {
             Self::ViewRealm => "view_realm".to_string(),
             Self::ViewUsers => "view_users".to_string(),
             Self::ViewRoles => "view_roles".to_string(),
+            Self::ViewWebhooks => "view_webhooks".to_string(),
         }
     }
 
