@@ -56,15 +56,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=ref,event=pr
-            type=sha
 
       - name: log-in to ghcr
-        if: ${{ inputs.push == true }}
+        if: inputs.push
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -73,18 +67,33 @@ jobs:
 
       - name: build and push
         uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           target: ${{ matrix.target }}
           platforms: ${{ matrix.runner.platform }}
-          push: ${{ inputs.push == true }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
           labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
           cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
-          provenance: false
-          sbom: false
+          outputs: type=image,push-by-digest=${{ inputs.push || 'false' }},name-canonical=true,push=${{ inputs.push || 'false' }}
+
+      - name: prepare digest
+        id: digest
+        if: inputs.push
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: upload digest
+        if: inputs.push
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ runner.arch }}-${{ matrix.target }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
       # https://github.com/docker/build-push-action/issues/252
       # https://github.com/moby/buildkit/issues/1896
@@ -92,3 +101,49 @@ jobs:
         run: |
           rm -rf ${{ runner.temp }}/.buildx-cache
           mv ${{ runner.temp }}/.buildx-cache-new ${{ runner.temp }}/.buildx-cache
+
+  push-manifest:
+    if: inputs.push
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - api
+          - operator
+          - webapp
+    steps:
+      - name: set up builx
+        uses: docker/setup-buildx-action@v3
+
+      - name: download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*-${{ matrix.target }}
+          merge-multiple: true
+
+      - name: log-in to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: get image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=pr
+            type=sha
+
+      - name: push manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf 'ghcr.io/ferriskey/ferriskey-${{ matrix.target }}@sha256:%s ' *)
