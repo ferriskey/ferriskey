@@ -1,0 +1,168 @@
+{{- define "ferriskey.global.name" -}}
+{{ (.Values.nameOverride | default .Release.Name) | trunc 43 }}
+{{- end -}}
+
+{{- define "ferriskey.global.labels" -}}
+app.kubernetes.io/instance: {{ include "ferriskey.global.name" . }}
+app.kubernetes.io/version: {{ .Chart.Version }}
+app.kubernetes.io/part-of: ferriskey
+{{- end -}}
+
+{{- define "ferriskey.global.podLabels" -}}
+app.kubernetes.io/instance: {{ include "ferriskey.global.name" . }}
+app.kubernetes.io/part-of: ferriskey
+{{- end -}}
+
+{{- define "ferriskey.global.databaseSecretName" -}}
+{{ .Values.database.passwordSecret.name | default (printf "%s-database" (include "ferriskey.global.name" .)) }}
+{{- end -}}
+
+{{- define "ferriskey.global.databaseEnv" -}}
+- name: DATABASE_HOST
+  value: {{ .Values.database.host | default (include "ferriskey.postgresql.name" .) }}
+- name: DATABASE_NAME
+  value: {{ .Values.database.name }}
+- name: DATABASE_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "ferriskey.global.databaseSecretName" . }}
+      key: {{ .Values.database.passwordSecret.key }}
+- name: DATABASE_PORT
+  value: {{ .Values.database.port | quote }}
+- name: DATABASE_USER
+  value: {{ .Values.database.user }}
+{{- end -}}
+
+{{- define "ferriskey.api.name" -}}
+{{ include "ferriskey.global.name" . }}-api
+{{- end -}}
+
+{{- define "ferriskey.api.labels" -}}
+{{- $labels := merge .Values.common.labels .Values.api.labels -}}
+{{- include "ferriskey.global.labels" . }}
+app.kubernetes.io/name: ferriskey-api
+app.kubernetes.io/component: api
+{{- with $labels }}
+{{- toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "ferriskey.api.podLabels" -}}
+{{- $labels := merge .Values.common.podLabels .Values.api.podLabels -}}
+{{- include "ferriskey.global.podLabels" . }}
+app.kubernetes.io/name: ferriskey-api
+app.kubernetes.io/component: api
+{{- end -}}
+
+{{- define "ferriskey.api.serviceAccountName" -}}
+{{- if .Values.api.serviceAccount.create -}}
+{{ .Values.api.serviceAccount.name | default (include "ferriskey.api.name" .) }}
+{{- else -}}
+default
+{{- end -}}
+{{- end -}}
+
+{{- define "ferriskey.webapp.name" -}}
+{{ include "ferriskey.global.name" . }}-webapp
+{{- end -}}
+
+{{- define "ferriskey.webapp.labels" -}}
+{{- $labels := merge .Values.common.labels .Values.webapp.labels -}}
+{{- include "ferriskey.global.labels" . }}
+app.kubernetes.io/name: ferriskey-webapp
+app.kubernetes.io/component: webapp
+{{- with $labels }}
+{{- toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "ferriskey.webapp.podLabels" -}}
+{{- $labels := merge .Values.common.podLabels .Values.webapp.podLabels -}}
+{{- include "ferriskey.global.podLabels" . }}
+app.kubernetes.io/name: ferriskey-webapp
+app.kubernetes.io/component: webapp
+{{- end -}}
+
+{{- define "ferriskey.webapp.serviceAccountName" -}}
+{{- if .Values.webapp.serviceAccount.create -}}
+{{ .Values.webapp.serviceAccount.name | default (include "ferriskey.webapp.name" .) }}
+{{- else -}}
+default
+{{- end -}}
+{{- end -}}
+
+{{- define "ferriskey.api.adminSecretName" -}}
+{{ .Values.api.admin.passwordSecret.name | default (printf "%s-admin" (include "ferriskey.api.name" .)) }}
+{{- end -}}
+
+{{- define "ferriskey.databaseMigrations.name" -}}
+{{ include "ferriskey.global.name" . }}-database-migrations
+{{- end -}}
+
+{{- define "ferriskey.databaseMigrations.labels" -}}
+{{- $labels := merge .Values.common.labels .Values.databaseMigrations.labels -}}
+{{- include "ferriskey.global.labels" . }}
+app.kubernetes.io/name: ferriskey-database-migrations
+app.kubernetes.io/component: database-migrations
+{{- with $labels }}
+{{- toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "ferriskey.databaseMigrations.podLabels" -}}
+{{- $labels := merge .Values.common.podLabels .Values.databaseMigrations.podLabels -}}
+{{- include "ferriskey.global.podLabels" . }}
+app.kubernetes.io/name: ferriskey-database-migrations
+app.kubernetes.io/component: database-migrations
+{{- end -}}
+
+{{- define "ferriskey.databaseMigrations.serviceAccountName" -}}
+{{- if .Values.databaseMigrations.serviceAccount.create -}}
+{{ .Values.databaseMigrations.serviceAccount.name | default (include "ferriskey.databaseMigrations.name" .) }}
+{{- else -}}
+default
+{{- end -}}
+{{- end -}}
+
+{{- define "ferriskey.webapp.host" -}}
+localhost
+{{- end -}}
+
+{{- define "ferriskey.postgresql.name" -}}
+{{ include "ferriskey.global.name" . }}-postgresql
+{{- end -}}
+
+{{- define "ferriskey.postgresql.labels" -}}
+{{- $labels := merge .Values.common.labels .Values.postgresql.labels -}}
+{{- include "ferriskey.global.labels" . }}
+app.kubernetes.io/name: ferriskey-postgresql
+app.kubernetes.io/component: postgresql
+{{- with $labels }}
+{{- toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "ferriskey.postgresql.podLabels" -}}
+{{- $labels := merge .Values.common.podLabels .Values.postgresql.podLabels -}}
+{{- include "ferriskey.global.podLabels" . }}
+app.kubernetes.io/name: ferriskey-postgresql
+app.kubernetes.io/component: postgresql
+{{- end -}}
+
+{{- define "ferriskey.postgresql.serviceAccountName" -}}
+{{- if .Values.postgresql.serviceAccount.create -}}
+{{ .Values.postgresql.serviceAccount.name | default (include "ferriskey.postgresql.name" .) }}
+{{- else -}}
+default
+{{- end -}}
+{{- end -}}
+
+{{- define "ferriskey.util.bool" -}}
+{{- if eq .value nil -}}
+{{- if ne .default nil -}}
+{{ .default }}
+{{- end -}}
+{{- else -}}
+{{ .value }}
+{{- end -}}
+{{- end -}}

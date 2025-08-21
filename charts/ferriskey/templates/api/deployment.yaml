@@ -1,0 +1,213 @@
+{{- $affinity := merge dict .Values.common.affinity .Values.api.affinity -}}
+{{- $annotations := merge dict .Values.common.annotations .Values.api.annotations -}}
+{{- $dnsConfig := merge dict .Values.common.dnsConfig .Values.api.dnsConfig -}}
+{{- $env := concat .Values.common.env .Values.api.env -}}
+{{- $envFrom := concat .Values.common.envFrom .Values.api.envFrom -}}
+{{- $ephemeralContainers := concat .Values.common.ephemeralContainers .Values.api.ephemeralContainers -}}
+{{- $hostAliases := concat .Values.common.hostAliases .Values.api.hostAliases -}}
+{{- $imagePullSecrets := concat .Values.common.imagePullSecrets .Values.api.imagePullSecrets -}}
+{{- $initContainers := concat .Values.common.initContainers .Values.api.initContainers -}}
+{{- $podAnnotations := merge dict .Values.common.podAnnotations .Values.api.podAnnotations -}}
+{{- $revisionHistoryLimit := .Values.api.revisionHistoryLimit | default .Values.common.revisionHistoryLimit -}}
+{{- $runtimeClassName := .Values.api.runtimeClassName | default .Values.common.runtimeClassName -}}
+{{- $schedulerName := .Values.api.schedulerName | default .Values.common.schedulerName -}}
+{{- $setHostnameAsFQDN := include "ferriskey.util.bool" (dict "value" .Values.api.setHostnameAsFQDN "default" .Values.common.setHostnameAsFQDN) -}}
+{{- $shareProcessNamespace := include "ferriskey.util.bool" (dict "value" .Values.api.shareProcessNamespace "default" .Values.common.shareProcessNamespace) -}}
+{{- $subdomain := .Values.api.subdomain | default .Values.common.subdomain -}}
+{{- $tolerations := concat .Values.common.tolerations .Values.api.tolerations -}}
+{{- $topologySpreadConstraints := concat .Values.common.topologySpreadConstraints .Values.api.topologySpreadConstraints -}}
+{{- $volumeMounts := concat .Values.common.volumeMounts .Values.api.volumeMounts -}}
+{{- $volumes := concat .Values.common.volumes .Values.api.volumes -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ferriskey.api.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  {{- if ne $revisionHistoryLimit nil }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ferriskey.api.podLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with $podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ferriskey.api.podLabels" . | nindent 8 }}
+    spec:
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          {{- with .Values.api.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "ferriskey.global.databaseEnv" . | nindent 12 }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ferriskey.api.adminSecretName" . }}
+                  key: {{ .Values.api.admin.passwordSecret.key }}
+            - name: ADMIN_EMAIL
+              value: {{ .Values.api.admin.email }}
+            - name: ADMIN_USERNAME
+              value: {{ .Values.api.admin.username }}
+            - name: ALLOWED_ORIGINS
+              value: {{ .Values.api.server.allowedOrigins | join "," | default "" }}
+            - name: ENV
+              value: {{ .Values.api.environment }}
+            - name: LOG_FILTER
+              value: {{ .Values.api.log.filter }}
+            - name: LOG_JSON
+              value: {{ .Values.api.log.json | quote }}
+            - name: SERVER_PORT
+              value: {{ .Values.api.server.port | quote }}
+            - name: SERVER_ROOT_PATH
+              value: {{ .Values.api.server.rootPath }}
+            - name: WEBAPP_URL
+              value: {{ .Values.api.webapp.url | default (printf "%s://%s" .Values.api.webapp.protocol .Values.ingress.host) }}
+            {{- with $env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.common.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.api.image.pullPolicy | default .Values.common.image.pullPolicy }}
+          {{- with .Values.api.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.server.port }}
+              protocol: TCP
+          {{- with .Values.api.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              readOnly: false
+              subPath: tmp
+            {{- with $volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- with $dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $ephemeralContainers }}
+      ephemeralContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if ne .Values.api.hostIPC nil }}
+      hostIPC: {{ .Values.api.hostIPC }}
+      {{- end }}
+      {{- if ne .Values.api.hostNetwork nil }}
+      hostNetwork: {{ .Values.api.hostNetwork }}
+      {{- end }}
+      {{- if ne .Values.api.hostPID nil }}
+      hostPID: {{ .Values.api.hostPID }}
+      {{- end }}
+      {{- if ne .Values.api.hostUsers nil }}
+      hostUsers: {{ .Values.api.hostUsers }}
+      {{- end }}
+      {{- if .Values.api.hostname }}
+      hostname: {{ .Values.api.hostname }}
+      {{- end }}
+      {{- with $imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.api.nodeName }}
+      nodeName: {{ .Values.api.nodeName }}
+      {{- end }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.api.preemptionPolicy }}
+      preemptionPolicy: {{ .Values.api.preemptionPolicy }}
+      {{- end }}
+      {{- if ne .Values.api.priority nil }}
+      priority: {{ .Values.api.priority }}
+      {{- end }}
+      {{- if .Values.api.priorityClassName }}
+      priorityClassName: {{ .Values.api.priorityClassName }}
+      {{- end }}
+      {{- if $runtimeClassName }}
+      runtimeClassName: {{ $runtimeClassName }}
+      {{- end }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
+      {{- end }}
+      {{- with .Values.api.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ferriskey.api.serviceAccountName" . }}
+      {{- if ne $setHostnameAsFQDN "" }}
+      setHostnameAsFQDN: {{ $setHostnameAsFQDN }}
+      {{- end }}
+      {{- if ne $shareProcessNamespace "" }}
+      shareProcessNamespace: {{ $shareProcessNamespace }}
+      {{- end }}
+      {{- if $subdomain }}
+      subdomain: {{ $subdomain }}
+      {{- end }}
+      {{- with $tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: empty-dir
+          emptyDir:
+            sizeLimit: {{ .Values.api.emptyDirSize | default .Values.common.emptyDirSize }}
+        {{- with $volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

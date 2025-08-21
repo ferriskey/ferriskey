@@ -1,0 +1,63 @@
+{{- if .Values.api.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ferriskey.api.name" . }}
+  {{- with .Values.api.serviceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.api.labels" . | nindent 4 }}
+    {{- with .Values.api.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+    - port: http
+      {{- if ne .Values.api.serviceMonitor.enableHttp2 nil }}
+      enableHttp2: {{ .Values.api.serviceMonitor.enableHttp2 }}
+      {{- end }}
+      {{- if ne .Values.api.serviceMonitor.filterRunning nil }}
+      filterRunning: {{ .Values.api.serviceMonitor.filterRunning }}
+      {{- end }}
+      {{- if ne .Values.api.serviceMonitor.followRedirects nil }}
+      followRedirects: {{ .Values.api.serviceMonitor.followRedirects }}
+      {{- end }}
+      {{- if ne .Values.api.serviceMonitor.honorLabels nil }}
+      honorLabels: {{ .Values.api.serviceMonitor.honorLabels }}
+      {{- end }}
+      {{- if ne .Values.api.serviceMonitor.honorTimestamps nil }}
+      honorTimestamps: {{ .Values.api.serviceMonitor.honorTimestamps }}
+      {{- end }}
+      interval: {{ .Values.api.serviceMonitor.interval }}
+      {{- with .Values.api.serviceMonitor.metricsRelabelings }}
+      metricsRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.api.serviceMonitor.noProxy }}
+      noProxy: {{ .Values.api.serviceMonitor.noProxy }}
+      {{- end }}
+      path: {{ .Values.api.server.rootPath }}/metrics
+      {{- with .Values.api.serviceMonitor.proxyConnectHeaders }}
+      proxyConnectHeaders:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if ne .Values.api.serviceMonitor.proxyFromEnvironment nil }}
+      proxyFromEnvironment: {{ .Values.api.serviceMonitor.proxyFromEnvironment }}
+      {{- end }}
+      {{- if .Values.api.serviceMonitor.proxyUrl }}
+      proxyUrl: {{ .Values.api.serviceMonitor.proxyUrl }}
+      {{- end }}
+      {{- with .Values.api.serviceMonitor.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      scrapeTimeout: {{ .Values.api.serviceMonitor.scrapeTimeout }}
+      {{- if ne .Values.api.serviceMonitor.trackTimestampsStaleness nil }}
+      trackTimestampsStaleness: {{ .Values.api.serviceMonitor.trackTimestampsStaleness }}
+      {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ferriskey.api.labels" . | nindent 6 }}
+{{- end }}

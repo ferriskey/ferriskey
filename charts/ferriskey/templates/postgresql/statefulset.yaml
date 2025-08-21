@@ -1,0 +1,241 @@
+{{- if .Values.postgresql.enabled }}
+{{- $affinity := merge dict .Values.common.affinity .Values.postgresql.affinity -}}
+{{- $annotations := merge dict .Values.common.annotations .Values.postgresql.annotations -}}
+{{- $dnsConfig := merge dict .Values.common.dnsConfig .Values.postgresql.dnsConfig -}}
+{{- $env := concat .Values.common.env .Values.postgresql.env -}}
+{{- $envFrom := concat .Values.common.envFrom .Values.postgresql.envFrom -}}
+{{- $ephemeralContainers := concat .Values.common.ephemeralContainers .Values.postgresql.ephemeralContainers -}}
+{{- $hostAliases := concat .Values.common.hostAliases .Values.postgresql.hostAliases -}}
+{{- $imagePullSecrets := concat .Values.common.imagePullSecrets .Values.postgresql.imagePullSecrets -}}
+{{- $initContainers := concat .Values.common.initContainers .Values.postgresql.initContainers -}}
+{{- $persistentVolumeClaimRetentionPolicy := merge dict .Values.common.persistentVolumeClaimRetentionPolicy .Values.postgresql.persistentVolumeClaimRetentionPolicy -}}
+{{- $podAnnotations := merge dict .Values.common.podAnnotations .Values.postgresql.podAnnotations -}}
+{{- $revisionHistoryLimit := .Values.postgresql.revisionHistoryLimit | default .Values.common.revisionHistoryLimit -}}
+{{- $runtimeClassName := .Values.postgresql.runtimeClassName | default .Values.common.runtimeClassName -}}
+{{- $schedulerName := .Values.postgresql.schedulerName | default .Values.common.schedulerName -}}
+{{- $setHostnameAsFQDN := include "ferriskey.util.bool" (dict "value" .Values.postgresql.setHostnameAsFQDN "default" .Values.common.setHostnameAsFQDN) -}}
+{{- $shareProcessNamespace := include "ferriskey.util.bool" (dict "value" .Values.postgresql.shareProcessNamespace "default" .Values.common.shareProcessNamespace) -}}
+{{- $subdomain := .Values.postgresql.subdomain | default .Values.common.subdomain -}}
+{{- $tolerations := concat .Values.common.tolerations .Values.postgresql.tolerations -}}
+{{- $topologySpreadConstraints := concat .Values.common.topologySpreadConstraints .Values.postgresql.topologySpreadConstraints -}}
+{{- $updateStrategy := merge dict .Values.common.updateStrategy .Values.postgresql.updateStrategy -}}
+{{- $volumeMounts := concat .Values.common.volumeMounts .Values.postgresql.volumeMounts -}}
+{{- $volumes := concat .Values.common.volumes .Values.postgresql.volumes -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ferriskey.postgresql.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.postgresql.labels" . | nindent 4 }}
+spec:
+  {{- with $persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  replicas: 1
+  {{- if ne $revisionHistoryLimit nil }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ferriskey.postgresql.podLabels" . | nindent 6 }}
+  serviceName: {{ include "ferriskey.postgresql.name" . }}
+  template:
+    metadata:
+      {{- with $podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ferriskey.postgresql.podLabels" . | nindent 8 }}
+    spec:
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgresql
+          {{- with .Values.postgresql.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.postgresql.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: {{ .Values.database.name }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ferriskey.global.databaseSecretName" . }}
+                  key: {{ .Values.database.passwordSecret.key }}
+            - name: POSTGRES_USER
+              value: {{ .Values.database.user }}
+            {{- with $env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy | default .Values.common.image.pullPolicy }}
+          {{- with .Values.postgresql.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.postgresql.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          {{- with .Values.postgresql.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.postgresql.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.postgresql.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              readOnly: false
+              subPath: tmp
+            - name: empty-dir
+              mountPath: /var/run/postgresql
+              readOnly: false
+              subPath: var/run/postgresql
+            {{- if .Values.postgresql.persistence.enabled }}
+            - name: {{ include "ferriskey.postgresql.name" . }}-data
+            {{- else }}
+            - name: empty-dir
+            {{- end }}
+              mountPath: /var/lib/postgresql/data
+              subPath: var/lib/postgresql/data
+            {{- with $volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- with $dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $ephemeralContainers }}
+      ephemeralContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if ne .Values.postgresql.hostIPC nil }}
+      hostIPC: {{ .Values.postgresql.hostIPC }}
+      {{- end }}
+      {{- if ne .Values.postgresql.hostNetwork nil }}
+      hostNetwork: {{ .Values.postgresql.hostNetwork }}
+      {{- end }}
+      {{- if ne .Values.postgresql.hostPID nil }}
+      hostPID: {{ .Values.postgresql.hostPID }}
+      {{- end }}
+      {{- if ne .Values.postgresql.hostUsers nil }}
+      hostUsers: {{ .Values.postgresql.hostUsers }}
+      {{- end }}
+      {{- if .Values.postgresql.hostname }}
+      hostname: {{ .Values.postgresql.hostname }}
+      {{- end }}
+      {{- with $imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.nodeName }}
+      nodeName: {{ .Values.postgresql.nodeName }}
+      {{- end }}
+      {{- with .Values.postgresql.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.preemptionPolicy }}
+      preemptionPolicy: {{ .Values.postgresql.preemptionPolicy }}
+      {{- end }}
+      {{- if ne .Values.postgresql.priority nil }}
+      priority: {{ .Values.postgresql.priority }}
+      {{- end }}
+      {{- if .Values.postgresql.priorityClassName }}
+      priorityClassName: {{ .Values.postgresql.priorityClassName }}
+      {{- end }}
+      {{- if $runtimeClassName }}
+      runtimeClassName: {{ $runtimeClassName }}
+      {{- end }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
+      {{- end }}
+      {{- with .Values.postgresql.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ferriskey.postgresql.serviceAccountName" . }}
+      {{- if ne $setHostnameAsFQDN "" }}
+      setHostnameAsFQDN: {{ $setHostnameAsFQDN }}
+      {{- end }}
+      {{- if ne $shareProcessNamespace "" }}
+      shareProcessNamespace: {{ $shareProcessNamespace }}
+      {{- end }}
+      {{- if $subdomain }}
+      subdomain: {{ $subdomain }}
+      {{- end }}
+      {{- with $tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: empty-dir
+          emptyDir:
+            sizeLimit: {{ .Values.postgresql.emptyDirSize | default .Values.common.emptyDirSize }}
+        {{- with $volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+  {{- with $updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.postgresql.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ include "ferriskey.postgresql.name" . }}-data
+      spec:
+        {{- with .Values.postgresql.persistence.accessModes }}
+        accessModes:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.postgresql.persistence.resources }}
+        resources:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- if .Values.postgresql.persistence.storageClass }}
+        storageClass: {{ .Values.postgresql.persistence.storageClass }}
+        {{- end }}
+  {{- end }}
+{{- end }}

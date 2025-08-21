@@ -1,0 +1,203 @@
+{{- $affinity := merge dict .Values.common.affinity .Values.webapp.affinity -}}
+{{- $annotations := merge dict .Values.common.annotations .Values.webapp.annotations -}}
+{{- $dnsConfig := merge dict .Values.common.dnsConfig .Values.webapp.dnsConfig -}}
+{{- $env := concat .Values.common.env .Values.webapp.env -}}
+{{- $envFrom := concat .Values.common.envFrom .Values.webapp.envFrom -}}
+{{- $ephemeralContainers := concat .Values.common.ephemeralContainers .Values.webapp.ephemeralContainers -}}
+{{- $hostAliases := concat .Values.common.hostAliases .Values.webapp.hostAliases -}}
+{{- $imagePullSecrets := concat .Values.common.imagePullSecrets .Values.webapp.imagePullSecrets -}}
+{{- $initContainers := concat .Values.common.initContainers .Values.webapp.initContainers -}}
+{{- $podAnnotations := merge dict .Values.common.podAnnotations .Values.webapp.podAnnotations -}}
+{{- $revisionHistoryLimit := .Values.webapp.revisionHistoryLimit | default .Values.common.revisionHistoryLimit -}}
+{{- $runtimeClassName := .Values.webapp.runtimeClassName | default .Values.common.runtimeClassName -}}
+{{- $schedulerName := .Values.webapp.schedulerName | default .Values.common.schedulerName -}}
+{{- $setHostnameAsFQDN := include "ferriskey.util.bool" (dict "value" .Values.webapp.setHostnameAsFQDN "default" .Values.common.setHostnameAsFQDN) -}}
+{{- $shareProcessNamespace := include "ferriskey.util.bool" (dict "value" .Values.webapp.shareProcessNamespace "default" .Values.common.shareProcessNamespace) -}}
+{{- $subdomain := .Values.webapp.subdomain | default .Values.common.subdomain -}}
+{{- $tolerations := concat .Values.common.tolerations .Values.webapp.tolerations -}}
+{{- $topologySpreadConstraints := concat .Values.common.topologySpreadConstraints .Values.webapp.topologySpreadConstraints -}}
+{{- $volumeMounts := concat .Values.common.volumeMounts .Values.webapp.volumeMounts -}}
+{{- $volumes := concat .Values.common.volumes .Values.webapp.volumes -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ferriskey.webapp.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.webapp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.webapp.replicas }}
+  {{- if ne $revisionHistoryLimit nil }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ferriskey.webapp.podLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with $podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ferriskey.webapp.podLabels" . | nindent 8 }}
+    spec:
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          {{- with .Values.webapp.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.webapp.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: API_URL
+              value: {{ .Values.webapp.apiUrl | default (printf "%s://%s%s" .Values.webapp.api.protocol .Values.ingress.host .Values.api.server.rootPath) }}
+            {{- with $env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.webapp.image.repository }}:{{ .Values.webapp.image.tag | default .Values.common.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.webapp.image.pullPolicy | default .Values.common.image.pullPolicy }}
+          {{- with .Values.webapp.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.webapp.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          {{- with .Values.webapp.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.webapp.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.webapp.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /run
+              readOnly: false
+              subPath: run
+            - name: empty-dir
+              mountPath: /tmp
+              readOnly: false
+              subPath: tmp
+            - name: empty-dir
+              mountPath: /usr/share/nginx/html
+              readOnly: false
+              subPath: usr/share/nginx/html
+            - name: empty-dir
+              mountPath: /var/cache/nginx
+              readOnly: false
+              subPath: var/cache/nginx
+            {{- with $volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- with $dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $ephemeralContainers }}
+      ephemeralContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if ne .Values.webapp.hostIPC nil }}
+      hostIPC: {{ .Values.webapp.hostIPC }}
+      {{- end }}
+      {{- if ne .Values.webapp.hostNetwork nil }}
+      hostNetwork: {{ .Values.webapp.hostNetwork }}
+      {{- end }}
+      {{- if ne .Values.webapp.hostPID nil }}
+      hostPID: {{ .Values.webapp.hostPID }}
+      {{- end }}
+      {{- if ne .Values.webapp.hostUsers nil }}
+      hostUsers: {{ .Values.webapp.hostUsers }}
+      {{- end }}
+      {{- if .Values.webapp.hostname }}
+      hostname: {{ .Values.webapp.hostname }}
+      {{- end }}
+      {{- with $imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webapp.nodeName }}
+      nodeName: {{ .Values.webapp.nodeName }}
+      {{- end }}
+      {{- with .Values.webapp.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webapp.preemptionPolicy }}
+      preemptionPolicy: {{ .Values.webapp.preemptionPolicy }}
+      {{- end }}
+      {{- if ne .Values.webapp.priority nil }}
+      priority: {{ .Values.webapp.priority }}
+      {{- end }}
+      {{- if .Values.webapp.priorityClassName }}
+      priorityClassName: {{ .Values.webapp.priorityClassName }}
+      {{- end }}
+      {{- if $runtimeClassName }}
+      runtimeClassName: {{ $runtimeClassName }}
+      {{- end }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
+      {{- end }}
+      {{- with .Values.webapp.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ferriskey.webapp.serviceAccountName" . }}
+      {{- if ne $setHostnameAsFQDN "" }}
+      setHostnameAsFQDN: {{ $setHostnameAsFQDN }}
+      {{- end }}
+      {{- if ne $shareProcessNamespace "" }}
+      shareProcessNamespace: {{ $shareProcessNamespace }}
+      {{- end }}
+      {{- if $subdomain }}
+      subdomain: {{ $subdomain }}
+      {{- end }}
+      {{- with $tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: empty-dir
+          emptyDir:
+            sizeLimit: {{ .Values.webapp.emptyDirSize | default .Values.common.emptyDirSize }}
+        {{- with $volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

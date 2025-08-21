@@ -1,0 +1,169 @@
+{{- $affinity := merge dict .Values.common.affinity .Values.databaseMigrations.affinity -}}
+{{- $annotations := merge dict .Values.common.annotations .Values.databaseMigrations.annotations -}}
+{{- $dnsConfig := merge dict .Values.common.dnsConfig .Values.databaseMigrations.dnsConfig -}}
+{{- $env := concat .Values.common.env .Values.databaseMigrations.env -}}
+{{- $envFrom := concat .Values.common.envFrom .Values.databaseMigrations.envFrom -}}
+{{- $ephemeralContainers := concat .Values.common.ephemeralContainers .Values.databaseMigrations.ephemeralContainers -}}
+{{- $hostAliases := concat .Values.common.hostAliases .Values.databaseMigrations.hostAliases -}}
+{{- $imagePullSecrets := concat .Values.common.imagePullSecrets .Values.databaseMigrations.imagePullSecrets -}}
+{{- $initContainers := concat .Values.common.initContainers .Values.databaseMigrations.initContainers -}}
+{{- $podAnnotations := merge dict .Values.common.podAnnotations .Values.databaseMigrations.podAnnotations -}}
+{{- $runtimeClassName := .Values.databaseMigrations.runtimeClassName | default .Values.common.runtimeClassName -}}
+{{- $schedulerName := .Values.databaseMigrations.schedulerName | default .Values.common.schedulerName -}}
+{{- $setHostnameAsFQDN := include "ferriskey.util.bool" (dict "value" .Values.databaseMigrations.setHostnameAsFQDN "default" .Values.common.setHostnameAsFQDN) -}}
+{{- $shareProcessNamespace := include "ferriskey.util.bool" (dict "value" .Values.databaseMigrations.shareProcessNamespace "default" .Values.common.shareProcessNamespace) -}}
+{{- $subdomain := .Values.databaseMigrations.subdomain | default .Values.common.subdomain -}}
+{{- $tolerations := concat .Values.common.tolerations .Values.databaseMigrations.tolerations -}}
+{{- $topologySpreadConstraints := concat .Values.common.topologySpreadConstraints .Values.databaseMigrations.topologySpreadConstraints -}}
+{{- $volumeMounts := concat .Values.common.volumeMounts .Values.databaseMigrations.volumeMounts -}}
+{{- $volumes := concat .Values.common.volumes .Values.databaseMigrations.volumes -}}apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ferriskey.databaseMigrations.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.databaseMigrations.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.databaseMigrations.backoffLimit }}
+  backoffLimit: {{ .Values.databaseMigrations.backoffLimit }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with $podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ferriskey.databaseMigrations.podLabels" . | nindent 8 }}
+    spec:
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          {{- with .Values.databaseMigrations.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.databaseMigrations.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            {{- include "ferriskey.global.databaseEnv" . | nindent 12 }}
+            - name: DATABASE_URL
+              value: postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)
+            {{- with $env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.databaseMigrations.image.repository | default .Values.api.image.repository }}:{{ .Values.databaseMigrations.image.tag | default .Values.api.image.tag | default .Values.common.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.databaseMigrations.image.pullPolicy | default .Values.common.image.pullPolicy }}
+          {{- with .Values.databaseMigrations.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.databaseMigrations.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.databaseMigrations.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              readOnly: false
+              subPath: tmp
+            {{- with $volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- with $dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $ephemeralContainers }}
+      ephemeralContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if ne .Values.databaseMigrations.hostIPC nil }}
+      hostIPC: {{ .Values.databaseMigrations.hostIPC }}
+      {{- end }}
+      {{- if ne .Values.databaseMigrations.hostNetwork nil }}
+      hostNetwork: {{ .Values.databaseMigrations.hostNetwork }}
+      {{- end }}
+      {{- if ne .Values.databaseMigrations.hostPID nil }}
+      hostPID: {{ .Values.databaseMigrations.hostPID }}
+      {{- end }}
+      {{- if ne .Values.databaseMigrations.hostUsers nil }}
+      hostUsers: {{ .Values.databaseMigrations.hostUsers }}
+      {{- end }}
+      {{- with $imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.databaseMigrations.nodeName }}
+      nodeName: {{ .Values.databaseMigrations.nodeName }}
+      {{- end }}
+      {{- with .Values.databaseMigrations.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.databaseMigrations.preemptionPolicy }}
+      preemptionPolicy: {{ .Values.databaseMigrations.preemptionPolicy }}
+      {{- end }}
+      {{- if ne .Values.databaseMigrations.priority nil }}
+      priority: {{ .Values.databaseMigrations.priority }}
+      {{- end }}
+      {{- if .Values.databaseMigrations.priorityClassName }}
+      priorityClassName: {{ .Values.databaseMigrations.priorityClassName }}
+      {{- end }}
+      restartPolicy: OnFailure
+      {{- if $runtimeClassName }}
+      runtimeClassName: {{ $runtimeClassName }}
+      {{- end }}
+      {{- if $schedulerName }}
+      schedulerName: {{ $schedulerName }}
+      {{- end }}
+      {{- with .Values.databaseMigrations.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ferriskey.databaseMigrations.serviceAccountName" . }}
+      {{- if ne $shareProcessNamespace "" }}
+      shareProcessNamespace: {{ $shareProcessNamespace }}
+      {{- end }}
+      {{- with $tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: empty-dir
+          emptyDir:
+            sizeLimit: {{ .Values.databaseMigrations.emptyDirSize | default .Values.common.emptyDirSize }}
+        {{- with $volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+  {{- if .Values.databaseMigrations.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.databaseMigrations.ttlSecondsAfterFinished }}
+  {{- end }}

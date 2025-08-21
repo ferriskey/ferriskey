@@ -1,0 +1,1120 @@
+# -- Override the name of the release.
+nameOverride: ~
+
+database:
+  # -- Host for the database.
+  host: ~
+  # -- Name for the database.
+  name: ferriskey
+  # -- Port for the database.
+  port: 5432
+  # -- User for the database.
+  user: ferriskey
+
+  passwordSecret:
+    # -- Generate a secret for database password.
+    create: true
+
+    # -- Name of the secret to use for the database password.
+    name: ~
+    # -- Key in the secret to use for the database password.
+    key: password
+
+    # -- Annotations on the secret for the database password. Used only if `database.passwordSecret.create` is `true`.
+    annotations: {}
+    # -- Labels on the secret for the database password. Used only if `database.passwordSecret.create` is `true`.
+    labels: {}
+
+common:
+  # -- Default size for emptyDir volumes.
+  emptyDirSize: 100Mi
+
+  # -- Common annotations for all workloads.
+  annotations: {}
+  # -- Common labels for all workloads.
+  labels: {}
+
+  # -- Common annotations for all pods.
+  podAnnotations: {}
+  # -- Common labels for all pods.
+  podLabels: {}
+
+  image:
+    # -- Default pull policy for all images.
+    pullPolicy: IfNotPresent
+    # -- Default tag for all images. Default to the chart's app version.
+    tag: ~
+
+  # -- Common image pull secrets for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- (int) Default revision history limit for all workloads.
+  revisionHistoryLimit: ~
+  # -- Common update strategy for all workloads.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps
+  updateStrategy:
+    type: RollingUpdate
+
+  # -- Common persistent volume claim retention policy for all workloads.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+
+  # -- Common environment variables for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Common environment variables from sources for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Common volume mounts for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Common volumes for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Common affinity for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Common tolerations for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Common topology spread constraints for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- (bool) Share by default a single process namespace between all of the containers in all pods.
+  shareProcessNamespace: ~
+
+  # -- Common DNS config for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Common host aliases for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- (bool) Set by default hostname as FQDN for all pods.
+  setHostnameAsFQDN: ~
+  # -- Default subdomain for all pods.
+  subdomain: ~
+
+  # -- Common ephemeral containers for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Common init containers for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Default runtime class name for all pods.
+  runtimeClassName: ~
+  # -- Default scheduler name for all pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Common annotations on the service account.
+    annotations: {}
+    # -- Common labels on all service accounts.
+    labels: {}
+
+    # -- (bool) Automount service account token by default for all service accounts.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Common annotations on all services.
+    annotations: {}
+    # -- Common labels on all services.
+    labels: {}
+
+    # -- Default type for all services.
+    type: ClusterIP
+
+    # -- Default load balancer class for all services.
+    loadBalancerClass: ~
+    # -- Common load balancer source ranges for all services.
+    loadBalancerSourceRanges: []
+
+    # -- Default external traffic policy for all services.
+    externalTrafficPolicy: ~
+    # -- Default internal traffic policy for all services.
+    internalTrafficPolicy: ~
+    # -- Default traffic distribution for all services.
+    trafficDistribution: ~
+
+    # -- Default session affinity for all services.
+    sessionAffinity: ~
+    # -- Common session affinity config for all services.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (bool) Publish not ready addresses by default for all services.
+    publishNotReadyAddresses: ~
+
+api:
+  # -- [DEPERECATED] Environment to run the API in.
+  environment: production
+
+  server:
+    # -- Allowed origins for the server.
+    allowedOrigins: []
+    # -- Port for the server.
+    port: 3333
+    # -- Root path for the server. If you edit it, you need to update the liveness and readiness probes.
+    rootPath: /api
+
+  admin:
+    # -- Email for the admin user.
+    email: admin@cluster.local
+    # -- Username for the admin user.
+    username: admin
+
+    passwordSecret:
+      # -- Create a secret for the admin password.
+      create: true
+
+      # -- Name of the secret to use for the admin password.
+      name: ~
+
+      # -- Annotations on the secret for the admin password. Used only if `create` is `true`.
+      annotations: {}
+      # -- Labels on the secret for the admin password. Used only if `create` is `true`.
+      labels: {}
+
+      # -- Key in the secret to use for the admin password.
+      key: password
+
+  log:
+    # -- Log filter to use for the API (https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives).
+    filter: info
+    # -- Whether to log in JSON format.
+    json: false
+
+  webapp:
+    # -- Protocol for the webapp. Ignored if `api.webapp.url` is set.
+    protocol: https
+    # -- URL for the webapp. Default computed from the ingress configuration.
+    url: ~
+
+  # -- EmptyDir size for the API workload.
+  emptyDirSize: ~
+
+  # -- Annotations on API workloads.
+  annotations: {}
+  # -- Labels on API workloads.
+  labels: {}
+
+  # -- Annotations on API pods.
+  podAnnotations: {}
+  # -- Labels on API pods.
+  podLabels: {}
+
+  image:
+    # -- Pull policy for the image.
+    pullPolicy: ~
+    # -- Repository for the image to use.
+    repository: ghcr.io/ferriskey/ferriskey-api
+    # -- Tag for the image to use. Default to the chart's app version.
+    tag: ~
+
+  # -- Image pull secrets for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- Number of replicas for the API workload.
+  replicas: 1
+
+  # -- (int) Revision history limit for the API workload.
+  revisionHistoryLimit: ~
+
+  # -- Arguments for the API container.
+  args: []
+  # -- Command for the API container.
+  command: []
+  # -- Environment variables for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  # -- Security context for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Lifecycle for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#lifecycle-v1-core
+  lifecycle: {}
+
+  # -- Liveness probe for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  livenessProbe:
+    httpGet:
+      path: /api/health/live
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Readiness probe for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  readinessProbe:
+    httpGet:
+      path: /api/health/ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+  # -- Affinity for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the API pods.
+  nodeName: ~
+  # -- Node selector for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the API pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the API pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the API pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the API pods.
+  hostUsers: ~
+  # -- (bool) Share a single process namespace between all of the containers for the API pods.
+  shareProcessNamespace: ~
+
+  # -- DNS config for the API workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- Hostname for the API pods.
+  hostname: ~
+  # -- (bool) Set hostname as FQDN for the API pods.
+  setHostnameAsFQDN: ~
+  # -- Subdomain for the API pods.
+  subdomain: ~
+
+  # -- Ephemeral containers for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Init containers for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the API pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the API pods.
+  priority: ~
+  # -- Priority class name for the API pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the API pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the API pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the API pods.
+    create: true
+
+    # -- Name of the service account for the API pods. Default is the API workload name.
+    name: ~
+
+    # -- Annotations on the service account for the API pods.
+    annotations: {}
+    # -- Labels on the service account for the API pods.
+    labels: {}
+
+    # -- (bool) Automount service account token for the API service account.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Annotations on the service for the API pods.
+    annotations: {}
+    # -- Labels on the service for the API pods.
+    labels: {}
+
+    # -- Type for the service for the API pods.
+    type: ~
+
+    # -- Cluster IP for the service for the API pods.
+    clusterIP: ~
+    # -- Cluster IPs for the service for the API pods.
+    clusterIPs: []
+    # -- External IPs for the service for the API pods.
+    externalIPs: []
+    # -- IP families for the service for the API pods.
+    ipFamilies: []
+    # -- IP family policy for the service for the API pods.
+    ipFamilyPolicy: ~
+
+    # -- External name for the service for the API pods.
+    externalName: ~
+
+    # -- Load balancer class for the service for the API pods.
+    loadBalancerClass: ~
+    # -- Load balancer IP for the service for the API pods.
+    loadBalancerIP: ~
+    # -- Load balancer source ranges for the service for the API pods.
+    loadBalancerSourceRanges: []
+
+    # -- ExternalTrafficPolicy for the service for the API pods.
+    externalTrafficPolicy: ~
+    # -- InternalTrafficPolicy for the service for the API pods.
+    internalTrafficPolicy: ~
+    # -- Traffic distribution for the service for the API pods.
+    trafficDistribution: ~
+
+    # -- Session affinity for the service for the API pods.
+    sessionAffinity: ~
+    # -- Session affinity config for the service for the API pods.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (int) Health check node port for the service for the API pods.
+    healthCheckNodePort: ~
+    # -- (bool) Publish not ready addresses for the service for the API pods.
+    publishNotReadyAddresses: ~
+
+  serviceMonitor:
+    # -- (bool) Enable the service monitor for the API service.
+    enabled: false
+
+    # -- Annotations on the service monitor for the API service.
+    annotations: {}
+    # -- Labels on the service monitor for the API service.
+    labels: {}
+
+    # -- Interval for the service monitor for the API service.
+    interval: 30s
+    # -- Scrape timeout for the service monitor for the API service.
+    scrapeTimeout: 30s
+
+    # -- (bool) Enable HTTP/2 for the service monitor for the API service.
+    enableHttp2: ~
+
+    # -- (bool) Honor labels for the service monitor for the API service.
+    honorLabels: ~
+    # -- (bool) Honor timestamps for the service monitor for the API service.
+    honorTimestamps: ~
+    # -- (bool) Track timestamps staleness for the service monitor for the API service.
+    trackTimestampsStaleness: ~
+
+    # -- Metrics relabelings for the service monitor for the API service.
+    # https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.RelabelConfig
+    metricsRelabelings: []
+    # -- Relabelings for the service monitor for the API service.
+    # https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.RelabelConfig
+    relabelings: []
+
+    # -- Connect headers for the proxy of the service monitor for the API service.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretkeyselector-v1-core
+    proxyConnectHeaders: {}
+    # -- (bool) Use HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables for the service monitor for the API service.
+    proxyFromEnvironment: ~
+    # -- Proxy URL for the service monitor for the API service.
+    proxyUrl: ~
+    # -- Comma separated list of domains/IPs/CIDRs excluded from proxying.
+    noProxy: ~
+
+    # -- (bool) Follow redirects for the service monitor for the API service.
+    followRedirects: ~
+
+    # -- (bool) Filter running pods for the service monitor for the API service.
+    filterRunning: ~
+
+webapp:
+  api:
+    # -- Protocol for the API. Ignored if `webapp.api.url` is set.
+    protocol: https
+    # -- URL for the API. Default computed from the ingress configuration.
+    url: ~
+
+  # -- EmptyDir size for the webapp workload.
+  emptyDirSize: ~
+
+  # -- Annotations on webapp workloads.
+  annotations: {}
+  # -- Labels on webapp workloads.
+  labels: {}
+
+  # -- Annotations on webapp pods.
+  podAnnotations: {}
+  # -- Labels on webapp pods.
+  podLabels: {}
+
+  image:
+    # -- Pull policy for the image.
+    pullPolicy: ~
+    # -- Repository for the image to use.
+    repository: ghcr.io/ferriskey/ferriskey-webapp
+    # -- Tag for the image to use. Default to the chart's app version.
+    tag: ~
+
+  # -- Image pull secrets for the webapp pods.
+  imagePullSecrets: []
+
+  # -- Number of replicas for the webapp workload.
+  replicas: 1
+
+  # -- (int) Revision history limit for the webapp workload.
+  revisionHistoryLimit: ~
+
+  # -- Arguments for the webapp container.
+  args: []
+  # -- Command for the webapp container.
+  command: []
+  # -- Environment variables for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+  # -- Security context for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Lifecycle for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#lifecycle-v1-core
+  lifecycle: {}
+
+  # -- Liveness probe for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Readiness probe for the webapp container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+  # -- Affinity for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the webapp pods.
+  nodeName: ~
+  # -- Node selector for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 101
+    runAsGroup: 101
+    runAsNonRoot: true
+    runAsUser: 101
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the webapp pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the webapp pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the webapp pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the webapp pods.
+  hostUsers: ~
+  # -- (bool) Share a single process namespace between all of the containers for the webapp pods.
+  shareProcessNamespace: ~
+
+  # -- DNS config for the webapp workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- Hostname for the webapp pods.
+  hostname: ~
+  # -- (bool) Set hostname as FQDN for the webapp pods.
+  setHostnameAsFQDN: ~
+  # -- Subdomain for the webapp pods.
+  subdomain: ~
+
+  # -- Ephemeral containers for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Init containers for the webapp pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the webapp pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the webapp pods.
+  priority: ~
+  # -- Priority class name for the webapp pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the webapp pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the webapp pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the webapp pods.
+    create: true
+
+    # -- Name of the service account for the webapp pods. Default is the webapp workload name.
+    name: ~
+
+    # -- Annotations on the service account for the webapp pods.
+    annotations: {}
+    # -- Labels on the service account for the webapp pods.
+    labels: {}
+
+    # -- (bool) Automount service account token for the webapp service account.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Annotations on the service for the webapp pods.
+    annotations: {}
+    # -- Labels on the service for the webapp pods.
+    labels: {}
+
+    # -- Type for the service for the webapp pods.
+    type: ~
+
+    # -- Cluster IP for the service for the webapp pods.
+    clusterIP: ~
+    # -- Cluster IPs for the service for the webapp pods.
+    clusterIPs: []
+    # -- External IPs for the service for the webapp pods.
+    externalIPs: []
+    # -- IP families for the service for the webapp pods.
+    ipFamilies: []
+    # -- IP family policy for the service for the webapp pods.
+    ipFamilyPolicy: ~
+
+    # -- External name for the service for the webapp pods.
+    externalName: ~
+
+    # -- Load balancer class for the service for the webapp pods.
+    loadBalancerClass: ~
+    # -- Load balancer IP for the service for the webapp pods.
+    loadBalancerIP: ~
+    # -- Load balancer source ranges for the service for the webapp pods.
+    loadBalancerSourceRanges: []
+
+    # -- ExternalTrafficPolicy for the service for the webapp pods.
+    externalTrafficPolicy: ~
+    # -- InternalTrafficPolicy for the service for the webapp pods.
+    internalTrafficPolicy: ~
+    # -- Traffic distribution for the service for the webapp pods.
+    trafficDistribution: ~
+
+    # -- Session affinity for the service for the webapp pods.
+    sessionAffinity: ~
+    # -- Session affinity config for the service for the webapp pods.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (int) Health check node port for the service for the webapp pods.
+    healthCheckNodePort: ~
+    # -- (bool) Publish not ready addresses for the service for the webapp pods.
+    publishNotReadyAddresses: ~
+
+databaseMigrations:
+  # -- EmptyDir size for the database migrations job.
+  emptyDirSize: ~
+
+  # -- Annotations on the database migrations job.
+  annotations: {}
+    # If you're using ArgoCD:
+    # argocd.argoproj.io/hook: PreSync
+  # -- Labels on the database migrations job.
+  labels: {}
+
+  # -- Annotations on the database migrations job pods.
+  podAnnotations: {}
+  # -- Labels on the database migrations job pods.
+  podLabels: {}
+
+  image:
+    # -- Pull policy for the image.
+    pullPolicy: ~
+    # -- Repository for the image to use. Default to the API image repository.
+    repository: ~
+    # -- Tag for the image to use. Default to the API image tag.
+    tag: ~
+
+  # -- Image pull secrets for the database migrations job.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- Arguments for the database migrations job container.
+  args:
+    - migrate
+    - run
+    - --source
+    - /usr/local/src/ferriskey/migrations
+  # -- Command for the database migrations job container.
+  command:
+    - sqlx
+  # -- Environment variables for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  # -- (int) Backoff limit for the database migrations job.
+  backoffLimit: ~
+
+  # -- (int) TTL seconds after finished for the database migrations job. If you're not using ArgoCD, set this to `0`.
+  ttlSecondsAfterFinished: ~
+
+  # -- Security context for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Lifecycle for the database migrations job container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#lifecycle-v1-core
+  lifecycle: {}
+
+  # -- Affinity for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the database migrations job pods.
+  nodeName: ~
+  # -- Node selector for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the database migrations job pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the database migrations job pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the database migrations job pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the database migrations job pods.
+  hostUsers: ~
+  # -- (bool) Share a single process namespace between all of the containers for the database migrations job pods.
+  shareProcessNamespace: ~
+
+  # -- DNS config for the database migrations job workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+
+  # -- Ephemeral containers for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Init containers for the database migrations job pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the database migrations job pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the database migrations job pods.
+  priority: ~
+  # -- Priority class name for the database migrations job pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the database migrations job pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the database migrations job pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the database migrations job pods.
+    create: true
+
+    # -- Name of the service account for the database migrations job pods. Default is the database migrations job workload name.
+    name: ~
+
+    # -- Annotations on the service account for the database migrations job pods.
+    annotations: {}
+    # -- Labels on the service account for the database migrations job pods.
+    labels: {}
+
+    # -- (bool) Automount service account token for the database migrations job service account.
+    automountServiceAccountToken: ~
+
+ingress:
+  # -- Enable the ingress.
+  enabled: false
+
+  # -- Host for the ingress.
+  host: ~
+
+  # -- Annotations on the ingress.
+  annotations: {}
+  # -- Labels on the ingress.
+  labels: {}
+
+  # -- Ingress class.
+  class: ~
+
+  # -- TLS configuration for the ingress.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ingresstls-v1-networking-k8s-io
+  tls: []
+
+postgresql:
+  # -- Enable the PostgreSQL. Not recommended to use in production.
+  enabled: true
+
+  # -- EmptyDir size for the PostgreSQL workload. Increase it if `postgresql.persistence` is disabled.
+  emptyDirSize: ~
+
+  persistence:
+    # -- Enable the PostgreSQL persistence.
+    enabled: true
+
+    # -- Storage class for the PostgreSQL persistence.
+    storageClass: ~
+
+    # -- Access modes for the PostgreSQL persistence.
+    accessModes:
+      - ReadWriteOnce
+
+    # -- Resources for the PostgreSQL persistence.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumeresourcerequirements-v1-core
+    resources:
+      requests:
+        storage: 5Gi
+
+  # -- Annotations on PostgreSQL workloads.
+  annotations: {}
+  # -- Labels on PostgreSQL workloads.
+  labels: {}
+
+  # -- Annotations on PostgreSQL pods.
+  podAnnotations: {}
+  # -- Labels on PostgreSQL pods.
+  podLabels: {}
+
+  image:
+    # -- Pull policy for the image.
+    pullPolicy: ~
+    # -- Repository for the image to use.
+    repository: postgres
+    # -- Tag for the image to use. Default to the chart's app version.
+    tag: "17"
+
+  # -- Image pull secrets for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- Persistent volume claim retention policy for the PostgreSQL workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps
+  persistentVolumeClaimRetentionPolicy: {}
+
+  # -- (int) Revision history limit for the PostgreSQL workload.
+  revisionHistoryLimit: ~
+  # -- Update strategy for the PostgreSQL workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps
+  updateStrategy: {}
+
+  # -- Arguments for the PostgreSQL container.
+  args: []
+  # -- Command for the PostgreSQL container.
+  command: []
+  # -- Environment variables for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # -- Security context for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Lifecycle for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#lifecycle-v1-core
+  lifecycle: {}
+
+  # -- Liveness probe for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  livenessProbe:
+    tcpSocket:
+      port: postgres
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Readiness probe for the PostgreSQL container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  readinessProbe:
+    tcpSocket:
+      port: postgres
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+  # -- Affinity for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the PostgreSQL pods.
+  nodeName: ~
+  # -- Node selector for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    runAsUser: 999
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the PostgreSQL pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the PostgreSQL pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the PostgreSQL pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the PostgreSQL pods.
+  hostUsers: ~
+  # -- (bool) Share a single process namespace between all of the containers for the PostgreSQL pods.
+  shareProcessNamespace: ~
+
+  # -- DNS config for the PostgreSQL workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- Hostname for the PostgreSQL pods.
+  hostname: ~
+  # -- (bool) Set hostname as FQDN for the PostgreSQL pods.
+  setHostnameAsFQDN: ~
+  # -- Subdomain for the PostgreSQL pods.
+  subdomain: ~
+
+  # -- Ephemeral containers for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Init containers for the PostgreSQL pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the PostgreSQL pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the PostgreSQL pods.
+  priority: ~
+  # -- Priority class name for the PostgreSQL pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the PostgreSQL pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the PostgreSQL pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the PostgreSQL pods.
+    create: true
+
+    # -- Name of the service account for the PostgreSQL pods. Default is the PostgreSQL workload name.
+    name: ~
+
+    # -- Annotations on the service account for the PostgreSQL pods.
+    annotations: {}
+    # -- Labels on the service account for the PostgreSQL pods.
+    labels: {}
+
+    # -- (bool) Automount service account token for the PostgreSQL service account.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Annotations on the service for the PostgreSQL pods.
+    annotations: {}
+    # -- Labels on the service for the PostgreSQL pods.
+    labels: {}
+
+    # -- Type for the service for the PostgreSQL pods.
+    type: ~
+
+    # -- Cluster IP for the service for the PostgreSQL pods.
+    clusterIP: None
+    # -- Cluster IPs for the service for the PostgreSQL pods.
+    clusterIPs: []
+    # -- External IPs for the service for the PostgreSQL pods.
+    externalIPs: []
+    # -- IP families for the service for the PostgreSQL pods.
+    ipFamilies: []
+    # -- IP family policy for the service for the PostgreSQL pods.
+    ipFamilyPolicy: ~
+
+    # -- External name for the service for the PostgreSQL pods.
+    externalName: ~
+
+    # -- Load balancer class for the service for the PostgreSQL pods.
+    loadBalancerClass: ~
+    # -- Load balancer IP for the service for the PostgreSQL pods.
+    loadBalancerIP: ~
+    # -- Load balancer source ranges for the service for the PostgreSQL pods.
+    loadBalancerSourceRanges: []
+
+    # -- ExternalTrafficPolicy for the service for the PostgreSQL pods.
+    externalTrafficPolicy: ~
+    # -- InternalTrafficPolicy for the service for the PostgreSQL pods.
+    internalTrafficPolicy: ~
+    # -- Traffic distribution for the service for the PostgreSQL pods.
+    trafficDistribution: ~
+
+    # -- Session affinity for the service for the PostgreSQL pods.
+    sessionAffinity: ~
+    # -- Session affinity config for the service for the PostgreSQL pods.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (int) Health check node port for the service for the PostgreSQL pods.
+    healthCheckNodePort: ~
+    # -- (bool) Publish not ready addresses for the service for the PostgreSQL pods.
+    publishNotReadyAddresses: ~

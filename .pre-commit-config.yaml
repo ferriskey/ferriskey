@@ -39,3 +39,15 @@ repos:
         entry: koalaman/shellcheck:stable
         language: docker_image
         files: ^(.*)\.sh$
+      - id: helm-lint
+        name: helm-lint
+        entry: helm lint charts/ferriskey
+        language: system
+        files: ^charts/ferriskey
+        pass_filenames: false
+      - id: helm-docs
+        name: helm-docs
+        entry: ./sh/helm-docs.sh
+        language: system
+        files: ^charts/ferriskey/(values\.yaml|README\.md(\.gotmpl)?)$
+        pass_filenames: false

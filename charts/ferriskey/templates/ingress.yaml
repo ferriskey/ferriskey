@@ -1,0 +1,46 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ferriskey.global.name" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.global.labels" . | nindent 4 }}
+    {{- with .Values.ingress.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  defaultBackend:
+    service:
+      name: {{ include "ferriskey.webapp.name" . }}
+      port:
+        name: http
+  {{- if .Values.ingress.class }}
+  ingressClassName: {{ .Values.ingress.class }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | required "ingress.host is required" }}
+      http:
+        paths:
+          - path: {{ .Values.api.server.rootPath }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "ferriskey.api.name" . }}
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "ferriskey.webapp.name" . }}
+                port:
+                  name: http
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

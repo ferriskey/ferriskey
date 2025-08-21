@@ -1,0 +1,88 @@
+{{- if .Values.postgresql.enabled }}
+{{- $annotations := merge dict .Values.common.service.annotations .Values.postgresql.service.annotations -}}
+{{- $labels := merge dict .Values.common.service.labels .Values.postgresql.service.labels -}}
+{{- $loadBalancerClass := .Values.postgresql.service.loadBalancerClass | default .Values.common.service.loadBalancerClass -}}
+{{- $loadBalancerSourceRanges := concat .Values.common.service.loadBalancerSourceRanges .Values.postgresql.service.loadBalancerSourceRanges -}}
+{{- $externalTrafficPolicy := .Values.postgresql.service.externalTrafficPolicy | default .Values.common.service.externalTrafficPolicy -}}
+{{- $internalTrafficPolicy := .Values.postgresql.service.internalTrafficPolicy | default .Values.common.service.internalTrafficPolicy -}}
+{{- $publishNotReadyAddresses := include "ferriskey.util.bool" (dict "value" .Values.postgresql.service.publishNotReadyAddresses "default" .Values.common.service.publishNotReadyAddresses) -}}
+{{- $sessionAffinity := .Values.postgresql.service.sessionAffinity | default .Values.common.service.sessionAffinity -}}
+{{- $sessionAffinityConfig := merge dict .Values.common.service.sessionAffinityConfig .Values.postgresql.service.sessionAffinityConfig -}}
+{{- $trafficDistribution := .Values.postgresql.service.trafficDistribution | default .Values.common.service.trafficDistribution -}}
+{{- $type := .Values.postgresql.service.type | default .Values.common.service.type -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ferriskey.postgresql.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.postgresql.labels" . | nindent 4 }}
+    {{- with $labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.postgresql.service.clusterIP }}
+  clusterIP: {{ .Values.postgresql.service.clusterIP }}
+  {{- end }}
+  {{- with .Values.postgresql.service.clusterIPs }}
+  clusterIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.postgresql.service.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.postgresql.service.externalName }}
+  externalName: {{ .Values.postgresql.service.externalName }}
+  {{- end }}
+  {{- if $externalTrafficPolicy }}
+  externalTrafficPolicy: {{ $externalTrafficPolicy }}
+  {{- end }}
+  {{- if ne .Values.postgresql.service.healthCheckNodePort nil }}
+  healthCheckNodePort: {{ .Values.postgresql.service.healthCheckNodePort }}
+  {{- end }}
+  {{- if $internalTrafficPolicy }}
+  internalTrafficPolicy: {{ $internalTrafficPolicy }}
+  {{- end }}
+  {{- with .Values.postgresql.service.ipFamilies }}
+  ipFamilies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.postgresql.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.postgresql.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if $loadBalancerClass }}
+  loadBalancerClass: {{ $loadBalancerClass }}
+  {{- end }}
+  {{- if .Values.postgresql.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.postgresql.service.loadBalancerIP }}
+  {{- end }}
+  {{- with $loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: postgres
+      port: {{ .Values.database.port }}
+      protocol: TCP
+      targetPort: postgres
+  {{- if ne $publishNotReadyAddresses "" }}
+  publishNotReadyAddresses: {{ $publishNotReadyAddresses }}
+  {{- end }}
+  selector:
+    {{- include "ferriskey.postgresql.podLabels" . | nindent 4 }}
+  {{- if $sessionAffinity }}
+  sessionAffinity: {{ $sessionAffinity }}
+  {{- end }}
+  {{- with $sessionAffinityConfig }}
+  sessionAffinityConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if $trafficDistribution }}
+  trafficDistribution: {{ $trafficDistribution }}
+  {{- end }}
+  type: {{ $type }}
+{{- end }}

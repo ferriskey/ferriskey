@@ -1,0 +1,101 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Installation
+
+### With embedded PostgreSQL
+
+**This configuration should not be used in production.**
+
+#### Helm
+
+```sh
+helm repo add ferriskey oci://ghcr.io/ferriskey/charts
+helm install ferriskey ferriskey/ferriskey
+```
+
+#### ArgoCD
+
+If you're using ArgoCD, you need to set the following values:
+
+```yaml
+database:
+  passwordSecret:
+    annotations:
+      argocd.argoproj.io/hook: PreSync
+      argocd.argoproj.io/sync-wave: "0"
+databaseMigrations:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "1"
+postgresql:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "0"
+  serviceAccount:
+    annotations:
+      argocd.argoproj.io/hook: PreSync
+      argocd.argoproj.io/sync-wave: "0"
+```
+
+### With external PostgreSQL
+
+#### Helm
+
+Replace `$DATABASE_HOST` and `$SECRET_NAME` with the values of your database host and secret name.
+
+```sh
+helm repo add ferriskey oci://ghcr.io/ferriskey/charts
+helm install ferriskey ferriskey/ferriskey \
+    --set database.host=$DATABASE_HOST \
+    --set database.passwordSecret.create=false \
+    --set database.passwordSecret.name=$SECRET_NAME \
+    --set postgresql.enabled=false
+```
+
+#### ArgoCD
+
+Replace `$DATABASE_HOST` and `$SECRET_NAME` with the values of your database host and secret name.
+
+```yaml
+database:
+  host: $DATABASE_HOST
+  passwordSecret:
+    create: false
+    name: $SECRET_NAME
+databaseMigrations:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+postgresql:
+  enabled: false
+```
+
+By default, ArgoCD will generate the secret for the admin password. You need to configure ArgoCD to ignore the password difference.
+
+Example:
+```yaml
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: ferriskey-dev-api-admin
+      jsonPointers:
+        - /data/password
+```
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+
+toto
