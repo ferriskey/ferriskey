@@ -34,7 +34,17 @@ RUN \
     ca-certificates=20230311 \
     libssl3=3.0.16-1~deb12u1 && \
     rm -rf /var/lib/apt/lists/* && \
-    adduser --system --group --no-create-home --disabled-login ferriskey
+    addgroup \
+        --system \
+        --gid 1000 \
+        ferriskey && \
+    adduser \
+        --system \
+        --no-create-home \
+        --disabled-login \
+        --uid 1000 \
+        --gid 1000 \
+        ferriskey
 
 USER ferriskey
 
