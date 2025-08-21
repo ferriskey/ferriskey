@@ -24,12 +24,14 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.image }}
+    runs-on: ${{ matrix.runner.name }}
     strategy:
       matrix:
-        image:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+        runner:
+          - name: ubuntu-24.04
+            platform: linux/amd64
+          - name: ubuntu-24.04-arm
+            platform: linux/arm64
         target:
           - api
           - operator
@@ -74,10 +76,15 @@ jobs:
         with:
           context: .
           target: ${{ matrix.target }}
+          platforms: ${{ matrix.runner.platform }}
           push: ${{ inputs.push == true }}
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
           cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+          provenance: false
+          sbom: false
 
       # https://github.com/docker/build-push-action/issues/252
       # https://github.com/moby/buildkit/issues/1896
