@@ -239,6 +239,15 @@ pub struct ServerArgs {
         long_help = "The port to run the application on"
     )]
     pub port: u16,
+    #[arg(
+        long = "server-root-path",
+        env = "SERVER_ROOT_PATH",
+        name = "SERVER_ROOT_PATH",
+        default_value = "/",
+        long_help = "The root path to run the application on",
+        value_parser = parse_root_path
+    )]
+    pub root_path: String,
 }
 
 impl Default for ServerArgs {
@@ -247,6 +256,15 @@ impl Default for ServerArgs {
             allowed_origins: vec![],
             host: "0.0.0.0".to_string(),
             port: 3333,
+            root_path: "/".to_string(),
         }
+    }
+}
+
+fn parse_root_path(val: &str) -> Result<String, String> {
+    if val.ends_with("/") {
+        Ok(val.to_string())
+    } else {
+        Ok(format!("{val}/"))
     }
 }
