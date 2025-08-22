@@ -51,7 +51,7 @@ USER ferriskey
 FROM runtime AS api
 
 COPY --from=rust-build /usr/local/src/ferriskey/target/release/ferriskey-server /usr/local/bin/
-COPY --from=rust-build /usr/local/src/ferriskey/core/migrations /usr/local/bin/ferriskey-migrations
+COPY --from=rust-build /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
 COPY --from=rust-build /usr/local/cargo/bin/sqlx /usr/local/bin/
 
 EXPOSE 80
