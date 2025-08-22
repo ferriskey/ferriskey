@@ -1,25 +1,11 @@
-import axios from 'axios'
-import { createApiClient, Fetcher } from '@/api/api.client.ts'
-import { TanstackQueryApiClient } from '@/api/api.tanstack.ts'
+import { Fetcher } from '@/api/api.client.ts'
 import { authStore } from '@/store/auth.store.ts'
-
-export const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
 
 export interface BaseQuery {
   realm?: string
 }
 
-const defaultHeaders = {
-  'Content-Type': 'application/json',
-}
-
-export const apiClient = axios.create({
-  baseURL: apiUrl,
-  headers: defaultHeaders,
-  withCredentials: true,
-})
-
-const fetcher: Fetcher = async (method, apiUrl, params) => {
+export const fetcher: Fetcher = async (method, apiUrl, params) => {
   const headers = new Headers()
 
   const accessToken = authStore.getState().accessToken
@@ -86,7 +72,3 @@ function replacePathParams(url: string, params: Record<string, string>): string 
     .replace(/{(\w+)}/g, (_, key: string) => params[key] || `{${key}}`)
     .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`)
 }
-
-export const api = createApiClient(fetcher, apiUrl)
-
-export const tanstackApi = new TanstackQueryApiClient(api)

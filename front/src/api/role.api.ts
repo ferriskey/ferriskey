@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BaseQuery, tanstackApi } from '.'
+import { BaseQuery } from '.'
 
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
-    tanstackApi.get('/realms/{realm_name}/roles', {
+    window.tanstackApi.get('/realms/{realm_name}/roles', {
       path: {
         realm_name: realm,
       },
@@ -14,7 +14,7 @@ export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
 
 export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) => {
   return useQuery({
-    ...tanstackApi.get('/realms/{realm_name}/roles/{role_id}', {
+    ...window.tanstackApi.get('/realms/{realm_name}/roles/{role_id}', {
       path: {
         realm_name: realm!,
         role_id: roleId!,
@@ -29,7 +29,7 @@ export const useCreateRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...tanstackApi.mutation(
+    ...window.tanstackApi.mutation(
       'post',
       '/realms/{realm_name}/clients/{client_id}/roles',
       async (res) => {
@@ -46,7 +46,7 @@ export const useUpdateRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}', async (res) =>
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}', async (res) =>
       res.json()
     ).mutationOptions,
     onSuccess(res) {
@@ -67,7 +67,7 @@ export const useUpdateRolePermissions = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...tanstackApi.mutation(
+    ...window.tanstackApi.mutation(
       'patch',
       '/realms/{realm_name}/roles/{role_id}/permissions',
       async (res) => res.json()

@@ -6,7 +6,6 @@ import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
-import { apiUrl } from '@/api'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 
 const authenticateSchema = z.object({
@@ -111,7 +110,7 @@ export default function PageLoginFeature() {
   useEffect(() => {
     if (isSetup && !isAuthInitiated) {
       const { query, realm } = getOAuthParams()
-      window.location.href = `${apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
     }
   }, [isSetup, isAuthInitiated, getOAuthParams])
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { apiClient, BaseQuery, tanstackApi } from '.'
+import { BaseQuery } from '.'
 import {
   ChallengeOtpRequest,
   ChallengeOtpResponse,
@@ -12,7 +12,7 @@ export const useSetupOtp = ({ realm, token }: BaseQuery & { token?: string | nul
   return useQuery({
     queryKey: ['setup-otp'],
     queryFn: async (): Promise<SetupOtpResponse> => {
-      const response = await apiClient.get<SetupOtpResponse>(
+      const response = await window.axios.get<SetupOtpResponse>(
         `/realms/${realm}/login-actions/setup-otp`,
         {
           headers: {
@@ -35,7 +35,7 @@ export interface VerifyOtpRequest {
 export const useVerifyOtp = () => {
   return useMutation({
     mutationFn: async ({ realm, data, token }: BaseQuery & VerifyOtpRequest) => {
-      const response = await apiClient.post<VerifyOtpResponse>(
+      const response = await window.axios.post<VerifyOtpResponse>(
         `/realms/${realm}/login-actions/verify-otp`,
         data,
         {
@@ -62,7 +62,7 @@ export const useChallengeOtp = () => {
       data,
       token,
     }: BaseQuery & MutationChallengeOtpRequest): Promise<ChallengeOtpResponse> => {
-      const response = await apiClient.post<ChallengeOtpResponse>(
+      const response = await window.axios.post<ChallengeOtpResponse>(
         `/realms/${realm}/login-actions/challenge-otp`,
         data,
         {
@@ -79,7 +79,7 @@ export const useChallengeOtp = () => {
 
 export const useUpdatePassword = () => {
   return useMutation({
-    ...tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/update-password')
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/update-password')
       .mutationOptions,
   })
 }

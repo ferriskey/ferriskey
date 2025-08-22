@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './App.css'
 import Layout from './components/layout/layout'
@@ -12,6 +12,19 @@ import PageRealm from './pages/realm/page-realm'
 import { Toaster } from './components/ui/sonner'
 import { useGetConfig } from './api/config.api'
 import { useConfig } from './hooks/use-config'
+import { createApiClient } from './api/api.client'
+import { fetcher } from './api'
+import { TanstackQueryApiClient } from './api/api.tanstack'
+import axios, { AxiosInstance } from 'axios'
+
+declare global {
+  interface Window {
+    api: ReturnType<typeof createApiClient>
+    tanstackApi: TanstackQueryApiClient
+    apiUrl: string
+    axios: AxiosInstance
+  }
+}
 
 function App() {
   const { realm_name } = useParams()
@@ -21,6 +34,36 @@ function App() {
   const { setConfig } = useConfig()
 
   const { data: responseConfig } = useGetConfig()
+
+  const apiCallback = useCallback(async () => {
+    const viteUrl = import.meta.env.VITE_API_URL
+    let uri
+
+    if (viteUrl) {
+      uri = viteUrl
+    } else {
+      const data = await fetch('config.json')
+      const result = await data.json()
+      uri = result.api_url
+    }
+
+    const api = createApiClient(fetcher, uri)
+    const axiosClient = axios.create({
+      baseURL: 'http://localhost:3333',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      withCredentials: true,
+    })
+    window.api = api
+    window.tanstackApi = new TanstackQueryApiClient(api)
+    window.apiUrl = uri
+    window.axios = axiosClient
+  }, [])
+
+  useEffect(() => {
+    apiCallback()
+  }, [apiCallback])
 
   useEffect(() => {
     if (responseConfig) {

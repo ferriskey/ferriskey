@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BaseQuery, tanstackApi } from '.'
+import { BaseQuery } from '.'
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
 import { toast } from 'sonner'
 
 export const useGetClients = ({ realm }: BaseQuery) => {
   return useQuery(
-    tanstackApi.get('/realms/{realm_name}/clients', {
+    window.tanstackApi.get('/realms/{realm_name}/clients', {
       path: {
         realm_name: realm || 'master',
       },
@@ -15,7 +15,7 @@ export const useGetClients = ({ realm }: BaseQuery) => {
 
 export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
   return useQuery({
-    ...tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
+    ...window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
       path: {
         client_id: clientId!,
         realm_name: realm!,
@@ -34,7 +34,7 @@ export const useCreateClient = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...tanstackApi.mutation('post', '/realms/{realm_name}/clients').mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/clients').mutationOptions,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['clients'],
@@ -46,7 +46,8 @@ export const useCreateClient = () => {
 export const useUpdateClient = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...tanstackApi.mutation('patch', '/realms/{realm_name}/clients/{client_id}').mutationOptions,
+    ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/clients/{client_id}')
+      .mutationOptions,
     onSuccess: async (payload) => {
       const client = await payload.json()
 
@@ -61,7 +62,8 @@ export const useUpdateClient = () => {
 export const useDeleteClient = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...tanstackApi.mutation('delete', '/realms/{realm_name}/clients/{client_id}').mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/clients/{client_id}')
+      .mutationOptions,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['clients'],
@@ -72,7 +74,7 @@ export const useDeleteClient = () => {
 
 export const useGetClientRoles = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
   return useQuery({
-    ...tanstackApi.get('/realms/{realm_name}/clients/{client_id}/roles', {
+    ...window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/roles', {
       path: {
         realm_name: realm!,
         client_id: clientId!,

@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { apiClient } from '.'
 import {
   AuthenticateRequest,
   AuthenticateResponse,
@@ -27,7 +26,7 @@ export const useAuthQuery = (params: AuthQuery) => {
   return useQuery({
     queryKey: ['auth'],
     queryFn: async (): Promise<AuthResponse> => {
-      const response = await apiClient.get<AuthResponse>(
+      const response = await window.axios.get<AuthResponse>(
         `/realms/${params.realm}/protocol/openid-connect/auth?${params.query}`
       )
 
@@ -45,7 +44,7 @@ export const useAuthenticateMutation = () => {
         headers.Authorization = `Bearer ${params.token}`
       }
 
-      const response = await apiClient.post<AuthenticateResponse>(
+      const response = await window.axios.post<AuthenticateResponse>(
         `/realms/${params.realm}/login-actions/authenticate?client_id=${params.clientId}&session_code=${params.sessionCode}`,
         params.data,
         {
@@ -87,7 +86,7 @@ export const useTokenMutation = () => {
         formData.append('refresh_token', params.data.refresh_token)
       }
 
-      const response = await apiClient.post<JwtToken>(
+      const response = await window.axios.post<JwtToken>(
         `/realms/${params.realm}/protocol/openid-connect/token`,
         formData,
         {
