@@ -76,11 +76,10 @@ impl AssignRoleUseCase {
             "Insufficient permissions to assign role",
         )?;
 
-        let _ = self
-            .user_role_service
+        self.user_role_service
             .assign_role(realm.name.clone(), params.user_id, params.role_id)
             .await
-            .map_err(|_| UserError::InternalServerError);
+            .map_err(|_| UserError::InternalServerError)?;
 
         self.webhook_notifier_service
             .notify(
