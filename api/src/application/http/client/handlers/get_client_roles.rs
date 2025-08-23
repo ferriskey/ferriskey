@@ -2,21 +2,13 @@ use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::extract::{Path, State};
 use ferriskey_core::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}/roles")]
-pub struct GetClientRolesRoute {
-    pub realm_name: String,
-    pub client_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct GetClientRolesResponse {
@@ -39,10 +31,8 @@ pub struct GetClientRolesResponse {
     )
 )]
 pub async fn get_client_roles(
-    GetClientRolesRoute {
-        realm_name,
-        client_id,
-    }: GetClientRolesRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientRolesResponse>, ApiError> {

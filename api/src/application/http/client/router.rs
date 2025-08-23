@@ -1,5 +1,7 @@
-use axum::{Router, middleware};
-use axum_extra::routing::RouterExt;
+use axum::{
+    Router, middleware,
+    routing::{delete, get, patch, post, put},
+};
 use utoipa::OpenApi;
 
 use super::handlers::{
@@ -41,16 +43,40 @@ pub struct ClientApiDoc;
 
 pub fn client_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .typed_get(get_clients)
-        .typed_get(get_client)
-        .typed_post(create_client)
-        .typed_patch(update_client)
-        .typed_post(create_redirect_uri)
-        .typed_post(create_role)
-        .typed_get(get_redirect_uris)
-        .typed_put(update_redirect_uri)
-        .typed_delete(delete_client)
-        .typed_delete(delete_redirect_uri)
-        .typed_get(get_client_roles)
+        .route("/realms/{realm_name}/clients", get(get_clients))
+        .route("/realms/{realm_name}/clients/{client_id}", get(get_client))
+        .route("/realms/{realm_name}/clients", post(create_client))
+        .route(
+            "/realms/{realm_name}/clients/{client_id}",
+            patch(update_client),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/redirects",
+            post(create_redirect_uri),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/roles",
+            post(create_role),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/redirects",
+            get(get_redirect_uris),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}",
+            put(update_redirect_uri),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}",
+            delete(delete_client),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}",
+            delete(delete_redirect_uri),
+        )
+        .route(
+            "/realms/{realm_name}/clients/{client_id}/roles",
+            get(get_client_roles),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

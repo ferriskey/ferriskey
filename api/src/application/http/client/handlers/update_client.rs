@@ -8,22 +8,15 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::update_client_use_case::UpdateClientUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
 use ferriskey_core::domain::client::value_objects::UpdateClientRequest;
-use serde::Deserialize;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}")]
-pub struct UpdateClientRoute {
-    pub realm_name: String,
-    pub client_id: Uuid,
-}
 
 #[utoipa::path(
     patch,
@@ -41,10 +34,8 @@ pub struct UpdateClientRoute {
     request_body = UpdateClientValidator,
 )]
 pub async fn update_client(
-    UpdateClientRoute {
-        realm_name,
-        client_id,
-    }: UpdateClientRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateClientValidator>,

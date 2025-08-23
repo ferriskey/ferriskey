@@ -1,15 +1,8 @@
 use crate::application::http::server::api_entities::response::Response;
-use axum::body::Body;
 use axum::http::Request;
-use axum_macros::TypedPath;
+use axum::{body::Body, extract::Path};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/.well-known/openid-configuration")]
-pub struct GetOpenIdConfiguration {
-    pub realm_name: String,
-}
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 pub struct GetOpenIdConfigurationResponse {
@@ -36,7 +29,7 @@ pub struct GetOpenIdConfigurationResponse {
     )
 )]
 pub async fn get_openid_configuration(
-    GetOpenIdConfiguration { realm_name }: GetOpenIdConfiguration,
+    Path(realm_name): Path<String>,
     req: Request<Body>,
 ) -> Result<Response<GetOpenIdConfigurationResponse>, String> {
     // Here you would typically fetch the issuer from a database or configuration

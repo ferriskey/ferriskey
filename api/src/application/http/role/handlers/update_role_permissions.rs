@@ -8,21 +8,16 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/roles/{role_id}/permissions")]
-pub struct UpdateRolePermissionsRoute {
-    pub realm_name: String,
-    pub role_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct UpdateRolePermissionsResponse {
@@ -46,10 +41,8 @@ pub struct UpdateRolePermissionsResponse {
   ),
 )]
 pub async fn update_role_permissions(
-    UpdateRolePermissionsRoute {
-        realm_name,
-        role_id,
-    }: UpdateRolePermissionsRoute,
+    Path(realm_name): Path<String>,
+    Path(role_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRolePermissionsValidator>,

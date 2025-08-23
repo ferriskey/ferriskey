@@ -1,5 +1,7 @@
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::{
     application::trident::use_cases::update_password_use_case::UpdatePasswordUseCaseParams,
     domain::authentication::value_objects::Identity,
@@ -22,12 +24,6 @@ pub struct UpdatePasswordRequest {
     pub value: String,
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/login-actions/update-password")]
-pub struct UpdatePasswordRoute {
-    pub realm_name: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
 pub struct UpdatePasswordResponse {
     pub message: String,
@@ -44,7 +40,7 @@ pub struct UpdatePasswordResponse {
     )
 )]
 pub async fn update_password(
-    UpdatePasswordRoute { realm_name }: UpdatePasswordRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdatePasswordRequest>,

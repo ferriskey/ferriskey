@@ -5,11 +5,13 @@ use crate::application::{
     },
     url::FullUrl,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::TotpService;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, PartialEq, Eq, ToSchema)]
@@ -17,12 +19,6 @@ pub struct SetupOtpResponse {
     pub secret: String,
     pub otpauth_url: String,
     pub issuer: String,
-}
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/login-actions/setup-otp")]
-pub struct SetupOtpRoute {
-    pub realm_name: String,
 }
 
 #[utoipa::path(
@@ -41,7 +37,7 @@ pub struct SetupOtpRoute {
     )
 )]
 pub async fn setup_otp(
-    SetupOtpRoute { realm_name }: SetupOtpRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,

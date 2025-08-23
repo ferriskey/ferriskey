@@ -8,19 +8,13 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::create_client_use_case::CreateClientUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
-use serde::Deserialize;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients")]
-pub struct CreateClientRoute {
-    pub realm_name: String,
-}
 
 #[utoipa::path(
     post,
@@ -40,7 +34,7 @@ pub struct CreateClientRoute {
     request_body = CreateClientValidator,
 )]
 pub async fn create_client(
-    CreateClientRoute { realm_name }: CreateClientRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,

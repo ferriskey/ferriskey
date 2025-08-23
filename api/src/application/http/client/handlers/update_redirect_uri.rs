@@ -1,7 +1,5 @@
 use crate::application::http::{
-    client::{
-        routes::client_routes::UpdateRedirectUriRoute, validators::UpdateRedirectUriValidator,
-    },
+    client::validators::UpdateRedirectUriValidator,
     server::{
         api_entities::{
             api_error::{ApiError, ValidateJson},
@@ -10,12 +8,15 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::Extension;
-use axum::extract::State;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
 use tracing::info;
+use uuid::Uuid;
 
 #[utoipa::path(
     put,
@@ -34,11 +35,9 @@ use tracing::info;
     ),
 )]
 pub async fn update_redirect_uri(
-    UpdateRedirectUriRoute {
-        realm_name,
-        client_id,
-        uri_id,
-    }: UpdateRedirectUriRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
+    Path(uri_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,

@@ -1,6 +1,8 @@
 use crate::application::auth::auth;
-use axum::{Router, middleware};
-use axum_extra::routing::RouterExt;
+use axum::{
+    Router, middleware,
+    routing::{delete, get, post, put},
+};
 use utoipa::OpenApi;
 
 use crate::application::http::server::app_state::AppState;
@@ -39,17 +41,35 @@ pub struct UserApiDoc;
 
 pub fn user_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .typed_get(get_users)
-        .typed_get(get_user)
-        .typed_get(get_user_roles)
-        .typed_get(get_user_credentials)
-        .typed_post(create_user)
-        .typed_put(update_user)
-        .typed_put(reset_password)
-        .typed_delete(bulk_delete_user)
-        .typed_delete(delete_user)
-        .typed_delete(delete_user_credential)
-        .typed_post(assign_role)
-        .typed_delete(unassign_role)
+        .route("/realms/{realm_name}/users", get(get_users))
+        .route("/realms/{realm_name}/users/{user_id}", get(get_user))
+        .route(
+            "/realms/{realm_name}/users/{user_id}/roles",
+            get(get_user_roles),
+        )
+        .route(
+            "/realms/{realm_name}/users/{user_id}/credentials",
+            get(get_user_credentials),
+        )
+        .route("/realms/{realm_name}/users", post(create_user))
+        .route("/realms/{realm_name}/users/{user_id}", put(update_user))
+        .route(
+            "/realms/{realm_name}/users/{user_id}/reset-password",
+            put(reset_password),
+        )
+        .route("/realms/{realm_name}/users/bulk", delete(bulk_delete_user))
+        .route("/realms/{realm_name}/users/{user_id}", delete(delete_user))
+        .route(
+            "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}",
+            delete(delete_user_credential),
+        )
+        .route(
+            "/realms/{realm_name}/users/{user_id}/roles",
+            post(assign_role),
+        )
+        .route(
+            "/realms/{realm_name}/users/{user_id}/roles/{role_id}",
+            delete(unassign_role),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

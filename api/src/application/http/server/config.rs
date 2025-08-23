@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_macros::TypedPath;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -8,10 +7,6 @@ use super::{
     app_state::AppState,
 };
 
-#[derive(TypedPath)]
-#[typed_path("/config")]
-pub struct GetConfigRoute;
-
 #[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct GetConfigResponse {
     pub app_version: String,
@@ -19,7 +14,6 @@ pub struct GetConfigResponse {
 }
 
 pub async fn get_config(
-    GetConfigRoute: GetConfigRoute,
     State(state): State<AppState>,
 ) -> Result<Response<GetConfigResponse>, ApiError> {
     Ok(Response::OK(GetConfigResponse {

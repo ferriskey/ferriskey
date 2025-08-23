@@ -1,5 +1,7 @@
-use axum::Router;
-use axum_extra::routing::RouterExt;
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use utoipa::OpenApi;
 
 use super::handlers::{
@@ -23,9 +25,24 @@ pub struct AuthenticationApiDoc;
 
 pub fn authentication_routes() -> Router<AppState> {
     Router::new()
-        .typed_post(exchange_token)
-        .typed_get(auth)
-        .typed_post(authenticate)
-        .typed_get(get_certs)
-        .typed_get(get_openid_configuration)
+        .route(
+            "/realms/{realm_name}/protocol/openid-connect/token",
+            post(exchange_token),
+        )
+        .route(
+            "/realms/{realm_name}/protocol/openid-connect/auth",
+            get(auth),
+        )
+        .route(
+            "/realms/{realm_name}/login-actions/authenticate",
+            post(authenticate),
+        )
+        .route(
+            "/realms/{realm_name}/protocol/openid-connect/certs",
+            get(get_certs),
+        )
+        .route(
+            "/realms/{realm_name}/.well-known/openid-configuration",
+            get(get_openid_configuration),
+        )
 }

@@ -8,20 +8,14 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::create_role_use_case::CreateRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
-use serde::Deserialize;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}/roles")]
-pub struct CreateClientRoleRoute {
-    pub realm_name: String,
-    pub client_id: Uuid,
-}
 
 #[utoipa::path(
     post,
@@ -39,10 +33,8 @@ pub struct CreateClientRoleRoute {
     )
 )]
 pub async fn create_role(
-    CreateClientRoleRoute {
-        realm_name,
-        client_id,
-    }: CreateClientRoleRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRoleValidator>,

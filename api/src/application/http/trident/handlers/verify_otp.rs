@@ -9,7 +9,6 @@ use crate::application::http::{
     trident::validators::OtpVerifyRequest,
 };
 use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::credential::ports::CredentialService;
 use ferriskey_core::domain::trident::entities::TotpSecret;
@@ -23,12 +22,6 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct VerifyOtpResponse {
     pub message: String,
-}
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/login-actions/verify-otp")]
-pub struct VerifyOtpRoute {
-    pub realm_name: String,
 }
 
 #[utoipa::path(
@@ -46,7 +39,6 @@ pub struct VerifyOtpRoute {
     )
 )]
 pub async fn verify_otp(
-    VerifyOtpRoute { realm_name: _ }: VerifyOtpRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,

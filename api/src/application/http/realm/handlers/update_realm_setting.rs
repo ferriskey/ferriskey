@@ -5,18 +5,11 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::extract::{Path, State};
 use ferriskey_core::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::realm::entities::{Realm, RealmSetting};
-use serde::Deserialize;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{name}/settings")]
-pub struct UpdateRealmSettingsRoute {
-    pub name: String,
-}
+use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::realm::entities::RealmSetting;
 
 #[utoipa::path(
     put,
@@ -33,7 +26,7 @@ pub struct UpdateRealmSettingsRoute {
     request_body = UpdateRealmSettingValidator
 )]
 pub async fn update_realm_setting(
-    UpdateRealmSettingsRoute { name }: UpdateRealmSettingsRoute,
+    Path(name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,

@@ -2,21 +2,16 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::get_client_use_case::GetClientUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/clients/{client_id}")]
-pub struct GetClientRoute {
-    pub realm_name: String,
-    pub client_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct GetClientResponse {
@@ -38,10 +33,8 @@ pub struct GetClientResponse {
     )
 )]
 pub async fn get_client(
-    GetClientRoute {
-        realm_name,
-        client_id,
-    }: GetClientRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientResponse>, ApiError> {

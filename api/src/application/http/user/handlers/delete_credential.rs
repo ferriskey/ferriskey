@@ -2,22 +2,15 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::delete_credential_use_case::DeleteCredentialUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users/{user_id}/credentials/{credential_id}")]
-pub struct DeleteUserCredentialRoute {
-    pub realm_name: String,
-    pub user_id: Uuid,
-    pub credential_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeleteUserCredentialResponse {
@@ -42,11 +35,9 @@ pub struct DeleteUserCredentialResponse {
     )
 )]
 pub async fn delete_user_credential(
-    DeleteUserCredentialRoute {
-        realm_name,
-        user_id,
-        credential_id,
-    }: DeleteUserCredentialRoute,
+    Path(realm_name): Path<String>,
+    Path(user_id): Path<Uuid>,
+    Path(credential_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserCredentialResponse>, ApiError> {

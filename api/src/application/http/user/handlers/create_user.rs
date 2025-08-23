@@ -8,19 +8,15 @@ use crate::application::http::{
     },
     user::validators::CreateUserValidator,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::create_user_use_case::CreateUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users")]
-pub struct CreateUserRoute {
-    pub realm_name: String,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct CreateUserResponse {
@@ -48,7 +44,7 @@ pub struct CreateUserResponse {
     ),
 )]
 pub async fn create_user(
-    CreateUserRoute { realm_name }: CreateUserRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateUserValidator>,

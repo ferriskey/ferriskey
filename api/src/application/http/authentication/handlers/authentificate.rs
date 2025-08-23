@@ -3,9 +3,8 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum_cookie::CookieManager;
-use axum_macros::TypedPath;
 use ferriskey_core::application::authentication::use_cases::authenticate_use_case::{
     AuthenticateUseCaseParams, AuthenticateUseCaseResponse, AuthenticationStepStatus,
 };
@@ -46,12 +45,6 @@ pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "password is required"))]
     #[serde(default)]
     pub password: Option<String>,
-}
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/login-actions/authenticate")]
-pub struct TokenRoute {
-    realm_name: String,
 }
 
 impl From<AuthenticateUseCaseResponse> for AuthenticateResponse {
@@ -107,7 +100,7 @@ impl From<AuthenticateUseCaseResponse> for AuthenticateResponse {
     )
 )]
 pub async fn authenticate(
-    TokenRoute { realm_name }: TokenRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     OptionalToken(optional_token): OptionalToken,

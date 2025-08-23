@@ -1,15 +1,15 @@
-use crate::application::http::{
-    client::routes::client_routes::DeleteRedirectUriRoute,
-    server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
-    },
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
 };
-use axum::Extension;
-use axum::extract::State;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use tracing::info;
+use uuid::Uuid;
 
 #[utoipa::path(
     delete,
@@ -27,11 +27,9 @@ use tracing::info;
     ),
 )]
 pub async fn delete_redirect_uri(
-    DeleteRedirectUriRoute {
-        realm_name,
-        client_id,
-        uri_id,
-    }: DeleteRedirectUriRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
+    Path(uri_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<()>, ApiError> {

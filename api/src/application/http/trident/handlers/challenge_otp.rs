@@ -7,7 +7,6 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
-use axum_macros::TypedPath;
 use ferriskey_core::domain::authentication::ports::AuthSessionService;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::common::generate_random_string;
@@ -27,12 +26,6 @@ pub struct ChallengeOtpRequest {
     pub code: String,
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/login-actions/challenge-otp")]
-pub struct ChallengeOtpRoute {
-    pub realm_name: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
 pub struct ChallengeOtpResponse {
     pub url: String,
@@ -49,7 +42,6 @@ pub struct ChallengeOtpResponse {
     )
 )]
 pub async fn challenge_otp(
-    ChallengeOtpRoute { realm_name: _ }: ChallengeOtpRoute,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,

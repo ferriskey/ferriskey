@@ -18,7 +18,6 @@ use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LO
 use axum::http::{HeaderValue, Method};
 use axum::routing::get;
 use axum_cookie::prelude::*;
-use axum_extra::routing::RouterExt;
 use axum_prometheus::PrometheusMetricLayer;
 use tower_http::cors::CorsLayer;
 use tracing::info_span;
@@ -84,7 +83,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
 
     let router = axum::Router::new()
         .merge(Scalar::with_url("/swagger-ui", ApiDoc::openapi()))
-        .typed_get(get_config)
+        .route("/config", get(get_config))
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
         .merge(user_routes(state.clone()))

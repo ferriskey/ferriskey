@@ -2,20 +2,15 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users/{user_id}")]
-pub struct DeleteUserRoute {
-    pub realm_name: String,
-    pub user_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeleteUserResponse {
@@ -39,10 +34,8 @@ pub struct DeleteUserResponse {
     ),
 )]
 pub async fn delete_user(
-    DeleteUserRoute {
-        realm_name,
-        user_id,
-    }: DeleteUserRoute,
+    Path(realm_name): Path<String>,
+    Path(user_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserResponse>, ApiError> {

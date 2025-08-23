@@ -1,3 +1,4 @@
+use axum::extract::Path;
 use axum::http::header::{LOCATION, ORIGIN};
 use axum::{
     extract::{Query, State},
@@ -7,7 +8,6 @@ use axum::{
     },
     response::IntoResponse,
 };
-use axum_macros::TypedPath;
 use ferriskey_core::domain::authentication::entities::AuthenticationError;
 use ferriskey_core::domain::authentication::ports::AuthSessionService;
 use ferriskey_core::domain::authentication::value_objects::CreateAuthSessionRequest;
@@ -41,12 +41,6 @@ pub struct AuthResponse {
     pub url: String,
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/protocol/openid-connect/auth")]
-pub struct AuthRoute {
-    pub realm_name: String,
-}
-
 #[utoipa::path(
     get,
     path = "/protocol/openid-connect/auth",
@@ -65,7 +59,7 @@ pub struct AuthRoute {
     )
 )]
 pub async fn auth(
-    AuthRoute { realm_name }: AuthRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {

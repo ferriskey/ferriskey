@@ -1,7 +1,5 @@
 use crate::application::http::{
-    client::{
-        routes::client_routes::CreateRedirectUriRoute, validators::CreateRedirectUriValidator,
-    },
+    client::validators::CreateRedirectUriValidator,
     server::{
         api_entities::{
             api_error::{ApiError, ValidateJson},
@@ -10,12 +8,15 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
-use axum::Extension;
-use axum::extract::State;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
 use ferriskey_core::domain::client::value_objects::CreateRedirectUriRequest;
+use uuid::Uuid;
 
 #[utoipa::path(
     post,
@@ -33,10 +34,8 @@ use ferriskey_core::domain::client::value_objects::CreateRedirectUriRequest;
     request_body = CreateRedirectUriValidator,
 )]
 pub async fn create_redirect_uri(
-    CreateRedirectUriRoute {
-        realm_name,
-        client_id,
-    }: CreateRedirectUriRoute,
+    Path(realm_name): Path<String>,
+    Path(client_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRedirectUriValidator>,

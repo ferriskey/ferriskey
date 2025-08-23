@@ -1,17 +1,10 @@
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::extract::{Path, State};
 use ferriskey_core::domain::jwt::entities::JwkKey;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/protocol/openid-connect/certs")]
-pub struct GetCertsRoute {
-    realm_name: String,
-}
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 pub struct GetCertsResponse {
@@ -32,7 +25,7 @@ pub struct GetCertsResponse {
     )
 )]
 pub async fn get_certs(
-    GetCertsRoute { realm_name }: GetCertsRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response<GetCertsResponse>, ApiError> {
     let jwk_keys = state

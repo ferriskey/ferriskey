@@ -8,8 +8,10 @@ use crate::application::http::{
     },
     user::validators::BulkDeleteUserValidator,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
@@ -18,12 +20,6 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct BulkDeleteUserResponse {
     pub count: u32,
-}
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users/bulk")]
-pub struct BulkDeleteUserRoute {
-    pub realm_name: String,
 }
 
 #[utoipa::path(
@@ -41,7 +37,7 @@ pub struct BulkDeleteUserRoute {
     ),
 )]
 pub async fn bulk_delete_user(
-    BulkDeleteUserRoute { realm_name }: BulkDeleteUserRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,

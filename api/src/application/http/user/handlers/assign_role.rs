@@ -2,8 +2,10 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
-use axum::{Extension, extract::State};
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::assign_role_use_case::AssignRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
@@ -15,14 +17,6 @@ pub struct AssignRoleResponse {
     pub message: String,
     pub realm_name: String,
     pub user_id: Uuid,
-}
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users/{user_id}/roles/{role_id}")]
-pub struct AssignRoleRoute {
-    pub realm_name: String,
-    pub user_id: Uuid,
-    pub role_id: Uuid,
 }
 
 #[utoipa::path(
@@ -43,11 +37,9 @@ pub struct AssignRoleRoute {
     ),
 )]
 pub async fn assign_role(
-    AssignRoleRoute {
-        realm_name,
-        user_id,
-        role_id,
-    }: AssignRoleRoute,
+    Path(realm_name): Path<String>,
+    Path(user_id): Path<Uuid>,
+    Path(role_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<AssignRoleResponse>, ApiError> {

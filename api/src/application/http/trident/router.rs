@@ -1,5 +1,7 @@
-use axum::{Router, middleware};
-use axum_extra::routing::RouterExt;
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use utoipa::OpenApi;
 
 use crate::application::{
@@ -21,9 +23,21 @@ pub struct TridentApiDoc;
 
 pub fn trident_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .typed_get(setup_otp)
-        .typed_post(verify_otp)
-        .typed_post(challenge_otp)
-        .typed_post(update_password)
+        .route(
+            "/realms/{realm_name}/login-actions/setup-otp",
+            get(setup_otp),
+        )
+        .route(
+            "/realms/{realm_name}/login-actions/verify-otp",
+            post(verify_otp),
+        )
+        .route(
+            "/realms/{realm_name}/login-actions/challenge-otp",
+            post(challenge_otp),
+        )
+        .route(
+            "/realms/{realm_name}/login-actions/update-password",
+            post(update_password),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

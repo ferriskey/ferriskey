@@ -2,13 +2,8 @@ use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::extract::State;
-use axum_macros::TypedPath;
 use chrono::Utc;
 use serde::Serialize;
-
-#[derive(TypedPath)]
-#[typed_path("/health/live")]
-pub struct HealthLiveRoute;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct HealthLiveResponse {
@@ -18,7 +13,6 @@ pub struct HealthLiveResponse {
 }
 
 pub async fn health_live(
-    _: HealthLiveRoute,
     State(state): State<AppState>,
 ) -> Result<Response<HealthLiveResponse>, ApiError> {
     state
