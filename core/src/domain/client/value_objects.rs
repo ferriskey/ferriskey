@@ -11,6 +11,7 @@ pub struct CreateClientRequest {
     pub protocol: String,
     pub public_client: bool,
     pub service_account_enabled: bool,
+    pub direct_access_grants_enabled: bool,
     pub client_type: String,
 }
 
@@ -19,6 +20,7 @@ pub struct UpdateClientRequest {
     pub name: Option<String>,
     pub client_id: Option<String>,
     pub enabled: Option<bool>,
+    pub direct_access_grants_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

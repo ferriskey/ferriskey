@@ -22,6 +22,8 @@ pub struct CreateClientValidator {
     pub protocol: String,
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub direct_access_grants_enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -34,6 +36,9 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub enabled: Option<bool>,
+
+    #[serde(default)]
+    pub direct_access_grants_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

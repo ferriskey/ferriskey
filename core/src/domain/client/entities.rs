@@ -18,6 +18,7 @@ pub struct Client {
     pub protocol: String,
     pub public_client: bool,
     pub service_account_enabled: bool,
+    pub direct_access_grants_enabled: bool,
     pub client_type: String,
     pub name: String,
     pub redirect_uris: Option<Vec<RedirectUri>>,
@@ -35,6 +36,7 @@ pub struct ClientConfig {
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub client_type: String,
+    pub direct_access_grants_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -70,6 +72,7 @@ impl Client {
             protocol: config.protocol,
             public_client: config.public_client,
             service_account_enabled: config.service_account_enabled,
+            direct_access_grants_enabled: config.direct_access_grants_enabled.unwrap_or_default(),
             client_type: config.client_type,
             name: config.name,
             redirect_uris: None,

@@ -96,8 +96,10 @@ where
             .await
             .map_err(|_| AuthenticationError::Invalid)?;
 
-        if client.secret != params.client_secret {
-            return Err(AuthenticationError::InvalidClientSecret);
+        if !client.direct_access_grants_enabled {
+            if client.secret != params.client_secret {
+                return Err(AuthenticationError::InvalidClientSecret);
+            }
         }
 
         let user = self

@@ -61,6 +61,7 @@ pub async fn update_client(
                     name: payload.name,
                     client_id: payload.client_id,
                     enabled: payload.enabled,
+                    direct_access_grants_enabled: payload.direct_access_grants_enabled,
                 },
             },
         )

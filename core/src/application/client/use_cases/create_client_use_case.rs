@@ -30,6 +30,7 @@ pub struct CreateClientUseCaseParams {
     pub public_client: bool,
     pub protocol: String,
     pub enabled: bool,
+    pub direct_access_grants_enabled: bool,
 }
 
 impl CreateClientUseCase {
@@ -85,6 +86,7 @@ impl CreateClientUseCase {
                     protocol: params.protocol,
                     public_client: params.public_client,
                     service_account_enabled: params.service_account_enabled,
+                    direct_access_grants_enabled: params.direct_access_grants_enabled,
                     client_type: params.client_type,
                 },
                 params.realm_name,

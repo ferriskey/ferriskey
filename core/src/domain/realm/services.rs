@@ -100,6 +100,7 @@ where
                 protocol: "openid-connect".to_string(),
                 public_client: true,
                 service_account_enabled: false,
+                direct_access_grants_enabled: false,
                 client_type: "public".into(),
             })
             .await

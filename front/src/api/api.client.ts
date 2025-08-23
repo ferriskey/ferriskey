@@ -30,6 +30,7 @@ export namespace Schemas {
     redirect_uris?: (Array<RedirectUri> | null) | undefined
     secret?: (string | null) | undefined
     service_account_enabled: boolean
+    direct_access_grants_enabled: boolean
     updated_at: string
   }
   export type ClientsResponse = { data: Array<Client> }
@@ -41,6 +42,7 @@ export namespace Schemas {
     protocol: string
     public_client: boolean
     service_account_enabled: boolean
+    direct_access_grants_enabled: boolean
   }>
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>

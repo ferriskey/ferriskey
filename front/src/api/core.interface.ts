@@ -20,6 +20,7 @@ export interface Client {
 	protocol: string;
 	public_client: boolean;
 	service_account_enabled: boolean;
+  direct_access_grants_enabled: boolean;
 	client_type: string;
 	name: string;
 	redirect_uris?: RedirectUri[];
