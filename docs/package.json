@@ -34,7 +34,7 @@
     "hast": "^1.0.0",
     "hast-util-to-html": "^9.0.5",
     "hastscript": "^9.0.1",
-    "lucide-react": "^0.485.0",
+    "lucide-react": "^0.536.0",
     "luxon": "^3.6.1",
     "mdast": "^3.0.0",
     "mermaid": "^11.6.0",
