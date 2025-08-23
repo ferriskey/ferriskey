@@ -11,7 +11,7 @@
   "dependencies": {
     "@astrojs/mdx": "^4.2.2",
     "@astrojs/react": "^4.2.2",
-    "@expressive-code/plugin-line-numbers": "^0.40.2",
+    "@expressive-code/plugin-line-numbers": "^0.41.3",
     "@iconify-json/devicon": "^1.2.23",
     "@iconify/react": "^6.0.0",
     "@lucide/astro": "^0.488.0",
