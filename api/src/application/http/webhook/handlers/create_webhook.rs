@@ -7,7 +7,7 @@ use axum::extract::State;
 use axum_macros::TypedPath;
 use ferriskey_core::application::webhook::use_cases::create_webhook_use_case::CreateWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::webhook::entities::Webhook;
+use ferriskey_core::domain::webhook::entities::webhook::Webhook;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

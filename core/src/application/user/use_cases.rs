@@ -56,6 +56,7 @@ impl UserUseCase {
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let delete_user_use_case = DeleteUserUseCase::new(

@@ -1,14 +1,16 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, RelationTrait,
+};
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
-use crate::domain::webhook::entities::{Webhook, WebhookError};
+use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
 use crate::domain::webhook::ports::WebhookRepository;
 use crate::entity::webhook_subscribers::{
     ActiveModel as WebhookSubscriberActiveModel, Column as WebhookSubscriberColumn,
-    Entity as WebhookSubscriberEntity,
+    Entity as WebhookSubscriberEntity, Relation as WebhookSubscriberRelation,
 };
 use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
@@ -35,6 +37,28 @@ impl WebhookRepository for PostgresWebhookRepository {
             .iter()
             .map(Webhook::from)
             .collect::<Vec<Webhook>>();
+
+        Ok(webhooks)
+    }
+
+    async fn fetch_webhooks_by_subscriber(
+        &self,
+        realm_id: Uuid,
+        subscriber: String,
+    ) -> Result<Vec<Webhook>, WebhookError> {
+        let webhooks = WebhookEntity::find()
+            .join(
+                sea_orm::JoinType::InnerJoin,
+                WebhookSubscriberRelation::Webhooks.def(),
+            )
+            .filter(WebhookColumn::RealmId.eq(realm_id))
+            .filter(WebhookSubscriberColumn::Name.eq(subscriber))
+            .all(&self.db)
+            .await
+            .map_err(|_| WebhookError::InternalServerError)?
+            .into_iter()
+            .map(Webhook::from)
+            .collect();
 
         Ok(webhooks)
     }

@@ -5,7 +5,7 @@ use crate::application::common::services::{
 use crate::application::webhook::policies::WebhookPolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::ports::RealmService;
-use crate::domain::webhook::entities::{Webhook, WebhookError};
+use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
 use crate::domain::webhook::ports::WebhookService;
 use tracing::info;
 

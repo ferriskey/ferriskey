@@ -1,6 +1,6 @@
 use chrono::{TimeZone, Utc};
 
-use crate::domain::webhook::entities::{Webhook, WebhookSubscriber};
+use crate::domain::webhook::entities::{webhook::Webhook, webhook_subscriber::WebhookSubscriber};
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 use crate::entity::webhooks::Model as WebhookModel;
 

@@ -5,7 +5,8 @@ use crate::domain::authentication::strategies::refresh_token_strategy::RefreshTo
 use crate::domain::common::AppConfig;
 use crate::domain::health::services::HealthCheckServiceImpl;
 use crate::domain::trident::services::OauthTotpService;
-use crate::domain::webhook::services::WebhookServiceImpl;
+use crate::domain::webhook::services::webhook_notifier_service::WebhookNotifierServiceImpl;
+use crate::domain::webhook::services::webhook_service::WebhookServiceImpl;
 use crate::domain::{
     authentication::services::{
         auth_session_service::AuthSessionServiceImpl, grant_type_service::GrantTypeServiceImpl,
@@ -75,6 +76,8 @@ pub type DefaultRedirectUriService =
 pub type DefaultHealthCheckService = HealthCheckServiceImpl<HealthCheckRepoAny>;
 
 pub type DefaultWebhookService = WebhookServiceImpl<WebhookRepoAny>;
+
+pub type DefaultWebhookNotifierService = WebhookNotifierServiceImpl<WebhookRepoAny>;
 
 pub struct ServiceFactory;
 
@@ -175,6 +178,8 @@ impl ServiceFactory {
             DefaultHealthCheckService::new(repositories.health_check_repository.clone());
 
         let webhook_service = DefaultWebhookService::new(repositories.webhook_repository.clone());
+        let webhook_notifier_service =
+            WebhookNotifierServiceImpl::new(repositories.webhook_repository.clone());
 
         Ok(ServiceBundle {
             realm_service,
@@ -190,6 +195,7 @@ impl ServiceFactory {
             grant_type_service,
             health_check_service,
             webhook_service,
+            webhook_notifier_service,
         })
     }
 }
@@ -209,4 +215,5 @@ pub struct ServiceBundle {
     pub grant_type_service: DefaultGrantTypeService,
     pub health_check_service: DefaultHealthCheckService,
     pub webhook_service: DefaultWebhookService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }

@@ -1,6 +1,9 @@
 use crate::{
     application::{
-        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserService,
+            DefaultWebhookNotifierService,
+        },
         user::policies::user_policy::UserPolicy,
     },
     domain::{
@@ -11,6 +14,7 @@ use crate::{
             ports::UserService,
             value_objects::CreateUserRequest,
         },
+        webhook::ports::WebhookNotifierService,
     },
 };
 
@@ -29,6 +33,7 @@ pub struct CreateUserUseCase {
     pub realm_service: DefaultRealmService,
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 impl CreateUserUseCase {
@@ -36,11 +41,13 @@ impl CreateUserUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -82,6 +89,11 @@ impl CreateUserUseCase {
             .await?;
 
         user.realm = Some(realm);
+
+        self.webhook_notifier_service
+            .notify(realm_id, "user.created".to_string())
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
 
         Ok(user)
     }

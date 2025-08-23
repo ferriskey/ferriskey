@@ -3,7 +3,7 @@ use crate::{
     domain::{
         authentication::value_objects::Identity, client::ports::ClientService,
         realm::entities::Realm, role::entities::permission::Permissions, user::ports::UserService,
-        webhook::entities::WebhookError,
+        webhook::entities::errors::WebhookError,
     },
 };
 

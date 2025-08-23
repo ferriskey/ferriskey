@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::domain::webhook::entities::{Webhook, WebhookError};
+use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
 
 pub trait WebhookService: Clone + Send + Sync {
     fn fetch_by_realm(
@@ -13,6 +13,12 @@ pub trait WebhookService: Clone + Send + Sync {
         webhook_id: Uuid,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Option<Webhook>, WebhookError>> + Send;
+
+    fn fetch_by_subscriber(
+        &self,
+        realm_id: Uuid,
+        subscriber: String,
+    ) -> impl Future<Output = Result<Vec<Webhook>, WebhookError>> + Send;
 
     fn create(
         &self,
@@ -37,6 +43,12 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Webhook>, WebhookError>> + Send;
 
+    fn fetch_webhooks_by_subscriber(
+        &self,
+        realm_id: Uuid,
+        subscriber: String,
+    ) -> impl Future<Output = Result<Vec<Webhook>, WebhookError>> + Send;
+
     fn get_webhook_by_id(
         &self,
         webhook_id: Uuid,
@@ -58,4 +70,12 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
 
     fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), WebhookError>> + Send;
+}
+
+pub trait WebhookNotifierService: Clone + Send + Sync {
+    fn notify(
+        &self,
+        realm_id: Uuid,
+        identifier: String,
+    ) -> impl Future<Output = Result<(), WebhookError>> + Send;
 }

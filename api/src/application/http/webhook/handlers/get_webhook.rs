@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum_macros::TypedPath;
 use ferriskey_core::application::webhook::use_cases::get_webhook_use_case::GetWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::webhook::entities::Webhook;
+use ferriskey_core::domain::webhook::entities::webhook::Webhook;
 use serde::Deserialize;
 use uuid::Uuid;
 

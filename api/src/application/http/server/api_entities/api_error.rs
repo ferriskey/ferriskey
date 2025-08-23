@@ -6,7 +6,7 @@ use axum::{
 };
 use ferriskey_core::domain::jwt::entities::JwtError;
 use ferriskey_core::domain::{
-    authentication::entities::AuthenticationError, webhook::entities::WebhookError,
+    authentication::entities::AuthenticationError, webhook::entities::errors::WebhookError,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use validator::Validate;
