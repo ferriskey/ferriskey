@@ -4,7 +4,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::webhook::{
-    entities::errors::WebhookError,
+    entities::{errors::WebhookError, webhook_trigger::WebhookTrigger},
     ports::{WebhookNotifierService, WebhookRepository},
 };
 
@@ -33,7 +33,7 @@ impl<W> WebhookNotifierService for WebhookNotifierServiceImpl<W>
 where
     W: WebhookRepository,
 {
-    async fn notify(&self, realm_id: Uuid, identifier: String) -> Result<(), WebhookError> {
+    async fn notify(&self, realm_id: Uuid, identifier: WebhookTrigger) -> Result<(), WebhookError> {
         let repo = self.webhook_repository.clone();
         let client = self.http_client.clone();
 

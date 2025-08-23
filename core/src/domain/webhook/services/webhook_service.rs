@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::domain::webhook::{
-    entities::{errors::WebhookError, webhook::Webhook},
+    entities::{errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger},
     ports::{WebhookRepository, WebhookService},
 };
 
@@ -35,7 +35,7 @@ where
     async fn fetch_by_subscriber(
         &self,
         realm_id: Uuid,
-        subscriber: String,
+        subscriber: WebhookTrigger,
     ) -> Result<Vec<Webhook>, WebhookError> {
         self.webhook_repository
             .fetch_webhooks_by_subscriber(realm_id, subscriber)
@@ -56,7 +56,7 @@ where
         &self,
         realm_id: Uuid,
         endpoint: String,
-        subscribers: Vec<String>,
+        subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         self.webhook_repository
             .create_webhook(realm_id, endpoint, subscribers)
@@ -67,7 +67,7 @@ where
         &self,
         id: Uuid,
         endpoint: String,
-        subscribers: Vec<String>,
+        subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         self.webhook_repository
             .update_webhook(id, endpoint, subscribers)

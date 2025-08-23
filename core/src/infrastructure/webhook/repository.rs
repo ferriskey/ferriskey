@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
     domain::webhook::{
-        entities::{errors::WebhookError, webhook::Webhook},
+        entities::{errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger},
         ports::WebhookRepository,
     },
     infrastructure::repositories::webhook_repository::PostgresWebhookRepository,
@@ -33,7 +33,7 @@ impl WebhookRepository for WebhookRepoAny {
     async fn fetch_webhooks_by_subscriber(
         &self,
         realm_id: Uuid,
-        subscriber: String,
+        subscriber: WebhookTrigger,
     ) -> Result<Vec<Webhook>, WebhookError> {
         match self {
             Self::Postgres(r) => r.fetch_webhooks_by_subscriber(realm_id, subscriber).await,
@@ -44,7 +44,7 @@ impl WebhookRepository for WebhookRepoAny {
         &self,
         realm_id: Uuid,
         endpoint: String,
-        subscribers: Vec<String>,
+        subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         match self {
             Self::Postgres(r) => r.create_webhook(realm_id, endpoint, subscribers).await,
@@ -55,7 +55,7 @@ impl WebhookRepository for WebhookRepoAny {
         &self,
         id: Uuid,
         endpoint: String,
-        subscribers: Vec<String>,
+        subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         match self {
             Self::Postgres(r) => r.update_webhook(id, endpoint, subscribers).await,

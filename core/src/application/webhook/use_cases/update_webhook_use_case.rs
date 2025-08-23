@@ -8,6 +8,7 @@ use crate::application::common::services::{
 use crate::application::webhook::policies::WebhookPolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::ports::RealmService;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
 use crate::domain::webhook::ports::WebhookService;
 
@@ -23,7 +24,7 @@ pub struct UpdateWebhookUseCaseParams {
     pub realm_name: String,
     pub webhook_id: Uuid,
     pub endpoint: String,
-    pub subscribers: Vec<String>,
+    pub subscribers: Vec<WebhookTrigger>,
 }
 
 impl UpdateWebhookUseCase {
