@@ -31,6 +31,11 @@ repos:
         pass_filenames: false
       - id: hadolint
         name: hadolint
-        entry: bash -c "docker run --rm -i -v ./Dockerfile:/mnt/Dockerfile hadolint/hadolint hadolint /mnt/Dockerfile"
-        language: system
+        entry: hadolint/hadolint hadolint
+        language: docker_image
         files: Dockerfile
+      - id: shellcheck
+        name: shellcheck
+        entry: koalaman/shellcheck:stable
+        language: docker_image
+        files: ^(.*)\.sh$

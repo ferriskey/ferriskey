@@ -88,8 +88,8 @@ RUN pnpm run build
 
 FROM nginx:1.28.0-alpine3.21-slim AS webapp
 
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
-COPY front/env.sh /docker-entrypoint.d/env.sh
+COPY front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
-RUN chmod +x /docker-entrypoint.d/env.sh
+RUN chmod +x /docker-entrypoint.d/docker-entrypoint.sh
