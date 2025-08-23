@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import './App.css'
 import Layout from './components/layout/layout'
@@ -13,9 +13,9 @@ import { Toaster } from './components/ui/sonner'
 import { useGetConfig } from './api/config.api'
 import { useConfig } from './hooks/use-config'
 import { createApiClient } from './api/api.client'
-import { fetcher } from './api'
 import { TanstackQueryApiClient } from './api/api.tanstack'
 import axios, { AxiosInstance } from 'axios'
+import { BasicSpinner } from './components/ui/spinner'
 
 declare global {
   interface Window {
@@ -32,6 +32,7 @@ function App() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
   const { setConfig } = useConfig()
+  const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
 
   const { data: responseConfig } = useGetConfig()
 
@@ -42,14 +43,14 @@ function App() {
     if (viteUrl) {
       uri = viteUrl
     } else {
-      const data = await fetch('config.json')
+      const data = await fetch('/config.json')
       const result = await data.json()
       uri = result.api_url
     }
 
     const api = createApiClient(fetcher, uri)
     const axiosClient = axios.create({
-      baseURL: 'http://localhost:3333',
+      baseURL: uri,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -59,6 +60,10 @@ function App() {
     window.tanstackApi = new TanstackQueryApiClient(api)
     window.apiUrl = uri
     window.axios = axiosClient
+
+    if (typeof uri === 'string' && uri) {
+      setApiUrlSetup(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -124,6 +129,15 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+
+  if (!apiUrlSetup) {
+    return (
+      <div className='h-screen flex items-center justify-center text-gray-500'>
+        <BasicSpinner />
+      </div>
+    )
+  }
 
   return (
     <>
