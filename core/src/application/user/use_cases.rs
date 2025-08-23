@@ -44,12 +44,14 @@ impl UserUseCase {
             service_bundle.user_role_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let bulk_delete_user_use_case = BulkDeleteUserUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let create_user_use_case = CreateUserUseCase::new(
@@ -63,6 +65,7 @@ impl UserUseCase {
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let get_user_roles_use_case = GetUserRolesUseCase::new(
@@ -76,12 +79,14 @@ impl UserUseCase {
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
             service_bundle.user_role_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let update_user_use_case = UpdateUserUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let delete_credential_use_case = DeleteCredentialUseCase::new(
@@ -89,6 +94,7 @@ impl UserUseCase {
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
             service_bundle.credential_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         let get_credentials_use_case = GetCredentialsUseCase::new(
@@ -115,6 +121,7 @@ impl UserUseCase {
             service_bundle.user_service.clone(),
             service_bundle.client_service.clone(),
             service_bundle.credential_service.clone(),
+            service_bundle.webhook_notifier_service.clone(),
         );
 
         Self {

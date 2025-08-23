@@ -1,16 +1,23 @@
-use uuid::Uuid;
-
 use crate::{
     application::{
-        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserService,
+            DefaultWebhookNotifierService,
+        },
         user::policies::user_policy::UserPolicy,
     },
     domain::{
         authentication::value_objects::Identity,
         realm::ports::RealmService,
         user::{entities::UserError, ports::UserService},
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
+use tracing::error;
+use uuid::Uuid;
 
 pub struct BulkDeleteUserUseCaseParams {
     pub realm_name: String,
@@ -22,6 +29,7 @@ pub struct BulkDeleteUserUseCase {
     pub realm_service: DefaultRealmService,
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 impl BulkDeleteUserUseCase {
@@ -29,11 +37,13 @@ impl BulkDeleteUserUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -51,7 +61,7 @@ impl BulkDeleteUserUseCase {
         Self::ensure_permissions(
             UserPolicy::delete(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -61,9 +71,24 @@ impl BulkDeleteUserUseCase {
 
         let count = self
             .user_service
-            .bulk_delete_user(params.ids)
+            .bulk_delete_user(params.ids.clone())
             .await
             .map_err(|_| UserError::InternalServerError)?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::<Vec<Uuid>>::new(
+                    WebhookTrigger::UserBulkDeleted,
+                    realm.id,
+                    Some(params.ids),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
 
         Ok(count)
     }

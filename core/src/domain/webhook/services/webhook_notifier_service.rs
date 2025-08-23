@@ -5,9 +5,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::webhook::{
-    entities::{
-        errors::WebhookError, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
-    },
+    entities::{errors::WebhookError, webhook_payload::WebhookPayload},
     ports::{WebhookNotifierService, WebhookRepository},
 };
 

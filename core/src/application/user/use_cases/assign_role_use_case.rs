@@ -1,9 +1,12 @@
+use serde_json::json;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     application::{
         common::services::{
             DefaultClientService, DefaultRealmService, DefaultUserRoleService, DefaultUserService,
+            DefaultWebhookNotifierService,
         },
         user::policies::user_role_policy::UserRolePolicy,
     },
@@ -11,6 +14,10 @@ use crate::{
         authentication::value_objects::Identity,
         realm::ports::RealmService,
         user::{entities::UserError, ports::UserRoleService},
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
 
@@ -20,6 +27,7 @@ pub struct AssignRoleUseCase {
     pub user_role_service: DefaultUserRoleService,
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 #[derive(Debug, Clone)]
@@ -35,12 +43,14 @@ impl AssignRoleUseCase {
         user_role_service: DefaultUserRoleService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_role_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -55,12 +65,10 @@ impl AssignRoleUseCase {
             .await
             .map_err(|_| UserError::InternalServerError)?;
 
-        let realm_name = realm.name.clone();
-
         Self::ensure_permissions(
             UserRolePolicy::store(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -68,10 +76,28 @@ impl AssignRoleUseCase {
             "Insufficient permissions to assign role",
         )?;
 
-        self.user_role_service
-            .assign_role(realm_name, params.user_id, params.role_id)
+        let _ = self
+            .user_role_service
+            .assign_role(realm.name.clone(), params.user_id, params.role_id)
             .await
-            .map_err(|_| UserError::InternalServerError)
+            .map_err(|_| UserError::InternalServerError);
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserAssignRole,
+                    params.user_id,
+                    Some(json!({ "role_id": params.role_id })),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
+
+        Ok(())
     }
 
     #[inline]

@@ -79,11 +79,7 @@ impl DeleteUserUseCase {
         self.webhook_notifier_service
             .notify(
                 realm.id,
-                WebhookPayload::<User>::new(
-                    WebhookTrigger::UserDeleted,
-                    Some(params.user_id.to_string()),
-                    None,
-                ),
+                WebhookPayload::<User>::new(WebhookTrigger::UserDeleted, params.user_id, None),
             )
             .await
             .map_err(|e| {

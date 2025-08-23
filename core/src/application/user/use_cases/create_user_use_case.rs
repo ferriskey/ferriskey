@@ -97,11 +97,7 @@ impl CreateUserUseCase {
         self.webhook_notifier_service
             .notify(
                 realm_id,
-                WebhookPayload::new(
-                    WebhookTrigger::UserCreated,
-                    Some(user.id.to_string()),
-                    Some(user.clone()),
-                ),
+                WebhookPayload::new(WebhookTrigger::UserCreated, user.id, Some(user.clone())),
             )
             .await
             .map_err(|e| {

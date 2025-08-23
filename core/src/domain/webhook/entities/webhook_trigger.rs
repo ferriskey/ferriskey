@@ -8,6 +8,11 @@ pub enum WebhookTrigger {
     UserCreated,
     UserUpdated,
     UserDeleted,
+    UserBulkDeleted,
+    UserAssignRole,
+    UserUnassignRole,
+    UserDeleteCredentials,
+    AuthResetPassword,
 }
 
 impl ToString for WebhookTrigger {
@@ -16,6 +21,11 @@ impl ToString for WebhookTrigger {
             WebhookTrigger::UserCreated => "user.created".to_string(),
             WebhookTrigger::UserUpdated => "user.updated".to_string(),
             WebhookTrigger::UserDeleted => "user.deleted".to_string(),
+            WebhookTrigger::UserBulkDeleted => "user.bulk_deleted".to_string(),
+            WebhookTrigger::UserAssignRole => "user.assign.role".to_string(),
+            WebhookTrigger::UserUnassignRole => "user.unassign.role".to_string(),
+            WebhookTrigger::UserDeleteCredentials => "user.credentials_deleted".to_string(),
+            WebhookTrigger::AuthResetPassword => "auth.reset_password".to_string(),
         }
     }
 }
@@ -28,6 +38,11 @@ impl TryFrom<String> for WebhookTrigger {
             "user.created" => Ok(WebhookTrigger::UserCreated),
             "user.updated" => Ok(WebhookTrigger::UserUpdated),
             "user.deleted" => Ok(WebhookTrigger::UserDeleted),
+            "user.bulk_deleted" => Ok(WebhookTrigger::UserBulkDeleted),
+            "user.assign.role" => Ok(WebhookTrigger::UserAssignRole),
+            "user.unassign.role" => Ok(WebhookTrigger::UserUnassignRole),
+            "user.credentials_deleted" => Ok(WebhookTrigger::UserDeleteCredentials),
+            "auth.reset_password" => Ok(WebhookTrigger::AuthResetPassword),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }

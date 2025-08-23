@@ -95,15 +95,10 @@ impl UpdateUserUseCase {
             )
             .await?;
 
-        let _ = self
-            .webhook_notifier_service
+        self.webhook_notifier_service
             .notify(
                 realm.id,
-                WebhookPayload::new(
-                    WebhookTrigger::UserUpdated,
-                    Some(user.id.to_string()),
-                    Some(params.user_id.clone()),
-                ),
+                WebhookPayload::new(WebhookTrigger::UserUpdated, user.id, Some(user.clone())),
             )
             .await
             .map_err(|e| {

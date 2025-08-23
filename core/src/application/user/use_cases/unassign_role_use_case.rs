@@ -1,9 +1,12 @@
+use serde_json::json;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     application::{
         common::services::{
             DefaultClientService, DefaultRealmService, DefaultUserRoleService, DefaultUserService,
+            DefaultWebhookNotifierService,
         },
         user::policies::user_role_policy::UserRolePolicy,
     },
@@ -11,6 +14,10 @@ use crate::{
         authentication::value_objects::Identity,
         realm::ports::RealmService,
         user::{entities::UserError, ports::UserRoleService},
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
 
@@ -27,6 +34,7 @@ pub struct UnassignRoleUseCase {
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
     pub user_role_service: DefaultUserRoleService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 impl UnassignRoleUseCase {
@@ -35,12 +43,14 @@ impl UnassignRoleUseCase {
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         user_role_service: DefaultUserRoleService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
             user_role_service,
+            webhook_notifier_service,
         }
     }
 
@@ -58,7 +68,7 @@ impl UnassignRoleUseCase {
         Self::ensure_permissions(
             UserRolePolicy::delete(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -68,7 +78,24 @@ impl UnassignRoleUseCase {
 
         self.user_role_service
             .revoke_role(params.user_id, params.role_id)
+            .await?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserUnassignRole,
+                    params.user_id,
+                    Some(json!({ "role_id": params.role_id })),
+                ),
+            )
             .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
+
+        Ok(())
     }
 
     #[inline]
