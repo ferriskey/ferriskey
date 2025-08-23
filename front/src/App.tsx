@@ -16,6 +16,7 @@ import { createApiClient } from './api/api.client'
 import { TanstackQueryApiClient } from './api/api.tanstack'
 import axios, { AxiosInstance } from 'axios'
 import { BasicSpinner } from './components/ui/spinner'
+import { fetcher } from './api'
 
 declare global {
   interface Window {
