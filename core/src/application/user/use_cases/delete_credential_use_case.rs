@@ -70,7 +70,7 @@ impl DeleteCredentialUseCase {
         .map_err(|e| UserError::Forbidden(e.to_string()))?;
 
         self.credential_service
-            .delete_by_id(params.credential_id.clone())
+            .delete_by_id(params.credential_id)
             .await
             .map_err(|_| UserError::InternalServerError)?;
 

@@ -72,7 +72,7 @@ impl ResetPasswordUseCase {
         .map_err(|e| UserError::Forbidden(e.to_string()))?;
 
         self.credential_service
-            .reset_password(params.user_id.clone(), params.value, params.temporary)
+            .reset_password(params.user_id, params.value, params.temporary)
             .await
             .map_err(|_| UserError::InternalServerError)?;
 

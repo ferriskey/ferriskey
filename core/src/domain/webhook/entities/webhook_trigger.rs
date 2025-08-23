@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -15,17 +15,17 @@ pub enum WebhookTrigger {
     AuthResetPassword,
 }
 
-impl ToString for WebhookTrigger {
-    fn to_string(&self) -> String {
+impl Display for WebhookTrigger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WebhookTrigger::UserCreated => "user.created".to_string(),
-            WebhookTrigger::UserUpdated => "user.updated".to_string(),
-            WebhookTrigger::UserDeleted => "user.deleted".to_string(),
-            WebhookTrigger::UserBulkDeleted => "user.bulk_deleted".to_string(),
-            WebhookTrigger::UserAssignRole => "user.assign.role".to_string(),
-            WebhookTrigger::UserUnassignRole => "user.unassign.role".to_string(),
-            WebhookTrigger::UserDeleteCredentials => "user.credentials_deleted".to_string(),
-            WebhookTrigger::AuthResetPassword => "auth.reset_password".to_string(),
+            WebhookTrigger::UserCreated => write!(f, "user.created"),
+            WebhookTrigger::UserUpdated => write!(f, "user.updated"),
+            WebhookTrigger::UserDeleted => write!(f, "user.deleted"),
+            WebhookTrigger::UserBulkDeleted => write!(f, "user.bulk_deleted"),
+            WebhookTrigger::UserAssignRole => write!(f, "user.assign.role"),
+            WebhookTrigger::UserUnassignRole => write!(f, "user.unassign.role"),
+            WebhookTrigger::UserDeleteCredentials => write!(f, "user.credentials_deleted"),
+            WebhookTrigger::AuthResetPassword => write!(f, "auth.reset_password"),
         }
     }
 }
