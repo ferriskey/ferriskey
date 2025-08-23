@@ -17,6 +17,7 @@ use crate::{
         webhook::ports::WebhookNotifierService,
     },
 };
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct CreateUserUseCaseParams {
@@ -93,7 +94,10 @@ impl CreateUserUseCase {
         self.webhook_notifier_service
             .notify(realm_id, "user.created".to_string())
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
 
         Ok(user)
     }

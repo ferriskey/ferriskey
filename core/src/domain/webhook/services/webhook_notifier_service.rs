@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde_json::json;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::webhook::{
@@ -33,22 +34,38 @@ where
     W: WebhookRepository,
 {
     async fn notify(&self, realm_id: Uuid, identifier: String) -> Result<(), WebhookError> {
-        let available_webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, identifier)
-            .await?;
+        let repo = self.webhook_repository.clone();
+        let client = self.http_client.clone();
 
-        for webhook in available_webhooks {
-            let res = self
-                .http_client
-                .post(webhook.endpoint)
-                .json(&json!({
-                    "name": "John Doe",
-                }))
-                .send()
-                .await
-                .map_err(|_| WebhookError::InternalServerError);
-        }
+        tokio::spawn(async move {
+            let webhooks = repo
+                .fetch_webhooks_by_subscriber(realm_id, identifier)
+                .await;
+
+            match webhooks {
+                Ok(webhooks) => {
+                    for webhook in webhooks {
+                        let endpoint = webhook.endpoint.clone();
+                        let client = client.clone();
+
+                        tokio::spawn(async move {
+                            let response = client
+                                .post(endpoint)
+                                .json(&json!({ "name": "John Doe" }))
+                                .send()
+                                .await;
+
+                            if let Err(err) = response {
+                                error!("Webhook POST failed: {:?}", err);
+                            }
+                        });
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to fetch webhooks: {:?}", err);
+                }
+            }
+        });
 
         Ok(())
     }

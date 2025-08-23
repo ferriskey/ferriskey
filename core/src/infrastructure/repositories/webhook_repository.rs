@@ -3,6 +3,7 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, RelationTrait,
 };
+use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
@@ -14,6 +15,7 @@ use crate::entity::webhook_subscribers::{
 };
 use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
+    Relation as WebhookRelation,
 };
 
 #[derive(Debug, Clone)]
@@ -49,13 +51,16 @@ impl WebhookRepository for PostgresWebhookRepository {
         let webhooks = WebhookEntity::find()
             .join(
                 sea_orm::JoinType::InnerJoin,
-                WebhookSubscriberRelation::Webhooks.def(),
+                WebhookRelation::WebhookSubscribers.def(),
             )
             .filter(WebhookColumn::RealmId.eq(realm_id))
             .filter(WebhookSubscriberColumn::Name.eq(subscriber))
             .all(&self.db)
             .await
-            .map_err(|_| WebhookError::InternalServerError)?
+            .map_err(|e| {
+                error!("Failed to fetch webhooks by subscriber: {}", e);
+                WebhookError::InternalServerError
+            })?
             .into_iter()
             .map(Webhook::from)
             .collect();
