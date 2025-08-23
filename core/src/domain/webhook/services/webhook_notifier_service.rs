@@ -1,10 +1,13 @@
 use reqwest::Client;
+use serde::Serialize;
 use serde_json::json;
 use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::webhook::{
-    entities::{errors::WebhookError, webhook_trigger::WebhookTrigger},
+    entities::{
+        errors::WebhookError, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
+    },
     ports::{WebhookNotifierService, WebhookRepository},
 };
 
@@ -33,13 +36,17 @@ impl<W> WebhookNotifierService for WebhookNotifierServiceImpl<W>
 where
     W: WebhookRepository,
 {
-    async fn notify(&self, realm_id: Uuid, identifier: WebhookTrigger) -> Result<(), WebhookError> {
+    async fn notify<T: Send + Sync + Serialize>(
+        &self,
+        realm_id: Uuid,
+        payload: WebhookPayload<T>,
+    ) -> Result<(), WebhookError> {
         let repo = self.webhook_repository.clone();
         let client = self.http_client.clone();
 
         tokio::spawn(async move {
             let webhooks = repo
-                .fetch_webhooks_by_subscriber(realm_id, identifier)
+                .fetch_webhooks_by_subscriber(realm_id, payload.event)
                 .await;
 
             match webhooks {

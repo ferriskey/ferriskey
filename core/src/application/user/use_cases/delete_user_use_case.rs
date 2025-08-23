@@ -1,14 +1,25 @@
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     application::{
-        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserService,
+            DefaultWebhookNotifierService,
+        },
         user::policies::user_policy::UserPolicy,
     },
     domain::{
         authentication::value_objects::Identity,
         realm::ports::RealmService,
-        user::{entities::UserError, ports::UserService},
+        user::{
+            entities::{User, UserError},
+            ports::UserService,
+        },
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
 
@@ -23,6 +34,7 @@ pub struct DeleteUserUseCase {
     pub realm_service: DefaultRealmService,
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 impl DeleteUserUseCase {
@@ -30,11 +42,13 @@ impl DeleteUserUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -52,7 +66,7 @@ impl DeleteUserUseCase {
         Self::ensure_permissions(
             UserPolicy::delete(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -61,6 +75,22 @@ impl DeleteUserUseCase {
         )?;
 
         let count = self.user_service.delete_user(params.user_id).await?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::<User>::new(
+                    WebhookTrigger::UserDeleted,
+                    Some(params.user_id.to_string()),
+                    None,
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
+
         Ok(count)
     }
 

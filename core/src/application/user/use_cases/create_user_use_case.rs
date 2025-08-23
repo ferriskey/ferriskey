@@ -14,7 +14,10 @@ use crate::{
             ports::UserService,
             value_objects::CreateUserRequest,
         },
-        webhook::{entities::webhook_trigger::WebhookTrigger, ports::WebhookNotifierService},
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
 use tracing::error;
@@ -92,7 +95,14 @@ impl CreateUserUseCase {
         user.realm = Some(realm);
 
         self.webhook_notifier_service
-            .notify(realm_id, WebhookTrigger::UserCreated)
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserCreated,
+                    Some(user.id.to_string()),
+                    Some(user.clone()),
+                ),
+            )
             .await
             .map_err(|e| {
                 error!("Failed to notify webhook: {}", e);

@@ -1,8 +1,9 @@
-use uuid::Uuid;
-
 use crate::{
     application::{
-        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserService,
+            DefaultWebhookNotifierService,
+        },
         user::policies::user_policy::UserPolicy,
     },
     domain::{
@@ -13,8 +14,14 @@ use crate::{
             ports::UserService,
             value_objects::UpdateUserRequest,
         },
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
+use tracing::error;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct UpdateUserUseCaseParams {
@@ -33,6 +40,7 @@ pub struct UpdateUserUseCase {
     pub realm_service: DefaultRealmService,
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 impl UpdateUserUseCase {
@@ -40,11 +48,13 @@ impl UpdateUserUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -53,7 +63,6 @@ impl UpdateUserUseCase {
         identity: Identity,
         params: UpdateUserUseCaseParams,
     ) -> Result<User, UserError> {
-        // Implementation goes here
         let realm = self
             .realm_service
             .get_by_name(params.realm_name)
@@ -63,7 +72,7 @@ impl UpdateUserUseCase {
         Self::ensure_permissions(
             UserPolicy::update(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -71,7 +80,8 @@ impl UpdateUserUseCase {
             "Insufficient permissions to update user",
         )?;
 
-        self.user_service
+        let user = self
+            .user_service
             .update_user(
                 params.user_id,
                 UpdateUserRequest {
@@ -83,7 +93,25 @@ impl UpdateUserUseCase {
                     required_actions: params.required_actions,
                 },
             )
+            .await?;
+
+        let _ = self
+            .webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserUpdated,
+                    Some(user.id.to_string()),
+                    Some(params.user_id.clone()),
+                ),
+            )
             .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                UserError::InternalServerError
+            })?;
+
+        Ok(user)
     }
 
     #[inline]

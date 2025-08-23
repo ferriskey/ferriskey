@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::domain::webhook::entities::{
-    errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger,
+    errors::WebhookError, webhook::Webhook, webhook_payload::WebhookPayload,
+    webhook_trigger::WebhookTrigger,
 };
 
 pub trait WebhookService: Clone + Send + Sync {
@@ -75,9 +77,9 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
 }
 
 pub trait WebhookNotifierService: Clone + Send + Sync {
-    fn notify(
+    fn notify<T: Send + Sync + Serialize>(
         &self,
         realm_id: Uuid,
-        identifier: WebhookTrigger,
+        payload: WebhookPayload<T>,
     ) -> impl Future<Output = Result<(), WebhookError>> + Send;
 }
