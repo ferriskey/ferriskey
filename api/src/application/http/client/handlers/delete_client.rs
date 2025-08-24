@@ -16,6 +16,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeleteClientResponse {
     pub message: String,
+    pub realm_name: String,
 }
 
 #[utoipa::path(
@@ -33,8 +34,7 @@ pub struct DeleteClientResponse {
     ),
 )]
 pub async fn delete_client(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteClientResponse>, ApiError> {
@@ -56,5 +56,6 @@ pub async fn delete_client(
 
     Ok(Response::OK(DeleteClientResponse {
         message: format!("Client with ID {client_id} in realm {realm_name} deleted successfully"),
+        realm_name,
     }))
 }

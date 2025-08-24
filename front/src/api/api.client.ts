@@ -93,7 +93,7 @@ export namespace Schemas {
     user_id: string;
     user_label?: (string | null) | undefined;
   };
-  export type DeleteClientResponse = { message: string };
+  export type DeleteClientResponse = { message: string; realm_name: string };
   export type DeleteRealmResponse = string;
   export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
   export type DeleteUserResponse = { count: number };

@@ -62,11 +62,19 @@ export const useUpdateClient = () => {
 export const useDeleteClient = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/clients/{client_id}')
-      .mutationOptions,
-    onSuccess: async () => {
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/clients/{client_id}',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (res) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/clients', {
+        path: {
+          realm_name: res.realm_name,
+        },
+      }).queryKey
       await queryClient.invalidateQueries({
-        queryKey: ['clients'],
+        queryKey: keys,
       })
     },
   })
