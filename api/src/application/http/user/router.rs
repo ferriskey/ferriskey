@@ -41,8 +41,20 @@ pub struct UserApiDoc;
 
 pub fn user_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .route("/realms/{realm_name}/users", get(get_users))
-        .route("/realms/{realm_name}/users/{user_id}", get(get_user))
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users",
+                state.args.server.root_path
+            ),
+            get(get_users),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}",
+                state.args.server.root_path
+            ),
+            get(get_user),
+        )
         .route(
             "/realms/{realm_name}/users/{user_id}/roles",
             get(get_user_roles),
@@ -51,24 +63,60 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
             "/realms/{realm_name}/users/{user_id}/credentials",
             get(get_user_credentials),
         )
-        .route("/realms/{realm_name}/users", post(create_user))
-        .route("/realms/{realm_name}/users/{user_id}", put(update_user))
         .route(
-            "/realms/{realm_name}/users/{user_id}/reset-password",
+            &format!(
+                "{}/realms/{{realm_name}}/users",
+                state.args.server.root_path
+            ),
+            post(create_user),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}",
+                state.args.server.root_path
+            ),
+            put(update_user),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/reset-password",
+                state.args.server.root_path
+            ),
             put(reset_password),
         )
-        .route("/realms/{realm_name}/users/bulk", delete(bulk_delete_user))
-        .route("/realms/{realm_name}/users/{user_id}", delete(delete_user))
         .route(
-            "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/users/bulk",
+                state.args.server.root_path
+            ),
+            delete(bulk_delete_user),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_user),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/credentials/{{credential_id}}",
+                state.args.server.root_path
+            ),
             delete(delete_user_credential),
         )
         .route(
-            "/realms/{realm_name}/users/{user_id}/roles",
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/roles",
+                state.args.server.root_path
+            ),
             post(assign_role),
         )
         .route(
-            "/realms/{realm_name}/users/{user_id}/roles/{role_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/roles/{{role_id}}",
+                state.args.server.root_path
+            ),
             delete(unassign_role),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))

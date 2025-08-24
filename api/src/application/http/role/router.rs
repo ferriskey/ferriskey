@@ -19,14 +19,32 @@ pub struct RoleApiDoc;
 
 pub fn role_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .route("/realms/{realm_name}/roles", get(get_roles))
-        .route("/realms/{realm_name}/roles/{role_id}", get(get_role))
         .route(
-            "/realms/{realm_name}/roles/{role_id}/permissions",
+            &format!(
+                "{}/realms/{{realm_name}}/roles",
+                state.args.server.root_path
+            ),
+            get(get_roles),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/roles/{{role_id}}",
+                state.args.server.root_path
+            ),
+            get(get_role),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/roles/{{role_id}}/permissions",
+                state.args.server.root_path
+            ),
             put(update_role),
         )
         .route(
-            "/realms/{realm_name}/roles/{role_id}/permissions",
+            &format!(
+                "{}/realms/{{realm_name}}/roles/{{role_id}}/permissions",
+                state.args.server.root_path
+            ),
             patch(update_role_permissions),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))

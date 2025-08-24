@@ -2,22 +2,16 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::webhook::validators::UpdateWebhookValidator;
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::webhook::use_cases::update_webhook_use_case::UpdateWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/webhooks/{webhook_id}")]
-pub struct UpdateWebhookRoute {
-    realm_name: String,
-    webhook_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct UpdateWebhookResponse {
@@ -36,10 +30,8 @@ pub struct UpdateWebhookResponse {
 )]
 
 pub async fn update_webhook(
-    UpdateWebhookRoute {
-        realm_name,
-        webhook_id,
-    }: UpdateWebhookRoute,
+    Path(realm_name): Path<String>,
+    Path(webhook_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateWebhookValidator>,

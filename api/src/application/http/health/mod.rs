@@ -5,8 +5,8 @@ use axum::{Router, routing::get};
 
 pub mod handlers;
 
-pub fn health_routes() -> Router<AppState> {
+pub fn health_routes(root_path: &str) -> Router<AppState> {
     Router::new()
-        .route("/health/ready", get(health_ready))
-        .route("/health/live", get(health_live))
+        .route(&format!("{root_path}/health/ready"), get(health_ready))
+        .route(&format!("{root_path}/health/live"), get(health_live))
 }

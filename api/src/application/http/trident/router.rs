@@ -24,19 +24,31 @@ pub struct TridentApiDoc;
 pub fn trident_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route(
-            "/realms/{realm_name}/login-actions/setup-otp",
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/setup-otp",
+                state.args.server.root_path
+            ),
             get(setup_otp),
         )
         .route(
-            "/realms/{realm_name}/login-actions/verify-otp",
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/verify-otp",
+                state.args.server.root_path
+            ),
             post(verify_otp),
         )
         .route(
-            "/realms/{realm_name}/login-actions/challenge-otp",
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/challenge-otp",
+                state.args.server.root_path
+            ),
             post(challenge_otp),
         )
         .route(
-            "/realms/{realm_name}/login-actions/update-password",
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/update-password",
+                state.args.server.root_path
+            ),
             post(update_password),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))

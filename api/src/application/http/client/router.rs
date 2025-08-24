@@ -43,39 +43,81 @@ pub struct ClientApiDoc;
 
 pub fn client_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .route("/realms/{realm_name}/clients", get(get_clients))
-        .route("/realms/{realm_name}/clients/{client_id}", get(get_client))
-        .route("/realms/{realm_name}/clients", post(create_client))
         .route(
-            "/realms/{realm_name}/clients/{client_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/clients",
+                state.args.server.root_path
+            ),
+            get(get_clients),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
+            get(get_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients",
+                state.args.server.root_path
+            ),
+            post(create_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
             patch(update_client),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/redirects",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects",
+                state.args.server.root_path
+            ),
             post(create_redirect_uri),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/roles",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/roles",
+                state.args.server.root_path
+            ),
             post(create_role),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/redirects",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects",
+                state.args.server.root_path
+            ),
             get(get_redirect_uris),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
             put(update_redirect_uri),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
             delete(delete_client),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
             delete(delete_redirect_uri),
         )
         .route(
-            "/realms/{realm_name}/clients/{client_id}/roles",
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/roles",
+                state.args.server.root_path
+            ),
             get(get_client_roles),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))

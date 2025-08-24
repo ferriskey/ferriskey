@@ -2,20 +2,15 @@ use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::get_users_use_case::GetUsersUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/realms/{realm_name}/users")]
-pub struct GetUsersRoute {
-    pub realm_name: String,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct UsersResponse {
@@ -36,7 +31,7 @@ pub struct UsersResponse {
     )
 )]
 pub async fn get_users(
-    GetUsersRoute { realm_name }: GetUsersRoute,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UsersResponse>, ApiError> {

@@ -81,18 +81,37 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
 
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
+    let mut openapi = ApiDoc::openapi();
+    let mut paths = openapi.paths.clone();
+    paths.paths = openapi
+        .paths
+        .paths
+        .into_iter()
+        .map(|(path, item)| (format!("{}{path}", state.args.server.root_path), item))
+        .collect();
+    openapi.paths = paths;
+
     let router = axum::Router::new()
-        .merge(Scalar::with_url("/swagger-ui", ApiDoc::openapi()))
-        .route("/config", get(get_config))
+        .merge(Scalar::with_url(
+            format!("{}/swagger-ui", state.args.server.root_path),
+            openapi,
+        ))
+        .route(
+            &format!("{}/config", state.args.server.root_path),
+            get(get_config),
+        )
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
         .merge(user_routes(state.clone()))
-        .merge(authentication_routes())
+        .merge(authentication_routes(&state.args.server.root_path))
         .merge(role_routes(state.clone()))
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
-        .merge(health_routes())
-        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .merge(health_routes(&state.args.server.root_path))
+        .route(
+            &format!("{}/metrics", state.args.server.root_path),
+            get(|| async move { metric_handle.render() }),
+        )
         .layer(trace_layer)
         .layer(cors)
         .layer(CookieLayer::default())

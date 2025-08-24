@@ -239,14 +239,78 @@ pub struct ServerArgs {
         long_help = "The port to run the application on"
     )]
     pub port: u16,
+    #[arg(
+        long = "server-root-path",
+        env = "SERVER_ROOT_PATH",
+        name = "SERVER_ROOT_PATH",
+        default_value = "",
+        long_help = "The root path to run the application on",
+        value_parser = parse_root_path,
+    )]
+    pub root_path: String,
 }
 
 impl Default for ServerArgs {
     fn default() -> Self {
         Self {
             allowed_origins: vec![],
-            host: "0.0.0.0".to_string(),
+            host: "0.0.0.0".into(),
             port: 3333,
+            root_path: String::new(),
+        }
+    }
+}
+
+fn parse_root_path(value: &str) -> Result<String, String> {
+    let value = value.trim_end_matches('/');
+    if value.is_empty() || value.starts_with('/') {
+        Ok(value.into())
+    } else {
+        Ok(format!("/{value}"))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod parse_root_path {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            let path = parse_root_path("").unwrap();
+            assert_eq!(path, "");
+        }
+
+        #[test]
+        fn slash() {
+            let path = parse_root_path("/").unwrap();
+            assert_eq!(path, "");
+        }
+
+        #[test]
+        fn api() {
+            let path = parse_root_path("api").unwrap();
+            assert_eq!(path, "/api");
+        }
+
+        #[test]
+        fn api_slash() {
+            let path = parse_root_path("api/").unwrap();
+            assert_eq!(path, "/api");
+        }
+
+        #[test]
+        fn slash_api() {
+            let path = parse_root_path("/api").unwrap();
+            assert_eq!(path, "/api");
+        }
+
+        #[test]
+        fn slash_api_slash() {
+            let path = parse_root_path("/api/").unwrap();
+            assert_eq!(path, "/api");
         }
     }
 }

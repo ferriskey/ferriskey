@@ -2,22 +2,16 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::user::validators::ResetPasswordValidator;
-use axum::Extension;
-use axum::extract::State;
-use axum_macros::TypedPath;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::application::user::use_cases::reset_password_use_case::ResetPasswordUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(Deserialize, TypedPath)]
-#[typed_path("/realms/{realm_name}/users/{user_id}/reset-password")]
-pub struct ResetPasswordRoute {
-    pub realm_name: String,
-    pub user_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct ResetPasswordResponse {
@@ -46,10 +40,8 @@ pub struct ResetPasswordResponse {
     )
 )]
 pub async fn reset_password(
-    ResetPasswordRoute {
-        user_id,
-        realm_name,
-    }: ResetPasswordRoute,
+    Path(realm_name): Path<String>,
+    Path(user_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<ResetPasswordValidator>,

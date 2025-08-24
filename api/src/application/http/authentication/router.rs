@@ -23,26 +23,26 @@ use crate::application::http::server::app_state::AppState;
 ))]
 pub struct AuthenticationApiDoc;
 
-pub fn authentication_routes() -> Router<AppState> {
+pub fn authentication_routes(root_path: &str) -> Router<AppState> {
     Router::new()
         .route(
-            "/realms/{realm_name}/protocol/openid-connect/token",
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
             post(exchange_token),
         )
         .route(
-            "/realms/{realm_name}/protocol/openid-connect/auth",
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
             get(auth),
         )
         .route(
-            "/realms/{realm_name}/login-actions/authenticate",
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),
             post(authenticate),
         )
         .route(
-            "/realms/{realm_name}/protocol/openid-connect/certs",
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),
             get(get_certs),
         )
         .route(
-            "/realms/{realm_name}/.well-known/openid-configuration",
+            &format!("{root_path}/realms/{{realm_name}}/.well-known/openid-configuration"),
             get(get_openid_configuration),
         )
 }
