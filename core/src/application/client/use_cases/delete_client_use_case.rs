@@ -1,14 +1,22 @@
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     application::{
         client::policies::ClientPolicy,
-        common::services::{DefaultClientService, DefaultRealmService, DefaultUserService},
+        common::services::{
+            DefaultClientService, DefaultRealmService, DefaultUserService,
+            DefaultWebhookNotifierService,
+        },
     },
     domain::{
         authentication::value_objects::Identity,
         client::{entities::ClientError, ports::ClientService},
         realm::ports::RealmService,
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
 
@@ -17,6 +25,7 @@ pub struct DeleteClientUseCase {
     realm_service: DefaultRealmService,
     user_service: DefaultUserService,
     client_service: DefaultClientService,
+    webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct DeleteClientUseCaseParams {
@@ -29,11 +38,13 @@ impl DeleteClientUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -51,7 +62,7 @@ impl DeleteClientUseCase {
         Self::ensure_permissions(
             ClientPolicy::delete(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -60,6 +71,17 @@ impl DeleteClientUseCase {
         )?;
 
         self.client_service.delete_by_id(params.client_id).await?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::<Uuid>::new(WebhookTrigger::ClientDeleted, realm.id, None),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                ClientError::InternalServerError
+            })?;
 
         Ok(())
     }

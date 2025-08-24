@@ -1,6 +1,9 @@
 use crate::application::client::policies::ClientPolicy;
-use crate::application::common::services::DefaultUserService;
+use crate::application::common::services::{DefaultUserService, DefaultWebhookNotifierService};
 use crate::domain::authentication::value_objects::Identity;
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookNotifierService;
 use crate::{
     application::common::services::{DefaultClientService, DefaultRealmService},
     domain::{
@@ -13,12 +16,14 @@ use crate::{
         realm::ports::RealmService,
     },
 };
+use tracing::error;
 
 #[derive(Clone)]
 pub struct CreateClientUseCase {
     pub realm_service: DefaultRealmService,
     pub client_service: DefaultClientService,
     pub user_service: DefaultUserService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct CreateClientUseCaseParams {
@@ -37,11 +42,13 @@ impl CreateClientUseCase {
         realm_service: DefaultRealmService,
         client_service: DefaultClientService,
         user_service: DefaultUserService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             client_service,
             user_service,
+            webhook_notifier_service,
         }
     }
 
@@ -56,10 +63,9 @@ impl CreateClientUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let realm_id = realm.id;
         let can_create_client = ClientPolicy::create(
             identity,
-            realm,
+            realm.clone(),
             self.user_service.clone(),
             self.client_service.clone(),
         )
@@ -77,7 +83,7 @@ impl CreateClientUseCase {
             .client_service
             .create_client(
                 CreateClientRequest {
-                    realm_id,
+                    realm_id: realm.id.clone(),
                     name: params.name,
                     client_id: params.client_id,
                     secret,
@@ -90,6 +96,21 @@ impl CreateClientUseCase {
                 params.realm_name,
             )
             .await?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientCreated,
+                    client.id,
+                    Some(client.clone()),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                ClientError::InternalServerError
+            })?;
 
         Ok(client)
     }

@@ -13,6 +13,9 @@ pub enum WebhookTrigger {
     UserUnassignRole,
     UserDeleteCredentials,
     AuthResetPassword,
+    ClientCreated,
+    ClientUpdated,
+    ClientDeleted,
 }
 
 impl Display for WebhookTrigger {
@@ -26,6 +29,9 @@ impl Display for WebhookTrigger {
             WebhookTrigger::UserUnassignRole => write!(f, "user.unassign.role"),
             WebhookTrigger::UserDeleteCredentials => write!(f, "user.credentials_deleted"),
             WebhookTrigger::AuthResetPassword => write!(f, "auth.reset_password"),
+            WebhookTrigger::ClientCreated => write!(f, "client.created"),
+            WebhookTrigger::ClientUpdated => write!(f, "client.updated"),
+            WebhookTrigger::ClientDeleted => write!(f, "client.deleted"),
         }
     }
 }
@@ -43,6 +49,9 @@ impl TryFrom<String> for WebhookTrigger {
             "user.unassign.role" => Ok(WebhookTrigger::UserUnassignRole),
             "user.credentials_deleted" => Ok(WebhookTrigger::UserDeleteCredentials),
             "auth.reset_password" => Ok(WebhookTrigger::AuthResetPassword),
+            "client.created" => Ok(WebhookTrigger::ClientCreated),
+            "client.updated" => Ok(WebhookTrigger::ClientUpdated),
+            "client.deleted" => Ok(WebhookTrigger::ClientDeleted),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }
