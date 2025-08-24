@@ -238,6 +238,30 @@ impl AuthenticateUseCase {
             .await
             .map_err(|_| AuthenticationError::InternalServerError)?;
 
+        let user = self
+            .user_service
+            .get_by_id(claims.sub)
+            .await
+            .map_err(|_| AuthenticationError::InternalServerError)?;
+
+        if !user.required_actions.is_empty() {
+            let jwt_token = self
+                .jwt_service
+                .generate_token(claims, realm_id)
+                .await
+                .map_err(|_| AuthenticationError::InternalServerError)?;
+
+            return Ok(AuthenticateUseCaseResponse {
+                status: AuthenticationStepStatus::RequiresActions,
+                user_id: user.id,
+                authorization_code: None,
+                redirect_url: None,
+                required_actions: user.required_actions,
+                session_state: None,
+                temporary_token: Some(jwt_token.token),
+            });
+        }
+
         // Finalize authentication
         self.finalize_authentication(claims.sub, session_code, auth_session)
             .await

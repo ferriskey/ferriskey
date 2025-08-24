@@ -1,4 +1,4 @@
-import { useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { RouterParams } from '@/routes/router.ts'
 import UpdatePassword from '@/pages/authentication/ui/execution/update-password.tsx'
 import { useUpdatePassword } from '@/api/trident.api'
@@ -8,6 +8,7 @@ import { updatePasswordSchema, UpdatePasswordSchema } from '../../schemas/update
 import { Form } from '@/components/ui/form'
 import { useEffect } from 'react'
 import { useAuthenticateMutation } from '@/api/auth.api'
+import { AuthenticationStatus } from '@/api/api.interface'
 
 
 export default function UpdatePasswordFeature() {
@@ -15,6 +16,7 @@ export default function UpdatePasswordFeature() {
   const [searchParams] = useSearchParams()
   const { mutate: updatePassword, data: responseUpdatePassword } = useUpdatePassword()
   const { mutate: authenticate, data: authenticateResponse } = useAuthenticateMutation()
+  const navigate = useNavigate()
   const token = searchParams.get('client_data')
 
   const form = useForm<UpdatePasswordSchema>({
@@ -28,7 +30,7 @@ export default function UpdatePasswordFeature() {
   const handleClick = form.handleSubmit((payload) => {
     updatePassword({
       body: {
-        value: payload.password
+        value: payload.password,
       }
     })
   })
@@ -56,10 +58,24 @@ export default function UpdatePasswordFeature() {
   }, [responseUpdatePassword, authenticate, realm_name, token])
 
   useEffect(() => {
-    if (authenticateResponse && authenticateResponse.url) {
+    if (!authenticateResponse) return
+    if (authenticateResponse.url) {
       window.location.href = authenticateResponse.url
     }
-  }, [authenticateResponse])
+
+    if (
+      authenticateResponse.status === AuthenticationStatus.RequiresActions &&
+      authenticateResponse.required_actions &&
+      authenticateResponse.required_actions.length > 0 &&
+      authenticateResponse.token
+    ) {
+      const firstRequiredAction = authenticateResponse.required_actions[0]
+
+      navigate(
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateResponse.token}`
+      )
+    }
+  }, [authenticateResponse, navigate, realm_name])
 
 
   return (
