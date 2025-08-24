@@ -33,8 +33,7 @@ use uuid::Uuid;
     )
 )]
 pub async fn create_role(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRoleValidator>,
