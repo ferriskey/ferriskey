@@ -18,7 +18,7 @@ export default function RealmsSettingsLayout() {
   useEffect(() => {
     const pathParts = pathname.split('/')
     const lastPart = pathParts[pathParts.length - 1]
-    const validTabs = ['general', 'login', 'security']
+    const validTabs = ['general', 'login', 'security', 'webhooks']
 
     setTab(validTabs.includes(lastPart) ? lastPart : 'general')
   }, [pathname])
