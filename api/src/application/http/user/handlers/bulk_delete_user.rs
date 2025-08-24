@@ -20,6 +20,7 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct BulkDeleteUserResponse {
     pub count: u32,
+    pub realm_name: String,
 }
 
 #[utoipa::path(
@@ -31,9 +32,10 @@ pub struct BulkDeleteUserResponse {
     responses(
         (status = 200, body = BulkDeleteUserResponse, description = "Users deleted successfully"),
     ),
+    request_body = BulkDeleteUserValidator,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-        ("ids" = Vec<Uuid>, Path, description = "User IDs"),
+        //("ids" = Vec<Uuid>, Path, description = "User IDs"),
     ),
 )]
 pub async fn bulk_delete_user(
@@ -48,7 +50,7 @@ pub async fn bulk_delete_user(
         .execute(
             identity,
             BulkDeleteUserUseCaseParams {
-                realm_name,
+                realm_name: realm_name.clone(),
                 ids: payload.ids,
             },
         )
@@ -57,5 +59,6 @@ pub async fn bulk_delete_user(
 
     Ok(Response::OK(BulkDeleteUserResponse {
         count: count as u32,
+        realm_name,
     }))
 }

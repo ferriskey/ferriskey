@@ -20,8 +20,10 @@ export default function PageUsersOverviewFeature() {
     bulkDeleteUser(
       {
         path: {
-          ids: items.map(i => i.id),
           realm_name
+        },
+        body: {
+          ids: items.map(i => i.id)
         }
       },
       {

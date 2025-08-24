@@ -89,9 +89,14 @@ export const useBulkDeleteUser = () => {
       const data = await res.json()
       return data
     }).mutationOptions,
-    onSuccess: () => {
+    onSuccess: async (res) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users', {
+        path: {
+          realm_name: res.realm_name,
+        },
+      }).queryKey
       queryClient.invalidateQueries({
-        queryKey: ['users'],
+        queryKey: keys,
       })
     },
   })
