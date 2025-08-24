@@ -96,12 +96,14 @@ where
             .await
             .map_err(|_| AuthenticationError::Invalid)?;
 
-        if client.direct_access_grants_enabled {
-            if params.client_secret.is_some() {
+        if !client.direct_access_grants_enabled {
+            if params.client_secret.is_none() {
                 return Err(AuthenticationError::InvalidRequest);
             }
-        } else if client.secret != params.client_secret {
-            return Err(AuthenticationError::InvalidClientSecret);
+
+            if client.secret != params.client_secret {
+                return Err(AuthenticationError::InvalidClientSecret);
+            }
         }
 
         let user = self
