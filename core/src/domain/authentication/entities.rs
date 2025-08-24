@@ -82,6 +82,9 @@ pub enum AuthenticationError {
 
     #[error("Invalid client secret")]
     InvalidClientSecret,
+
+    #[error("Invalid authorization request")]
+    InvalidRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

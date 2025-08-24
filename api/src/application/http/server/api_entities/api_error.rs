@@ -130,6 +130,9 @@ impl From<AuthenticationError> for ApiError {
             AuthenticationError::InvalidClientSecret => {
                 Self::Unauthorized("Invalid client secret".to_string())
             }
+            AuthenticationError::InvalidRequest => {
+                Self::Unauthorized("Invalid authorization request".to_string())
+            }
         }
     }
 }
