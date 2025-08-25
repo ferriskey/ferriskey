@@ -1,57 +1,116 @@
 services:
-  postgres:
-    image: docker.io/postgres:17
-    ports:
-      - "5432:5432"
+  db:
+    image: postgres:17
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=ferriskey
+      POSTGRES_DB: ferriskey
+      POSTGRES_PASSWORD: ferriskey
+      POSTGRES_USER: ferriskey
+    ports:
+      - 5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-  api-migration:
-    image: ghcr.io/ferriskey/ferriskey-api:latest
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready
+        - -U
+        - ferriskey
+        - -d
+        - ferriskey
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+  api-build:
+    build:
+      context: .
+      target: api
     environment:
-      - PORT=3333
-      - ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
-      - ADMIN_PASSWORD=admin
-      - ADMIN_USERNAME=admin
-      - ADMIN_EMAIL=super@ferriskey.dev
-      - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
+      ALLOWED_ORIGINS: http://buildhost:5555
+      DATABASE_HOST: db
+      DATABASE_NAME: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_USER: ferriskey
+    ports:
+      - 3333:3333
     depends_on:
-      - postgres
-    command: >
-      bash -c "
-        sqlx migrate run &&
-        echo 'Database migrations completed!'
-      "
-    restart: "no"
-  api:
-    image: ghcr.io/ferriskey/ferriskey-api:latest
-    environment:
-      - PORT=3333
-      - ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
-      - ADMIN_PASSWORD=admin
-      - ADMIN_USERNAME=admin
-      - ADMIN_EMAIL=super@ferriskey.dev
-      - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
-    depends_on:
-      api-migration:
+      db-migrations-build:
         condition: service_completed_successfully
-    ports:
-      - "3333:3333"
-    restart: unless-stopped
-  frontend:
-    image: ghcr.io/ferriskey/ferriskey-front:latest
-    ports:
-      - "5555:80"
-    environment:
-      - APP_API_URL=http://localhost:3333
-    depends_on:
-      - api
+    profiles:
+      - build
 
+  db-migrations-build:
+    build:
+      context: .
+      target: api
+    entrypoint:
+      - sqlx
+    command:
+      - migrate
+      - run
+      - --source
+      - /usr/build/src/ferriskey/migrations
+    environment:
+      DATABASE_URL: postgresql://ferriskey:ferriskey@db/ferriskey
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - build
+
+  webapp-build:
+    build:
+      context: .
+      target: webapp
+    environment:
+      API_URL: http://localhost:3333
+    ports:
+      - 5555:80
+    profiles:
+      - build
+
+  api-registry:
+    image: ghcr.io/ferriskey/ferriskey-api
+    environment:
+      ALLOWED_ORIGINS: http://localhost:5556
+      DATABASE_HOST: db
+      DATABASE_NAME: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_USER: ferriskey
+    ports:
+      - 3334:3333
+    depends_on:
+      db-migrations-build:
+        condition: service_completed_successfully
+    profiles:
+      - build
+
+  db-migrations-registry:
+    image: ghcr.io/ferriskey/ferriskey-api
+    entrypoint:
+      - sqlx
+    command:
+      - migrate
+      - run
+      - --source
+      - /usr/build/src/ferriskey/migrations
+    environment:
+      DATABASE_URL: postgresql://ferriskey:ferriskey@db/ferriskey
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - build
+
+  webapp-registry:
+    image: ghcr.io/ferriskey/ferriskey-webapp
+    environment:
+      API_URL: http://localhost:3334
+    ports:
+      - 5556:80
+    profiles:
+      - build
 volumes:
-  postgres_data:
+  pgdata:
