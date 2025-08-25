@@ -9,7 +9,7 @@ import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 export const columns: ColumnDef<Client>[] = [
   {
     id: 'name',
-    header: 'Utilisateur',
+    header: 'Users',
     cell: (client) => (
       <div className='flex items-center gap-3'>
         <div className='h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center'>

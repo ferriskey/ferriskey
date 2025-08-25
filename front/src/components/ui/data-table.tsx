@@ -181,7 +181,7 @@ export function DataTable<T extends { id: string }>({
                             selectedItems.length === paginatedData.length
                           }
                           onCheckedChange={handleSelectAll}
-                          aria-label='Sélectionner toutes les lignes'
+                          aria-label='Select all'
                         />
                       </TableHead>
                     )}
@@ -206,7 +206,7 @@ export function DataTable<T extends { id: string }>({
                             <Checkbox
                               checked={selectedItems.some((item) => item.id === row.id)}
                               onCheckedChange={() => handleSelectItem(row)}
-                              aria-label={'Sélectionner la ligne'}
+                              aria-label={'Select row'}
                             />
                           </TableCell>
                         )}
@@ -274,7 +274,7 @@ export function DataTable<T extends { id: string }>({
                         className='h-24 text-center'
                       >
                         {emptyState ||
-                          (search ? 'Aucun résultat trouvé.' : 'Aucune donnée disponible.')}
+                          (search ? 'No result found' : 'No data available.')}
                       </TableCell>
                     </TableRow>
                   )}
