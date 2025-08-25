@@ -11,7 +11,7 @@
 <p align="center">
   <!-- Badges (tweak org/repo names as needed) -->
   <a href="https://github.com/ferriskey/ferriskey/actions">
-    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ferriskey/ferriskey/ci.yml?label=CI&logo=github" />
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ferriskey/ferriskey/docker.yml?label=CI&logo=github" />
   </a>
   <a href="https://github.com/ferriskey/ferriskey/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/ferriskey/ferriskey?display_name=tag&logo=semantic-release" />
@@ -72,73 +72,28 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 
 ## 🚀 Quick Start
 
-### Option A — Docker (Docker compose)
+### Option A — Using latest Docker image
 
 ```yaml
-services:
-  postgres:
-    image: docker.io/postgres:17
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=ferriskey
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-  api-migration:
-    image: ghcr.io/ferriskey/ferriskey-api:latest
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
-    depends_on:
-      - postgres
-    command: >
-      bash -c "
-        sqlx migrate run &&
-        echo 'Database migrations completed!'
-      "
-    restart: "no"
-  api:
-    image: ghcr.io/ferriskey/ferriskey-api:latest
-    environment:
-      - PORT=3333
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
-      - ADMIN_EMAIL=admin@example.com
-      - ADMIN_PASSWORD=admin
-      - ADMIN_USERNAME=admin
-      - ALLOWED_ORIGINS=http://localhost:5555
-    depends_on:
-      api-migration:
-        condition: service_completed_successfully
-    ports:
-      - "3333:3333"
-    restart: unless-stopped
-  frontend:
-    image: ghcr.io/ferriskey/ferriskey-front:latest
-    ports:
-      - "5555:80"
-    environment:
-      - APP_API_URL=http://localhost:3333
-    depends_on:
-      - api
-volumes:
-  postgres_data:
+docker compose --profile registry up -d
+```
+
+Then visit [http://localhost:5556](http://localhost:5556) to access the console. The default credentials are `admin` and `admin`.
+
+### Option A — Re-build Docker image
+
+```yaml
+docker compose --profile local up -d
 ```
 
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
-### Option B — Helm (Kubernetes)
+### Option C — Helm (Kubernetes)
 > Requires a reachable Postgres (or include it via your platform’s recommended operator).
 
-```bash
+See [chart documentation](charts/ferriskey/README.md).
 
-helm upgrade --install ferriskey oci://ghcr.io/ferriskey/charts/ferriskey \
-  --namespace ferriskey --create-namespace \
-  --set api.monitoring.serviceMonitor.enabled=false
-```
-
-### Option C - Cargo
+### Option D - Cargo
 
 1. Clone the repo
 ```bash
