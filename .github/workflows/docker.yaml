@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    tags:
+      - v*.*.*
+      - v*.*.*-rc*
   pull_request:
     branches:
       - main
@@ -58,7 +61,7 @@ jobs:
           images: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
 
       - name: log-in to ghcr
-        if: inputs.push
+        if: inputs.push || startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -76,18 +79,18 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
           cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
-          outputs: type=image,push-by-digest=${{ inputs.push || 'false' }},name-canonical=true,push=${{ inputs.push || 'false' }}
+          outputs: type=image,push-by-digest=${{ inputs.push || startsWith(github.ref, 'refs/tags/v') }},name-canonical=true,push=${{ inputs.push || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: prepare digest
         id: digest
-        if: inputs.push
+        if: inputs.push || startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: upload digest
-        if: inputs.push
+        if: inputs.push || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: digests-${{ runner.arch }}-${{ matrix.target }}
@@ -103,7 +106,7 @@ jobs:
           mv ${{ runner.temp }}/.buildx-cache-new ${{ runner.temp }}/.buildx-cache
 
   push-manifest:
-    if: inputs.push
+    if: inputs.push || startsWith(github.ref, 'refs/tags/v')
     needs:
       - build
     runs-on: ubuntu-latest
