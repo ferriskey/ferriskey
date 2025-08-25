@@ -104,7 +104,6 @@ services:
     environment:
       - PORT=3333
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/ferriskey
-      - PORTAL_URL=http://localhost:5555
       - ADMIN_EMAIL=admin@example.com
       - ADMIN_PASSWORD=admin
       - ADMIN_USERNAME=admin
@@ -183,7 +182,6 @@ PORT=3333
 ENV=development
 LOG_LEVEL=info
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/ferriskey
-PORTAL_URL=http://localhost:5555
 
 ADMIN_PASSWORD=admin
 ADMIN_USERNAME=admin

@@ -43,7 +43,6 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_EMAIL=super@ferriskey.local
       - ALLOWED_ORIGINS=http://localhost:5555,http://localhost:3333
-      - PORTAL_URL=http://localhost:5555
     depends_on:
       api-migration:
         condition: service_completed_successfully

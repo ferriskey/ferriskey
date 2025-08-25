@@ -20,7 +20,7 @@ use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
 use tower_http::cors::CorsLayer;
-use tracing::info_span;
+use tracing::{debug, info_span};
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
@@ -59,6 +59,8 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .iter()
         .map(|origin| HeaderValue::from_str(origin).unwrap())
         .collect::<Vec<HeaderValue>>();
+
+    debug!("Allowed origins: {:?}", allowed_origins);
 
     let cors = CorsLayer::new()
         .allow_methods([

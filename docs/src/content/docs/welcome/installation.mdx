@@ -29,8 +29,6 @@ ADMIN_USERNAME=super
 ADMIN_EMAIL=super@ferriskey.fr
 
 ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5556
-
-PORTAL_URL=http://localhost:5555
 ```
 
 ## With Docker
@@ -50,7 +48,6 @@ docker run -p 3333:3333 \
   -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=admin \
   -e ADMIN_EMAIL=admin@example.com \
   -e ALLOWED_ORIGINS=http://localhost:5555,http://localhost:5554 \
-  -e PORTAL_URL=http://localhost:5555 \
   ghcr.io/ferriskey/ferriskey-api
 ```
 

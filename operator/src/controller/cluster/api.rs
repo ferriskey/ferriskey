@@ -74,11 +74,6 @@ pub async fn reconcile_api(cluster: &FerriskeyCluster, client: &Client) -> Resul
         .unwrap_or(vec!["http://localhost:5555".into()])
         .join(",");
 
-    let portal_url = backend
-        .portal_url
-        .clone()
-        .unwrap_or("http://localhost:5555".into());
-
     let env_vars = vec![
         EnvVar {
             name: "PORT".into(),
@@ -120,11 +115,6 @@ pub async fn reconcile_api(cluster: &FerriskeyCluster, client: &Client) -> Resul
         EnvVar {
             name: "ALLOWED_ORIGINS".into(),
             value: Some(allowed_origins),
-            ..Default::default()
-        },
-        EnvVar {
-            name: "PORTAL_URL".into(),
-            value: Some(portal_url),
             ..Default::default()
         },
     ];

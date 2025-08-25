@@ -37,9 +37,6 @@ spec:
                   password:
                     nullable: true
                     type: string
-                  portal_url:
-                    nullable: true
-                    type: string
                   replicas:
                     format: uint8
                     minimum: 0.0

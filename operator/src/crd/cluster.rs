@@ -32,7 +32,6 @@ pub struct BackendSpec {
     pub password: Option<String>,
     pub email: Option<String>,
     pub allowed_origins: Option<Vec<String>>,
-    pub portal_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
