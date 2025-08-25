@@ -29,7 +29,7 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/@me/realms",
+                "{}/realms/{{realm_name}}/users/@me/realms",
                 state.args.server.root_path
             ),
             get(get_user_realms),
