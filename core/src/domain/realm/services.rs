@@ -177,4 +177,8 @@ where
             .update_realm_setting(realm_id, algorithm)
             .await
     }
+
+    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, RealmError> {
+        self.realm_repository.get_realm_settings(realm_id).await
+    }
 }

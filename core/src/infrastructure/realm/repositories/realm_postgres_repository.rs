@@ -157,4 +157,16 @@ impl RealmRepository for PostgresRealmRepository {
 
         Ok(realm_setting)
     }
+
+    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, RealmError> {
+        let realm_setting = crate::entity::realm_settings::Entity::find()
+            .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| RealmError::InternalServerError)?
+            .ok_or(RealmError::NotFound)?;
+        let realm_setting: RealmSetting = realm_setting.into();
+
+        Ok(realm_setting)
+    }
 }

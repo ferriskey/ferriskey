@@ -14,7 +14,7 @@ pub struct Realm {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct RealmSetting {
     pub id: Uuid,
     pub realm_id: Uuid,

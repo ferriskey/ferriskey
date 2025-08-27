@@ -18,6 +18,7 @@ use crate::application::health::use_cases::HealthCheckUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::realm::use_cases::delete_realm_use_case::DeleteRealmUseCase;
 use crate::application::realm::use_cases::get_realm_use_case::GetRealmUseCase;
+use crate::application::realm::use_cases::get_user_realms_settings_use_case::GetUserRealmSettingsUseCase;
 use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCase;
 use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
 use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
@@ -60,6 +61,7 @@ pub struct UseCaseBundle {
     pub delete_realm_use_case: DeleteRealmUseCase,
     pub get_realm_use_case: GetRealmUseCase,
     pub get_user_realms_use_case: GetUserRealmsUseCase,
+    pub get_user_realm_settings_use_case: GetUserRealmSettingsUseCase,
     pub update_realm_use_case: UpdateRealmUseCase,
     pub update_realm_settings_use_case: UpdateRealmSettingsUseCase,
 
@@ -155,6 +157,11 @@ impl UseCaseBundle {
         let get_user_realms_use_case =
             GetUserRealmsUseCase::new(service_bundle.user_service.clone());
 
+        let get_user_realm_settings_use_case = GetUserRealmSettingsUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.user_service.clone(),
+        );
+
         let update_realm_use_case = UpdateRealmUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
@@ -196,6 +203,7 @@ impl UseCaseBundle {
             delete_realm_use_case,
             get_realm_use_case,
             get_user_realms_use_case,
+            get_user_realm_settings_use_case,
             update_realm_use_case,
             update_realm_settings_use_case,
 

@@ -30,6 +30,11 @@ pub trait RealmService: Clone + Send + Sync {
         realm_id: Uuid,
         algorithm: String,
     ) -> impl Future<Output = Result<RealmSetting, RealmError>> + Send;
+
+    fn get_realm_settings(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<RealmSetting, RealmError>> + Send;
 }
 
 pub trait RealmRepository: Clone + Send + Sync + 'static {
@@ -59,5 +64,10 @@ pub trait RealmRepository: Clone + Send + Sync + 'static {
         &self,
         realm_id: Uuid,
         algorithm: String,
+    ) -> impl Future<Output = Result<RealmSetting, RealmError>> + Send;
+
+    fn get_realm_settings(
+        &self,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<RealmSetting, RealmError>> + Send;
 }
