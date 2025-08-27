@@ -1,5 +1,0 @@
-./target
-.env
-*.key*
-.idea
-/target
