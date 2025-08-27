@@ -11,7 +11,7 @@
 <p align="center">
   <!-- Badges (tweak org/repo names as needed) -->
   <a href="https://github.com/ferriskey/ferriskey/actions">
-    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ferriskey/ferriskey/docker.yml?label=CI&logo=github" />
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ferriskey/ferriskey/docker.yaml?label=CI&logo=github" />
   </a>
   <a href="https://github.com/ferriskey/ferriskey/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/ferriskey/ferriskey?display_name=tag&logo=semantic-release" />
@@ -80,7 +80,7 @@ docker compose --profile registry up -d
 
 Then visit [http://localhost:5556](http://localhost:5556) to access the console. The default credentials are `admin` and `admin`.
 
-### Option A — Re-build Docker image
+### Option B — Re-build Docker image
 
 ```yaml
 docker compose --profile local up -d
