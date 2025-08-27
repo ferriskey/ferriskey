@@ -13,6 +13,7 @@ export interface PageRolesOverviewProps {
   realmName: string
   handleDeleteSelected: (items: Role[]) => void
   handleClickRow: (roleId: string) => void
+  handleDeleteRole: (role: Role) => void
 }
 
 export default function PageRolesOverview({
@@ -21,6 +22,7 @@ export default function PageRolesOverview({
   realmName,
   handleDeleteSelected,
   handleClickRow,
+  handleDeleteRole,
 }: PageRolesOverviewProps) {
   const navigate = useNavigate()
 
@@ -76,7 +78,7 @@ export default function PageRolesOverview({
             label: 'Delete',
             icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
-            onClick: (client) => console.log('Delete', client),
+            onClick: (role) => handleDeleteRole(role),
           },
         ]}
       />

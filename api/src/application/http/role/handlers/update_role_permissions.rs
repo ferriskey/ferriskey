@@ -41,8 +41,7 @@ pub struct UpdateRolePermissionsResponse {
   ),
 )]
 pub async fn update_role_permissions(
-    Path(realm_name): Path<String>,
-    Path(role_id): Path<Uuid>,
+    Path((realm_name, role_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRolePermissionsValidator>,

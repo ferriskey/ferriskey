@@ -1,1 +1,60 @@
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_core::application::role::use_cases::delete_role_use_case::DeleteRoleUseCaseParams;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct DeleteRoleResponse {
+    pub message: String,
+    pub realm_name: String,
+    pub role_id: Uuid,
+}
+
+#[utoipa::path(
+    delete,
+    summary = "Delete a role in a realm",
+    path = "/{role_id}",
+    tag = "role",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("role_id" = Uuid, Path, description = "Role ID"),
+    ),
+    responses(
+        (status = 200, body = DeleteRoleResponse, description = "Role deleted successfully"),
+        (status = 404, description = "Role not found"),
+        (status = 400, description = "Invalid request data")
+    ),
+)]
+pub async fn delete_role(
+    Path((realm_name, role_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+) -> Result<Response<DeleteRoleResponse>, ApiError> {
+    state
+        .use_case_bundle
+        .delete_role_use_case
+        .execute(
+            identity,
+            DeleteRoleUseCaseParams {
+                realm_name: realm_name.clone(),
+                role_id,
+            },
+        )
+        .await?;
+
+    Ok(Response::OK(DeleteRoleResponse {
+        // FIXME: may not want to leak the role_id
+        message: format!("Role with ID {role_id} in realm {realm_name} deleted successfully"),
+        realm_name,
+        role_id,
+    }))
+}

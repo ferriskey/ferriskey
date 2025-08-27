@@ -22,6 +22,7 @@ use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealm
 use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
 use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
 use crate::application::role::use_cases::RoleUseCase;
+use crate::application::role::use_cases::delete_role_use_case::DeleteRoleUseCase;
 use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
@@ -95,6 +96,7 @@ pub struct UseCaseBundle {
     pub get_role_use_case: GetRoleUseCase,
     pub update_role_use_case: UpdateRoleUseCase,
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
+    pub delete_role_use_case: DeleteRoleUseCase,
 
     // Trident (use-cases)
     pub update_password_use_case: UpdatePasswordUseCase,
@@ -227,6 +229,7 @@ impl UseCaseBundle {
             get_role_use_case: role_use_case.get_role_use_case,
             update_role_use_case: role_use_case.update_role_use_case,
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
+            delete_role_use_case: role_use_case.delete_role_use_case,
 
             update_password_use_case: trident_use_case.update_password_use_case,
             // Webhook (use-cases)

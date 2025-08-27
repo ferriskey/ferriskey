@@ -8,9 +8,10 @@ interface PageClientRolesProps {
   isLoading: boolean
   isError: boolean
   clientId?: string
+  handleDeleteRole?: (role: Role) => void
 }
 
-export default function PageClientRoles({ roles, isLoading, isError }: PageClientRolesProps) {
+export default function PageClientRoles({ roles, isLoading, isError, handleDeleteRole }: PageClientRolesProps) {
   if (isLoading) {
     return <div>Loading roles...</div>
   }
@@ -21,7 +22,18 @@ export default function PageClientRoles({ roles, isLoading, isError }: PageClien
 
   return (
     <div className=''>
-      <DataTable data={roles} columns={columns} />
+      <DataTable
+        data={roles}
+        columns={columns}
+        rowActions={[
+          {
+            label: 'Delete',
+            icon: <span className="text-red-500">🗑️</span>,
+            variant: 'destructive',
+            onClick: (role) => handleDeleteRole && handleDeleteRole(role),
+          },
+        ]}
+      />
     </div>
   )
 }

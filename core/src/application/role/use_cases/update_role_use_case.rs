@@ -1,6 +1,7 @@
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserService,
 };
+use crate::application::role::ensure_permissions;
 use crate::application::role::policies::RolePolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::ports::RealmService;
@@ -50,7 +51,7 @@ impl UpdateRoleUseCase {
             .await
             .map_err(|_| RoleError::InternalServerError)?;
 
-        Self::ensure_permissions(
+        ensure_permissions(
             RolePolicy::update(
                 identity,
                 realm,
@@ -70,16 +71,5 @@ impl UpdateRoleUseCase {
                 },
             )
             .await
-    }
-
-    #[inline]
-    fn ensure_permissions(
-        result_has_permission: Result<bool, RoleError>,
-        error_message: &str,
-    ) -> Result<(), RoleError> {
-        result_has_permission
-            .map_err(|_| RoleError::Forbidden(error_message.to_string()))?
-            .then_some(())
-            .ok_or_else(|| RoleError::Forbidden(error_message.to_string()))
     }
 }

@@ -100,6 +100,7 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
+  export type DeleteRoleResponse = { message: string; realm_name: string; client_id: string; role_id: string }
   export type DeleteRealmResponse = string
   export type DeleteUserCredentialResponse = {
     message: string
@@ -382,6 +383,15 @@ export namespace Endpoints {
       body: Schemas.CreateRoleValidator
     }
     response: Schemas.Role
+  }
+  export type delete_Delete_role = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/roles/{role_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; role_id: string }
+    }
+    response: Schemas.DeleteRoleResponse
   }
   export type post_Authenticate = {
     method: 'POST'
@@ -718,6 +728,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.delete_Delete_realm
     '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
+    '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
     '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user
     '/realms/{realm_name}/users/{user_id}': Endpoints.delete_Delete_user
     '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}': Endpoints.delete_Delete_user_credential
