@@ -83,7 +83,7 @@ impl CreateClientUseCase {
             .client_service
             .create_client(
                 CreateClientRequest {
-                    realm_id: realm.id.clone(),
+                    realm_id: realm.id,
                     name: params.name,
                     client_id: params.client_id,
                     secret,
