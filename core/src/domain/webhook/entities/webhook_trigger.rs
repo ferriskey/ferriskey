@@ -16,6 +16,9 @@ pub enum WebhookTrigger {
     ClientCreated,
     ClientUpdated,
     ClientDeleted,
+    ClientRoleUpdated,
+    RedirectUriCreated,
+    RedirectUriUpdated,
 }
 
 impl Display for WebhookTrigger {
@@ -32,6 +35,9 @@ impl Display for WebhookTrigger {
             WebhookTrigger::ClientCreated => write!(f, "client.created"),
             WebhookTrigger::ClientUpdated => write!(f, "client.updated"),
             WebhookTrigger::ClientDeleted => write!(f, "client.deleted"),
+            WebhookTrigger::ClientRoleUpdated => write!(f, "client.role_updated"),
+            WebhookTrigger::RedirectUriCreated => write!(f, "redirect_uri.created"),
+            WebhookTrigger::RedirectUriUpdated => write!(f, "redirect_uri.updated"),
         }
     }
 }
@@ -52,6 +58,9 @@ impl TryFrom<String> for WebhookTrigger {
             "client.created" => Ok(WebhookTrigger::ClientCreated),
             "client.updated" => Ok(WebhookTrigger::ClientUpdated),
             "client.deleted" => Ok(WebhookTrigger::ClientDeleted),
+            "client.role_updated" => Ok(WebhookTrigger::ClientRoleUpdated),
+            "redirect_uri.created" => Ok(WebhookTrigger::RedirectUriCreated),
+            "redirect_uri.updated" => Ok(WebhookTrigger::RedirectUriUpdated),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }

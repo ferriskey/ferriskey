@@ -4,6 +4,7 @@ use crate::{
     application::{
         common::services::{
             DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserService,
+            DefaultWebhookNotifierService,
         },
         role::policies::RolePolicy,
     },
@@ -12,8 +13,13 @@ use crate::{
         client::entities::ClientError,
         realm::ports::RealmService,
         role::{entities::Role, ports::RoleService, value_objects::CreateRoleRequest},
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookNotifierService,
+        },
     },
 };
+use tracing::error;
 
 #[derive(Clone)]
 pub struct CreateRoleUseCase {
@@ -21,6 +27,7 @@ pub struct CreateRoleUseCase {
     user_service: DefaultUserService,
     client_service: DefaultClientService,
     role_service: DefaultRoleService,
+    webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct CreateRoleUseCaseParams {
@@ -37,12 +44,14 @@ impl CreateRoleUseCase {
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         role_service: DefaultRoleService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
             role_service,
+            webhook_notifier_service,
         }
     }
 
@@ -57,11 +66,10 @@ impl CreateRoleUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let realm_id = realm.id;
         Self::ensure_permissions(
             RolePolicy::create(
                 identity,
-                realm,
+                realm.clone(),
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -77,10 +85,25 @@ impl CreateRoleUseCase {
                 description: params.description,
                 name: params.name,
                 permissions: params.permissions,
-                realm_id,
+                realm_id: realm.id,
             })
             .await
             .map_err(|_| ClientError::InternalServerError)?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientRoleCreated,
+                    role.id,
+                    Some(role.clone()),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                ClientError::InternalServerError
+            })?;
 
         Ok(role)
     }

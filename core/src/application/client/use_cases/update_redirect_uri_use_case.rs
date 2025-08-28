@@ -1,12 +1,17 @@
 use crate::application::client::policies::ClientPolicy;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
+    DefaultWebhookNotifierService,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::entities::ClientError;
 use crate::domain::client::entities::redirect_uri::RedirectUri;
 use crate::domain::client::ports::RedirectUriService;
 use crate::domain::realm::ports::RealmService;
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookNotifierService;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct UpdateRedirectUriUseCase {
@@ -14,6 +19,7 @@ pub struct UpdateRedirectUriUseCase {
     user_service: DefaultUserService,
     client_service: DefaultClientService,
     redirect_uri_service: DefaultRedirectUriService,
+    webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct UpdateRedirectUriUseCaseParams {
@@ -29,12 +35,14 @@ impl UpdateRedirectUriUseCase {
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         redirect_uri_service: DefaultRedirectUriService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
             redirect_uri_service,
+            webhook_notifier_service,
         }
     }
 
@@ -63,9 +71,27 @@ impl UpdateRedirectUriUseCase {
             ));
         }
 
-        self.redirect_uri_service
+        let redirect_uri = self
+            .redirect_uri_service
             .update_enabled(params.client_id, params.enabled)
             .await
-            .map_err(|_| ClientError::InternalServerError)
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriUpdated,
+                    redirect_uri.id,
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                ClientError::InternalServerError
+            })?;
+
+        Ok(redirect_uri)
     }
 }
