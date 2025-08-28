@@ -16,6 +16,9 @@ use uuid::Uuid;
     tag = "webhook",
     summary = "Get webhook",
     description = "Retrieves one webhook in the system related to the current realm.",
+    params(
+        ("webhook_id" = Uuid, Path, description = "Webhook ID"),
+    ),
     responses(
         (status = 200, body = Webhook)
     ),
