@@ -14,6 +14,9 @@ impl From<UserError> for ApiError {
                 ApiError::InternalServerError("Internal server error".to_string())
             }
             UserError::Forbidden(message) => ApiError::Forbidden(message),
+            UserError::FailedWebhookNotification(error) => {
+                ApiError::InternalServerError(format!("Failed to notify webhook: {error}"))
+            }
         }
     }
 }

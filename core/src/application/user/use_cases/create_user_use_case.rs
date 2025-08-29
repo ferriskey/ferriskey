@@ -20,7 +20,6 @@ use crate::{
         },
     },
 };
-use tracing::error;
 
 #[derive(Debug, Clone)]
 pub struct CreateUserUseCaseParams {
@@ -100,10 +99,7 @@ impl CreateUserUseCase {
                 WebhookPayload::new(WebhookTrigger::UserCreated, user.id, Some(user.clone())),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                UserError::InternalServerError
-            })?;
+            .map_err(UserError::FailedWebhookNotification)?;
 
         Ok(user)
     }
