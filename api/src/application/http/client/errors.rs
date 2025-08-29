@@ -20,6 +20,9 @@ impl From<ClientError> for ApiError {
                 ApiError::validation_error("Redirect URI format is invalid", "redirect_uri")
             }
             ClientError::Forbidden(e) => ApiError::Forbidden(e),
+            ClientError::FailedWebhookNotification(error) => {
+                ApiError::InternalServerError(format!("Failed to notify webhook: {}", error))
+            }
         }
     }
 }

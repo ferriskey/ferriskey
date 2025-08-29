@@ -16,7 +16,6 @@ use crate::{
         realm::ports::RealmService,
     },
 };
-use tracing::error;
 
 #[derive(Clone)]
 pub struct CreateClientUseCase {
@@ -109,10 +108,7 @@ impl CreateClientUseCase {
                 ),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                ClientError::InternalServerError
-            })?;
+            .map_err(ClientError::FailedWebhookNotification)?;
 
         Ok(client)
     }

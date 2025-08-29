@@ -1,4 +1,3 @@
-use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -78,10 +77,7 @@ impl DeleteClientUseCase {
                 WebhookPayload::<Uuid>::new(WebhookTrigger::ClientDeleted, realm.id, None),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                ClientError::InternalServerError
-            })?;
+            .map_err(ClientError::FailedWebhookNotification)?;
 
         Ok(())
     }

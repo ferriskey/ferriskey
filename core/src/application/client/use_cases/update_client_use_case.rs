@@ -10,7 +10,6 @@ use crate::domain::realm::ports::RealmService;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::ports::WebhookNotifierService;
-use tracing::error;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -84,10 +83,7 @@ impl UpdateClientUseCase {
                 ),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                ClientError::InternalServerError
-            })?;
+            .map_err(ClientError::FailedWebhookNotification)?;
 
         Ok(client)
     }

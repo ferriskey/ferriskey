@@ -1,11 +1,15 @@
 use crate::application::client::policies::ClientPolicy;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
+    DefaultWebhookNotifierService,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::entities::ClientError;
 use crate::domain::client::ports::RedirectUriService;
 use crate::domain::realm::ports::RealmService;
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookNotifierService;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -14,6 +18,7 @@ pub struct DeleteRedirectUriUseCase {
     realm_service: DefaultRealmService,
     user_service: DefaultUserService,
     client_service: DefaultClientService,
+    webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct DeleteRedirectUriUseCaseParams {
@@ -28,12 +33,14 @@ impl DeleteRedirectUriUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             redirect_uri_service,
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -50,7 +57,7 @@ impl DeleteRedirectUriUseCase {
 
         ClientPolicy::delete(
             identity,
-            realm,
+            realm.clone(),
             self.user_service.clone(),
             self.client_service.clone(),
         )
@@ -66,6 +73,20 @@ impl DeleteRedirectUriUseCase {
         self.redirect_uri_service
             .delete(params.uri_id)
             .await
-            .map_err(|_| ClientError::InternalServerError)
+            .map_err(|_| ClientError::InternalServerError)?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::<Uuid>::new(
+                    WebhookTrigger::RedirectUriUpdated,
+                    params.uri_id,
+                    None,
+                ),
+            )
+            .await
+            .map_err(ClientError::FailedWebhookNotification)?;
+
+        Ok(())
     }
 }

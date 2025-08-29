@@ -19,7 +19,6 @@ use crate::{
         },
     },
 };
-use tracing::error;
 
 #[derive(Clone)]
 pub struct CreateRoleUseCase {
@@ -100,10 +99,7 @@ impl CreateRoleUseCase {
                 ),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                ClientError::InternalServerError
-            })?;
+            .map_err(ClientError::FailedWebhookNotification)?;
 
         Ok(role)
     }
