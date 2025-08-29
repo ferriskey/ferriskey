@@ -37,12 +37,14 @@ impl RoleUseCase {
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.role_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
             update_role_use_case: UpdateRoleUseCase::new(
                 service_bundle.realm_service.clone(),
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.role_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
         }
     }
