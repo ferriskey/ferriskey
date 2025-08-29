@@ -4,6 +4,7 @@ use crate::application::http::realm::handlers::create_realm::{__path_create_real
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
 use crate::application::http::realm::handlers::fetch_realm::{__path_fetch_realm, fetch_realm};
 use crate::application::http::realm::handlers::get_realm::{__path_get_realm, get_realm};
+use crate::application::http::realm::handlers::get_user_realm_settings::get_user_realm_settings;
 use crate::application::http::realm::handlers::update_realm::{__path_update_realm, update_realm};
 use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
@@ -33,6 +34,13 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_user_realms),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/@me/realms/settings",
+                state.args.server.root_path
+            ),
+            get(get_user_realm_settings),
         )
         .route(
             &format!("{}/realms", state.args.server.root_path),
