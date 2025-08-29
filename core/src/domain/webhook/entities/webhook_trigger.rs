@@ -26,6 +26,9 @@ pub enum WebhookTrigger {
     RealmUpdated,
     RealmDeleted,
     RealmSettingsUpdated,
+    WebhookCreated,
+    WebhookUpdated,
+    WebhookDeleted,
 }
 
 impl Display for WebhookTrigger {
@@ -52,6 +55,9 @@ impl Display for WebhookTrigger {
             WebhookTrigger::RealmUpdated => write!(f, "realm.updated"),
             WebhookTrigger::RealmDeleted => write!(f, "realm.deleted"),
             WebhookTrigger::RealmSettingsUpdated => write!(f, "realm.settings.updated"),
+            WebhookTrigger::WebhookCreated => write!(f, "webhook.created"),
+            WebhookTrigger::WebhookUpdated => write!(f, "webhook.updated"),
+            WebhookTrigger::WebhookDeleted => write!(f, "webhook.deleted"),
         }
     }
 }
@@ -82,6 +88,9 @@ impl TryFrom<String> for WebhookTrigger {
             "realm.updated" => Ok(WebhookTrigger::RealmUpdated),
             "realm.deleted" => Ok(WebhookTrigger::RealmDeleted),
             "realm.settings.updated" => Ok(WebhookTrigger::RealmSettingsUpdated),
+            "webhook.created" => Ok(WebhookTrigger::WebhookCreated),
+            "webhook.updated" => Ok(WebhookTrigger::WebhookUpdated),
+            "webhook.deleted" => Ok(WebhookTrigger::WebhookDeleted),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }

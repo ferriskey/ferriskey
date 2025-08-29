@@ -36,6 +36,7 @@ impl WebhookUseCase {
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.webhook_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
             get_webhook_use_case: GetWebhookUseCase::new(
                 service_bundle.user_service.clone(),
@@ -48,12 +49,14 @@ impl WebhookUseCase {
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.webhook_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
             delete_webhook_use_case: DeleteWebhookUseCase::new(
                 service_bundle.realm_service.clone(),
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.webhook_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
         }
     }

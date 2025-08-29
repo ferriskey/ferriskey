@@ -1,16 +1,18 @@
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::application::common::policies::ensure_permissions;
 use crate::application::common::services::{
-    DefaultClientService, DefaultRealmService, DefaultUserService, DefaultWebhookService,
+    DefaultClientService, DefaultRealmService, DefaultUserService, DefaultWebhookNotifierService,
+    DefaultWebhookService,
 };
 use crate::application::webhook::policies::WebhookPolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::ports::RealmService;
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
-use crate::domain::webhook::ports::WebhookService;
+use crate::domain::webhook::ports::{WebhookNotifierService, WebhookService};
 
 #[derive(Clone)]
 pub struct UpdateWebhookUseCase {
@@ -18,6 +20,7 @@ pub struct UpdateWebhookUseCase {
     pub user_service: DefaultUserService,
     pub client_service: DefaultClientService,
     pub webhook_service: DefaultWebhookService,
+    pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct UpdateWebhookUseCaseParams {
@@ -33,12 +36,14 @@ impl UpdateWebhookUseCase {
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         webhook_service: DefaultWebhookService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
             webhook_service,
+            webhook_notifier_service,
         }
     }
 
@@ -72,6 +77,21 @@ impl UpdateWebhookUseCase {
             .webhook_service
             .update(params.webhook_id, params.endpoint, params.subscribers)
             .await?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::WebhookUpdated,
+                    realm.id,
+                    Some(webhook.clone()),
+                ),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                WebhookError::InternalServerError
+            })?;
 
         Ok(webhook)
     }
