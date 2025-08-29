@@ -9,7 +9,6 @@ use crate::domain::realm::ports::RealmService;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::ports::WebhookNotifierService;
-use tracing::error;
 
 #[derive(Clone)]
 pub struct UpdateRealmSettingsUseCase {
@@ -79,10 +78,7 @@ impl UpdateRealmSettingsUseCase {
                 ),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                RealmError::InternalServerError
-            })?;
+            .map_err(RealmError::FailedWebhookNotification)?;
 
         Ok(realm_settings)
     }
