@@ -55,9 +55,10 @@ impl DeleteRedirectUriUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
+        let realm_name = realm.id;
         ClientPolicy::delete(
             identity,
-            realm.clone(),
+            realm,
             self.user_service.clone(),
             self.client_service.clone(),
         )
@@ -77,7 +78,7 @@ impl DeleteRedirectUriUseCase {
 
         self.webhook_notifier_service
             .notify(
-                realm.id,
+                realm_name,
                 WebhookPayload::<Uuid>::new(
                     WebhookTrigger::RedirectUriUpdated,
                     params.uri_id,
