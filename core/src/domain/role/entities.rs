@@ -4,7 +4,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::client::entities::Client;
+use crate::domain::{client::entities::Client, webhook::entities::errors::WebhookError};
 
 pub mod permission;
 
@@ -25,12 +25,19 @@ pub struct Role {
 pub enum RoleError {
     #[error("Role not found")]
     NotFound,
+
     #[error("Role already exists")]
     AlreadyExists,
+
     #[error("Invalid role")]
     Invalid,
+
     #[error("Internal server error")]
     InternalServerError,
+
     #[error("{0}")]
     Forbidden(String),
+
+    #[error("Failed to notify webhook : {0}")]
+    FailedWebhookNotification(WebhookError),
 }
