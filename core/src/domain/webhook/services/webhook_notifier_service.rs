@@ -1,6 +1,5 @@
 use reqwest::Client;
 use serde::Serialize;
-use serde_json::json;
 use tracing::error;
 use uuid::Uuid;
 
@@ -34,7 +33,7 @@ impl<W> WebhookNotifierService for WebhookNotifierServiceImpl<W>
 where
     W: WebhookRepository,
 {
-    async fn notify<T: Send + Sync + Serialize>(
+    async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: Uuid,
         payload: WebhookPayload<T>,
@@ -44,26 +43,22 @@ where
 
         tokio::spawn(async move {
             let webhooks = repo
-                .fetch_webhooks_by_subscriber(realm_id, payload.event)
+                .fetch_webhooks_by_subscriber(realm_id, payload.event.clone())
                 .await;
 
             match webhooks {
                 Ok(webhooks) => {
                     for webhook in webhooks {
-                        let endpoint = webhook.endpoint.clone();
-                        let client = client.clone();
+                        let response = client
+                            .clone()
+                            .post(webhook.endpoint)
+                            .json(&payload.clone())
+                            .send()
+                            .await;
 
-                        tokio::spawn(async move {
-                            let response = client
-                                .post(endpoint)
-                                .json(&json!({ "name": "John Doe" }))
-                                .send()
-                                .await;
-
-                            if let Err(err) = response {
-                                error!("Webhook POST failed: {:?}", err);
-                            }
-                        });
+                        if let Err(err) = response {
+                            error!("Webhook POST failed: {:?}", err);
+                        }
                     }
                 }
                 Err(err) => {

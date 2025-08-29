@@ -77,7 +77,7 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
 }
 
 pub trait WebhookNotifierService: Clone + Send + Sync {
-    fn notify<T: Send + Sync + Serialize>(
+    fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: Uuid,
         payload: WebhookPayload<T>,

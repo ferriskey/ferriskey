@@ -4,9 +4,10 @@ use uuid::Uuid;
 
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 
+#[derive(Debug, Clone, Serialize)]
 pub struct WebhookPayload<T>
 where
-    T: Serialize + Send + Sync,
+    T: Serialize + Send + Sync + Clone + 'static,
 {
     pub event: WebhookTrigger,
     pub timestamp: String,
@@ -16,7 +17,7 @@ where
 
 impl<T> WebhookPayload<T>
 where
-    T: Serialize + Send + Sync,
+    T: Serialize + Send + Sync + Clone + 'static,
 {
     pub fn new(event: WebhookTrigger, resource_id: Uuid, data: Option<T>) -> Self {
         WebhookPayload {
