@@ -22,6 +22,10 @@ pub enum WebhookTrigger {
     RedirectUriUpdated,
     RoleCreated,
     RoleUpdated,
+    RealmCreated,
+    RealmUpdated,
+    RealmDeleted,
+    RealmSettingsUpdated,
 }
 
 impl Display for WebhookTrigger {
@@ -44,6 +48,10 @@ impl Display for WebhookTrigger {
             WebhookTrigger::RedirectUriUpdated => write!(f, "redirect_uri.updated"),
             WebhookTrigger::RoleCreated => write!(f, "role.created"),
             WebhookTrigger::RoleUpdated => write!(f, "role.updated"),
+            WebhookTrigger::RealmCreated => write!(f, "realm.created"),
+            WebhookTrigger::RealmUpdated => write!(f, "realm.updated"),
+            WebhookTrigger::RealmDeleted => write!(f, "realm.deleted"),
+            WebhookTrigger::RealmSettingsUpdated => write!(f, "realm.settings.updated"),
         }
     }
 }
@@ -70,6 +78,10 @@ impl TryFrom<String> for WebhookTrigger {
             "redirect_uri.updated" => Ok(WebhookTrigger::RedirectUriUpdated),
             "role.created" => Ok(WebhookTrigger::RoleCreated),
             "role.updated" => Ok(WebhookTrigger::RoleUpdated),
+            "realm.created" => Ok(WebhookTrigger::RealmCreated),
+            "realm.updated" => Ok(WebhookTrigger::RealmUpdated),
+            "realm.deleted" => Ok(WebhookTrigger::RealmDeleted),
+            "realm.settings.updated" => Ok(WebhookTrigger::RealmSettingsUpdated),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }

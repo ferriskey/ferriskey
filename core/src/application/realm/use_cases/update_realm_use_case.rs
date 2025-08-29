@@ -1,17 +1,22 @@
 use crate::application::common::policies::ensure_permissions;
 use crate::application::common::services::{
-    DefaultClientService, DefaultRealmService, DefaultUserService,
+    DefaultClientService, DefaultRealmService, DefaultUserService, DefaultWebhookNotifierService,
 };
 use crate::application::realm::policies::RealmPolicy;
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::entities::{Realm, RealmError};
 use crate::domain::realm::ports::RealmService;
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookNotifierService;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct UpdateRealmUseCase {
     realm_service: DefaultRealmService,
     user_service: DefaultUserService,
     client_service: DefaultClientService,
+    webhook_notifier_service: DefaultWebhookNotifierService,
 }
 
 pub struct UpdateRealmUseCaseParams {
@@ -24,11 +29,13 @@ impl UpdateRealmUseCase {
         realm_service: DefaultRealmService,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
+        webhook_notifier_service: DefaultWebhookNotifierService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
+            webhook_notifier_service,
         }
     }
 
@@ -57,9 +64,23 @@ impl UpdateRealmUseCase {
         )
         .map_err(|_| RealmError::Forbidden)?;
 
-        self.realm_service
+        let realm = self
+            .realm_service
             .update_realm(realm_name, params.new_realm_name)
             .await
-            .map_err(|_| RealmError::InternalServerError)
+            .map_err(|_| RealmError::InternalServerError)?;
+
+        self.webhook_notifier_service
+            .notify(
+                realm.id,
+                WebhookPayload::new(WebhookTrigger::RealmUpdated, realm.id, Some(realm.clone())),
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to notify webhook: {}", e);
+                RealmError::InternalServerError
+            })?;
+
+        Ok(realm)
     }
 }
