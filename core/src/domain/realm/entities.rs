@@ -4,7 +4,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::generate_timestamp;
+use crate::domain::{common::generate_timestamp, webhook::entities::errors::WebhookError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct Realm {
@@ -26,16 +26,24 @@ pub struct RealmSetting {
 pub enum RealmError {
     #[error("Realm not found")]
     NotFound,
+
     #[error("Realm already exists")]
     AlreadyExists,
+
     #[error("Invalid realm")]
     Invalid,
+
     #[error("Internal server error")]
     InternalServerError,
+
     #[error("Cannot delete master realm")]
     CannotDeleteMaster,
+
     #[error("Forbidden")]
     Forbidden,
+
+    #[error("Failed to notify webhook : {0}")]
+    FailedWebhookNotification(WebhookError),
 }
 
 impl RealmSetting {

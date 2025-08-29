@@ -14,6 +14,9 @@ impl From<RealmError> for ApiError {
                 ApiError::Forbidden("Cannot delete master realm".to_string())
             }
             RealmError::Forbidden => ApiError::Forbidden("Forbidden".to_string()),
+            RealmError::FailedWebhookNotification(err) => {
+                ApiError::InternalServerError(format!("Failed to notify webhook: {}", err))
+            }
         }
     }
 }

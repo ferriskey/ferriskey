@@ -1,4 +1,3 @@
-use tracing::error;
 use uuid::Uuid;
 
 use crate::application::client::policies::ClientPolicy;
@@ -62,6 +61,7 @@ impl CreateRedirectUriUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
+        let realm_name = realm.id;
         let can_create_redirect_uri = ClientPolicy::create(
             identity,
             realm,
@@ -86,7 +86,7 @@ impl CreateRedirectUriUseCase {
 
         self.webhook_notifier_service
             .notify(
-                redirect_uri.id,
+                realm_name,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
                     redirect_uri.id,
@@ -94,10 +94,7 @@ impl CreateRedirectUriUseCase {
                 ),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                ClientError::InternalServerError
-            })?;
+            .map_err(ClientError::FailedWebhookNotification)?;
 
         Ok(redirect_uri)
     }

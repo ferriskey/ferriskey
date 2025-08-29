@@ -4,7 +4,9 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::client::entities::redirect_uri::RedirectUri;
+use crate::domain::{
+    client::entities::redirect_uri::RedirectUri, webhook::entities::errors::WebhookError,
+};
 
 pub mod redirect_uri;
 
@@ -43,18 +45,27 @@ pub struct ClientConfig {
 pub enum ClientError {
     #[error("Client not found")]
     NotFound,
+
     #[error("Client already exists")]
     AlreadyExists,
+
     #[error("Invalid client")]
     Invalid,
+
     #[error("Internal server error")]
     InternalServerError,
+
     #[error("Redirect URI not found")]
     RedirectUriNotFound,
+
     #[error("Invalid redirect URI")]
     InvalidRedirectUri,
+
     #[error("{0}")]
     Forbidden(String),
+
+    #[error("Failed to notify webhook : {0}")]
+    FailedWebhookNotification(WebhookError),
 }
 
 impl Client {

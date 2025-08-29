@@ -11,7 +11,6 @@ use crate::domain::role::value_objects::UpdateRolePermissionsRequest;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::ports::WebhookNotifierService;
-use tracing::error;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -84,10 +83,7 @@ impl UpdateRolePermissionsUseCase {
                 WebhookPayload::new(WebhookTrigger::RoleCreated, role.id, Some(role.clone())),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                RoleError::InternalServerError
-            })?;
+            .map_err(RoleError::FailedWebhookNotification)?;
 
         Ok(role)
     }

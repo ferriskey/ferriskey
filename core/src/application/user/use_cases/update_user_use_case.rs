@@ -20,7 +20,6 @@ use crate::{
         },
     },
 };
-use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -101,10 +100,7 @@ impl UpdateUserUseCase {
                 WebhookPayload::new(WebhookTrigger::UserUpdated, user.id, Some(user.clone())),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                UserError::InternalServerError
-            })?;
+            .map_err(UserError::FailedWebhookNotification)?;
 
         Ok(user)
     }

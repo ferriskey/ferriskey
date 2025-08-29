@@ -70,6 +70,7 @@ impl ClientUseCase {
                 service_bundle.realm_service.clone(),
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
+                service_bundle.webhook_notifier_service.clone(),
             ),
             get_client_roles_use_case: GetClientRolesUseCase::new(
                 service_bundle.realm_service.clone(),

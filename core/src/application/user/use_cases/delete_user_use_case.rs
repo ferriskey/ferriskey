@@ -1,4 +1,3 @@
-use tracing::error;
 use uuid::Uuid;
 
 use crate::{
@@ -82,10 +81,7 @@ impl DeleteUserUseCase {
                 WebhookPayload::<User>::new(WebhookTrigger::UserDeleted, params.user_id, None),
             )
             .await
-            .map_err(|e| {
-                error!("Failed to notify webhook: {}", e);
-                UserError::InternalServerError
-            })?;
+            .map_err(UserError::FailedWebhookNotification)?;
 
         Ok(count)
     }

@@ -11,6 +11,9 @@ impl From<RoleError> for ApiError {
                 ApiError::InternalServerError("Internal server error".to_string())
             }
             RoleError::Forbidden(e) => ApiError::Forbidden(e),
+            RoleError::FailedWebhookNotification(e) => {
+                ApiError::InternalServerError(format!("Failed to send webhook notification: {}", e))
+            }
         }
     }
 }
