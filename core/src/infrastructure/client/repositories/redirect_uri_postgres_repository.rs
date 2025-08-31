@@ -1,5 +1,4 @@
 use crate::entity::redirect_uris::{ActiveModel, Entity as RedirectUriEntity};
-use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -9,22 +8,6 @@ use crate::domain::client::{
     entities::redirect_uri::{RedirectUri, RedirectUriError},
     ports::RedirectUriRepository,
 };
-
-impl From<crate::entity::redirect_uris::Model> for RedirectUri {
-    fn from(model: crate::entity::redirect_uris::Model) -> Self {
-        let created_at = Utc.from_utc_datetime(&model.created_at);
-        let updated_at = Utc.from_utc_datetime(&model.updated_at);
-
-        RedirectUri {
-            id: model.id,
-            client_id: model.client_id,
-            value: model.value,
-            enabled: model.enabled,
-            created_at,
-            updated_at,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct PostgresRedirectUriRepository {
