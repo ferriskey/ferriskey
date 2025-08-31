@@ -118,7 +118,12 @@ impl WebhookRepository for PostgresWebhookRepository {
         .await
         .map_err(|_| WebhookError::InternalServerError)?
         .iter()
-        .map(|value| value.clone().into())
+        .map(|value| {
+            let v = value
+                .clone()
+                .try_into()
+                .map_err(|_| WebhookError::InternalServerError)?;
+        })
         .collect();
 
         webhook.subscribers = subscribers;
