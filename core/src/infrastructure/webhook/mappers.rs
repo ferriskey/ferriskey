@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use chrono::{TimeZone, Utc};
 
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;

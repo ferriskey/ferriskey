@@ -7,6 +7,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::common::generate_timestamp;
+use crate::domain::webhook::entities::webhook_subscriber::WebhookSubscriber;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::entities::{errors::WebhookError, webhook::Webhook};
 use crate::domain::webhook::ports::WebhookRepository;
@@ -18,6 +19,8 @@ use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
     Relation as WebhookRelation,
 };
+
+use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookRepository {
@@ -107,24 +110,23 @@ impl WebhookRepository for PostgresWebhookRepository {
         .map(Webhook::from)
         .map_err(|_| WebhookError::InternalServerError)?;
 
-        let subscribers = WebhookSubscriberEntity::insert_many(subscribers.iter().map(|value| {
-            WebhookSubscriberActiveModel {
-                id: Set(Uuid::new_v7(timestamp)),
-                name: Set(value.to_string()),
-                webhook_id: Set(subscription_id),
-            }
-        }))
-        .exec_with_returning_many(&self.db)
-        .await
-        .map_err(|_| WebhookError::InternalServerError)?
-        .iter()
-        .map(|value| {
-            let v = value
-                .clone()
-                .try_into()
-                .map_err(|_| WebhookError::InternalServerError)?;
-        })
-        .collect();
+        let subscribers_model: Vec<WebhookSubscriberModel> =
+            WebhookSubscriberEntity::insert_many(subscribers.iter().map(|value| {
+                WebhookSubscriberActiveModel {
+                    id: Set(Uuid::new_v7(timestamp)),
+                    name: Set(value.to_string()),
+                    webhook_id: Set(subscription_id),
+                }
+            }))
+            .exec_with_returning_many(&self.db)
+            .await
+            .map_err(|_| WebhookError::InternalServerError)?;
+
+        let subscribers: Vec<WebhookSubscriber> = subscribers_model
+            .iter()
+            .map(|value| value.clone().try_into())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| WebhookError::InternalServerError)?;
 
         webhook.subscribers = subscribers;
         Ok(webhook)
@@ -171,8 +173,9 @@ impl WebhookRepository for PostgresWebhookRepository {
             .await
             .map_err(|_| WebhookError::InternalServerError)?
             .iter()
-            .map(|value| value.clone().into())
-            .collect();
+            .map(|value| value.clone().try_into())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| WebhookError::InternalServerError)?;
 
         webhook.subscribers = subscribers;
         Ok(webhook)
