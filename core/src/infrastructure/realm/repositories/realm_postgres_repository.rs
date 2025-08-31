@@ -4,26 +4,13 @@ use sea_orm::{
 
 use crate::entity::realms::{ActiveModel, Entity as RealmEntity};
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::realm::{
     entities::{Realm, RealmError, RealmSetting},
     ports::RealmRepository,
 };
-
-impl From<crate::entity::realm_settings::Model> for RealmSetting {
-    fn from(value: crate::entity::realm_settings::Model) -> Self {
-        let updated_at: DateTime<Utc> = Utc.from_utc_datetime(&value.updated_at);
-
-        RealmSetting {
-            id: value.id,
-            realm_id: value.realm_id,
-            default_signing_algorithm: value.default_signing_algorithm,
-            updated_at,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {

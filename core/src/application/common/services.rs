@@ -28,7 +28,7 @@ use crate::infrastructure::credential::CredentialRepoAny;
 use crate::infrastructure::hasher::HasherRepoAny;
 use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
-use crate::infrastructure::realm::RealmRepoAny;
+use crate::infrastructure::realm::repositories::RealmRepoAny;
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
 use crate::infrastructure::repositories::build_repos_from_env;
 use crate::infrastructure::role::RoleRepoAny;
