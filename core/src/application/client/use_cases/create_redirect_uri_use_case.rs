@@ -61,7 +61,7 @@ impl CreateRedirectUriUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let realm_name = realm.id;
+        let realm_id = realm.id;
         let can_create_redirect_uri = ClientPolicy::create(
             identity,
             realm,
@@ -86,7 +86,7 @@ impl CreateRedirectUriUseCase {
 
         self.webhook_notifier_service
             .notify(
-                realm_name,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
                     redirect_uri.id,
