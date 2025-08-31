@@ -22,6 +22,7 @@ export namespace Schemas {
     client_id: string
     client_type: string
     created_at: string
+    direct_access_grants_enabled: boolean
     enabled: boolean
     id: string
     name: string
@@ -31,19 +32,18 @@ export namespace Schemas {
     redirect_uris?: (Array<RedirectUri> | null) | undefined
     secret?: (string | null) | undefined
     service_account_enabled: boolean
-    direct_access_grants_enabled: boolean
     updated_at: string
   }
   export type ClientsResponse = { data: Array<Client> }
   export type CreateClientValidator = Partial<{
     client_id: string
     client_type: string
+    direct_access_grants_enabled: boolean
     enabled: boolean
     name: string
     protocol: string
     public_client: boolean
     service_account_enabled: boolean
-    direct_access_grants_enabled: boolean
   }>
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
@@ -132,6 +132,16 @@ export namespace Schemas {
   export type GetRolesResponse = { data: Array<Role> }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
+  export type WebhookSubscriber = { id: string; name: string; webhook_id: string }
+  export type Webhook = {
+    created_at: string
+    endpoint: string
+    id: string
+    subscribers: Array<WebhookSubscriber>
+    triggered_at?: (string | null) | undefined
+    updated_at: string
+  }
+  export type GetWebhooksResponse = { data: Array<Webhook> }
   export type GrantType = 'authorization_code' | 'password' | 'client_credentials' | 'refresh_token'
   export type JwtToken = {
     access_token: string
@@ -168,6 +178,7 @@ export namespace Schemas {
   export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type UpdateClientValidator = Partial<{
     client_id: string | null
+    direct_access_grants_enabled: boolean | null
     enabled: boolean | null
     name: string | null
   }>
@@ -193,15 +204,6 @@ export namespace Schemas {
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
   export type VerifyOtpResponse = { message: string }
-  export type WebhookSubscriber = { id: string; name: string; webhook_id: string }
-  export type Webhook = {
-    created_at: string
-    endpoint: string
-    id: string
-    subscribers: Array<WebhookSubscriber>
-    triggered_at?: (string | null) | undefined
-    updated_at: string
-  }
 
   // </Schemas>
 }
@@ -633,8 +635,10 @@ export namespace Endpoints {
     method: 'GET'
     path: '/realms/{realm_name}/webhooks'
     requestFormat: 'json'
-    parameters: never
-    response: Array<Schemas.Webhook>
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.GetWebhooksResponse
   }
   export type put_Update_webhook = {
     method: 'PUT'
@@ -661,7 +665,9 @@ export namespace Endpoints {
     method: 'GET'
     path: '/realms/{realm_name}/webhooks/{webhook_id}'
     requestFormat: 'json'
-    parameters: never
+    parameters: {
+      path: { webhook_id: string }
+    }
     response: Schemas.Webhook
   }
 
