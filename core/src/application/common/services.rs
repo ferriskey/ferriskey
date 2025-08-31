@@ -30,7 +30,7 @@ use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::repositories::RealmRepoAny;
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
 use crate::infrastructure::repositories::build_repos_from_env;
-use crate::infrastructure::role::RoleRepoAny;
+use crate::infrastructure::role::repositories::RoleRepoAny;
 use crate::infrastructure::user::UserRepoAny;
 use crate::infrastructure::user::repositories::user_required_action_repository::UserRequiredActionRepoAny;
 use crate::infrastructure::user::repositories::user_role_repository::UserRoleRepoAny;

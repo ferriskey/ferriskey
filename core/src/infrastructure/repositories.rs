@@ -17,8 +17,8 @@ use crate::infrastructure::repositories::auth_session_repository::PostgresAuthSe
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use crate::infrastructure::repositories::keystore_repository::PostgresKeyStoreRepository;
 use crate::infrastructure::repositories::refresh_token_repository::PostgresRefreshTokenRepository;
-use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
-use crate::infrastructure::role::RoleRepoAny;
+use crate::infrastructure::role::repositories::RoleRepoAny;
+use crate::infrastructure::role::repositories::role_postgres_repository::PostgresRoleRepository;
 use crate::infrastructure::user::UserRepoAny;
 use crate::infrastructure::user::repositories::user_required_action_repository::{
     PostgresUserRequiredActionRepository, UserRequiredActionRepoAny,
@@ -34,7 +34,6 @@ pub mod auth_session_repository;
 pub mod credential_repository;
 pub mod keystore_repository;
 pub mod refresh_token_repository;
-pub mod role_repository;
 pub mod user_session_repository;
 
 pub struct RepoBundle {
