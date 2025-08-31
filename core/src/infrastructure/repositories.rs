@@ -34,7 +34,6 @@ pub mod auth_session_repository;
 pub mod credential_repository;
 pub mod keystore_repository;
 pub mod refresh_token_repository;
-pub mod user_session_repository;
 
 pub struct RepoBundle {
     pub realm_repository: RealmRepoAny,
