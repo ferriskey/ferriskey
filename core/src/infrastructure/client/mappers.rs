@@ -1,7 +1,7 @@
-use crate::domain::client::entities::Client;
+use crate::{domain::client::entities::Client, entity::clients::Model};
 use chrono::{TimeZone, Utc};
 
-impl From<crate::entity::clients::Model> for Client {
+impl From<Model> for Client {
     fn from(model: crate::entity::clients::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);

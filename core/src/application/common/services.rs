@@ -22,8 +22,7 @@ use crate::domain::{
     user::services::{user_role_service::UserRoleServiceImpl, user_service::UserServiceImpl},
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
-use crate::infrastructure::client::ClientRepoAny;
-use crate::infrastructure::client::repositories::RedirectUriRepoAny;
+use crate::infrastructure::client::repositories::{ClientRepoAny, RedirectUriRepoAny};
 use crate::infrastructure::credential::CredentialRepoAny;
 use crate::infrastructure::hasher::HasherRepoAny;
 use crate::infrastructure::health::HealthCheckRepoAny;

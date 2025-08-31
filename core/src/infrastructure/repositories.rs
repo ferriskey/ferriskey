@@ -1,7 +1,7 @@
 use crate::domain::common::AppConfig;
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
-use crate::infrastructure::client::ClientRepoAny;
-use crate::infrastructure::client::repositories::RedirectUriRepoAny;
+use crate::infrastructure::client::repositories::client_postgres_repository::PostgresClientRepository;
+use crate::infrastructure::client::repositories::{ClientRepoAny, RedirectUriRepoAny};
 use crate::infrastructure::credential::CredentialRepoAny;
 use crate::infrastructure::db::postgres::{Postgres, PostgresConfig};
 use crate::infrastructure::hasher::HasherRepoAny;
@@ -13,7 +13,6 @@ use crate::infrastructure::realm::repositories::realm_postgres_repository::Postg
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
 use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
 use crate::infrastructure::repositories::auth_session_repository::PostgresAuthSessionRepository;
-use crate::infrastructure::repositories::client_repository::PostgresClientRepository;
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use crate::infrastructure::repositories::keystore_repository::PostgresKeyStoreRepository;
 use crate::infrastructure::repositories::redirect_uri_repository::PostgresRedirectUriRepository;
@@ -32,7 +31,6 @@ use crate::infrastructure::webhook::repository::{PostgresWebhookRepository, Webh
 
 pub mod argon2_hasher;
 pub mod auth_session_repository;
-pub mod client_repository;
 pub mod credential_repository;
 pub mod keystore_repository;
 pub mod redirect_uri_repository;
