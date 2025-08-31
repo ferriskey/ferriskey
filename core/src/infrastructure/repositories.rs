@@ -19,7 +19,6 @@ use crate::infrastructure::repositories::realm_repository::PostgresRealmReposito
 use crate::infrastructure::repositories::redirect_uri_repository::PostgresRedirectUriRepository;
 use crate::infrastructure::repositories::refresh_token_repository::PostgresRefreshTokenRepository;
 use crate::infrastructure::repositories::role_repository::PostgresRoleRepository;
-use crate::infrastructure::repositories::webhook_repository::PostgresWebhookRepository;
 use crate::infrastructure::role::RoleRepoAny;
 use crate::infrastructure::user::UserRepoAny;
 use crate::infrastructure::user::repositories::user_required_action_repository::{
@@ -29,7 +28,7 @@ use crate::infrastructure::user::repositories::user_role_repository::{
     PostgresUserRoleRepository, UserRoleRepoAny,
 };
 use crate::infrastructure::user::repository::PostgresUserRepository;
-use crate::infrastructure::webhook::repository::WebhookRepoAny;
+use crate::infrastructure::webhook::repository::{PostgresWebhookRepository, WebhookRepoAny};
 
 pub mod argon2_hasher;
 pub mod auth_session_repository;
@@ -41,7 +40,6 @@ pub mod redirect_uri_repository;
 pub mod refresh_token_repository;
 pub mod role_repository;
 pub mod user_session_repository;
-pub mod webhook_repository;
 
 pub struct RepoBundle {
     pub realm_repository: RealmRepoAny,
