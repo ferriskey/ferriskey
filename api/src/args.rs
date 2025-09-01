@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
 use url::Url;
@@ -132,7 +132,7 @@ pub struct DatabaseArgs {
     #[arg(
         long = "database-password",
         env = "DATABASE_PASSWORD",
-        default_value = "postgres",
+        default_value = "ferriskey",
         name = "DATABASE_PASSWORD",
         long_help = "The database password to use"
     )]
@@ -148,7 +148,7 @@ pub struct DatabaseArgs {
     #[arg(
         long = "database-user",
         env = "DATABASE_USER",
-        default_value = "postgres",
+        default_value = "ferriskey",
         name = "DATABASE_USER",
         long_help = "The database user to use"
     )]
@@ -248,6 +248,8 @@ pub struct ServerArgs {
         value_parser = parse_root_path,
     )]
     pub root_path: String,
+    #[command(flatten)]
+    pub tls: Option<ServerTlsArgs>,
 }
 
 impl Default for ServerArgs {
@@ -257,8 +259,30 @@ impl Default for ServerArgs {
             host: "0.0.0.0".into(),
             port: 3333,
             root_path: String::new(),
+            tls: None,
         }
     }
+}
+
+#[derive(clap::Args, Debug, Clone)]
+#[group(requires_all = ["SERVER_TLS_CERT", "SERVER_TLS_KEY"])]
+pub struct ServerTlsArgs {
+    #[arg(
+        long = "server-tls-cert",
+        env = "SERVER_TLS_CERT",
+        name = "SERVER_TLS_CERT",
+        long_help = "Path to the TLS cert file in PEM format",
+        required = false
+    )]
+    pub cert: PathBuf,
+    #[arg(
+        long = "server-tls-key",
+        env = "SERVER_TLS_KEY",
+        name = "SERVER_TLS_KEY",
+        long_help = "Path to the TLS key file in PEM format",
+        required = false
+    )]
+    pub key: PathBuf,
 }
 
 fn parse_root_path(value: &str) -> Result<String, String> {

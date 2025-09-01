@@ -11,9 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::Context;
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use ferriskey_core::application::orchestrators::startup_orchestrator::{
     StartupConfig, StartupOrchestrator, StartupOrchestratorBuilder,
@@ -21,12 +23,13 @@ use ferriskey_core::application::orchestrators::startup_orchestrator::{
 
 use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
+use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 fn init_logger(args: &LogArgs) {
     let filter = EnvFilter::try_new(&args.filter).unwrap_or_else(|err| {
-        eprint!("Invalid log filter: {err}");
-        eprint!("Using default log filter: info");
+        eprint!("invalid log filter: {err}");
+        eprint!("using default log filter: info");
         EnvFilter::new("info")
     });
     let subscriber = tracing_subscriber::fmt()
@@ -69,23 +72,25 @@ async fn main() -> Result<(), anyhow::Error> {
         })
         .await?;
 
-    tracing::info!("FerrisKey API is starting...");
-
     let router = router(app_state)?;
 
-    let listener =
-        tokio::net::TcpListener::bind(format!("{}:{}", args.server.host, args.server.port))
-            .await
-            .with_context(|| format!("Failed to bind to port {}", args.server.port))?;
-
-    tracing::info!(
-        "FerrisKey API is running on {}:{}",
-        args.server.host,
-        args.server.port,
-    );
-
-    axum::serve(listener, router)
-        .await
-        .context("received error while running server")?;
+    let addr = SocketAddr::from_str(&format!("{}:{}", args.server.host, args.server.port))?;
+    if let Some(tls) = &args.server.tls {
+        debug!("initializing crypto provider");
+        rustls::crypto::aws_lc_rs::default_provider()
+            .install_default()
+            .expect("failed to install crypto provider");
+        debug!("loading tls config");
+        let tls_cfg = RustlsConfig::from_pem_file(tls.cert.clone(), tls.key.clone()).await?;
+        info!("listening on {addr}");
+        axum_server::bind_rustls(addr, tls_cfg)
+            .serve(router.into_make_service())
+            .await?;
+    } else {
+        info!("listening on {addr}");
+        axum_server::bind(addr)
+            .serve(router.into_make_service())
+            .await?;
+    }
     Ok(())
 }
