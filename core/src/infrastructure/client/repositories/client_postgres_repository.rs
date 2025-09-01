@@ -39,7 +39,7 @@ impl ClientRepository for PostgresClientRepository {
             protocol: Set(data.protocol),
             public_client: Set(data.public_client),
             service_account_enabled: Set(data.service_account_enabled),
-            direct_access_grants_enabled: Set(data.direct_access_grants_enabled),
+            direct_access_grants_enabled: Set(Some(data.direct_access_grants_enabled)),
             client_type: Set(data.client_type),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
@@ -139,7 +139,7 @@ impl ClientRepository for PostgresClientRepository {
         };
 
         client.direct_access_grants_enabled = match data.direct_access_grants_enabled {
-            Some(enabled) => Set(enabled),
+            Some(enabled) => Set(Some(enabled)),
             None => client.direct_access_grants_enabled,
         };
 

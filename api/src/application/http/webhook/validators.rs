@@ -5,6 +5,12 @@ use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateWebhookValidator {
+    #[serde(default)]
+    pub name: Option<String>,
+
+    #[serde(default)]
+    pub description: Option<String>,
+
     #[validate(length(min = 1, message = "endpoint is required"))]
     #[serde(default)]
     pub endpoint: String,

@@ -17,7 +17,7 @@ impl From<Model> for Client {
             protocol: model.protocol,
             public_client: model.public_client,
             service_account_enabled: model.service_account_enabled,
-            direct_access_grants_enabled: model.direct_access_grants_enabled,
+            direct_access_grants_enabled: model.direct_access_grants_enabled.unwrap_or(false),
             client_type: model.client_type,
             redirect_uris: None,
             created_at,

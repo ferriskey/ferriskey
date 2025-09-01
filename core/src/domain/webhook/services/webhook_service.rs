@@ -55,11 +55,13 @@ where
     async fn create(
         &self,
         realm_id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         self.webhook_repository
-            .create_webhook(realm_id, endpoint, subscribers)
+            .create_webhook(realm_id, name, description, endpoint, subscribers)
             .await
     }
 

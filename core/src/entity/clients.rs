@@ -22,10 +22,10 @@ pub struct Model {
     pub protocol: String,
     pub public_client: bool,
     pub service_account_enabled: bool,
-    pub direct_access_grants_enabled: bool,
     pub client_type: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+    pub direct_access_grants_enabled: Option<bool>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -39,10 +39,10 @@ pub enum Column {
     Protocol,
     PublicClient,
     ServiceAccountEnabled,
-    DirectAccessGrantsEnabled,
     ClientType,
     CreatedAt,
     UpdatedAt,
+    DirectAccessGrantsEnabled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -79,10 +79,10 @@ impl ColumnTrait for Column {
             Self::Protocol => ColumnType::String(StringLen::N(255u32)).def(),
             Self::PublicClient => ColumnType::Boolean.def(),
             Self::ServiceAccountEnabled => ColumnType::Boolean.def(),
-            Self::DirectAccessGrantsEnabled => ColumnType::Boolean.def(),
             Self::ClientType => ColumnType::String(StringLen::N(255u32)).def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::DirectAccessGrantsEnabled => ColumnType::Boolean.def().null(),
         }
     }
 }

@@ -27,6 +27,8 @@ pub trait WebhookService: Clone + Send + Sync {
     fn create(
         &self,
         realm_id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
@@ -62,6 +64,8 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
     fn create_webhook(
         &self,
         realm_id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;

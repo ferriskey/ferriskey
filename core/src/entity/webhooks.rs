@@ -19,6 +19,8 @@ pub struct Model {
     pub triggered_at: Option<DateTime>,
     pub updated_at: DateTime,
     pub created_at: DateTime,
+    pub name: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -29,6 +31,8 @@ pub enum Column {
     TriggeredAt,
     UpdatedAt,
     CreatedAt,
+    Name,
+    Description,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -59,6 +63,8 @@ impl ColumnTrait for Column {
             Self::TriggeredAt => ColumnType::DateTime.def().null(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::Name => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::Description => ColumnType::String(StringLen::N(255u32)).def().null(),
         }
     }
 }

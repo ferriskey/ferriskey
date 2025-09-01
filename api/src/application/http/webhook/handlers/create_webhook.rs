@@ -41,6 +41,8 @@ pub async fn create_webhook(
             identity,
             CreateWebhookUseCaseParams {
                 realm_name,
+                name: payload.name,
+                description: payload.description,
                 endpoint: payload.endpoint,
                 subscribers: payload.subscribers,
             },

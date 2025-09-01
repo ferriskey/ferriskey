@@ -24,6 +24,8 @@ pub struct CreateWebhookUseCase {
 
 pub struct CreateWebhookUseCaseParams {
     pub realm_name: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
     pub endpoint: String,
     pub subscribers: Vec<WebhookTrigger>,
 }
@@ -73,7 +75,13 @@ impl CreateWebhookUseCase {
 
         let webhook = self
             .webhook_service
-            .create(realm.id, params.endpoint, params.subscribers)
+            .create(
+                realm.id,
+                params.name,
+                params.description,
+                params.endpoint,
+                params.subscribers,
+            )
             .await?;
 
         self.webhook_notifier_service
