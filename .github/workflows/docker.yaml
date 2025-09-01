@@ -10,6 +10,20 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - .github/workflows/docker.yaml
+      - api/**
+      - core/**
+      - front/**
+      - operator/**
+      - .dockerignore
+      - Cargo.*
+      - '!api/tests/**'
+      - '!front/.editorconfig'
+      - '!front/.gitignore'
+      - '!front/.prettierrc'
+      - '!**.example'
+      - '!**md'
   workflow_dispatch:
     inputs:
       push:

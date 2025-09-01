@@ -22,3 +22,8 @@ LICENSE
 
 # rust
 target
+
+# webapp
+front/.editorconfig
+front/.gitignore
+front/.prettierrc
