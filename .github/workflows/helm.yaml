@@ -1,0 +1,45 @@
+name: helm
+
+on:
+  push:
+    tags:
+      - ferriskey-*.*.*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: set up helm
+        uses: azure/setup-helm@v4
+
+      - name: log-in to ghcr
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ferriskey --password-stdin
+
+      - name: check version
+        id: version
+        run: |
+          tag="${{ github.ref_name }}"
+          tag_version="${tag//ferriskey-/}"
+          chart_version="$(yq .version charts/ferriskey/Chart.yaml)"
+          if [ "$tag_version" != "$chart_version" ]; then
+            echo "Tag version `$tag_version` does not match chart version `$chart_version`"
+            exit 1
+          fi
+          echo "version=$tag_version" >> "$GITHUB_OUTPUT"
+
+      - name: push chart
+        run: |
+          helm package charts/ferriskey
+          helm push ferriskey-${{ steps.version.outputs.version }}.tgz oci://ghcr.io/ferriskey/charts
