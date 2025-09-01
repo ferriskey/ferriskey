@@ -1,0 +1,26 @@
+changelog:
+  categories:
+    - title: 🐛 Core - Fixes
+      labels:
+        - "scope:core"
+        - "type:bug"
+    - title: 🚀 Core - Features
+      labels:
+        - "scope:core"
+        - "type:feature"
+    - title: 🐛 API - Fixes
+      labels:
+        - "scope:api"
+        - "type:bug"
+    - title: 🚀 API - Features
+      labels:
+        - "scope:api"
+        - "type:feature"
+    - title: 🐛 Webapp - Fixes
+      labels:
+        - "scope:front"
+        - "type:bug"
+    - title: 🚀 Webapp - Features
+      labels:
+        - "scope:front"
+        - "type:feature"
