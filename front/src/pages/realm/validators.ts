@@ -6,4 +6,12 @@ export const updateRealmValidator = z.object({
   default_signing_algorithm: z.nativeEnum(SigningAlgorithm),
 })
 
+export const createWebhookValidator = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  endpoint: z.string().url().optional(),
+  subscribers: z.array(z.string()),
+})
+
 export type UpdateRealmSchema = z.infer<typeof updateRealmValidator>
+export type CreateWebhookSchema = z.infer<typeof createWebhookValidator>
