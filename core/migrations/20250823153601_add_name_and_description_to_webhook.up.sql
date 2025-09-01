@@ -1,0 +1,6 @@
+-- Add up migration script here
+
+ALTER TABLE webhooks
+    ADD COLUMN IF NOT EXISTS name VARCHAR(255) DEFAULT NULL;
+ALTER TABLE webhooks
+    ADD COLUMN IF NOT EXISTS description VARCHAR(255) DEFAULT NULL;
