@@ -68,11 +68,13 @@ where
     async fn update(
         &self,
         id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         self.webhook_repository
-            .update_webhook(id, endpoint, subscribers)
+            .update_webhook(id, name, description, endpoint, subscribers)
             .await
     }
 

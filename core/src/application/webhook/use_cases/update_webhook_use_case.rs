@@ -26,6 +26,8 @@ pub struct UpdateWebhookUseCase {
 pub struct UpdateWebhookUseCaseParams {
     pub realm_name: String,
     pub webhook_id: Uuid,
+    pub name: Option<String>,
+    pub description: Option<String>,
     pub endpoint: String,
     pub subscribers: Vec<WebhookTrigger>,
 }
@@ -75,7 +77,13 @@ impl UpdateWebhookUseCase {
 
         let webhook = self
             .webhook_service
-            .update(params.webhook_id, params.endpoint, params.subscribers)
+            .update(
+                params.webhook_id,
+                params.name,
+                params.description,
+                params.endpoint,
+                params.subscribers,
+            )
             .await?;
 
         self.webhook_notifier_service

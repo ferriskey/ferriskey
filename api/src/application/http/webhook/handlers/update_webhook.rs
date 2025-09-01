@@ -44,6 +44,8 @@ pub async fn update_webhook(
             UpdateWebhookUseCaseParams {
                 realm_name,
                 webhook_id,
+                name: payload.name,
+                description: payload.description,
                 endpoint: payload.endpoint,
                 subscribers: payload.subscribers,
             },

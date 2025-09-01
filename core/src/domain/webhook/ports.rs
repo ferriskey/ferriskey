@@ -36,6 +36,8 @@ pub trait WebhookService: Clone + Send + Sync {
     fn update(
         &self,
         id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
@@ -73,6 +75,8 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
     fn update_webhook(
         &self,
         id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;

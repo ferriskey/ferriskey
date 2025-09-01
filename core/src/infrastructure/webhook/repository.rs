@@ -75,11 +75,16 @@ impl WebhookRepository for WebhookRepoAny {
     async fn update_webhook(
         &self,
         id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         match self {
-            Self::Postgres(r) => r.update_webhook(id, endpoint, subscribers).await,
+            Self::Postgres(r) => {
+                r.update_webhook(id, name, description, endpoint, subscribers)
+                    .await
+            }
         }
     }
 
@@ -206,10 +211,14 @@ impl WebhookRepository for PostgresWebhookRepository {
     async fn update_webhook(
         &self,
         id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, WebhookError> {
         let mut webhook = WebhookEntity::update(WebhookActiveModel {
+            name: Set(name),
+            description: Set(description),
             endpoint: Set(endpoint),
             updated_at: Set(Utc::now().naive_utc()),
             ..Default::default()
