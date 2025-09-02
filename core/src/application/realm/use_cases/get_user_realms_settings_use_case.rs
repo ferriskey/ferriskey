@@ -14,7 +14,6 @@ use crate::{
             entities::{RealmError, RealmSetting},
             ports::RealmService,
         },
-        user::ports::UserService as _,
     },
 };
 
@@ -51,21 +50,19 @@ impl GetUserRealmSettingsUseCase {
             "Getting user realms settings for user: {}",
             params.realm_name
         );
-        let user = match identity.clone() {
-            Identity::User(user) => user,
-            Identity::Client(client) => self
-                .user_service
-                .get_by_client_id(client.id)
-                .await
-                .map_err(|_| RealmError::Forbidden)?,
-        };
 
-        let realm = user.realm.ok_or(RealmError::Forbidden)?;
+        let realm = self
+            .realm_service
+            .get_by_name(params.realm_name)
+            .await
+            .map_err(|_| RealmError::NotFound)?;
+
+        let realm_id = realm.id;
 
         ensure_permissions(
             RealmPolicy::view(
                 identity,
-                realm.clone(),
+                realm,
                 self.user_service.clone(),
                 self.client_service.clone(),
             )
@@ -77,7 +74,7 @@ impl GetUserRealmSettingsUseCase {
 
         let realm_setting = self
             .realm_service
-            .get_realm_settings(realm.id)
+            .get_realm_settings(realm_id)
             .await
             .map_err(|_| RealmError::InternalServerError)?;
 
