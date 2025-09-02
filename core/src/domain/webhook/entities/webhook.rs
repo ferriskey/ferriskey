@@ -11,6 +11,8 @@ use crate::domain::{
 pub struct Webhook {
     pub id: Uuid,
     pub endpoint: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
     pub subscribers: Vec<WebhookSubscriber>,
     pub triggered_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
@@ -21,6 +23,8 @@ impl Webhook {
     pub fn new(
         endpoint: String,
         subscribers: Vec<WebhookSubscriber>,
+        name: Option<String>,
+        description: Option<String>,
         triggered_at: Option<DateTime<Utc>>,
         updated_at: DateTime<Utc>,
         created_at: DateTime<Utc>,
@@ -30,6 +34,8 @@ impl Webhook {
         Self {
             id: Uuid::new_v7(timestamp),
             endpoint,
+            name,
+            description,
             subscribers,
             triggered_at,
             updated_at,

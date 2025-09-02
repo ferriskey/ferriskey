@@ -67,10 +67,14 @@ export default function PageRealmSettingsCreateWebhookFeature() {
     })
   })
 
+  const handleBack = () => {
+    navigate(`/realms/${realm_name}/realm-settings/webhooks`)
+  }
+
   useEffect(() => {
     if (responseData) {
       navigate(`/realms/${realm_name}/realm-settings/webhooks`)
-      toast('Webhook created successfully')
+      toast.success('Webhook created successfully')
     }
   }, [responseData, navigate, realm_name])
 
@@ -81,6 +85,7 @@ export default function PageRealmSettingsCreateWebhookFeature() {
         handleTriggerToggle={handleTriggerToggle}
         isTriggerSelected={isTriggerSelected}
         onSubmit={onSubmit}
+        handleBack={handleBack}
       />
     </Form>
   )

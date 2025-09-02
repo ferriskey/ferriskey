@@ -114,8 +114,10 @@ export namespace Schemas {
   export type WebhookSubscriber = { id: string; name: WebhookTrigger; webhook_id: string };
   export type Webhook = {
     created_at: string;
+    description?: (string | null) | undefined;
     endpoint: string;
     id: string;
+    name?: (string | null) | undefined;
     subscribers: Array<WebhookSubscriber>;
     triggered_at?: (string | null) | undefined;
     updated_at: string;
@@ -141,6 +143,7 @@ export namespace Schemas {
   export type DeleteRealmResponse = string;
   export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
   export type DeleteUserResponse = { count: number };
+  export type DeleteWebhookResponse = { message: string; realm_name: string };
   export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use_: string; x5c: string };
   export type GetCertsResponse = { keys: Array<JwkKey> };
   export type GetClientResponse = { data: Client };
@@ -671,13 +674,6 @@ export namespace Endpoints {
     };
     response: Schemas.CreateWebhookResponse;
   };
-  export type delete_Delete_webhook = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/webhooks";
-    requestFormat: "json";
-    parameters: never;
-    response: unknown;
-  };
   export type get_Get_webhook = {
     method: "GET";
     path: "/realms/{realm_name}/webhooks/{webhook_id}";
@@ -686,6 +682,15 @@ export namespace Endpoints {
       path: { webhook_id: string };
     };
     response: Schemas.Webhook;
+  };
+  export type delete_Delete_webhook = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/webhooks/{webhook_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; webhook_id: string };
+    };
+    response: Schemas.DeleteWebhookResponse;
   };
 
   // </Endpoints>
@@ -745,7 +750,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
     "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.delete_Unassign_role;
-    "/realms/{realm_name}/webhooks": Endpoints.delete_Delete_webhook;
+    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.delete_Delete_webhook;
   };
   patch: {
     "/realms/{realm_name}/clients/{client_id}": Endpoints.patch_Update_client;

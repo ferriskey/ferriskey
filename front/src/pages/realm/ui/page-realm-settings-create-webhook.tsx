@@ -20,6 +20,7 @@ export interface PageRealmSettingsCreateWebhookProps {
   handleTriggerToggle: (trigger: WebhookTrigger) => void
   isTriggerSelected: (trigger: WebhookTrigger) => boolean
   onSubmit: () => void
+  handleBack: () => void
 }
 
 
@@ -28,7 +29,8 @@ export default function PageRealmSettingsCreateWebhook({
   webhoobCategories,
   handleTriggerToggle,
   isTriggerSelected,
-  onSubmit
+  onSubmit,
+  handleBack
 }: PageRealmSettingsCreateWebhookProps) {
   const form = useFormContext<CreateWebhookSchema>()
   const formIsValid = form.formState.isValid
@@ -42,7 +44,7 @@ export default function PageRealmSettingsCreateWebhook({
         <Button
           variant='ghost'
           size='icon'
-        //onClick={handleBack}
+          onClick={handleBack}
         >
           <ArrowLeft className='h-3 w-3' />
         </Button>
