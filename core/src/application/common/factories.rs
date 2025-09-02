@@ -160,6 +160,7 @@ impl UseCaseBundle {
         let get_user_realm_settings_use_case = GetUserRealmSettingsUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
         );
 
         let update_realm_use_case = UpdateRealmUseCase::new(

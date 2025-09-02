@@ -64,4 +64,10 @@ impl RealmRepository for RealmRepoAny {
             Self::Postgres(r) => r.update_realm_setting(realm_id, algorithm).await,
         }
     }
+
+    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, RealmError> {
+        match self {
+            Self::Postgres(r) => r.get_realm_settings(realm_id).await,
+        }
+    }
 }
