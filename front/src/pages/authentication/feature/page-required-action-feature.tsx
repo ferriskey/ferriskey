@@ -14,7 +14,7 @@ export default function PageRequiredActionFeature() {
     if (token) {
       setAuthToken(token)
     }
-  }, [token])
+  }, [token, setAuthToken])
 
   return (
     <div>

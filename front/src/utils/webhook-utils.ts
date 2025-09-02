@@ -79,11 +79,11 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
   'user.assign.role': 'A user has been assigned a role.',
   'user.bulk_deleted': 'Multiple users have been deleted.',
   'user.created': 'A new user has been created.',
-  'user.credentials.deleted': "A user's credentials have been deleted.",
+  'user.credentials.deleted': 'A user credentials have been deleted.',
   'user.deleted': 'A user has been deleted.',
   'user.unassign.role': 'A user has been unassigned a role.',
   'user.updated': 'A user has been updated.',
-  'auth.reset_password': "A user's password has been reset.",
+  'auth.reset_password': 'A user password has been reset.',
 
   'webhook.created': 'A new webhook has been created.',
   'webhook.deleted': 'A webhook has been deleted.',
