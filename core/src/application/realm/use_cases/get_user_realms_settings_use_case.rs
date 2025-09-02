@@ -60,7 +60,7 @@ impl GetUserRealmSettingsUseCase {
                 .map_err(|_| RealmError::Forbidden)?,
         };
 
-        let realm = user.realm.clone().ok_or(RealmError::Forbidden)?;
+        let realm = user.realm.ok_or(RealmError::Forbidden)?;
 
         let realm = self
             .realm_service
