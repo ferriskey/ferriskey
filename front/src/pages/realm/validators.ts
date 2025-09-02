@@ -1,5 +1,7 @@
 import { SigningAlgorithm } from '@/api/core.interface'
 import { z } from 'zod'
+import { Schemas } from '@/api/api.client'
+import D = Schemas.WebhookTrigger
 
 export const updateRealmValidator = z.object({
   name: z.string().min(1),
@@ -7,7 +9,7 @@ export const updateRealmValidator = z.object({
 })
 
 export const createWebhookValidator = z.object({
-  name: z.string().optional(),
+  name: z.string(),
   description: z.string().optional(),
   endpoint: z.string().url().optional(),
   subscribers: z.array(z.string()),

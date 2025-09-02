@@ -5,6 +5,7 @@ import PageRealmSettingsWebhooks from '../ui/page-realm-settings-webhooks'
 
 export default function PageRealmSettingsWebhooksFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const { data: webhooks } = useGetWebhooks({ realm: realm_name })
-  return <PageRealmSettingsWebhooks />
+  const { data: responseGetWebhooks } = useGetWebhooks({ realm: realm_name })
+
+  return <PageRealmSettingsWebhooks webhooks={responseGetWebhooks?.data ?? []} />
 }

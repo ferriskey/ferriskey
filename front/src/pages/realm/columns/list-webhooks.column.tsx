@@ -9,8 +9,9 @@ export const columns: ColumnDef<Webhook>[] = [
     cell: (webhook) => <div>{webhook.endpoint}</div>
   },
   {
-    id: 'events',
-    header: 'Events',
+    id: 'name',
+    header: 'Name',
+    cell: (webhook) => <div>{webhook.id}</div>
   },
   {
     id: 'status',

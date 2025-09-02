@@ -185,7 +185,10 @@ impl WebhookRepository for PostgresWebhookRepository {
         .exec_with_returning(&self.db)
         .await
         .map(Webhook::from)
-        .map_err(|_| WebhookError::InternalServerError)?;
+        .map_err(|e| {
+            error!("Failed to create webhook: {}", e);
+            WebhookError::InternalServerError
+        })?;
 
         let subscribers_model: Vec<WebhookSubscriberModel> =
             WebhookSubscriberEntity::insert_many(subscribers.iter().map(|value| {

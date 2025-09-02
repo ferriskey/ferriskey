@@ -24,10 +24,13 @@ pub struct CreateWebhookResponse {
     summary = "Create webhook",
     description = "Creates a new webhook in the system related to the current realm.",
     responses(
-        (status = 200, body = Webhook)
+        (status = 200, body = CreateWebhookResponse)
     ),
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
+    request_body = CreateWebhookValidator
 )]
-
 pub async fn create_webhook(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
