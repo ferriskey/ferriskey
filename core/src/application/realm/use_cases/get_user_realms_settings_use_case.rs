@@ -62,12 +62,6 @@ impl GetUserRealmSettingsUseCase {
 
         let realm = user.realm.ok_or(RealmError::Forbidden)?;
 
-        let realm = self
-            .realm_service
-            .get_by_name(realm.name)
-            .await
-            .map_err(|_| RealmError::Forbidden)?;
-
         ensure_permissions(
             RealmPolicy::view(
                 identity,
