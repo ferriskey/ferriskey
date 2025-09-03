@@ -1,8 +1,12 @@
 use uuid::Uuid;
 
-use crate::domain::webhook::{
-    entities::{errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger},
-    ports::{WebhookRepository, WebhookService},
+use crate::domain::{
+    authentication::value_objects::Identity,
+    common::entities::app_errors::CoreError,
+    webhook::{
+        entities::{errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger},
+        ports::{CreateWebhookInput, UpdateWebhookInput, WebhookRepository, WebhookService},
+    },
 };
 
 #[derive(Clone)]
@@ -80,5 +84,56 @@ where
 
     async fn delete(&self, id: Uuid) -> Result<(), WebhookError> {
         self.webhook_repository.delete_webhook(id).await
+    }
+
+    async fn get_webhooks_by_realm(
+        &self,
+        _identity: Identity,
+        _realm_name: String,
+    ) -> Result<Vec<Webhook>, CoreError> {
+        unimplemented!()
+    }
+
+    async fn get_webhooks_by_subscribers(
+        &self,
+        _identity: Identity,
+        _realm_name: String,
+        _subscriber: WebhookTrigger,
+    ) -> Result<Vec<Webhook>, CoreError> {
+        unimplemented!()
+    }
+
+    async fn get_webhook(
+        &self,
+        _identity: Identity,
+        _webhook_id: Uuid,
+    ) -> Result<Option<Webhook>, CoreError> {
+        unimplemented!()
+    }
+
+    async fn create_webhook(
+        &self,
+        _identity: Identity,
+        _realm_name: String,
+        _input: CreateWebhookInput,
+    ) -> Result<Webhook, CoreError> {
+        unimplemented!()
+    }
+
+    async fn update_webhook(
+        &self,
+        _identity: Identity,
+        _webhook_id: Uuid,
+        _input: UpdateWebhookInput,
+    ) -> Result<Webhook, CoreError> {
+        unimplemented!()
+    }
+
+    async fn delete_webhook(
+        &self,
+        _identity: Identity,
+        _webhook_id: Uuid,
+    ) -> Result<(), CoreError> {
+        unimplemented!()
     }
 }
