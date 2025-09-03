@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
+pub mod entities;
+
 pub struct AppConfig {
     pub database_url: String,
 }
