@@ -51,7 +51,6 @@ impl RoleUseCase {
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.role_service.clone(),
-                service_bundle.user_role_service.clone(),
             ),
         }
     }

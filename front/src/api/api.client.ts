@@ -100,7 +100,7 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
-  export type DeleteRoleResponse = { message: string; users_affected: number, realm_name: string; client_id: string; role_id: string }
+  export type DeleteRoleResponse = { message: string; realm_name: string; client_id: string; role_id: string }
   export type DeleteRealmResponse = string
   export type DeleteUserCredentialResponse = {
     message: string

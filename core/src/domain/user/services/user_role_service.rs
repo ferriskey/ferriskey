@@ -96,10 +96,4 @@ where
             .revoke_role(user_id, role_id)
             .await
     }
-
-    async fn delete_role_relations_by_id(&self, role_id: Uuid) -> Result<u64, UserError> {
-        self.user_role_repository
-            .delete_role_relations_by_id(role_id)
-            .await
-    }
 }

@@ -15,7 +15,6 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeleteRoleResponse {
     pub message: String,
-    pub users_affected: u64,
     pub realm_name: String,
     pub role_id: Uuid,
 }
@@ -40,7 +39,7 @@ pub async fn delete_role(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteRoleResponse>, ApiError> {
-    let users_affected = state
+    state
         .use_case_bundle
         .delete_role_use_case
         .execute(
@@ -54,7 +53,6 @@ pub async fn delete_role(
 
     Ok(Response::OK(DeleteRoleResponse {
         message: format!("Role with ID {role_id} in realm {realm_name} deleted successfully"),
-        users_affected,
         realm_name,
         role_id,
     }))

@@ -149,10 +149,6 @@ pub trait UserRoleService: Send + Sync {
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<bool, UserError>> + Send;
-    fn delete_role_relations_by_id(
-        &self,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<u64, UserError>> + Send;
 }
 
 pub trait UserRoleRepository: Clone + Send + Sync + 'static {
@@ -175,8 +171,4 @@ pub trait UserRoleRepository: Clone + Send + Sync + 'static {
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<bool, UserError>> + Send;
-    fn delete_role_relations_by_id(
-        &self,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<u64, UserError>> + Send;
 }
