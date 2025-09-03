@@ -51,7 +51,7 @@ impl VerifyOtpUseCase {
         input: VerifyOtpUseCaseInput,
     ) -> Result<VerifyOtpUseCaseOutput, TotpError> {
         let decoded = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &input.secret)
-            .ok_or_else(|| TotpError::InvalidSecretFormat)?;
+            .ok_or(TotpError::InvalidSecretFormat)?;
 
         if decoded.len() != 20 {
             return Err(TotpError::InvalidSecretFormat);

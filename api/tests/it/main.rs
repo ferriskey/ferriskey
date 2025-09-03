@@ -43,7 +43,7 @@ async fn test_404(ctx: &mut DBContext) -> Result<(), String> {
         db: DatabaseArgs::from(db_url),
         ..Default::default()
     };
-    let state = state(Arc::new(env)).await.unwrap();
+    let (state, _) = state(Arc::new(env)).await.unwrap();
 
     let app = router(state).unwrap();
 
