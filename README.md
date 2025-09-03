@@ -109,11 +109,12 @@ cp env.example .env
 docker compose up -d
 cd ../core
 # to install sqlx you might need to run `cargo install sqlx-cli`
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/ferriskey sqlx migrate run
+DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
 ```
 3. Launch the API
 
 ```bash
+# to upgrade rustc version to 1.89.0, you can run `rustup update`
 cd ../api
 cargo run
 ```
