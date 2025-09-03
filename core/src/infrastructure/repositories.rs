@@ -27,7 +27,12 @@ use crate::infrastructure::user::repositories::user_role_repository::{
     PostgresUserRoleRepository, UserRoleRepoAny,
 };
 use crate::infrastructure::user::repository::PostgresUserRepository;
-use crate::infrastructure::webhook::repository::{PostgresWebhookRepository, WebhookRepoAny};
+use crate::infrastructure::webhook::repositories::webhook_notifier_repository::{
+    PostgresWebhookNotifierRepository, WebhookNotifierRepoAny,
+};
+use crate::infrastructure::webhook::repositories::webhook_repository::{
+    PostgresWebhookRepository, WebhookRepoAny,
+};
 
 pub mod argon2_hasher;
 pub mod auth_session_repository;
@@ -50,6 +55,7 @@ pub struct RepoBundle {
     pub user_required_action_repository: UserRequiredActionRepoAny,
     pub health_check_repository: HealthCheckRepoAny,
     pub webhook_repository: WebhookRepoAny,
+    pub webhook_notifier_repository: WebhookNotifierRepoAny,
 }
 
 pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::Error> {
@@ -84,6 +90,8 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
 
     let webhook_repository =
         WebhookRepoAny::Postgres(PostgresWebhookRepository::new(postgres.get_db()));
+    let webhook_notifier_repository =
+        WebhookNotifierRepoAny::Postgres(PostgresWebhookNotifierRepository::new(postgres.get_db()));
 
     Ok(RepoBundle {
         realm_repository,
@@ -100,5 +108,6 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
         user_required_action_repository,
         health_check_repository,
         webhook_repository,
+        webhook_notifier_repository,
     })
 }

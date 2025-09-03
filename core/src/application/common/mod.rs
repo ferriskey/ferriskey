@@ -19,7 +19,9 @@ use crate::{
                 user_role_repository::UserRoleRepoAny,
             },
         },
-        webhook::repository::WebhookRepoAny,
+        webhook::repositories::{
+            webhook_notifier_repository::WebhookNotifierRepoAny, webhook_repository::WebhookRepoAny,
+        },
     },
 };
 
@@ -46,6 +48,7 @@ pub struct FerriskeyService {
     pub health_check_repository: HealthCheckRepoAny,
     pub webhook_repository: WebhookRepoAny,
     pub policy: FerriskeyPolicy,
+    pub webhook_notifier_repository: WebhookNotifierRepoAny,
 }
 
 impl FerriskeyService {
@@ -81,6 +84,7 @@ impl FerriskeyService {
             user_required_action_repository: repos.user_required_action_repository,
             health_check_repository: repos.health_check_repository,
             webhook_repository: repos.webhook_repository,
+            webhook_notifier_repository: repos.webhook_notifier_repository,
             config,
 
             policy,

@@ -1,2 +1,2 @@
 pub mod mappers;
-pub mod repository;
+pub mod repositories;

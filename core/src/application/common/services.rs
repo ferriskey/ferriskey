@@ -34,7 +34,7 @@ use crate::infrastructure::role::repositories::RoleRepoAny;
 use crate::infrastructure::user::UserRepoAny;
 use crate::infrastructure::user::repositories::user_required_action_repository::UserRequiredActionRepoAny;
 use crate::infrastructure::user::repositories::user_role_repository::UserRoleRepoAny;
-use crate::infrastructure::webhook::repository::WebhookRepoAny;
+use crate::infrastructure::webhook::repositories::webhook_repository::WebhookRepoAny;
 
 pub type DefaultUserService =
     UserServiceImpl<UserRepoAny, RealmRepoAny, UserRoleRepoAny, UserRequiredActionRepoAny>;

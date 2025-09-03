@@ -133,6 +133,14 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
     fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), WebhookError>> + Send;
 }
 
+pub trait WebhookNotifierRepository: Clone + Send + Sync + 'static {
+    fn notify<T: Send + Sync + Serialize + Clone + 'static>(
+        &self,
+        webhooks: Vec<Webhook>,
+        payload: WebhookPayload<T>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
 pub trait WebhookNotifierService: Clone + Send + Sync {
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
