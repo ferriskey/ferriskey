@@ -1,5 +1,6 @@
 use crate::domain::{credential::entities::CredentialData, crypto::entities::HashResult};
 
+#[deprecated]
 pub trait CryptoService: Clone + Send + Sync + 'static {
     fn hash_password(
         &self,

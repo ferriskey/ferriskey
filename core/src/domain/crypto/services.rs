@@ -7,6 +7,7 @@ use crate::domain::{
 };
 
 #[derive(Debug, Clone)]
+#[deprecated]
 pub struct CryptoServiceImpl<H>
 where
     H: HasherRepository,
