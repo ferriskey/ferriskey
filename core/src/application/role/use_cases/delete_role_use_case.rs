@@ -1,5 +1,6 @@
 use crate::application::common::services::{
-    DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserService,
+    DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserRoleService,
+    DefaultUserService,
 };
 use crate::application::role::ensure_permissions;
 use crate::application::role::policies::RolePolicy;
@@ -7,6 +8,7 @@ use crate::domain::authentication::value_objects::Identity;
 use crate::domain::realm::ports::RealmService;
 use crate::domain::role::entities::RoleError;
 use crate::domain::role::ports::RoleService;
+use crate::domain::user::ports::UserRoleService;
 use uuid::Uuid;
 
 /// Parameters required to delete a role.
@@ -21,6 +23,7 @@ pub struct DeleteRoleUseCase {
     user_service: DefaultUserService,
     client_service: DefaultClientService,
     role_service: DefaultRoleService,
+    user_role_service: DefaultUserRoleService,
 }
 
 impl DeleteRoleUseCase {
@@ -29,12 +32,14 @@ impl DeleteRoleUseCase {
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         role_service: DefaultRoleService,
+        user_role_service: DefaultUserRoleService,
     ) -> Self {
         Self {
             realm_service,
             user_service,
             client_service,
             role_service,
+            user_role_service,
         }
     }
 
@@ -42,7 +47,7 @@ impl DeleteRoleUseCase {
         &self,
         identity: Identity,
         params: DeleteRoleUseCaseParams,
-    ) -> Result<(), RoleError> {
+    ) -> Result<u64, RoleError> {
         let realm = self
             .realm_service
             .get_by_name(params.realm_name.clone())
@@ -65,6 +70,12 @@ impl DeleteRoleUseCase {
             .await
             .map_err(|_| RoleError::InternalServerError)?;
 
-        Ok(())
+        let users_affected = self
+            .user_role_service
+            .delete_role_relations_by_id(params.role_id)
+            .await
+            .map_err(|_| RoleError::InternalServerError)?;
+
+        Ok(users_affected)
     }
 }
