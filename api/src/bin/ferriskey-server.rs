@@ -49,17 +49,17 @@ async fn main() -> Result<(), anyhow::Error> {
     let args = Arc::new(Args::parse());
     init_logger(&args.log);
 
-    let app_state = state(args.clone()).await?;
+    let (app_state, service_bundle) = state(args.clone()).await?;
 
     let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
-        realm_service: app_state.service_bundle.realm_service.clone(),
-        user_service: app_state.service_bundle.user_service.clone(),
-        client_service: app_state.service_bundle.client_service.clone(),
-        role_service: app_state.service_bundle.role_service.clone(),
-        jwt_service: app_state.service_bundle.jwt_service.clone(),
-        user_role_service: app_state.service_bundle.user_role_service.clone(),
-        credential_service: app_state.service_bundle.credential_service.clone(),
-        redirect_uri_service: app_state.service_bundle.redirect_uri_service.clone(),
+        realm_service: service_bundle.realm_service.clone(),
+        user_service: service_bundle.user_service.clone(),
+        client_service: service_bundle.client_service.clone(),
+        role_service: service_bundle.role_service.clone(),
+        jwt_service: service_bundle.jwt_service.clone(),
+        user_role_service: service_bundle.user_role_service.clone(),
+        credential_service: service_bundle.credential_service.clone(),
+        redirect_uri_service: service_bundle.redirect_uri_service.clone(),
     });
 
     startup_orchestrator

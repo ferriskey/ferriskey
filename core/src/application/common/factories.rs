@@ -1,4 +1,6 @@
+use crate::application::authentication::use_cases::auth_use_case::AuthUseCase;
 use crate::application::authentication::use_cases::authenticate_use_case::AuthenticateUseCase;
+use crate::application::authentication::use_cases::authorize_request_use_case::AuthorizeRequestUseCase;
 use crate::application::authentication::use_cases::exchange_token_use_case::ExchangeTokenUseCase;
 use crate::application::authentication::use_cases::get_certs_use_case::GetCertsUseCase;
 use crate::application::client::use_cases::ClientUseCase;
@@ -28,7 +30,10 @@ use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
 use crate::application::trident::use_cases::TridentUseCase;
+use crate::application::trident::use_cases::challenge_otp_use_case::ChallengeOtpUseCase;
+use crate::application::trident::use_cases::setup_otp_use_case::SetupOtpUseCase;
 use crate::application::trident::use_cases::update_password_use_case::UpdatePasswordUseCase;
+use crate::application::trident::use_cases::verify_otp_use_case::VerifyOtpUseCase;
 use crate::application::user::use_cases::UserUseCase;
 use crate::application::user::use_cases::assign_role_use_case::AssignRoleUseCase;
 use crate::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCase;
@@ -55,6 +60,8 @@ pub struct UseCaseBundle {
     pub exchange_token_use_case: ExchangeTokenUseCase,
     pub get_certs_use_case: GetCertsUseCase,
     pub authenticate_use_case: AuthenticateUseCase,
+    pub authorize_request_use_case: AuthorizeRequestUseCase,
+    pub auth_use_case: AuthUseCase,
 
     // Realm (use-cases
     pub create_realm_use_case: CreateRealmUseCase,
@@ -100,6 +107,9 @@ pub struct UseCaseBundle {
 
     // Trident (use-cases)
     pub update_password_use_case: UpdatePasswordUseCase,
+    pub verify_otp_use_case: VerifyOtpUseCase,
+    pub setup_totp_use_case: SetupOtpUseCase,
+    pub challenge_otp_use_case: ChallengeOtpUseCase,
 
     // Webhook (use-cases)
     pub create_webhook_use_case: CreateWebhookUseCase,
@@ -114,7 +124,6 @@ pub struct UseCaseBundle {
 impl UseCaseBundle {
     pub fn new(service_bundle: &ServiceBundle) -> Self {
         // Auth (use-cases)
-
         let exchange_token_use_case = ExchangeTokenUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.client_service.clone(),
@@ -131,6 +140,18 @@ impl UseCaseBundle {
             service_bundle.client_service.clone(),
             service_bundle.credential_service.clone(),
             service_bundle.user_service.clone(),
+        );
+
+        let authorize_request_use_case = AuthorizeRequestUseCase::new(
+            service_bundle.user_service.clone(),
+            service_bundle.client_service.clone(),
+            service_bundle.jwt_service.clone(),
+        );
+        let auth_use_case = AuthUseCase::new(
+            service_bundle.realm_service.clone(),
+            service_bundle.client_service.clone(),
+            service_bundle.redirect_uri_service.clone(),
+            service_bundle.auth_session_service.clone(),
         );
 
         // Realm (use-cases)
@@ -198,6 +219,8 @@ impl UseCaseBundle {
             exchange_token_use_case,
             get_certs_use_case,
             authenticate_use_case,
+            authorize_request_use_case,
+            auth_use_case,
 
             // Realm (use-cases)
             create_realm_use_case,
@@ -242,6 +265,10 @@ impl UseCaseBundle {
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
 
             update_password_use_case: trident_use_case.update_password_use_case,
+            verify_otp_use_case: trident_use_case.verify_otp_use_case,
+            setup_totp_use_case: trident_use_case.setup_otp_use_case,
+            challenge_otp_use_case: trident_use_case.challenge_otp_use_case,
+
             // Webhook (use-cases)
             create_webhook_use_case: webhook_use_case.create_webhook_use_case,
             fetch_realm_webhooks_use_case: webhook_use_case.fetch_realm_webhooks_use_case,

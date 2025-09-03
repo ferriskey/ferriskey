@@ -2,7 +2,6 @@ use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
-use crate::application::http::realm::handlers::fetch_realm::{__path_fetch_realm, fetch_realm};
 use crate::application::http::realm::handlers::get_realm::{__path_get_realm, get_realm};
 use crate::application::http::realm::handlers::get_user_realm_settings::get_user_realm_settings;
 use crate::application::http::realm::handlers::update_realm::{__path_update_realm, update_realm};
@@ -16,7 +15,6 @@ use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(paths(
-    fetch_realm,
     get_realm,
     create_realm,
     update_realm,
@@ -41,10 +39,6 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_user_realm_settings),
-        )
-        .route(
-            &format!("{}/realms", state.args.server.root_path),
-            get(fetch_realm),
         )
         .route(
             &format!("{}/realms/{{realm_name}}", state.args.server.root_path),

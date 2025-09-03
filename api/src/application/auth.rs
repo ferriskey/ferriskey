@@ -10,14 +10,10 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::client::ports::ClientService;
-use ferriskey_core::domain::jwt::entities::{ClaimsTyp, JwtClaim};
-use ferriskey_core::domain::jwt::ports::JwtService;
-use ferriskey_core::domain::user::ports::UserService;
+use ferriskey_core::application::authentication::use_cases::authorize_request_use_case::AuthorizeRequestUseCaseInput;
+use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use uuid::Uuid;
 
 use super::http::server::app_state::AppState;
 
@@ -146,48 +142,17 @@ pub async fn auth(
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
 
-    if claims.typ != ClaimsTyp::Bearer {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    let user = state
-        .service_bundle
-        .user_service
-        .get_by_id(claims.sub)
+    let output = state
+        .use_case_bundle
+        .authorize_request_use_case
+        .execute(AuthorizeRequestUseCaseInput {
+            claims,
+            token: jwt.token,
+        })
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    let _ = state
-        .service_bundle
-        .jwt_service
-        .verify_token(jwt.token, user.realm_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("JWT verification failed: {:?}", e);
-            StatusCode::UNAUTHORIZED
-        })?;
-
-    let identity: Identity = match claims.is_service_account() {
-        true => {
-            let client_id = match claims.client_id {
-                Some(client_id) => client_id,
-                None => return Err(StatusCode::UNAUTHORIZED),
-            };
-
-            let client_id = Uuid::parse_str(&client_id).map_err(|_| StatusCode::UNAUTHORIZED)?;
-            let client = state
-                .service_bundle
-                .client_service
-                .get_by_id(client_id)
-                .await
-                .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-            Identity::Client(client)
-        }
-        false => Identity::User(user),
-    };
-
-    req.extensions_mut().insert(identity);
+    req.extensions_mut().insert(output.identity);
 
     Ok(next.run(req).await)
 }

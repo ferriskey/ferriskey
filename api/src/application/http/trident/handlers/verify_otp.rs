@@ -9,14 +9,11 @@ use crate::application::http::{
     trident::validators::OtpVerifyRequest,
 };
 use axum::{Extension, extract::State};
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::credential::ports::CredentialService;
-use ferriskey_core::domain::trident::entities::TotpSecret;
-use ferriskey_core::domain::trident::ports::TotpService;
-use ferriskey_core::domain::user::entities::RequiredAction;
-use ferriskey_core::domain::user::ports::UserService;
+use ferriskey_core::{
+    application::trident::use_cases::verify_otp_use_case::VerifyOtpUseCaseInput,
+    domain::authentication::value_objects::Identity,
+};
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
@@ -43,61 +40,19 @@ pub async fn verify_otp(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
 ) -> Result<Response<VerifyOtpResponse>, ApiError> {
-    let decoded = base32::decode(
-        base32::Alphabet::Rfc4648 { padding: false },
-        &payload.secret,
-    )
-    .ok_or_else(|| ApiError::BadRequest("Invalid OTP secret".to_string()))?;
-
-    if decoded.len() != 20 {
-        return Err(ApiError::BadRequest("Secret must be 160 bits".to_string()));
-    }
-
-    let user = match identity {
-        Identity::User(user) => user,
-        _ => return Err(ApiError::Forbidden("Only users can verify OTP".to_string())),
-    };
-
-    let secret = TotpSecret::from_base32(&payload.secret);
-
-    let is_valid = state
-        .service_bundle
-        .totp_service
-        .verify(&secret, &payload.code)
-        .map_err(|_| ApiError::InternalServerError("Failed to verify OTP".to_string()))?;
-
-    if !is_valid {
-        error!("Invalid OTP code");
-        return Err(ApiError::Unauthorized("Invalid OTP code".to_string()));
-    }
-
-    let credential_data = serde_json::json!({
-      "subType": "totp",
-      "digits": 6,
-      "counter": 0,
-      "period": 30,
-      "algorithm": "HmacSha256",
-    });
-
-    state
-        .service_bundle
-        .credential_service
-        .create_custom_credential(
-            user.id,
-            "otp".to_string(),
-            secret.base32_encoded().to_string(),
-            Some(payload.label),
-            credential_data,
-        )
-        .await?;
-
-    state
-        .service_bundle
-        .user_service
-        .remove_required_action(user.id, RequiredAction::ConfigureOtp)
-        .await?;
+    let result = state
+        .use_case_bundle
+        .verify_otp_use_case
+        .execute(VerifyOtpUseCaseInput {
+            code: payload.code,
+            identity,
+            label: Some(payload.label),
+            secret: payload.secret,
+        })
+        .await
+        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     Ok(Response::OK(VerifyOtpResponse {
-        message: "OTP verified successfully".to_string(),
+        message: result.message,
     }))
 }

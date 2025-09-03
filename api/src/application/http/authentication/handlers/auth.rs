@@ -8,11 +8,7 @@ use axum::{
     },
     response::IntoResponse,
 };
-use ferriskey_core::domain::authentication::entities::AuthenticationError;
-use ferriskey_core::domain::authentication::ports::AuthSessionService;
-use ferriskey_core::domain::authentication::value_objects::CreateAuthSessionRequest;
-use ferriskey_core::domain::client::ports::{ClientService, RedirectUriService};
-use ferriskey_core::domain::realm::ports::RealmService;
+use ferriskey_core::application::authentication::use_cases::auth_use_case::AuthUseCaseInput;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
@@ -63,87 +59,35 @@ pub async fn auth(
     State(state): State<AppState>,
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let realm = state
-        .service_bundle
-        .realm_service
-        .get_by_name(realm_name)
-        .await
-        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
-
-    let client = state
-        .service_bundle
-        .client_service
-        .get_by_client_id(params.client_id.clone(), realm.id)
-        .await
-        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
-
-    let redirect_uri = params.redirect_uri.clone();
-
-    let client_redirect_uris = state
-        .service_bundle
-        .redirect_uri_service
-        .get_enabled_by_client_id(client.id)
-        .await
-        .map_err(|_| ApiError::InternalServerError("".to_string()))?;
-
-    if !client_redirect_uris.iter().any(|uri| {
-        // Check for exact match first
-        if uri.value == redirect_uri {
-            return true;
-        }
-
-        // If not an exact match, try to interpret as regex pattern
-        if let Ok(regex) = regex::Regex::new(&uri.value) {
-            return regex.is_match(&redirect_uri);
-        }
-
-        false
-    }) {
-        return Err(ApiError::Unauthorized("Invalid redirect_uri".to_string()));
-    }
-
-    if !client.enabled {
-        return Err(ApiError::Unauthorized("Client is disabled".to_string()));
-    }
-
-    let session = state
-        .service_bundle
-        .auth_session_service
-        .create_session(CreateAuthSessionRequest {
-            state: params.state.clone(),
-            client_id: client.id,
-            redirect_uri,
-            scope: params.scope.unwrap_or_default(),
-            nonce: None,
+    let result = state
+        .use_case_bundle
+        .auth_use_case
+        .execute(AuthUseCaseInput {
+            client_id: params.client_id,
+            realm_name: realm_name.clone(),
+            redirect_uri: params.redirect_uri,
             response_type: params.response_type,
-            realm_id: realm.id,
-            user_id: None,
+            scope: params.scope,
+            state: params.state,
         })
         .await
-        .map_err(|e: AuthenticationError| ApiError::InternalServerError(e.to_string()))?;
-
-    let login_url = format!(
-        "?client_id={}&redirect_uri={}&state={}",
-        client.client_id,
-        params.redirect_uri,
-        params.state.unwrap_or_default()
-    );
+        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     let full_url = format!(
         "{}/realms/{}/authentication/login{}",
         state.args.webapp_url.clone(),
-        realm.name,
-        login_url.clone()
+        realm_name,
+        result.login_url.clone()
     );
 
     let cookie_value = format!(
         "session_code={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
-        session.id
+        result.session.id
     );
 
     let session_cookie = format!(
         "FERRISKEY_SESSION={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
-        session.id
+        result.session.id
     );
 
     let mut headers = HeaderMap::new();

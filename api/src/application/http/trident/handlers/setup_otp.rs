@@ -9,8 +9,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::trident::ports::TotpService;
+use ferriskey_core::{
+    application::trident::use_cases::setup_otp_use_case::SetupOtpUseCaseInput,
+    domain::authentication::value_objects::Identity,
+};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -43,26 +45,17 @@ pub async fn setup_otp(
     FullUrl(_, base_url): FullUrl,
 ) -> Result<Response<SetupOtpResponse>, ApiError> {
     let issuer = format!("{base_url}/realms/{realm_name}");
-    let user = match identity {
-        Identity::User(user) => user,
-        _ => return Err(ApiError::Forbidden("Only users can set up OTP".to_string())),
-    };
-    let secret = state
-        .service_bundle
-        .totp_service
-        .generate_secret()
-        .map_err(|_| ApiError::InternalServerError("Failed to generate OTP secret".to_string()))?;
-
-    let otpauth_url =
-        state
-            .service_bundle
-            .totp_service
-            .generate_otpauth_uri(&issuer, &user.email, &secret);
+    let result = state
+        .use_case_bundle
+        .setup_totp_use_case
+        .execute(SetupOtpUseCaseInput { identity, issuer })
+        .await
+        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     let response = SetupOtpResponse {
         issuer: format!("{base_url}/realms/{realm_name}"),
-        otpauth_url,
-        secret: secret.base32_encoded().to_string(),
+        otpauth_url: result.otpauth_url,
+        secret: result.secret,
     };
 
     Ok(Response::OK(response))

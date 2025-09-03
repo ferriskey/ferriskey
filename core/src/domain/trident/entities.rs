@@ -18,6 +18,8 @@ pub enum TotpError {
     GenerationFailed(String),
     #[error("TOTP verification failed: {0}")]
     VerificationFailed(String),
+    #[error("Invalid user")]
+    InvalidUser,
 }
 
 #[derive(Debug, Clone, Error)]
