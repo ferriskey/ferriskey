@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod client;
 
+pub mod error;
 pub mod health;
 pub mod realm;
 pub mod role;
