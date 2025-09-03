@@ -98,16 +98,16 @@ export const useDeleteRole = () => {
     // FIXME: there is no bulk delete endpoint, and this one may be inefficient, and the
     // stacked toast messages will look bad.
     onSuccess: async (_, variables) => {
-      const queryKeys = window.tanstackApi.get('/realms/{realm_name}/roles', {
+      const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/roles', {
         path: {
           realm_name: variables.path.realm_name,
         },
-      }).queryKey
+      })
       await queryClient.invalidateQueries({
-        queryKey: [...queryKeys],
+        queryKey: [...queryKey],
       })
       toast.success('Role deleted successfully', {
-        description: `Role has been deleted from client successfully.`,
+        description: 'Role has been deleted from client successfully.',
       })
     },
     onError(error) {

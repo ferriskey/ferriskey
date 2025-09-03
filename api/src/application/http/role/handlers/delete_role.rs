@@ -15,6 +15,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeleteRoleResponse {
     pub message: String,
+    pub users_affected: u64,
     pub realm_name: String,
     pub role_id: Uuid,
 }
@@ -39,7 +40,7 @@ pub async fn delete_role(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteRoleResponse>, ApiError> {
-    state
+    let users_affected = state
         .use_case_bundle
         .delete_role_use_case
         .execute(
@@ -52,8 +53,9 @@ pub async fn delete_role(
         .await?;
 
     Ok(Response::OK(DeleteRoleResponse {
-        // FIXME: may not want to leak the role_id
+        // FIXME: may not want to leak the role_id? Other handles do this too, so maybe fine for now.
         message: format!("Role with ID {role_id} in realm {realm_name} deleted successfully"),
+        users_affected,
         realm_name,
         role_id,
     }))

@@ -1,9 +1,9 @@
 use crate::application::common::services::ServiceBundle;
+use crate::application::role::use_cases::delete_role_use_case::DeleteRoleUseCase;
 use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
-use crate::application::role::use_cases::delete_role_use_case::DeleteRoleUseCase;
 
 pub mod delete_role_use_case;
 pub mod get_role_use_case;
@@ -51,6 +51,7 @@ impl RoleUseCase {
                 service_bundle.user_service.clone(),
                 service_bundle.client_service.clone(),
                 service_bundle.role_service.clone(),
+                service_bundle.user_role_service.clone(),
             ),
         }
     }

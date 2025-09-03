@@ -28,7 +28,7 @@ export default function PageClientRoles({ roles, isLoading, isError, handleDelet
         rowActions={[
           {
             label: 'Delete',
-            icon: <span className="text-red-500">🗑️</span>,
+            icon: <span className='text-red-500'>🗑️</span>,
             variant: 'destructive',
             onClick: (role) => handleDeleteRole && handleDeleteRole(role),
           },

@@ -50,6 +50,12 @@ impl UserRoleRepository for UserRoleRepoAny {
             UserRoleRepoAny::Postgres(repo) => repo.has_role(user_id, role_id).await,
         }
     }
+
+    async fn delete_role_relations_by_id(&self, role_id: Uuid) -> Result<u64, UserError> {
+        match self {
+            UserRoleRepoAny::Postgres(repo) => repo.delete_role_relations_by_id(role_id).await,
+        }
+    }
 }
 
 impl UserRoleRepository for PostgresUserRoleRepository {
@@ -125,5 +131,17 @@ impl UserRoleRepository for PostgresUserRoleRepository {
 
     async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, UserError> {
         todo!("Implement has_role in PostgresUserRoleRepository");
+    }
+
+    async fn delete_role_relations_by_id(&self, role_id: Uuid) -> Result<u64, UserError> {
+        use crate::entity::user_role::{Column, Entity as UserRoleEntity};
+
+        let result = UserRoleEntity::delete_many()
+            .filter(Column::RoleId.eq(role_id))
+            .exec(&self.db)
+            .await
+            .map_err(|_| UserError::InternalServerError)?;
+
+        Ok(result.rows_affected)
     }
 }

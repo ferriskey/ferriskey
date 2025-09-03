@@ -34,8 +34,7 @@ pub struct GetUserRolesResponse {
     )
 )]
 pub async fn get_user_roles(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetUserRolesResponse>, ApiError> {
