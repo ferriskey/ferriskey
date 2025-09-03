@@ -9,7 +9,7 @@ use crate::{
             ports::AuthSessionService,
             value_objects::CreateAuthSessionRequest,
         },
-        client::ports::{ClientService, RedirectUriService},
+        client::ports::{OldClientService, RedirectUriService},
         realm::ports::RealmService,
     },
 };

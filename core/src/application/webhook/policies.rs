@@ -1,7 +1,7 @@
 use crate::{
     application::common::policies::PolicyEnforcer,
     domain::{
-        authentication::value_objects::Identity, client::ports::ClientService,
+        authentication::value_objects::Identity, client::ports::OldClientService,
         realm::entities::Realm, role::entities::permission::Permissions, user::ports::UserService,
         webhook::entities::errors::WebhookError,
     },
@@ -30,7 +30,7 @@ impl WebhookPolicy {
     ) -> Result<bool, WebhookError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -59,7 +59,7 @@ impl WebhookPolicy {
     ) -> Result<bool, WebhookError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -88,7 +88,7 @@ impl WebhookPolicy {
     ) -> Result<bool, WebhookError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -117,7 +117,7 @@ impl WebhookPolicy {
     ) -> Result<bool, WebhookError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy

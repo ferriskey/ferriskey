@@ -1,6 +1,6 @@
 use crate::application::common::policies::PolicyEnforcer;
 use crate::domain::authentication::value_objects::Identity;
-use crate::domain::client::ports::ClientService;
+use crate::domain::client::ports::OldClientService;
 use crate::domain::realm::entities::{Realm, RealmError};
 use crate::domain::role::entities::permission::Permissions;
 use crate::domain::user::ports::UserService;
@@ -15,7 +15,7 @@ impl RealmPolicy {
         client_service: C,
     ) -> Result<bool, RealmError>
     where
-        C: ClientService,
+        C: OldClientService,
         U: UserService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
@@ -44,7 +44,7 @@ impl RealmPolicy {
         client_service: C,
     ) -> Result<bool, RealmError>
     where
-        C: ClientService,
+        C: OldClientService,
         U: UserService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
@@ -73,7 +73,7 @@ impl RealmPolicy {
         client_service: C,
     ) -> Result<bool, RealmError>
     where
-        C: ClientService,
+        C: OldClientService,
         U: UserService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
@@ -102,7 +102,7 @@ impl RealmPolicy {
         client_service: C,
     ) -> Result<bool, RealmError>
     where
-        C: ClientService,
+        C: OldClientService,
         U: UserService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);

@@ -4,7 +4,7 @@ use crate::{
     application::common::services::{DefaultClientService, DefaultJwtService, DefaultUserService},
     domain::{
         authentication::{entities::AuthenticationError, value_objects::Identity},
-        client::ports::ClientService,
+        client::ports::OldClientService,
         jwt::{
             entities::{ClaimsTyp, JwtClaim},
             ports::JwtService,

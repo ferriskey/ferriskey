@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::domain::{
     authentication::value_objects::Identity,
-    client::{entities::Client, ports::ClientService},
+    client::{entities::Client, ports::OldClientService},
     realm::entities::Realm,
     role::entities::{Role, permission::Permissions},
     user::{entities::User, ports::UserService},
@@ -22,7 +22,7 @@ pub enum PolicyError {
 pub struct PolicyEnforcer<U, C>
 where
     U: UserService,
-    C: ClientService,
+    C: OldClientService,
 {
     user_service: U,
     client_service: C,
@@ -31,7 +31,7 @@ where
 impl<U, C> PolicyEnforcer<U, C>
 where
     U: UserService,
-    C: ClientService,
+    C: OldClientService,
 {
     pub fn new(user_service: U, client_service: C) -> Self {
         Self {

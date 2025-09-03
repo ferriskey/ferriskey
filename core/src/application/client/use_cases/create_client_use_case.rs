@@ -9,7 +9,7 @@ use crate::{
     domain::{
         client::{
             entities::{Client, ClientError},
-            ports::ClientService,
+            ports::OldClientService,
             value_objects::CreateClientRequest,
         },
         common::generate_random_string,

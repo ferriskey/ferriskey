@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::domain::{
     client::{
         entities::{Client, ClientError},
-        ports::{ClientRepository, ClientService},
+        ports::{ClientRepository, OldClientService},
         value_objects::{CreateClientRequest, UpdateClientRequest},
     },
     realm::ports::RealmRepository,
@@ -37,7 +37,7 @@ where
     }
 }
 
-impl<C, U, R> ClientService for ClientServiceImpl<C, U, R>
+impl<C, U, R> OldClientService for ClientServiceImpl<C, U, R>
 where
     C: ClientRepository,
     U: UserRepository,

@@ -8,7 +8,7 @@ use crate::{
             ports::GrantTypeService,
             value_objects::GrantTypeParams,
         },
-        client::ports::ClientService,
+        client::ports::OldClientService,
         realm::ports::RealmService,
     },
 };

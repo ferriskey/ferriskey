@@ -4,7 +4,7 @@ use crate::application::common::services::{
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::entities::{Client, ClientError};
-use crate::domain::client::ports::ClientService;
+use crate::domain::client::ports::OldClientService;
 use crate::domain::realm::ports::RealmService;
 use uuid::Uuid;
 

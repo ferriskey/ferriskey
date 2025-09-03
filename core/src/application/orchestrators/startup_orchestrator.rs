@@ -6,7 +6,7 @@ use crate::application::common::services::{
 };
 use crate::domain::{
     client::{
-        ports::{ClientService, RedirectUriService},
+        ports::{OldClientService, RedirectUriService},
         value_objects::{CreateClientRequest, CreateRedirectUriRequest},
     },
     common::generate_random_string,

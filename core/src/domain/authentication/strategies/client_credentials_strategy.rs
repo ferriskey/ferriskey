@@ -7,7 +7,7 @@ use crate::domain::{
         value_objects::GrantTypeParams,
     },
     client::{
-        ports::{ClientRepository, ClientService},
+        ports::{ClientRepository, OldClientService},
         services::client_service::ClientServiceImpl,
     },
     jwt::{

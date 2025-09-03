@@ -10,7 +10,7 @@ use crate::{
     },
     domain::{
         authentication::value_objects::Identity,
-        client::{entities::ClientError, ports::ClientService},
+        client::{entities::ClientError, ports::OldClientService},
         realm::ports::RealmService,
         webhook::{
             entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},

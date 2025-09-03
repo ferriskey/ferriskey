@@ -2,7 +2,7 @@ use crate::{
     application::common::policies::PolicyEnforcer,
     domain::{
         authentication::value_objects::Identity,
-        client::{entities::ClientError, ports::ClientService},
+        client::{entities::ClientError, ports::OldClientService},
         realm::entities::Realm,
         role::entities::permission::Permissions,
         user::ports::UserService,
@@ -32,7 +32,7 @@ impl ClientPolicy {
     ) -> Result<bool, ClientError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -61,7 +61,7 @@ impl ClientPolicy {
     ) -> Result<bool, ClientError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -90,7 +90,7 @@ impl ClientPolicy {
     ) -> Result<bool, ClientError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy
@@ -119,7 +119,7 @@ impl ClientPolicy {
     ) -> Result<bool, ClientError>
     where
         U: UserService,
-        C: ClientService,
+        C: OldClientService,
     {
         let policy = PolicyEnforcer::new(user_service, client_service);
         let user = policy

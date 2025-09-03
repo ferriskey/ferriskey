@@ -5,7 +5,7 @@ use crate::application::common::services::{
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::{
     entities::{Client, ClientError},
-    ports::ClientService,
+    ports::OldClientService,
 };
 use crate::domain::realm::ports::RealmService;
 

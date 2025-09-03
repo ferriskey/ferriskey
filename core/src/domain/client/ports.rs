@@ -8,7 +8,7 @@ use crate::domain::client::{
     value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
 };
 
-pub trait ClientService: Clone + Send + Sync + 'static {
+pub trait OldClientService: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
         payload: CreateClientRequest,

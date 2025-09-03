@@ -5,7 +5,7 @@ use crate::application::common::services::{
 use crate::domain::authentication::entities::{AuthSession, AuthenticationError};
 use crate::domain::authentication::ports::AuthSessionService;
 use crate::domain::authentication::value_objects::AuthenticationResult;
-use crate::domain::client::ports::ClientService;
+use crate::domain::client::ports::OldClientService;
 use crate::domain::common::generate_random_string;
 use crate::domain::credential::ports::CredentialService;
 use crate::domain::jwt::entities::{ClaimsTyp, JwtClaim};
