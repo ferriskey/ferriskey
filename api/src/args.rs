@@ -3,6 +3,7 @@
 use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
+use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
 use url::Url;
 
 #[derive(Debug, Clone, ValueEnum, Default)]
@@ -291,6 +292,20 @@ fn parse_root_path(value: &str) -> Result<String, String> {
         Ok(value.into())
     } else {
         Ok(format!("/{value}"))
+    }
+}
+
+impl From<Args> for FerriskeyConfig {
+    fn from(value: Args) -> Self {
+        FerriskeyConfig {
+            database: DatabaseConfig {
+                host: value.db.host,
+                name: value.db.name,
+                password: value.db.password,
+                port: value.db.port,
+                username: value.db.user,
+            },
+        }
     }
 }
 
