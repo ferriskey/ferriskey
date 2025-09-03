@@ -6,6 +6,18 @@ pub struct AppConfig {
     pub database_url: String,
 }
 
+pub struct FerriskeyConfig {
+    pub database: DatabaseConfig,
+}
+
+pub struct DatabaseConfig {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub name: String,
+}
+
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
     let now = Utc::now();
     let seconds = now.timestamp().try_into().unwrap_or(0);
