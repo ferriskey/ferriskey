@@ -23,6 +23,7 @@ use crate::{
 };
 
 pub mod factories;
+pub mod permissions;
 pub mod policies;
 pub mod services;
 

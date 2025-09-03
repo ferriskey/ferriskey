@@ -15,18 +15,22 @@ pub trait UserService: Clone + Send + Sync + 'static {
         dto: CreateUserRequest,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
 
+    #[deprecated]
     fn get_by_username(
         &self,
         username: String,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
 
+    #[deprecated]
     fn get_by_client_id(
         &self,
         client_id: Uuid,
     ) -> impl Future<Output = Result<User, UserError>> + Send;
 
+    #[deprecated]
     fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
+    #[deprecated]
     fn get_user_roles(
         &self,
         user_id: Uuid,
@@ -38,6 +42,7 @@ pub trait UserService: Clone + Send + Sync + 'static {
         realm_name: String,
     ) -> impl Future<Output = Result<Vec<Realm>, UserError>> + Send;
 
+    #[deprecated]
     fn find_by_realm_id(
         &self,
         realm_id: Uuid,
