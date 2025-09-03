@@ -3,15 +3,18 @@ use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
 pub mod entities;
+pub mod policies;
 
 pub struct AppConfig {
     pub database_url: String,
 }
 
+#[derive(Clone)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
 }
 
+#[derive(Clone)]
 pub struct DatabaseConfig {
     pub host: String,
     pub port: u16,

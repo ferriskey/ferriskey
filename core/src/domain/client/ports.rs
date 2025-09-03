@@ -1,13 +1,18 @@
 use uuid::Uuid;
 
-use crate::domain::client::{
-    entities::{
-        Client, ClientError,
-        redirect_uri::{RedirectUri, RedirectUriError},
+use crate::domain::{
+    authentication::value_objects::Identity,
+    client::{
+        entities::{
+            Client, ClientError,
+            redirect_uri::{RedirectUri, RedirectUriError},
+        },
+        value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
     },
-    value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
+    common::entities::app_errors::CoreError,
 };
 
+#[deprecated]
 pub trait OldClientService: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
@@ -33,6 +38,31 @@ pub trait OldClientService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<Client, ClientError>> + Send;
 
     fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
+}
+
+pub trait ClientService: Clone + Send + Sync + 'static {
+    fn create_client(
+        &self,
+        identity: Identity,
+        input: CreateClientRequest,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn create_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn create_role(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_client_roles(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_client_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_clients_by_realm_id(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+
+    fn get_redirect_uris(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn update_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn update_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait ClientRepository: Clone + Send + Sync + 'static {

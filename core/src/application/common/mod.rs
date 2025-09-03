@@ -26,6 +26,7 @@ pub mod factories;
 pub mod policies;
 pub mod services;
 
+#[derive(Clone)]
 pub struct FerriskeyService {
     pub config: FerriskeyConfig,
     pub realm_repository: RealmRepoAny,

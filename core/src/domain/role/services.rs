@@ -89,4 +89,13 @@ where
             .await
             .map_err(|_| RoleError::NotFound)
     }
+
+    async fn delete_role(
+        &self,
+        identity: crate::domain::authentication::value_objects::Identity,
+        realm_name: String,
+        role_id: Uuid,
+    ) -> Result<(), crate::domain::common::entities::app_errors::CoreError> {
+        unimplemented!()
+    }
 }
