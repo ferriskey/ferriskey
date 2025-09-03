@@ -53,7 +53,6 @@ pub async fn delete_role(
         .await?;
 
     Ok(Response::OK(DeleteRoleResponse {
-        // FIXME: may not want to leak the role_id? Other handles do this too, so maybe fine for now.
         message: format!("Role with ID {role_id} in realm {realm_name} deleted successfully"),
         users_affected,
         realm_name,
