@@ -25,6 +25,20 @@ pub struct FerriskeyPolicy {
     user_role_repository: UserRoleRepoAny,
 }
 
+impl FerriskeyPolicy {
+    pub fn new(
+        user_repository: UserRepoAny,
+        client_repository: ClientRepoAny,
+        user_role_repository: UserRoleRepoAny,
+    ) -> Self {
+        FerriskeyPolicy {
+            user_repository,
+            client_repository,
+            user_role_repository,
+        }
+    }
+}
+
 impl Policy for FerriskeyPolicy {
     async fn get_user_from_identity(&self, identity: &Identity) -> Result<User, CoreError> {
         match identity {

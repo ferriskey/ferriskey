@@ -1,4 +1,5 @@
 use crate::{
+    application::common::permissions::FerriskeyPolicy,
     domain::common::{AppConfig, FerriskeyConfig},
     infrastructure::{
         auth_session::AuthSessionRepoAny,
@@ -44,6 +45,7 @@ pub struct FerriskeyService {
     pub user_required_action_repository: UserRequiredActionRepoAny,
     pub health_check_repository: HealthCheckRepoAny,
     pub webhook_repository: WebhookRepoAny,
+    pub policy: FerriskeyPolicy,
 }
 
 impl FerriskeyService {
@@ -57,6 +59,12 @@ impl FerriskeyService {
             config.database.name
         );
         let repos = build_repos_from_env(AppConfig { database_url }).await?;
+
+        let policy = FerriskeyPolicy::new(
+            repos.user_repository.clone(),
+            repos.client_repository.clone(),
+            repos.user_role_repository.clone(),
+        );
 
         Ok(FerriskeyService {
             realm_repository: repos.realm_repository,
@@ -74,6 +82,8 @@ impl FerriskeyService {
             health_check_repository: repos.health_check_repository,
             webhook_repository: repos.webhook_repository,
             config,
+
+            policy,
         })
     }
 }
