@@ -12,7 +12,6 @@ export default function PageRolesOverviewFeature() {
   const { data: rolesResponse, isLoading } = useGetRoles({ realm: realm_name ?? 'master' })
   const { mutate: deleteRole } = useDeleteRole()
 
-  // FIXME: correct this..
   const handleDeleteSelected = (items: Role[]) => {
     if (!realm_name) return
     items.forEach((role) => {
