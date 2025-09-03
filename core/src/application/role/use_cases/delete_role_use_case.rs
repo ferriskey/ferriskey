@@ -1,6 +1,5 @@
 use crate::application::common::services::{
-    DefaultClientService, DefaultRealmService, DefaultRoleService,
-    DefaultUserService,
+    DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserService,
 };
 use crate::application::role::ensure_permissions;
 use crate::application::role::policies::RolePolicy;
