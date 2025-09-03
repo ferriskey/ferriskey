@@ -21,6 +21,9 @@ services:
       retries: 5
       start_period: 30s
       timeout: 10s
+    profiles:
+      - registry
+      - build
   api-build:
     build:
       context: .
@@ -74,6 +77,7 @@ services:
     image: ghcr.io/ferriskey/ferriskey-api
     environment:
       ALLOWED_ORIGINS: http://localhost:5556
+      WEBAPP_URL: http://localhost:5556
       DATABASE_HOST: db
       DATABASE_NAME: ferriskey
       DATABASE_PASSWORD: ferriskey
@@ -81,10 +85,10 @@ services:
     ports:
       - 3334:3333
     depends_on:
-      db-migrations-build:
+      db-migrations-registry:
         condition: service_completed_successfully
     profiles:
-      - build
+      - registry
 
   db-migrations-registry:
     image: ghcr.io/ferriskey/ferriskey-api
@@ -94,7 +98,7 @@ services:
       - migrate
       - run
       - --source
-      - /usr/build/src/ferriskey/migrations
+      - /usr/local/src/ferriskey/migrations
     environment:
       DATABASE_URL: postgresql://ferriskey:ferriskey@db/ferriskey
     restart: no
@@ -102,7 +106,7 @@ services:
       db:
         condition: service_healthy
     profiles:
-      - build
+      - registry
 
   webapp-registry:
     image: ghcr.io/ferriskey/ferriskey-webapp
@@ -111,6 +115,6 @@ services:
     ports:
       - 5556:80
     profiles:
-      - build
+      - registry
 volumes:
   pgdata:
