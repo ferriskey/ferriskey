@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::str::FromStr;
+use std::net::{ToSocketAddrs, SocketAddr};
 use std::sync::Arc;
 
 use axum_server::tls_rustls::RustlsConfig;
@@ -22,7 +21,7 @@ use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
-use tracing::{debug, info};
+use tracing::{debug, info, error};
 use tracing_subscriber::EnvFilter;
 
 fn init_logger(args: &LogArgs) {
@@ -63,7 +62,20 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let router = router(app_state)?;
 
-    let addr = SocketAddr::from_str(&format!("{}:{}", args.server.host, args.server.port))?;
+    let addr = {
+        let addrs = format!("{}:{}", args.server.host, args.server.port)
+            .to_socket_addrs()?
+            .collect::<Vec<SocketAddr>>();
+
+        match addrs.first() {
+            Some(addr) => addr.clone(),
+            None => { 
+                error!("At least one host and port must be provided.");
+                return Err(anyhow::anyhow!("At least one host and port must be provided."));
+            }
+        }
+    };
+
     if let Some(tls) = &args.server.tls {
         debug!("initializing crypto provider");
         rustls::crypto::aws_lc_rs::default_provider()
