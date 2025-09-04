@@ -119,3 +119,8 @@ pub struct CreateRoleInput {
     pub name: String,
     pub permissions: Vec<String>,
 }
+
+pub struct DeleteClientInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+}

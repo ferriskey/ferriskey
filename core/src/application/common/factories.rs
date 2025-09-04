@@ -56,10 +56,6 @@ pub struct UseCaseBundle {
     pub update_realm_settings_use_case: UpdateRealmSettingsUseCase,
 
     // Client (use-cases)
-    pub create_client_use_case: CreateClientUseCase,
-    pub create_redirect_uri_use_case: CreateRedirectUriUseCase,
-    pub create_role_use_case: CreateRoleUseCase,
-    pub delete_client_use_case: DeleteClientUseCase,
     pub delete_redirect_uri_use_case: DeleteRedirectUriUseCase,
     pub get_client_use_case: GetClientUseCase,
     pub get_client_roles_use_case: GetClientRolesUseCase,
@@ -170,10 +166,6 @@ impl UseCaseBundle {
             update_realm_settings_use_case,
 
             // Client (use-cases)
-            create_client_use_case: client_use_case.create_client_use_case,
-            create_redirect_uri_use_case: client_use_case.create_redirect_uri_use_case,
-            create_role_use_case: client_use_case.create_role_use_case,
-            delete_client_use_case: client_use_case.delete_client_use_case,
             delete_redirect_uri_use_case: client_use_case.delete_redirect_uri_use_case,
             get_client_use_case: client_use_case.get_client_use_case,
             get_client_roles_use_case: client_use_case.get_client_roles_use_case,

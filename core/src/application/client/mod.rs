@@ -5,7 +5,7 @@ use crate::{
         client::{
             entities::{
                 Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-                redirect_uri::RedirectUri,
+                DeleteClientInput, redirect_uri::RedirectUri,
             },
             ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
             value_objects::CreateClientRequest,
@@ -128,8 +128,30 @@ impl ClientService for FerriskeyService {
         Ok(role)
     }
 
-    async fn delete_client(&self) -> Result<(), CoreError> {
-        todo!()
+    async fn delete_client(
+        &self,
+        identity: Identity,
+        input: DeleteClientInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_delete_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .delete_by_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        // @TODO: Implement webhook notifier
+        Ok(())
     }
 
     async fn delete_redirect_uri(&self) -> Result<(), CoreError> {

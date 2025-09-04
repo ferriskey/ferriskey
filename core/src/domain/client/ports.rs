@@ -5,6 +5,7 @@ use crate::domain::{
     client::{
         entities::{
             Client, ClientError, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
+            DeleteClientInput,
             redirect_uri::{RedirectUri, RedirectUriError},
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
@@ -58,7 +59,11 @@ pub trait ClientService: Clone + Send + Sync + 'static {
         identity: Identity,
         input: CreateRoleInput,
     ) -> impl Future<Output = Result<Role, CoreError>> + Send;
-    fn delete_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_client(
+        &self,
+        identity: Identity,
+        input: DeleteClientInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn delete_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_client_roles(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_client_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
