@@ -37,6 +37,21 @@ impl FerriskeyPolicy {
             user_role_repository,
         }
     }
+
+    /// Check if the user can manage users in the target realm
+    ///
+    /// # Arguments
+    /// * `permissions` - List of permissions the user has
+    /// # Returns
+    /// * `true` - User has permission to manage users
+    /// * `false` - User does not have sufficient permissions
+    #[inline]
+    fn has_user_management_permissions(permissions: &[Permissions]) -> bool {
+        Permissions::has_one_of_permissions(
+            permissions,
+            &[Permissions::ManageUsers, Permissions::ManageRealm],
+        )
+    }
 }
 
 impl Policy for FerriskeyPolicy {

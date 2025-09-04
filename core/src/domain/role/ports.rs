@@ -3,6 +3,7 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
+    realm::entities::Realm,
     role::{
         entities::{Role, RoleError},
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
@@ -61,6 +62,29 @@ pub trait RoleService: Send + Sync + Clone {
         realm_name: String,
         role_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait RolePolicy: Send + Sync + Clone {
+    fn can_create_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait RoleRepository: Send + Sync + Clone {

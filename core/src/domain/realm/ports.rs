@@ -1,6 +1,8 @@
 use uuid::Uuid;
 
 use crate::domain::{
+    authentication::value_objects::Identity,
+    common::entities::app_errors::CoreError,
     realm::entities::{Realm, RealmError, RealmSetting},
     user::entities::User,
 };
@@ -35,6 +37,29 @@ pub trait RealmService: Clone + Send + Sync {
         &self,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<RealmSetting, RealmError>> + Send;
+}
+
+pub trait RealmPolicy: Send + Sync + Clone {
+    fn can_create_realm(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_realm(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_realm(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_realm(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait RealmRepository: Clone + Send + Sync + 'static {

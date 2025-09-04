@@ -1,6 +1,8 @@
 use uuid::Uuid;
 
 use crate::domain::{
+    authentication::value_objects::Identity,
+    common::entities::app_errors::CoreError,
     realm::entities::Realm,
     role::entities::Role,
     user::{
@@ -154,6 +156,29 @@ pub trait UserRoleService: Send + Sync {
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<bool, UserError>> + Send;
+}
+
+pub trait UserPolicy: Send + Sync + Clone {
+    fn can_create_user(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_user(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_user(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_user(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait UserRoleRepository: Clone + Send + Sync + 'static {
