@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::{ToSocketAddrs, SocketAddr};
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 
 use axum_server::tls_rustls::RustlsConfig;
@@ -22,7 +22,7 @@ use ferriskey_core::application::orchestrators::startup_orchestrator::{
 
 use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
 fn init_logger(args: &LogArgs) {
@@ -79,10 +79,12 @@ async fn main() -> Result<(), anyhow::Error> {
             .collect::<Vec<SocketAddr>>();
 
         match addrs.first() {
-            Some(addr) => addr.clone(),
-            None => { 
+            Some(addr) => *addr,
+            None => {
                 error!("At least one host and port must be provided.");
-                return Err(anyhow::anyhow!("At least one host and port must be provided."));
+                return Err(anyhow::anyhow!(
+                    "At least one host and port must be provided."
+                ));
             }
         }
     };
