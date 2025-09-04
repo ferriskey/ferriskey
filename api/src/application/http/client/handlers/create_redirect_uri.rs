@@ -12,10 +12,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
 use ferriskey_core::domain::client::value_objects::CreateRedirectUriRequest;
+use ferriskey_core::domain::client::{entities::CreateRedirectUriInput, ports::ClientService};
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -34,24 +34,22 @@ use uuid::Uuid;
     request_body = CreateRedirectUriValidator,
 )]
 pub async fn create_redirect_uri(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateRedirectUriValidator>,
 ) -> Result<Response<RedirectUri>, ApiError> {
     state
-        .use_case_bundle
-        .create_redirect_uri_use_case
-        .execute(
+        .service
+        .create_redirect_uri(
             identity,
-            CreateRedirectUriUseCaseParams {
+            CreateRedirectUriInput {
                 client_id,
-                realm_name,
                 payload: CreateRedirectUriRequest {
-                    value: payload.value,
                     enabled: payload.enabled,
+                    value: payload.value,
                 },
+                realm_name,
             },
         )
         .await

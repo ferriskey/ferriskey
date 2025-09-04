@@ -1,12 +1,12 @@
 use crate::{
-    application::common::FerriskeyService,
+    application::common::{FerriskeyService, permissions::FerriskeyPolicy},
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
-        realm::ports::RealmRepository,
+        realm::{entities::Realm, ports::RealmRepository},
         role::{
             entities::{Role, RoleError},
-            ports::RoleService,
+            ports::{RolePolicy, RoleService},
             value_objects::CreateRoleRequest,
         },
     },
@@ -24,6 +24,40 @@ pub(in crate::application::role) fn ensure_permissions(
         .map_err(|_| RoleError::Forbidden(error_message.to_string()))?
         .then_some(())
         .ok_or_else(|| RoleError::Forbidden(error_message.to_string()))
+}
+
+impl RolePolicy for FerriskeyPolicy {
+    async fn can_create_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        todo!()
+    }
+
+    async fn can_delete_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        todo!()
+    }
+
+    async fn can_update_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        todo!()
+    }
+
+    async fn can_view_role(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        todo!()
+    }
 }
 
 impl RoleService for FerriskeyService {
@@ -46,8 +80,7 @@ impl RoleService for FerriskeyService {
             .get_by_name(realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
-        
-        
+
         todo!()
     }
 

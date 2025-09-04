@@ -111,3 +111,11 @@ pub struct CreateRedirectUriInput {
     pub realm_name: String,
     pub payload: CreateRedirectUriRequest,
 }
+
+pub struct CreateRoleInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub description: Option<String>,
+    pub name: String,
+    pub permissions: Vec<String>,
+}

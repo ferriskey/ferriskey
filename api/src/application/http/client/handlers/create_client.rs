@@ -12,9 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::create_client_use_case::CreateClientUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::{entities::CreateClientInput, ports::ClientService};
 
 #[utoipa::path(
     post,
@@ -40,11 +40,10 @@ pub async fn create_client(
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
     let client = state
-        .use_case_bundle
-        .create_client_use_case
-        .execute(
+        .service
+        .create_client(
             identity,
-            CreateClientUseCaseParams {
+            CreateClientInput {
                 client_id: payload.client_id,
                 client_type: payload.client_type,
                 public_client: payload.public_client,

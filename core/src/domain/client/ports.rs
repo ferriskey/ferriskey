@@ -4,13 +4,14 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, ClientError, CreateClientInput, CreateRedirectUriInput,
+            Client, ClientError, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
             redirect_uri::{RedirectUri, RedirectUriError},
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
     },
     common::entities::app_errors::CoreError,
     realm::entities::Realm,
+    role::entities::Role,
 };
 
 #[deprecated]
@@ -52,7 +53,11 @@ pub trait ClientService: Clone + Send + Sync + 'static {
         identity: Identity,
         input: CreateRedirectUriInput,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-    fn create_role(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
     fn delete_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn delete_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_client_roles(&self) -> impl Future<Output = Result<(), CoreError>> + Send;

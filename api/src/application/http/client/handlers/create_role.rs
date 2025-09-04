@@ -12,9 +12,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::create_role_use_case::CreateRoleUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::role::entities::Role;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, client::entities::CreateRoleInput,
+};
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -39,16 +41,15 @@ pub async fn create_role(
     ValidateJson(payload): ValidateJson<CreateRoleValidator>,
 ) -> Result<Response<Role>, ApiError> {
     let role = state
-        .use_case_bundle
-        .create_role_use_case
-        .execute(
+        .service
+        .create_role(
             identity,
-            CreateRoleUseCaseParams {
+            CreateRoleInput {
                 client_id,
-                permissions: payload.permissions,
-                realm_name,
                 description: payload.description,
                 name: payload.name,
+                permissions: payload.permissions,
+                realm_name,
             },
         )
         .await?;

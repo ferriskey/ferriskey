@@ -4,13 +4,19 @@ use crate::{
         authentication::value_objects::Identity,
         client::{
             entities::{
-                Client, CreateClientInput, CreateRedirectUriInput, redirect_uri::RedirectUri,
+                Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
+                redirect_uri::RedirectUri,
             },
             ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
             value_objects::CreateClientRequest,
         },
         common::{entities::app_errors::CoreError, generate_random_string},
         realm::ports::RealmRepository,
+        role::{
+            entities::Role,
+            ports::{RolePolicy, RoleRepository},
+            value_objects::CreateRoleRequest,
+        },
     },
 };
 
@@ -89,8 +95,37 @@ impl ClientService for FerriskeyService {
         Ok(redirect_uri)
     }
 
-    async fn create_role(&self) -> Result<(), CoreError> {
-        todo!()
+    async fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> Result<Role, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_create_role(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(input.client_id),
+                description: input.description,
+                name: input.name,
+                permissions: input.permissions,
+                realm_id,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(role)
     }
 
     async fn delete_client(&self) -> Result<(), CoreError> {
