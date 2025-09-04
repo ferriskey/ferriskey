@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
     application::{
-        client::policies::ClientPolicy,
+        client::policies::ClientPolicyImpl,
         common::services::{
             DefaultClientService, DefaultRealmService, DefaultUserService,
             DefaultWebhookNotifierService,
@@ -59,7 +59,7 @@ impl DeleteClientUseCase {
             .map_err(|_| ClientError::InternalServerError)?;
 
         Self::ensure_permissions(
-            ClientPolicy::delete(
+            ClientPolicyImpl::delete(
                 identity,
                 realm.clone(),
                 self.user_service.clone(),

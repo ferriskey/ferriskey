@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{DefaultUserService, DefaultWebhookNotifierService};
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
@@ -63,7 +63,7 @@ impl CreateClientUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let can_create_client = ClientPolicy::create(
+        let can_create_client = ClientPolicyImpl::create(
             identity,
             realm.clone(),
             self.user_service.clone(),

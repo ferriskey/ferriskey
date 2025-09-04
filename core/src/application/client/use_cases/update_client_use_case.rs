@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultUserService, DefaultWebhookNotifierService,
 };
@@ -53,7 +53,7 @@ impl UpdateClientUseCase {
             .map_err(|_| ClientError::InternalServerError)?;
 
         let realm_name = realm.name.clone();
-        let can_update = ClientPolicy::update(
+        let can_update = ClientPolicyImpl::update(
             identity,
             realm.clone(),
             self.user_service.clone(),

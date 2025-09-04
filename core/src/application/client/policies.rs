@@ -1,17 +1,99 @@
 use crate::{
-    application::common::policies::PolicyEnforcer,
+    application::common::{permissions::FerriskeyPolicy, policies::PolicyEnforcer},
     domain::{
         authentication::value_objects::Identity,
-        client::{entities::ClientError, ports::OldClientService},
+        client::{
+            entities::ClientError,
+            ports::{ClientPolicy, OldClientService},
+        },
+        common::{entities::app_errors::CoreError, policies::Policy},
         realm::entities::Realm,
         role::entities::permission::Permissions,
         user::ports::UserService,
     },
 };
 
-pub struct ClientPolicy;
+pub struct ClientPolicyImpl;
 
-impl ClientPolicy {
+impl ClientPolicy for FerriskeyPolicy {
+    async fn can_create_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(&identity).await?;
+
+        let permissions = self
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageClients],
+        );
+
+        Ok(has_permission)
+    }
+
+    async fn can_delete_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(&identity).await?;
+
+        let permissions = self
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageClients],
+        );
+
+        Ok(has_permission)
+    }
+
+    async fn can_update_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(&identity).await?;
+
+        let permissions = self
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ManageClients],
+        );
+
+        Ok(has_permission)
+    }
+
+    async fn can_view_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(&identity).await?;
+
+        let permissions = self
+            .get_permission_for_target_realm(&user, &target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &[Permissions::ManageRealm, Permissions::ViewClients],
+        );
+
+        Ok(has_permission)
+    }
+}
+
+impl ClientPolicyImpl {
     /// Check if the user has permission to delete a client.
     ///
     /// # Arguments

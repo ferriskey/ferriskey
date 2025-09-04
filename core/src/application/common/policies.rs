@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::domain::{
     authentication::value_objects::Identity,
     client::{entities::Client, ports::OldClientService},
+    common::entities::app_errors::CoreError,
     realm::entities::Realm,
     role::entities::{Role, permission::Permissions},
     user::{entities::User, ports::UserService},
@@ -163,6 +164,17 @@ where
 
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == "master" && user_realm.name != target_realm.name
+    }
+}
+
+pub fn ensure_policy(
+    result_has_permission: Result<bool, CoreError>,
+    error_message: &str,
+) -> Result<(), CoreError> {
+    match result_has_permission {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(CoreError::Forbidden(error_message.to_string())),
+        Err(_) => Err(CoreError::Forbidden(error_message.to_string())),
     }
 }
 

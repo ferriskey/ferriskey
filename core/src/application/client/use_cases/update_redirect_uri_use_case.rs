@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
     DefaultWebhookNotifierService,
@@ -56,7 +56,7 @@ impl UpdateRedirectUriUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let can_update = ClientPolicy::update(
+        let can_update = ClientPolicyImpl::update(
             identity,
             realm.clone(),
             self.user_service.clone(),

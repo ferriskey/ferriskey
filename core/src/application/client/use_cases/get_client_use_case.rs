@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultUserService,
 };
@@ -45,7 +45,7 @@ impl GetClientUseCase {
             .map_err(|_| ClientError::InternalServerError)?;
 
         Self::ensure_permissions(
-            ClientPolicy::view(
+            ClientPolicyImpl::view(
                 identity,
                 realm,
                 self.user_service.clone(),

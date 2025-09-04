@@ -4,12 +4,13 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, ClientError, CreateClientInput,
+            Client, ClientError, CreateClientInput, CreateRedirectUriInput,
             redirect_uri::{RedirectUri, RedirectUriError},
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
     },
     common::entities::app_errors::CoreError,
+    realm::entities::Realm,
 };
 
 #[deprecated]
@@ -46,7 +47,11 @@ pub trait ClientService: Clone + Send + Sync + 'static {
         identity: Identity,
         input: CreateClientInput,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn create_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn create_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreateRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
     fn create_role(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn delete_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn delete_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
@@ -63,6 +68,29 @@ pub trait ClientService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn update_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn update_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait ClientPolicy: Clone + Send + Sync + 'static {
+    fn can_create_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_client(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait ClientRepository: Clone + Send + Sync + 'static {

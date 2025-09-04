@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRoleService, DefaultUserService,
 };
@@ -48,7 +48,7 @@ impl GetClientRolesUseCase {
             .await
             .map_err(|_| ClientError::InternalServerError)?;
 
-        let can_view = ClientPolicy::view(
+        let can_view = ClientPolicyImpl::view(
             identity,
             realm,
             self.user_service.clone(),

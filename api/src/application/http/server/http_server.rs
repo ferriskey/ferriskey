@@ -19,7 +19,9 @@ use axum::http::{HeaderValue, Method};
 use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
+use ferriskey_core::application::common::FerriskeyService;
 use ferriskey_core::application::common::services::ServiceBundle;
+use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
 use tower_http::cors::CorsLayer;
 use tracing::{debug, info_span};
 use utoipa::OpenApi;
@@ -39,9 +41,12 @@ pub async fn state(args: Arc<Args>) -> Result<(AppState, ServiceBundle), anyhow:
     })
     .await?;
 
+    let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
+    let service = FerriskeyService::new(ferriskey_config).await?;
+
     let use_case = UseCaseBundle::new(&service_bundle);
 
-    Ok((AppState::new(args, use_case), service_bundle))
+    Ok((AppState::new(args, use_case, service), service_bundle))
 }
 
 ///  Returns the [`Router`] of this application.

@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
     DefaultWebhookNotifierService,
@@ -56,7 +56,7 @@ impl DeleteRedirectUriUseCase {
             .map_err(|_| ClientError::InternalServerError)?;
 
         let realm_id = realm.id;
-        ClientPolicy::delete(
+        ClientPolicyImpl::delete(
             identity,
             realm,
             self.user_service.clone(),

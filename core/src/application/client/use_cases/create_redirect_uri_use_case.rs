@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultUserService, DefaultWebhookNotifierService,
 };
@@ -62,7 +62,7 @@ impl CreateRedirectUriUseCase {
             .map_err(|_| ClientError::InternalServerError)?;
 
         let realm_id = realm.id;
-        let can_create_redirect_uri = ClientPolicy::create(
+        let can_create_redirect_uri = ClientPolicyImpl::create(
             identity,
             realm,
             self.user_service.clone(),

@@ -1,10 +1,12 @@
 use crate::{
-    application::common::FerriskeyService,
+    application::common::{FerriskeyService, policies::ensure_policy},
     domain::{
         authentication::value_objects::Identity,
         client::{
-            entities::{Client, CreateClientInput},
-            ports::{ClientRepository, ClientService},
+            entities::{
+                Client, CreateClientInput, CreateRedirectUriInput, redirect_uri::RedirectUri,
+            },
+            ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
             value_objects::CreateClientRequest,
         },
         common::{entities::app_errors::CoreError, generate_random_string},
@@ -28,14 +30,19 @@ impl ClientService for FerriskeyService {
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        // @TODO: Implement client creation policies
+        let realm_id = realm.id;
+
+        ensure_policy(
+            self.policy.can_create_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
 
         let secret = (!input.public_client).then(generate_random_string);
 
         let client = self
             .client_repository
             .create_client(CreateClientRequest {
-                realm_id: realm.id,
+                realm_id: realm_id,
                 name: input.name,
                 client_id: input.client_id,
                 secret,
@@ -54,8 +61,32 @@ impl ClientService for FerriskeyService {
         Ok(client)
     }
 
-    async fn create_redirect_uri(&self) -> Result<(), CoreError> {
-        todo!()
+    async fn create_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreateRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_create_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .redirect_uri_repository
+            .create_redirect_uri(input.client_id, input.payload.value, input.payload.enabled)
+            .await
+            .map_err(|_| CoreError::InvalidRedirectUri)?;
+
+        // @TODO: Implement webhook notifier call
+
+        Ok(redirect_uri)
     }
 
     async fn create_role(&self) -> Result<(), CoreError> {

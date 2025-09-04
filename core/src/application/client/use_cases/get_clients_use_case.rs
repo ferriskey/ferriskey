@@ -1,4 +1,4 @@
-use crate::application::client::policies::ClientPolicy;
+use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
     DefaultClientService, DefaultRealmService, DefaultUserService,
 };
@@ -46,7 +46,7 @@ impl GetClientsUseCase {
 
         let realm_id = realm.id;
 
-        let can_view = ClientPolicy::view(
+        let can_view = ClientPolicyImpl::view(
             identity,
             realm,
             self.user_service.clone(),

@@ -5,7 +5,8 @@ use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
 use crate::domain::{
-    client::entities::redirect_uri::RedirectUri, webhook::entities::errors::WebhookError,
+    client::{entities::redirect_uri::RedirectUri, value_objects::CreateRedirectUriRequest},
+    webhook::entities::errors::WebhookError,
 };
 
 pub mod redirect_uri;
@@ -103,4 +104,10 @@ pub struct CreateClientInput {
     pub protocol: String,
     pub enabled: bool,
     pub direct_access_grants_enabled: bool,
+}
+
+pub struct CreateRedirectUriInput {
+    pub client_id: Uuid,
+    pub realm_name: String,
+    pub payload: CreateRedirectUriRequest,
 }
