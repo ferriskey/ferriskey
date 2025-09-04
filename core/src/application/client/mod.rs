@@ -2,8 +2,13 @@ use crate::{
     application::common::FerriskeyService,
     domain::{
         authentication::value_objects::Identity,
-        client::{entities::Client, ports::ClientService, value_objects::CreateClientRequest},
-        common::entities::app_errors::CoreError,
+        client::{
+            entities::{Client, CreateClientInput},
+            ports::{ClientRepository, ClientService},
+            value_objects::CreateClientRequest,
+        },
+        common::{entities::app_errors::CoreError, generate_random_string},
+        realm::ports::RealmRepository,
     },
 };
 
@@ -14,9 +19,39 @@ impl ClientService for FerriskeyService {
     async fn create_client(
         &self,
         identity: Identity,
-        input: CreateClientRequest,
+        input: CreateClientInput,
     ) -> Result<Client, CoreError> {
-        todo!()
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        // @TODO: Implement client creation policies
+
+        let secret = (!input.public_client).then(generate_random_string);
+
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                realm_id: realm.id,
+                name: input.name,
+                client_id: input.client_id,
+                secret,
+                enabled: input.enabled,
+                protocol: input.protocol,
+                public_client: input.public_client,
+                service_account_enabled: input.service_account_enabled,
+                direct_access_grants_enabled: input.direct_access_grants_enabled,
+                client_type: input.client_type,
+            })
+            .await
+            .map_err(|_| CoreError::CreateClientError)?;
+
+        // @TODO: Implement webhook notifier call
+
+        Ok(client)
     }
 
     async fn create_redirect_uri(&self) -> Result<(), CoreError> {

@@ -133,4 +133,7 @@ pub enum CoreError {
 
     #[error("Realm not found for webhook")]
     WebhookRealmNotFound,
+
+    #[error("Failed to create client")]
+    CreateClientError,
 }

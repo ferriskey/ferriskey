@@ -4,7 +4,7 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, ClientError,
+            Client, ClientError, CreateClientInput,
             redirect_uri::{RedirectUri, RedirectUriError},
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
@@ -44,7 +44,7 @@ pub trait ClientService: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
         identity: Identity,
-        input: CreateClientRequest,
+        input: CreateClientInput,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
     fn create_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn create_role(&self) -> impl Future<Output = Result<(), CoreError>> + Send;

@@ -92,3 +92,15 @@ impl Client {
         }
     }
 }
+
+pub struct CreateClientInput {
+    pub realm_name: String,
+    pub name: String,
+    pub client_id: String,
+    pub client_type: String,
+    pub service_account_enabled: bool,
+    pub public_client: bool,
+    pub protocol: String,
+    pub enabled: bool,
+    pub direct_access_grants_enabled: bool,
+}
