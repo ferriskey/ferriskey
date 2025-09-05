@@ -5,9 +5,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::webhook::use_cases::get_webhook_use_case::GetWebhookUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
+use ferriskey_core::domain::webhook::ports::WebhookService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, webhook::ports::GetWebhookInput,
+};
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -31,11 +33,10 @@ pub async fn get_webhook(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<Option<Webhook>>, ApiError> {
     let webhook = state
-        .use_case_bundle
-        .get_webhook_use_case
-        .execute(
+        .service
+        .get_webhook(
             identity,
-            GetWebhookUseCaseParams {
+            GetWebhookInput {
                 realm_name,
                 webhook_id,
             },

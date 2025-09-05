@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::webhook::use_cases::update_webhook_use_case::UpdateWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
+use ferriskey_core::domain::webhook::ports::{UpdateWebhookInput, WebhookService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -37,11 +37,10 @@ pub async fn update_webhook(
     ValidateJson(payload): ValidateJson<UpdateWebhookValidator>,
 ) -> Result<Response<UpdateWebhookResponse>, ApiError> {
     let webhook = state
-        .use_case_bundle
-        .update_webhook_use_case
-        .execute(
+        .service
+        .update_webhook(
             identity,
-            UpdateWebhookUseCaseParams {
+            UpdateWebhookInput {
                 realm_name,
                 webhook_id,
                 name: payload.name,

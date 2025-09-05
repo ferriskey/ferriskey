@@ -1,8 +1,3 @@
-use crate::application::authentication::use_cases::auth_use_case::AuthUseCase;
-use crate::application::authentication::use_cases::authenticate_use_case::AuthenticateUseCase;
-use crate::application::authentication::use_cases::authorize_request_use_case::AuthorizeRequestUseCase;
-use crate::application::authentication::use_cases::exchange_token_use_case::ExchangeTokenUseCase;
-use crate::application::authentication::use_cases::get_certs_use_case::GetCertsUseCase;
 use crate::application::client::use_cases::ClientUseCase;
 use crate::application::client::use_cases::create_client_use_case::CreateClientUseCase;
 use crate::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCase;
@@ -48,22 +43,9 @@ use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
 use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
-use crate::application::webhook::use_cases::WebhookUseCase;
-use crate::application::webhook::use_cases::create_webhook_use_case::CreateWebhookUseCase;
-use crate::application::webhook::use_cases::delete_webhook_use_case::DeleteWebhookUseCase;
-use crate::application::webhook::use_cases::fetch_realm_webhooks_use_case::FetchRealmWebhooksUseCase;
-use crate::application::webhook::use_cases::get_webhook_use_case::GetWebhookUseCase;
-use crate::application::webhook::use_cases::update_webhook_use_case::UpdateWebhookUseCase;
 
 #[derive(Clone)]
 pub struct UseCaseBundle {
-    // Auth (use-cases)
-    pub exchange_token_use_case: ExchangeTokenUseCase,
-    pub get_certs_use_case: GetCertsUseCase,
-    pub authenticate_use_case: AuthenticateUseCase,
-    pub authorize_request_use_case: AuthorizeRequestUseCase,
-    pub auth_use_case: AuthUseCase,
-
     // Realm (use-cases
     pub create_realm_use_case: CreateRealmUseCase,
     pub delete_realm_use_case: DeleteRealmUseCase,
@@ -113,49 +95,11 @@ pub struct UseCaseBundle {
     pub setup_totp_use_case: SetupOtpUseCase,
     pub challenge_otp_use_case: ChallengeOtpUseCase,
 
-    // Webhook (use-cases)
-    pub create_webhook_use_case: CreateWebhookUseCase,
-    pub fetch_realm_webhooks_use_case: FetchRealmWebhooksUseCase,
-    pub get_webhook_use_case: GetWebhookUseCase,
-    pub update_webhook_use_case: UpdateWebhookUseCase,
-    pub delete_webhook_use_case: DeleteWebhookUseCase,
-
     pub health_check_use_case: HealthCheckUseCase,
 }
 
 impl UseCaseBundle {
     pub fn new(service_bundle: &ServiceBundle) -> Self {
-        // Auth (use-cases)
-        let exchange_token_use_case = ExchangeTokenUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.grant_type_service.clone(),
-        );
-        let get_certs_use_case = GetCertsUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.jwt_service.clone(),
-        );
-        let authenticate_use_case = AuthenticateUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.jwt_service.clone(),
-            service_bundle.auth_session_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.credential_service.clone(),
-            service_bundle.user_service.clone(),
-        );
-
-        let authorize_request_use_case = AuthorizeRequestUseCase::new(
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.jwt_service.clone(),
-        );
-        let auth_use_case = AuthUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.redirect_uri_service.clone(),
-            service_bundle.auth_session_service.clone(),
-        );
-
         // Realm (use-cases)
         let create_realm_use_case = CreateRealmUseCase::new(
             service_bundle.realm_service.clone(),
@@ -211,19 +155,11 @@ impl UseCaseBundle {
 
         let trident_use_case = TridentUseCase::new(service_bundle);
         // Webhook (use-cases)
-        let webhook_use_case = WebhookUseCase::new(service_bundle);
 
         let health_check_use_case =
             HealthCheckUseCase::new(service_bundle.health_check_service.clone());
 
         Self {
-            // Auth (use-cases)
-            exchange_token_use_case,
-            get_certs_use_case,
-            authenticate_use_case,
-            authorize_request_use_case,
-            auth_use_case,
-
             // Realm (use-cases)
             create_realm_use_case,
             delete_realm_use_case,
@@ -271,13 +207,6 @@ impl UseCaseBundle {
             verify_otp_use_case: trident_use_case.verify_otp_use_case,
             setup_totp_use_case: trident_use_case.setup_otp_use_case,
             challenge_otp_use_case: trident_use_case.challenge_otp_use_case,
-
-            // Webhook (use-cases)
-            create_webhook_use_case: webhook_use_case.create_webhook_use_case,
-            fetch_realm_webhooks_use_case: webhook_use_case.fetch_realm_webhooks_use_case,
-            get_webhook_use_case: webhook_use_case.get_webhook_use_case,
-            update_webhook_use_case: webhook_use_case.update_webhook_use_case,
-            delete_webhook_use_case: webhook_use_case.delete_webhook_use_case,
 
             health_check_use_case,
         }

@@ -5,9 +5,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::webhook::use_cases::fetch_realm_webhooks_use_case::FetchRealmWebhooksUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
+use ferriskey_core::domain::webhook::ports::WebhookService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, webhook::ports::GetWebhooksInput,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -36,9 +38,8 @@ pub async fn fetch_webhooks(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetWebhooksResponse>, ApiError> {
     let webhooks = state
-        .use_case_bundle
-        .fetch_realm_webhooks_use_case
-        .execute(identity, FetchRealmWebhooksUseCaseParams { realm_name })
+        .service
+        .get_webhooks_by_realm(identity, GetWebhooksInput { realm_name })
         .await
         .map_err(ApiError::from)?;
 

@@ -4,8 +4,8 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::webhook::use_cases::delete_webhook_use_case::DeleteWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::webhook::ports::{DeleteWebhookInput, WebhookService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -36,11 +36,10 @@ pub async fn delete_webhook(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteWebhookResponse>, ApiError> {
     state
-        .use_case_bundle
-        .delete_webhook_use_case
-        .execute(
+        .service
+        .delete_webhook(
             identity,
-            DeleteWebhookUseCaseParams {
+            DeleteWebhookInput {
                 realm_name: realm_name.clone(),
                 webhook_id,
             },

@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::webhook::use_cases::create_webhook_use_case::CreateWebhookUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
+use ferriskey_core::domain::webhook::ports::{CreateWebhookInput, WebhookService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -38,11 +38,10 @@ pub async fn create_webhook(
     ValidateJson(payload): ValidateJson<CreateWebhookValidator>,
 ) -> Result<Response<CreateWebhookResponse>, ApiError> {
     let webhook = state
-        .use_case_bundle
-        .create_webhook_use_case
-        .execute(
+        .service
+        .create_webhook(
             identity,
-            CreateWebhookUseCaseParams {
+            CreateWebhookInput {
                 realm_name,
                 name: payload.name,
                 description: payload.description,
