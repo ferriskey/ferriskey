@@ -12,10 +12,12 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::update_client_use_case::UpdateClientUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::client::value_objects::UpdateClientRequest;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, client::entities::UpdateClientInput,
+};
 use uuid::Uuid;
 
 #[utoipa::path(
@@ -34,18 +36,16 @@ use uuid::Uuid;
     request_body = UpdateClientValidator,
 )]
 pub async fn update_client(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateClientValidator>,
 ) -> Result<Response<Client>, ApiError> {
     state
-        .use_case_bundle
-        .update_client_use_case
-        .execute(
+        .service
+        .update_client(
             identity,
-            UpdateClientUseCaseParams {
+            UpdateClientInput {
                 client_id,
                 realm_name,
                 payload: UpdateClientRequest {

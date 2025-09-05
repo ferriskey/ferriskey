@@ -12,9 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
+use ferriskey_core::domain::client::{entities::UpdateRedirectUriInput, ports::ClientService};
 use tracing::info;
 use uuid::Uuid;
 
@@ -35,8 +35,7 @@ use uuid::Uuid;
     ),
 )]
 pub async fn update_redirect_uri(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     Path(uri_id): Path<Uuid>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
@@ -47,11 +46,10 @@ pub async fn update_redirect_uri(
         realm_name, client_id, uri_id
     );
     state
-        .use_case_bundle
-        .update_redirect_uri_use_case
-        .execute(
+        .service
+        .update_redirect_uri(
             identity,
-            UpdateRedirectUriUseCaseParams {
+            UpdateRedirectUriInput {
                 redirect_uri_id: uri_id,
                 realm_name,
                 client_id,

@@ -5,7 +5,9 @@ use crate::{
         client::{
             entities::{
                 Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-                DeleteClientInput, redirect_uri::RedirectUri,
+                DeleteClientInput, DeleteRedirectUriInput, GetClientInput, GetClientRolesInput,
+                GetClientsInput, GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
+                redirect_uri::RedirectUri,
             },
             ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
             value_objects::CreateClientRequest,
@@ -154,34 +156,174 @@ impl ClientService for FerriskeyService {
         Ok(())
     }
 
-    async fn delete_redirect_uri(&self) -> Result<(), CoreError> {
-        todo!()
-    }
-
-    async fn get_client_by_id(&self, id: uuid::Uuid) -> Result<(), CoreError> {
-        todo!()
-    }
-
-    async fn get_client_roles(&self) -> Result<(), CoreError> {
-        todo!()
-    }
-
-    async fn get_clients_by_realm_id(
+    async fn delete_redirect_uri(
         &self,
-        realm_id: uuid::Uuid,
+        identity: Identity,
+        input: DeleteRedirectUriInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.redirect_uri_repository
+            .delete(input.uri_id)
+            .await
+            .map_err(|_| CoreError::RedirectUriNotFound)?;
+
+        // @TODO: Implement webhook notifier
+        Ok(())
+    }
+
+    async fn get_client_by_id(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<Client, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .get_by_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)
+    }
+
+    async fn get_client_roles(
+        &self,
+        identity: Identity,
+        input: GetClientRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.role_repository
+            .get_by_client_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
+    }
+
+    async fn get_clients(
+        &self,
+        identity: Identity,
+        input: GetClientsInput,
     ) -> Result<Vec<Client>, CoreError> {
-        todo!()
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .get_by_realm_id(realm_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
     }
 
-    async fn get_redirect_uris(&self, client_id: uuid::Uuid) -> Result<(), CoreError> {
-        todo!()
+    async fn get_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetRedirectUrisInput,
+    ) -> Result<Vec<RedirectUri>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.redirect_uri_repository
+            .get_by_client_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
     }
 
-    async fn update_client(&self) -> Result<(), CoreError> {
-        todo!()
+    async fn update_client(
+        &self,
+        identity: Identity,
+        input: UpdateClientInput,
+    ) -> Result<Client, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_repository
+            .update_client(input.client_id, input.payload)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        Ok(client)
     }
 
-    async fn update_redirect_uri(&self) -> Result<(), CoreError> {
-        todo!()
+    async fn update_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdateRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .redirect_uri_repository
+            .update_enabled(input.redirect_uri_id, input.enabled)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        Ok(redirect_uri)
     }
 }

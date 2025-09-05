@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::get_clients_use_case::GetClientsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::{entities::GetClientsInput, ports::ClientService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -36,9 +36,8 @@ pub async fn get_clients(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<ClientsResponse>, ApiError> {
     let clients = state
-        .use_case_bundle
-        .get_clients_use_case
-        .execute(identity, GetClientsUseCaseParams { realm_name })
+        .service
+        .get_clients(identity, GetClientsInput { realm_name })
         .await?;
 
     Ok(Response::OK(ClientsResponse { data: clients }))

@@ -3,8 +3,9 @@ use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::Extension;
 use axum::extract::{Path, State};
-use ferriskey_core::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::client::entities::GetClientRolesInput;
+use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::role::entities::Role;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -37,11 +38,10 @@ pub async fn get_client_roles(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientRolesResponse>, ApiError> {
     let roles = state
-        .use_case_bundle
-        .get_client_roles_use_case
-        .execute(
+        .service
+        .get_client_roles(
             identity,
-            GetClientRolesUseCaseParams {
+            GetClientRolesInput {
                 client_id,
                 realm_name,
             },

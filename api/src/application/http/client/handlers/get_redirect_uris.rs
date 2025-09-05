@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::get_redirect_uris_use_case::GetRedirectUrisUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
+use ferriskey_core::domain::client::{entities::GetRedirectUrisInput, ports::ClientService};
 use tracing::info;
 use uuid::Uuid;
 
@@ -27,8 +27,7 @@ use uuid::Uuid;
     ),
 )]
 pub async fn get_redirect_uris(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<Vec<RedirectUri>>, ApiError> {
@@ -38,11 +37,10 @@ pub async fn get_redirect_uris(
     );
 
     state
-        .use_case_bundle
-        .get_redirect_uris_use_case
-        .execute(
+        .service
+        .get_redirect_uris(
             identity,
-            GetRedirectUrisUseCaseParams {
+            GetRedirectUrisInput {
                 client_id,
                 realm_name,
             },

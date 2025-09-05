@@ -1,3 +1,4 @@
+use argon2::password_hash::Ident;
 use uuid::Uuid;
 
 use crate::domain::{
@@ -5,7 +6,8 @@ use crate::domain::{
     client::{
         entities::{
             Client, ClientError, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-            DeleteClientInput,
+            DeleteClientInput, DeleteRedirectUriInput, GetClientInput, GetClientRolesInput,
+            GetClientsInput, GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
             redirect_uri::{RedirectUri, RedirectUriError},
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
@@ -64,20 +66,42 @@ pub trait ClientService: Clone + Send + Sync + 'static {
         identity: Identity,
         input: DeleteClientInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn delete_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn get_client_roles(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn get_client_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn get_clients_by_realm_id(
+    fn delete_redirect_uri(
         &self,
-        realm_id: Uuid,
+        identity: Identity,
+        input: DeleteRedirectUriInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_client_roles(
+        &self,
+        identity: Identity,
+        input: GetClientRolesInput,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    fn get_client_by_id(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn get_clients(
+        &self,
+        identity: Identity,
+        input: GetClientsInput,
     ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
 
     fn get_redirect_uris(
         &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn update_client(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn update_redirect_uri(&self) -> impl Future<Output = Result<(), CoreError>> + Send;
+        identity: Identity,
+        input: GetRedirectUrisInput,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+    fn update_client(
+        &self,
+        identity: Identity,
+        input: UpdateClientInput,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn update_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdateRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 }
 
 pub trait ClientPolicy: Clone + Send + Sync + 'static {

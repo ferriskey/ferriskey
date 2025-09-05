@@ -6,8 +6,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::{
+    application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCaseParams,
+    domain::client::{entities::DeleteRedirectUriInput, ports::ClientService},
+};
 use tracing::info;
 use uuid::Uuid;
 
@@ -37,14 +40,14 @@ pub async fn delete_redirect_uri(
         "Deleting redirect URI: realm_name={}, client_id={}, uri_id={}",
         realm_name, client_id, uri_id
     );
+
     state
-        .use_case_bundle
-        .delete_redirect_uri_use_case
-        .execute(
+        .service
+        .delete_redirect_uri(
             identity,
-            DeleteRedirectUriUseCaseParams {
-                uri_id,
+            DeleteRedirectUriInput {
                 client_id,
+                uri_id,
                 realm_name,
             },
         )

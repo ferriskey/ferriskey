@@ -6,9 +6,14 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::client::use_cases::get_client_use_case::GetClientUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, client::entities::GetClientInput,
+};
+use ferriskey_core::{
+    application::client::use_cases::get_client_use_case::GetClientUseCaseParams,
+    domain::client::ports::ClientService,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -33,17 +38,15 @@ pub struct GetClientResponse {
     )
 )]
 pub async fn get_client(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientResponse>, ApiError> {
     let client = state
-        .use_case_bundle
-        .get_client_use_case
-        .execute(
+        .service
+        .get_client_by_id(
             identity,
-            GetClientUseCaseParams {
+            GetClientInput {
                 client_id,
                 realm_name,
             },
