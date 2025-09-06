@@ -41,3 +41,10 @@ pub enum RoleError {
     #[error("Failed to notify webhook : {0}")]
     FailedWebhookNotification(WebhookError),
 }
+
+pub struct UpdateRoleInput {
+    pub realm_name: String,
+    pub role_id: Uuid,
+    pub name: Option<String>,
+    pub description: Option<String>,
+}

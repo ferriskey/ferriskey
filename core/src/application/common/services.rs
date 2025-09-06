@@ -8,7 +8,6 @@ use crate::domain::{
     },
     jwt::services::JwtServiceImpl,
     realm::services::RealmServiceImpl,
-    role::services::RoleServiceImpl,
     user::services::{user_role_service::UserRoleServiceImpl, user_service::UserServiceImpl},
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
@@ -32,8 +31,6 @@ pub type DefaultRealmService =
 pub type DefaultAuthSessionService = AuthSessionServiceImpl<AuthSessionRepoAny>;
 
 pub type DefaultClientService = ClientServiceImpl<ClientRepoAny, UserRepoAny, RealmRepoAny>;
-
-pub type DefaultRoleService = RoleServiceImpl<RoleRepoAny>;
 
 pub type DefaultUserRoleService =
     UserRoleServiceImpl<UserRepoAny, RoleRepoAny, RealmRepoAny, UserRoleRepoAny>;
@@ -96,8 +93,6 @@ impl ServiceFactory {
             repositories.realm_repository.clone(),
         );
 
-        let role_service = DefaultRoleService::new(repositories.role_repository.clone());
-
         let user_role_service = DefaultUserRoleService::new(
             repositories.user_repository.clone(),
             repositories.role_repository.clone(),
@@ -117,7 +112,6 @@ impl ServiceFactory {
             user_service,
             jwt_service,
             redirect_uri_service,
-            role_service,
             user_role_service,
             totp_service,
             webhook_notifier_service,
@@ -133,7 +127,6 @@ pub struct ServiceBundle {
     pub user_service: DefaultUserService,
     pub jwt_service: DefaultJwtService,
     pub redirect_uri_service: DefaultRedirectUriService,
-    pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
     pub webhook_notifier_service: DefaultWebhookNotifierService,

@@ -5,63 +5,41 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     realm::entities::Realm,
     role::{
-        entities::{Role, RoleError},
+        entities::{Role, RoleError, UpdateRoleInput},
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
 };
 
 pub trait RoleService: Send + Sync + Clone {
-    #[deprecated]
-    fn create(
-        &self,
-        payload: CreateRoleRequest,
-    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
-    #[deprecated]
-    fn get_by_realm_id(
-        &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, RoleError>> + Send;
-    #[deprecated]
-    fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, RoleError>> + Send;
-    #[deprecated]
-    fn get_by_client_id_text(
-        &self,
-        client_id: String,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, RoleError>> + Send;
-    #[deprecated]
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Role, RoleError>> + Send;
-    #[deprecated]
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), RoleError>> + Send;
-    #[deprecated]
-    fn find_by_name(
-        &self,
-        name: String,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
-    #[deprecated]
-    fn update_by_id(
-        &self,
-        id: Uuid,
-        payload: UpdateRoleRequest,
-    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
-
-    #[deprecated]
-    fn update_permissions_by_id(
-        &self,
-        id: Uuid,
-        payload: UpdateRolePermissionsRequest,
-    ) -> impl Future<Output = Result<Role, RoleError>> + Send;
-
     fn delete_role(
         &self,
         identity: Identity,
         realm_name: String,
         role_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_role(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
+    fn get_roles(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    fn update_role_permissions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        role_id: Uuid,
+        permissions: Vec<String>,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
+    fn update_role(
+        &self,
+        identity: Identity,
+        input: UpdateRoleInput,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
 }
 
 pub trait RolePolicy: Send + Sync + Clone {
