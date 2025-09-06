@@ -2,13 +2,16 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 
-use crate::entity::realms::{ActiveModel, Entity as RealmEntity};
+use crate::{
+    domain::common::entities::app_errors::CoreError,
+    entity::realms::{ActiveModel, Entity as RealmEntity},
+};
 
 use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::realm::{
-    entities::{Realm, RealmError, RealmSetting},
+    entities::{Realm, RealmSetting},
     ports::RealmRepository,
 };
 
@@ -24,11 +27,11 @@ impl PostgresRealmRepository {
 }
 
 impl RealmRepository for PostgresRealmRepository {
-    async fn fetch_realm(&self) -> Result<Vec<Realm>, RealmError> {
+    async fn fetch_realm(&self) -> Result<Vec<Realm>, CoreError> {
         let realms = RealmEntity::find()
             .all(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .iter()
             .map(Realm::from)
             .collect::<Vec<Realm>>();
@@ -36,18 +39,18 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realms)
     }
 
-    async fn get_by_name(&self, name: String) -> Result<Option<Realm>, RealmError> {
+    async fn get_by_name(&self, name: String) -> Result<Option<Realm>, CoreError> {
         let realm = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .map(Realm::from);
 
         Ok(realm)
     }
 
-    async fn create_realm(&self, name: String) -> Result<Realm, RealmError> {
+    async fn create_realm(&self, name: String) -> Result<Realm, CoreError> {
         let realm = Realm::new(name);
 
         let new_realm = ActiveModel {
@@ -59,7 +62,7 @@ impl RealmRepository for PostgresRealmRepository {
 
         let result_insert = new_realm.insert(&self.db).await.map_err(|e| {
             tracing::error!("Failed to insert realm: {:?}", e);
-            RealmError::InternalServerError
+            CoreError::InternalServerError
         })?;
 
         let realm = result_insert.into();
@@ -67,13 +70,13 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
-    async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, RealmError> {
+    async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, CoreError> {
         let realm = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(realm_name))
             .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
-            .ok_or(RealmError::NotFound)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
 
         let mut realm: ActiveModel = realm.into();
         realm.name = Set(name.clone());
@@ -81,27 +84,27 @@ impl RealmRepository for PostgresRealmRepository {
         realm
             .update(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         let updated_realm = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .map(Realm::from);
-        let updated_realm = updated_realm.ok_or(RealmError::InternalServerError)?;
+        let updated_realm = updated_realm.ok_or(CoreError::InternalServerError)?;
         Ok(updated_realm)
     }
 
-    async fn delete_by_name(&self, name: String) -> Result<(), RealmError> {
+    async fn delete_by_name(&self, name: String) -> Result<(), CoreError> {
         let res = RealmEntity::delete_many()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .exec(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         if res.rows_affected == 0 {
-            return Err(RealmError::InternalServerError);
+            return Err(CoreError::InternalServerError);
         }
 
         Ok(())
@@ -111,7 +114,7 @@ impl RealmRepository for PostgresRealmRepository {
         &self,
         realm_id: Uuid,
         algorithm: String,
-    ) -> Result<RealmSetting, RealmError> {
+    ) -> Result<RealmSetting, CoreError> {
         let realm_setting = RealmSetting::new(realm_id, Some(algorithm));
 
         let active_model = crate::entity::realm_settings::ActiveModel {
@@ -126,7 +129,7 @@ impl RealmRepository for PostgresRealmRepository {
             .await
             .map_err(|e| {
                 tracing::error!("Failed to insert realm setting: {:?}", e);
-                RealmError::InternalServerError
+                CoreError::InternalServerError
             })?
             .into();
 
@@ -137,13 +140,13 @@ impl RealmRepository for PostgresRealmRepository {
         &self,
         realm_id: Uuid,
         algorithm: String,
-    ) -> Result<RealmSetting, RealmError> {
+    ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
-            .ok_or(RealmError::NotFound)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
 
         let mut realm_setting: crate::entity::realm_settings::ActiveModel = realm_setting.into();
 
@@ -152,19 +155,19 @@ impl RealmRepository for PostgresRealmRepository {
         let realm_setting = realm_setting
             .update(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .into();
 
         Ok(realm_setting)
     }
 
-    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, RealmError> {
+    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
-            .map_err(|_| RealmError::InternalServerError)?
-            .ok_or(RealmError::NotFound)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
         let realm_setting: RealmSetting = realm_setting.into();
 
         Ok(realm_setting)

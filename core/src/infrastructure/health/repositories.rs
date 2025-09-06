@@ -1,4 +1,5 @@
-use crate::domain::health::entities::{DatabaseHealthStatus, HealthCheckError};
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::health::entities::DatabaseHealthStatus;
 use crate::domain::health::ports::HealthCheckRepository;
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use tokio::time::Instant;
@@ -15,7 +16,7 @@ impl PostgresHealthCheckRepository {
 }
 
 impl HealthCheckRepository for PostgresHealthCheckRepository {
-    async fn check_health(&self) -> Result<u64, HealthCheckError> {
+    async fn health(&self) -> Result<u64, CoreError> {
         let start = Instant::now();
 
         let timeout_duration = tokio::time::Duration::from_secs(2);
@@ -31,15 +32,15 @@ impl HealthCheckRepository for PostgresHealthCheckRepository {
 
         match result {
             Ok(Ok(_)) => Ok(start.elapsed().as_millis() as u64),
-            Ok(Err(e)) => Err(HealthCheckError::DatabaseConnectionError(e.to_string())),
-            Err(_) => Err(HealthCheckError::DatabaseConnectionError(
+            Ok(Err(e)) => Err(CoreError::ServiceUnavailable(e.to_string())),
+            Err(_) => Err(CoreError::ServiceUnavailable(
                 "Database query timeout after 3 seconds".to_string(),
             )),
         }
     }
 
-    async fn check_database_status(&self) -> Result<DatabaseHealthStatus, HealthCheckError> {
-        match self.check_health().await {
+    async fn readness(&self) -> Result<DatabaseHealthStatus, CoreError> {
+        match self.health().await {
             Ok(response_time) => {
                 let status = if response_time > 1000 {
                     "slow"
@@ -53,7 +54,7 @@ impl HealthCheckRepository for PostgresHealthCheckRepository {
                     error: None,
                 })
             }
-            Err(e) => Err(HealthCheckError::ServiceUnavailable(e.to_string())),
+            Err(e) => Err(CoreError::ServiceUnavailable(e.to_string())),
         }
     }
 }

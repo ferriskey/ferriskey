@@ -1,5 +1,4 @@
 use crate::domain::common::AppConfig;
-use crate::domain::health::services::HealthCheckServiceImpl;
 use crate::domain::trident::services::OauthTotpService;
 use crate::domain::webhook::services::webhook_notifier_service::WebhookNotifierServiceImpl;
 use crate::domain::{
@@ -8,13 +7,10 @@ use crate::domain::{
         client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
     },
     jwt::services::JwtServiceImpl,
-    realm::services::RealmServiceImpl,
-    role::services::RoleServiceImpl,
     user::services::{user_role_service::UserRoleServiceImpl, user_service::UserServiceImpl},
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
 use crate::infrastructure::client::repositories::{ClientRepoAny, RedirectUriRepoAny};
-use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::repositories::RealmRepoAny;
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
@@ -28,14 +24,9 @@ use crate::infrastructure::webhook::repositories::webhook_repository::WebhookRep
 pub type DefaultUserService =
     UserServiceImpl<UserRepoAny, RealmRepoAny, UserRoleRepoAny, UserRequiredActionRepoAny>;
 
-pub type DefaultRealmService =
-    RealmServiceImpl<RealmRepoAny, ClientRepoAny, RoleRepoAny, UserRepoAny, UserRoleRepoAny>;
-
 pub type DefaultAuthSessionService = AuthSessionServiceImpl<AuthSessionRepoAny>;
 
 pub type DefaultClientService = ClientServiceImpl<ClientRepoAny, UserRepoAny, RealmRepoAny>;
-
-pub type DefaultRoleService = RoleServiceImpl<RoleRepoAny>;
 
 pub type DefaultUserRoleService =
     UserRoleServiceImpl<UserRepoAny, RoleRepoAny, RealmRepoAny, UserRoleRepoAny>;
@@ -44,8 +35,6 @@ pub type DefaultJwtService = JwtServiceImpl<RefreshTokenRepoAny, KeyStoreRepoAny
 
 pub type DefaultRedirectUriService =
     RedirectUriServiceImpl<RealmRepoAny, RedirectUriRepoAny, ClientRepoAny>;
-
-pub type DefaultHealthCheckService = HealthCheckServiceImpl<HealthCheckRepoAny>;
 
 pub type DefaultWebhookNotifierService = WebhookNotifierServiceImpl<WebhookRepoAny>;
 
@@ -63,14 +52,6 @@ impl ServiceFactory {
             database_url: config.database_url,
         })
         .await?;
-
-        let realm_service = DefaultRealmService::new(
-            repositories.realm_repository.clone(),
-            repositories.client_repository.clone(),
-            repositories.role_repository.clone(),
-            repositories.user_repository.clone(),
-            repositories.user_role_repository.clone(),
-        );
 
         let client_service = DefaultClientService::new(
             repositories.client_repository.clone(),
@@ -100,8 +81,6 @@ impl ServiceFactory {
             repositories.realm_repository.clone(),
         );
 
-        let role_service = DefaultRoleService::new(repositories.role_repository.clone());
-
         let user_role_service = DefaultUserRoleService::new(
             repositories.user_repository.clone(),
             repositories.role_repository.clone(),
@@ -111,23 +90,17 @@ impl ServiceFactory {
 
         let totp_service = OauthTotpService::new();
 
-        let health_check_service =
-            DefaultHealthCheckService::new(repositories.health_check_repository.clone());
-
         let webhook_notifier_service =
             WebhookNotifierServiceImpl::new(repositories.webhook_repository.clone());
 
         Ok(ServiceBundle {
-            realm_service,
             client_service,
             auth_session_service,
             user_service,
             jwt_service,
             redirect_uri_service,
-            role_service,
             user_role_service,
             totp_service,
-            health_check_service,
             webhook_notifier_service,
         })
     }
@@ -135,15 +108,12 @@ impl ServiceFactory {
 
 #[derive(Clone)]
 pub struct ServiceBundle {
-    pub realm_service: DefaultRealmService,
     pub client_service: DefaultClientService,
     pub auth_session_service: DefaultAuthSessionService,
     pub user_service: DefaultUserService,
     pub jwt_service: DefaultJwtService,
     pub redirect_uri_service: DefaultRedirectUriService,
-    pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
-    pub health_check_service: DefaultHealthCheckService,
     pub webhook_notifier_service: DefaultWebhookNotifierService,
 }

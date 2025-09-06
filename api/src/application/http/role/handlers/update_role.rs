@@ -12,9 +12,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::role::use_cases::update_role_use_case::UpdateRoleUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
+use ferriskey_core::domain::role::ports::RoleService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, role::entities::UpdateRoleInput,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -47,11 +49,10 @@ pub async fn update_role(
     ValidateJson(payload): ValidateJson<UpdateRoleValidator>,
 ) -> Result<Response<UpdateRoleResponse>, ApiError> {
     let role = state
-        .use_case_bundle
-        .update_role_use_case
-        .execute(
+        .service
+        .update_role(
             identity,
-            UpdateRoleUseCaseParams {
+            UpdateRoleInput {
                 name: payload.name,
                 description: payload.description,
                 role_id,

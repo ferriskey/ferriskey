@@ -6,8 +6,8 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::role::use_cases::delete_role_use_case::DeleteRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::role::ports::RoleService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -40,15 +40,8 @@ pub async fn delete_role(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteRoleResponse>, ApiError> {
     state
-        .use_case_bundle
-        .delete_role_use_case
-        .execute(
-            identity,
-            DeleteRoleUseCaseParams {
-                realm_name: realm_name.clone(),
-                role_id,
-            },
-        )
+        .service
+        .delete_role(identity, realm_name.clone(), role_id)
         .await?;
 
     Ok(Response::OK(DeleteRoleResponse {

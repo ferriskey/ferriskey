@@ -12,9 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
+use ferriskey_core::domain::role::ports::RoleService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -47,16 +47,8 @@ pub async fn update_role_permissions(
     ValidateJson(payload): ValidateJson<UpdateRolePermissionsValidator>,
 ) -> Result<Response<UpdateRolePermissionsResponse>, ApiError> {
     let role = state
-        .use_case_bundle
-        .update_role_permissions_use_case
-        .execute(
-            identity,
-            UpdateRolePermissionsUseCaseParams {
-                permissions: payload.permissions,
-                role_id,
-                realm_name,
-            },
-        )
+        .service
+        .update_role_permissions(identity, realm_name, role_id, payload.permissions)
         .await?;
 
     Ok(Response::OK(UpdateRolePermissionsResponse { data: role }))

@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::role::use_cases::get_roles_use_case::GetRolesUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
+use ferriskey_core::domain::role::ports::RoleService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -35,9 +35,8 @@ pub async fn get_roles(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetRolesResponse>, ApiError> {
     let roles = state
-        .use_case_bundle
-        .get_roles_use_case
-        .execute(identity, GetRolesUseCaseParams { realm_name })
+        .service
+        .get_roles(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 

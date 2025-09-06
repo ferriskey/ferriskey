@@ -136,4 +136,7 @@ pub enum CoreError {
 
     #[error("Failed to create client")]
     CreateClientError,
+
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
 }
