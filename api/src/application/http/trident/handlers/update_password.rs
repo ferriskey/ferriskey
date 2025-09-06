@@ -2,9 +2,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::{
-    application::trident::use_cases::update_password_use_case::UpdatePasswordUseCaseParams,
-    domain::authentication::value_objects::Identity,
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity,
+    trident::ports::{TridentService, UpdatePasswordInput},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -46,11 +46,10 @@ pub async fn update_password(
     ValidateJson(payload): ValidateJson<UpdatePasswordRequest>,
 ) -> Result<Response<UpdatePasswordResponse>, ApiError> {
     state
-        .use_case_bundle
-        .update_password_use_case
-        .execute(
+        .service
+        .update_password(
             identity,
-            UpdatePasswordUseCaseParams {
+            UpdatePasswordInput {
                 value: payload.value,
                 realm_name,
             },

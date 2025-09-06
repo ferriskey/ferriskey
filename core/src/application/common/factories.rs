@@ -1,8 +1,4 @@
 use crate::application::client::use_cases::ClientUseCase;
-use crate::application::client::use_cases::create_client_use_case::CreateClientUseCase;
-use crate::application::client::use_cases::create_redirect_uri_use_case::CreateRedirectUriUseCase;
-use crate::application::client::use_cases::create_role_use_case::CreateRoleUseCase;
-use crate::application::client::use_cases::delete_client_use_case::DeleteClientUseCase;
 use crate::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCase;
 use crate::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCase;
 use crate::application::client::use_cases::get_client_use_case::GetClientUseCase;
@@ -25,22 +21,14 @@ use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
 use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
 use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
 use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
-use crate::application::trident::use_cases::TridentUseCase;
-use crate::application::trident::use_cases::challenge_otp_use_case::ChallengeOtpUseCase;
-use crate::application::trident::use_cases::setup_otp_use_case::SetupOtpUseCase;
-use crate::application::trident::use_cases::update_password_use_case::UpdatePasswordUseCase;
-use crate::application::trident::use_cases::verify_otp_use_case::VerifyOtpUseCase;
 use crate::application::user::use_cases::UserUseCase;
 use crate::application::user::use_cases::assign_role_use_case::AssignRoleUseCase;
 use crate::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCase;
 use crate::application::user::use_cases::create_user_use_case::CreateUserUseCase;
-use crate::application::user::use_cases::delete_credential_use_case::DeleteCredentialUseCase;
 use crate::application::user::use_cases::delete_user_use_case::DeleteUserUseCase;
-use crate::application::user::use_cases::get_credentials_use_case::GetCredentialsUseCase;
 use crate::application::user::use_cases::get_user_roles_use_case::GetUserRolesUseCase;
 use crate::application::user::use_cases::get_user_use_case::GetUserUseCase;
 use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
-use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCase;
 use crate::application::user::use_cases::update_user_use_case::UpdateUserUseCase;
 
@@ -72,11 +60,8 @@ pub struct UseCaseBundle {
     pub get_user_roles_use_case: GetUserRolesUseCase,
     pub unassign_role_use_case: UnassignRoleUseCase,
     pub update_user_use_case: UpdateUserUseCase,
-    pub delete_credential_use_case: DeleteCredentialUseCase,
-    pub get_credentials_use_case: GetCredentialsUseCase,
     pub get_user_use_case: GetUserUseCase,
     pub get_users_use_case: GetUsersUseCase,
-    pub reset_password_use_case: ResetPasswordUseCase,
 
     // Role (use-cases)
     pub get_roles_use_case: GetRolesUseCase,
@@ -84,12 +69,6 @@ pub struct UseCaseBundle {
     pub update_role_use_case: UpdateRoleUseCase,
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
     pub delete_role_use_case: DeleteRoleUseCase,
-
-    // Trident (use-cases)
-    pub update_password_use_case: UpdatePasswordUseCase,
-    pub verify_otp_use_case: VerifyOtpUseCase,
-    pub setup_totp_use_case: SetupOtpUseCase,
-    pub challenge_otp_use_case: ChallengeOtpUseCase,
 
     pub health_check_use_case: HealthCheckUseCase,
 }
@@ -149,9 +128,7 @@ impl UseCaseBundle {
         // Role (use-cases)
         let role_use_case = RoleUseCase::new(service_bundle);
 
-        let trident_use_case = TridentUseCase::new(service_bundle);
         // Webhook (use-cases)
-
         let health_check_use_case =
             HealthCheckUseCase::new(service_bundle.health_check_service.clone());
 
@@ -182,11 +159,8 @@ impl UseCaseBundle {
             get_user_roles_use_case: user_use_case.get_user_roles_use_case,
             unassign_role_use_case: user_use_case.unassign_role_use_case,
             update_user_use_case: user_use_case.update_user_use_case,
-            delete_credential_use_case: user_use_case.delete_credential_use_case,
-            get_credentials_use_case: user_use_case.get_credentials_use_case,
             get_user_use_case: user_use_case.get_user_use_case,
             get_users_use_case: user_use_case.get_users_use_case,
-            reset_password_use_case: user_use_case.reset_password_use_case,
 
             // Role (use-cases)
             get_roles_use_case: role_use_case.get_roles_use_case,
@@ -194,11 +168,6 @@ impl UseCaseBundle {
             update_role_use_case: role_use_case.update_role_use_case,
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
             delete_role_use_case: role_use_case.delete_role_use_case,
-
-            update_password_use_case: trident_use_case.update_password_use_case,
-            verify_otp_use_case: trident_use_case.verify_otp_use_case,
-            setup_totp_use_case: trident_use_case.setup_otp_use_case,
-            challenge_otp_use_case: trident_use_case.challenge_otp_use_case,
 
             health_check_use_case,
         }

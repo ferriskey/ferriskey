@@ -20,8 +20,7 @@ use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
 use ferriskey_core::application::common::FerriskeyService;
-use ferriskey_core::application::common::services::ServiceBundle;
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
+use ferriskey_core::domain::common::FerriskeyConfig;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, info_span};
 use utoipa::OpenApi;
@@ -32,7 +31,7 @@ use ferriskey_core::application::common::{
     services::{ServiceFactory, ServiceFactoryConfig},
 };
 
-pub async fn state(args: Arc<Args>) -> Result<(AppState, ServiceBundle), anyhow::Error> {
+pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let service_bundle = ServiceFactory::create_all_services(ServiceFactoryConfig {
         database_url: format!(
             "postgresql://{}:{}@{}:{}/{}",
@@ -46,7 +45,7 @@ pub async fn state(args: Arc<Args>) -> Result<(AppState, ServiceBundle), anyhow:
 
     let use_case = UseCaseBundle::new(&service_bundle);
 
-    Ok((AppState::new(args, use_case, service), service_bundle))
+    Ok(AppState::new(args, use_case, service))
 }
 
 ///  Returns the [`Router`] of this application.

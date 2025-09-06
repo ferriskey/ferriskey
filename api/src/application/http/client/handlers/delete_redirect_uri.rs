@@ -7,10 +7,7 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::{
-    application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCaseParams,
-    domain::client::{entities::DeleteRedirectUriInput, ports::ClientService},
-};
+use ferriskey_core::domain::client::{entities::DeleteRedirectUriInput, ports::ClientService};
 use tracing::info;
 use uuid::Uuid;
 

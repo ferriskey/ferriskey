@@ -131,3 +131,10 @@ impl User {
         }
     }
 }
+
+pub struct ResetPasswordInput {
+    pub user_id: Uuid,
+    pub password: String,
+    pub temporary: bool,
+    pub realm_name: String,
+}

@@ -7,8 +7,8 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
-use ferriskey_core::application::trident::use_cases::challenge_otp_use_case::ChallengeOtpUseCaseInput;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -45,13 +45,14 @@ pub async fn challenge_otp(
     let session_code = session_code.value().to_string();
 
     let result = state
-        .use_case_bundle
-        .challenge_otp_use_case
-        .execute(ChallengeOtpUseCaseInput {
-            code: payload.code,
+        .service
+        .challenge_otp(
             identity,
-            session_code,
-        })
+            ChallengeOtpInput {
+                code: payload.code,
+                session_code,
+            },
+        )
         .await
         .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 

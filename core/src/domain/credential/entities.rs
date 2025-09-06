@@ -111,3 +111,13 @@ pub enum CredentialError {
     #[error("Delete credential error")]
     DeleteCredentialError,
 }
+
+pub struct GetCredentialsInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+}
+
+pub struct DeleteCredentialInput {
+    pub realm_name: String,
+    pub credential_id: Uuid,
+}

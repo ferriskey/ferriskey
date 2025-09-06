@@ -1,7 +1,11 @@
 use uuid::Uuid;
 
 use crate::domain::{
-    credential::entities::{Credential, CredentialError},
+    authentication::value_objects::Identity,
+    common::entities::app_errors::CoreError,
+    credential::entities::{
+        Credential, CredentialError, CredentialOverview, DeleteCredentialInput, GetCredentialsInput,
+    },
     crypto::entities::HashResult,
 };
 
@@ -42,6 +46,16 @@ pub trait CredentialService: Clone + Send + Sync + 'static {
         label: Option<String>,
         credential_data: serde_json::Value,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
+    fn get_credentials(
+        &self,
+        identity: Identity,
+        input: GetCredentialsInput,
+    ) -> impl Future<Output = Result<Vec<CredentialOverview>, CoreError>> + Send;
+    fn delete_credential(
+        &self,
+        identity: Identity,
+        input: DeleteCredentialInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait CredentialRepository: Clone + Send + Sync + 'static {

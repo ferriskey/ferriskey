@@ -6,7 +6,7 @@ use crate::domain::{
     realm::entities::Realm,
     role::entities::Role,
     user::{
-        entities::{RequiredAction, RequiredActionError, User, UserError},
+        entities::{RequiredAction, RequiredActionError, ResetPasswordInput, User, UserError},
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
@@ -68,6 +68,11 @@ pub trait UserService: Clone + Send + Sync + 'static {
         user_id: Uuid,
         required_action: RequiredAction,
     ) -> impl Future<Output = Result<(), UserError>> + Send;
+    fn reset_password(
+        &self,
+        identity: Identity,
+        input: ResetPasswordInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait UserRepository: Clone + Send + Sync + 'static {

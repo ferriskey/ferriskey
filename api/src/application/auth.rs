@@ -10,7 +10,7 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::application::authentication::use_cases::authorize_request_use_case::AuthorizeRequestUseCaseInput;
+use ferriskey_core::domain::authentication::{entities::AuthorizeRequestInput, ports::AuthService};
 use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -143,9 +143,8 @@ pub async fn auth(
     let claims = jwt.claims;
 
     let output = state
-        .use_case_bundle
-        .authorize_request_use_case
-        .execute(AuthorizeRequestUseCaseInput {
+        .service
+        .authorize_request(AuthorizeRequestInput {
             claims,
             token: jwt.token,
         })

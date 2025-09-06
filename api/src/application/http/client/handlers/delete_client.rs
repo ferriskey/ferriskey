@@ -7,10 +7,7 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::{
-    application::client::use_cases::delete_client_use_case::DeleteClientUseCaseParams,
-    domain::client::{entities::DeleteClientInput, ports::ClientService},
-};
+use ferriskey_core::domain::client::{entities::DeleteClientInput, ports::ClientService};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;

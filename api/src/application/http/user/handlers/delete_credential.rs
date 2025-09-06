@@ -6,8 +6,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::delete_credential_use_case::DeleteCredentialUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::credential::ports::CredentialService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, credential::entities::DeleteCredentialInput,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -42,11 +44,10 @@ pub async fn delete_user_credential(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserCredentialResponse>, ApiError> {
     state
-        .use_case_bundle
-        .delete_credential_use_case
-        .execute(
+        .service
+        .delete_credential(
             identity,
-            DeleteCredentialUseCaseParams {
+            DeleteCredentialInput {
                 credential_id,
                 realm_name: realm_name.clone(),
             },

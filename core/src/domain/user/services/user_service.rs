@@ -191,4 +191,12 @@ where
             .await
             .map_err(|_| UserError::InternalServerError)
     }
+
+    async fn reset_password(
+        &self,
+        identity: crate::domain::authentication::value_objects::Identity,
+        input: crate::domain::user::entities::ResetPasswordInput,
+    ) -> Result<(), crate::domain::common::entities::app_errors::CoreError> {
+        unimplemented!()
+    }
 }

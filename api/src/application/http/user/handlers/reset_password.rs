@@ -6,8 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::reset_password_use_case::ResetPasswordUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::entities::ResetPasswordInput;
+use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
@@ -51,14 +52,13 @@ pub async fn reset_password(
         user_id, realm_name
     );
     state
-        .use_case_bundle
-        .reset_password_use_case
-        .execute(
+        .service
+        .reset_password(
             identity,
-            ResetPasswordUseCaseParams {
+            ResetPasswordInput {
                 realm_name: realm_name.clone(),
                 user_id,
-                value: payload.value,
+                password: payload.value,
                 temporary: payload.temporary,
             },
         )

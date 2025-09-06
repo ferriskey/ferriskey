@@ -7,12 +7,9 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::ports::ClientService;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, client::entities::GetClientInput,
-};
-use ferriskey_core::{
-    application::client::use_cases::get_client_use_case::GetClientUseCaseParams,
-    domain::client::ports::ClientService,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

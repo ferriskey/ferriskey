@@ -5,9 +5,11 @@ use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
 use axum::extract::{Path, Query, State};
 use axum_cookie::CookieManager;
-use ferriskey_core::application::authentication::use_cases::authenticate_use_case::{
-    AuthenticateUseCaseParams, AuthenticateUseCaseResponse, AuthenticationStepStatus,
+
+use ferriskey_core::domain::authentication::entities::{
+    AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
 };
+use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -47,8 +49,8 @@ pub struct AuthenticateRequest {
     pub password: Option<String>,
 }
 
-impl From<AuthenticateUseCaseResponse> for AuthenticateResponse {
-    fn from(result: AuthenticateUseCaseResponse) -> Self {
+impl From<AuthenticateOutput> for AuthenticateResponse {
+    fn from(result: AuthenticateOutput) -> Self {
         match result.status {
             AuthenticationStepStatus::Success => AuthenticateResponse {
                 status: AuthenticationStatus::Success,
@@ -117,7 +119,7 @@ pub async fn authenticate(
     let session_code = Uuid::parse_str(&session_code).unwrap();
 
     let authenticate_params = if let Some(token) = optional_token {
-        AuthenticateUseCaseParams::with_existing_token(
+        AuthenticateInput::with_existing_token(
             realm_name,
             query.client_id,
             session_code,
@@ -134,7 +136,7 @@ pub async fn authenticate(
             .clone()
             .ok_or_else(|| ApiError::BadRequest("password is required".to_string()))?;
 
-        AuthenticateUseCaseParams::with_user_credentials(
+        AuthenticateInput::with_user_credentials(
             realm_name.clone(),
             query.client_id.clone(),
             session_code,
@@ -143,11 +145,7 @@ pub async fn authenticate(
             password,
         )
     };
-    let result = state
-        .use_case_bundle
-        .authenticate_use_case
-        .execute(authenticate_params)
-        .await?;
+    let result = state.service.authenticate(authenticate_params).await?;
 
     let response: AuthenticateResponse = result.into();
     Ok(Response::OK(response))

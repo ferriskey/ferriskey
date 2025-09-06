@@ -1,20 +1,12 @@
-use crate::domain::authentication::strategies::authorization_code_strategy::AuthorizationCodeStrategy;
-use crate::domain::authentication::strategies::client_credentials_strategy::ClientCredentialsStrategy;
-use crate::domain::authentication::strategies::password_strategy::PasswordStrategy;
-use crate::domain::authentication::strategies::refresh_token_strategy::RefreshTokenStrategy;
 use crate::domain::common::AppConfig;
 use crate::domain::health::services::HealthCheckServiceImpl;
 use crate::domain::trident::services::OauthTotpService;
 use crate::domain::webhook::services::webhook_notifier_service::WebhookNotifierServiceImpl;
 use crate::domain::{
-    authentication::services::{
-        auth_session_service::AuthSessionServiceImpl, grant_type_service::GrantTypeServiceImpl,
-    },
+    authentication::services::auth_session_service::AuthSessionServiceImpl,
     client::services::{
         client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
     },
-    credential::services::CredentialServiceImpl,
-    crypto::services::CryptoServiceImpl,
     jwt::services::JwtServiceImpl,
     realm::services::RealmServiceImpl,
     role::services::RoleServiceImpl,
@@ -22,8 +14,6 @@ use crate::domain::{
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
 use crate::infrastructure::client::repositories::{ClientRepoAny, RedirectUriRepoAny};
-use crate::infrastructure::credential::CredentialRepoAny;
-use crate::infrastructure::hasher::HasherRepoAny;
 use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::repositories::RealmRepoAny;
@@ -42,24 +32,8 @@ pub type DefaultRealmService =
     RealmServiceImpl<RealmRepoAny, ClientRepoAny, RoleRepoAny, UserRepoAny, UserRoleRepoAny>;
 
 pub type DefaultAuthSessionService = AuthSessionServiceImpl<AuthSessionRepoAny>;
-pub type DefaultGrantTypeService = GrantTypeServiceImpl<
-    RefreshTokenRepoAny,
-    KeyStoreRepoAny,
-    RealmRepoAny,
-    ClientRepoAny,
-    UserRepoAny,
-    UserRoleRepoAny,
-    UserRequiredActionRepoAny,
-    CredentialRepoAny,
-    HasherRepoAny,
-    AuthSessionRepoAny,
->;
 
 pub type DefaultClientService = ClientServiceImpl<ClientRepoAny, UserRepoAny, RealmRepoAny>;
-
-pub type DefaultCredentialService = CredentialServiceImpl<CredentialRepoAny, HasherRepoAny>;
-
-pub type DefaultCryptoService = CryptoServiceImpl<HasherRepoAny>;
 
 pub type DefaultRoleService = RoleServiceImpl<RoleRepoAny>;
 
@@ -110,13 +84,6 @@ impl ServiceFactory {
             repositories.client_repository.clone(),
         );
 
-        let crypto_service = DefaultCryptoService::new(repositories.hasher_repository.clone());
-
-        let credential_service = DefaultCredentialService::new(
-            repositories.credential_repository.clone(),
-            crypto_service.clone(),
-        );
-
         let auth_session_service =
             DefaultAuthSessionService::new(repositories.auth_session_repository.clone());
 
@@ -144,32 +111,6 @@ impl ServiceFactory {
 
         let totp_service = OauthTotpService::new();
 
-        let grant_type_service = DefaultGrantTypeService::new(
-            AuthorizationCodeStrategy::new(
-                jwt_service.clone(),
-                client_service.clone(),
-                user_service.clone(),
-                credential_service.clone(),
-                auth_session_service.clone(),
-            ),
-            ClientCredentialsStrategy::new(
-                client_service.clone(),
-                user_service.clone(),
-                jwt_service.clone(),
-            ),
-            PasswordStrategy::new(
-                jwt_service.clone(),
-                user_service.clone(),
-                credential_service.clone(),
-                client_service.clone(),
-            ),
-            RefreshTokenStrategy::new(
-                jwt_service.clone(),
-                client_service.clone(),
-                user_service.clone(),
-            ),
-        );
-
         let health_check_service =
             DefaultHealthCheckService::new(repositories.health_check_repository.clone());
 
@@ -179,7 +120,6 @@ impl ServiceFactory {
         Ok(ServiceBundle {
             realm_service,
             client_service,
-            credential_service,
             auth_session_service,
             user_service,
             jwt_service,
@@ -187,7 +127,6 @@ impl ServiceFactory {
             role_service,
             user_role_service,
             totp_service,
-            grant_type_service,
             health_check_service,
             webhook_notifier_service,
         })
@@ -198,7 +137,6 @@ impl ServiceFactory {
 pub struct ServiceBundle {
     pub realm_service: DefaultRealmService,
     pub client_service: DefaultClientService,
-    pub credential_service: DefaultCredentialService,
     pub auth_session_service: DefaultAuthSessionService,
     pub user_service: DefaultUserService,
     pub jwt_service: DefaultJwtService,
@@ -206,7 +144,6 @@ pub struct ServiceBundle {
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
-    pub grant_type_service: DefaultGrantTypeService,
     pub health_check_service: DefaultHealthCheckService,
     pub webhook_notifier_service: DefaultWebhookNotifierService,
 }

@@ -17,12 +17,11 @@ use std::sync::Arc;
 
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
-use ferriskey_core::application::orchestrators::startup_orchestrator::{
-    StartupConfig, StartupOrchestrator, StartupOrchestratorBuilder,
-};
 
 use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
+use ferriskey_core::domain::common::entities::StartupConfig;
+use ferriskey_core::domain::common::ports::CoreService;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
@@ -49,20 +48,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let args = Arc::new(Args::parse());
     init_logger(&args.log);
 
-    let (app_state, service_bundle) = state(args.clone()).await?;
+    let app_state = state(args.clone()).await?;
 
-    let startup_orchestrator = StartupOrchestrator::new(StartupOrchestratorBuilder {
-        realm_service: service_bundle.realm_service.clone(),
-        user_service: service_bundle.user_service.clone(),
-        client_service: service_bundle.client_service.clone(),
-        role_service: service_bundle.role_service.clone(),
-        jwt_service: service_bundle.jwt_service.clone(),
-        user_role_service: service_bundle.user_role_service.clone(),
-        credential_service: service_bundle.credential_service.clone(),
-        redirect_uri_service: service_bundle.redirect_uri_service.clone(),
-    });
-
-    startup_orchestrator
+    app_state
+        .service
         .initialize_application(StartupConfig {
             admin_email: args.admin.email.clone(),
             admin_password: args.admin.password.clone(),

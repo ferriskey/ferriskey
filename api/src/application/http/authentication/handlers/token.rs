@@ -7,8 +7,8 @@ use axum::{
     Form,
     extract::{Path, State},
 };
-use ferriskey_core::application::authentication::use_cases::exchange_token_use_case::ExchangeTokenUseCaseParams;
 use ferriskey_core::domain::authentication::entities::JwtToken;
+use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 
 #[utoipa::path(
     post,
@@ -28,9 +28,8 @@ pub async fn exchange_token(
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<Response<JwtToken>, ApiError> {
     state
-        .use_case_bundle
-        .exchange_token_use_case
-        .execute(ExchangeTokenUseCaseParams {
+        .service
+        .exchange_token(ExchangeTokenInput {
             realm_name,
             client_id: payload.client_id,
             client_secret: payload.client_secret,

@@ -5,6 +5,7 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 
+
 [dependencies]
 anyhow = "1.0.98"
 argon2 = "0.5.3"

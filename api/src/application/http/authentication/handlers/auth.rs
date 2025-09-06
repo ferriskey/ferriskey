@@ -8,7 +8,9 @@ use axum::{
     },
     response::IntoResponse,
 };
-use ferriskey_core::application::authentication::use_cases::auth_use_case::AuthUseCaseInput;
+
+use ferriskey_core::domain::authentication::entities::AuthInput;
+use ferriskey_core::domain::authentication::ports::AuthService;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
@@ -60,9 +62,8 @@ pub async fn auth(
     Query(params): Query<AuthRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let result = state
-        .use_case_bundle
-        .auth_use_case
-        .execute(AuthUseCaseInput {
+        .service
+        .auth(AuthInput {
             client_id: params.client_id,
             realm_name: realm_name.clone(),
             redirect_uri: params.redirect_uri,

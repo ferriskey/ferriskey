@@ -1,10 +1,8 @@
 use crate::application::common::services::ServiceBundle;
 use crate::application::user::use_cases::get_users_use_case::GetUsersUseCase;
-use crate::application::user::use_cases::reset_password_use_case::ResetPasswordUseCase;
 use crate::application::user::use_cases::{
     assign_role_use_case::AssignRoleUseCase, bulk_delete_user::BulkDeleteUserUseCase,
-    create_user_use_case::CreateUserUseCase, delete_credential_use_case::DeleteCredentialUseCase,
-    delete_user_use_case::DeleteUserUseCase, get_credentials_use_case::GetCredentialsUseCase,
+    create_user_use_case::CreateUserUseCase, delete_user_use_case::DeleteUserUseCase,
     get_user_roles_use_case::GetUserRolesUseCase, get_user_use_case::GetUserUseCase,
     unassign_role_use_case::UnassignRoleUseCase, update_user_use_case::UpdateUserUseCase,
 };
@@ -12,13 +10,10 @@ use crate::application::user::use_cases::{
 pub mod assign_role_use_case;
 pub mod bulk_delete_user;
 pub mod create_user_use_case;
-pub mod delete_credential_use_case;
 pub mod delete_user_use_case;
-pub mod get_credentials_use_case;
 pub mod get_user_roles_use_case;
 pub mod get_user_use_case;
 pub mod get_users_use_case;
-pub mod reset_password_use_case;
 pub mod unassign_role_use_case;
 pub mod update_user_use_case;
 
@@ -30,11 +25,8 @@ pub struct UserUseCase {
     pub get_user_roles_use_case: GetUserRolesUseCase,
     pub unassign_role_use_case: UnassignRoleUseCase,
     pub update_user_use_case: UpdateUserUseCase,
-    pub delete_credential_use_case: DeleteCredentialUseCase,
-    pub get_credentials_use_case: GetCredentialsUseCase,
     pub get_user_use_case: GetUserUseCase,
     pub get_users_use_case: GetUsersUseCase,
-    pub reset_password_use_case: ResetPasswordUseCase,
 }
 
 impl UserUseCase {
@@ -89,21 +81,6 @@ impl UserUseCase {
             service_bundle.webhook_notifier_service.clone(),
         );
 
-        let delete_credential_use_case = DeleteCredentialUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.credential_service.clone(),
-            service_bundle.webhook_notifier_service.clone(),
-        );
-
-        let get_credentials_use_case = GetCredentialsUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.credential_service.clone(),
-        );
-
         let get_user_use_case = GetUserUseCase::new(
             service_bundle.realm_service.clone(),
             service_bundle.user_service.clone(),
@@ -116,14 +93,6 @@ impl UserUseCase {
             service_bundle.client_service.clone(),
         );
 
-        let reset_password_use_case = ResetPasswordUseCase::new(
-            service_bundle.realm_service.clone(),
-            service_bundle.user_service.clone(),
-            service_bundle.client_service.clone(),
-            service_bundle.credential_service.clone(),
-            service_bundle.webhook_notifier_service.clone(),
-        );
-
         Self {
             assign_role_use_case,
             bulk_delete_user_use_case,
@@ -132,11 +101,8 @@ impl UserUseCase {
             get_user_roles_use_case,
             unassign_role_use_case,
             update_user_use_case,
-            delete_credential_use_case,
-            get_credentials_use_case,
             get_user_use_case,
             get_users_use_case,
-            reset_password_use_case,
         }
     }
 }

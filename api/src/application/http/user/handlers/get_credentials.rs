@@ -4,9 +4,9 @@ use crate::application::http::server::{
 };
 use axum::extract::State;
 use axum::{Extension, extract::Path};
-use ferriskey_core::application::user::use_cases::get_credentials_use_case::GetCredentialsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::credential::entities::CredentialOverview;
+use ferriskey_core::domain::credential::{entities::GetCredentialsInput, ports::CredentialService};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
@@ -42,11 +42,10 @@ pub async fn get_user_credentials(
         user_id, realm_name
     );
     let credentials: Vec<CredentialOverview> = state
-        .use_case_bundle
-        .get_credentials_use_case
-        .execute(
+        .service
+        .get_credentials(
             identity,
-            GetCredentialsUseCaseParams {
+            GetCredentialsInput {
                 user_id,
                 realm_name,
             },

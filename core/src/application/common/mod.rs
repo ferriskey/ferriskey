@@ -1,6 +1,35 @@
+use uuid::Uuid;
+
 use crate::{
-    application::common::permissions::FerriskeyPolicy,
-    domain::common::{AppConfig, FerriskeyConfig},
+    application::{
+        authentication::services::AuthenticateFactory,
+        common::{permissions::FerriskeyPolicy, services::DefaultJwtService},
+    },
+    domain::{
+        authentication::services::grant_type_service::GrantTypeStrategies,
+        client::{
+            ports::{ClientRepository, RedirectUriRepository},
+            value_objects::CreateClientRequest,
+        },
+        common::{
+            AppConfig, FerriskeyConfig,
+            entities::{InitializationResult, StartupConfig, app_errors::CoreError},
+            generate_random_string,
+            ports::CoreService,
+        },
+        credential::ports::CredentialRepository,
+        crypto::ports::HasherRepository,
+        jwt::ports::KeyStoreRepository,
+        realm::ports::RealmRepository,
+        role::{
+            entities::permission::Permissions, ports::RoleRepository,
+            value_objects::CreateRoleRequest,
+        },
+        user::{
+            ports::{UserRepository, UserRoleRepository},
+            value_objects::CreateUserRequest,
+        },
+    },
     infrastructure::{
         auth_session::AuthSessionRepoAny,
         client::repositories::{ClientRepoAny, RedirectUriRepoAny},
@@ -49,6 +78,8 @@ pub struct FerriskeyService {
     pub webhook_repository: WebhookRepoAny,
     pub policy: FerriskeyPolicy,
     pub webhook_notifier_repository: WebhookNotifierRepoAny,
+    pub grant_type_strategies: GrantTypeStrategies,
+    pub authenticate_factory: AuthenticateFactory,
 }
 
 impl FerriskeyService {
@@ -67,6 +98,32 @@ impl FerriskeyService {
             repos.user_repository.clone(),
             repos.client_repository.clone(),
             repos.user_role_repository.clone(),
+        );
+
+        let grant_type_strategies = GrantTypeStrategies::new(
+            repos.credential_repository.clone(),
+            repos.hasher_repository.clone(),
+            repos.auth_session_repository.clone(),
+            repos.user_repository.clone(),
+            repos.keystore_repository.clone(),
+            repos.refresh_token_repository.clone(),
+            repos.client_repository.clone(),
+        );
+
+        let jwt_service = DefaultJwtService::new(
+            repos.refresh_token_repository.clone(),
+            repos.keystore_repository.clone(),
+            repos.realm_repository.clone(),
+        );
+
+        let authenticate_factory = AuthenticateFactory::new(
+            repos.auth_session_repository.clone(),
+            repos.user_repository.clone(),
+            repos.realm_repository.clone(),
+            repos.client_repository.clone(),
+            repos.credential_repository.clone(),
+            repos.hasher_repository.clone(),
+            jwt_service,
         );
 
         Ok(FerriskeyService {
@@ -88,6 +145,286 @@ impl FerriskeyService {
             config,
 
             policy,
+            grant_type_strategies,
+            authenticate_factory,
+        })
+    }
+
+    async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
+        let credential = self
+            .credential_repository
+            .get_password_credential(user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
+
+        let is_valid = self
+            .hasher_repository
+            .verify_password(
+                &password,
+                &credential.secret_data,
+                &credential.credential_data,
+                &salt,
+            )
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(is_valid)
+    }
+}
+
+impl CoreService for FerriskeyService {
+    async fn initialize_application(
+        &self,
+        config: StartupConfig,
+    ) -> Result<InitializationResult, CoreError> {
+        let realm = match self
+            .realm_repository
+            .get_by_name(config.master_realm_name.clone())
+            .await
+        {
+            Ok(realm) => {
+                tracing::info!("{} already exists", config.master_realm_name);
+                realm.ok_or(CoreError::InvalidRealm)?
+            }
+            Err(_) => {
+                tracing::info!("creating master realm");
+                let realm = self
+                    .realm_repository
+                    .create_realm(config.master_realm_name.clone())
+                    .await
+                    .map_err(|_| CoreError::InvalidRealm)?;
+
+                tracing::info!("{} realm created", config.master_realm_name);
+                realm
+            }
+        };
+
+        self.keystore_repository
+            .get_or_generate_key(realm.id)
+            .await
+            .map_err(|_| CoreError::RealmKeyNotFound)?;
+
+        let client = match self
+            .client_repository
+            .get_by_client_id(config.default_client_id.clone(), realm.id)
+            .await
+        {
+            Ok(client) => {
+                tracing::info!(
+                    "client {:} already exists",
+                    config.default_client_id.clone()
+                );
+
+                client
+            }
+            Err(_) => {
+                tracing::info!("createing client {:}", config.default_client_id.clone());
+                let client = self
+                    .client_repository
+                    .create_client(CreateClientRequest {
+                        realm_id: realm.id,
+                        name: config.default_client_id.clone(),
+                        client_id: config.default_client_id.clone(),
+                        enabled: true,
+                        protocol: "openid-connect".to_string(),
+                        public_client: false,
+                        service_account_enabled: false,
+                        direct_access_grants_enabled: false,
+                        client_type: "confidential".to_string(),
+                        secret: Some(generate_random_string()),
+                    })
+                    .await
+                    .map_err(|_| CoreError::CreateClientError)?;
+
+                tracing::info!("client {:} created", config.default_client_id.clone());
+
+                client
+            }
+        };
+
+        let master_realm_client_id = format!("{}-realm", config.master_realm_name);
+
+        let master_realm_client = match self
+            .client_repository
+            .get_by_client_id(master_realm_client_id.clone(), realm.id)
+            .await
+        {
+            Ok(client) => {
+                tracing::info!("client {:} created", master_realm_client_id.clone());
+                client
+            }
+            Err(_) => {
+                tracing::info!("creating client {:}", master_realm_client_id.clone());
+
+                let client = self
+                    .client_repository
+                    .create_client(CreateClientRequest {
+                        realm_id: realm.id,
+                        name: master_realm_client_id.clone(),
+                        client_id: master_realm_client_id.clone(),
+                        enabled: true,
+                        protocol: "openid-connect".to_string(),
+                        public_client: false,
+                        service_account_enabled: false,
+                        direct_access_grants_enabled: true,
+                        client_type: "confidential".to_string(),
+                        secret: Some(generate_random_string()),
+                    })
+                    .await
+                    .map_err(|_| CoreError::CreateClientError)?;
+
+                tracing::info!("client {:} created", master_realm_client_id.clone());
+
+                client
+            }
+        };
+
+        let user = match self
+            .user_repository
+            .get_by_username(config.admin_username.clone(), realm.id)
+            .await
+        {
+            Ok(user) => {
+                let username = user.username.clone();
+                tracing::info!("user {username:} already exists");
+                user
+            }
+            Err(_) => {
+                let client_id = config.default_client_id.clone();
+                tracing::info!("Creating user for client {client_id:}");
+                let user = self
+                    .user_repository
+                    .create_user(CreateUserRequest {
+                        email: config.admin_email.clone(),
+                        email_verified: true,
+                        enabled: true,
+                        firstname: config.admin_username.clone(),
+                        lastname: config.admin_username.clone(),
+                        realm_id: realm.id,
+                        client_id: None,
+                        username: config.admin_username.clone(),
+                    })
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+
+                tracing::info!("user {:} created", user.username);
+                user
+            }
+        };
+
+        let roles = self
+            .role_repository
+            .get_by_client_id(master_realm_client.id) // Updated to remove clone()
+            .await
+            .unwrap_or_default();
+        let role = match roles
+            .into_iter()
+            .find(|r| r.name == master_realm_client_id.clone())
+        {
+            Some(role) => {
+                tracing::info!("role {:} already exists", role.name);
+                role
+            }
+            None => {
+                let role = self
+                    .role_repository
+                    .create(CreateRoleRequest {
+                        client_id: Some(master_realm_client.id),
+                        name: master_realm_client_id.clone(),
+                        permissions: Permissions::to_names(&[Permissions::ManageRealm]),
+                        realm_id: realm.id,
+                        description: None,
+                    })
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+
+                tracing::info!("role {:} created", master_realm_client_id.clone());
+                role
+            }
+        };
+
+        match self
+            .user_role_repository
+            .assign_role(user.id, role.id)
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("role {:} assigned to user {:}", role.name, user.username);
+            }
+            Err(_) => {
+                tracing::info!(
+                    "role {:} already assigned to user {:}",
+                    role.name,
+                    user.username
+                );
+            }
+        }
+
+        let hash = self
+            .hasher_repository
+            .hash_password(&config.admin_password)
+            .await
+            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        match self
+            .credential_repository
+            .create_credential(user.id, "password".to_string(), hash, "".into(), false)
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("credential created for user {:}", user.username);
+            }
+            Err(_) => {
+                tracing::info!("credential already exists for user {:}", user.username);
+            }
+        }
+
+        let admin_redirect_patterns = vec![
+            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
+            "^http://localhost:[0-9]+/.*",
+            "^/*",
+            "http://localhost:3000/admin",
+            "http://localhost:5173/admin",
+        ];
+
+        let existing_uris = self
+            .redirect_uri_repository
+            .get_by_client_id(client.id)
+            .await
+            .unwrap_or_default();
+
+        for pattern in admin_redirect_patterns {
+            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+
+            if !pattern_exists {
+                match self
+                    .redirect_uri_repository
+                    .create_redirect_uri(client.id, pattern.to_string(), true)
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("redirect uri created for client {:}", client.id);
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "failed to create redirect uri for client {:}: {}",
+                            client.id,
+                            e
+                        );
+                    }
+                }
+            } else {
+                tracing::info!("admin redirect URI already exists: {}", pattern);
+            }
+        }
+
+        Ok(InitializationResult {
+            master_realm_id: realm.id,
+            admin_role_id: role.id,
+            admin_user_id: user.id,
+            default_client_id: client.id,
         })
     }
 }

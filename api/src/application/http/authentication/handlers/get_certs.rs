@@ -2,7 +2,7 @@ use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::extract::{Path, State};
-use ferriskey_core::domain::jwt::entities::JwkKey;
+use ferriskey_core::domain::{authentication::ports::AuthService, jwt::entities::JwkKey};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -29,9 +29,8 @@ pub async fn get_certs(
     State(state): State<AppState>,
 ) -> Result<Response<GetCertsResponse>, ApiError> {
     let jwk_keys = state
-        .use_case_bundle
-        .get_certs_use_case
-        .execute(realm_name)
+        .service
+        .get_certs(realm_name)
         .await
         .map_err(ApiError::from)?;
 

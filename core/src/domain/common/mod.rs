@@ -4,6 +4,7 @@ use uuid::{NoContext, Timestamp, Uuid};
 
 pub mod entities;
 pub mod policies;
+pub mod ports;
 
 pub struct AppConfig {
     pub database_url: String,

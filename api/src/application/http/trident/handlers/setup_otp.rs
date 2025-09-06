@@ -9,9 +9,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::{
-    application::trident::use_cases::setup_otp_use_case::SetupOtpUseCaseInput,
-    domain::authentication::value_objects::Identity,
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity,
+    trident::ports::{SetupOtpInput, TridentService},
 };
 use serde::Serialize;
 use utoipa::ToSchema;
@@ -46,15 +46,14 @@ pub async fn setup_otp(
 ) -> Result<Response<SetupOtpResponse>, ApiError> {
     let issuer = format!("{base_url}/realms/{realm_name}");
     let result = state
-        .use_case_bundle
-        .setup_totp_use_case
-        .execute(SetupOtpUseCaseInput { identity, issuer })
+        .service
+        .setup_otp(identity, SetupOtpInput { issuer })
         .await
         .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
     let response = SetupOtpResponse {
         issuer: format!("{base_url}/realms/{realm_name}"),
-        otpauth_url: result.otpauth_url,
+        otpauth_url: result.otpauth_uri,
         secret: result.secret,
     };
 

@@ -9,9 +9,9 @@ use crate::application::http::{
     trident::validators::OtpVerifyRequest,
 };
 use axum::{Extension, extract::State};
-use ferriskey_core::{
-    application::trident::use_cases::verify_otp_use_case::VerifyOtpUseCaseInput,
-    domain::authentication::value_objects::Identity,
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity,
+    trident::ports::{TridentService, VerifyOtpInput},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -41,14 +41,15 @@ pub async fn verify_otp(
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
 ) -> Result<Response<VerifyOtpResponse>, ApiError> {
     let result = state
-        .use_case_bundle
-        .verify_otp_use_case
-        .execute(VerifyOtpUseCaseInput {
-            code: payload.code,
+        .service
+        .verify_otp(
             identity,
-            label: Some(payload.label),
-            secret: payload.secret,
-        })
+            VerifyOtpInput {
+                code: payload.code,
+                label: Some(payload.label),
+                secret: payload.secret,
+            },
+        )
         .await
         .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
 
