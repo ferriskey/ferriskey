@@ -137,7 +137,7 @@ Common environment variables (example):
 PORT=3333
 ENV=development
 LOG_LEVEL=info
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/ferriskey
+DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey
 
 ADMIN_PASSWORD=admin
 ADMIN_USERNAME=admin
