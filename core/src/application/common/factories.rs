@@ -1,6 +1,5 @@
 use crate::application::client::use_cases::ClientUseCase;
 use crate::application::client::use_cases::delete_redirect_uri_use_case::DeleteRedirectUriUseCase;
-use crate::application::client::use_cases::get_client_roles_use_case::GetClientRolesUseCase;
 use crate::application::client::use_cases::get_client_use_case::GetClientUseCase;
 use crate::application::client::use_cases::get_clients_use_case::GetClientsUseCase;
 use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedirectUrisUseCase;
@@ -14,12 +13,6 @@ use crate::application::realm::use_cases::get_user_realms_settings_use_case::Get
 use crate::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCase;
 use crate::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCase;
 use crate::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCase;
-use crate::application::role::use_cases::RoleUseCase;
-use crate::application::role::use_cases::delete_role_use_case::DeleteRoleUseCase;
-use crate::application::role::use_cases::get_role_use_case::GetRoleUseCase;
-use crate::application::role::use_cases::get_roles_use_case::GetRolesUseCase;
-use crate::application::role::use_cases::update_role_permissions_use_case::UpdateRolePermissionsUseCase;
-use crate::application::role::use_cases::update_role_use_case::UpdateRoleUseCase;
 use crate::application::user::use_cases::UserUseCase;
 use crate::application::user::use_cases::assign_role_use_case::AssignRoleUseCase;
 use crate::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCase;
@@ -45,7 +38,6 @@ pub struct UseCaseBundle {
     // Client (use-cases)
     pub delete_redirect_uri_use_case: DeleteRedirectUriUseCase,
     pub get_client_use_case: GetClientUseCase,
-    pub get_client_roles_use_case: GetClientRolesUseCase,
     pub get_clients_use_case: GetClientsUseCase,
     pub get_redirect_uris_use_case: GetRedirectUrisUseCase,
     pub update_client_use_case: UpdateClientUseCase,
@@ -61,13 +53,6 @@ pub struct UseCaseBundle {
     pub update_user_use_case: UpdateUserUseCase,
     pub get_user_use_case: GetUserUseCase,
     pub get_users_use_case: GetUsersUseCase,
-
-    // Role (use-cases)
-    pub get_roles_use_case: GetRolesUseCase,
-    pub get_role_use_case: GetRoleUseCase,
-    pub update_role_use_case: UpdateRoleUseCase,
-    pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
-    pub delete_role_use_case: DeleteRoleUseCase,
 }
 
 impl UseCaseBundle {
@@ -122,9 +107,6 @@ impl UseCaseBundle {
         // User (use-cases)
         let user_use_case = UserUseCase::new(service_bundle);
 
-        // Role (use-cases)
-        let role_use_case = RoleUseCase::new(service_bundle);
-
         Self {
             // Realm (use-cases)
             create_realm_use_case,
@@ -138,7 +120,6 @@ impl UseCaseBundle {
             // Client (use-cases)
             delete_redirect_uri_use_case: client_use_case.delete_redirect_uri_use_case,
             get_client_use_case: client_use_case.get_client_use_case,
-            get_client_roles_use_case: client_use_case.get_client_roles_use_case,
             get_clients_use_case: client_use_case.get_clients_use_case,
             get_redirect_uris_use_case: client_use_case.get_redirect_uris_use_case,
             update_client_use_case: client_use_case.update_client_use_case,
@@ -154,13 +135,6 @@ impl UseCaseBundle {
             update_user_use_case: user_use_case.update_user_use_case,
             get_user_use_case: user_use_case.get_user_use_case,
             get_users_use_case: user_use_case.get_users_use_case,
-
-            // Role (use-cases)
-            get_roles_use_case: role_use_case.get_roles_use_case,
-            get_role_use_case: role_use_case.get_role_use_case,
-            update_role_use_case: role_use_case.update_role_use_case,
-            update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
-            delete_role_use_case: role_use_case.delete_role_use_case,
         }
     }
 }
