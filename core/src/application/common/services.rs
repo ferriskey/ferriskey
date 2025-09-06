@@ -7,7 +7,6 @@ use crate::domain::{
         client_service::ClientServiceImpl, redirect_uri_service::RedirectUriServiceImpl,
     },
     jwt::services::JwtServiceImpl,
-    realm::services::RealmServiceImpl,
     user::services::{user_role_service::UserRoleServiceImpl, user_service::UserServiceImpl},
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
@@ -24,9 +23,6 @@ use crate::infrastructure::webhook::repositories::webhook_repository::WebhookRep
 
 pub type DefaultUserService =
     UserServiceImpl<UserRepoAny, RealmRepoAny, UserRoleRepoAny, UserRequiredActionRepoAny>;
-
-pub type DefaultRealmService =
-    RealmServiceImpl<RealmRepoAny, ClientRepoAny, RoleRepoAny, UserRepoAny, UserRoleRepoAny>;
 
 pub type DefaultAuthSessionService = AuthSessionServiceImpl<AuthSessionRepoAny>;
 
@@ -56,14 +52,6 @@ impl ServiceFactory {
             database_url: config.database_url,
         })
         .await?;
-
-        let realm_service = DefaultRealmService::new(
-            repositories.realm_repository.clone(),
-            repositories.client_repository.clone(),
-            repositories.role_repository.clone(),
-            repositories.user_repository.clone(),
-            repositories.user_role_repository.clone(),
-        );
 
         let client_service = DefaultClientService::new(
             repositories.client_repository.clone(),
@@ -106,7 +94,6 @@ impl ServiceFactory {
             WebhookNotifierServiceImpl::new(repositories.webhook_repository.clone());
 
         Ok(ServiceBundle {
-            realm_service,
             client_service,
             auth_session_service,
             user_service,
@@ -121,7 +108,6 @@ impl ServiceFactory {
 
 #[derive(Clone)]
 pub struct ServiceBundle {
-    pub realm_service: DefaultRealmService,
     pub client_service: DefaultClientService,
     pub auth_session_service: DefaultAuthSessionService,
     pub user_service: DefaultUserService,

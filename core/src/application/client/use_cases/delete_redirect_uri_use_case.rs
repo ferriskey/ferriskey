@@ -1,21 +1,22 @@
 use crate::application::client::policies::ClientPolicyImpl;
 use crate::application::common::services::{
-    DefaultClientService, DefaultRealmService, DefaultRedirectUriService, DefaultUserService,
+    DefaultClientService, DefaultRedirectUriService, DefaultUserService,
     DefaultWebhookNotifierService,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::client::entities::ClientError;
 use crate::domain::client::ports::RedirectUriService;
-use crate::domain::realm::ports::RealmService;
+use crate::domain::realm::ports::RealmRepository;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::ports::WebhookNotifierService;
+use crate::infrastructure::realm::repositories::RealmRepoAny;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct DeleteRedirectUriUseCase {
     redirect_uri_service: DefaultRedirectUriService,
-    realm_service: DefaultRealmService,
+    realm_service: RealmRepoAny,
     user_service: DefaultUserService,
     client_service: DefaultClientService,
     webhook_notifier_service: DefaultWebhookNotifierService,
@@ -30,7 +31,7 @@ pub struct DeleteRedirectUriUseCaseParams {
 impl DeleteRedirectUriUseCase {
     pub fn new(
         redirect_uri_service: DefaultRedirectUriService,
-        realm_service: DefaultRealmService,
+        realm_service: RealmRepoAny,
         user_service: DefaultUserService,
         client_service: DefaultClientService,
         webhook_notifier_service: DefaultWebhookNotifierService,
