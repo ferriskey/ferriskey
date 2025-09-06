@@ -1,4 +1,5 @@
-use crate::domain::health::entities::{DatabaseHealthStatus, HealthCheckError};
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::health::entities::DatabaseHealthStatus;
 use crate::domain::health::ports::HealthCheckRepository;
 use crate::infrastructure::health::repositories::PostgresHealthCheckRepository;
 
@@ -10,15 +11,15 @@ pub enum HealthCheckRepoAny {
 }
 
 impl HealthCheckRepository for HealthCheckRepoAny {
-    async fn check_health(&self) -> Result<u64, HealthCheckError> {
+    async fn health(&self) -> Result<u64, CoreError> {
         match self {
-            HealthCheckRepoAny::Postgres(repo) => repo.check_health().await,
+            HealthCheckRepoAny::Postgres(r) => r.health().await,
         }
     }
 
-    async fn check_database_status(&self) -> Result<DatabaseHealthStatus, HealthCheckError> {
+    async fn readness(&self) -> Result<DatabaseHealthStatus, CoreError> {
         match self {
-            HealthCheckRepoAny::Postgres(repo) => repo.check_database_status().await,
+            HealthCheckRepoAny::Postgres(r) => r.readness().await,
         }
     }
 }

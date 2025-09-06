@@ -7,7 +7,6 @@ use crate::application::client::use_cases::get_redirect_uris_use_case::GetRedire
 use crate::application::client::use_cases::update_client_use_case::UpdateClientUseCase;
 use crate::application::client::use_cases::update_redirect_uri_use_case::UpdateRedirectUriUseCase;
 use crate::application::common::services::ServiceBundle;
-use crate::application::health::use_cases::HealthCheckUseCase;
 use crate::application::realm::use_cases::create_realm_use_case::CreateRealmUseCase;
 use crate::application::realm::use_cases::delete_realm_use_case::DeleteRealmUseCase;
 use crate::application::realm::use_cases::get_realm_use_case::GetRealmUseCase;
@@ -69,8 +68,6 @@ pub struct UseCaseBundle {
     pub update_role_use_case: UpdateRoleUseCase,
     pub update_role_permissions_use_case: UpdateRolePermissionsUseCase,
     pub delete_role_use_case: DeleteRoleUseCase,
-
-    pub health_check_use_case: HealthCheckUseCase,
 }
 
 impl UseCaseBundle {
@@ -128,10 +125,6 @@ impl UseCaseBundle {
         // Role (use-cases)
         let role_use_case = RoleUseCase::new(service_bundle);
 
-        // Webhook (use-cases)
-        let health_check_use_case =
-            HealthCheckUseCase::new(service_bundle.health_check_service.clone());
-
         Self {
             // Realm (use-cases)
             create_realm_use_case,
@@ -168,8 +161,6 @@ impl UseCaseBundle {
             update_role_use_case: role_use_case.update_role_use_case,
             update_role_permissions_use_case: role_use_case.update_role_permissions_use_case,
             delete_role_use_case: role_use_case.delete_role_use_case,
-
-            health_check_use_case,
         }
     }
 }

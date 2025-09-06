@@ -1,5 +1,4 @@
 use crate::domain::common::AppConfig;
-use crate::domain::health::services::HealthCheckServiceImpl;
 use crate::domain::trident::services::OauthTotpService;
 use crate::domain::webhook::services::webhook_notifier_service::WebhookNotifierServiceImpl;
 use crate::domain::{
@@ -14,7 +13,6 @@ use crate::domain::{
 };
 use crate::infrastructure::auth_session::AuthSessionRepoAny;
 use crate::infrastructure::client::repositories::{ClientRepoAny, RedirectUriRepoAny};
-use crate::infrastructure::health::HealthCheckRepoAny;
 use crate::infrastructure::jwt::KeyStoreRepoAny;
 use crate::infrastructure::realm::repositories::RealmRepoAny;
 use crate::infrastructure::refresh_token::RefreshTokenRepoAny;
@@ -44,8 +42,6 @@ pub type DefaultJwtService = JwtServiceImpl<RefreshTokenRepoAny, KeyStoreRepoAny
 
 pub type DefaultRedirectUriService =
     RedirectUriServiceImpl<RealmRepoAny, RedirectUriRepoAny, ClientRepoAny>;
-
-pub type DefaultHealthCheckService = HealthCheckServiceImpl<HealthCheckRepoAny>;
 
 pub type DefaultWebhookNotifierService = WebhookNotifierServiceImpl<WebhookRepoAny>;
 
@@ -111,9 +107,6 @@ impl ServiceFactory {
 
         let totp_service = OauthTotpService::new();
 
-        let health_check_service =
-            DefaultHealthCheckService::new(repositories.health_check_repository.clone());
-
         let webhook_notifier_service =
             WebhookNotifierServiceImpl::new(repositories.webhook_repository.clone());
 
@@ -127,7 +120,6 @@ impl ServiceFactory {
             role_service,
             user_role_service,
             totp_service,
-            health_check_service,
             webhook_notifier_service,
         })
     }
@@ -144,6 +136,5 @@ pub struct ServiceBundle {
     pub role_service: DefaultRoleService,
     pub user_role_service: DefaultUserRoleService,
     pub totp_service: OauthTotpService,
-    pub health_check_service: DefaultHealthCheckService,
     pub webhook_notifier_service: DefaultWebhookNotifierService,
 }
