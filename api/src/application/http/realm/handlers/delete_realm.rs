@@ -3,8 +3,8 @@ use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::extract::Path;
 use axum::{Extension, extract::State};
-use ferriskey_core::application::realm::use_cases::delete_realm_use_case::DeleteRealmUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::realm::ports::{DeleteRealmInput, RealmService};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use utoipa::ToSchema;
@@ -32,9 +32,8 @@ pub async fn delete_realm(
 ) -> Result<Response<String>, ApiError> {
     info!("try to delete realm: {}", name);
     state
-        .use_case_bundle
-        .delete_realm_use_case
-        .execute(identity, DeleteRealmUseCaseParams { realm_name: name })
+        .service
+        .delete_realm(identity, DeleteRealmInput { realm_name: name })
         .await
         .map_err(ApiError::from)
         .map(|_| Response::OK("Realm deleted successfully".to_string()))

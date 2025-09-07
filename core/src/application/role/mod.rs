@@ -7,25 +7,13 @@ use crate::{
         common::{entities::app_errors::CoreError, policies::Policy},
         realm::{entities::Realm, ports::RealmRepository},
         role::{
-            entities::{Role, RoleError, UpdateRoleInput, permission::Permissions},
+            entities::{GetUserRolesInput, Role, UpdateRoleInput, permission::Permissions},
             ports::{RolePolicy, RoleRepository, RoleService},
-            value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
+            value_objects::{UpdateRolePermissionsRequest, UpdateRoleRequest},
         },
+        user::ports::UserRoleRepository,
     },
 };
-
-pub mod policies;
-
-#[inline]
-pub(in crate::application::role) fn ensure_permissions(
-    result_has_permission: Result<bool, RoleError>,
-    error_message: &str,
-) -> Result<(), RoleError> {
-    result_has_permission
-        .map_err(|_| RoleError::Forbidden(error_message.to_string()))?
-        .then_some(())
-        .ok_or_else(|| RoleError::Forbidden(error_message.to_string()))
-}
 
 impl RolePolicy for FerriskeyPolicy {
     async fn can_create_role(
@@ -243,5 +231,28 @@ impl RoleService for FerriskeyService {
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(role)
+    }
+
+    async fn get_user_roles(
+        &self,
+        identity: Identity,
+        input: GetUserRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InternalServerError)?;
+
+        ensure_policy(
+            self.policy.can_view_role(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.user_role_repository
+            .get_user_roles(input.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)
     }
 }

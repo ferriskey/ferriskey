@@ -3,10 +3,8 @@ use crate::application::http::server::api_entities::api_error::{ApiError, Valida
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::{Extension, extract::State};
-use ferriskey_core::{
-    application::realm::use_cases::create_realm_use_case::CreateRealmUseCaseParams,
-    domain::{authentication::value_objects::Identity, realm::entities::Realm},
-};
+use ferriskey_core::domain::realm::ports::{CreateRealmInput, RealmService};
+use ferriskey_core::domain::{authentication::value_objects::Identity, realm::entities::Realm};
 
 #[utoipa::path(
     post,
@@ -24,11 +22,10 @@ pub async fn create_realm(
     ValidateJson(payload): ValidateJson<CreateRealmValidator>,
 ) -> Result<Response<Realm>, ApiError> {
     let realm = state
-        .use_case_bundle
-        .create_realm_use_case
-        .execute(
+        .service
+        .create_realm(
             identity,
-            CreateRealmUseCaseParams {
+            CreateRealmInput {
                 realm_name: payload.name,
             },
         )

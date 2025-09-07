@@ -1,9 +1,6 @@
-use uuid::Uuid;
-
 use crate::{
     application::{
-        authentication::services::AuthenticateFactory,
-        common::{permissions::FerriskeyPolicy, services::DefaultJwtService},
+        authentication::services::AuthenticateFactory, common::permissions::FerriskeyPolicy,
     },
     domain::{
         authentication::services::grant_type_service::GrantTypeStrategies,
@@ -19,7 +16,7 @@ use crate::{
         },
         credential::ports::CredentialRepository,
         crypto::ports::HasherRepository,
-        jwt::ports::KeyStoreRepository,
+        jwt::{ports::KeyStoreRepository, services::JwtServiceImpl},
         realm::ports::RealmRepository,
         role::{
             entities::permission::Permissions, ports::RoleRepository,
@@ -54,10 +51,10 @@ use crate::{
     },
 };
 
-pub mod factories;
 pub mod permissions;
 pub mod policies;
-pub mod services;
+
+pub type DefaultJwtService = JwtServiceImpl<RefreshTokenRepoAny, KeyStoreRepoAny, RealmRepoAny>;
 
 #[derive(Clone)]
 pub struct FerriskeyService {
@@ -148,29 +145,6 @@ impl FerriskeyService {
             grant_type_strategies,
             authenticate_factory,
         })
-    }
-
-    async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
-        let credential = self
-            .credential_repository
-            .get_password_credential(user_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                &credential.credential_data,
-                &salt,
-            )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(is_valid)
     }
 }
 

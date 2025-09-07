@@ -12,9 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::update_user_use_case::UpdateUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
+use ferriskey_core::domain::user::{entities::UpdateUserInput, ports::UserService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -55,11 +55,10 @@ pub async fn update_user(
     ValidateJson(payload): ValidateJson<UpdateUserValidator>,
 ) -> Result<Response<UpdateUserResponse>, ApiError> {
     let user = state
-        .use_case_bundle
-        .update_user_use_case
-        .execute(
+        .service
+        .update_user(
             identity,
-            UpdateUserUseCaseParams {
+            UpdateUserInput {
                 user_id,
                 realm_name,
                 firstname: payload.firstname,

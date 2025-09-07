@@ -23,7 +23,6 @@ use crate::{
 };
 
 mod policies;
-pub mod use_cases;
 
 impl ClientService for FerriskeyService {
     async fn create_client(
@@ -50,7 +49,7 @@ impl ClientService for FerriskeyService {
         let client = self
             .client_repository
             .create_client(CreateClientRequest {
-                realm_id: realm_id,
+                realm_id,
                 name: input.name,
                 client_id: input.client_id,
                 secret,

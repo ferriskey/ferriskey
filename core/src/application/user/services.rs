@@ -10,43 +10,9 @@ use crate::{
         realm::ports::RealmRepository,
         user::ports::UserPolicy,
     },
-    infrastructure::user,
 };
 
 impl CredentialService for FerriskeyService {
-    async fn create_custom_credential(
-        &self,
-        user_id: uuid::Uuid,
-        credential_type: String,
-        secret_data: String,
-        label: Option<String>,
-        credential_data: serde_json::Value,
-    ) -> Result<
-        crate::domain::credential::entities::Credential,
-        crate::domain::credential::entities::CredentialError,
-    > {
-        unimplemented!()
-    }
-
-    async fn create_password_credential(
-        &self,
-        user_id: uuid::Uuid,
-        password: String,
-        label: String,
-    ) -> Result<
-        crate::domain::credential::entities::Credential,
-        crate::domain::credential::entities::CredentialError,
-    > {
-        unimplemented!()
-    }
-
-    async fn delete_by_id(
-        &self,
-        credential_id: uuid::Uuid,
-    ) -> Result<(), crate::domain::credential::entities::CredentialError> {
-        unimplemented!()
-    }
-
     async fn get_credentials(
         &self,
         identity: Identity,
@@ -74,33 +40,6 @@ impl CredentialService for FerriskeyService {
             .into_iter()
             .map(CredentialOverview::from)
             .collect())
-    }
-
-    async fn get_credentials_by_user_id(
-        &self,
-        user_id: uuid::Uuid,
-    ) -> Result<
-        Vec<crate::domain::credential::entities::Credential>,
-        crate::domain::credential::entities::CredentialError,
-    > {
-        unimplemented!()
-    }
-
-    async fn reset_password(
-        &self,
-        user_id: uuid::Uuid,
-        password: String,
-        temporary: bool,
-    ) -> Result<(), crate::domain::credential::entities::CredentialError> {
-        unimplemented!()
-    }
-
-    async fn verify_password(
-        &self,
-        user_id: uuid::Uuid,
-        password: String,
-    ) -> Result<bool, crate::domain::credential::entities::CredentialError> {
-        unimplemented!()
     }
 
     async fn delete_credential(

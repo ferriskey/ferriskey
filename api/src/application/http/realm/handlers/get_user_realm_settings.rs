@@ -2,9 +2,12 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::{
-    application::realm::use_cases::get_user_realms_settings_use_case::GetUserRealmSettingsUseCaseParams,
-    domain::{authentication::value_objects::Identity, realm::entities::RealmSetting},
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity,
+    realm::{
+        entities::RealmSetting,
+        ports::{GetRealmSettingInput, RealmService},
+    },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -43,9 +46,8 @@ pub async fn get_user_realm_settings(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<RealmSetting>, ApiError> {
     state
-        .use_case_bundle
-        .get_user_realm_settings_use_case
-        .execute(identity, GetUserRealmSettingsUseCaseParams { realm_name })
+        .service
+        .get_realm_setting_by_name(identity, GetRealmSettingInput { realm_name })
         .await
         .map(Response::OK)
         .map_err(ApiError::from)

@@ -1,4 +1,3 @@
-use argon2::password_hash::Ident;
 use uuid::Uuid;
 
 use crate::domain::{

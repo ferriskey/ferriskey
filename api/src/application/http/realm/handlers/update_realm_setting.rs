@@ -1,12 +1,13 @@
 use crate::application::http::realm::validators::UpdateRealmSettingValidator;
 use axum::Extension;
+use ferriskey_core::domain::realm::ports::{RealmService, UpdateRealmSettingInput};
 
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 
 use axum::extract::{Path, State};
-use ferriskey_core::application::realm::use_cases::update_realm_settings_use_case::UpdateRealmSettingsUseCaseParams;
+
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
 use ferriskey_core::domain::realm::entities::RealmSetting;
@@ -32,11 +33,10 @@ pub async fn update_realm_setting(
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
 ) -> Result<Response<RealmSetting>, ApiError> {
     state
-        .use_case_bundle
-        .update_realm_settings_use_case
-        .execute(
+        .service
+        .update_realm_setting(
             identity,
-            UpdateRealmSettingsUseCaseParams {
+            UpdateRealmSettingInput {
                 realm_name: name,
                 algorithm: payload.default_signing_algorithm,
             },

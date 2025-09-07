@@ -6,8 +6,8 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::unassign_role_use_case::UnassignRoleUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::{entities::UnassignRoleInput, ports::UserService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -44,11 +44,10 @@ pub async fn unassign_role(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UnassignRoleResponse>, ApiError> {
     state
-        .use_case_bundle
-        .unassign_role_use_case
-        .execute(
+        .service
+        .unassign_role(
             identity,
-            UnassignRoleUseCaseParams {
+            UnassignRoleInput {
                 realm_name: realm_name.clone(),
                 role_id,
                 user_id,

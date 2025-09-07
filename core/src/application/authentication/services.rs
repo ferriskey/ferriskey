@@ -3,7 +3,7 @@ use std::vec;
 use uuid::Uuid;
 
 use crate::{
-    application::common::services::DefaultJwtService,
+    application::common::DefaultJwtService,
     domain::{
         authentication::{
             entities::{

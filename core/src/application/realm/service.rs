@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use anyhow::Ok;
-
 use crate::{
     application::common::{FerriskeyService, policies::ensure_policy},
     domain::{
@@ -20,7 +18,7 @@ use crate::{
             entities::permission::Permissions, ports::RoleRepository,
             value_objects::CreateRoleRequest,
         },
-        user::ports::{UserRepository, UserRoleRepository, UserService},
+        user::ports::{UserRepository, UserRoleRepository},
     },
 };
 
@@ -29,14 +27,14 @@ impl RealmService for FerriskeyService {
         let user = match identity {
             Identity::User(user) => user,
             Identity::Client(client) => self
+                .user_repository
                 .get_by_client_id(client.id)
                 .await
-                .map_err(|_| CoreError::Forbidden)?,
+                .map_err(|_| CoreError::InternalServerError)?,
         };
 
-        let realm = user.realm.clone().ok_or(CoreError::Forbidden)?;
-        let realm = self
-            .realm_repository
+        let realm = user.realm.clone().ok_or(CoreError::InternalServerError)?;
+        self.realm_repository
             .get_by_name(realm.name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -126,7 +124,7 @@ impl RealmService for FerriskeyService {
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_view_realm(identity, realm.clone()).await,
             "insufficient permissions",
@@ -159,7 +157,7 @@ impl RealmService for FerriskeyService {
 
         let realm = self.realm_repository.create_realm(input.realm_name).await?;
         self.realm_repository
-            .create_realm_settings(realm.id.clone(), "RS256".to_string())
+            .create_realm_settings(realm.id, "RS256".to_string())
             .await?;
 
         Ok(realm)
@@ -172,9 +170,9 @@ impl RealmService for FerriskeyService {
     ) -> Result<Realm, CoreError> {
         let realm = self
             .create_realm(
-                identity,
+                identity.clone(),
                 CreateRealmInput {
-                    realm_name: input.realm_name,
+                    realm_name: input.realm_name.clone(),
                 },
             )
             .await?;
@@ -247,12 +245,10 @@ impl RealmService for FerriskeyService {
     ) -> Result<Realm, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(input.realm_name.clone())
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
-
-        let realm_id = realm.id;
 
         ensure_policy(
             self.policy.can_update_realm(identity, realm).await,
@@ -303,12 +299,10 @@ impl RealmService for FerriskeyService {
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(input.realm_name.clone())
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
-
-        let realm_id = realm.id;
 
         ensure_policy(
             self.policy.can_delete_realm(identity, realm).await,

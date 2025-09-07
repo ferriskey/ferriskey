@@ -8,8 +8,7 @@ use crate::{
         realm::ports::RealmRepository,
         webhook::{
             entities::{
-                errors::WebhookError, webhook::Webhook, webhook_payload::WebhookPayload,
-                webhook_trigger::WebhookTrigger,
+                webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
             },
             ports::{
                 CreateWebhookInput, DeleteWebhookInput, GetWebhookInput,

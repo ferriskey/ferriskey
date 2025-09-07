@@ -18,7 +18,6 @@ use crate::domain::{
 /// This trait defines the contract for implementing specific grant type strategies,
 /// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
-
 pub trait GrantTypeService: Clone + Send + Sync + 'static {
     fn authenticate_with_grant_type(
         &self,
