@@ -149,7 +149,7 @@ impl GrantTypeStrategies {
         Ok((jwt, refresh_token))
     }
 
-    async fn verify_token(&self, token: String, realm_id: Uuid) -> Result<JwtClaim, CoreError> {
+    pub async fn verify_token(&self, token: String, realm_id: Uuid) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(Algorithm::RS256);
 
         let jwt_key_pair = self

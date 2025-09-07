@@ -169,7 +169,7 @@ impl AuthService for FerriskeyService {
             })?;
 
         self.grant_type_strategies
-            .verify_refresh_token(input.token, user.realm_id)
+            .verify_token(input.token, user.realm_id)
             .await?;
 
         let identity: Identity = match input.claims.is_service_account() {
