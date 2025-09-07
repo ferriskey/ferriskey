@@ -142,8 +142,6 @@ pub async fn auth(
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
 
-    tracing::info!("get claims: {:?}", claims);
-
     let output = state
         .service
         .authorize_request(AuthorizeRequestInput {
