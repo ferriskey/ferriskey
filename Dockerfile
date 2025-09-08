@@ -31,8 +31,8 @@ FROM debian:bookworm-slim AS runtime
 RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    ca-certificates=20230311+nmu1 \
-    libssl3=3.0.15-1~deb12u2 && \
+    ca-certificates=20230311+deb12u1 \
+    libssl3=3.0.17-1~deb12u2 && \
     rm -rf /var/lib/apt/lists/* && \
     addgroup \
     --system \
