@@ -107,7 +107,7 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/users/{{user_id}}/roles",
+                "{}/realms/{{realm_name}}/users/{{user_id}}/roles/{{role_id}}",
                 state.args.server.root_path
             ),
             post(assign_role),
