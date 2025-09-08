@@ -1,4 +1,4 @@
-use std::{collections::HashSet, hash::Hash};
+use std::collections::HashSet;
 
 use crate::{
     domain::{
@@ -46,6 +46,7 @@ impl FerriskeyPolicy {
     /// * `true` - User has permission to manage users
     /// * `false` - User does not have sufficient permissions
     #[inline]
+    #[allow(dead_code)]
     fn has_user_management_permissions(permissions: &[Permissions]) -> bool {
         Permissions::has_one_of_permissions(
             permissions,

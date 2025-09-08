@@ -6,8 +6,8 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::delete_user_use_case::DeleteUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -34,21 +34,13 @@ pub struct DeleteUserResponse {
     ),
 )]
 pub async fn delete_user(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserResponse>, ApiError> {
     let count = state
-        .use_case_bundle
-        .delete_user_use_case
-        .execute(
-            identity,
-            DeleteUserUseCaseParams {
-                realm_name,
-                user_id,
-            },
-        )
+        .service
+        .delete_user(identity, realm_name, user_id)
         .await?;
 
     Ok(Response::OK(DeleteUserResponse {

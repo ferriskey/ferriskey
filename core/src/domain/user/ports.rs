@@ -6,72 +6,62 @@ use crate::domain::{
     realm::entities::Realm,
     role::entities::Role,
     user::{
-        entities::{RequiredAction, RequiredActionError, ResetPasswordInput, User, UserError},
+        entities::{
+            AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, GetUserInput, RequiredAction,
+            RequiredActionError, ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
+            UserError,
+        },
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
 
 pub trait UserService: Clone + Send + Sync + 'static {
-    fn create_user(
+    fn delete_user(
         &self,
-        dto: CreateUserRequest,
-    ) -> impl Future<Output = Result<User, UserError>> + Send;
-
-    #[deprecated]
-    fn get_by_username(
-        &self,
-        username: String,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<User, UserError>> + Send;
-
-    #[deprecated]
-    fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<User, UserError>> + Send;
-
-    #[deprecated]
-    fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
-    #[deprecated]
-    fn get_user_roles(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
-
-    fn get_user_realms(
-        &self,
-        user: User,
+        identity: Identity,
         realm_name: String,
-    ) -> impl Future<Output = Result<Vec<Realm>, UserError>> + Send;
-
-    #[deprecated]
-    fn find_by_realm_id(
-        &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<User>, UserError>> + Send;
-
-    fn bulk_delete_user(
-        &self,
-        ids: Vec<Uuid>,
-    ) -> impl Future<Output = Result<u64, UserError>> + Send;
-
-    fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, UserError>> + Send;
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
     fn update_user(
         &self,
-        user_id: Uuid,
-        dto: UpdateUserRequest,
-    ) -> impl Future<Output = Result<User, UserError>> + Send;
-
-    fn remove_required_action(
-        &self,
-        user_id: Uuid,
-        required_action: RequiredAction,
-    ) -> impl Future<Output = Result<(), UserError>> + Send;
+        identity: Identity,
+        input: UpdateUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
     fn reset_password(
         &self,
         identity: Identity,
         input: ResetPasswordInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_users(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+    fn assign_role(
+        &self,
+        identity: Identity,
+        input: AssignRoleInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn bulk_delete_users(
+        &self,
+        identity: Identity,
+        input: BulkDeleteUsersInput,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+    fn create_user(
+        &self,
+        identity: Identity,
+        input: CreateUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn get_user(
+        &self,
+        identity: Identity,
+        input: GetUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn unassign_role(
+        &self,
+        identity: Identity,
+        input: UnassignRoleInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 

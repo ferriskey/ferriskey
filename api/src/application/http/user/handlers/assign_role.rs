@@ -6,8 +6,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::assign_role_use_case::AssignRoleUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::ports::UserService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, user::entities::AssignRoleInput,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -42,11 +44,10 @@ pub async fn assign_role(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<AssignRoleResponse>, ApiError> {
     state
-        .use_case_bundle
-        .assign_role_use_case
-        .execute(
+        .service
+        .assign_role(
             identity,
-            AssignRoleUseCaseParams {
+            AssignRoleInput {
                 realm_name: realm_name.clone(),
                 user_id,
                 role_id,

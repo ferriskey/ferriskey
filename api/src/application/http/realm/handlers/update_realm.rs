@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::realm::use_cases::update_realm_use_case::UpdateRealmUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::realm::ports::{RealmService, UpdateRealmInput};
 
 #[utoipa::path(
     put,
@@ -31,13 +31,12 @@ pub async fn update_realm(
     ValidateJson(payload): ValidateJson<UpdateRealmValidator>,
 ) -> Result<Response<Realm>, ApiError> {
     state
-        .use_case_bundle
-        .update_realm_use_case
-        .execute(
+        .service
+        .update_realm(
             identity,
-            UpdateRealmUseCaseParams {
+            UpdateRealmInput {
                 realm_name: name,
-                new_realm_name: payload.name,
+                name: payload.name,
             },
         )
         .await

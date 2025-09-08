@@ -5,9 +5,11 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::realm::use_cases::get_realm_use_case::GetRealmUseCaseParams;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity,
+    realm::ports::{GetRealmInput, RealmService},
+};
 
 #[utoipa::path(
     get,
@@ -28,9 +30,8 @@ pub async fn get_realm(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<Realm>, ApiError> {
     state
-        .use_case_bundle
-        .get_realm_use_case
-        .execute(identity, GetRealmUseCaseParams { realm_name: name })
+        .service
+        .get_realm_by_name(identity, GetRealmInput { realm_name: name })
         .await
         .map(Response::OK)
         .map_err(ApiError::from)

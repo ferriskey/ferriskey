@@ -4,9 +4,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::realm::use_cases::get_user_realms_use_case::GetUserRealmsUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -33,14 +33,13 @@ pub struct UserRealmsResponse {
     )
 )]
 pub async fn get_user_realms(
-    Path(realm_name): Path<String>,
+    Path(_): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UserRealmsResponse>, ApiError> {
     let realms = state
-        .use_case_bundle
-        .get_user_realms_use_case
-        .execute(identity, GetUserRealmsUseCaseParams { realm_name })
+        .service
+        .get_realms_by_user(identity)
         .await
         .map_err(ApiError::from)?;
 

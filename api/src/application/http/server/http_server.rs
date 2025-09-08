@@ -26,26 +26,11 @@ use tracing::{debug, info_span};
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
-use ferriskey_core::application::common::{
-    factories::UseCaseBundle,
-    services::{ServiceFactory, ServiceFactoryConfig},
-};
-
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
-    let service_bundle = ServiceFactory::create_all_services(ServiceFactoryConfig {
-        database_url: format!(
-            "postgresql://{}:{}@{}:{}/{}",
-            args.db.user, args.db.password, args.db.host, args.db.port, args.db.name
-        ),
-    })
-    .await?;
-
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
     let service = FerriskeyService::new(ferriskey_config).await?;
 
-    let use_case = UseCaseBundle::new(&service_bundle);
-
-    Ok(AppState::new(args, use_case, service))
+    Ok(AppState::new(args, service))
 }
 
 ///  Returns the [`Router`] of this application.

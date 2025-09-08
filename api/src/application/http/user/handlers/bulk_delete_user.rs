@@ -12,8 +12,8 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::bulk_delete_user::BulkDeleteUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::{entities::BulkDeleteUsersInput, ports::UserService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -45,11 +45,10 @@ pub async fn bulk_delete_user(
     ValidateJson(payload): ValidateJson<BulkDeleteUserValidator>,
 ) -> Result<Response<BulkDeleteUserResponse>, ApiError> {
     let count = state
-        .use_case_bundle
-        .bulk_delete_user_use_case
-        .execute(
+        .service
+        .bulk_delete_users(
             identity,
-            BulkDeleteUserUseCaseParams {
+            BulkDeleteUsersInput {
                 realm_name: realm_name.clone(),
                 ids: payload.ids,
             },

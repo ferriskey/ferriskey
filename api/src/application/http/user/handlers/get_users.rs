@@ -6,9 +6,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::get_users_use_case::GetUsersUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
+use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -36,9 +36,8 @@ pub async fn get_users(
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UsersResponse>, ApiError> {
     let users = state
-        .use_case_bundle
-        .get_users_use_case
-        .execute(identity, GetUsersUseCaseParams { realm_name })
+        .service
+        .get_users(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 

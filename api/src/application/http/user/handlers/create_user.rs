@@ -12,9 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::user::use_cases::create_user_use_case::CreateUserUseCaseParams;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
+use ferriskey_core::domain::user::{entities::CreateUserInput, ports::UserService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -50,11 +50,10 @@ pub async fn create_user(
     ValidateJson(payload): ValidateJson<CreateUserValidator>,
 ) -> Result<Response<CreateUserResponse>, ApiError> {
     let user = state
-        .use_case_bundle
-        .create_user_use_case
-        .execute(
+        .service
+        .create_user(
             identity,
-            CreateUserUseCaseParams {
+            CreateUserInput {
                 realm_name,
                 username: payload.username,
                 firstname: payload.firstname,
