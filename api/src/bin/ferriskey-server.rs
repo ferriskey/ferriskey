@@ -77,6 +77,7 @@ async fn main() -> Result<(), anyhow::Error> {
             }
         }
     };
+
     if let Some(tls) = &args.server.tls {
         debug!("initializing crypto provider");
         rustls::crypto::aws_lc_rs::default_provider()

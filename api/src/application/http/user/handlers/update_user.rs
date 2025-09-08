@@ -48,8 +48,7 @@ pub struct UpdateUserResponse {
     )
 )]
 pub async fn update_user(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateUserValidator>,

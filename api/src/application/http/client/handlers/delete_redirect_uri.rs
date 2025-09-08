@@ -27,9 +27,7 @@ use uuid::Uuid;
     ),
 )]
 pub async fn delete_redirect_uri(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
-    Path(uri_id): Path<Uuid>,
+    Path((realm_name, client_id, uri_id)): Path<(String, Uuid, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<()>, ApiError> {

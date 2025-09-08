@@ -41,8 +41,7 @@ pub struct ResetPasswordResponse {
     )
 )]
 pub async fn reset_password(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<ResetPasswordValidator>,

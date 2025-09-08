@@ -35,8 +35,7 @@ use uuid::Uuid;
     ),
 )]
 pub async fn update_redirect_uri(
-    Path((realm_name, client_id)): Path<(String, Uuid)>,
-    Path(uri_id): Path<Uuid>,
+    Path((realm_name, client_id, uri_id)): Path<(String, Uuid, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,

@@ -32,8 +32,7 @@ pub struct GetClientRolesResponse {
     )
 )]
 pub async fn get_client_roles(
-    Path(realm_name): Path<String>,
-    Path(client_id): Path<Uuid>,
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<GetClientRolesResponse>, ApiError> {
