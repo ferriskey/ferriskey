@@ -21,7 +21,7 @@ use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
 fn init_logger(args: &LogArgs) {
