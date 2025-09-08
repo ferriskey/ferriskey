@@ -37,9 +37,7 @@ pub struct DeleteUserCredentialResponse {
     )
 )]
 pub async fn delete_user_credential(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
-    Path(credential_id): Path<Uuid>,
+    Path((realm_name, user_id, credential_id)): Path<(String, Uuid, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteUserCredentialResponse>, ApiError> {

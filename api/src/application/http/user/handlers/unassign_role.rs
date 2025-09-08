@@ -37,9 +37,7 @@ pub struct UnassignRoleResponse {
     )
 )]
 pub async fn unassign_role(
-    Path(realm_name): Path<String>,
-    Path(user_id): Path<Uuid>,
-    Path(role_id): Path<Uuid>,
+    Path((realm_name, user_id, role_id)): Path<(String, Uuid, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<UnassignRoleResponse>, ApiError> {
