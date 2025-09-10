@@ -5,7 +5,6 @@ pub mod credential;
 pub mod crypto;
 pub mod health;
 pub mod jwt;
-pub mod mediator;
 pub mod realm;
 pub mod role;
 pub mod session;

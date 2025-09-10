@@ -6,13 +6,6 @@ use crate::domain::{
     role::entities::permission::Permissions, user::entities::User,
 };
 
-pub trait RolePolicy: Clone + Send + Sync + 'static {
-    fn delete_role(
-        &self,
-        identity: Identity,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-}
-
 pub trait Policy: Clone + Send + Sync + 'static {
     fn get_user_from_identity(
         &self,
