@@ -1,7 +1,8 @@
-use crate::domain::client::entities::redirect_uri::{RedirectUri, RedirectUriError};
-use crate::domain::client::entities::{Client, ClientError};
+use crate::domain::client::entities::Client;
+use crate::domain::client::entities::redirect_uri::RedirectUri;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::value_objects::{CreateClientRequest, UpdateClientRequest};
+use crate::domain::common::entities::app_errors::CoreError;
 use crate::infrastructure::client::repositories::client_postgres_repository::PostgresClientRepository;
 use crate::infrastructure::client::repositories::redirect_uri_postgres_repository::PostgresRedirectUriRepository;
 use uuid::Uuid;
@@ -15,7 +16,7 @@ pub enum ClientRepoAny {
 }
 
 impl ClientRepository for ClientRepoAny {
-    async fn create_client(&self, data: CreateClientRequest) -> Result<Client, ClientError> {
+    async fn create_client(&self, data: CreateClientRequest) -> Result<Client, CoreError> {
         match self {
             Self::Postgres(repo) => repo.create_client(data).await,
         }
@@ -25,19 +26,19 @@ impl ClientRepository for ClientRepoAny {
         &self,
         client_id: String,
         realm_id: Uuid,
-    ) -> Result<Client, ClientError> {
+    ) -> Result<Client, CoreError> {
         match self {
             Self::Postgres(repo) => repo.get_by_client_id(client_id, realm_id).await,
         }
     }
 
-    async fn get_by_id(&self, id: Uuid) -> Result<Client, ClientError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<Client, CoreError> {
         match self {
             Self::Postgres(repo) => repo.get_by_id(id).await,
         }
     }
 
-    async fn get_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Client>, ClientError> {
+    async fn get_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Client>, CoreError> {
         match self {
             Self::Postgres(repo) => repo.get_by_realm_id(realm_id).await,
         }
@@ -47,13 +48,13 @@ impl ClientRepository for ClientRepoAny {
         &self,
         client_id: Uuid,
         data: UpdateClientRequest,
-    ) -> Result<Client, ClientError> {
+    ) -> Result<Client, CoreError> {
         match self {
             Self::Postgres(repo) => repo.update_client(client_id, data).await,
         }
     }
 
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
         match self {
             Self::Postgres(repo) => repo.delete_by_id(id).await,
         }
@@ -71,7 +72,7 @@ impl RedirectUriRepository for RedirectUriRepoAny {
         client_id: Uuid,
         value: String,
         enabled: bool,
-    ) -> Result<RedirectUri, RedirectUriError> {
+    ) -> Result<RedirectUri, CoreError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => {
                 repo.create_redirect_uri(client_id, value, enabled).await
@@ -79,10 +80,7 @@ impl RedirectUriRepository for RedirectUriRepoAny {
         }
     }
 
-    async fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> Result<Vec<RedirectUri>, RedirectUriError> {
+    async fn get_by_client_id(&self, client_id: Uuid) -> Result<Vec<RedirectUri>, CoreError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.get_by_client_id(client_id).await,
         }
@@ -91,23 +89,19 @@ impl RedirectUriRepository for RedirectUriRepoAny {
     async fn get_enabled_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> Result<Vec<RedirectUri>, RedirectUriError> {
+    ) -> Result<Vec<RedirectUri>, CoreError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.get_enabled_by_client_id(client_id).await,
         }
     }
 
-    async fn update_enabled(
-        &self,
-        id: Uuid,
-        enabled: bool,
-    ) -> Result<RedirectUri, RedirectUriError> {
+    async fn update_enabled(&self, id: Uuid, enabled: bool) -> Result<RedirectUri, CoreError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.update_enabled(id, enabled).await,
         }
     }
 
-    async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
+    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.delete(id).await,
         }

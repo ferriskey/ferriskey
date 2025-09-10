@@ -1,4 +1,7 @@
-use crate::entity::clients::{ActiveModel, Entity as ClientEntity};
+use crate::{
+    domain::common::entities::app_errors::CoreError,
+    entity::clients::{ActiveModel, Entity as ClientEntity},
+};
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
@@ -7,7 +10,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     client::{
-        entities::{Client, ClientError, redirect_uri::RedirectUri},
+        entities::{Client, redirect_uri::RedirectUri},
         ports::ClientRepository,
         value_objects::{CreateClientRequest, UpdateClientRequest},
     },
@@ -26,7 +29,7 @@ impl PostgresClientRepository {
 }
 
 impl ClientRepository for PostgresClientRepository {
-    async fn create_client(&self, data: CreateClientRequest) -> Result<Client, ClientError> {
+    async fn create_client(&self, data: CreateClientRequest) -> Result<Client, CoreError> {
         let (now, _) = generate_timestamp();
 
         let payload = ActiveModel {
@@ -47,7 +50,7 @@ impl ClientRepository for PostgresClientRepository {
 
         let client = payload.insert(&self.db).await.map_err(|e| {
             tracing::error!("Failed to insert client: {}", e);
-            ClientError::InternalServerError
+            CoreError::InternalServerError
         })?;
 
         let client = client.into();
@@ -59,29 +62,29 @@ impl ClientRepository for PostgresClientRepository {
         &self,
         client_id: String,
         realm_id: uuid::Uuid,
-    ) -> Result<Client, ClientError> {
+    ) -> Result<Client, CoreError> {
         let client = ClientEntity::find()
             .filter(crate::entity::clients::Column::ClientId.eq(client_id))
             .filter(crate::entity::clients::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .map(Client::from)
-            .ok_or(ClientError::NotFound)?;
+            .ok_or(CoreError::NotFound)?;
 
         Ok(client)
     }
 
-    async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, ClientError> {
+    async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, CoreError> {
         let clients_model = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(id))
             .find_with_related(crate::entity::redirect_uris::Entity)
             .all(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         if clients_model.is_empty() {
-            return Err(ClientError::NotFound);
+            return Err(CoreError::NotFound);
         }
 
         let (client_model, uri_models) = &clients_model[0];
@@ -98,12 +101,12 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
-    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, ClientError> {
+    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, CoreError> {
         let clients = ClientEntity::find()
             .filter(crate::entity::clients::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         let clients: Vec<Client> = clients.into_iter().map(|c| c.into()).collect();
 
@@ -114,13 +117,13 @@ impl ClientRepository for PostgresClientRepository {
         &self,
         client_id: Uuid,
         data: UpdateClientRequest,
-    ) -> Result<Client, ClientError> {
+    ) -> Result<Client, CoreError> {
         let client = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(client_id))
             .one(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)?
-            .ok_or(ClientError::NotFound)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
 
         let mut client: ActiveModel = client.into();
         client.name = match data.name {
@@ -148,23 +151,23 @@ impl ClientRepository for PostgresClientRepository {
         let client = client
             .update(&self.db)
             .await
-            .map_err(|_| ClientError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(client.into())
     }
 
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
         let result = ClientEntity::delete_many()
             .filter(crate::entity::clients::Column::Id.eq(id))
             .exec(&self.db)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to delete client: {}", e);
-                ClientError::InternalServerError
+                CoreError::InternalServerError
             })?;
 
         if result.rows_affected == 0 {
-            return Err(ClientError::InternalServerError);
+            return Err(CoreError::InternalServerError);
         }
 
         Ok(())

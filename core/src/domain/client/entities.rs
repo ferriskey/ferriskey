@@ -1,15 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::{
-    client::{
-        entities::redirect_uri::RedirectUri,
-        value_objects::{CreateRedirectUriRequest, UpdateClientRequest},
-    },
-    webhook::entities::errors::WebhookError,
+use crate::domain::client::{
+    entities::redirect_uri::RedirectUri,
+    value_objects::{CreateRedirectUriRequest, UpdateClientRequest},
 };
 
 pub mod redirect_uri;
@@ -43,33 +39,6 @@ pub struct ClientConfig {
     pub service_account_enabled: bool,
     pub client_type: String,
     pub direct_access_grants_enabled: Option<bool>,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum ClientError {
-    #[error("Client not found")]
-    NotFound,
-
-    #[error("Client already exists")]
-    AlreadyExists,
-
-    #[error("Invalid client")]
-    Invalid,
-
-    #[error("Internal server error")]
-    InternalServerError,
-
-    #[error("Redirect URI not found")]
-    RedirectUriNotFound,
-
-    #[error("Invalid redirect URI")]
-    InvalidRedirectUri,
-
-    #[error("{0}")]
-    Forbidden(String),
-
-    #[error("Failed to notify webhook : {0}")]
-    FailedWebhookNotification(WebhookError),
 }
 
 impl Client {

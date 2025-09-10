@@ -4,10 +4,10 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, ClientError, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-            DeleteClientInput, DeleteRedirectUriInput, GetClientInput, GetClientRolesInput,
-            GetClientsInput, GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
-            redirect_uri::{RedirectUri, RedirectUriError},
+            Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
+            DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
+            GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
+            redirect_uri::RedirectUri,
         },
         value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
     },
@@ -15,34 +15,6 @@ use crate::domain::{
     realm::entities::Realm,
     role::entities::Role,
 };
-
-#[deprecated]
-pub trait OldClientService: Clone + Send + Sync + 'static {
-    fn create_client(
-        &self,
-        payload: CreateClientRequest,
-        realm_name: String,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
-    fn get_by_client_id(
-        &self,
-        client_id: String,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
-    fn get_by_realm_id(
-        &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Client>, ClientError>> + Send;
-
-    fn update_client(
-        &self,
-        client_id: Uuid,
-        realm_name: String,
-        schema: UpdateClientRequest,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
-
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
-}
 
 pub trait ClientService: Clone + Send + Sync + 'static {
     fn create_client(
@@ -130,27 +102,27 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
     fn create_client(
         &self,
         data: CreateClientRequest,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
     fn get_by_client_id(
         &self,
         client_id: String,
         realm_id: Uuid,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
     fn get_by_realm_id(
         &self,
         realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Client>, ClientError>> + Send;
+    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
 
     fn update_client(
         &self,
         client_id: Uuid,
         data: UpdateClientRequest,
-    ) -> impl Future<Output = Result<Client, ClientError>> + Send;
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
+    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait RedirectUriService: Clone + Send + Sync + 'static {
@@ -159,25 +131,25 @@ pub trait RedirectUriService: Clone + Send + Sync + 'static {
         payload: CreateRedirectUriRequest,
         realm_name: String,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<RedirectUri, ClientError>> + Send;
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
     fn get_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
 
     fn get_enabled_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
 
     fn update_enabled(
         &self,
         id: Uuid,
         enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), RedirectUriError>> + Send;
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait RedirectUriRepository: Clone + Send + Sync + 'static {
@@ -186,23 +158,23 @@ pub trait RedirectUriRepository: Clone + Send + Sync + 'static {
         client_id: Uuid,
         value: String,
         enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
     fn get_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
 
     fn get_enabled_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
 
     fn update_enabled(
         &self,
         id: Uuid,
         enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), RedirectUriError>> + Send;
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
