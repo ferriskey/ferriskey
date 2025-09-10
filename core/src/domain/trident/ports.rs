@@ -1,15 +1,14 @@
 use uuid::Uuid;
 
 use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    trident::entities::{TotpError, TotpSecret},
+    authentication::value_objects::Identity, common::entities::app_errors::CoreError,
+    trident::entities::TotpSecret,
 };
 
 pub trait TotpService: Send + Sync + Clone + 'static {
-    fn generate_secret(&self) -> Result<TotpSecret, TotpError>;
+    fn generate_secret(&self) -> Result<TotpSecret, CoreError>;
     fn generate_otpauth_uri(&self, issuer: &str, user_email: &str, secret: &TotpSecret) -> String;
-    fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, TotpError>;
+    fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
 }
 
 pub struct ChallengeOtpInput {

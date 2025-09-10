@@ -1,6 +1,6 @@
-use crate::domain::trident::{
-    entities::{TotpError, TotpSecret},
-    ports::TotpService,
+use crate::domain::{
+    common::entities::app_errors::CoreError,
+    trident::{entities::TotpSecret, ports::TotpService},
 };
 use base32::encode;
 use hmac::{Hmac, Mac};
@@ -19,9 +19,9 @@ impl OauthTotpService {
         OauthTotpService {}
     }
 
-    fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, TotpError> {
+    fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, CoreError> {
         let mut mac = HmacSha1::new_from_slice(secret)
-            .map_err(|_| TotpError::GenerationFailed("Failed to create HMAC".to_string()))?;
+            .map_err(|_| CoreError::TotpGenerationFailed("Failed to create HMAC".to_string()))?;
 
         let mut counter_bytes = [0u8; 8];
 
@@ -41,10 +41,10 @@ impl OauthTotpService {
 }
 
 impl TotpService for OauthTotpService {
-    fn generate_secret(&self) -> Result<TotpSecret, TotpError> {
+    fn generate_secret(&self) -> Result<TotpSecret, CoreError> {
         let mut bytes = [0u8; 20];
         rand::thread_rng().try_fill_bytes(&mut bytes).map_err(|_| {
-            TotpError::GenerationFailed("Failed to generate random bytes".to_string())
+            CoreError::TotpGenerationFailed("Failed to generate random bytes".to_string())
         })?;
         let base32 = encode(base32::Alphabet::Rfc4648 { padding: false }, &bytes); // base32 sans padding
         Ok(TotpSecret::from_base32(&base32))
@@ -61,7 +61,7 @@ impl TotpService for OauthTotpService {
         )
     }
 
-    fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, TotpError> {
+    fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
         let Ok(expected_code) = code.parse::<u32>() else {
             error!("Failed to parse code");
             return Ok(false);

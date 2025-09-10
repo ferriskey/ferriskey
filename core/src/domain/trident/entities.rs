@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
+
+use crate::domain::common::entities::app_errors::CoreError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TotpCredentialData {
@@ -8,24 +9,6 @@ pub struct TotpCredentialData {
     pub period: u64,
     pub issuer: String,
     pub account_name: String,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum TotpError {
-    #[error("Invalid TOTP secret format")]
-    InvalidSecretFormat,
-    #[error("TOTP generation failed: {0}")]
-    GenerationFailed(String),
-    #[error("TOTP verification failed: {0}")]
-    VerificationFailed(String),
-    #[error("Invalid user")]
-    InvalidUser,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum TridentError {
-    #[error("update password error: {0}")]
-    UpdatePasswordFailed(String),
 }
 
 #[derive(Debug, Clone)]
@@ -49,12 +32,12 @@ impl TotpSecret {
         &self.base32
     }
 
-    pub fn to_bytes(&self) -> Result<[u8; 20], TotpError> {
+    pub fn to_bytes(&self) -> Result<[u8; 20], CoreError> {
         let decoded = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &self.base32)
-            .ok_or(TotpError::InvalidSecretFormat)?;
+            .ok_or(CoreError::InvalidTotpSecretFormat)?;
 
         if decoded.len() != 20 {
-            return Err(TotpError::InvalidSecretFormat);
+            return Err(CoreError::InvalidTotpSecretFormat);
         }
 
         let mut bytes = [0u8; 20];
