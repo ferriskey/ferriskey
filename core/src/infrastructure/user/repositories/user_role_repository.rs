@@ -6,8 +6,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::{
-    role::entities::Role,
-    user::{entities::UserError, ports::UserRoleRepository},
+    common::entities::app_errors::CoreError, role::entities::Role, user::ports::UserRoleRepository,
 };
 
 #[derive(Debug, Clone)]
@@ -27,25 +26,25 @@ impl PostgresUserRoleRepository {
 }
 
 impl UserRoleRepository for UserRoleRepoAny {
-    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
         match self {
             UserRoleRepoAny::Postgres(repo) => repo.assign_role(user_id, role_id).await,
         }
     }
 
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
         match self {
             UserRoleRepoAny::Postgres(repo) => repo.revoke_role(user_id, role_id).await,
         }
     }
 
-    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
         match self {
             UserRoleRepoAny::Postgres(repo) => repo.get_user_roles(user_id).await,
         }
     }
 
-    async fn has_role(&self, user_id: Uuid, role_id: Uuid) -> Result<bool, UserError> {
+    async fn has_role(&self, user_id: Uuid, role_id: Uuid) -> Result<bool, CoreError> {
         match self {
             UserRoleRepoAny::Postgres(repo) => repo.has_role(user_id, role_id).await,
         }
@@ -53,7 +52,7 @@ impl UserRoleRepository for UserRoleRepoAny {
 }
 
 impl UserRoleRepository for PostgresUserRoleRepository {
-    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
         let user_role = crate::entity::user_role::ActiveModel {
             role_id: Set(role_id),
             user_id: Set(user_id),
@@ -63,12 +62,12 @@ impl UserRoleRepository for PostgresUserRoleRepository {
         user_role
             .insert(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(())
     }
 
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
         let rows = crate::entity::user_role::Entity::delete_many()
             .filter(
                 Condition::all()
@@ -77,16 +76,16 @@ impl UserRoleRepository for PostgresUserRoleRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         if rows.rows_affected == 0 {
-            return Err(UserError::NotFound);
+            return Err(CoreError::NotFound);
         }
 
         Ok(())
     }
 
-    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
         let roles = crate::entity::roles::Entity::find()
             .join(
                 JoinType::InnerJoin,
@@ -108,7 +107,7 @@ impl UserRoleRepository for PostgresUserRoleRepository {
             .await
             .map_err(|e| {
                 error!("error getting user roles: {:?}", e);
-                UserError::InternalServerError
+                CoreError::InternalServerError
             })?
             .iter()
             .map(|(model, client)| {
@@ -123,7 +122,7 @@ impl UserRoleRepository for PostgresUserRoleRepository {
         Ok(roles)
     }
 
-    async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, UserError> {
+    async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, CoreError> {
         todo!("Implement has_role in PostgresUserRoleRepository");
     }
 }

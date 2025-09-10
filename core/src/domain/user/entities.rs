@@ -6,10 +6,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{
-    common::generate_uuid_v7, realm::entities::Realm, role::entities::Role,
-    webhook::entities::errors::WebhookError,
-};
+use crate::domain::{common::generate_uuid_v7, realm::entities::Realm, role::entities::Role};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct User {
@@ -38,27 +35,6 @@ pub struct UserConfig {
     pub email: String,
     pub email_verified: bool,
     pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum UserError {
-    #[error("User not found")]
-    NotFound,
-
-    #[error("User already exists")]
-    AlreadyExists,
-
-    #[error("Invalid user")]
-    Invalid,
-
-    #[error("Internal server error")]
-    InternalServerError,
-
-    #[error("Forbidden: {0}")]
-    Forbidden(String),
-
-    #[error("Failed to notify webhook : {0}")]
-    FailedWebhookNotification(WebhookError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]

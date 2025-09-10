@@ -1,12 +1,10 @@
 use uuid::Uuid;
 
 use crate::domain::{
+    common::entities::app_errors::CoreError,
     realm::ports::RealmRepository,
     role::{entities::Role, ports::RoleRepository},
-    user::{
-        entities::UserError,
-        ports::{UserRepository, UserRoleRepository, UserRoleService},
-    },
+    user::ports::{UserRepository, UserRoleRepository, UserRoleService},
 };
 
 #[derive(Clone)]
@@ -57,25 +55,25 @@ where
         realm_name: String,
         user_id: Uuid,
         role_id: Uuid,
-    ) -> Result<(), UserError> {
+    ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(realm_name)
             .await
-            .map_err(|_| UserError::InternalServerError)?
-            .ok_or(UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InternalServerError)?;
 
         let role = self
             .role_repository
             .get_by_id(role_id)
             .await
-            .map_err(|_| UserError::InternalServerError)?
-            .ok_or(UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InternalServerError)?;
 
         let user = self.user_repository.get_by_id(user_id).await?;
 
         if user.realm_id != realm.id || role.realm_id != realm.id {
-            return Err(UserError::InternalServerError);
+            return Err(CoreError::InternalServerError);
         }
 
         self.user_role_repository
@@ -83,15 +81,15 @@ where
             .await
     }
 
-    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, UserError> {
+    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
         self.user_role_repository.get_user_roles(user_id).await
     }
 
-    async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, UserError> {
+    async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, CoreError> {
         unimplemented!("has_role method is not implemented yet");
     }
 
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), UserError> {
+    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
         self.user_role_repository
             .revoke_role(user_id, role_id)
             .await

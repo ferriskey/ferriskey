@@ -5,10 +5,13 @@ use sea_orm::{
 use tracing::error;
 use uuid::Uuid;
 
-use crate::domain::user::{
-    entities::{RequiredAction, User, UserConfig, UserError},
-    ports::UserRepository,
-    value_objects::{CreateUserRequest, UpdateUserRequest},
+use crate::domain::{
+    common::entities::app_errors::CoreError,
+    user::{
+        entities::{RequiredAction, User, UserConfig},
+        ports::UserRepository,
+        value_objects::{CreateUserRequest, UpdateUserRequest},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -23,7 +26,7 @@ impl PostgresUserRepository {
 }
 
 impl UserRepository for PostgresUserRepository {
-    async fn create_user(&self, dto: CreateUserRequest) -> Result<User, UserError> {
+    async fn create_user(&self, dto: CreateUserRequest) -> Result<User, CoreError> {
         let user = User::new(UserConfig {
             client_id: dto.client_id,
             email: dto.email,
@@ -52,14 +55,14 @@ impl UserRepository for PostgresUserRepository {
         let t = model
             .insert(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         let user = t.into();
 
         Ok(user)
     }
 
-    async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, UserError> {
+    async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, CoreError> {
         let users_model = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::Username.eq(username.clone()))
             .filter(crate::entity::users::Column::RealmId.eq(realm_id))
@@ -68,24 +71,24 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| {
                 error!("error retrieving user by username: {:?}", e);
-                UserError::NotFound
+                CoreError::NotFound
             })?;
 
         let user_model = users_model.first().cloned();
 
-        let (user_model, realm_model) = user_model.ok_or(UserError::NotFound)?;
+        let (user_model, realm_model) = user_model.ok_or(CoreError::NotFound)?;
 
         let required_actions: Vec<RequiredAction> = user_model
             .find_related(crate::entity::user_required_actions::Entity)
             .all(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .into_iter()
             .map(|action| {
                 action
                     .action
                     .try_into()
-                    .map_err(|_| UserError::InternalServerError)
+                    .map_err(|_| CoreError::InternalServerError)
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -100,19 +103,19 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
-    async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, UserError> {
+    async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, CoreError> {
         let user = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?
-            .ok_or(UserError::NotFound)?;
+            .map_err(|_| CoreError::NotFound)?
+            .ok_or(CoreError::NotFound)?;
 
         let user = user.into();
         Ok(user)
     }
 
-    async fn get_by_id(&self, id: Uuid) -> Result<User, UserError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<User, CoreError> {
         let users_model = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::Id.eq(id))
             .find_also_related(crate::entity::realms::Entity)
@@ -120,24 +123,24 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| {
                 error!("Error retrieving user by ID: {:?}", e);
-                UserError::NotFound
+                CoreError::NotFound
             })?;
 
         let user_model = users_model.first().cloned();
 
-        let (user_model, realm_models) = user_model.ok_or(UserError::NotFound)?;
+        let (user_model, realm_models) = user_model.ok_or(CoreError::NotFound)?;
 
         let required_actions: Vec<RequiredAction> = user_model
             .find_related(crate::entity::user_required_actions::Entity)
             .all(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?
             .into_iter()
             .map(|action| {
                 action
                     .action
                     .try_into()
-                    .map_err(|_| UserError::InternalServerError)
+                    .map_err(|_| CoreError::InternalServerError)
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -150,35 +153,21 @@ impl UserRepository for PostgresUserRepository {
         }
 
         Ok(user)
-
-        // let user_model = entity::users::Entity::find()
-        //     .filter(entity::users::Column::Id.eq(id))
-        //     .join_as(
-        //         JoinType::InnerJoin,
-        //         entity::users::Relation::UserRequiredActions.def(),
-        //         entity::user_required_actions::Entity,
-        //     )
-        //     .one(&self.db)
-        //     .await
-        //     .map_err(|_| UserError::NotFound)?
-        //     .ok_or(UserError::NotFound)?;
-        // let user: User = user_model.into();
-        // Ok(user)
     }
 
-    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, UserError> {
+    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, CoreError> {
         let users = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|_| CoreError::NotFound)?;
 
         let users: Vec<User> = users.into_iter().map(|user| user.into()).collect();
 
         Ok(users)
     }
 
-    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, UserError> {
+    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, CoreError> {
         let rows = crate::entity::users::Entity::delete_many()
             .filter(
                 Condition::all()
@@ -189,29 +178,29 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| {
                 error!("error deleting users: {:?}", e);
-                UserError::NotFound
+                CoreError::NotFound
             })?;
 
         Ok(rows.rows_affected)
     }
 
-    async fn delete_user(&self, user_id: Uuid) -> Result<u64, UserError> {
+    async fn delete_user(&self, user_id: Uuid) -> Result<u64, CoreError> {
         let rows = crate::entity::users::Entity::delete_by_id(user_id)
             .exec(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(rows.rows_affected)
     }
 
-    async fn update_user(&self, user_id: Uuid, dto: UpdateUserRequest) -> Result<User, UserError> {
+    async fn update_user(&self, user_id: Uuid, dto: UpdateUserRequest) -> Result<User, CoreError> {
         let user = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::Id.eq(user_id))
             .one(&self.db)
             .await
-            .map_err(|_| UserError::NotFound)?;
+            .map_err(|_| CoreError::NotFound)?;
 
-        let user = user.ok_or(UserError::NotFound)?;
+        let user = user.ok_or(CoreError::NotFound)?;
 
         let mut active_model: crate::entity::users::ActiveModel = user.into();
 
@@ -224,7 +213,7 @@ impl UserRepository for PostgresUserRepository {
         let updated_user = active_model
             .update(&self.db)
             .await
-            .map_err(|_| UserError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(updated_user.into())
     }
