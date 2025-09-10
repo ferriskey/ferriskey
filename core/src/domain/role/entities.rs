@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{client::entities::Client, webhook::entities::errors::WebhookError};
+use crate::domain::client::entities::Client;
 
 pub mod permission;
 
@@ -19,27 +18,6 @@ pub struct Role {
     pub client: Option<Client>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum RoleError {
-    #[error("Role not found")]
-    NotFound,
-
-    #[error("Role already exists")]
-    AlreadyExists,
-
-    #[error("Invalid role")]
-    Invalid,
-
-    #[error("Internal server error")]
-    InternalServerError,
-
-    #[error("{0}")]
-    Forbidden(String),
-
-    #[error("Failed to notify webhook : {0}")]
-    FailedWebhookNotification(WebhookError),
 }
 
 pub struct UpdateRoleInput {
