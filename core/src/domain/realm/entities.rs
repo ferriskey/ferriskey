@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{common::generate_timestamp, webhook::entities::errors::WebhookError};
+use crate::domain::common::generate_timestamp;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct Realm {
@@ -20,30 +19,6 @@ pub struct RealmSetting {
     pub realm_id: Uuid,
     pub default_signing_algorithm: Option<String>,
     pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum RealmError {
-    #[error("Realm not found")]
-    NotFound,
-
-    #[error("Realm already exists")]
-    AlreadyExists,
-
-    #[error("Invalid realm")]
-    Invalid,
-
-    #[error("Internal server error")]
-    InternalServerError,
-
-    #[error("Cannot delete master realm")]
-    CannotDeleteMaster,
-
-    #[error("Forbidden")]
-    Forbidden,
-
-    #[error("Failed to notify webhook : {0}")]
-    FailedWebhookNotification(WebhookError),
 }
 
 impl RealmSetting {
