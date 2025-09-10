@@ -91,7 +91,7 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
     let webhook_repository =
         WebhookRepoAny::Postgres(PostgresWebhookRepository::new(postgres.get_db()));
     let webhook_notifier_repository =
-        WebhookNotifierRepoAny::Postgres(PostgresWebhookNotifierRepository::new(postgres.get_db()));
+        WebhookNotifierRepoAny::Postgres(PostgresWebhookNotifierRepository::new());
 
     Ok(RepoBundle {
         realm_repository,

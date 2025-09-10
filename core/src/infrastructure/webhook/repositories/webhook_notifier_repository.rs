@@ -1,5 +1,4 @@
 use reqwest::Client;
-use sea_orm::DatabaseConnection;
 use serde::Serialize;
 
 use crate::domain::{
@@ -30,14 +29,12 @@ impl WebhookNotifierRepository for WebhookNotifierRepoAny {
 
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookNotifierRepository {
-    pub db: DatabaseConnection,
     pub http_client: Client,
 }
 
 impl PostgresWebhookNotifierRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new() -> Self {
         Self {
-            db,
             http_client: Client::new(),
         }
     }
