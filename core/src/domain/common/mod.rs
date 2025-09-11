@@ -10,12 +10,12 @@ pub struct AppConfig {
     pub database_url: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DatabaseConfig {
     pub host: String,
     pub port: u16,

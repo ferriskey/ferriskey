@@ -1,0 +1,12 @@
+[package]
+name = "ferriskey-cli"
+dsescription = "Command line interface for FerrisKey"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4.5.47", features = ["env", "derive"] }
+dotenv = "0.15.0"
+ferriskey-core = { path = "../core" }
+tokio = "1.47.1"
