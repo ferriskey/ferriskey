@@ -18,6 +18,7 @@ use validator::Validate;
 use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct AuthRequest {
     #[validate(length(min = 1, message = "response_type is required"))]
     #[serde(default)]
