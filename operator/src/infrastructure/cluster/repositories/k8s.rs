@@ -9,10 +9,7 @@ use crate::{
         cluster::{ClusterPort, ClusterSpec, ClusterStatus},
         error::OperatorError,
     },
-    infrastructure::{
-        cluster::run_cluster_controller,
-        k8s::manifests::{api_service, make_deployment},
-    },
+    infrastructure::k8s::manifests::{api_service, make_deployment},
 };
 
 #[derive(Clone)]
