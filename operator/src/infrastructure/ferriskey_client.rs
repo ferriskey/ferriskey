@@ -11,6 +11,6 @@ pub enum FerriskeyApiError {
 
 #[derive(Clone)]
 pub struct FerriskeyApi {
-    client: Client,
-    base_url: String,
+    _client: Client,
+    _base_url: String,
 }

@@ -3,9 +3,8 @@ use std::sync::Arc;
 use kube::Client;
 
 use crate::{
-    application::services::OperatorService,
-    domain::error::OperatorError,
-    infrastructure::{build_repos_from_conf, cluster::run_cluster_controller},
+    application::services::OperatorService, domain::error::OperatorError,
+    infrastructure::cluster::run_cluster_controller,
 };
 
 pub mod services;
