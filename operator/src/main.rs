@@ -2,32 +2,18 @@ mod controller;
 mod crd;
 mod macros;
 
-use crate::crd::cluster::FerriskeyCluster;
-
-use crate::controller::cluster::reconcile_cluster;
 use ferriskey_operator::application::OperatorApp;
-use futures::StreamExt;
-use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::api::core::v1::Service;
-use kube::api::{ApiResource, DynamicObject, GroupVersionKind};
-use kube::{
-    Api, Client, ResourceExt,
-    runtime::controller::{Action, Controller},
-};
-use kube_runtime::watcher;
-use std::sync::Arc;
-use tracing::{info, warn};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    run().await?;
+
+    OperatorApp::run().await?;
+
     Ok(())
 }
 
 async fn run() -> anyhow::Result<()> {
-    OperatorApp::run().await?;
-    Ok(())
     // let client = Client::try_default().await?;
     // let ferriskey_cluster = Api::<FerriskeyCluster>::all(client.clone());
     // let deployments = Api::<Deployment>::all(client.clone());
@@ -68,5 +54,5 @@ async fn run() -> anyhow::Result<()> {
     //     })
     //     .await;
 
-    // Ok(())
+    Ok(())
 }
