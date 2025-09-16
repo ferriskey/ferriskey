@@ -1189,6 +1189,7 @@ dependencies = [
  "kube",
  "kube-derive",
  "kube-runtime",
+ "reqwest",
  "schemars",
  "serde",
  "serde_json",
