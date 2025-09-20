@@ -86,13 +86,14 @@ pub fn make_admin_secret(spec: &ClusterSpec, namespace: &str) -> Secret {
 pub fn make_migration_job(spec: &ClusterSpec, namespace: &str) -> Job {
     let app_label = format!("ferriskey-{}", spec.name);
     let job_name = format!("ferriskey-migrations-{}", spec.name);
+    let db_secret_ref = spec.database.secret_ref.name.clone();
 
     let env_vars = vec![EnvVar {
         name: "DATABASE_URL".to_string(),
         value: None,
         value_from: Some(EnvVarSource {
             secret_key_ref: Some(SecretKeySelector {
-                name: "ferriskey-db-app".to_string(),
+                name: db_secret_ref,
                 key: "uri".to_string(),
                 optional: Some(false),
             }),
@@ -148,8 +149,9 @@ pub fn make_migration_job(spec: &ClusterSpec, namespace: &str) -> Job {
 }
 
 pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
-    let app_label = format!("ferriskey-{}", spec.name);
+    let app_label = format!("ferriskey-api-{}", spec.name);
     let admin_secret_name = format!("ferriskey-admin-{}", spec.name);
+    let db_secret_ref = spec.database.secret_ref.name.clone();
 
     let env_vars = vec![
         EnvVar {
@@ -157,7 +159,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
             value: None,
             value_from: Some(EnvVarSource {
                 secret_key_ref: Some(SecretKeySelector {
-                    name: "ferriskey-db-app".to_string(),
+                    name: db_secret_ref.clone(),
                     key: "host".to_string(),
                     optional: Some(false),
                 }),
@@ -169,7 +171,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
             value: None,
             value_from: Some(EnvVarSource {
                 secret_key_ref: Some(SecretKeySelector {
-                    name: "ferriskey-db-app".to_string(),
+                    name: db_secret_ref.clone(),
                     key: "dbname".to_string(),
                     optional: Some(false),
                 }),
@@ -181,7 +183,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
             value: None,
             value_from: Some(EnvVarSource {
                 secret_key_ref: Some(SecretKeySelector {
-                    name: "ferriskey-db-app".to_string(),
+                    name: db_secret_ref.clone(),
                     key: "password".to_string(),
                     optional: Some(false),
                 }),
@@ -193,7 +195,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
             value: None,
             value_from: Some(EnvVarSource {
                 secret_key_ref: Some(SecretKeySelector {
-                    name: "ferriskey-db-app".to_string(),
+                    name: db_secret_ref.clone(),
                     key: "port".to_string(),
                     optional: Some(false),
                 }),
@@ -205,7 +207,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
             value: None,
             value_from: Some(EnvVarSource {
                 secret_key_ref: Some(SecretKeySelector {
-                    name: "ferriskey-db-app".to_string(),
+                    name: db_secret_ref.clone(),
                     key: "user".to_string(),
                     optional: Some(false),
                 }),
@@ -256,7 +258,7 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
         },
         EnvVar {
             name: "SERVER_ROOT_PATH".to_string(),
-            value: Some("/api".to_string()),
+            value: Some("/".to_string()),
             ..Default::default()
         },
     ];
@@ -265,6 +267,10 @@ pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
         metadata: ObjectMeta {
             name: Some(format!("ferriskey-api-{}", spec.name)),
             namespace: Some(namespace.to_string()),
+            labels: Some(BTreeMap::from([
+                ("app".to_string(), app_label.clone()),
+                ("component".to_string(), "api".to_string()),
+            ])),
             ..Default::default()
         },
         spec: Some(k8s_openapi::api::apps::v1::DeploymentSpec {

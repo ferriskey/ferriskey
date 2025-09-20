@@ -123,6 +123,7 @@ impl ClusterPort for K8sClusterRepository {
         Ok(ClusterStatus {
             ready: true,
             message: Some("Cluster applied successfully".into()),
+            phase: Some("Progressing".to_string()),
         })
     }
 
