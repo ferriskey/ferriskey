@@ -1,13 +1,17 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use kube::{Api, Client, ResourceExt};
+use kube::{
+    Api, Client, ResourceExt,
+    api::{Patch, PatchParams},
+};
 use kube_runtime::{
     Controller,
     controller::Action,
     finalizer::{Event, finalizer},
     watcher::Config,
 };
+use serde_json::json;
 use tracing::{info, warn};
 
 use crate::{
@@ -16,9 +20,11 @@ use crate::{
         cluster::{ClusterService, ClusterSpec},
         error::OperatorError,
     },
-    infrastructure::k8s::cluster_crd::FerrisKeyCluster,
+    infrastructure::cluster::crds::{FerrisKeyCluster, FerrisKeyClusterStatus},
 };
 
+pub mod crds;
+pub mod manifests;
 pub mod repositories;
 
 const FINALIZER: &str = "ferriskey.rs/finalizer";
@@ -47,6 +53,7 @@ async fn reconcile(
     client: Client,
 ) -> Result<Action, OperatorError> {
     let ns = cluster.namespace().unwrap_or_else(|| "default".to_string());
+    let api: Api<FerrisKeyCluster> = Api::namespaced(client.clone(), &ns);
 
     let spec = ClusterSpec {
         name: cluster.name_any(),
@@ -55,33 +62,110 @@ async fn reconcile(
         database_url: cluster.spec.database_url.clone(),
     };
 
-    let action = finalizer(
-        &Api::<FerrisKeyCluster>::namespaced(client.clone(), &ns),
-        FINALIZER,
-        cluster,
-        |event| async {
-            match event {
-                Event::Apply(_obj) => {
-                    service.reconcile_cluster(&spec, &ns).await?;
-
-                    Ok::<Action, OperatorError>(Action::requeue(std::time::Duration::from_secs(60)))
+    let action = finalizer(&api, FINALIZER, cluster, |event| async {
+        match event {
+            Event::Apply(obj) => {
+                match service.reconcile_cluster(&spec, &ns).await {
+                    Ok(_) => {
+                        if let Err(e) = update_status(
+                            &api,
+                            &obj.name_any(),
+                            FerrisKeyClusterStatus {
+                                ready: true,
+                                message: Some("Cluster successfully deployed".to_string()),
+                            },
+                        )
+                        .await
+                        {
+                            warn!("failed to update status: {:?}", e);
+                        }
+                    }
+                    Err(e) => {
+                        if let Err(status_err) = update_status(
+                            &api,
+                            &obj.name_any(),
+                            FerrisKeyClusterStatus {
+                                ready: false,
+                                message: Some(format!("Error deploying cluster: {}", e)),
+                            },
+                        )
+                        .await
+                        {
+                            warn!("failed to update status: {:?}", status_err);
+                        }
+                        return Err(e);
+                    }
                 }
-                Event::Cleanup(_obj) => {
-                    service.cleanup_cluster(&spec, &ns).await?;
 
-                    Ok::<Action, OperatorError>(Action::await_change())
-                }
+                Ok::<Action, OperatorError>(Action::requeue(std::time::Duration::from_secs(60)))
+            }
+            Event::Cleanup(_) => {
+                info!("starting cleanup for cluster: {}", spec.name);
+                service.cleanup_cluster(&spec, &ns).await?;
+
+                info!("cleanup completed for cluster: {}", spec.name);
+
+                Ok::<Action, OperatorError>(Action::await_change())
+            }
+        }
+    })
+    .await;
+
+    // Gérer spécifiquement les erreurs de finalizer
+    match action {
+        Ok(action) => Ok(action),
+        Err(e) => match &e {
+            kube_runtime::finalizer::Error::RemoveFinalizer(kube::Error::Api(api_err))
+                if api_err.code == 404 =>
+            {
+                info!("✅ Resource already deleted, finalizer removal completed");
+                Ok(Action::await_change())
+            }
+            _ => {
+                tracing::error!("❌ Erreur du finalizer: {:?}", e);
+                Err(OperatorError::InternalServerError {
+                    message: format!("Finalizer error: {:?}", e),
+                })
             }
         },
-    )
-    .await
-    .map_err(
-        |_: kube_runtime::finalizer::Error<_>| OperatorError::InternalServerError {
-            message: "failed to finalizer".into(),
-        },
-    )?;
+    }
+}
 
-    Ok(action)
+async fn update_status(
+    api: &Api<FerrisKeyCluster>,
+    name: &str,
+    status: FerrisKeyClusterStatus,
+) -> Result<(), OperatorError> {
+    let mut cluster = api
+        .get(name)
+        .await
+        .map_err(|e| OperatorError::InternalServerError {
+            message: format!("Failed to get cluster for status update: {}", e),
+        })?;
+
+    cluster.status = Some(status.clone());
+
+    let status_value =
+        serde_json::to_value(&status).map_err(|e| OperatorError::InternalServerError {
+            message: e.to_string(),
+        })?;
+
+    let patch_value = json!({
+        "status": status_value
+    });
+
+    let patch = Patch::Merge(&patch_value);
+    let pp = PatchParams::default();
+
+    api.patch_status(name, &pp, &patch)
+        .await
+        .map_err(|e| OperatorError::InternalServerError {
+            message: format!("Failed to patch cluster status: {}", e),
+        })?;
+
+    info!("status updated for cluster: {}", name);
+
+    Ok(())
 }
 
 fn error_policy(cluster: Arc<FerrisKeyCluster>, err: &OperatorError, _: Arc<()>) -> Action {
