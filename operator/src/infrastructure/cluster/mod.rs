@@ -17,7 +17,7 @@ use tracing::{info, warn};
 use crate::{
     application::services::OperatorService,
     domain::{
-        cluster::{ClusterService, ClusterSpec},
+        cluster::{ClusterService, ClusterSpec, DatabaseConfig, SecretReference},
         error::OperatorError,
     },
     infrastructure::cluster::crds::{FerrisKeyCluster, FerrisKeyClusterStatus},
@@ -55,11 +55,21 @@ async fn reconcile(
     let ns = cluster.namespace().unwrap_or_else(|| "default".to_string());
     let api: Api<FerrisKeyCluster> = Api::namespaced(client.clone(), &ns);
 
+    let secret_ref = SecretReference {
+        name: cluster.spec.database.secret_ref.name.clone(),
+        namespace: cluster.spec.database.secret_ref.namespace.clone(),
+    };
+    let database = DatabaseConfig {
+        database_name: cluster.spec.database.database_name.clone(),
+        secret_ref: secret_ref,
+        ssl_mode: cluster.spec.database.ssl_mode.clone(),
+    };
+
     let spec = ClusterSpec {
         name: cluster.name_any(),
         version: cluster.spec.version.clone(),
         replicas: cluster.spec.replicas,
-        database_url: cluster.spec.database_url.clone(),
+        database,
     };
 
     let action = finalizer(&api, FINALIZER, cluster, |event| async {
@@ -73,6 +83,9 @@ async fn reconcile(
                             FerrisKeyClusterStatus {
                                 ready: true,
                                 message: Some("Cluster successfully deployed".to_string()),
+                                conditions: None,
+                                database_status: None,
+                                phase: Some("Running".to_string()),
                             },
                         )
                         .await
@@ -87,6 +100,9 @@ async fn reconcile(
                             FerrisKeyClusterStatus {
                                 ready: false,
                                 message: Some(format!("Error deploying cluster: {}", e)),
+                                conditions: None,
+                                database_status: None,
+                                phase: Some("Error".to_string()),
                             },
                         )
                         .await

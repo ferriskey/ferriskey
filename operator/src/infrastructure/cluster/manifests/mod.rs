@@ -4,7 +4,8 @@ use k8s_openapi::{
     api::{
         apps::v1::{Deployment, DeploymentSpec},
         core::v1::{
-            Container, ContainerPort, PodSpec, PodTemplateSpec, Service, ServicePort, ServiceSpec,
+            Container, ContainerPort, EnvVar, PodSpec, PodTemplateSpec, Service, ServicePort,
+            ServiceSpec,
         },
     },
     apimachinery::pkg::{apis::meta::v1::LabelSelector, util::intstr::IntOrString},
@@ -40,8 +41,13 @@ pub fn make_webapp_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment
                             "ghcr.io/ferriskey/ferriskey-webapp:{}",
                             spec.version
                         )),
+                        env: Some(vec![EnvVar {
+                            name: "API_URL".to_string(),
+                            value: Some("http://localhost:3333".to_string()),
+                            ..Default::default()
+                        }]),
                         ports: Some(vec![ContainerPort {
-                            container_port: 5555,
+                            container_port: 80,
                             ..Default::default()
                         }]),
                         ..Default::default()
@@ -67,8 +73,8 @@ pub fn make_webapp_service(spec: &ClusterSpec, namespace: &str) -> Service {
         spec: Some(ServiceSpec {
             selector: Some(BTreeMap::from([("app".to_string(), app_label)])),
             ports: Some(vec![ServicePort {
-                port: 5555,
-                target_port: Some(IntOrString::Int(5555)),
+                port: 80,
+                target_port: Some(IntOrString::Int(80)),
                 ..Default::default()
             }]),
             ..Default::default()

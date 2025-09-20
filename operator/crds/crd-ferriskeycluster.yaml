@@ -20,8 +20,32 @@ spec:
         properties:
           spec:
             properties:
-              database_url:
-                type: string
+              database:
+                properties:
+                  database_name:
+                    description: 'Optional: Database name override (if not specified in secret)'
+                    nullable: true
+                    type: string
+                  secret_ref:
+                    description: Reference to a secret containing database credentials
+                    properties:
+                      name:
+                        description: Name of the secret containing database credentials
+                        type: string
+                      namespace:
+                        description: 'Optional: Namespace of the secret (defaults to same namespace as cluster)'
+                        nullable: true
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  ssl_mode:
+                    description: 'Optional: SSL mode for database connection'
+                    nullable: true
+                    type: string
+                required:
+                - secret_ref
+                type: object
               name:
                 type: string
               replicas:
@@ -31,7 +55,7 @@ spec:
               version:
                 type: string
             required:
-            - database_url
+            - database
             - name
             - replicas
             - version
@@ -39,7 +63,49 @@ spec:
           status:
             nullable: true
             properties:
+              conditions:
+                items:
+                  properties:
+                    condition_type:
+                      type: string
+                    last_transition_time:
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - condition_type
+                  - last_transition_time
+                  - status
+                  type: object
+                nullable: true
+                type: array
+              database_status:
+                nullable: true
+                properties:
+                  connected:
+                    type: boolean
+                  database:
+                    nullable: true
+                    type: string
+                  host:
+                    nullable: true
+                    type: string
+                  last_check:
+                    nullable: true
+                    type: string
+                required:
+                - connected
+                type: object
               message:
+                nullable: true
+                type: string
+              phase:
                 nullable: true
                 type: string
               ready:
