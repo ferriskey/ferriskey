@@ -1,83 +1,111 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: ferriskeyclusters.ferriskey.io
+  name: ferriskeyclusters.ferriskey.rs
 spec:
-  group: ferriskey.io
+  group: ferriskey.rs
   names:
     categories: []
-    kind: FerriskeyCluster
+    kind: FerrisKeyCluster
     plural: ferriskeyclusters
-    shortNames:
-    - fkc
+    shortNames: []
     singular: ferriskeycluster
   scope: Namespaced
   versions:
   - additionalPrinterColumns: []
-    name: v1
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Auto-generated derived type for FerriskeyClusterSpec via `CustomResource`
+        description: Auto-generated derived type for FerrisKeyClusterSpec via `CustomResource`
         properties:
           spec:
             properties:
-              backend:
+              database:
                 properties:
-                  allowed_origins:
-                    items:
-                      type: string
-                    nullable: true
-                    type: array
-                  email:
+                  database_name:
+                    description: 'Optional: Database name override (if not specified in secret)'
                     nullable: true
                     type: string
-                  image:
-                    nullable: true
-                    type: string
-                  password:
-                    nullable: true
-                    type: string
-                  replicas:
-                    format: uint8
-                    minimum: 0.0
-                    type: integer
-                  username:
+                  secret_ref:
+                    description: Reference to a secret containing database credentials
+                    properties:
+                      name:
+                        description: Name of the secret containing database credentials
+                        type: string
+                      namespace:
+                        description: 'Optional: Namespace of the secret (defaults to same namespace as cluster)'
+                        nullable: true
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  ssl_mode:
+                    description: 'Optional: SSL mode for database connection'
                     nullable: true
                     type: string
                 required:
-                - replicas
+                - secret_ref
                 type: object
-              frontend:
-                properties:
-                  enabled:
-                    type: boolean
-                  image:
-                    nullable: true
-                    type: string
-                required:
-                - enabled
-                type: object
-              postgres:
-                properties:
-                  image:
-                    nullable: true
-                    type: string
-                  storage:
-                    nullable: true
-                    type: string
-                type: object
+              name:
+                type: string
+              replicas:
+                format: uint32
+                minimum: 0.0
+                type: integer
               version:
-                nullable: true
                 type: string
             required:
-            - backend
-            - frontend
-            - postgres
+            - database
+            - name
+            - replicas
+            - version
             type: object
           status:
             nullable: true
             properties:
+              conditions:
+                items:
+                  properties:
+                    condition_type:
+                      type: string
+                    last_transition_time:
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - condition_type
+                  - last_transition_time
+                  - status
+                  type: object
+                nullable: true
+                type: array
+              database_status:
+                nullable: true
+                properties:
+                  connected:
+                    type: boolean
+                  database:
+                    nullable: true
+                    type: string
+                  host:
+                    nullable: true
+                    type: string
+                  last_check:
+                    nullable: true
+                    type: string
+                required:
+                - connected
+                type: object
               message:
+                nullable: true
+                type: string
+              phase:
                 nullable: true
                 type: string
               ready:
@@ -87,7 +115,7 @@ spec:
             type: object
         required:
         - spec
-        title: FerriskeyCluster
+        title: FerrisKeyCluster
         type: object
     served: true
     storage: true

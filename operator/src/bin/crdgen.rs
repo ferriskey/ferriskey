@@ -1,10 +1,10 @@
-use ferriskey_operator::crd::cluster::FerriskeyCluster;
+use ferriskey_operator::infrastructure::cluster::crds::FerrisKeyCluster;
 use kube::CustomResourceExt;
 use std::fs;
 use std::path::Path;
 
 fn main() {
-    let crd = FerriskeyCluster::crd();
+    let crd = FerrisKeyCluster::crd();
     let bytes = serde_yaml::to_string(&crd).unwrap();
 
     let dir_path = Path::new("crds");
