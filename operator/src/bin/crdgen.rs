@@ -1,4 +1,4 @@
-use ferriskey_operator::infrastructure::k8s::cluster_crd::FerrisKeyCluster;
+use ferriskey_operator::infrastructure::cluster::crds::FerrisKeyCluster;
 use kube::CustomResourceExt;
 use std::fs;
 use std::path::Path;

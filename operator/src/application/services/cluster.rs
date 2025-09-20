@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::{
     application::services::OperatorService,
     domain::{
@@ -17,6 +19,8 @@ impl ClusterService for OperatorService {
                 message: "Cluster name cannot be empty".into(),
             });
         }
+
+        info!("Je suis dans le cluster service reconcile cluster");
 
         self.cluster_repository.apply(spec, namespace).await
     }

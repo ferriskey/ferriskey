@@ -88,6 +88,7 @@ impl FerriskeyService {
             config.database.port,
             config.database.name
         );
+
         let repos = build_repos_from_env(AppConfig { database_url }).await?;
 
         let policy = FerriskeyPolicy::new(
