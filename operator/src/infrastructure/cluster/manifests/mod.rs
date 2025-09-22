@@ -14,6 +14,8 @@ use kube::api::ObjectMeta;
 
 use crate::domain::cluster::ClusterSpec;
 
+pub mod api;
+
 pub fn make_webapp_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
     let app_label = format!("ferriskey-webapp-{}", spec.name);
 
@@ -43,7 +45,7 @@ pub fn make_webapp_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment
                         )),
                         env: Some(vec![EnvVar {
                             name: "API_URL".to_string(),
-                            value: Some("http://localhost:3333".to_string()),
+                            value: Some(spec.api.api_url.clone()),
                             ..Default::default()
                         }]),
                         ports: Some(vec![ContainerPort {

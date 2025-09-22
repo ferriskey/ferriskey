@@ -14,30 +14,27 @@ pub struct OperatorApp;
 
 impl OperatorApp {
     pub async fn run() -> Result<(), OperatorError> {
-        debug!("🔧 Tentative de connexion au cluster Kubernetes...");
-
+        debug!("initializing kubernetes client...");
         let client = Client::try_default().await.map_err(|e| {
-            error!("❌ Impossible de se connecter au cluster Kubernetes: {}", e);
+            error!("unable to create the Kubernetes client: {:?}", e);
             OperatorError::InternalServerError {
                 message: format!("Kubernetes client error: {}", e),
             }
         })?;
 
-        info!("✅ Client Kubernetes initialisé avec succès");
+        info!("kubernetes client initialized");
 
-        debug!("🔧 Initialisation du service opérateur...");
         let service = Arc::new(OperatorService::new().await?);
-        info!("✅ Service opérateur initialisé");
+        info!("service initialized");
 
-        debug!("🔧 Démarrage du contrôleur de cluster...");
         let cluster_controller = run_cluster_controller(client.clone(), service.clone());
 
-        info!("✅ Contrôleur de cluster démarré");
+        info!("cluster controller started");
 
         // Au lieu de join!, utilisons select! pour pouvoir ajouter des logs
         tokio::select! {
             _ = cluster_controller => {
-                info!("🔄 Contrôleur de cluster terminé");
+                info!("Cluster controller has stopped.");
             }
         }
 

@@ -6,6 +6,15 @@ pub struct ClusterSpec {
     pub version: String,
     pub replicas: u32,
     pub database: DatabaseConfig,
+
+    pub api: ApiSpec,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApiSpec {
+    pub webapp_url: String,
+    pub api_url: String,
+    pub allowed_origins: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

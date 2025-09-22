@@ -8,7 +8,12 @@ use serde::{Deserialize, Serialize};
     version = "v1alpha1",
     kind = "FerrisKeyCluster",
     plural = "ferriskeyclusters",
-    namespaced
+    namespaced,
+    shortname = "fkcl",
+    printcolumn = r#"{"name":"Version","type":"string","description":"FerrisKey Version","jsonPath":".spec.version"}"#,
+    printcolumn = r#"{"name":"Replicas","type":"integer","description":"Number of Replicas","jsonPath":".spec.replicas"}"#,
+    printcolumn = r#"{"name":"Ready","type":"boolean","description":"Is the cluster ready?","jsonPath":".status.ready"}"#,
+    printcolumn = r#"{"name":"Phase","type":"string","description":"Current Phase","jsonPath":".status.phase"}"#
 )]
 #[kube(status = "FerrisKeyClusterStatus")]
 pub struct FerrisKeyClusterSpec {
@@ -16,6 +21,20 @@ pub struct FerrisKeyClusterSpec {
     pub version: String,
     pub replicas: u32,
     pub database: DatabaseSpec,
+
+    pub api: ApiSpec,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct ApiSpec {
+    /// URL for the web application
+    pub webapp_url: String,
+
+    /// URL for the API service
+    pub api_url: String,
+
+    /// Allowed origins for CORS
+    pub allowed_origins: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]

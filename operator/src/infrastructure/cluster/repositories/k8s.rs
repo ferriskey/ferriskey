@@ -13,9 +13,12 @@ use crate::{
         cluster::{ClusterPort, ClusterSpec, ClusterStatus},
         error::OperatorError,
     },
-    infrastructure::{
-        cluster::manifests::{make_webapp_deployment, make_webapp_service},
-        k8s::manifests::{api_service, make_admin_secret, make_deployment, make_migration_job},
+    infrastructure::cluster::manifests::{
+        api::{
+            deployment::make_deployment, job::make_migration_job, secret::make_admin_secret,
+            service::make_api_service,
+        },
+        make_webapp_deployment, make_webapp_service,
     },
 };
 
@@ -82,7 +85,7 @@ impl ClusterPort for K8sClusterRepository {
                 message: e.to_string(),
             })?;
 
-        let svc = api_service(spec, namespace);
+        let svc = make_api_service(spec, namespace);
 
         services
             .patch(

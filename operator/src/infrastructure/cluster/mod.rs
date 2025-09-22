@@ -17,7 +17,7 @@ use tracing::{info, warn};
 use crate::{
     application::services::OperatorService,
     domain::{
-        cluster::{ClusterService, ClusterSpec, DatabaseConfig, SecretReference},
+        cluster::{ApiSpec, ClusterService, ClusterSpec, DatabaseConfig, SecretReference},
         error::OperatorError,
     },
     infrastructure::cluster::crds::{FerrisKeyCluster, FerrisKeyClusterStatus},
@@ -40,8 +40,8 @@ pub async fn run_cluster_controller(client: Client, service: Arc<OperatorService
         )
         .for_each(|res| async move {
             match res {
-                Ok(o) => info!("✅ Reconciled: {:?}", o),
-                Err(e) => warn!("❌ Reconcile failed: {:?}", e),
+                Ok(o) => info!("Reconciled: {:?}", o),
+                Err(e) => warn!("Reconcile failed: {:?}", e),
             }
         })
         .await;
@@ -61,8 +61,14 @@ async fn reconcile(
     };
     let database = DatabaseConfig {
         database_name: cluster.spec.database.database_name.clone(),
-        secret_ref: secret_ref,
+        secret_ref,
         ssl_mode: cluster.spec.database.ssl_mode.clone(),
+    };
+
+    let api_spec = ApiSpec {
+        allowed_origins: cluster.spec.api.allowed_origins.clone(),
+        api_url: cluster.spec.api.api_url.clone(),
+        webapp_url: cluster.spec.api.webapp_url.clone(),
     };
 
     let spec = ClusterSpec {
@@ -70,6 +76,8 @@ async fn reconcile(
         version: cluster.spec.version.clone(),
         replicas: cluster.spec.replicas,
         database,
+
+        api: api_spec,
     };
 
     let action = finalizer(&api, FINALIZER, cluster, |event| async {
@@ -134,7 +142,7 @@ async fn reconcile(
             kube_runtime::finalizer::Error::RemoveFinalizer(kube::Error::Api(api_err))
                 if api_err.code == 404 =>
             {
-                info!("✅ Resource already deleted, finalizer removal completed");
+                info!("Resource already deleted, finalizer removal completed");
                 Ok(Action::await_change())
             }
             _ => {

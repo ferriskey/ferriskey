@@ -7,7 +7,6 @@ use crate::{
 
 pub mod cluster;
 pub mod ferriskey_client;
-pub mod k8s;
 
 pub async fn build_repos_from_conf() -> Result<ClusterRepository, OperatorError> {
     let client = Client::try_default()

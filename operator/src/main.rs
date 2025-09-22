@@ -1,6 +1,3 @@
-mod crd;
-mod macros;
-
 use ferriskey_operator::application::OperatorApp;
 
 #[tokio::main]
@@ -9,12 +6,12 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    tracing::info!("🚀 Démarrage de l'opérateur ferriskey");
+    tracing::info!("🚀 Ferriskey operator start-up");
 
     match OperatorApp::run().await {
-        Ok(_) => tracing::info!("✅ Opérateur démarré avec succès"),
+        Ok(_) => tracing::info!("Operator successfully started"),
         Err(e) => {
-            tracing::error!("❌ Erreur lors du démarrage de l'opérateur: {:?}", e);
+            tracing::error!("Error during operator start-up: {:?}", e);
             return Err(e.into());
         }
     }

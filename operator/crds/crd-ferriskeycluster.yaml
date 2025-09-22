@@ -8,11 +8,28 @@ spec:
     categories: []
     kind: FerrisKeyCluster
     plural: ferriskeyclusters
-    shortNames: []
+    shortNames:
+    - fkcl
     singular: ferriskeycluster
   scope: Namespaced
   versions:
-  - additionalPrinterColumns: []
+  - additionalPrinterColumns:
+    - description: FerrisKey Version
+      jsonPath: .spec.version
+      name: Version
+      type: string
+    - description: Number of Replicas
+      jsonPath: .spec.replicas
+      name: Replicas
+      type: integer
+    - description: Is the cluster ready?
+      jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - description: Current Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -20,6 +37,24 @@ spec:
         properties:
           spec:
             properties:
+              api:
+                properties:
+                  allowed_origins:
+                    description: Allowed origins for CORS
+                    items:
+                      type: string
+                    type: array
+                  api_url:
+                    description: URL for the API service
+                    type: string
+                  webapp_url:
+                    description: URL for the web application
+                    type: string
+                required:
+                - allowed_origins
+                - api_url
+                - webapp_url
+                type: object
               database:
                 properties:
                   database_name:
@@ -55,6 +90,7 @@ spec:
               version:
                 type: string
             required:
+            - api
             - database
             - name
             - replicas
