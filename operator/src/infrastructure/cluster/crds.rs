@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
     printcolumn = r#"{"name":"Phase","type":"string","description":"Current Phase","jsonPath":".status.phase"}"#
 )]
 #[kube(status = "FerrisKeyClusterStatus")]
+#[serde(rename_all = "camelCase")]
 pub struct FerrisKeyClusterSpec {
     pub name: String,
     pub version: String,
@@ -26,6 +27,7 @@ pub struct FerrisKeyClusterSpec {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ApiSpec {
     /// URL for the web application
     pub webapp_url: String,
@@ -38,6 +40,7 @@ pub struct ApiSpec {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct DatabaseSpec {
     /// Reference to a secret containing database credentials
     pub secret_ref: SecretReference,
@@ -48,6 +51,7 @@ pub struct DatabaseSpec {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct SecretReference {
     /// Name of the secret containing database credentials
     pub name: String,
@@ -56,6 +60,7 @@ pub struct SecretReference {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct FerrisKeyClusterStatus {
     pub ready: bool,
     pub message: Option<String>,
@@ -65,6 +70,7 @@ pub struct FerrisKeyClusterStatus {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ClusterCondition {
     pub condition_type: String, // e.g., "Ready", "Progressing", "Degraded",
     pub status: String,         // "True", "False", "Unknown"
@@ -74,6 +80,7 @@ pub struct ClusterCondition {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct DatabaseStatus {
     pub connected: bool,
     pub host: Option<String>,

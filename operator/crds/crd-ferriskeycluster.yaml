@@ -39,29 +39,29 @@ spec:
             properties:
               api:
                 properties:
-                  allowed_origins:
+                  allowedOrigins:
                     description: Allowed origins for CORS
                     items:
                       type: string
                     type: array
-                  api_url:
+                  apiUrl:
                     description: URL for the API service
                     type: string
-                  webapp_url:
+                  webappUrl:
                     description: URL for the web application
                     type: string
                 required:
-                - allowed_origins
-                - api_url
-                - webapp_url
+                - allowedOrigins
+                - apiUrl
+                - webappUrl
                 type: object
               database:
                 properties:
-                  database_name:
+                  databaseName:
                     description: 'Optional: Database name override (if not specified in secret)'
                     nullable: true
                     type: string
-                  secret_ref:
+                  secretRef:
                     description: Reference to a secret containing database credentials
                     properties:
                       name:
@@ -74,12 +74,12 @@ spec:
                     required:
                     - name
                     type: object
-                  ssl_mode:
+                  sslMode:
                     description: 'Optional: SSL mode for database connection'
                     nullable: true
                     type: string
                 required:
-                - secret_ref
+                - secretRef
                 type: object
               name:
                 type: string
@@ -102,9 +102,9 @@ spec:
               conditions:
                 items:
                   properties:
-                    condition_type:
+                    conditionType:
                       type: string
-                    last_transition_time:
+                    lastTransitionTime:
                       type: string
                     message:
                       nullable: true
@@ -115,13 +115,13 @@ spec:
                     status:
                       type: string
                   required:
-                  - condition_type
-                  - last_transition_time
+                  - conditionType
+                  - lastTransitionTime
                   - status
                   type: object
                 nullable: true
                 type: array
-              database_status:
+              databaseStatus:
                 nullable: true
                 properties:
                   connected:
@@ -132,7 +132,7 @@ spec:
                   host:
                     nullable: true
                     type: string
-                  last_check:
+                  lastCheck:
                     nullable: true
                     type: string
                 required:
