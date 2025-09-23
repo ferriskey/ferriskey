@@ -24,9 +24,11 @@ use crate::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
-                ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                RecoveryCodeFormatter, RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput,
-                TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                ChallengeOtpOutput, ChallengeWebAuthnInput, ChallengeWebAuthnOutput,
+                GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, RecoveryCodeRepository,
+                SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput, VerifyOtpInput,
+                VerifyOtpOutput,
+	    entities::{TotpSecret, WebAuthnChallenge},
             },
         },
         user::{
@@ -295,6 +297,23 @@ where
         );
 
         Ok(BurnRecoveryCodeOutput { login_url })
+    }
+
+    async fn challenge_webauthn(
+        &self,
+        input: ChallengeWebAuthnInput,
+    ) -> Result<ChallengeWebAuthnOutput, CoreError> {
+        let challenge = WebAuthnChallenge::generate()?;
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let _ = self
+            .auth_session_repository
+            .save_webauthn_challenge(session_code, challenge.encode())
+            .await
+            .map_err(|_| CoreError::InternalServerError);
+
+        Ok(ChallengeWebAuthnOutput {challenge})
     }
 
     async fn challenge_otp(

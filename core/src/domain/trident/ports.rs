@@ -5,13 +5,21 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     credential::entities::Credential,
     crypto::entities::HashResult,
-    trident::entities::{MfaRecoveryCode, TotpSecret},
+    trident::entities::{MfaRecoveryCode, TotpSecret, WebAuthnChallenge},
 };
 
 pub trait TotpService: Send + Sync {
     fn generate_secret(&self) -> Result<TotpSecret, CoreError>;
     fn generate_otpauth_uri(&self, issuer: &str, user_email: &str, secret: &TotpSecret) -> String;
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
+}
+
+pub struct ChallengeWebAuthnInput {
+    pub session_code: String,
+}
+
+pub struct ChallengeWebAuthnOutput {
+    pub challenge: WebAuthnChallenge,
 }
 
 pub struct ChallengeOtpInput {
@@ -115,6 +123,10 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
+    fn challenge_webauthn(
+        &self,
+        input: ChallengeWebAuthnInput,
+    ) -> impl Future<Output = Result<ChallengeWebAuthnOutput, CoreError>> + Send;
     fn challenge_otp(
         &self,
         identity: Identity,
