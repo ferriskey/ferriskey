@@ -15,6 +15,9 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
     fn from(model: crate::entity::auth_sessions::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
+        let web_authn_challenge_issued_at = model
+            .web_authn_challenge_issued_at
+            .map(|ref dt| Utc.from_utc_datetime(&dt));
 
         AuthSession {
             id: model.id,
@@ -30,6 +33,8 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             user_id: model.user_id,
             created_at,
             expires_at,
+            web_authn_challenge: model.web_authn_challenge,
+            web_authn_challenge_issued_at,
         }
     }
 }
@@ -61,6 +66,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             user_id: Set(None),
             created_at: Set(session.created_at.naive_utc()),
             expires_at: Set(session.expires_at.naive_utc()),
+            web_authn_challenge: Set(None),
+            web_authn_challenge_issued_at: Set(None),
         };
 
         let t = model
@@ -124,6 +131,35 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 Expr::value(user_id),
             )
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec_with_returning(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session: {:?}", e);
+                AuthenticationError::Invalid
+            })?
+            .into_iter()
+            .next()
+            .ok_or(AuthenticationError::NotFound)?
+            .into();
+
+        Ok(session)
+    }
+
+    async fn save_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+        challenge: String,
+    ) -> Result<AuthSession, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::update_many()
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .col_expr(
+                crate::entity::auth_sessions::Column::WebAuthnChallenge,
+                Expr::value(challenge),
+            )
+            .col_expr(
+                crate::entity::auth_sessions::Column::WebAuthnChallengeIssuedAt,
+                Expr::value(Utc::now()),
+            )
             .exec_with_returning(&self.db)
             .await
             .map_err(|e| {
