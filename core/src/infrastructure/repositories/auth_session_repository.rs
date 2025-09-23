@@ -17,7 +17,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
         let web_authn_challenge_issued_at = model
             .web_authn_challenge_issued_at
-            .map(|ref dt| Utc.from_utc_datetime(&dt));
+            .map(|ref dt| Utc.from_utc_datetime(dt));
 
         AuthSession {
             id: model.id,
