@@ -8,7 +8,7 @@ use crate::domain::{
     trident::entities::{
         MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnChallenge,
         WebAuthnCredentialDescriptor, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
-        WebAuthnUser,
+        WebAuthnUser, WebAuthnHint, WebAuthnAttestationFormat,
     },
 };
 
@@ -33,10 +33,10 @@ pub struct ChallengeWebAuthnOutput {
     pub rp: WebAuthnRelayingParty,
     pub user: WebAuthnUser,
     pub attestation: WebAuthnAttestationConveyance,
-    pub attestation_formats: Option<Vec<String>>,
+    pub attestation_formats: Option<Vec<WebAuthnAttestationFormat>>,
     pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
     pub exclude_credentials: Option<Vec<WebAuthnCredentialDescriptor>>,
-    pub hints: Option<Vec<String>>,
+    pub hints: Option<Vec<WebAuthnHint>>,
     pub timeout: u64,
 }
 
