@@ -1,16 +1,21 @@
 use base64::Engine;
 use base64::prelude::*;
 
-use super::{SigningAlgorithm, serialize_signing_algorithm, deserialize_signing_algorithm};
+use super::{SigningAlgorithm, deserialize_signing_algorithm, serialize_signing_algorithm};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::user::entities::User;
 use rand::prelude::*;
-use serde::{Serialize, Deserialize, Serializer};
-use serde::de::{Deserializer};
+use serde::de::Deserializer;
+use serde::{Deserialize, Serialize, Serializer};
+use uuid::Uuid;
+
+#[cfg(feature = "utoipa_support")]
+use utoipa::ToSchema;
 
 /// A Webauthn challenge is sent to a user both to create a webauthn credential
 /// and to verify an authentication attempt with a webauthn credential
 #[derive(Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnChallenge(pub Vec<u8>);
 
 impl WebAuthnChallenge {
@@ -34,16 +39,18 @@ impl WebAuthnChallenge {
 }
 
 impl Serialize for WebAuthnChallenge {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> 
-        where S: Serializer,
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.encode().as_str())
     }
 }
 
 impl<'de> Deserialize<'de> for WebAuthnChallenge {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> 
-        where D: Deserializer<'de>,
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let s: String = String::deserialize(deserializer)?;
         WebAuthnChallenge::try_from(s)
@@ -63,6 +70,7 @@ impl TryFrom<String> for WebAuthnChallenge {
 }
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnRelayingParty {
     pub id: String,
 
@@ -73,29 +81,67 @@ pub struct WebAuthnRelayingParty {
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentityjson
 /// A user representation ready to be serialized to JSON with compliant encoding for ID
 /// This is why `id` is a String and not a Uuid here
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnUser {
-    id: String,
-    name: String,
-    display_name: String,
+    pub id: Uuid,
+    pub name: String,
+    pub display_name: String,
 }
 
 impl From<User> for WebAuthnUser {
     fn from(user: User) -> Self {
-        let mut uuid = uuid::Uuid::encode_buffer();
-        let uuid = user.id.hyphenated().encode_lower(&mut uuid);
-        let uuid = BASE64_URL_SAFE_NO_PAD.encode(uuid);
-
         WebAuthnUser {
-            id: uuid,
+            id: user.id,
             name: user.email,
             display_name: user.username,
         }
     }
 }
 
+impl Serialize for WebAuthnUser {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut uuid = uuid::Uuid::encode_buffer();
+        let uuid = self.id.hyphenated().encode_lower(&mut uuid);
+        let uuid = BASE64_URL_SAFE_NO_PAD.encode(uuid);
+        serializer.serialize_str(uuid.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for WebAuthnUser {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct InputPayload {
+            id: String,
+            name: String,
+            display_name: String,
+        }
+
+        let payload: InputPayload = InputPayload::deserialize(deserializer)?;
+
+        let uuid = BASE64_URL_SAFE_NO_PAD.decode(payload.id).map_err(|_| {
+            serde::de::Error::custom("failed to decode id as B64Url without padding")
+        })?;
+        let uuid = Uuid::from_slice(&uuid)
+            .map_err(|_| serde::de::Error::custom("failed to parse id as a valid Uuid"))?;
+
+        Ok(WebAuthnUser {
+            id: uuid,
+            name: payload.name,
+            display_name: payload.display_name,
+        })
+    }
+}
+
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialparameters
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnPubKeyCredParams {
     #[serde(rename = "type")]
     typ: String,
@@ -115,6 +161,7 @@ impl WebAuthnPubKeyCredParams {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAuthenticatorTransport {
     Usb,
     Ble,
@@ -129,11 +176,12 @@ pub enum WebAuthnAuthenticatorTransport {
 ///
 /// Field description: https://w3c.github.io/webauthn/#dictdef-publickeycredentialdescriptor
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnCredentialDescriptor {
     #[serde(rename = "type")]
-    typ: String,
-    id: String,
-    transports: Option<Vec<WebAuthnAuthenticatorTransport>>,
+    pub typ: String,
+    pub id: String,
+    pub transports: Option<Vec<WebAuthnAuthenticatorTransport>>,
 }
 
 impl WebAuthnCredentialDescriptor {
@@ -150,7 +198,8 @@ impl WebAuthnCredentialDescriptor {
 
 /// https://w3c.github.io/webauthn/#attestation-conveyance
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAttestationConveyance {
     None,
     Indirect,
@@ -161,13 +210,14 @@ pub enum WebAuthnAttestationConveyance {
 /// 1. https://w3c.github.io/webauthn/#dom-publickeycredentialcreationoptions-attestationformats
 /// 2. https://www.iana.org/assignments/webauthn/webauthn.xhtml
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAttestationFormat {
     Packed,
     Tpm,
     AndroidKey,
     AndroidSafetynet,
-    #[serde(rename="fido-u2f")]
+    #[serde(rename = "fido-u2f")]
     FidoU2F,
     Apple,
     None,
@@ -175,7 +225,8 @@ pub enum WebAuthnAttestationFormat {
 
 /// https://w3c.github.io/webauthn/#enumdef-publickeycredentialhint
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnHint {
     SecurityKey,
     ClientDevice,

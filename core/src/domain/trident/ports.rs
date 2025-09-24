@@ -6,9 +6,9 @@ use crate::domain::{
     credential::entities::Credential,
     crypto::entities::HashResult,
     trident::entities::{
-        MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnChallenge,
-        WebAuthnCredentialDescriptor, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
-        WebAuthnUser, WebAuthnHint, WebAuthnAttestationFormat,
+        MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnAttestationFormat,
+        WebAuthnChallenge, WebAuthnCredentialDescriptor, WebAuthnHint, WebAuthnPubKeyCredParams,
+        WebAuthnRelayingParty, WebAuthnUser,
     },
 };
 

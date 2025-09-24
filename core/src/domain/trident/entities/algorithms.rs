@@ -1,8 +1,12 @@
-use serde::{Serializer, Deserializer};
-use serde::de::{Visitor, Error};
+use serde::de::{Error, Visitor};
+use serde::{Deserializer, Serializer};
 use std::fmt;
 
-#[derive(Debug)]
+#[cfg(feature = "utoipa_support")]
+use utoipa::ToSchema;
+
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub enum SigningAlgorithm {
     ES256,
     RS256,
@@ -29,9 +33,7 @@ where
     serializer.serialize_i16(value.cose_identifier())
 }
 
-pub fn deserialize_signing_algorithm<'de, D>(
-    deserializer: D,
-) -> Result<SigningAlgorithm, D::Error>
+pub fn deserialize_signing_algorithm<'de, D>(deserializer: D) -> Result<SigningAlgorithm, D::Error>
 where
     D: Deserializer<'de>,
 {
