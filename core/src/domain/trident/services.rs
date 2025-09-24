@@ -21,7 +21,10 @@ use crate::{
         realm::ports::RealmRepository,
         role::ports::RoleRepository,
         trident::{
-            entities::{MfaRecoveryCode, TotpSecret},
+            entities::{
+                TotpSecret, WebAuthnAttestationConveyance, WebAuthnChallenge,
+                WebAuthnRelayingParty, WebAuthnUser,
+            },
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, ChallengeWebAuthnInput, ChallengeWebAuthnOutput,
@@ -301,11 +304,17 @@ where
 
     async fn challenge_webauthn(
         &self,
+        identity: Identity,
         input: ChallengeWebAuthnInput,
     ) -> Result<ChallengeWebAuthnOutput, CoreError> {
         let challenge = WebAuthnChallenge::generate()?;
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
 
         let _ = self
             .auth_session_repository
@@ -313,7 +322,21 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError);
 
-        Ok(ChallengeWebAuthnOutput {challenge})
+        Ok(ChallengeWebAuthnOutput {
+            challenge,
+            rp: WebAuthnRelayingParty {
+                id: input.server_host.clone(),
+                name: input.server_host,
+            },
+            user: WebAuthnUser::from(user),
+            attestation: WebAuthnAttestationConveyance::Direct,
+            attestation_formats: None,
+            // Add supported signing algorithms here
+            pub_key_cred_params: vec![],
+            exclude_credentials: None,
+            hints: None,
+            timeout: 60000,
+        })
     }
 
     async fn challenge_otp(

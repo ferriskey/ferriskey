@@ -1,9 +1,9 @@
-use base64::Engine;
-use base64::prelude::*;
-use rand::prelude::*;
-use serde::{Deserialize, Serialize};
-
+pub mod algorithms;
+pub mod webauthn;
 use crate::domain::common::entities::app_errors::CoreError;
+pub use algorithms::*;
+use serde::{Deserialize, Serialize};
+pub use webauthn::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TotpCredentialData {
@@ -55,37 +55,5 @@ pub struct MfaRecoveryCode(pub Vec<u8>);
 impl MfaRecoveryCode {
     pub fn from_bytes(bytes: &[u8]) -> MfaRecoveryCode {
         MfaRecoveryCode(bytes.to_vec())
-    }
-}
-
-/// A Webauthn challenge is sent to a user both to create a webauthn credential
-/// and to verify an authentication attempt with a webauthn credential
-pub struct WebAuthnChallenge(pub Vec<u8>);
-
-impl WebAuthnChallenge {
-    /// Generates a random 16 bytes number as a challenge
-    /// As specified by the spec, the challenge must be at least 16 bytes long:
-    /// https://w3c.github.io/webauthn/#sctn-cryptographic-challenges
-    pub fn generate() -> Result<Self, CoreError> {
-        let mut bytes = [0u8; 16];
-        rand::thread_rng()
-            .try_fill_bytes(&mut bytes)
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(WebAuthnChallenge(bytes.to_vec()))
-    }
-
-    /// Straight B64 encoding of the challenge
-    pub fn encode(&self) -> String {
-        BASE64_STANDARD.encode(self.0.clone())
-    }
-}
-
-impl TryFrom<String> for WebAuthnChallenge {
-    type Error = CoreError;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let result = BASE64_STANDARD.decode(s).map_err(|_| CoreError::Invalid)?;
-
-        Ok(WebAuthnChallenge(result))
     }
 }

@@ -5,7 +5,11 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     credential::entities::Credential,
     crypto::entities::HashResult,
-    trident::entities::{MfaRecoveryCode, TotpSecret, WebAuthnChallenge},
+    trident::entities::{
+        MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnChallenge,
+        WebAuthnCredentialDescriptor, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
+        WebAuthnUser,
+    },
 };
 
 pub trait TotpService: Send + Sync {
@@ -16,10 +20,24 @@ pub trait TotpService: Send + Sync {
 
 pub struct ChallengeWebAuthnInput {
     pub session_code: String,
+
+    /// This gets passed in the output as RP ID
+    /// (https://w3c.github.io/webauthn/#relying-party-identifier)
+    /// This will work fine for localhost but may not work in other scenario
+    pub server_host: String,
 }
 
+/// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 pub struct ChallengeWebAuthnOutput {
     pub challenge: WebAuthnChallenge,
+    pub rp: WebAuthnRelayingParty,
+    pub user: WebAuthnUser,
+    pub attestation: WebAuthnAttestationConveyance,
+    pub attestation_formats: Option<Vec<String>>,
+    pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
+    pub exclude_credentials: Option<Vec<WebAuthnCredentialDescriptor>>,
+    pub hints: Option<Vec<String>>,
+    pub timeout: u64,
 }
 
 pub struct ChallengeOtpInput {
@@ -125,6 +143,7 @@ pub trait TridentService: Send + Sync {
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
     fn challenge_webauthn(
         &self,
+        identity: Identity,
         input: ChallengeWebAuthnInput,
     ) -> impl Future<Output = Result<ChallengeWebAuthnOutput, CoreError>> + Send;
     fn challenge_otp(
