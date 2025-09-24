@@ -11,6 +11,7 @@ use crate::application::{
         trident::handlers::{
             burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
             challenge_otp::{__path_challenge_otp, challenge_otp},
+            challenge_webauthn::{__path_challenge_webauthn, challenge_webauthn},
             generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
@@ -24,6 +25,7 @@ use crate::application::{
     setup_otp,
     verify_otp,
     challenge_otp,
+    challenge_webauthn,
     update_password,
     burn_recovery_code,
     generate_recovery_codes
@@ -52,6 +54,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(challenge_otp),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/challenge-webauthn",
+                state.args.server.root_path
+            ),
+            post(challenge_webauthn),
         )
         .route(
             &format!(
