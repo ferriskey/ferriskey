@@ -1,7 +1,7 @@
 use base64::Engine;
 use base64::prelude::*;
 
-use super::{SigningAlgorithm, deserialize_signing_algorithm, serialize_signing_algorithm};
+use super::SigningAlgorithm;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::user::entities::User;
 use rand::prelude::*;
@@ -145,8 +145,6 @@ impl<'de> Deserialize<'de> for WebAuthnUser {
 pub struct WebAuthnPubKeyCredParams {
     #[serde(rename = "type")]
     typ: String,
-    #[serde(serialize_with = "serialize_signing_algorithm")]
-    #[serde(deserialize_with = "deserialize_signing_algorithm")]
     alg: SigningAlgorithm,
 }
 
