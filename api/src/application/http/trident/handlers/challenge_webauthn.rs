@@ -11,7 +11,7 @@ use ferriskey_core::domain::trident::entities::{
     WebAuthnUser,
 };
 use ferriskey_core::domain::trident::ports::{
-    ChallengeWebAuthnInput, ChallengeWebAuthnOutput, TridentService,
+    WebAuthnChallengeCreationInput, WebAuthnChallengeCreationOutput, TridentService,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -36,8 +36,8 @@ pub struct ChallengeWebAuthnResponse {
     pub timeout: u64,
 }
 
-impl From<ChallengeWebAuthnOutput> for ChallengeWebAuthnResponse {
-    fn from(output: ChallengeWebAuthnOutput) -> Self {
+impl From<WebAuthnChallengeCreationOutput> for ChallengeWebAuthnResponse {
+    fn from(output: WebAuthnChallengeCreationOutput) -> Self {
         Self {
             challenge: output.challenge,
             rp: output.rp,
@@ -74,9 +74,9 @@ pub async fn challenge_webauthn(
 
     let output = state
         .service
-        .challenge_webauthn(
+        .webauthn_challenge_for_credential_creation(
             identity,
-            ChallengeWebAuthnInput {
+            WebAuthnChallengeCreationInput {
                 session_code,
                 server_host,
             },

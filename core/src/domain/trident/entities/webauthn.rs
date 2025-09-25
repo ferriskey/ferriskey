@@ -1,3 +1,7 @@
+/// Names in here are a bit verbose.
+/// I tried to match as much as possible the definition of the spec:
+/// https://w3c.github.io/webauthn
+/// Hence the redunduncy at some places
 use base64::Engine;
 use base64::prelude::*;
 
@@ -238,4 +242,121 @@ pub enum WebAuthnHint {
     SecurityKey,
     ClientDevice,
     Hybrid,
+}
+
+/// RegistrationResponse defined in the spec doesn't split credential ID
+/// fields in their own structure.
+/// We group them internally because it makes sense to decode and manipulate them together
+/// Hence why there is no "XJson" variation of this struct like for AuthenticatorAttestationResponse
+///
+/// https://w3c.github.io/webauthn/#publickeycredential and https://w3c.github.io/webauthn/#dictdef-registrationresponsejson
+pub struct WebAuthnCredentialId {
+    pub id: String,
+    pub raw_id: Vec<u8>,
+}
+
+impl WebAuthnCredentialId {
+    /// This function returns a decoded and validated WebAuthnCredentialId package or an error
+    /// message as a string.
+    /// The error message is non-punctuated and non-capitalized.
+    /// It must be tweaked or formatted and is destined to the user.
+    /// This function cannot fail due to server error assuming the input data have been
+    /// deserialized correctly
+    ///
+    ///
+    /// Note for future modifications:
+    /// If this function was to ever fail due to server error, the return type MUST be changed in
+    /// such a way that it's easy to differentiate user-destined messages and server-destined ones
+    pub fn decode_and_verify(id: String, raw_id: String) -> Result<Self, String> {
+        let id = BASE64_URL_SAFE_NO_PAD
+            .decode(id)
+            .map_err(|_| "failed to decode id".to_string())?;
+        let id = String::from_utf8(id).map_err(|_| "id is not a valid utf8 string")?;
+
+        let raw_id = BASE64_URL_SAFE_NO_PAD
+            .decode(raw_id)
+            .map_err(|_| "failed to decode raw_id".to_string())?;
+
+        Ok(Self { id, raw_id })
+    }
+}
+
+/// This data structure contains the decoded a verified data
+/// from the client, ready to be inserted into the database.
+///
+/// https://w3c.github.io/webauthn/#authenticatorattestationresponse
+pub struct WebAuthnAuthenticatorAttestationResponse {
+    pub client_data_json: String,
+    pub transports: Vec<WebAuthnAuthenticatorTransport>,
+    pub public_key: Vec<u8>,
+    pub public_key_algorithm: SigningAlgorithm,
+    pub attestation_object: Vec<u8>,
+}
+
+/// This is the straight deserialized payload from the client
+/// Use WebAuthnAuthenticatorAttestationResponse::decode_and_verify()
+/// to get a fully usable and validated AttestationResponse
+///
+/// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebAuthnAuthenticatorAttestationResponseJson {
+    #[serde(rename = "clientDataJSON")]
+    pub client_data_json: String,
+    pub transports: Vec<String>,
+    pub public_key: String,
+    pub public_key_algorithm: i32,
+    pub attestation_object: String,
+}
+
+impl WebAuthnAuthenticatorAttestationResponse {
+    /// This function returns a decoded and validated WebAuthnAuthenticatorAttestationResponse package or an error
+    /// message as a string.
+    /// The error message is non-punctuated and non-capitalized.
+    /// It must be tweaked or formatted and is destined to the user.
+    /// This function cannot fail due to server error assuming the input data have been
+    /// deserialized correctly
+    ///
+    /// Note for future modifications:
+    /// If this function was to ever fail due to server error, the return type MUST be changed in
+    /// such a way that it's easy to differentiate user-destined messages and server-destined ones
+    pub fn decode_and_verify(
+        json: WebAuthnAuthenticatorAttestationResponseJson,
+    ) -> Result<Self, String> {
+        let client_data_json = BASE64_URL_SAFE_NO_PAD
+            .decode(json.client_data_json)
+            .map_err(|_| "failed to decode clientDataJSON".to_string())?;
+
+        let client_data_json = String::from_utf8(client_data_json)
+            .map_err(|_| "failed to parse clientDataJSON as a valid utf8 string".to_string())?;
+
+        let transports = json
+            .transports
+            .into_iter()
+            .map(|t| serde_plain::from_str::<WebAuthnAuthenticatorTransport>(&t))
+            .collect::<Result<Vec<WebAuthnAuthenticatorTransport>, _>>()
+            .map_err(|_| "one or more transport is unrecognized".to_string())?;
+
+        let public_key = BASE64_URL_SAFE_NO_PAD
+            .decode(json.public_key)
+            .map_err(|_| "failed to decode publicKey".to_string())?;
+
+        let attestation_object = BASE64_URL_SAFE_NO_PAD
+            .decode(json.attestation_object)
+            .map_err(|_| "failed to decode attestationObject".to_string())?;
+
+        let public_key_algorithm: SigningAlgorithm = i16
+            ::try_from(json.public_key_algorithm)
+            .map_err(|_| "publicKeyAlgorithm's values must be in the signed 16 byte range".to_string())?
+            .try_into()
+            .map_err(|_| "the provided value for publicKeyAlgorithm is not a COSE algorithm identifier recognized by the server".to_string())?;
+
+        Ok(Self {
+            client_data_json,
+            transports,
+            public_key,
+            public_key_algorithm,
+            attestation_object,
+        })
+    }
 }

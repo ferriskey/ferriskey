@@ -22,6 +22,18 @@ impl SigningAlgorithm {
     }
 }
 
+impl TryFrom<i16> for SigningAlgorithm {
+    type Error = ();
+    fn try_from(v: i16) -> Result<Self, Self::Error> {
+        match v {
+            -7 => Ok(SigningAlgorithm::ES256),
+            -9 => Ok(SigningAlgorithm::EdDSA),
+            -257 => Ok(SigningAlgorithm::RS256),
+            _ => Err(()),
+        }
+    }
+}
+
 impl Serialize for SigningAlgorithm {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -37,12 +49,10 @@ impl<'de> Deserialize<'de> for SigningAlgorithm {
         D: Deserializer<'de>,
     {
         let value = i16::deserialize(deserializer)?;
-        match value {
-            -7 => Ok(SigningAlgorithm::ES256),
-            -257 => Ok(SigningAlgorithm::RS256),
-            -8 => Ok(SigningAlgorithm::EdDSA),
-            other => Err(D::Error::invalid_value(
-                Unexpected::Signed(other as i64),
+        match value.try_into() {
+            Ok(alg) => Ok(alg),
+            Err(_) => Err(D::Error::invalid_value(
+                Unexpected::Signed(value as i64),
                 &"a valid COSE signing algorithm identifier",
             )),
         }

@@ -7,8 +7,9 @@ use crate::domain::{
     crypto::entities::HashResult,
     trident::entities::{
         MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnAttestationFormat,
-        WebAuthnChallenge, WebAuthnCredentialDescriptor, WebAuthnHint, WebAuthnPubKeyCredParams,
-        WebAuthnRelayingParty, WebAuthnUser,
+        WebAuthnAuthenticatorAttestationResponse, WebAuthnChallenge, WebAuthnCredentialDescriptor,
+        WebAuthnCredentialId, WebAuthnHint, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
+        WebAuthnUser,
     },
 };
 
@@ -18,7 +19,7 @@ pub trait TotpService: Send + Sync {
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
 }
 
-pub struct ChallengeWebAuthnInput {
+pub struct WebAuthnChallengeCreationInput {
     pub session_code: String,
 
     /// This gets passed in the output as RP ID
@@ -28,7 +29,7 @@ pub struct ChallengeWebAuthnInput {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-pub struct ChallengeWebAuthnOutput {
+pub struct WebAuthnChallengeCreationOutput {
     pub challenge: WebAuthnChallenge,
     pub rp: WebAuthnRelayingParty,
     pub user: WebAuthnUser,
@@ -39,6 +40,14 @@ pub struct ChallengeWebAuthnOutput {
     pub hints: Vec<WebAuthnHint>,
     pub timeout: u64,
 }
+
+pub struct WebAuthnCredentialCreationInput {
+    pub credential: WebAuthnCredentialId,
+    pub response: WebAuthnAuthenticatorAttestationResponse,
+    pub typ: String,
+}
+
+pub struct WebAuthnCredentialCreationOutput {}
 
 pub struct ChallengeOtpInput {
     pub session_code: String,
@@ -141,11 +150,17 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
-    fn challenge_webauthn(
+    fn webauthn_challenge_for_credential_creation(
         &self,
         identity: Identity,
-        input: ChallengeWebAuthnInput,
-    ) -> impl Future<Output = Result<ChallengeWebAuthnOutput, CoreError>> + Send;
+        input: WebAuthnChallengeCreationInput,
+    ) -> impl Future<Output = Result<WebAuthnChallengeCreationOutput, CoreError>> + Send;
+    fn finalize_webauthn_credential_creation(
+        &self,
+        identity: Identity,
+        input: WebAuthnCredentialCreationInput,
+    ) -> impl Future<Output = Result<WebAuthnCredentialCreationOutput, CoreError>> + Send;
+
     fn challenge_otp(
         &self,
         identity: Identity,
