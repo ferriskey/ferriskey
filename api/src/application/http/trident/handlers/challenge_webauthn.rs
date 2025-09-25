@@ -5,14 +5,8 @@ use crate::application::http::server::{
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::trident::entities::{
-    WebAuthnAttestationConveyance, WebAuthnAttestationFormat, WebAuthnChallenge,
-    WebAuthnCredentialDescriptor, WebAuthnHint, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
-    WebAuthnUser,
-};
-use ferriskey_core::domain::trident::ports::{
-    WebAuthnChallengeCreationInput, WebAuthnChallengeCreationOutput, TridentService,
-};
+use ferriskey_core::domain::trident::entities::WebAuthnPublicKeyCredentialCreationOptions;
+use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnChallengeCreationInput};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -22,35 +16,9 @@ pub struct ChallengeWebAuthnRequest {}
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 /// A tad bit repetetitive but its explicit
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct ChallengeWebAuthnResponse {
-    pub challenge: WebAuthnChallenge,
-    pub rp: WebAuthnRelayingParty,
-    pub user: WebAuthnUser,
-    pub attestation: WebAuthnAttestationConveyance,
-    pub attestation_formats: Vec<WebAuthnAttestationFormat>,
-    pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
-    pub exclude_credentials: Vec<WebAuthnCredentialDescriptor>,
-    pub hints: Vec<WebAuthnHint>,
-    pub timeout: u64,
-}
-
-impl From<WebAuthnChallengeCreationOutput> for ChallengeWebAuthnResponse {
-    fn from(output: WebAuthnChallengeCreationOutput) -> Self {
-        Self {
-            challenge: output.challenge,
-            rp: output.rp,
-            user: output.user,
-            attestation: output.attestation,
-            attestation_formats: output.attestation_formats,
-            pub_key_cred_params: output.pub_key_cred_params,
-            exclude_credentials: output.exclude_credentials,
-            hints: output.hints,
-            timeout: output.timeout,
-        }
-    }
-}
+#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(transparent, rename_all = "camelCase")]
+pub struct ChallengeWebAuthnResponse(WebAuthnPublicKeyCredentialCreationOptions);
 
 #[utoipa::path(
     post,
@@ -84,6 +52,6 @@ pub async fn challenge_webauthn(
         .await
         .map_err(ApiError::from)?;
 
-    let response = ChallengeWebAuthnResponse::from(output);
+    let response = ChallengeWebAuthnResponse(output.0);
     Ok(Response::OK(response))
 }

@@ -6,10 +6,8 @@ use crate::domain::{
     credential::entities::Credential,
     crypto::entities::HashResult,
     trident::entities::{
-        MfaRecoveryCode, TotpSecret, WebAuthnAttestationConveyance, WebAuthnAttestationFormat,
-        WebAuthnAuthenticatorAttestationResponse, WebAuthnChallenge, WebAuthnCredentialDescriptor,
-        WebAuthnCredentialId, WebAuthnHint, WebAuthnPubKeyCredParams, WebAuthnRelayingParty,
-        WebAuthnUser,
+        MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAttestationResponse,
+        WebAuthnCredentialId, WebAuthnPublicKeyCredentialCreationOptions,
     },
 };
 
@@ -29,17 +27,7 @@ pub struct WebAuthnChallengeCreationInput {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-pub struct WebAuthnChallengeCreationOutput {
-    pub challenge: WebAuthnChallenge,
-    pub rp: WebAuthnRelayingParty,
-    pub user: WebAuthnUser,
-    pub attestation: WebAuthnAttestationConveyance,
-    pub attestation_formats: Vec<WebAuthnAttestationFormat>,
-    pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
-    pub exclude_credentials: Vec<WebAuthnCredentialDescriptor>,
-    pub hints: Vec<WebAuthnHint>,
-    pub timeout: u64,
-}
+pub struct WebAuthnChallengeCreationOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
 
 pub struct WebAuthnCredentialCreationInput {
     pub credential: WebAuthnCredentialId,

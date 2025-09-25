@@ -244,6 +244,32 @@ pub enum WebAuthnHint {
     Hybrid,
 }
 
+/// The PublicKeyCredentialCreationOptions object can be filled by the client completely.
+/// To make things easier, we'll provide the complete object from the server when the user requests
+/// a challenge.
+/// This makes the authentication flow more streamline and has the benefit of giving the
+/// server capabilities at the same time
+///
+/// Because encoding cannot fail, this object is automatically encoded when being serialized.
+/// The encoding complies with the spec for PublicKeyCredentialCreationOptionsJson
+///
+/// https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions
+/// and https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
+pub struct WebAuthnPublicKeyCredentialCreationOptions {
+    pub challenge: WebAuthnChallenge,
+    pub rp: WebAuthnRelayingParty,
+    pub user: WebAuthnUser,
+    pub attestation: WebAuthnAttestationConveyance,
+    pub attestation_formats: Vec<WebAuthnAttestationFormat>,
+    pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
+    pub exclude_credentials: Vec<WebAuthnCredentialDescriptor>,
+    pub hints: Vec<WebAuthnHint>,
+    pub timeout: u64,
+}
+
 /// RegistrationResponse defined in the spec doesn't split credential ID
 /// fields in their own structure.
 /// We group them internally because it makes sense to decode and manipulate them together
