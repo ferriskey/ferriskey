@@ -105,8 +105,8 @@ pub struct AuthSession {
     pub authenticated: bool,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-    pub web_authn_challenge: Option<String>,
-    pub web_authn_challenge_issued_at: Option<DateTime<Utc>>,
+    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone)]
@@ -121,8 +121,8 @@ pub struct AuthSessionParams {
     pub user_id: Option<Uuid>,
     pub code: Option<String>,
     pub authenticated: bool,
-    pub web_authn_challenge: Option<String>,
-    pub web_authn_challenge_issued_at: Option<DateTime<Utc>>,
+    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 
 impl AuthSession {
@@ -144,8 +144,8 @@ impl AuthSession {
             authenticated: params.authenticated,
             created_at: now,
             expires_at: now + Duration::minutes(10),
-            web_authn_challenge: params.web_authn_challenge,
-            web_authn_challenge_issued_at: params.web_authn_challenge_issued_at,
+            webauthn_challenge: params.webauthn_challenge,
+            webauthn_challenge_issued_at: params.webauthn_challenge_issued_at,
         }
     }
 }

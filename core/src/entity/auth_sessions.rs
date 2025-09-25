@@ -26,8 +26,8 @@ pub struct Model {
     pub authenticated: bool,
     pub created_at: DateTime,
     pub expires_at: DateTime,
-    pub web_authn_challenge: Option<String>,
-    pub web_authn_challenge_issued_at: Option<DateTime>,
+    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge_issued_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -45,8 +45,8 @@ pub enum Column {
     Authenticated,
     CreatedAt,
     ExpiresAt,
-    WebAuthnChallenge,
-    WebAuthnChallengeIssuedAt,
+    WebauthnChallenge,
+    WebauthnChallengeIssuedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -88,8 +88,8 @@ impl ColumnTrait for Column {
             Self::Authenticated => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
-            Self::WebAuthnChallenge => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::WebAuthnChallengeIssuedAt => ColumnType::DateTime.def(),
+            Self::WebauthnChallenge => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::WebauthnChallengeIssuedAt => ColumnType::DateTime.def(),
         }
     }
 }
