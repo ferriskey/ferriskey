@@ -23,16 +23,23 @@ use crate::entity::webhooks::{
     Relation as WebhookRelation,
 };
 
+#[cfg(test)]
+use crate::domain::webhook::ports::test::MockWebhookRepository;
+
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 #[derive(Clone)]
 pub enum WebhookRepoAny {
     Postgres(PostgresWebhookRepository),
+    #[cfg(test)]
+    Mock(MockWebhookRepository),
 }
 
 impl WebhookRepository for WebhookRepoAny {
     async fn fetch_webhooks_by_realm(&self, realm_id: Uuid) -> Result<Vec<Webhook>, WebhookError> {
         match self {
             Self::Postgres(r) => r.fetch_webhooks_by_realm(realm_id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.fetch_webhooks_by_realm(realm_id).await,
         }
     }
 
@@ -43,6 +50,8 @@ impl WebhookRepository for WebhookRepoAny {
     ) -> Result<Option<Webhook>, WebhookError> {
         match self {
             Self::Postgres(r) => r.get_webhook_by_id(webhook_id, realm_id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.get_webhook_by_id(webhook_id, realm_id).await,
         }
     }
 
@@ -53,6 +62,8 @@ impl WebhookRepository for WebhookRepoAny {
     ) -> Result<Vec<Webhook>, WebhookError> {
         match self {
             Self::Postgres(r) => r.fetch_webhooks_by_subscriber(realm_id, subscriber).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.fetch_webhooks_by_subscriber(realm_id, subscriber).await,
         }
     }
 
@@ -68,6 +79,10 @@ impl WebhookRepository for WebhookRepoAny {
             Self::Postgres(r) => {
                 r.create_webhook(realm_id, name, description, endpoint, subscribers)
                     .await
+            }
+            #[cfg(test)]
+            Self::Mock(m) => {
+                m.create_webhook(realm_id, name, description, endpoint, subscribers).await
             }
         }
     }
@@ -85,12 +100,18 @@ impl WebhookRepository for WebhookRepoAny {
                 r.update_webhook(id, name, description, endpoint, subscribers)
                     .await
             }
+            #[cfg(test)]
+            Self::Mock(m) => {
+                m.update_webhook(id, name, description, endpoint, subscribers).await
+            }
         }
     }
 
     async fn delete_webhook(&self, id: Uuid) -> Result<(), WebhookError> {
         match self {
             Self::Postgres(r) => r.delete_webhook(id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.delete_webhook(id).await,
         }
     }
 }

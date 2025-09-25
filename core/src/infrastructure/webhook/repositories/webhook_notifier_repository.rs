@@ -11,9 +11,14 @@ use crate::domain::{
 };
 use tracing::error;
 
+#[cfg(test)]
+use crate::domain::webhook::ports::test::MockWebhookNotifierRepository;
+
 #[derive(Clone)]
 pub enum WebhookNotifierRepoAny {
     Postgres(PostgresWebhookNotifierRepository),
+    #[cfg(test)]
+    Mock(MockWebhookNotifierRepository),
 }
 
 impl WebhookNotifierRepository for WebhookNotifierRepoAny {
@@ -24,6 +29,8 @@ impl WebhookNotifierRepository for WebhookNotifierRepoAny {
     ) -> Result<(), CoreError> {
         match self {
             WebhookNotifierRepoAny::Postgres(r) => r.notify(webhooks, payload).await,
+            #[cfg(test)]
+            WebhookNotifierRepoAny::Mock(m) => m.notify(webhooks, payload).await,
         }
     }
 }

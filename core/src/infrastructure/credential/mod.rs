@@ -5,9 +5,14 @@ use crate::infrastructure::repositories::credential_repository::PostgresCredenti
 use serde_json::Value;
 use uuid::Uuid;
 
+#[cfg(test)]
+use crate::domain::credential::ports::test::MockCredentialRepository;
+
 #[derive(Clone)]
 pub enum CredentialRepoAny {
     Postgres(PostgresCredentialRepository),
+    #[cfg(test)]
+    Mock(MockCredentialRepository),
 }
 
 impl CredentialRepository for CredentialRepoAny {
@@ -24,18 +29,26 @@ impl CredentialRepository for CredentialRepoAny {
                 repo.create_credential(user_id, credential_type, hash_result, label, temporary)
                     .await
             }
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m
+                .create_credential(user_id, credential_type, hash_result, label, temporary)
+                .await,
         }
     }
 
     async fn get_password_credential(&self, user_id: Uuid) -> Result<Credential, CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => repo.get_password_credential(user_id).await,
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m.get_password_credential(user_id).await,
         }
     }
 
     async fn delete_password_credential(&self, user_id: Uuid) -> Result<(), CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => repo.delete_password_credential(user_id).await,
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m.delete_password_credential(user_id).await,
         }
     }
 
@@ -45,12 +58,16 @@ impl CredentialRepository for CredentialRepoAny {
     ) -> Result<Vec<Credential>, CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => repo.get_credentials_by_user_id(user_id).await,
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m.get_credentials_by_user_id(user_id).await,
         }
     }
 
     async fn delete_by_id(&self, credential_id: Uuid) -> Result<(), CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => repo.delete_by_id(credential_id).await,
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m.delete_by_id(credential_id).await,
         }
     }
 
@@ -73,6 +90,16 @@ impl CredentialRepository for CredentialRepoAny {
                 )
                 .await
             }
+            #[cfg(test)]
+            CredentialRepoAny::Mock(m) => m
+                .create_custom_credential(
+                    user_id,
+                    credential_type,
+                    secret_data,
+                    label,
+                    credential_data,
+                )
+                .await,
         }
     }
 }

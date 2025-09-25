@@ -197,3 +197,126 @@ pub trait UserRoleRepository: Clone + Send + Sync + 'static {
         role_id: Uuid,
     ) -> impl Future<Output = Result<bool, UserError>> + Send;
 }
+
+#[cfg(test)]
+pub mod test {
+    use mockall::mock;
+    use super::*;
+    mock! {
+        pub UserRepository {}
+        impl Clone for UserRepository {
+            fn clone(&self) -> Self;
+        }
+        impl UserRepository for UserRepository {
+            fn create_user(&self,dto: CreateUserRequest) -> impl Future<Output = Result<User, UserError>> + Send;
+            fn get_by_username(&self,username: String,realm_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
+            fn get_by_client_id(&self,client_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
+            fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, UserError>> + Send;
+            fn find_by_realm_id(&self,realm_id: Uuid) -> impl Future<Output = Result<Vec<User>, UserError>> + Send;
+            fn bulk_delete_user(&self,ids: Vec<Uuid>) -> impl Future<Output = Result<u64, UserError>> + Send;
+            fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, UserError>> + Send;
+            fn update_user(&self,user_id: Uuid,dto: UpdateUserRequest) -> impl Future<Output = Result<User, UserError>> + Send;
+        }
+    }
+    pub fn get_mock_user_repository_with_clone_expectations() -> MockUserRepository {
+        let mut mock = MockUserRepository::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_repository_with_clone_expectations());
+        mock
+    }
+    mock! {
+        pub UserRoleRepository {}
+        impl Clone for UserRoleRepository {
+            fn clone(&self) -> Self;
+        }
+        impl UserRoleRepository for UserRoleRepository {
+            fn assign_role(&self,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<(), UserError>> + Send;
+            fn revoke_role(&self,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<(), UserError>> + Send;
+            fn get_user_roles(&self,user_id: Uuid) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
+            fn has_role(&self,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<bool, UserError>> + Send;
+        }
+    }
+    pub fn get_mock_user_role_repository_with_clone_expectations() -> MockUserRoleRepository {
+        let mut mock = MockUserRoleRepository::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_role_repository_with_clone_expectations());
+        mock
+    }
+    mock! {
+        pub UserRequiredActionRepository {}
+        impl Clone for UserRequiredActionRepository {
+            fn clone(&self) -> Self;
+        }
+        impl UserRequiredActionRepository for UserRequiredActionRepository {
+            fn add_required_action(&self,user_id: Uuid,action: RequiredAction) -> impl Future<Output = Result<(), RequiredActionError>> + Send;
+            fn remove_required_action(&self,user_id: Uuid,action: RequiredAction) -> impl Future<Output = Result<(), RequiredActionError>> + Send;
+            fn get_required_actions(&self,user_id: Uuid) -> impl Future<Output = Result<Vec<RequiredAction>, RequiredActionError>> + Send;
+            fn clear_required_actions(&self,user_id: Uuid) -> impl Future<Output = Result<u64, RequiredActionError>> + Send;
+        }
+    }
+    pub fn get_mock_user_required_action_repository_with_clone_expectations() -> MockUserRequiredActionRepository {
+        let mut mock = MockUserRequiredActionRepository::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_required_action_repository_with_clone_expectations());
+        mock
+    }
+    mock! {
+        pub UserRoleService {}
+        impl Clone for UserRoleService {
+            fn clone(&self) -> Self;
+        }
+        impl UserRoleService for UserRoleService {
+            fn assign_role(&self,realm_name: String,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<(), UserError>> + Send;
+            fn revoke_role(&self,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<(), UserError>> + Send;
+            fn get_user_roles(&self,user_id: Uuid) -> impl Future<Output = Result<Vec<Role>, UserError>> + Send;
+            fn has_role(&self,user_id: Uuid,role_id: Uuid) -> impl Future<Output = Result<bool, UserError>> + Send;
+        }
+    }
+    pub fn get_mock_user_role_service_with_clone_expectations() -> MockUserRoleService {
+        let mut mock = MockUserRoleService::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_role_service_with_clone_expectations());
+        mock
+    }
+    mock! {
+        pub UserPolicy {}
+        impl Clone for UserPolicy {
+            fn clone(&self) -> Self;
+        }
+        impl UserPolicy for UserPolicy {
+            fn can_create_user(&self,identity: Identity,target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_view_user(&self,identity: Identity,target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_update_user(&self,identity: Identity,target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_delete_user(&self,identity: Identity,target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+        }
+    }
+    pub fn get_mock_user_policy_with_clone_expectations() -> MockUserPolicy {
+        let mut mock = MockUserPolicy::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_policy_with_clone_expectations());
+        mock
+    }
+    mock! {
+        pub UserService {}
+        impl Clone for UserService {
+            fn clone(&self) -> Self;
+        }
+        impl UserService for UserService {
+            fn delete_user(&self,identity: Identity,realm_name: String,user_id: Uuid) -> impl Future<Output = Result<u64, CoreError>> + Send;
+            fn update_user(&self,identity: Identity,input: UpdateUserInput) -> impl Future<Output = Result<User, CoreError>> + Send;
+            fn reset_password(&self,identity: Identity,input: ResetPasswordInput) -> impl Future<Output = Result<(), CoreError>> + Send;
+            fn get_users(&self,identity: Identity,realm_name: String) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+            fn assign_role(&self,identity: Identity,input: AssignRoleInput) -> impl Future<Output = Result<(), CoreError>> + Send;
+            fn bulk_delete_users(&self,identity: Identity,input: BulkDeleteUsersInput) -> impl Future<Output = Result<u64, CoreError>> + Send;
+            fn create_user(&self,identity: Identity,input: CreateUserInput) -> impl Future<Output = Result<User, CoreError>> + Send;
+            fn get_user(&self,identity: Identity,input: GetUserInput) -> impl Future<Output = Result<User, CoreError>> + Send;
+            fn unassign_role(&self,identity: Identity,input: UnassignRoleInput) -> impl Future<Output = Result<(), CoreError>> + Send;
+        }
+    }
+    pub fn get_mock_user_service_with_clone_expectations() -> MockUserService {
+        let mut mock = MockUserService::new();
+        mock.expect_clone()
+            .returning(|| get_mock_user_service_with_clone_expectations());
+        mock
+    }
+}

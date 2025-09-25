@@ -3,15 +3,22 @@ use crate::domain::jwt::ports::KeyStoreRepository;
 use crate::infrastructure::repositories::keystore_repository::PostgresKeyStoreRepository;
 use uuid::Uuid;
 
+#[cfg(test)]
+use crate::domain::jwt::ports::test::MockKeyStoreRepository;
+
 #[derive(Clone)]
 pub enum KeyStoreRepoAny {
     Postgres(PostgresKeyStoreRepository),
+    #[cfg(test)]
+    Mock(MockKeyStoreRepository),
 }
 
 impl KeyStoreRepository for KeyStoreRepoAny {
     async fn get_or_generate_key(&self, realm_id: Uuid) -> Result<JwtKeyPair, JwtError> {
         match self {
             KeyStoreRepoAny::Postgres(repo) => repo.get_or_generate_key(realm_id).await,
+            #[cfg(test)]
+            KeyStoreRepoAny::Mock(m) => m.get_or_generate_key(realm_id).await,
         }
     }
 }

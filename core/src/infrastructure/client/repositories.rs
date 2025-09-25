@@ -9,15 +9,22 @@ use uuid::Uuid;
 pub mod client_postgres_repository;
 pub mod redirect_uri_postgres_repository;
 
+#[cfg(test)]
+use crate::domain::client::ports::test::{MockClientRepository, MockRedirectUriRepository};
+
 #[derive(Clone)]
 pub enum ClientRepoAny {
     Postgres(PostgresClientRepository),
+    #[cfg(test)]
+    Mock(MockClientRepository),
 }
 
 impl ClientRepository for ClientRepoAny {
     async fn create_client(&self, data: CreateClientRequest) -> Result<Client, ClientError> {
         match self {
             Self::Postgres(repo) => repo.create_client(data).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.create_client(data).await,
         }
     }
 
@@ -28,18 +35,24 @@ impl ClientRepository for ClientRepoAny {
     ) -> Result<Client, ClientError> {
         match self {
             Self::Postgres(repo) => repo.get_by_client_id(client_id, realm_id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.get_by_client_id(client_id, realm_id).await,
         }
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<Client, ClientError> {
         match self {
             Self::Postgres(repo) => repo.get_by_id(id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.get_by_id(id).await,
         }
     }
 
     async fn get_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Client>, ClientError> {
         match self {
             Self::Postgres(repo) => repo.get_by_realm_id(realm_id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.get_by_realm_id(realm_id).await,
         }
     }
 
@@ -50,12 +63,16 @@ impl ClientRepository for ClientRepoAny {
     ) -> Result<Client, ClientError> {
         match self {
             Self::Postgres(repo) => repo.update_client(client_id, data).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.update_client(client_id, data).await,
         }
     }
 
     async fn delete_by_id(&self, id: Uuid) -> Result<(), ClientError> {
         match self {
             Self::Postgres(repo) => repo.delete_by_id(id).await,
+            #[cfg(test)]
+            Self::Mock(m) => m.delete_by_id(id).await,
         }
     }
 }
@@ -63,6 +80,8 @@ impl ClientRepository for ClientRepoAny {
 #[derive(Clone)]
 pub enum RedirectUriRepoAny {
     Postgres(PostgresRedirectUriRepository),
+    #[cfg(test)]
+    Mock(MockRedirectUriRepository),
 }
 
 impl RedirectUriRepository for RedirectUriRepoAny {
@@ -76,6 +95,8 @@ impl RedirectUriRepository for RedirectUriRepoAny {
             RedirectUriRepoAny::Postgres(repo) => {
                 repo.create_redirect_uri(client_id, value, enabled).await
             }
+            #[cfg(test)]
+            RedirectUriRepoAny::Mock(m) => m.create_redirect_uri(client_id, value, enabled).await,
         }
     }
 
@@ -85,6 +106,8 @@ impl RedirectUriRepository for RedirectUriRepoAny {
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.get_by_client_id(client_id).await,
+            #[cfg(test)]
+            RedirectUriRepoAny::Mock(m) => m.get_by_client_id(client_id).await,
         }
     }
 
@@ -94,6 +117,8 @@ impl RedirectUriRepository for RedirectUriRepoAny {
     ) -> Result<Vec<RedirectUri>, RedirectUriError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.get_enabled_by_client_id(client_id).await,
+            #[cfg(test)]
+            RedirectUriRepoAny::Mock(m) => m.get_enabled_by_client_id(client_id).await,
         }
     }
 
@@ -104,12 +129,16 @@ impl RedirectUriRepository for RedirectUriRepoAny {
     ) -> Result<RedirectUri, RedirectUriError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.update_enabled(id, enabled).await,
+            #[cfg(test)]
+            RedirectUriRepoAny::Mock(m) => m.update_enabled(id, enabled).await,
         }
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), RedirectUriError> {
         match self {
             RedirectUriRepoAny::Postgres(repo) => repo.delete(id).await,
+            #[cfg(test)]
+            RedirectUriRepoAny::Mock(m) => m.delete(id).await,
         }
     }
 }

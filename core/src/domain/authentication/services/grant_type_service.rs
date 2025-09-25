@@ -425,3 +425,25 @@ impl GrantTypeStrategy for GrantTypeStrategies {
 //         }
 //     }
 // }
+
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use mockall::mock;
+
+    mock! {
+        pub GrantTypeStrategies {}
+        impl Clone for GrantTypeStrategies { fn clone(&self) -> Self; }
+        impl GrantTypeService for GrantTypeStrategies {
+            fn authenticate_with_grant_type(&self, grant_type: GrantType, params: GrantTypeParams)
+                -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
+        }
+        impl GrantTypeStrategy for GrantTypeStrategies {
+            fn authorization_code(&self, params: GrantTypeParams) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+            fn client_credential(&self, params: GrantTypeParams) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+            fn refresh_token(&self, params: GrantTypeParams) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+            fn password(&self, params: GrantTypeParams) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+        }
+    }
+}

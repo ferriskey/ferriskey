@@ -206,3 +206,128 @@ pub trait RedirectUriRepository: Clone + Send + Sync + 'static {
 
     fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), RedirectUriError>> + Send;
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use mockall::mock;
+
+    mock! {
+        pub ClientService {}
+        impl Clone for ClientService {
+            fn clone(&self) -> Self;
+        }
+        impl ClientService for ClientService {
+            fn create_client(&self,identity: Identity,input: CreateClientInput) -> impl Future<Output = Result<Client, CoreError>> + Send;
+            fn create_redirect_uri(&self,identity: Identity,input: CreateRedirectUriInput) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+            fn create_role(&self,identity: Identity,input: CreateRoleInput) -> impl Future<Output = Result<Role, CoreError>> + Send;
+            fn delete_client(&self,identity: Identity,input: DeleteClientInput) -> impl Future<Output = Result<(), CoreError>> + Send;
+            fn delete_redirect_uri(&self,identity: Identity,input: DeleteRedirectUriInput) -> impl Future<Output = Result<(), CoreError>> + Send;
+            fn get_client_roles(&self,identity: Identity,input: GetClientRolesInput) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+            fn get_client_by_id(&self,identity: Identity,input: GetClientInput) -> impl Future<Output = Result<Client, CoreError>> + Send;
+            fn get_clients(&self,identity: Identity,input: GetClientsInput) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+            fn get_redirect_uris(&self,identity: Identity,input: GetRedirectUrisInput) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+            fn update_client(&self,identity: Identity,input: UpdateClientInput) -> impl Future<Output = Result<Client, CoreError>> + Send;
+            fn update_redirect_uri(&self,identity: Identity,input: UpdateRedirectUriInput) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+        }
+    }
+    pub fn get_mock_client_service_with_clone_expectations() -> MockClientService {
+        let mut mock = MockClientService::new();
+        mock.expect_clone()
+            .returning(|| get_mock_client_service_with_clone_expectations());
+        mock
+    }
+
+    mock! {
+        pub ClientRepository {}
+        impl Clone for ClientRepository { 
+            fn clone(&self) -> Self;
+        }
+        impl ClientRepository for ClientRepository {
+            fn create_client(&self, data: CreateClientRequest) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_client_id(&self, client_id: String, realm_id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_realm_id(&self, realm_id: Uuid) -> impl Future<Output = Result<Vec<Client>, ClientError>> + Send;
+            fn update_client(&self, client_id: Uuid, data: UpdateClientRequest) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
+        }
+    }
+    pub fn get_mock_client_repository_with_clone_expectations() -> MockClientRepository {
+        let mut mock = MockClientRepository::new();
+        mock.expect_clone()
+            .returning(|| get_mock_client_repository_with_clone_expectations());
+        mock
+    }
+
+    mock! {
+        pub RedirectUriService {}
+        impl Clone for RedirectUriService { fn clone(&self) -> Self; }
+        impl RedirectUriService for RedirectUriService {
+            fn add_redirect_uri(&self,payload: CreateRedirectUriRequest,realm_name: String,client_id: Uuid) -> impl Future<Output = Result<RedirectUri, ClientError>> + Send;
+            fn get_by_client_id(&self,client_id: Uuid) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+            fn get_enabled_by_client_id(&self,client_id: Uuid) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+            fn update_enabled(&self,id: Uuid,enabled: bool) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), RedirectUriError>> + Send;
+        }
+    }
+    pub fn get_mock_redirect_uri_service_with_clone_expectations() -> MockRedirectUriService {
+        let mut mock = MockRedirectUriService::new();
+        mock.expect_clone()
+            .returning(|| get_mock_redirect_uri_service_with_clone_expectations());
+        mock
+    }
+
+    mock! {
+        pub RedirectUriRepository {}
+        impl Clone for RedirectUriRepository { fn clone(&self) -> Self; }
+        impl RedirectUriRepository for RedirectUriRepository {
+            fn create_redirect_uri(&self,client_id: Uuid,value: String,enabled: bool) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+            fn get_by_client_id(&self,client_id: Uuid) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+            fn get_enabled_by_client_id(&self,client_id: Uuid) -> impl Future<Output = Result<Vec<RedirectUri>, RedirectUriError>> + Send;
+            fn update_enabled(&self,id: Uuid,enabled: bool) -> impl Future<Output = Result<RedirectUri, RedirectUriError>> + Send;
+            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), RedirectUriError>> + Send;
+        }
+    }
+    pub fn get_mock_redirect_uri_repository_with_clone_expectations() -> MockRedirectUriRepository {
+        let mut mock = MockRedirectUriRepository::new();
+        mock.expect_clone()
+            .returning(|| get_mock_redirect_uri_repository_with_clone_expectations());
+        mock
+    }
+
+    mock! {
+        pub ClientPolicy {}
+        impl Clone for ClientPolicy { fn clone(&self) -> Self; }
+        impl ClientPolicy for ClientPolicy {
+            fn can_create_client(&self, identity: Identity, target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_update_client(&self, identity: Identity, target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_delete_client(&self, identity: Identity, target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+            fn can_view_client(&self, identity: Identity, target_realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+        }
+    }
+    pub fn get_mock_client_policy_with_clone_expectations() -> MockClientPolicy {
+        let mut mock = MockClientPolicy::new();
+        mock.expect_clone()
+            .returning(|| get_mock_client_policy_with_clone_expectations());
+        mock
+    }
+
+    mock! {
+        pub OldClientService {}
+        impl Clone for OldClientService { fn clone(&self) -> Self; }
+        impl OldClientService for OldClientService {
+            fn create_client(&self, payload: CreateClientRequest, realm_name: String) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_client_id(&self, client_id: String, realm_id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn get_by_realm_id(&self, realm_id: Uuid) -> impl Future<Output = Result<Vec<Client>, ClientError>> + Send;
+            fn update_client(&self, client_id: Uuid, realm_name: String, schema: UpdateClientRequest) -> impl Future<Output = Result<Client, ClientError>> + Send;
+            fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), ClientError>> + Send;
+        }
+    }
+    pub fn get_mock_old_client_service_with_clone_expectations() -> MockOldClientService {
+        let mut mock = MockOldClientService::new();
+        mock.expect_clone()
+            .returning(|| get_mock_old_client_service_with_clone_expectations());
+        mock
+    }
+}

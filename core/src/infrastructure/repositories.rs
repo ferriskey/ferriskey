@@ -111,3 +111,59 @@ pub async fn build_repos_from_env(cfg: AppConfig) -> Result<RepoBundle, anyhow::
         webhook_notifier_repository,
     })
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use crate::domain::authentication::ports::test::get_mock_auth_session_repository_with_clone_expectations;
+    use crate::domain::client::ports::test::{get_mock_client_repository_with_clone_expectations, get_mock_redirect_uri_repository_with_clone_expectations};
+    use crate::domain::credential::ports::test::get_mock_credential_repository_with_clone_expectations;
+    use crate::domain::jwt::ports::test::{get_mock_key_store_repository_with_clone_expectations, get_mock_refresh_token_repository_with_clone_expectations};
+    use crate::domain::realm::ports::test::get_mock_realm_repository_with_clone_expectations;
+    use crate::domain::user::ports::test::{
+        get_mock_user_repository_with_clone_expectations, get_mock_user_required_action_repository_with_clone_expectations, get_mock_user_role_repository_with_clone_expectations,
+    };
+    use crate::domain::role::ports::test::get_mock_role_repository_with_clone_expectations;
+    use crate::domain::webhook::ports::test::get_mock_webhook_repository_with_clone_expectations;
+    use crate::domain::health::ports::test::get_mock_health_check_repository_with_clone_expectations;
+    use crate::domain::webhook::ports::test::get_mock_webhook_notifier_repository_with_clone_expectations;
+    
+    pub fn build_repos_mock() -> RepoBundle {
+
+        let realm_repository = RealmRepoAny::Mock(get_mock_realm_repository_with_clone_expectations());
+        let client_repository = ClientRepoAny::Mock(get_mock_client_repository_with_clone_expectations());
+        let user_repository = UserRepoAny::Mock(get_mock_user_repository_with_clone_expectations());
+        let credential_repository = CredentialRepoAny::Mock(get_mock_credential_repository_with_clone_expectations());
+        let hasher_repository = HasherRepoAny::Argon2(Argon2HasherRepository::new());
+        let auth_session_repository = AuthSessionRepoAny::Mock(get_mock_auth_session_repository_with_clone_expectations());
+        let refresh_token_repository = RefreshTokenRepoAny::Mock(get_mock_refresh_token_repository_with_clone_expectations());
+        let redirect_uri_repository = RedirectUriRepoAny::Mock(get_mock_redirect_uri_repository_with_clone_expectations());
+        let role_repository = RoleRepoAny::Mock(get_mock_role_repository_with_clone_expectations());
+        let keystore_repository = KeyStoreRepoAny::Mock(get_mock_key_store_repository_with_clone_expectations());
+        let user_role_repository = UserRoleRepoAny::Mock(get_mock_user_role_repository_with_clone_expectations());
+        let user_required_action_repository =
+            UserRequiredActionRepoAny::Mock(get_mock_user_required_action_repository_with_clone_expectations());
+        let health_check_repository = HealthCheckRepoAny::Mock(get_mock_health_check_repository_with_clone_expectations());
+        let webhook_repository = WebhookRepoAny::Mock(get_mock_webhook_repository_with_clone_expectations());
+        let webhook_notifier_repository =
+            WebhookNotifierRepoAny::Mock(get_mock_webhook_notifier_repository_with_clone_expectations());
+
+        RepoBundle {
+            realm_repository,
+            client_repository,
+            user_repository,
+            credential_repository,
+            hasher_repository,
+            auth_session_repository,
+            refresh_token_repository,
+            redirect_uri_repository,
+            role_repository,
+            keystore_repository,
+            user_role_repository,
+            user_required_action_repository,
+            health_check_repository,
+            webhook_repository,
+            webhook_notifier_repository,
+        }
+    }
+}

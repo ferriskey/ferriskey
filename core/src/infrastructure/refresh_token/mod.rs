@@ -4,9 +4,14 @@ use crate::infrastructure::repositories::refresh_token_repository::PostgresRefre
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+#[cfg(test)]
+use crate::domain::jwt::ports::test::MockRefreshTokenRepository;
+
 #[derive(Clone)]
 pub enum RefreshTokenRepoAny {
     Postgres(PostgresRefreshTokenRepository),
+    #[cfg(test)]
+    Mock(MockRefreshTokenRepository),
 }
 
 impl RefreshTokenRepository for RefreshTokenRepoAny {
@@ -18,18 +23,24 @@ impl RefreshTokenRepository for RefreshTokenRepoAny {
     ) -> Result<RefreshToken, JwtError> {
         match self {
             RefreshTokenRepoAny::Postgres(repo) => repo.create(jti, user_id, expires_at).await,
+            #[cfg(test)]
+            RefreshTokenRepoAny::Mock(m) => m.create(jti, user_id, expires_at).await,
         }
     }
 
     async fn get_by_jti(&self, jti: Uuid) -> Result<RefreshToken, JwtError> {
         match self {
             RefreshTokenRepoAny::Postgres(repo) => repo.get_by_jti(jti).await,
+            #[cfg(test)]
+            RefreshTokenRepoAny::Mock(m) => m.get_by_jti(jti).await,
         }
     }
 
     async fn delete(&self, jti: Uuid) -> Result<(), JwtError> {
         match self {
             RefreshTokenRepoAny::Postgres(repo) => repo.delete(jti).await,
+            #[cfg(test)]
+            RefreshTokenRepoAny::Mock(m) => m.delete(jti).await,
         }
     }
 }

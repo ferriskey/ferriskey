@@ -15,6 +15,9 @@ use crate::domain::{
     },
 };
 
+#[cfg(test)]
+use crate::domain::user::ports::test::MockUserRequiredActionRepository;
+
 #[derive(Debug, Clone)]
 pub struct PostgresUserRequiredActionRepository {
     pub db: DatabaseConnection,
@@ -23,6 +26,8 @@ pub struct PostgresUserRequiredActionRepository {
 #[derive(Clone)]
 pub enum UserRequiredActionRepoAny {
     Postgres(PostgresUserRequiredActionRepository),
+    #[cfg(test)]
+    Mock(MockUserRequiredActionRepository),
 }
 
 impl PostgresUserRequiredActionRepository {
@@ -41,6 +46,8 @@ impl UserRequiredActionRepository for UserRequiredActionRepoAny {
             UserRequiredActionRepoAny::Postgres(repo) => {
                 repo.add_required_action(user_id, action).await
             }
+            #[cfg(test)]
+            UserRequiredActionRepoAny::Mock(m) => m.add_required_action(user_id, action).await,
         }
     }
 
@@ -53,6 +60,8 @@ impl UserRequiredActionRepository for UserRequiredActionRepoAny {
             UserRequiredActionRepoAny::Postgres(repo) => {
                 repo.remove_required_action(user_id, action).await
             }
+            #[cfg(test)]
+            UserRequiredActionRepoAny::Mock(m) => m.remove_required_action(user_id, action).await,
         }
     }
 
@@ -62,12 +71,16 @@ impl UserRequiredActionRepository for UserRequiredActionRepoAny {
     ) -> Result<Vec<RequiredAction>, RequiredActionError> {
         match self {
             UserRequiredActionRepoAny::Postgres(repo) => repo.get_required_actions(user_id).await,
+            #[cfg(test)]
+            UserRequiredActionRepoAny::Mock(m) => m.get_required_actions(user_id).await,
         }
     }
 
     async fn clear_required_actions(&self, user_id: Uuid) -> Result<u64, RequiredActionError> {
         match self {
             UserRequiredActionRepoAny::Postgres(repo) => repo.clear_required_actions(user_id).await,
+            #[cfg(test)]
+            UserRequiredActionRepoAny::Mock(m) => m.clear_required_actions(user_id).await,
         }
     }
 }

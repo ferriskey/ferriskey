@@ -321,3 +321,24 @@ impl AuthenticatePort for AuthenticateFactory {
         ))
     }
 }
+
+
+#[cfg(test)]
+pub mod mock {
+    use super::*;
+    use mockall::mock;
+
+    // This mock lets you use mockall with the AuthenticateFactory contract via the AuthenticatePort trait
+    mock! {
+        pub AuthenticateFactory {}
+        impl Clone for AuthenticateFactory { fn clone(&self) -> Self; }
+        impl AuthenticatePort for AuthenticateFactory {
+            fn handle_token_refresh(&self, token: String, realm_id: Uuid, auth_session: AuthSession, session_code: Uuid) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+            fn handle_user_credentials_authentication(&self, params: CredentialsAuthParams, auth_session: AuthSession) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+            fn determine_next_step(&self, auth_result: AuthenticationResult, session_code: Uuid, auth_session: AuthSession) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+            fn finalize_authentication(&self, user_id: Uuid, session_code: Uuid, auth_session: AuthSession) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+            fn build_redirect_url(&self, auth_session: &AuthSession, authorization_code: &str) -> Result<String, CoreError>;
+            fn using_session_code(&self, realm_name: String, client_id: String, session_code: Uuid, username: String, password: String, base_url: String) -> impl Future<Output = Result<AuthenticationResult, CoreError>> + Send;
+        }
+    }
+}
