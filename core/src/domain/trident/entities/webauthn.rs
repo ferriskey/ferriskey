@@ -6,6 +6,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::user::entities::User;
 use rand::prelude::*;
 use serde::de::Deserializer;
+use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
 
@@ -70,6 +71,7 @@ impl TryFrom<String> for WebAuthnChallenge {
 }
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnRelayingParty {
     pub id: String,
@@ -107,7 +109,12 @@ impl Serialize for WebAuthnUser {
         let mut uuid = uuid::Uuid::encode_buffer();
         let uuid = self.id.hyphenated().encode_lower(&mut uuid);
         let uuid = BASE64_URL_SAFE_NO_PAD.encode(uuid);
-        serializer.serialize_str(uuid.as_str())
+
+        let mut user = serializer.serialize_struct("WebAuthnUser", 3)?;
+        user.serialize_field("id", &uuid)?;
+        user.serialize_field("name", &self.name)?;
+        user.serialize_field("displayName", &self.display_name)?;
+        user.end()
     }
 }
 
@@ -141,6 +148,7 @@ impl<'de> Deserialize<'de> for WebAuthnUser {
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialparameters
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnPubKeyCredParams {
     #[serde(rename = "type")]
@@ -174,6 +182,7 @@ pub enum WebAuthnAuthenticatorTransport {
 ///
 /// Field description: https://w3c.github.io/webauthn/#dictdef-publickeycredentialdescriptor
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnCredentialDescriptor {
     #[serde(rename = "type")]

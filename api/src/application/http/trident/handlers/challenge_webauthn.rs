@@ -23,15 +23,16 @@ pub struct ChallengeWebAuthnRequest {}
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 /// A tad bit repetetitive but its explicit
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ChallengeWebAuthnResponse {
     pub challenge: WebAuthnChallenge,
     pub rp: WebAuthnRelayingParty,
     pub user: WebAuthnUser,
     pub attestation: WebAuthnAttestationConveyance,
-    pub attestation_formats: Option<Vec<WebAuthnAttestationFormat>>,
+    pub attestation_formats: Vec<WebAuthnAttestationFormat>,
     pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
-    pub exclude_credentials: Option<Vec<WebAuthnCredentialDescriptor>>,
-    pub hints: Option<Vec<WebAuthnHint>>,
+    pub exclude_credentials: Vec<WebAuthnCredentialDescriptor>,
+    pub hints: Vec<WebAuthnHint>,
     pub timeout: u64,
 }
 
