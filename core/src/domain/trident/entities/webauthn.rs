@@ -307,6 +307,48 @@ impl WebAuthnCredentialId {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+pub struct WebAuthnAttestationObject(Vec<u8>);
+
+impl WebAuthnAttestationObject {
+    pub fn encode(&self) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(&self.0)
+    }
+
+    pub fn decode(b64_data: &str) -> Result<Self, ()> {
+        BASE64_URL_SAFE_NO_PAD
+            .decode(b64_data)
+            .map(|bytes| WebAuthnAttestationObject(bytes))
+            .map_err(|_| ())
+    }
+}
+
+impl Serialize for WebAuthnAttestationObject {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.encode().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        WebAuthnAttestationObject::decode(&value).map_err(|_| {
+            D::Error::invalid_value(
+                Unexpected::Str(&value),
+                &"failed to decode string with B64 URL",
+            )
+        })
+    }
+}
+
 /// This data structure contains the decoded a verified data
 /// from the client, ready to be inserted into the database.
 ///
@@ -316,7 +358,7 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
     pub transports: Vec<WebAuthnAuthenticatorTransport>,
     pub public_key: Vec<u8>,
     pub public_key_algorithm: SigningAlgorithm,
-    pub attestation_object: Vec<u8>,
+    pub attestation_object: WebAuthnAttestationObject,
 }
 
 impl<'de> Deserialize<'de> for WebAuthnAuthenticatorAttestationResponse {
@@ -362,8 +404,7 @@ impl<'de> Deserialize<'de> for WebAuthnAuthenticatorAttestationResponse {
                 )
             })?;
 
-        let attestation_object = BASE64_URL_SAFE_NO_PAD
-            .decode(helper.attestation_object.clone())
+        let attestation_object = WebAuthnAttestationObject::decode(&helper.attestation_object)
             .map_err(|_| {
                 D::Error::invalid_value(
                     Unexpected::Str(&helper.attestation_object),

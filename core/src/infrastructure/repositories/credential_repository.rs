@@ -1,4 +1,7 @@
-use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use crate::{
+    domain::trident::entities::WebAuthnAuthenticatorAttestationResponse,
+    entity::credentials::{ActiveModel, Entity as CredentialEntity},
+};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
@@ -224,5 +227,37 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(())
+    }
+
+    async fn create_webauthn_credential(
+        &self,
+        user_id: uuid::Uuid,
+        attestation_response: WebAuthnAuthenticatorAttestationResponse,
+    ) -> Result<Credential, CredentialError> {
+        let (now, _) = generate_timestamp();
+
+        let credential_data = CredentialData::new_webauthn(attestation_response.attestation_object);
+        let credential_data = serde_json::to_value(credential_data)
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        let payload = ActiveModel {
+            id: Set(generate_uuid_v7()),
+            salt: Set(None),
+            credential_type: Set("webauthn-public-key-credential".to_string()),
+            user_id: Set(user_id),
+            user_label: Set(None),
+            secret_data: Set("".to_string()),
+            credential_data: Set(credential_data),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(false)),
+        };
+
+        let model = payload
+            .insert(&self.db)
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(model.into())
     }
 }

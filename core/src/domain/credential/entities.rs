@@ -5,6 +5,8 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::trident::entities::WebAuthnAttestationObject;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 pub struct Credential {
     pub id: Uuid,
@@ -108,8 +110,7 @@ pub enum CredentialData {
         algorithm: String,
     },
     WebAuthn {
-        webauthn_cred_id: String,
-        public_key: String,
+        attestation_object: WebAuthnAttestationObject,
     },
 }
 
@@ -123,11 +124,8 @@ impl CredentialData {
 
     /// Do not confuse, cred_id here is the credential ID that was returned by the
     /// authenticator, not the ID that will be used to store the credential in DB
-    pub fn new_webauthn(webauthn_cred_id: String, public_key: String) -> Self {
-        Self::WebAuthn {
-            webauthn_cred_id,
-            public_key,
-        }
+    pub fn new_webauthn(attestation_object: WebAuthnAttestationObject) -> Self {
+        Self::WebAuthn { attestation_object }
     }
 }
 
