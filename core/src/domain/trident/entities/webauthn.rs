@@ -9,7 +9,7 @@ use super::SigningAlgorithm;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::user::entities::User;
 use rand::prelude::*;
-use serde::de::Deserializer;
+use serde::de::{Deserializer, Error, Unexpected};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
@@ -319,69 +319,63 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
     pub attestation_object: Vec<u8>,
 }
 
-/// This is the straight deserialized payload from the client
-/// Use WebAuthnAuthenticatorAttestationResponse::decode_and_verify()
-/// to get a fully usable and validated AttestationResponse
-///
-/// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WebAuthnAuthenticatorAttestationResponseJson {
-    #[serde(rename = "clientDataJSON")]
-    pub client_data_json: String,
-    pub transports: Vec<String>,
-    pub public_key: String,
-    pub public_key_algorithm: i32,
-    pub attestation_object: String,
-}
+impl<'de> Deserialize<'de> for WebAuthnAuthenticatorAttestationResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        /// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
+        pub struct Helper {
+            #[serde(rename = "clientDataJSON")]
+            pub client_data_json: String,
+            pub transports: Vec<WebAuthnAuthenticatorTransport>,
+            pub public_key: String,
+            pub public_key_algorithm: SigningAlgorithm,
+            pub attestation_object: String,
+        }
 
-impl WebAuthnAuthenticatorAttestationResponse {
-    /// This function returns a decoded and validated WebAuthnAuthenticatorAttestationResponse package or an error
-    /// message as a string.
-    /// The error message is non-punctuated and non-capitalized.
-    /// It must be tweaked or formatted and is destined to the user.
-    /// This function cannot fail due to server error assuming the input data have been
-    /// deserialized correctly
-    ///
-    /// Note for future modifications:
-    /// If this function was to ever fail due to server error, the return type MUST be changed in
-    /// such a way that it's easy to differentiate user-destined messages and server-destined ones
-    pub fn decode_and_verify(
-        json: WebAuthnAuthenticatorAttestationResponseJson,
-    ) -> Result<Self, String> {
+        let helper = Helper::deserialize(deserializer)?;
         let client_data_json = BASE64_URL_SAFE_NO_PAD
-            .decode(json.client_data_json)
-            .map_err(|_| "failed to decode clientDataJSON".to_string())?;
+            .decode(helper.client_data_json.clone())
+            .map_err(|_| {
+                D::Error::invalid_value(
+                    Unexpected::Str(&helper.client_data_json),
+                    &"a Base64URL encoded JSON payload",
+                )
+            })?;
 
-        let client_data_json = String::from_utf8(client_data_json)
-            .map_err(|_| "failed to parse clientDataJSON as a valid utf8 string".to_string())?;
-
-        let transports = json
-            .transports
-            .into_iter()
-            .map(|t| serde_plain::from_str::<WebAuthnAuthenticatorTransport>(&t))
-            .collect::<Result<Vec<WebAuthnAuthenticatorTransport>, _>>()
-            .map_err(|_| "one or more transport is unrecognized".to_string())?;
+        let client_data_json = String::from_utf8(client_data_json.clone()).map_err(|_| {
+            D::Error::invalid_value(
+                Unexpected::Bytes(&client_data_json),
+                &"a valid UTF8 JSON payload",
+            )
+        })?;
 
         let public_key = BASE64_URL_SAFE_NO_PAD
-            .decode(json.public_key)
-            .map_err(|_| "failed to decode publicKey".to_string())?;
+            .decode(helper.public_key.clone())
+            .map_err(|_| {
+                D::Error::invalid_value(
+                    Unexpected::Str(&helper.public_key),
+                    &"a Base64URL encoded byte sequence",
+                )
+            })?;
 
         let attestation_object = BASE64_URL_SAFE_NO_PAD
-            .decode(json.attestation_object)
-            .map_err(|_| "failed to decode attestationObject".to_string())?;
-
-        let public_key_algorithm: SigningAlgorithm = i16
-            ::try_from(json.public_key_algorithm)
-            .map_err(|_| "publicKeyAlgorithm's values must be in the signed 16 byte range".to_string())?
-            .try_into()
-            .map_err(|_| "the provided value for publicKeyAlgorithm is not a COSE algorithm identifier recognized by the server".to_string())?;
+            .decode(helper.attestation_object.clone())
+            .map_err(|_| {
+                D::Error::invalid_value(
+                    Unexpected::Str(&helper.attestation_object),
+                    &"a Base64URL encoded byte sequence",
+                )
+            })?;
 
         Ok(Self {
             client_data_json,
-            transports,
+            transports: helper.transports,
             public_key,
-            public_key_algorithm,
+            public_key_algorithm: helper.public_key_algorithm,
             attestation_object,
         })
     }
