@@ -36,7 +36,7 @@ impl HasherRepository for Argon2HasherRepository {
         let argon2 = Argon2::new(argon2::Algorithm::Argon2d, Version::V0x13, params.clone());
 
         let credential_data =
-            CredentialData::new(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
+            CredentialData::new_hash(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
 
         let password_hash = argon2
             .hash_password(password.as_bytes(), &salt)
@@ -51,10 +51,11 @@ impl HasherRepository for Argon2HasherRepository {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
         _salt: &str,
     ) -> Result<bool, anyhow::Error> {
-        let algorithm = match credential_data.algorithm.as_str() {
+        let algorithm = match algorithm {
             "argon2i" => Algorithm::Argon2i,
             "argon2d" => Algorithm::Argon2d,
             _ => Algorithm::Argon2id, // Par défaut, utiliser Argon2id
@@ -63,7 +64,7 @@ impl HasherRepository for Argon2HasherRepository {
         let argon2 = Argon2::new(
             algorithm,
             Version::V0x13,
-            Params::new(65536, credential_data.hash_iterations, 4, None)
+            Params::new(65536, hash_iterations, 4, None)
                 .map_err(|e| anyhow::anyhow!("Erreur de configuration des paramètres: {}", e))?,
         );
 

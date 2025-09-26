@@ -254,7 +254,7 @@ pub enum WebAuthnHint {
 /// The encoding complies with the spec for PublicKeyCredentialCreationOptionsJson
 ///
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions
-/// and https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
+/// https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]

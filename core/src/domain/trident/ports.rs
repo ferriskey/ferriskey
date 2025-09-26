@@ -3,7 +3,6 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
-    credential::entities::Credential,
     crypto::entities::HashResult,
     trident::entities::{
         MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAttestationResponse,
@@ -112,8 +111,11 @@ pub trait RecoveryCodeRepository: Send + Sync {
     fn verify(
         &self,
         in_code: &MfaRecoveryCode,
-        against: Credential,
-    ) -> impl Future<Output = Result<Option<Credential>, CoreError>> + Send;
+        secret_data: &str,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait RecoveryCodeFormatter: Send + Sync {

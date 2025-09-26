@@ -23,7 +23,7 @@ impl From<crate::entity::credentials::Model> for Credential {
 
         let credential_data = serde_json::from_value(model.credential_data)
             .map_err(|_| CredentialError::GetPasswordCredentialError)
-            .unwrap_or(CredentialData {
+            .unwrap_or(CredentialData::Hash {
                 hash_iterations: 0,
                 algorithm: "default".to_string(),
             });

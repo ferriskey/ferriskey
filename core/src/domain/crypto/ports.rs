@@ -1,7 +1,7 @@
-use crate::domain::{credential::entities::CredentialData, crypto::entities::HashResult};
+use crate::domain::crypto::entities::HashResult;
 
-#[cfg_attr(test, mockall::automock)]
-pub trait HasherRepository: Send + Sync {
+#[deprecated]
+pub trait CryptoService: Clone + Send + Sync + 'static {
     fn hash_password(
         &self,
         password: &str,
@@ -10,7 +10,24 @@ pub trait HasherRepository: Send + Sync {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> impl Future<Output = Result<bool, anyhow::Error>> + Send;
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait HasherRepository: Clone + Send + Sync + 'static {
+    fn hash_password(
+        &self,
+        password: &str,
+    ) -> impl Future<Output = Result<HashResult, anyhow::Error>> + Send;
+    fn verify_password(
+        &self,
+        password: &str,
+        secret_data: &str,
+        hash_iterations: u32,
+        algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, anyhow::Error>> + Send;
 }

@@ -101,16 +101,32 @@ impl Credential {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
-pub struct CredentialData {
-    pub hash_iterations: u32,
-    pub algorithm: String,
+#[serde(untagged)]
+pub enum CredentialData {
+    Hash {
+        hash_iterations: u32,
+        algorithm: String,
+    },
+    WebAuthn {
+        webauthn_cred_id: String,
+        public_key: String,
+    },
 }
 
 impl CredentialData {
-    pub fn new(hash_iterations: u32, algorithm: String) -> Self {
-        Self {
+    pub fn new_hash(hash_iterations: u32, algorithm: String) -> Self {
+        Self::Hash {
             hash_iterations,
             algorithm,
+        }
+    }
+
+    /// Do not confuse, cred_id here is the credential ID that was returned by the
+    /// authenticator, not the ID that will be used to store the credential in DB
+    pub fn new_webauthn(webauthn_cred_id: String, public_key: String) -> Self {
+        Self::WebAuthn {
+            webauthn_cred_id,
+            public_key,
         }
     }
 }
