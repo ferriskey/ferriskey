@@ -282,6 +282,8 @@ pub struct WebAuthnCredentialId {
 }
 
 impl WebAuthnCredentialId {
+    /// https://w3c.github.io/webauthn/#credential-id
+    pub const MAX_BYTE_LEN: u32 = 1023;
     /// This function returns a decoded and validated WebAuthnCredentialId package or an error
     /// message as a string.
     /// The error message is non-punctuated and non-capitalized.
@@ -349,6 +351,50 @@ impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
     }
 }
 
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+pub struct WebAuthnPublicKey(pub Vec<u8>);
+
+impl WebAuthnPublicKey {
+    /// This byte length is arbitrary and should cover most use cases
+    pub const MAX_BYTE_LEN: u32 = 512;
+
+    pub fn encode(&self) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(&self.0)
+    }
+
+    pub fn decode(value: &str) -> Result<Self, ()> {
+        BASE64_URL_SAFE_NO_PAD
+            .decode(value)
+            .map_err(|_| ())
+            .map(|v| WebAuthnPublicKey(v))
+    }
+}
+
+impl Serialize for WebAuthnPublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.encode().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for WebAuthnPublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        WebAuthnPublicKey::decode(&value).map_err(|_| {
+            D::Error::invalid_value(
+                Unexpected::Str(&value),
+                &"failed to decode string with B64 URL",
+            )
+        })
+    }
+}
+
 /// This data structure contains the decoded a verified data
 /// from the client, ready to be inserted into the database.
 ///
@@ -356,7 +402,7 @@ impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
 pub struct WebAuthnAuthenticatorAttestationResponse {
     pub client_data_json: String,
     pub transports: Vec<WebAuthnAuthenticatorTransport>,
-    pub public_key: Vec<u8>,
+    pub public_key: WebAuthnPublicKey,
     pub public_key_algorithm: SigningAlgorithm,
     pub attestation_object: WebAuthnAttestationObject,
 }
@@ -395,14 +441,12 @@ impl<'de> Deserialize<'de> for WebAuthnAuthenticatorAttestationResponse {
             )
         })?;
 
-        let public_key = BASE64_URL_SAFE_NO_PAD
-            .decode(helper.public_key.clone())
-            .map_err(|_| {
-                D::Error::invalid_value(
-                    Unexpected::Str(&helper.public_key),
-                    &"a Base64URL encoded byte sequence",
-                )
-            })?;
+        let public_key = WebAuthnPublicKey::decode(&helper.public_key).map_err(|_| {
+            D::Error::invalid_value(
+                Unexpected::Str(&helper.public_key),
+                &"a Base64URL encoded byte sequence",
+            )
+        })?;
 
         let attestation_object = WebAuthnAttestationObject::decode(&helper.attestation_object)
             .map_err(|_| {

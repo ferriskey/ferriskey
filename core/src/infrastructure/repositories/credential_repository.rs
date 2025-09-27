@@ -1,5 +1,5 @@
 use crate::{
-    domain::trident::entities::WebAuthnAuthenticatorAttestationResponse,
+    domain::trident::entities::{WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId},
     entity::credentials::{ActiveModel, Entity as CredentialEntity},
 };
 use chrono::{TimeZone, Utc};
@@ -80,6 +80,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
+            webauthn_credential_id: Set(None),
+            webauthn_public_key: Set(None),
         };
 
         let t = payload
@@ -180,6 +182,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
+            webauthn_credential_id: Set(None),
+            webauthn_public_key: Set(None),
         };
 
         let model = payload
@@ -219,6 +223,8 @@ impl CredentialRepository for PostgresCredentialRepository {
                 created_at: Set(now.naive_utc()),
                 updated_at: Set(now.naive_utc()),
                 temporary: Set(Some(false)),
+                webauthn_credential_id: Set(None),
+                webauthn_public_key: Set(None),
             });
 
         let _ = CredentialEntity::insert_many(models)
@@ -232,6 +238,7 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn create_webauthn_credential(
         &self,
         user_id: uuid::Uuid,
+        webauthn_credential_id: WebAuthnCredentialId,
         attestation_response: WebAuthnAuthenticatorAttestationResponse,
     ) -> Result<Credential, CredentialError> {
         let (now, _) = generate_timestamp();
@@ -251,6 +258,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)),
+            webauthn_credential_id: Set(Some(webauthn_credential_id.raw_id)),
+            webauthn_public_key: Set(Some(attestation_response.public_key.0)),
         };
 
         let model = payload
