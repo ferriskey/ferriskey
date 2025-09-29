@@ -5,3 +5,4 @@ pub mod generate_recovery_codes;
 pub mod setup_otp;
 pub mod update_password;
 pub mod verify_otp;
+pub mod verify_webauthn;

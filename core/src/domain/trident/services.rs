@@ -371,12 +371,22 @@ where
 
     async fn finalize_webauthn_credential_creation(
         &self,
-        _identity: Identity,
+        identity: Identity,
         input: WebAuthnCredentialCreationInput,
     ) -> Result<WebAuthnCredentialCreationOutput, CoreError> {
         if input.typ != "public-key" {
             return Err(CoreError::Invalid);
         }
+
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not an user".to_string())),
+        };
+
+        self.credential_repository
+            .create_webauthn_credential(user.id, input.credential, input.response)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(WebAuthnCredentialCreationOutput {})
     }

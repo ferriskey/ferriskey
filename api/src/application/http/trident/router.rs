@@ -16,6 +16,7 @@ use crate::application::{
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
+            verify_webauthn::{__path_verify_webauthn, verify_webauthn},
         },
     },
 };
@@ -26,6 +27,7 @@ use crate::application::{
     verify_otp,
     challenge_otp,
     challenge_webauthn,
+    verify_webauthn,
     update_password,
     burn_recovery_code,
     generate_recovery_codes
@@ -61,6 +63,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(challenge_webauthn),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/verify-webauthn",
+                state.args.server.root_path
+            ),
+            post(verify_webauthn),
         )
         .route(
             &format!(

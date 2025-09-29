@@ -351,6 +351,7 @@ impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
     }
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnPublicKey(pub Vec<u8>);
 
@@ -395,10 +396,17 @@ impl<'de> Deserialize<'de> for WebAuthnPublicKey {
     }
 }
 
+/// https://w3c.github.io/webauthn/#iface-authentication-extensions-client-outputs
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+pub struct WebAuthnAuthenticationExtensionsClientOutputs {}
+
 /// This data structure contains the decoded a verified data
 /// from the client, ready to be inserted into the database.
 ///
 /// https://w3c.github.io/webauthn/#authenticatorattestationresponse
+#[derive(Debug)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnAuthenticatorAttestationResponse {
     pub client_data_json: String,
     pub transports: Vec<WebAuthnAuthenticatorTransport>,
