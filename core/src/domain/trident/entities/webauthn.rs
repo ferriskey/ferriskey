@@ -396,6 +396,7 @@ impl<'de> Deserialize<'de> for WebAuthnPublicKey {
     }
 }
 
+/// A required empty object
 /// https://w3c.github.io/webauthn/#iface-authentication-extensions-client-outputs
 #[derive(Debug, Deserialize)]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
@@ -405,8 +406,6 @@ pub struct WebAuthnAuthenticationExtensionsClientOutputs {}
 /// from the client, ready to be inserted into the database.
 ///
 /// https://w3c.github.io/webauthn/#authenticatorattestationresponse
-#[derive(Debug)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnAuthenticatorAttestationResponse {
     pub client_data_json: String,
     pub transports: Vec<WebAuthnAuthenticatorTransport>,
@@ -415,60 +414,43 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
     pub attestation_object: WebAuthnAttestationObject,
 }
 
-impl<'de> Deserialize<'de> for WebAuthnAuthenticatorAttestationResponse {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        /// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
-        pub struct Helper {
-            #[serde(rename = "clientDataJSON")]
-            pub client_data_json: String,
-            pub transports: Vec<WebAuthnAuthenticatorTransport>,
-            pub public_key: String,
-            pub public_key_algorithm: SigningAlgorithm,
-            pub attestation_object: String,
-        }
+/// The encoded version of the AuthenticatorAttestationResponse object
+/// Meant to be sent over the wire as JSON format
+/// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+pub struct WebAuthnAuthenticatorAttestationResponseJSON {
+    #[serde(rename = "clientDataJSON")]
+    pub client_data_json: String,
+    pub authenticator_data: String,
+    pub transports: Vec<WebAuthnAuthenticatorTransport>,
+    pub public_key: String,
+    pub public_key_algorithm: SigningAlgorithm,
+    pub attestation_object: String,
+}
 
-        let helper = Helper::deserialize(deserializer)?;
+impl WebAuthnAuthenticatorAttestationResponse {
+    pub fn decode_and_verify(
+        payload: WebAuthnAuthenticatorAttestationResponseJSON,
+    ) -> Result<Self, String> {
         let client_data_json = BASE64_URL_SAFE_NO_PAD
-            .decode(helper.client_data_json.clone())
-            .map_err(|_| {
-                D::Error::invalid_value(
-                    Unexpected::Str(&helper.client_data_json),
-                    &"a Base64URL encoded JSON payload",
-                )
-            })?;
+            .decode(payload.client_data_json.clone())
+            .map_err(|_| "failed to decode clientDataJSON as a Base64 URL field".to_string())?;
 
-        let client_data_json = String::from_utf8(client_data_json.clone()).map_err(|_| {
-            D::Error::invalid_value(
-                Unexpected::Bytes(&client_data_json),
-                &"a valid UTF8 JSON payload",
-            )
-        })?;
+        let client_data_json = String::from_utf8(client_data_json.clone())
+            .map_err(|_| "failed to decode clientDataJSON as a valid UTF8 string".to_string())?;
 
-        let public_key = WebAuthnPublicKey::decode(&helper.public_key).map_err(|_| {
-            D::Error::invalid_value(
-                Unexpected::Str(&helper.public_key),
-                &"a Base64URL encoded byte sequence",
-            )
-        })?;
+        let public_key = WebAuthnPublicKey::decode(&payload.public_key)
+            .map_err(|_| "failed to decode publicKey as a Base64 URL field".to_string())?;
 
-        let attestation_object = WebAuthnAttestationObject::decode(&helper.attestation_object)
-            .map_err(|_| {
-                D::Error::invalid_value(
-                    Unexpected::Str(&helper.attestation_object),
-                    &"a Base64URL encoded byte sequence",
-                )
-            })?;
+        let attestation_object = WebAuthnAttestationObject::decode(&payload.attestation_object)
+            .map_err(|_| "failed to decode attestationObject as a Base64 URL field".to_string())?;
 
         Ok(Self {
             client_data_json,
-            transports: helper.transports,
+            transports: payload.transports,
             public_key,
-            public_key_algorithm: helper.public_key_algorithm,
+            public_key_algorithm: payload.public_key_algorithm,
             attestation_object,
         })
     }

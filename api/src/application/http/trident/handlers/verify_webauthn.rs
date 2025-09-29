@@ -6,8 +6,11 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use axum::{Extension, extract::State};
-use ferriskey_core::domain::trident::entities::webauthn::{
-    WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponse,
+use ferriskey_core::domain::trident::entities::{
+    WebAuthnAuthenticatorAttestationResponse,
+    webauthn::{
+        WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponseJSON,
+    },
 };
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnCredentialCreationInput};
 use ferriskey_core::domain::{
@@ -22,8 +25,8 @@ use validator::Validate;
 pub struct VerifyWebAuthnRequest {
     pub id: String,
     pub raw_id: String,
-    pub response: WebAuthnAuthenticatorAttestationResponse,
-    pub authenticator_attachement: String,
+    pub response: WebAuthnAuthenticatorAttestationResponseJSON,
+    pub authenticator_attachment: String,
     pub client_extension_results: WebAuthnAuthenticationExtensionsClientOutputs,
     #[serde(rename = "type")]
     pub typ: String,
@@ -34,10 +37,11 @@ pub struct VerifyWebAuthnResponse {}
 
 #[utoipa::path(
     post,
-    path = "login-actions/verify-webauthn",
+    path = "/login-actions/verify-webauthn",
     tag = "auth",
     summary = "Finalize a webauthn authentication",
     description = "Either create a webauthn credential or send the signature for an authentication attempt",
+    request_body = VerifyWebAuthnRequest,
     responses(
         (status = 200, body = VerifyWebAuthnResponse),
     )
@@ -47,13 +51,18 @@ pub async fn verify_webauthn(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<VerifyWebAuthnRequest>,
 ) -> Result<Response<VerifyWebAuthnResponse>, ApiError> {
+    tracing::info!("Entering webauthn verif handler");
     let authenticator_credential =
         WebAuthnCredentialId::decode_and_verify(payload.id, payload.raw_id)
             .map_err(|msg| ApiError::BadRequest(msg))?;
 
+    let response_object =
+        WebAuthnAuthenticatorAttestationResponse::decode_and_verify(payload.response)
+            .map_err(|msg| ApiError::BadRequest(msg))?;
+
     let input = WebAuthnCredentialCreationInput {
         credential: authenticator_credential,
-        response: payload.response,
+        response: response_object,
         typ: payload.typ,
     };
 
