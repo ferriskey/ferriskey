@@ -277,7 +277,7 @@ pub struct WebAuthnPublicKeyCredentialCreationOptions {
 ///
 /// https://w3c.github.io/webauthn/#publickeycredential and https://w3c.github.io/webauthn/#dictdef-registrationresponsejson
 pub struct WebAuthnCredentialId {
-    pub id: String,
+    pub id: Vec<u8>,
     pub raw_id: Vec<u8>,
 }
 
@@ -299,7 +299,6 @@ impl WebAuthnCredentialId {
         let id = BASE64_URL_SAFE_NO_PAD
             .decode(id)
             .map_err(|_| "failed to decode id".to_string())?;
-        let id = String::from_utf8(id).map_err(|_| "id is not a valid utf8 string")?;
 
         let raw_id = BASE64_URL_SAFE_NO_PAD
             .decode(raw_id)
@@ -418,6 +417,7 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
 /// Meant to be sent over the wire as JSON format
 /// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnAuthenticatorAttestationResponseJSON {
     #[serde(rename = "clientDataJSON")]
