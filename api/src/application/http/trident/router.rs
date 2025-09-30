@@ -11,12 +11,16 @@ use crate::application::{
         trident::handlers::{
             burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
             challenge_otp::{__path_challenge_otp, challenge_otp},
-            challenge_webauthn::{__path_challenge_webauthn, challenge_webauthn},
             generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
-            verify_webauthn::{__path_verify_webauthn, verify_webauthn},
+            webauthn_create_public_key::{
+                __path_webauthn_create_public_key, webauthn_create_public_key,
+            },
+            webauthn_validate_public_key::{
+                __path_webauthn_validate_public_key, webauthn_validate_public_key,
+            },
         },
     },
 };
@@ -26,11 +30,11 @@ use crate::application::{
     setup_otp,
     verify_otp,
     challenge_otp,
-    challenge_webauthn,
-    verify_webauthn,
     update_password,
     burn_recovery_code,
-    generate_recovery_codes
+    generate_recovery_codes,
+    webauthn_create_public_key,
+    webauthn_validate_public_key,
 ))]
 pub struct TridentApiDoc;
 
@@ -59,17 +63,17 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/login-actions/challenge-webauthn",
+                "{}/realms/{{realm_name}}/protocol/webauthn/create-public-key",
                 state.args.server.root_path
             ),
-            post(challenge_webauthn),
+            post(webauthn_create_public_key),
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/login-actions/verify-webauthn",
+                "{}/realms/{{realm_name}}/protocol/webauthn/validate-public-key",
                 state.args.server.root_path
             ),
-            post(verify_webauthn),
+            post(webauthn_validate_public_key),
         )
         .route(
             &format!(

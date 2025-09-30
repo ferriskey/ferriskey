@@ -6,35 +6,36 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::entities::WebAuthnPublicKeyCredentialCreationOptions;
-use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnChallengeCreationInput};
+use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnCreatePublicKeyInput};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct ChallengeWebAuthnRequest {}
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreatePublicKeyRequest {}
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 /// A tad bit repetetitive but its explicit
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(transparent, rename_all = "camelCase")]
-pub struct ChallengeWebAuthnResponse(WebAuthnPublicKeyCredentialCreationOptions);
+pub struct CreatePublicKeyResponse(WebAuthnPublicKeyCredentialCreationOptions);
 
 #[utoipa::path(
     post,
-    path = "/login-actions/challenge-webauthn",
+    path = "/protocol/webauthn/create-public-key",
     tag = "auth",
-    summary = "Receive a WebAuthn challenge",
+    summary = "Create a webauthn public key",
     description = "Provides a full PublicKeyCredentialCreationOption payload for WebAuthn credential creation/authentication. The payload contains the challenge to resolve in B64Url form as described in the specs. The content is described here: https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.",
+    request_body = CreatePublicKeyRequest,
     responses(
-        (status = 200, body = ChallengeWebAuthnResponse)
+        (status = 200, body = CreatePublicKeyResponse)
     )
 )]
-pub async fn challenge_webauthn(
+pub async fn webauthn_create_public_key(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
-) -> Result<Response<ChallengeWebAuthnResponse>, ApiError> {
+) -> Result<Response<CreatePublicKeyResponse>, ApiError> {
     let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
     let session_code = session_code.value().to_string();
 
@@ -42,9 +43,9 @@ pub async fn challenge_webauthn(
 
     let output = state
         .service
-        .webauthn_challenge_for_credential_creation(
+        .webauthn_create_public_key(
             identity,
-            WebAuthnChallengeCreationInput {
+            WebAuthnCreatePublicKeyInput {
                 session_code,
                 server_host,
             },
@@ -52,6 +53,6 @@ pub async fn challenge_webauthn(
         .await
         .map_err(ApiError::from)?;
 
-    let response = ChallengeWebAuthnResponse(output.0);
+    let response = CreatePublicKeyResponse(output.0);
     Ok(Response::OK(response))
 }

@@ -12,7 +12,7 @@ use ferriskey_core::domain::trident::entities::{
         WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponseJSON,
     },
 };
-use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnCredentialCreationInput};
+use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, trident::entities::WebAuthnCredentialId,
 };
@@ -22,7 +22,7 @@ use validator::Validate;
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]
 #[serde(rename_all = "camelCase")]
-pub struct VerifyWebAuthnRequest {
+pub struct ValidatePublicKeyRequest {
     pub id: String,
     pub raw_id: String,
     pub response: WebAuthnAuthenticatorAttestationResponseJSON,
@@ -33,24 +33,24 @@ pub struct VerifyWebAuthnRequest {
 }
 
 #[derive(Debug, ToSchema, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VerifyWebAuthnResponse {}
+pub struct ValidatePublicKeyResponse {}
 
 #[utoipa::path(
     post,
-    path = "/login-actions/verify-webauthn",
+    path = "/protocol/webauthn/validate-public-key",
     tag = "auth",
-    summary = "Finalize a webauthn authentication",
-    description = "Either create a webauthn credential or send the signature for an authentication attempt",
-    request_body = VerifyWebAuthnRequest,
+    summary = "Validate and save a webauthn public key",
+    description = "Saving a webauthn public key to use it for authentication attempts or MFA later.",
+    request_body = ValidatePublicKeyRequest,
     responses(
-        (status = 200, body = VerifyWebAuthnResponse),
+        (status = 200, body = ValidatePublicKeyResponse),
     )
 )]
-pub async fn verify_webauthn(
+pub async fn webauthn_validate_public_key(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<VerifyWebAuthnRequest>,
-) -> Result<Response<VerifyWebAuthnResponse>, ApiError> {
+    ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
+) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
     tracing::info!("Entering webauthn verif handler");
     let authenticator_credential =
         WebAuthnCredentialId::decode_and_verify(payload.id, payload.raw_id)
@@ -60,7 +60,7 @@ pub async fn verify_webauthn(
         WebAuthnAuthenticatorAttestationResponse::decode_and_verify(payload.response)
             .map_err(|msg| ApiError::BadRequest(msg))?;
 
-    let input = WebAuthnCredentialCreationInput {
+    let input = WebAuthnValidatePublicKeyInput {
         credential: authenticator_credential,
         response: response_object,
         typ: payload.typ,
@@ -68,9 +68,9 @@ pub async fn verify_webauthn(
 
     let _output = state
         .service
-        .finalize_webauthn_credential_creation(identity, input)
+        .webauthn_validate_public_key(identity, input)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(VerifyWebAuthnResponse {}))
+    Ok(Response::OK(ValidatePublicKeyResponse {}))
 }

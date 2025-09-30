@@ -16,7 +16,7 @@ pub trait TotpService: Send + Sync {
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
 }
 
-pub struct WebAuthnChallengeCreationInput {
+pub struct WebAuthnCreatePublicKeyInput {
     pub session_code: String,
 
     /// This gets passed in the output as RP ID
@@ -26,15 +26,15 @@ pub struct WebAuthnChallengeCreationInput {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-pub struct WebAuthnChallengeCreationOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
+pub struct WebAuthnCreatePublicKeyOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
 
-pub struct WebAuthnCredentialCreationInput {
+pub struct WebAuthnValidatePublicKeyInput {
     pub credential: WebAuthnCredentialId,
     pub response: WebAuthnAuthenticatorAttestationResponse,
     pub typ: String,
 }
 
-pub struct WebAuthnCredentialCreationOutput {}
+pub struct WebAuthnValidatePublicKeyOutput {}
 
 pub struct ChallengeOtpInput {
     pub session_code: String,
@@ -140,16 +140,16 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
-    fn webauthn_challenge_for_credential_creation(
+    fn webauthn_create_public_key(
         &self,
         identity: Identity,
-        input: WebAuthnChallengeCreationInput,
-    ) -> impl Future<Output = Result<WebAuthnChallengeCreationOutput, CoreError>> + Send;
-    fn finalize_webauthn_credential_creation(
+        input: WebAuthnCreatePublicKeyInput,
+    ) -> impl Future<Output = Result<WebAuthnCreatePublicKeyOutput, CoreError>> + Send;
+    fn webauthn_validate_public_key(
         &self,
         identity: Identity,
-        input: WebAuthnCredentialCreationInput,
-    ) -> impl Future<Output = Result<WebAuthnCredentialCreationOutput, CoreError>> + Send;
+        input: WebAuthnValidatePublicKeyInput,
+    ) -> impl Future<Output = Result<WebAuthnValidatePublicKeyOutput, CoreError>> + Send;
 
     fn challenge_otp(
         &self,
