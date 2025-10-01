@@ -14,7 +14,7 @@ use ferriskey_core::domain::trident::entities::{
 };
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
 use ferriskey_core::domain::{
-    authentication::value_objects::Identity, trident::entities::WebAuthnCredentialId,
+    authentication::value_objects::Identity, trident::entities::WebAuthnCredentialIdGroup,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -53,7 +53,7 @@ pub async fn webauthn_validate_public_key(
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
     tracing::info!("Entering webauthn verif handler");
     let authenticator_credential =
-        WebAuthnCredentialId::decode_and_verify(payload.id, payload.raw_id)
+        WebAuthnCredentialIdGroup::decode_and_verify(payload.id, payload.raw_id)
             .map_err(|msg| ApiError::BadRequest(msg))?;
 
     let response_object =

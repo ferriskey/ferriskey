@@ -22,7 +22,8 @@ use crate::{
         role::ports::RoleRepository,
         trident::{
             entities::{
-                SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance, WebAuthnChallenge,
+                SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance,
+                WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge,
                 WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions,
                 WebAuthnRelayingParty, WebAuthnUser,
             },
@@ -363,6 +364,7 @@ where
             exclude_credentials: vec![],
             hints: vec![],
             timeout: 60000,
+            extensions: WebAuthnAuthenticationExtensionsClientInputs {},
         };
 
         Ok(WebAuthnCreatePublicKeyOutput(creation_opts))

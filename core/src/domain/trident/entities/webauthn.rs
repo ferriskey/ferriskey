@@ -7,6 +7,8 @@ use base64::prelude::*;
 
 use super::SigningAlgorithm;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::credential::entities::Credential;
+use crate::domain::credential::entities::CredentialData;
 use crate::domain::user::entities::User;
 use rand::prelude::*;
 use serde::de::{Deserializer, Error, Unexpected};
@@ -169,7 +171,8 @@ impl WebAuthnPubKeyCredParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// https://w3c.github.io/webauthn/#enumdef-authenticatortransport
+#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd)]
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAuthenticatorTransport {
@@ -181,6 +184,15 @@ pub enum WebAuthnAuthenticatorTransport {
     Internal,
 }
 
+/// https://w3c.github.io/webauthn/#enumdef-userverificationrequirement
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum WebAuthnUserVerificationRequirement {
+    Required,
+    Preferred,
+    Discouraged,
+}
+
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentityjson
 /// Ready for JSON serialization, hence why the ID is string and not Uuid
 ///
@@ -188,22 +200,40 @@ pub enum WebAuthnAuthenticatorTransport {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
-pub struct WebAuthnCredentialDescriptor {
+pub struct WebAuthnPublicKeyCredentialDescriptor {
     #[serde(rename = "type")]
     pub typ: String,
-    pub id: String,
+    pub id: WebAuthnCredentialId,
     pub transports: Option<Vec<WebAuthnAuthenticatorTransport>>,
 }
 
-impl WebAuthnCredentialDescriptor {
-    pub fn new() -> Self {
-        Self {
+impl WebAuthnPublicKeyCredentialDescriptor {
+    pub fn new(credential: Credential) -> Result<Self, CoreError> {
+        assert_eq!(
+            credential.credential_type, "webauthn-public-key-credential",
+            "The credential passed to WebAuthnPublicKeyCredentialDescriptor must be of type 'webauthn-public-key-credential'"
+        );
+
+        assert!(
+            matches!(credential.credential_data, CredentialData::WebAuthn { .. }),
+            "The credential_data type must be WebAuthn"
+        );
+
+        let CredentialData::WebAuthn { transports, .. } = credential.credential_data else {
+            unreachable!()
+        };
+
+        let id = if let Some(id) = credential.webauthn_credential_id {
+            id
+        } else {
+            return Err(CoreError::Invalid);
+        };
+
+        Ok(Self {
             typ: "public-key".to_string(), // Only valid value in spec for now
-            // Must match the credential record ID, maybe we can extract it
-            // from a Credential ?
-            id: "0".to_string(),
-            transports: None,
-        }
+            id,
+            transports: Some(transports),
+        })
     }
 }
 
@@ -265,25 +295,39 @@ pub struct WebAuthnPublicKeyCredentialCreationOptions {
     pub attestation: WebAuthnAttestationConveyance,
     pub attestation_formats: Vec<WebAuthnAttestationFormat>,
     pub pub_key_cred_params: Vec<WebAuthnPubKeyCredParams>,
-    pub exclude_credentials: Vec<WebAuthnCredentialDescriptor>,
+    pub exclude_credentials: Vec<WebAuthnPublicKeyCredentialDescriptor>,
     pub hints: Vec<WebAuthnHint>,
     pub timeout: u64,
+    pub extensions: WebAuthnAuthenticationExtensionsClientInputs,
 }
 
-/// RegistrationResponse defined in the spec doesn't split credential ID
-/// fields in their own structure.
-/// We group them internally because it makes sense to decode and manipulate them together
-/// Hence why there is no "XJson" variation of this struct like for AuthenticatorAttestationResponse
-///
-/// https://w3c.github.io/webauthn/#publickeycredential and https://w3c.github.io/webauthn/#dictdef-registrationresponsejson
-pub struct WebAuthnCredentialId {
-    pub id: Vec<u8>,
+#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WebAuthnPublicKeyCredentialRequestOptions {
+    pub challenge: WebAuthnChallenge,
+    pub timeout: u64,
+    pub rp_id: String,
+    pub allow_credentials: Vec<WebAuthnPublicKeyCredentialDescriptor>,
+    pub user_verification: WebAuthnUserVerificationRequirement,
+    pub hints: Vec<WebAuthnHint>,
+    pub extensions: WebAuthnAuthenticationExtensionsClientInputs,
+}
+
+/// https://w3c.github.io/webauthn/#credential-id
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, PartialEq, Eq, Ord, PartialOrd)]
+pub struct WebAuthnCredentialId(pub Vec<u8>);
+
+impl WebAuthnCredentialId {
+    pub const MAX_BYTE_LEN: u32 = 1023;
+}
+
+/// This is just a non-standard data structure to manipulate raw_id and id together
+pub struct WebAuthnCredentialIdGroup {
+    pub id: WebAuthnCredentialId,
     pub raw_id: Vec<u8>,
 }
 
-impl WebAuthnCredentialId {
-    /// https://w3c.github.io/webauthn/#credential-id
-    pub const MAX_BYTE_LEN: u32 = 1023;
+impl WebAuthnCredentialIdGroup {
     /// This function returns a decoded and validated WebAuthnCredentialId package or an error
     /// message as a string.
     /// The error message is non-punctuated and non-capitalized.
@@ -304,7 +348,10 @@ impl WebAuthnCredentialId {
             .decode(raw_id)
             .map_err(|_| "failed to decode raw_id".to_string())?;
 
-        Ok(Self { id, raw_id })
+        Ok(Self {
+            id: WebAuthnCredentialId(id),
+            raw_id,
+        })
     }
 }
 
@@ -350,7 +397,7 @@ impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnPublicKey(pub Vec<u8>);
 
@@ -394,6 +441,11 @@ impl<'de> Deserialize<'de> for WebAuthnPublicKey {
         })
     }
 }
+
+/// A required empty object
+/// https://w3c.github.io/webauthn/#dictdef-authenticationextensionsclientinputs
+#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+pub struct WebAuthnAuthenticationExtensionsClientInputs {}
 
 /// A required empty object
 /// https://w3c.github.io/webauthn/#iface-authentication-extensions-client-outputs

@@ -1,5 +1,8 @@
 use crate::{
-    domain::trident::entities::{WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId},
+    domain::trident::entities::{
+        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId, WebAuthnCredentialIdGroup,
+        WebAuthnPublicKey,
+    },
     entity::credentials::{ActiveModel, Entity as CredentialEntity},
 };
 use chrono::{TimeZone, Utc};
@@ -31,6 +34,12 @@ impl From<crate::entity::credentials::Model> for Credential {
                 algorithm: "default".to_string(),
             });
 
+        let webauthn_credential_id = model
+            .webauthn_credential_id
+            .map(|v| WebAuthnCredentialId(v));
+
+        let webauthn_public_key = model.webauthn_public_key.map(|v| WebAuthnPublicKey(v));
+
         Self {
             id: model.id,
             salt: model.salt,
@@ -42,6 +51,8 @@ impl From<crate::entity::credentials::Model> for Credential {
             temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
+            webauthn_credential_id,
+            webauthn_public_key,
         }
     }
 }
@@ -238,12 +249,15 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn create_webauthn_credential(
         &self,
         user_id: uuid::Uuid,
-        webauthn_credential_id: WebAuthnCredentialId,
+        webauthn_credential_id: WebAuthnCredentialIdGroup,
         attestation_response: WebAuthnAuthenticatorAttestationResponse,
     ) -> Result<Credential, CredentialError> {
         let (now, _) = generate_timestamp();
 
-        let credential_data = CredentialData::new_webauthn(attestation_response.attestation_object);
+        let credential_data = CredentialData::new_webauthn(
+            attestation_response.attestation_object,
+            attestation_response.transports,
+        );
         let credential_data = serde_json::to_value(credential_data)
             .map_err(|_| CredentialError::CreateCredentialError)?;
 

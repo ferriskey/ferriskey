@@ -5,7 +5,10 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::trident::entities::WebAuthnAttestationObject;
+use crate::domain::trident::entities::{
+    WebAuthnAttestationObject, WebAuthnAuthenticatorTransport, WebAuthnCredentialId,
+    WebAuthnPublicKey,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 pub struct Credential {
@@ -19,6 +22,8 @@ pub struct Credential {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<WebAuthnCredentialId>,
+    pub webauthn_public_key: Option<WebAuthnPublicKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -98,6 +103,8 @@ impl Credential {
             temporary: config.temporary,
             created_at: config.created_at,
             updated_at: config.updated_at,
+            webauthn_credential_id: config.webauthn_credential_id,
+            webauthn_public_key: config.webauthn_public_key,
         }
     }
 }
@@ -111,6 +118,7 @@ pub enum CredentialData {
     },
     WebAuthn {
         attestation_object: WebAuthnAttestationObject,
+        transports: Vec<WebAuthnAuthenticatorTransport>,
     },
 }
 
@@ -122,10 +130,14 @@ impl CredentialData {
         }
     }
 
-    /// Do not confuse, cred_id here is the credential ID that was returned by the
-    /// authenticator, not the ID that will be used to store the credential in DB
-    pub fn new_webauthn(attestation_object: WebAuthnAttestationObject) -> Self {
-        Self::WebAuthn { attestation_object }
+    pub fn new_webauthn(
+        attestation_object: WebAuthnAttestationObject,
+        transports: Vec<WebAuthnAuthenticatorTransport>,
+    ) -> Self {
+        Self::WebAuthn {
+            attestation_object,
+            transports,
+        }
     }
 }
 
@@ -140,6 +152,8 @@ pub struct CredentialConfig {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<WebAuthnCredentialId>,
+    pub webauthn_public_key: Option<WebAuthnPublicKey>,
 }
 
 #[derive(Debug, Clone, Error)]

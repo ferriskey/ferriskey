@@ -6,7 +6,7 @@ use crate::domain::{
     crypto::entities::HashResult,
     trident::entities::{
         MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAttestationResponse,
-        WebAuthnCredentialId, WebAuthnPublicKeyCredentialCreationOptions,
+        WebAuthnCredentialIdGroup, WebAuthnPublicKeyCredentialCreationOptions,
     },
 };
 
@@ -29,7 +29,7 @@ pub struct WebAuthnCreatePublicKeyInput {
 pub struct WebAuthnCreatePublicKeyOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
 
 pub struct WebAuthnValidatePublicKeyInput {
-    pub credential: WebAuthnCredentialId,
+    pub credential: WebAuthnCredentialIdGroup,
     pub response: WebAuthnAuthenticatorAttestationResponse,
     pub typ: String,
 }
