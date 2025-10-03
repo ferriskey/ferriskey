@@ -18,6 +18,9 @@ use crate::application::{
             webauthn_create_public_key::{
                 __path_webauthn_create_public_key, webauthn_create_public_key,
             },
+            webauthn_public_key_request_options::{
+                __path_webauthn_public_key_request_options, webauthn_public_key_request_options,
+            },
             webauthn_validate_public_key::{
                 __path_webauthn_validate_public_key, webauthn_validate_public_key,
             },
@@ -35,6 +38,7 @@ use crate::application::{
     generate_recovery_codes,
     webauthn_create_public_key,
     webauthn_validate_public_key,
+    webauthn_public_key_request_options,
 ))]
 pub struct TridentApiDoc;
 
@@ -74,6 +78,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(webauthn_validate_public_key),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/webauthn-public-key-request-options",
+                state.args.server.root_path
+            ),
+            post(webauthn_public_key_request_options),
         )
         .route(
             &format!(

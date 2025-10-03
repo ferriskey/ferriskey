@@ -1,3 +1,5 @@
+mod serde;
+
 /// Names in here are a bit verbose.
 /// I tried to match as much as possible the definition of the spec:
 /// https://w3c.github.io/webauthn
@@ -10,14 +12,23 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::credential::entities::Credential;
 use crate::domain::credential::entities::CredentialData;
 use crate::domain::user::entities::User;
+use ::serde::{Deserialize, Serialize};
 use rand::prelude::*;
-use serde::de::{Deserializer, Error, Unexpected};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
 
 #[cfg(feature = "utoipa_support")]
 use utoipa::ToSchema;
+
+pub fn spec_encode(bytes: &[u8]) -> String {
+    BASE64_URL_SAFE_NO_PAD.encode(bytes)
+}
+
+pub fn spec_decode<T: Sized + From<Vec<u8>>>(b64_data: &str) -> Result<T, ()> {
+    BASE64_URL_SAFE_NO_PAD
+        .decode(b64_data)
+        .map(T::from)
+        .map_err(|_| ())
+}
 
 /// A Webauthn challenge is sent to a user both to create a webauthn credential
 /// and to verify an authentication attempt with a webauthn credential
@@ -37,44 +48,14 @@ impl WebAuthnChallenge {
 
         Ok(WebAuthnChallenge(bytes.to_vec()))
     }
+}
 
-    /// Straight B64 encoding of the challenge
-    /// https://w3c.github.io/webauthn/#sctn-parseCreationOptionsFromJSON
-    pub fn encode(&self) -> String {
-        BASE64_URL_SAFE_NO_PAD.encode(self.0.clone())
+impl From<Vec<u8>> for WebAuthnChallenge {
+    fn from(v: Vec<u8>) -> Self {
+        WebAuthnChallenge(v)
     }
 }
 
-impl Serialize for WebAuthnChallenge {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.encode().as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for WebAuthnChallenge {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = String::deserialize(deserializer)?;
-        WebAuthnChallenge::try_from(s)
-            .map_err(|_| serde::de::Error::custom("failed to decode string as a challenge"))
-    }
-}
-
-impl TryFrom<String> for WebAuthnChallenge {
-    type Error = CoreError;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let result = BASE64_URL_SAFE_NO_PAD
-            .decode(s)
-            .map_err(|_| CoreError::Invalid)?;
-
-        Ok(WebAuthnChallenge(result))
-    }
-}
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -104,51 +85,6 @@ impl From<User> for WebAuthnUser {
             name: user.email,
             display_name: user.username,
         }
-    }
-}
-
-impl Serialize for WebAuthnUser {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut uuid = uuid::Uuid::encode_buffer();
-        let uuid = self.id.hyphenated().encode_lower(&mut uuid);
-        let uuid = BASE64_URL_SAFE_NO_PAD.encode(uuid);
-
-        let mut user = serializer.serialize_struct("WebAuthnUser", 3)?;
-        user.serialize_field("id", &uuid)?;
-        user.serialize_field("name", &self.name)?;
-        user.serialize_field("displayName", &self.display_name)?;
-        user.end()
-    }
-}
-
-impl<'de> Deserialize<'de> for WebAuthnUser {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct InputPayload {
-            id: String,
-            name: String,
-            display_name: String,
-        }
-
-        let payload: InputPayload = InputPayload::deserialize(deserializer)?;
-
-        let uuid = BASE64_URL_SAFE_NO_PAD.decode(payload.id).map_err(|_| {
-            serde::de::Error::custom("failed to decode id as B64Url without padding")
-        })?;
-        let uuid = Uuid::from_slice(&uuid)
-            .map_err(|_| serde::de::Error::custom("failed to parse id as a valid Uuid"))?;
-
-        Ok(WebAuthnUser {
-            id: uuid,
-            name: payload.name,
-            display_name: payload.display_name,
-        })
     }
 }
 
@@ -207,8 +143,9 @@ pub struct WebAuthnPublicKeyCredentialDescriptor {
     pub transports: Option<Vec<WebAuthnAuthenticatorTransport>>,
 }
 
-impl WebAuthnPublicKeyCredentialDescriptor {
-    pub fn new(credential: Credential) -> Result<Self, CoreError> {
+impl TryFrom<Credential> for WebAuthnPublicKeyCredentialDescriptor {
+    type Error = CoreError;
+    fn try_from(credential: Credential) -> Result<Self, Self::Error> {
         assert_eq!(
             credential.credential_type, "webauthn-public-key-credential",
             "The credential passed to WebAuthnPublicKeyCredentialDescriptor must be of type 'webauthn-public-key-credential'"
@@ -314,11 +251,17 @@ pub struct WebAuthnPublicKeyCredentialRequestOptions {
 }
 
 /// https://w3c.github.io/webauthn/#credential-id
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Debug, ToSchema, PartialEq, Eq, Ord, PartialOrd)]
 pub struct WebAuthnCredentialId(pub Vec<u8>);
 
 impl WebAuthnCredentialId {
     pub const MAX_BYTE_LEN: u32 = 1023;
+}
+
+impl From<Vec<u8>> for WebAuthnCredentialId {
+    fn from(v: Vec<u8>) -> Self {
+        WebAuthnCredentialId(v)
+    }
 }
 
 /// This is just a non-standard data structure to manipulate raw_id and id together
@@ -359,41 +302,9 @@ impl WebAuthnCredentialIdGroup {
 #[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnAttestationObject(Vec<u8>);
 
-impl WebAuthnAttestationObject {
-    pub fn encode(&self) -> String {
-        BASE64_URL_SAFE_NO_PAD.encode(&self.0)
-    }
-
-    pub fn decode(b64_data: &str) -> Result<Self, ()> {
-        BASE64_URL_SAFE_NO_PAD
-            .decode(b64_data)
-            .map(|bytes| WebAuthnAttestationObject(bytes))
-            .map_err(|_| ())
-    }
-}
-
-impl Serialize for WebAuthnAttestationObject {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.encode().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for WebAuthnAttestationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-
-        WebAuthnAttestationObject::decode(&value).map_err(|_| {
-            D::Error::invalid_value(
-                Unexpected::Str(&value),
-                &"failed to decode string with B64 URL",
-            )
-        })
+impl From<Vec<u8>> for WebAuthnAttestationObject {
+    fn from(v: Vec<u8>) -> Self {
+        WebAuthnAttestationObject(v)
     }
 }
 
@@ -404,41 +315,11 @@ pub struct WebAuthnPublicKey(pub Vec<u8>);
 impl WebAuthnPublicKey {
     /// This byte length is arbitrary and should cover most use cases
     pub const MAX_BYTE_LEN: u32 = 512;
-
-    pub fn encode(&self) -> String {
-        BASE64_URL_SAFE_NO_PAD.encode(&self.0)
-    }
-
-    pub fn decode(value: &str) -> Result<Self, ()> {
-        BASE64_URL_SAFE_NO_PAD
-            .decode(value)
-            .map_err(|_| ())
-            .map(|v| WebAuthnPublicKey(v))
-    }
 }
 
-impl Serialize for WebAuthnPublicKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.encode().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for WebAuthnPublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-
-        WebAuthnPublicKey::decode(&value).map_err(|_| {
-            D::Error::invalid_value(
-                Unexpected::Str(&value),
-                &"failed to decode string with B64 URL",
-            )
-        })
+impl From<Vec<u8>> for WebAuthnPublicKey {
+    fn from(v: Vec<u8>) -> Self {
+        WebAuthnPublicKey(v)
     }
 }
 
@@ -492,10 +373,10 @@ impl WebAuthnAuthenticatorAttestationResponse {
         let client_data_json = String::from_utf8(client_data_json.clone())
             .map_err(|_| "failed to decode clientDataJSON as a valid UTF8 string".to_string())?;
 
-        let public_key = WebAuthnPublicKey::decode(&payload.public_key)
+        let public_key = spec_decode(&payload.public_key)
             .map_err(|_| "failed to decode publicKey as a Base64 URL field".to_string())?;
 
-        let attestation_object = WebAuthnAttestationObject::decode(&payload.attestation_object)
+        let attestation_object = spec_decode(&payload.attestation_object)
             .map_err(|_| "failed to decode attestationObject as a Base64 URL field".to_string())?;
 
         Ok(Self {

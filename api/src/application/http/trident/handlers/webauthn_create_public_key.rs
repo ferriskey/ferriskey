@@ -6,7 +6,7 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::entities::WebAuthnPublicKeyCredentialCreationOptions;
-use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnCreatePublicKeyInput};
+use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -43,9 +43,9 @@ pub async fn webauthn_create_public_key(
 
     let output = state
         .service
-        .webauthn_create_public_key(
+        .webauthn_public_key_create_options(
             identity,
-            WebAuthnCreatePublicKeyInput {
+            WebAuthnPublicKeyCreateOptionsInput {
                 session_code,
                 server_host,
             },

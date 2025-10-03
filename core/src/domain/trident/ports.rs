@@ -7,6 +7,7 @@ use crate::domain::{
     trident::entities::{
         MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAttestationResponse,
         WebAuthnCredentialIdGroup, WebAuthnPublicKeyCredentialCreationOptions,
+        WebAuthnPublicKeyCredentialRequestOptions,
     },
 };
 
@@ -16,7 +17,7 @@ pub trait TotpService: Send + Sync {
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
 }
 
-pub struct WebAuthnCreatePublicKeyInput {
+pub struct WebAuthnPublicKeyCreateOptionsInput {
     pub session_code: String,
 
     /// This gets passed in the output as RP ID
@@ -26,7 +27,7 @@ pub struct WebAuthnCreatePublicKeyInput {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-pub struct WebAuthnCreatePublicKeyOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
+pub struct WebAuthnPublicKeyCreateOptionsOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
 
 pub struct WebAuthnValidatePublicKeyInput {
     pub credential: WebAuthnCredentialIdGroup,
@@ -35,6 +36,13 @@ pub struct WebAuthnValidatePublicKeyInput {
 }
 
 pub struct WebAuthnValidatePublicKeyOutput {}
+
+pub struct WebAuthnPublicKeyRequestOptionsInput {
+    pub session_code: String,
+    pub server_host: String,
+}
+
+pub struct WebAuthnPublicKeyRequestOptionsOutput(pub WebAuthnPublicKeyCredentialRequestOptions);
 
 pub struct ChallengeOtpInput {
     pub session_code: String,
@@ -140,16 +148,21 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
-    fn webauthn_create_public_key(
+    fn webauthn_public_key_create_options(
         &self,
         identity: Identity,
-        input: WebAuthnCreatePublicKeyInput,
-    ) -> impl Future<Output = Result<WebAuthnCreatePublicKeyOutput, CoreError>> + Send;
+        input: WebAuthnPublicKeyCreateOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError>> + Send;
     fn webauthn_validate_public_key(
         &self,
         identity: Identity,
         input: WebAuthnValidatePublicKeyInput,
     ) -> impl Future<Output = Result<WebAuthnValidatePublicKeyOutput, CoreError>> + Send;
+    fn webauthn_public_key_request_options(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyRequestOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError>> + Send;
 
     fn challenge_otp(
         &self,

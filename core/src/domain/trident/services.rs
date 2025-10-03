@@ -25,15 +25,18 @@ use crate::{
                 SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance,
                 WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge,
                 WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions,
-                WebAuthnRelayingParty, WebAuthnUser,
+                WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions,
+                WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement,
+                spec_encode,
             },
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
                 RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput, WebAuthnCreatePublicKeyInput,
-                WebAuthnCreatePublicKeyOutput, WebAuthnValidatePublicKeyInput,
-                WebAuthnValidatePublicKeyOutput,
+                UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
+                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
+                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -326,11 +329,11 @@ where
         Ok(BurnRecoveryCodeOutput { login_url })
     }
 
-    async fn webauthn_create_public_key(
+    async fn webauthn_public_key_create_options(
         &self,
         identity: Identity,
-        input: WebAuthnCreatePublicKeyInput,
-    ) -> Result<WebAuthnCreatePublicKeyOutput, CoreError> {
+        input: WebAuthnPublicKeyCreateOptionsInput,
+    ) -> Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError> {
         let challenge = WebAuthnChallenge::generate()?;
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
@@ -342,7 +345,7 @@ where
 
         let _ = self
             .auth_session_repository
-            .save_webauthn_challenge(session_code, challenge.encode())
+            .save_webauthn_challenge(session_code, spec_encode(&challenge.0))
             .await
             .map_err(|_| CoreError::InternalServerError);
 
@@ -367,7 +370,7 @@ where
             extensions: WebAuthnAuthenticationExtensionsClientInputs {},
         };
 
-        Ok(WebAuthnCreatePublicKeyOutput(creation_opts))
+        Ok(WebAuthnPublicKeyCreateOptionsOutput(creation_opts))
     }
 
     async fn webauthn_validate_public_key(
@@ -390,6 +393,48 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(WebAuthnValidatePublicKeyOutput {})
+    }
+
+    async fn webauthn_public_key_request_options(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyRequestOptionsInput,
+    ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
+        let challenge = WebAuthnChallenge::generate()?;
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        let _ = self
+            .auth_session_repository
+            .save_webauthn_challenge(session_code, spec_encode(&challenge.0))
+            .await
+            .map_err(|_| CoreError::InternalServerError);
+
+        let allow_credentials = self
+            .credential_repository
+            .get_webauthn_public_key_credentials(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .into_iter()
+            .map(WebAuthnPublicKeyCredentialDescriptor::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let creation_opts = WebAuthnPublicKeyCredentialRequestOptions {
+            challenge,
+            timeout: 60000,
+            rp_id: input.server_host,
+            allow_credentials,
+            user_verification: WebAuthnUserVerificationRequirement::Preferred,
+            hints: vec![],
+            extensions: WebAuthnAuthenticationExtensionsClientInputs {},
+        };
+
+        Ok(WebAuthnPublicKeyRequestOptionsOutput(creation_opts))
     }
 
     async fn challenge_otp(

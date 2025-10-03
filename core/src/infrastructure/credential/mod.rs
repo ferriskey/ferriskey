@@ -108,4 +108,15 @@ impl CredentialRepository for CredentialRepoAny {
             }
         }
     }
+
+    async fn get_webauthn_public_key_credentials(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        match self {
+            CredentialRepoAny::Postgres(repo) => {
+                repo.get_webauthn_public_key_credentials(user_id).await
+            }
+        }
+    }
 }

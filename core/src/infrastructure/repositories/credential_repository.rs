@@ -283,4 +283,24 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         Ok(model.into())
     }
+
+    async fn get_webauthn_public_key_credentials(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        let credentials = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq("webauthn-public-key-credential"),
+            )
+            .all(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .into_iter()
+            .map(Credential::from)
+            .collect();
+
+        Ok(credentials)
+    }
 }

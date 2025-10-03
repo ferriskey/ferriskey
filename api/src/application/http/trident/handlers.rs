@@ -5,4 +5,5 @@ pub mod setup_otp;
 pub mod update_password;
 pub mod verify_otp;
 pub mod webauthn_create_public_key;
+pub mod webauthn_public_key_request_options;
 pub mod webauthn_validate_public_key;
