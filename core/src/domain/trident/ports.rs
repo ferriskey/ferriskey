@@ -5,9 +5,9 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     crypto::entities::HashResult,
     trident::entities::{
-        MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAttestationResponse,
-        WebAuthnCredentialIdGroup, WebAuthnPublicKeyCredentialCreationOptions,
-        WebAuthnPublicKeyCredentialRequestOptions,
+        MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAssertionResponse,
+        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialIdGroup,
+        WebAuthnPublicKeyCredentialCreationOptions, WebAuthnPublicKeyCredentialRequestOptions,
     },
 };
 
@@ -43,6 +43,16 @@ pub struct WebAuthnPublicKeyRequestOptionsInput {
 }
 
 pub struct WebAuthnPublicKeyRequestOptionsOutput(pub WebAuthnPublicKeyCredentialRequestOptions);
+
+pub struct WebAuthnPublicKeyAuthenticateInput {
+    pub credential: WebAuthnCredentialIdGroup,
+    pub response: WebAuthnAuthenticatorAssertionResponse,
+    pub typ: String,
+}
+
+pub struct WebAuthnPublicKeyAuthenticateOutput {
+    pub login_url: String,
+}
 
 pub struct ChallengeOtpInput {
     pub session_code: String,

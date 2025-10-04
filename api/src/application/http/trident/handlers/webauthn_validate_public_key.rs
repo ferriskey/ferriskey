@@ -6,11 +6,8 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use axum::{Extension, extract::State};
-use ferriskey_core::domain::trident::entities::{
-    WebAuthnAuthenticatorAttestationResponse,
-    webauthn::{
-        WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponseJSON,
-    },
+use ferriskey_core::domain::trident::entities::webauthn::{
+    WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponseJSON,
 };
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
 use ferriskey_core::domain::{
@@ -51,14 +48,14 @@ pub async fn webauthn_validate_public_key(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
-    tracing::info!("Entering webauthn verif handler");
     let authenticator_credential =
         WebAuthnCredentialIdGroup::decode_and_verify(payload.id, payload.raw_id)
             .map_err(|msg| ApiError::BadRequest(msg))?;
 
-    let response_object =
-        WebAuthnAuthenticatorAttestationResponse::decode_and_verify(payload.response)
-            .map_err(|msg| ApiError::BadRequest(msg))?;
+    let response_object = payload
+        .response
+        .decode_and_verify()
+        .map_err(|msg| ApiError::BadRequest(msg))?;
 
     let input = WebAuthnValidatePublicKeyInput {
         credential: authenticator_credential,

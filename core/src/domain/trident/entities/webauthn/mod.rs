@@ -348,6 +348,7 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
 
 /// The encoded version of the AuthenticatorAttestationResponse object
 /// Meant to be sent over the wire as JSON format
+/// This is a transitionary object, it must be decoded and verified before being used
 /// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -362,29 +363,76 @@ pub struct WebAuthnAuthenticatorAttestationResponseJSON {
     pub attestation_object: String,
 }
 
-impl WebAuthnAuthenticatorAttestationResponse {
-    pub fn decode_and_verify(
-        payload: WebAuthnAuthenticatorAttestationResponseJSON,
-    ) -> Result<Self, String> {
+impl WebAuthnAuthenticatorAttestationResponseJSON {
+    /// Generate a usable AuthenticatorAttestationResponse
+    /// This function verifies that the attestation response is conform with the spec
+    pub fn decode_and_verify(&self) -> Result<WebAuthnAuthenticatorAttestationResponse, String> {
         let client_data_json = BASE64_URL_SAFE_NO_PAD
-            .decode(payload.client_data_json.clone())
+            .decode(self.client_data_json.clone())
             .map_err(|_| "failed to decode clientDataJSON as a Base64 URL field".to_string())?;
 
         let client_data_json = String::from_utf8(client_data_json.clone())
             .map_err(|_| "failed to decode clientDataJSON as a valid UTF8 string".to_string())?;
 
-        let public_key = spec_decode(&payload.public_key)
+        let public_key = spec_decode(&self.public_key)
             .map_err(|_| "failed to decode publicKey as a Base64 URL field".to_string())?;
 
-        let attestation_object = spec_decode(&payload.attestation_object)
+        let attestation_object = spec_decode(&self.attestation_object)
             .map_err(|_| "failed to decode attestationObject as a Base64 URL field".to_string())?;
 
-        Ok(Self {
+        Ok(WebAuthnAuthenticatorAttestationResponse {
             client_data_json,
-            transports: payload.transports,
+            transports: self.transports.clone(),
             public_key,
-            public_key_algorithm: payload.public_key_algorithm,
+            public_key_algorithm: self.public_key_algorithm.clone(),
             attestation_object,
+        })
+    }
+}
+
+/// https://w3c.github.io/webauthn/#authenticatorassertionresponse
+pub struct WebAuthnAuthenticatorAssertionResponse {
+    pub client_data_json: String,
+    pub authenticator_data: Vec<u8>,
+    pub signature: Vec<u8>,
+    pub user_handle: Vec<u8>,
+}
+
+// Implemented for symetry with AuthenticatorAttestationResponse
+// This struct is actually not needed and a simple Deserialize impl would suffice
+/// https://w3c.github.io/webauthn/#dom-authenticatorassertionresponsejson-clientdatajson
+pub struct WebAuthnAuthenticatorAssertionResponseJSON {
+    pub client_data_json: String,
+    pub authenticator_data: String,
+    pub signature: String,
+    pub user_handle: String,
+}
+
+impl WebAuthnAuthenticatorAssertionResponseJSON {
+    pub fn decode(&self) -> Result<WebAuthnAuthenticatorAssertionResponse, String> {
+        let client_data_json = BASE64_URL_SAFE_NO_PAD
+            .decode(&self.client_data_json)
+            .map_err(|_| "failed to decode client_data_json as base64 url string".to_string())?;
+
+        let client_data_json = String::from_utf8(client_data_json)
+            .map_err(|_| "failed to decode client_data_json as a valid UTF8 string".to_string())?;
+
+        let authenticator_data = BASE64_URL_SAFE_NO_PAD
+            .decode(&self.authenticator_data)
+            .map_err(|_| "failed to decode authenticator_data as base64 url string".to_string())?;
+
+        let signature = BASE64_URL_SAFE_NO_PAD
+            .decode(&self.signature)
+            .map_err(|_| "failed to decode signature as base64 url string".to_string())?;
+
+        let user_handle = BASE64_URL_SAFE_NO_PAD
+            .decode(&self.user_handle)
+            .map_err(|_| "failed to decode user_handle as base64 url string".to_string())?;
+        Ok(WebAuthnAuthenticatorAssertionResponse {
+            client_data_json,
+            authenticator_data,
+            signature,
+            user_handle,
         })
     }
 }
