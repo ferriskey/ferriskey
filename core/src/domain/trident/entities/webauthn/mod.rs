@@ -48,6 +48,10 @@ impl WebAuthnChallenge {
 
         Ok(WebAuthnChallenge(bytes.to_vec()))
     }
+
+    pub fn verify(&self, pubkey: WebAuthnPublicKey, signature: Vec<u8>) -> bool {
+        true
+    }
 }
 
 impl From<Vec<u8>> for WebAuthnChallenge {

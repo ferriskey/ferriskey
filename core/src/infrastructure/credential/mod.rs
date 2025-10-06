@@ -2,7 +2,7 @@ use crate::domain::credential::entities::{Credential, CredentialError};
 use crate::domain::credential::ports::CredentialRepository;
 use crate::domain::crypto::entities::HashResult;
 use crate::domain::trident::entities::{
-    WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialIdGroup,
+    WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId, WebAuthnCredentialIdGroup,
 };
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use serde_json::Value;
@@ -116,6 +116,18 @@ impl CredentialRepository for CredentialRepoAny {
         match self {
             CredentialRepoAny::Postgres(repo) => {
                 repo.get_webauthn_public_key_credentials(user_id).await
+            }
+        }
+    }
+
+    async fn get_webauthn_credential_by_credential_id(
+        &self,
+        webauthn_credential_id: WebAuthnCredentialId,
+    ) -> Result<Option<Credential>, CredentialError> {
+        match self {
+            CredentialRepoAny::Postgres(repo) => {
+                repo.get_webauthn_credential_by_credential_id(webauthn_credential_id)
+                    .await
             }
         }
     }

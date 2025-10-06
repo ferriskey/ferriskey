@@ -26,7 +26,7 @@ pub struct Model {
     pub authenticated: bool,
     pub created_at: DateTime,
     pub expires_at: DateTime,
-    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge: Option<Vec<u8>>,
     pub webauthn_challenge_issued_at: Option<DateTime>,
 }
 

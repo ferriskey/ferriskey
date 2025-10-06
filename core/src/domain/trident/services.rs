@@ -8,7 +8,9 @@ use uuid::Uuid;
 
 use crate::{
     domain::{
-        authentication::{ports::AuthSessionRepository, value_objects::Identity},
+        authentication::{
+            entities::AuthSession, ports::AuthSessionRepository, value_objects::Identity,
+        },
         client::ports::{ClientRepository, RedirectUriRepository},
         common::{entities::app_errors::CoreError, generate_random_string, services::Service},
         credential::{
@@ -22,18 +24,14 @@ use crate::{
         role::ports::RoleRepository,
         trident::{
             entities::{
-                SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance,
-                WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge,
-                WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions,
-                WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions,
-                WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement,
-                spec_encode,
+                spec_encode, MfaRecoveryCode, SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance, WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge, WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions, WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions, WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement
             },
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
                 RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
                 UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
                 WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
@@ -45,9 +43,9 @@ use crate::{
         },
         webhook::ports::WebhookRepository,
     },
-    infrastructure::recovery_code::formatters::{
+    infrastructure::{auth_session::AuthSessionRepoAny, recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
-    },
+    }},
 };
 
 type HmacSha1 = Hmac<Sha1>;
@@ -139,8 +137,33 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> TridentService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+/// Generates a random authorization code, stores it in the user auth session
+/// and returns it in a formated URL ready to be sent to the user
+async fn store_auth_code_and_generate_login_url(
+    auth_session_repository: &AuthSessionRepoAny,
+    auth_session: &AuthSession,
+    user_id: Uuid,
+) -> Result<String, CoreError> {
+    let authorization_code = generate_random_string();
+
+    auth_session_repository
+        .update_code_and_user_id(auth_session.id, authorization_code.clone(), user_id)
+        .await
+        .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
+
+    let current_state = auth_session
+        .state
+        .as_ref()
+        .ok_or(CoreError::AuthSessionExpectedState)?;
+
+    Ok(format!(
+        "{}?code={}&state={}",
+        auth_session.redirect_uri, authorization_code, current_state
+    ))
+}
+
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> TridentService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -435,6 +458,58 @@ where
         };
 
         Ok(WebAuthnPublicKeyRequestOptionsOutput(creation_opts))
+    }
+
+    async fn webauthn_public_key_authenticate(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyAuthenticateInput,
+    ) -> Result<WebAuthnPublicKeyAuthenticateOutput, CoreError> {
+        let session_code = input.session_code;
+
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        // These operations can be parallelized as they don't depend on each other
+        let (auth_session, challenge, webauthn_credential) = futures::try_join!(
+            async {
+                self.auth_session_repository
+                    .get_by_session_code(session_code)
+                    .await
+                    .map_err(|_| CoreError::SessionNotFound)
+            },
+            async {
+                self.auth_session_repository
+                    .take_webauthn_challenge(session_code)
+                    .await
+                    .ok_or(CoreError::WebAuthnMissingChallenge)
+            },
+            async {
+                self.credential_repository
+                    .get_webauthn_credential_by_credential_id(input.credential.id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)
+                    .and_then(|v| v.ok_or(CoreError::WebAuthnCredentialNotFound))
+            }
+        )?;
+
+        if !challenge.verify(
+            webauthn_credential.webauthn_public_key.expect("key"),
+            input.response.signature,
+        ) {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
+
+        let login_url = store_auth_code_and_generate_login_url(
+            &self.auth_session_repository,
+            &auth_session,
+            user.id.clone(),
+        )
+        .await?;
+
+        Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
     }
 
     async fn challenge_otp(

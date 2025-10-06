@@ -6,9 +6,12 @@ use sea_orm::{
 use tracing::error;
 use uuid::Uuid;
 
-use crate::domain::authentication::{
-    entities::{AuthSession, AuthenticationError},
-    ports::AuthSessionRepository,
+use crate::domain::{
+    authentication::{
+        entities::{AuthSession, AuthenticationError},
+        ports::AuthSessionRepository,
+    },
+    trident::entities::WebAuthnChallenge,
 };
 
 impl From<crate::entity::auth_sessions::Model> for AuthSession {
@@ -172,5 +175,9 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into();
 
         Ok(session)
+    }
+
+    async fn take_webauthn_challenge(&self, session_code: Uuid) -> Option<WebAuthnChallenge> {
+        todo!()
     }
 }

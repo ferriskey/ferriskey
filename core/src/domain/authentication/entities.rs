@@ -105,7 +105,7 @@ pub struct AuthSession {
     pub authenticated: bool,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge: Option<Vec<u8>>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 
@@ -121,7 +121,7 @@ pub struct AuthSessionParams {
     pub user_id: Option<Uuid>,
     pub code: Option<String>,
     pub authenticated: bool,
-    pub webauthn_challenge: Option<String>,
+    pub webauthn_challenge: Option<Vec<u8>>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 

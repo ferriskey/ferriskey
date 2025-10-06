@@ -145,4 +145,19 @@ pub enum CoreError {
 
     #[error("Service unavailable: {0}")]
     ServiceUnavailable(String),
+
+    #[error("Authorization code storage failed")]
+    AuthorizationCodeStorageFailed,
+
+    #[error("Expected an auth session state")]
+    AuthSessionExpectedState,
+
+    #[error("Missing webauthn challenge")]
+    WebAuthnMissingChallenge,
+
+    #[error("Webauthn credential not found")]
+    WebAuthnCredentialNotFound,
+
+    #[error("Webauthn challenge failed")]
+    WebAuthnChallengeFailed,
 }
