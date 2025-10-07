@@ -1,5 +1,8 @@
 use crate::{
-    domain::error::OperatorError,
+    domain::{
+        common::{Environment, OperatorConfig},
+        error::OperatorError,
+    },
     infrastructure::{build_repos_from_conf, cluster::repositories::ClusterRepository},
 };
 
@@ -11,8 +14,17 @@ pub struct OperatorService {
 }
 
 impl OperatorService {
-    pub async fn new() -> Result<Self, OperatorError> {
-        let cluster_repository = build_repos_from_conf().await?;
+    pub async fn new(config: &OperatorConfig) -> Result<Self, OperatorError> {
+        let cluster_repository = build_repos_from_conf(config).await?;
+        Ok(Self { cluster_repository })
+    }
+
+    pub async fn mock() -> Result<Self, OperatorError> {
+        let cluster_repository = build_repos_from_conf(&OperatorConfig {
+            env: Environment::Test,
+        })
+        .await?;
+
         Ok(Self { cluster_repository })
     }
 

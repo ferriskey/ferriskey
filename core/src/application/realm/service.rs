@@ -150,14 +150,67 @@ impl RealmService for FerriskeyService {
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_master_id = realm_master.id;
         ensure_policy(
-            self.policy.can_create_realm(identity, realm_master).await,
+            self.policy
+                .can_create_realm(identity.clone(), realm_master)
+                .await,
             "insufficient permissions",
         )?;
 
         let realm = self.realm_repository.create_realm(input.realm_name).await?;
         self.realm_repository
             .create_realm_settings(realm.id, "RS256".to_string())
+            .await?;
+
+        let name = format!("{}-realm", realm.name);
+
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest::create_realm_system_client(
+                realm_master_id,
+                name.clone(),
+            ))
+            .await?;
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(client.id),
+                description: None,
+                name,
+                permissions: vec![Permissions::ManageRealm.name()],
+                realm_id: realm_master_id,
+            })
+            .await?;
+
+        let user = match identity {
+            Identity::User(u) => u,
+            Identity::Client(c) => {
+                let client = self.user_repository.get_by_client_id(c.id).await?;
+
+                client
+            }
+        };
+
+        self.user_role_repository
+            .assign_role(user.id, role.id)
+            .await?;
+
+        // Clients in the new realm
+        self.client_repository
+            .create_client(CreateClientRequest {
+                client_id: "admin-cli".to_string(),
+                client_type: "".to_string(),
+                direct_access_grants_enabled: true,
+                enabled: true,
+                name: "admin-cli".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                realm_id: realm.id,
+                secret: None,
+                service_account_enabled: false,
+            })
             .await?;
 
         Ok(realm)

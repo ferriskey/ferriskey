@@ -4,16 +4,17 @@ use kube::Client;
 use tracing::{debug, error, info};
 
 use crate::{
-    application::services::OperatorService, domain::error::OperatorError,
-    infrastructure::cluster::run_cluster_controller,
+    application::{cluster::controller::run_cluster_controller, services::OperatorService},
+    domain::{common::OperatorConfig, error::OperatorError},
 };
 
+pub mod cluster;
 pub mod services;
 
 pub struct OperatorApp;
 
 impl OperatorApp {
-    pub async fn run() -> Result<(), OperatorError> {
+    pub async fn run(config: &OperatorConfig) -> Result<(), OperatorError> {
         debug!("initializing kubernetes client...");
         let client = Client::try_default().await.map_err(|e| {
             error!("unable to create the Kubernetes client: {:?}", e);
@@ -24,7 +25,7 @@ impl OperatorApp {
 
         info!("kubernetes client initialized");
 
-        let service = Arc::new(OperatorService::new().await?);
+        let service = Arc::new(OperatorService::new(config).await?);
         info!("service initialized");
 
         let cluster_controller = run_cluster_controller(client.clone(), service.clone());

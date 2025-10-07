@@ -1,0 +1,18 @@
+apiVersion: ferriskey.rs/v1alpha1
+kind: FerrisKeyCluster
+metadata:
+  name: cloud-iam
+  namespace: ferriskey
+spec:
+  name: "cloud-iam"
+  version: "sha-f7fd847"
+  replicas: 1
+  database:
+    secretRef:
+      name: ferriskey-prod-db-app
+  api:
+    apiUrl: "https://api.ferriskey.local:8443"
+    webappUrl: "https://console.ferriskey.local:8443"
+    allowedOrigins:
+      - "https://console.ferriskey.local:8443"
+      - "http://localhost:3000"

@@ -1,4 +1,7 @@
-use ferriskey_operator::application::OperatorApp;
+use ferriskey_operator::{
+    application::OperatorApp,
+    domain::common::{Environment, OperatorConfig},
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -8,7 +11,11 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("🚀 Ferriskey operator start-up");
 
-    match OperatorApp::run().await {
+    let config: OperatorConfig = OperatorConfig {
+        env: Environment::Production,
+    };
+
+    match OperatorApp::run(&config).await {
         Ok(_) => tracing::info!("Operator successfully started"),
         Err(e) => {
             tracing::error!("Error during operator start-up: {:?}", e);
