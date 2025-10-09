@@ -88,7 +88,7 @@ impl ColumnTrait for Column {
             Self::Authenticated => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
-            Self::WebauthnChallenge => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::WebauthnChallenge => ColumnType::Binary(32u32).def().null(),
             Self::WebauthnChallengeIssuedAt => ColumnType::DateTime.def(),
         }
     }

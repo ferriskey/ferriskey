@@ -151,10 +151,9 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn save_webauthn_challenge(
         &self,
         session_code: Uuid,
-        challenge: String,
+        challenge: &[u8],
     ) -> Result<AuthSession, AuthenticationError> {
         let session = crate::entity::auth_sessions::Entity::update_many()
-            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
             .col_expr(
                 crate::entity::auth_sessions::Column::WebauthnChallenge,
                 Expr::value(challenge),
@@ -163,6 +162,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 crate::entity::auth_sessions::Column::WebauthnChallengeIssuedAt,
                 Expr::value(Utc::now()),
             )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
             .exec_with_returning(&self.db)
             .await
             .map_err(|e| {
@@ -177,7 +177,35 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
-    async fn take_webauthn_challenge(&self, session_code: Uuid) -> Option<WebAuthnChallenge> {
-        todo!()
+    async fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
+        // apparently this can be done in a single sql query with CTEs
+        // sea_orm doesn't support them well so two queries it will be
+
+        let auth_session_model = crate::entity::auth_sessions::Entity::find()
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error fetching session: {e:?}");
+                AuthenticationError::InternalServerError
+            })?
+            .ok_or(AuthenticationError::NotFound)?;
+
+        if let Some(challenge) = auth_session_model.webauthn_challenge.clone() {
+            let mut active: crate::entity::auth_sessions::ActiveModel = auth_session_model.into();
+
+            active.webauthn_challenge = Set(None);
+            active.update(&self.db).await.map_err(|e| {
+                error!("Error updating session: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+            Ok(Some(challenge.into()))
+        } else {
+            Ok(None)
+        }
     }
 }

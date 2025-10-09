@@ -48,7 +48,7 @@ impl AuthSessionRepository for AuthSessionRepoAny {
     async fn save_webauthn_challenge(
         &self,
         session_code: Uuid,
-        challenge: String,
+        challenge: &[u8],
     ) -> Result<AuthSession, AuthenticationError> {
         match self {
             AuthSessionRepoAny::Postgres(repo) => {
@@ -57,7 +57,10 @@ impl AuthSessionRepository for AuthSessionRepoAny {
         }
     }
 
-    async fn take_webauthn_challenge(&self, session_code: Uuid) -> Option<WebAuthnChallenge> {
+    async fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
         match self {
             AuthSessionRepoAny::Postgres(repo) => repo.take_webauthn_challenge(session_code).await,
         }
