@@ -12,7 +12,7 @@ use k8s_openapi::{
 };
 use kube::api::ObjectMeta;
 
-use crate::domain::cluster::ClusterSpec;
+use crate::domain::cluster::entities::ClusterSpec;
 
 pub mod api;
 

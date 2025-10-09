@@ -4,7 +4,7 @@ use k8s_openapi::{ByteString, api::core::v1::Secret};
 use kube::api::ObjectMeta;
 use rand::seq::{IndexedRandom, SliceRandom};
 
-use crate::domain::cluster::ClusterSpec;
+use crate::domain::cluster::entities::ClusterSpec;
 
 fn generate_password(length: usize) -> String {
     let length = length.max(12);

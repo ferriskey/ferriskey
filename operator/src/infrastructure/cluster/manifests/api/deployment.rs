@@ -9,7 +9,7 @@ use k8s_openapi::{
 };
 use kube::api::ObjectMeta;
 
-use crate::domain::cluster::ClusterSpec;
+use crate::domain::cluster::entities::ClusterSpec;
 
 pub fn make_deployment(spec: &ClusterSpec, namespace: &str) -> Deployment {
     let app_label = format!("ferriskey-api-{}", spec.name);

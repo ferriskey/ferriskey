@@ -14,9 +14,12 @@ use kube::{
 use serde_json::json;
 
 use crate::{
-    application::services::OperatorService,
+    application::OperatorService,
     domain::{
-        cluster::{ApiSpec, ClusterService, ClusterSpec, DatabaseConfig, SecretReference},
+        cluster::{
+            entities::{ApiSpec, ClusterSpec, DatabaseConfig, SecretReference},
+            ports::ClusterService,
+        },
         error::OperatorError,
     },
     infrastructure::cluster::crds::{FerrisKeyCluster, FerrisKeyClusterStatus},

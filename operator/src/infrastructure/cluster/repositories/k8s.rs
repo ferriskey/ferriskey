@@ -10,7 +10,10 @@ use kube::{
 
 use crate::{
     domain::{
-        cluster::{ClusterPort, ClusterSpec, ClusterStatus},
+        cluster::{
+            entities::{ClusterSpec, ClusterStatus},
+            ports::ClusterRepository,
+        },
         error::OperatorError,
     },
     infrastructure::cluster::manifests::{
@@ -37,7 +40,7 @@ impl K8sClusterRepository {
     }
 }
 
-impl ClusterPort for K8sClusterRepository {
+impl ClusterRepository for K8sClusterRepository {
     async fn apply(
         &self,
         spec: &ClusterSpec,

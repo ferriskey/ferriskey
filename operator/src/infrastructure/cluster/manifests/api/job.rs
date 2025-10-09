@@ -6,7 +6,7 @@ use k8s_openapi::api::{
 };
 use kube::api::ObjectMeta;
 
-use crate::domain::cluster::ClusterSpec;
+use crate::domain::cluster::entities::ClusterSpec;
 
 pub fn make_migration_job(spec: &ClusterSpec, namespace: &str) -> Job {
     let app_label = format!("ferriskey-{}", spec.name);
