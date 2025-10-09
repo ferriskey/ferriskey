@@ -6,7 +6,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-ferriskey-core = { path = "../core", features=["utoipa_support"] }
+ferriskey-core = { path = "../core" }
 anyhow = "1.0.97"
 axum = "0.8.1"
 axum-cookie = "0.2.3"

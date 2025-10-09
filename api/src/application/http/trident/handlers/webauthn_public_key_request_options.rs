@@ -15,7 +15,7 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 
-#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, ToSchema, PartialEq, Eq)]
 pub struct RequestOptionsRequest {}
 
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
