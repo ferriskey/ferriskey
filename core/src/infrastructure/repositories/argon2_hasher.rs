@@ -87,16 +87,15 @@ mod tests {
         let password = "my_password";
 
         let result = hasher.hash_password(password).await;
-
         assert!(result.is_ok(), "Password hashing should succeed");
 
         let hash_result = result.unwrap();
+        let CredentialData::Hash { algorithm, .. } = hash_result.credential_data else {
+            panic!("Expected credential_data to be Hash")
+        };
         assert!(!hash_result.hash.is_empty(), "Hash should not be empty");
         assert!(!hash_result.salt.is_empty(), "Salt should not be empty");
-        assert!(
-            !hash_result.credential_data.algorithm.is_empty(),
-            "Credential data should not be empty"
-        );
+        assert!(!algorithm.is_empty(), "Credential data should not be empty");
 
         assert!(
             hash_result.hash.starts_with("$argon2"),
@@ -111,11 +110,20 @@ mod tests {
 
         let hash_result = hasher.hash_password(password).await.unwrap();
 
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = hash_result.credential_data
+        else {
+            panic!("Expected credential_data to be Hash")
+        };
+
         let result = hasher
             .verify_password(
                 password,
                 &hash_result.hash,
-                &hash_result.credential_data,
+                hash_iterations,
+                &algorithm,
                 &hash_result.salt,
             )
             .await;
@@ -131,12 +139,20 @@ mod tests {
         let wrong_password = "bad_password";
 
         let hash_result = hasher.hash_password(password).await.unwrap();
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = hash_result.credential_data
+        else {
+            panic!("Expected credential_data to be Hash")
+        };
 
         let result = hasher
             .verify_password(
                 wrong_password,
                 &hash_result.hash,
-                &hash_result.credential_data,
+                hash_iterations,
+                &algorithm,
                 &hash_result.salt,
             )
             .await;
@@ -150,12 +166,15 @@ mod tests {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
         let invalid_hash = "invalid_hash";
+        let hash_iterations = 1;
+        let algorithm = "argon2d";
 
         let result = hasher
             .verify_password(
                 password,
                 invalid_hash,
-                &CredentialData::new(1, "argon2d".to_string()),
+                hash_iterations,
+                algorithm,
                 invalid_hash,
             )
             .await;
