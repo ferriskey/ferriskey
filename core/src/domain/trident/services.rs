@@ -368,7 +368,7 @@ where
 
         let _ = self
             .auth_session_repository
-            .save_webauthn_challenge(session_code, spec_encode(&challenge.0))
+            .save_webauthn_challenge(session_code, challenge.0.as_slice())
             .await
             .map_err(|_| CoreError::InternalServerError);
 
@@ -382,11 +382,7 @@ where
             attestation: WebAuthnAttestationConveyance::Direct,
             attestation_formats: vec![],
             // Add supported signing algorithms here
-            pub_key_cred_params: vec![
-                WebAuthnPubKeyCredParams::new(SigningAlgorithm::ES256),
-                WebAuthnPubKeyCredParams::new(SigningAlgorithm::RS256),
-                WebAuthnPubKeyCredParams::new(SigningAlgorithm::EdDSA),
-            ],
+            pub_key_cred_params: vec![WebAuthnPubKeyCredParams::new(SigningAlgorithm::ES256)],
             exclude_credentials: vec![],
             hints: vec![],
             timeout: 60000,
@@ -434,7 +430,7 @@ where
 
         let _ = self
             .auth_session_repository
-            .save_webauthn_challenge(session_code, spec_encode(&challenge.0))
+            .save_webauthn_challenge(session_code, challenge.0.as_slice())
             .await
             .map_err(|_| CoreError::InternalServerError);
 
@@ -484,6 +480,7 @@ where
                 self.auth_session_repository
                     .take_webauthn_challenge(session_code)
                     .await
+                    .map_err(|_| CoreError::InternalServerError)?
                     .ok_or(CoreError::WebAuthnMissingChallenge)
             },
             async {

@@ -41,3 +41,5 @@ futures = "0.3.31"
 [dev-dependencies]
 mockall = "0.13.1"
 serde_plain = "1.0.2"
+x509-parser = "0.18.0"
+hex = "0.4.3"
