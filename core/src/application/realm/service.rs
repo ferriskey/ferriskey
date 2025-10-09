@@ -186,11 +186,7 @@ impl RealmService for FerriskeyService {
 
         let user = match identity {
             Identity::User(u) => u,
-            Identity::Client(c) => {
-                let client = self.user_repository.get_by_client_id(c.id).await?;
-
-                client
-            }
+            Identity::Client(c) => self.user_repository.get_by_client_id(c.id).await?,
         };
 
         self.user_role_repository
