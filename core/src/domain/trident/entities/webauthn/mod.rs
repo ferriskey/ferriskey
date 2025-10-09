@@ -14,10 +14,8 @@ use crate::domain::credential::entities::CredentialData;
 use crate::domain::user::entities::User;
 use ::serde::{Deserialize, Serialize};
 use rand::prelude::*;
-use uuid::Uuid;
-
-#[cfg(feature = "utoipa_support")]
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 pub fn spec_encode(bytes: &[u8]) -> String {
     BASE64_URL_SAFE_NO_PAD.encode(bytes)
@@ -32,8 +30,7 @@ pub fn spec_decode<T: Sized + From<Vec<u8>>>(b64_data: &str) -> Result<T, ()> {
 
 /// A Webauthn challenge is sent to a user both to create a webauthn credential
 /// and to verify an authentication attempt with a webauthn credential
-#[derive(Debug)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
+#[derive(Debug, ToSchema, PartialEq, Eq)]
 pub struct WebAuthnChallenge(pub Vec<u8>);
 
 impl WebAuthnChallenge {
@@ -61,9 +58,8 @@ impl From<Vec<u8>> for WebAuthnChallenge {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnRelayingParty {
     pub id: String,
 
@@ -74,8 +70,7 @@ pub struct WebAuthnRelayingParty {
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentityjson
 /// A user representation ready to be serialized to JSON with compliant encoding for ID
 /// This is why `id` is a String and not a Uuid here
-#[derive(Debug)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
+#[derive(Debug, ToSchema, PartialEq, Eq)]
 pub struct WebAuthnUser {
     pub id: Uuid,
     pub name: String,
@@ -93,9 +88,8 @@ impl From<User> for WebAuthnUser {
 }
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialparameters
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnPubKeyCredParams {
     #[serde(rename = "type")]
     typ: String,
@@ -112,9 +106,8 @@ impl WebAuthnPubKeyCredParams {
 }
 
 /// https://w3c.github.io/webauthn/#enumdef-authenticatortransport
-#[derive(Serialize, Deserialize, Debug, Clone, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, Ord, PartialOrd, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAuthenticatorTransport {
     Usb,
     Ble,
@@ -137,9 +130,8 @@ pub enum WebAuthnUserVerificationRequirement {
 /// Ready for JSON serialization, hence why the ID is string and not Uuid
 ///
 /// Field description: https://w3c.github.io/webauthn/#dictdef-publickeycredentialdescriptor
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnPublicKeyCredentialDescriptor {
     #[serde(rename = "type")]
     pub typ: String,
@@ -179,9 +171,8 @@ impl TryFrom<Credential> for WebAuthnPublicKeyCredentialDescriptor {
 }
 
 /// https://w3c.github.io/webauthn/#attestation-conveyance
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAttestationConveyance {
     None,
     Indirect,
@@ -191,9 +182,8 @@ pub enum WebAuthnAttestationConveyance {
 
 /// 1. https://w3c.github.io/webauthn/#dom-publickeycredentialcreationoptions-attestationformats
 /// 2. https://www.iana.org/assignments/webauthn/webauthn.xhtml
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnAttestationFormat {
     Packed,
     Tpm,
@@ -206,9 +196,8 @@ pub enum WebAuthnAttestationFormat {
 }
 
 /// https://w3c.github.io/webauthn/#enumdef-publickeycredentialhint
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub enum WebAuthnHint {
     SecurityKey,
     ClientDevice,
@@ -226,9 +215,8 @@ pub enum WebAuthnHint {
 ///
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema, PartialEq, Eq))]
 pub struct WebAuthnPublicKeyCredentialCreationOptions {
     pub challenge: WebAuthnChallenge,
     pub rp: WebAuthnRelayingParty,
@@ -302,8 +290,7 @@ impl WebAuthnCredentialIdGroup {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+#[derive(Debug, Clone, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WebAuthnAttestationObject(Vec<u8>);
 
 impl From<Vec<u8>> for WebAuthnAttestationObject {
@@ -312,8 +299,10 @@ impl From<Vec<u8>> for WebAuthnAttestationObject {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+/// A public key as a DER SubjectPublicKeyInfo object
+/// https://w3c.github.io/webauthn/#dom-authenticatorattestationresponse-getpublickey
+/// https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.7
+#[derive(Debug, Clone, ToSchema, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WebAuthnPublicKey(pub Vec<u8>);
 
 impl WebAuthnPublicKey {
@@ -334,8 +323,7 @@ pub struct WebAuthnAuthenticationExtensionsClientInputs {}
 
 /// A required empty object
 /// https://w3c.github.io/webauthn/#iface-authentication-extensions-client-outputs
-#[derive(Debug, Deserialize)]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
+#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq)]
 pub struct WebAuthnAuthenticationExtensionsClientOutputs {}
 
 /// This data structure contains the decoded a verified data
@@ -354,9 +342,8 @@ pub struct WebAuthnAuthenticatorAttestationResponse {
 /// Meant to be sent over the wire as JSON format
 /// This is a transitionary object, it must be decoded and verified before being used
 /// https://w3c.github.io/webauthn/#dictdef-authenticatorattestationresponsejson
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "utoipa_support", derive(ToSchema))]
 pub struct WebAuthnAuthenticatorAttestationResponseJSON {
     #[serde(rename = "clientDataJSON")]
     pub client_data_json: String,
@@ -405,7 +392,10 @@ pub struct WebAuthnAuthenticatorAssertionResponse {
 // Implemented for symetry with AuthenticatorAttestationResponse
 // This struct is actually not needed and a simple Deserialize impl would suffice
 /// https://w3c.github.io/webauthn/#dom-authenticatorassertionresponsejson-clientdatajson
+#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct WebAuthnAuthenticatorAssertionResponseJSON {
+    #[serde(rename = "clientDataJSON")]
     pub client_data_json: String,
     pub authenticator_data: String,
     pub signature: String,
