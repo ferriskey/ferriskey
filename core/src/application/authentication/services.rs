@@ -14,7 +14,7 @@ use crate::{
         },
         client::ports::ClientRepository,
         common::{entities::app_errors::CoreError, generate_random_string},
-        credential::ports::CredentialRepository,
+        credential::{entities::CredentialData, ports::CredentialRepository},
         crypto::ports::HasherRepository,
         jwt::{
             entities::{ClaimsTyp, JwtClaim},
@@ -226,12 +226,25 @@ impl AuthenticatePort for AuthenticateFactory {
 
         let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
 
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = &credential.credential_data
+        else {
+            tracing::error!(
+                "A password credential doesn't have Hash credential data.
+This is a server error that should be investigated. Do not forward back this message to the client"
+            );
+            return Err(CoreError::InternalServerError);
+        };
+
         let has_valid_password = self
             .hasher_repository
             .verify_password(
                 &password,
                 &credential.secret_data,
-                &credential.credential_data,
+                *hash_iterations,
+                algorithm,
                 &salt,
             )
             .await

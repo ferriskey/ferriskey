@@ -3,15 +3,59 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
-    credential::entities::Credential,
     crypto::entities::HashResult,
-    trident::entities::{MfaRecoveryCode, TotpSecret},
+    trident::entities::{
+        MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAssertionResponse,
+        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialIdGroup,
+        WebAuthnPublicKeyCredentialCreationOptions, WebAuthnPublicKeyCredentialRequestOptions,
+    },
 };
 
 pub trait TotpService: Send + Sync + Clone + 'static {
     fn generate_secret(&self) -> Result<TotpSecret, CoreError>;
     fn generate_otpauth_uri(&self, issuer: &str, user_email: &str, secret: &TotpSecret) -> String;
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
+}
+
+pub struct WebAuthnPublicKeyCreateOptionsInput {
+    pub session_code: String,
+
+    /// This gets passed in the output as RP ID
+    /// (https://w3c.github.io/webauthn/#relying-party-identifier)
+    /// This will work fine for localhost but may not work in other scenario
+    pub server_host: String,
+}
+
+/// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
+pub struct WebAuthnPublicKeyCreateOptionsOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
+
+pub struct WebAuthnValidatePublicKeyInput {
+    pub credential: WebAuthnCredentialIdGroup,
+    pub response: WebAuthnAuthenticatorAttestationResponse,
+    pub typ: String,
+}
+
+pub struct WebAuthnValidatePublicKeyOutput {}
+
+pub struct WebAuthnPublicKeyRequestOptionsInput {
+    pub session_code: String,
+    pub server_host: String,
+}
+
+pub struct WebAuthnPublicKeyRequestOptionsOutput(pub WebAuthnPublicKeyCredentialRequestOptions);
+
+pub struct WebAuthnPublicKeyAuthenticateInput {
+    // Trident required fields
+    pub session_code: Uuid,
+
+    // Standard webauthn fields
+    pub credential: WebAuthnCredentialIdGroup,
+    pub response: WebAuthnAuthenticatorAssertionResponse,
+    pub typ: String,
+}
+
+pub struct WebAuthnPublicKeyAuthenticateOutput {
+    pub login_url: String,
 }
 
 pub struct ChallengeOtpInput {
@@ -88,8 +132,11 @@ pub trait RecoveryCodeRepository: Send + Sync + Clone + 'static {
     fn verify(
         &self,
         in_code: &MfaRecoveryCode,
-        against: Credential,
-    ) -> impl Future<Output = Result<Option<Credential>, CoreError>> + Send;
+        secret_data: &str,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait RecoveryCodeFormatter: Send + Sync + Clone + 'static {
@@ -114,6 +161,27 @@ pub trait TridentService: Send + Sync + Clone + 'static {
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> impl Future<Output = Result<BurnRecoveryCodeOutput, CoreError>> + Send;
+    fn webauthn_public_key_create_options(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyCreateOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError>> + Send;
+    fn webauthn_validate_public_key(
+        &self,
+        identity: Identity,
+        input: WebAuthnValidatePublicKeyInput,
+    ) -> impl Future<Output = Result<WebAuthnValidatePublicKeyOutput, CoreError>> + Send;
+    fn webauthn_public_key_request_options(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyRequestOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError>> + Send;
+    fn webauthn_public_key_authenticate(
+        &self,
+        identity: Identity,
+        input: WebAuthnPublicKeyAuthenticateInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyAuthenticateOutput, CoreError>> + Send;
+
     fn challenge_otp(
         &self,
         identity: Identity,

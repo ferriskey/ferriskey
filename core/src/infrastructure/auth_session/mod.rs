@@ -1,5 +1,6 @@
 use crate::domain::authentication::entities::{AuthSession, AuthenticationError};
 use crate::domain::authentication::ports::AuthSessionRepository;
+use crate::domain::trident::entities::WebAuthnChallenge;
 use crate::infrastructure::repositories::auth_session_repository::PostgresAuthSessionRepository;
 use uuid::Uuid;
 
@@ -41,6 +42,27 @@ impl AuthSessionRepository for AuthSessionRepoAny {
                 repo.update_code_and_user_id(session_code, code, user_id)
                     .await
             }
+        }
+    }
+
+    async fn save_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+        challenge: &[u8],
+    ) -> Result<AuthSession, AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => {
+                repo.save_webauthn_challenge(session_code, challenge).await
+            }
+        }
+    }
+
+    async fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => repo.take_webauthn_challenge(session_code).await,
         }
     }
 }

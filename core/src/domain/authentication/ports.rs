@@ -11,6 +11,7 @@ use crate::domain::{
     },
     common::entities::app_errors::CoreError,
     jwt::entities::JwkKey,
+    trident::entities::WebAuthnChallenge,
 };
 
 /// A strategy for handling different OAuth2 grant types during authentication.
@@ -69,6 +70,15 @@ pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
         code: String,
         user_id: Uuid,
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+    fn save_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+        challenge: &[u8],
+    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+    fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Clone + Send + Sync + 'static {

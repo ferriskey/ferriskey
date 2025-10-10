@@ -4,6 +4,11 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::trident::entities::{
+    WebAuthnAttestationObject, WebAuthnAuthenticatorTransport, WebAuthnCredentialId,
+    WebAuthnPublicKey,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 pub struct Credential {
     pub id: Uuid,
@@ -16,6 +21,8 @@ pub struct Credential {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<WebAuthnCredentialId>,
+    pub webauthn_public_key: Option<WebAuthnPublicKey>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
@@ -56,21 +63,40 @@ impl Credential {
             temporary: config.temporary,
             created_at: config.created_at,
             updated_at: config.updated_at,
+            webauthn_credential_id: config.webauthn_credential_id,
+            webauthn_public_key: config.webauthn_public_key,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
-pub struct CredentialData {
-    pub hash_iterations: u32,
-    pub algorithm: String,
+#[serde(untagged)]
+pub enum CredentialData {
+    Hash {
+        hash_iterations: u32,
+        algorithm: String,
+    },
+    WebAuthn {
+        attestation_object: WebAuthnAttestationObject,
+        transports: Vec<WebAuthnAuthenticatorTransport>,
+    },
 }
 
 impl CredentialData {
-    pub fn new(hash_iterations: u32, algorithm: String) -> Self {
-        Self {
+    pub fn new_hash(hash_iterations: u32, algorithm: String) -> Self {
+        Self::Hash {
             hash_iterations,
             algorithm,
+        }
+    }
+
+    pub fn new_webauthn(
+        attestation_object: WebAuthnAttestationObject,
+        transports: Vec<WebAuthnAuthenticatorTransport>,
+    ) -> Self {
+        Self::WebAuthn {
+            attestation_object,
+            transports,
         }
     }
 }
@@ -86,6 +112,8 @@ pub struct CredentialConfig {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<WebAuthnCredentialId>,
+    pub webauthn_public_key: Option<WebAuthnPublicKey>,
 }
 
 #[derive(Debug, Clone, Error)]

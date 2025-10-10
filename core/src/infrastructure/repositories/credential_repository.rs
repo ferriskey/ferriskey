@@ -1,4 +1,10 @@
-use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use crate::{
+    domain::trident::entities::{
+        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId, WebAuthnCredentialIdGroup,
+        WebAuthnPublicKey,
+    },
+    entity::credentials::{ActiveModel, Entity as CredentialEntity},
+};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
@@ -23,10 +29,16 @@ impl From<crate::entity::credentials::Model> for Credential {
 
         let credential_data = serde_json::from_value(model.credential_data)
             .map_err(|_| CredentialError::GetPasswordCredentialError)
-            .unwrap_or(CredentialData {
+            .unwrap_or(CredentialData::Hash {
                 hash_iterations: 0,
                 algorithm: "default".to_string(),
             });
+
+        let webauthn_credential_id = model
+            .webauthn_credential_id
+            .map(|v| WebAuthnCredentialId(v));
+
+        let webauthn_public_key = model.webauthn_public_key.map(|v| WebAuthnPublicKey(v));
 
         Self {
             id: model.id,
@@ -39,6 +51,8 @@ impl From<crate::entity::credentials::Model> for Credential {
             temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
+            webauthn_credential_id,
+            webauthn_public_key,
         }
     }
 }
@@ -77,6 +91,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
+            webauthn_credential_id: Set(None),
+            webauthn_public_key: Set(None),
         };
 
         let t = payload
@@ -177,6 +193,8 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
+            webauthn_credential_id: Set(None),
+            webauthn_public_key: Set(None),
         };
 
         let model = payload
@@ -216,6 +234,8 @@ impl CredentialRepository for PostgresCredentialRepository {
                 created_at: Set(now.naive_utc()),
                 updated_at: Set(now.naive_utc()),
                 temporary: Set(Some(false)),
+                webauthn_credential_id: Set(None),
+                webauthn_public_key: Set(None),
             });
 
         let _ = CredentialEntity::insert_many(models)
@@ -224,5 +244,80 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(())
+    }
+
+    async fn create_webauthn_credential(
+        &self,
+        user_id: uuid::Uuid,
+        webauthn_credential_id: WebAuthnCredentialIdGroup,
+        attestation_response: WebAuthnAuthenticatorAttestationResponse,
+    ) -> Result<Credential, CredentialError> {
+        let (now, _) = generate_timestamp();
+
+        let credential_data = CredentialData::new_webauthn(
+            attestation_response.attestation_object,
+            attestation_response.transports,
+        );
+        let credential_data = serde_json::to_value(credential_data)
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        let payload = ActiveModel {
+            id: Set(generate_uuid_v7()),
+            salt: Set(None),
+            credential_type: Set("webauthn-public-key-credential".to_string()),
+            user_id: Set(user_id),
+            user_label: Set(None),
+            secret_data: Set("".to_string()),
+            credential_data: Set(credential_data),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(false)),
+            webauthn_credential_id: Set(Some(webauthn_credential_id.raw_id)),
+            webauthn_public_key: Set(Some(attestation_response.public_key.0)),
+        };
+
+        let model = payload
+            .insert(&self.db)
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(model.into())
+    }
+
+    async fn get_webauthn_public_key_credentials(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        let credentials = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq("webauthn-public-key-credential"),
+            )
+            .all(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .into_iter()
+            .map(Credential::from)
+            .collect();
+
+        Ok(credentials)
+    }
+
+    async fn get_webauthn_credential_by_credential_id(
+        &self,
+        webauthn_credential_id: WebAuthnCredentialId,
+    ) -> Result<Option<Credential>, CredentialError> {
+        let credential = CredentialEntity::find()
+            .filter(
+                crate::entity::credentials::Column::WebauthnCredentialId
+                    .eq(webauthn_credential_id.0),
+            )
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .map(Credential::from);
+
+        Ok(credential)
     }
 }

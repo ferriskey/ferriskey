@@ -1,4 +1,3 @@
-use crate::domain::credential::entities::CredentialData;
 use crate::domain::crypto::entities::HashResult;
 use crate::domain::crypto::ports::HasherRepository;
 use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
@@ -20,12 +19,13 @@ impl HasherRepository for HasherRepoAny {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
         salt: &str,
     ) -> Result<bool, Error> {
         match self {
             HasherRepoAny::Argon2(repo) => {
-                repo.verify_password(password, secret_data, credential_data, salt)
+                repo.verify_password(password, secret_data, hash_iterations, algorithm, salt)
                     .await
             }
         }

@@ -1,4 +1,4 @@
-use crate::domain::{credential::entities::CredentialData, crypto::entities::HashResult};
+use crate::domain::crypto::entities::HashResult;
 
 #[deprecated]
 pub trait CryptoService: Clone + Send + Sync + 'static {
@@ -10,7 +10,8 @@ pub trait CryptoService: Clone + Send + Sync + 'static {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, anyhow::Error>> + Send;
 }
@@ -24,7 +25,8 @@ pub trait HasherRepository: Clone + Send + Sync + 'static {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, anyhow::Error>> + Send;
 }

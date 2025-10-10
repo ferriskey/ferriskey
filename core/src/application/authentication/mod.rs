@@ -77,6 +77,8 @@ impl AuthService for FerriskeyService {
             user_id: None,
             code: None,
             authenticated: false,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
         };
         let session = self
             .auth_session_repository

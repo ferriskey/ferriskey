@@ -2,6 +2,8 @@
 
 use sea_orm::entity::prelude::*;
 
+use crate::domain::trident::entities::{WebAuthnCredentialId, WebAuthnPublicKey};
+
 #[derive(Copy, Clone, Default, Debug, DeriveEntity)]
 pub struct Entity;
 
@@ -23,6 +25,8 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub temporary: Option<bool>,
+    pub webauthn_credential_id: Option<Vec<u8>>,
+    pub webauthn_public_key: Option<Vec<u8>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -37,6 +41,8 @@ pub enum Column {
     CreatedAt,
     UpdatedAt,
     Temporary,
+    WebauthnCredentialId,
+    WebauthnPublicKey,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -70,6 +76,12 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::Temporary => ColumnType::Boolean.def().null(),
+            Self::WebauthnCredentialId => ColumnType::Binary(WebAuthnCredentialId::MAX_BYTE_LEN)
+                .def()
+                .null(),
+            Self::WebauthnPublicKey => ColumnType::Binary(WebAuthnPublicKey::MAX_BYTE_LEN)
+                .def()
+                .null(),
         }
     }
 }

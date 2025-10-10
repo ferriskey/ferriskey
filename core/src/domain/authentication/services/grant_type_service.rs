@@ -11,7 +11,7 @@ use crate::{
         },
         client::ports::ClientRepository,
         common::entities::app_errors::CoreError,
-        credential::ports::CredentialRepository,
+        credential::{entities::CredentialData, ports::CredentialRepository},
         crypto::ports::HasherRepository,
         jwt::{
             entities::{ClaimsTyp, Jwt, JwtClaim},
@@ -77,18 +77,28 @@ impl GrantTypeStrategies {
 
         let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
 
-        let is_valid = self
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = &credential.credential_data
+        else {
+            tracing::error!(
+                "A password credential has no Hash credential data. This is a server bug. Do not forward this message to the user."
+            );
+            return Err(CoreError::InternalServerError);
+        };
+
+        Ok(self
             .hasher_repository
             .verify_password(
                 &password,
                 &credential.secret_data,
-                &credential.credential_data,
+                *hash_iterations,
+                algorithm,
                 &salt,
             )
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(is_valid)
+            .map_err(|_| CoreError::InternalServerError)?)
     }
 
     async fn generate_token(&self, claims: JwtClaim, realm_id: Uuid) -> Result<Jwt, CoreError> {

@@ -1,7 +1,6 @@
 pub mod formatters;
 
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::credential::entities::Credential;
 use crate::domain::crypto::entities::HashResult;
 use crate::domain::trident::entities::MfaRecoveryCode;
 use crate::domain::trident::ports::{RecoveryCodeFormatter, RecoveryCodeRepository};
@@ -31,10 +30,16 @@ impl RecoveryCodeRepository for RecoveryCodeRepoAny {
     async fn verify(
         &self,
         in_code: &MfaRecoveryCode,
-        against: Credential,
-    ) -> Result<Option<Credential>, CoreError> {
+        secret_code: &str,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> Result<bool, CoreError> {
         match self {
-            RecoveryCodeRepoAny::RandomBytes10(repo) => repo.verify(in_code, against).await,
+            RecoveryCodeRepoAny::RandomBytes10(repo) => {
+                repo.verify(in_code, secret_code, hash_iterations, algorithm, salt)
+                    .await
+            }
         }
     }
 }
