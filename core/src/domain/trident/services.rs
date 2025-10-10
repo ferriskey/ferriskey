@@ -24,7 +24,11 @@ use crate::{
         role::ports::RoleRepository,
         trident::{
             entities::{
-                spec_encode, MfaRecoveryCode, SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance, WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge, WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions, WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions, WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement
+                SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance,
+                WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge,
+                WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions,
+                WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions,
+                WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement,
             },
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
@@ -492,12 +496,14 @@ where
             }
         )?;
 
-        if !challenge.verify(
+        match input.response.verify(
+            challenge,
             webauthn_credential.webauthn_public_key.expect("key"),
-            input.response.signature,
         ) {
-            return Err(CoreError::WebAuthnChallengeFailed);
-        }
+            Ok(res) if !res => return Err(CoreError::WebAuthnChallengeFailed),
+            Err(e) => return Err(e),
+            _ => (),
+        };
 
         let login_url = store_auth_code_and_generate_login_url(
             &self.auth_session_repository,

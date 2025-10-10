@@ -6,6 +6,9 @@ mod serde;
 /// Hence the redunduncy at some places
 use base64::Engine;
 use base64::prelude::*;
+use x509_parser::prelude::FromDer;
+use x509_parser::public_key::PublicKey;
+use x509_parser::x509::SubjectPublicKeyInfo;
 
 use super::SigningAlgorithm;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -13,7 +16,10 @@ use crate::domain::credential::entities::Credential;
 use crate::domain::credential::entities::CredentialData;
 use crate::domain::user::entities::User;
 use ::serde::{Deserialize, Serialize};
+use p256::ecdsa::{Signature, VerifyingKey};
 use rand::prelude::*;
+use sha2::{Digest, Sha256};
+use signature::Verifier;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -44,15 +50,6 @@ impl WebAuthnChallenge {
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(WebAuthnChallenge(bytes.to_vec()))
-    }
-
-    pub fn verify(&self, pubkey: WebAuthnPublicKey, signature: Vec<u8>) -> bool {
-        let signature = BASE64_URL_SAFE_NO_PAD.encode(signature);
-        let message = self.0.as_slice();
-        let key = jsonwebtoken::DecodingKey::from_secret(&pubkey.0);
-        let algorithm = jsonwebtoken::Algorithm::ES256;
-
-        jsonwebtoken::crypto::verify(&signature, message, &key, algorithm).unwrap_or(false)
     }
 }
 
@@ -394,6 +391,61 @@ pub struct WebAuthnAuthenticatorAssertionResponse {
     pub user_handle: Vec<u8>,
 }
 
+impl WebAuthnAuthenticatorAssertionResponse {
+    pub fn verify(
+        &self,
+        _challenge: WebAuthnChallenge,
+        pub_key: WebAuthnPublicKey,
+    ) -> Result<bool, CoreError> {
+        let client_data_hash = Sha256::digest(&self.client_data_json);
+        let mut message =
+            Vec::with_capacity(self.authenticator_data.len() + client_data_hash.len());
+        message.extend_from_slice(&self.authenticator_data);
+        message.extend_from_slice(&client_data_hash);
+
+        let (_, spki) = SubjectPublicKeyInfo::from_der(&pub_key.0)
+            .map_err(|_| {
+                tracing::error!("A public key was failed to be parsed as a SPKI der object. The server should ensure that objects stored in the database are valid.");
+                CoreError::InternalServerError
+            })?;
+
+        let spki = spki.parsed()
+            .map_err(|_| {
+                tracing::error!("A SPKI was failed to be parsed. The server should ensure that objects stored in the database are valid.");
+                CoreError::InternalServerError
+            })?;
+
+        let spki = if let PublicKey::EC(ec) = spki {
+            ec.data().to_vec()
+        } else {
+            // This would be a user error during credential creation
+            tracing::error!(
+                "A SPKI format is invalid. The server should have rejected that key during credential creation."
+            );
+            return Err(CoreError::InternalServerError);
+        };
+
+        if spki.len() != 65 {
+            tracing::error!(
+                "A SPKI doesn't have the expected length of 65 bytes. The server should have rejected that key during credential creation."
+            );
+            return Err(CoreError::InternalServerError);
+        }
+
+        let verifying_key =
+            VerifyingKey::from_sec1_bytes(&spki).map_err(|_| CoreError::InternalServerError)?;
+
+        let signature = Signature::from_der(&self.signature).map_err(|_| CoreError::Invalid)?;
+
+        match verifying_key.verify(&message, &signature) {
+            Ok(()) => Ok(true),
+            // This could also be ISE but p256::Error is too opaque to know so in doubt we'll just
+            // say it failed
+            Err(_) => Ok(false),
+        }
+    }
+}
+
 // Implemented for symetry with AuthenticatorAttestationResponse
 // This struct is actually not needed and a simple Deserialize impl would suffice
 /// https://w3c.github.io/webauthn/#dom-authenticatorassertionresponsejson-clientdatajson
@@ -438,9 +490,13 @@ impl WebAuthnAuthenticatorAssertionResponseJSON {
 
 #[cfg(test)]
 mod tests {
+    use p256::ecdsa::{DerSignature, VerifyingKey};
+    use signature::Verifier;
     use x509_parser::asn1_rs::{Length, Tag};
     use x509_parser::prelude::*;
     use x509_parser::public_key::*;
+
+    const KEY_HEX: &'static str = "3059301306072a8648ce3d020106082a8648ce3d030107034200049a01dfcbf76919678e7649e74205769991fd393b0960d0c4728154327fb1c1b61fd6100435099ac18697e57bcb1cd54b7dec5395e4ffcb255c072bcd94cb9c3d";
 
     #[test]
     /// This one is not a logic test per se, rather a test to showcase how key parsing should work
@@ -460,7 +516,6 @@ mod tests {
             'blabla bytes'H
         }
         */
-        const KEY_HEX: &'static str = "3059301306072a8648ce3d020106082a8648ce3d030107034200049a01dfcbf76919678e7649e74205769991fd393b0960d0c4728154327fb1c1b61fd6100435099ac18697e57bcb1cd54b7dec5395e4ffcb255c072bcd94cb9c3d";
 
         let key_bytes = hex::decode(KEY_HEX).expect("Failed to decode key as hex string");
         let (_, spki) = SubjectPublicKeyInfo::from_der(&key_bytes)
