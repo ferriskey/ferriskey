@@ -1,15 +1,22 @@
-use crate::{
-    application::common::permissions::FerriskeyPolicy,
-    domain::{
-        authentication::value_objects::Identity,
-        common::{entities::app_errors::CoreError, policies::Policy},
-        realm::entities::Realm,
-        role::entities::permission::Permissions,
-        webhook::ports::WebhookPolicy,
+use crate::domain::{
+    authentication::value_objects::Identity,
+    client::ports::ClientRepository,
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, Policy},
     },
+    realm::entities::Realm,
+    role::entities::permission::Permissions,
+    user::ports::{UserRepository, UserRoleRepository},
+    webhook::ports::WebhookPolicy,
 };
 
-impl WebhookPolicy for FerriskeyPolicy {
+impl<U, C, UR> WebhookPolicy for FerriskeyPolicy<U, C, UR>
+where
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+{
     async fn can_view_webhook(
         &self,
         identity: Identity,

@@ -103,7 +103,7 @@ pub trait RecoveryCodeFormatter: Send + Sync + Clone + 'static {
     fn decode(code: String) -> Result<MfaRecoveryCode, CoreError>;
 }
 
-pub trait TridentService: Send + Sync + Clone + 'static {
+pub trait TridentService: Send + Sync + Clone {
     fn generate_recovery_code(
         &self,
         identity: Identity,

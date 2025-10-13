@@ -14,6 +14,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
+            refresh_token_repository::PostgresRefreshTokenRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         user::{
@@ -30,16 +31,6 @@ use crate::{
     },
 };
 
-pub mod authentication;
-pub mod client;
-pub mod common;
-pub mod health;
-pub mod realm;
-pub mod role;
-pub mod trident;
-pub mod user;
-pub mod webhook;
-
 pub type FerrisKeyService = Service<
     PostgresRealmRepository,
     PostgresClientRepository,
@@ -55,6 +46,8 @@ pub type FerrisKeyService = Service<
     PostgresHealthCheckRepository,
     PostgresWebhookRepository,
     PostgresWebhookNotifierRepository,
+    PostgresRefreshTokenRepository,
+    RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>,
 >;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService, CoreError> {
@@ -85,6 +78,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
     let health_check = PostgresHealthCheckRepository::new(postgres.get_db());
     let webhook = PostgresWebhookRepository::new(postgres.get_db());
     let webhook_notifier = PostgresWebhookNotifierRepository::new();
+    let refresh_token = PostgresRefreshTokenRepository::new(postgres.get_db());
+    let recovery_code = RandBytesRecoveryCodeRepository::new(hasher.clone());
 
     Ok(Service::new(
         realm,
@@ -101,5 +96,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
         health_check,
         webhook,
         webhook_notifier,
+        refresh_token,
+        recovery_code,
     ))
 }

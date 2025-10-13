@@ -14,40 +14,9 @@ pub struct PostgresUserRoleRepository {
     pub db: DatabaseConnection,
 }
 
-#[derive(Clone)]
-pub enum UserRoleRepoAny {
-    Postgres(PostgresUserRoleRepository),
-}
-
 impl PostgresUserRoleRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
-    }
-}
-
-impl UserRoleRepository for UserRoleRepoAny {
-    async fn assign_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
-        match self {
-            UserRoleRepoAny::Postgres(repo) => repo.assign_role(user_id, role_id).await,
-        }
-    }
-
-    async fn revoke_role(&self, user_id: Uuid, role_id: Uuid) -> Result<(), CoreError> {
-        match self {
-            UserRoleRepoAny::Postgres(repo) => repo.revoke_role(user_id, role_id).await,
-        }
-    }
-
-    async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
-        match self {
-            UserRoleRepoAny::Postgres(repo) => repo.get_user_roles(user_id).await,
-        }
-    }
-
-    async fn has_role(&self, user_id: Uuid, role_id: Uuid) -> Result<bool, CoreError> {
-        match self {
-            UserRoleRepoAny::Postgres(repo) => repo.has_role(user_id, role_id).await,
-        }
     }
 }
 

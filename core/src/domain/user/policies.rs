@@ -1,16 +1,22 @@
-use crate::{
-    application::common::permissions::FerriskeyPolicy,
-    domain::{
-        authentication::value_objects::Identity,
-        client::ports::ClientPolicy,
-        common::{entities::app_errors::CoreError, policies::Policy},
-        realm::entities::Realm,
-        role::entities::permission::Permissions,
+use crate::domain::{
+    authentication::value_objects::Identity,
+    client::ports::ClientRepository,
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, Policy},
     },
+    realm::entities::Realm,
+    role::entities::permission::Permissions,
+    user::ports::{UserPolicy, UserRepository, UserRoleRepository},
 };
 
-impl ClientPolicy for FerriskeyPolicy {
-    async fn can_create_client(
+impl<U, C, UR> UserPolicy for FerriskeyPolicy<U, C, UR>
+where
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+{
+    async fn can_create_user(
         &self,
         identity: Identity,
         target_realm: Realm,
@@ -23,13 +29,13 @@ impl ClientPolicy for FerriskeyPolicy {
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ManageClients],
+            &[Permissions::ManageRealm, Permissions::ManageUsers],
         );
 
         Ok(has_permission)
     }
 
-    async fn can_delete_client(
+    async fn can_delete_user(
         &self,
         identity: Identity,
         target_realm: Realm,
@@ -42,13 +48,13 @@ impl ClientPolicy for FerriskeyPolicy {
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ManageClients],
+            &[Permissions::ManageRealm, Permissions::ManageUsers],
         );
 
         Ok(has_permission)
     }
 
-    async fn can_update_client(
+    async fn can_update_user(
         &self,
         identity: Identity,
         target_realm: Realm,
@@ -61,13 +67,13 @@ impl ClientPolicy for FerriskeyPolicy {
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ManageClients],
+            &[Permissions::ManageRealm, Permissions::ManageUsers],
         );
 
         Ok(has_permission)
     }
 
-    async fn can_view_client(
+    async fn can_view_user(
         &self,
         identity: Identity,
         target_realm: Realm,
@@ -80,7 +86,7 @@ impl ClientPolicy for FerriskeyPolicy {
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ViewClients],
+            &[Permissions::ManageRealm, Permissions::ViewUsers],
         );
 
         Ok(has_permission)

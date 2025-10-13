@@ -7,24 +7,34 @@ use sha1::Sha1;
 use uuid::Uuid;
 
 use crate::{
-    application::common::FerriskeyService,
     domain::{
         authentication::{ports::AuthSessionRepository, value_objects::Identity},
-        common::{entities::app_errors::CoreError, generate_random_string},
+        client::ports::{ClientRepository, RedirectUriRepository},
+        common::{entities::app_errors::CoreError, generate_random_string, services::Service},
         credential::{entities::Credential, ports::CredentialRepository},
         crypto::ports::HasherRepository,
+        health::ports::HealthCheckRepository,
+        jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
+        realm::ports::RealmRepository,
+        role::ports::RoleRepository,
         trident::{
-            entities::TotpSecret,
+            entities::{MfaRecoveryCode, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                RecoveryCodeFormatter, RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput,
+                TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
             },
         },
-        user::{entities::RequiredAction, ports::UserRequiredActionRepository},
+        user::{
+            entities::RequiredAction,
+            ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+        },
+        webhook::ports::{WebhookNotifierRepository, WebhookRepository},
     },
-    infrastructure::recovery_code::formatters::RecoveryCodeFormat,
+    infrastructure::recovery_code::formatters::{
+        B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
+    },
 };
 
 type HmacSha1 = Hmac<Sha1>;
@@ -34,7 +44,9 @@ fn generate_secret() -> Result<TotpSecret, CoreError> {
     rand::thread_rng()
         .try_fill_bytes(&mut bytes)
         .map_err(|_| CoreError::InternalServerError)?;
+
     let base32 = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &bytes);
+
     Ok(TotpSecret::from_base32(&base32))
 }
 
@@ -57,6 +69,8 @@ fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, C
     counter_bytes.copy_from_slice(&counter.to_be_bytes());
 
     mac.update(&counter_bytes);
+
+    mac.update(&counter_bytes);
     let hmac_result = mac.finalize().into_bytes();
 
     let offset = (hmac_result[19] & 0x0f) as usize;
@@ -75,7 +89,7 @@ fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
     };
 
     let Ok(secret_bytes) = secret.to_bytes() else {
-        tracing::error!("faield to convert secret to bytes");
+        tracing::error!("failed to convert secret to bytes");
         return Ok(false);
     };
 
@@ -100,7 +114,38 @@ fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
     Ok(false)
 }
 
-impl TridentService for FerriskeyService {
+fn format_code(code: &MfaRecoveryCode, format: RecoveryCodeFormat) -> String {
+    match format {
+        RecoveryCodeFormat::B32Split4 => B32Split4RecoveryCodeFormatter::format(code),
+    }
+}
+
+fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecoveryCode, CoreError> {
+    match format {
+        RecoveryCodeFormat::B32Split4 => B32Split4RecoveryCodeFormatter::decode(code),
+    }
+}
+
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> TridentService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    KS: KeyStoreRepository,
+    UR: UserRoleRepository,
+    URA: UserRequiredActionRepository,
+    HC: HealthCheckRepository,
+    W: WebhookRepository,
+    WN: WebhookNotifierRepository,
+    RT: RefreshTokenRepository,
+    RC: RecoveryCodeRepository,
+{
     async fn generate_recovery_code(
         &self,
         identity: Identity,
@@ -124,14 +169,14 @@ impl TridentService for FerriskeyService {
             .collect::<Vec<Credential>>();
 
         let codes = self
-            .recovery_code_repo
+            .recovery_code_repository
             .generate_n_recovery_code(input.amount as usize);
 
         // These are probably not concurrent jobs !
         // They should be parallelized with threads instead of IO tasks for faster operation
         let futures = codes
             .iter()
-            .map(|code| self.recovery_code_repo.secure_for_storage(code));
+            .map(|code| self.recovery_code_repository.secure_for_storage(code));
         let secure_codes = try_join_all(futures).await?;
 
         self.credential_repository
@@ -158,7 +203,7 @@ impl TridentService for FerriskeyService {
         // distribution to the user
         let codes = codes
             .into_iter()
-            .map(|c| self.recovery_code_repo.format_code(&c, format.clone()))
+            .map(|c| format_code(&c, format.clone()))
             .collect::<Vec<String>>();
 
         Ok(GenerateRecoveryCodeOutput { codes })
@@ -180,7 +225,7 @@ impl TridentService for FerriskeyService {
         let format =
             RecoveryCodeFormat::try_from(input.format).map_err(CoreError::RecoveryCodeBurnError)?;
 
-        let user_code = self.recovery_code_repo.decode_string(input.code, format)?;
+        let user_code = decode_string(input.code, format)?;
 
         let auth_session = self
             .auth_session_repository
@@ -202,7 +247,7 @@ impl TridentService for FerriskeyService {
         let verify_results = {
             let futures = recovery_code_creds
                 .into_iter()
-                .map(|code_cred| self.recovery_code_repo.verify(&user_code, code_cred));
+                .map(|code_cred| self.recovery_code_repository.verify(&user_code, code_cred));
 
             try_join_all(futures).await
         }?;

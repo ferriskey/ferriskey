@@ -1,14 +1,9 @@
-pub mod auth_session;
 pub mod client;
 pub mod common;
-pub mod credential;
 pub mod db;
-pub mod hasher;
 pub mod health;
-pub mod jwt;
 pub mod realm;
 pub mod recovery_code;
-pub mod refresh_token;
 pub mod repositories;
 pub mod role;
 pub mod user;

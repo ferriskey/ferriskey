@@ -18,7 +18,7 @@ use crate::domain::{
 /// This trait defines the contract for implementing specific grant type strategies,
 /// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
-pub trait GrantTypeService: Clone + Send + Sync + 'static {
+pub trait GrantTypeService: Clone + Send + Sync {
     fn authenticate_with_grant_type(
         &self,
         grant_type: GrantType,
@@ -71,7 +71,7 @@ pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
 }
 
-pub trait AuthService: Clone + Send + Sync + 'static {
+pub trait AuthService: Clone + Send + Sync {
     fn auth(&self, input: AuthInput) -> impl Future<Output = Result<AuthOutput, CoreError>> + Send;
     fn get_certs(
         &self,
@@ -96,7 +96,7 @@ pub trait AuthService: Clone + Send + Sync + 'static {
 /// This trait defines the contract for implementing specific grant type strategies,
 /// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
-pub trait GrantTypeStrategy: Clone + Send + Sync + 'static {
+pub trait GrantTypeStrategy: Clone + Send + Sync {
     fn authorization_code(
         &self,
         params: GrantTypeParams,
@@ -115,7 +115,7 @@ pub trait GrantTypeStrategy: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
 }
 
-pub trait AuthenticatePort: Clone + Send + Sync + 'static {
+pub trait AuthenticatePort: Clone + Send + Sync {
     fn handle_token_refresh(
         &self,
         token: String,

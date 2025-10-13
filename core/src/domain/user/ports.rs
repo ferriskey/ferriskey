@@ -14,7 +14,7 @@ use crate::domain::{
     },
 };
 
-pub trait UserService: Clone + Send + Sync + 'static {
+pub trait UserService: Clone + Send + Sync {
     fn delete_user(
         &self,
         identity: Identity,

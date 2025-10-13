@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use tokio::sync::watch::error;
-
 use crate::domain::{
     authentication::value_objects::Identity,
     client::{entities::Client, ports::ClientRepository},

@@ -2,23 +2,36 @@ use std::collections::HashSet;
 
 use crate::domain::{
     authentication::{ports::AuthSessionRepository, value_objects::Identity},
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, policies::ensure_policy, services::Service},
+    client::{
+        ports::{ClientRepository, RedirectUriRepository},
+        value_objects::CreateClientRequest,
+    },
+    common::{
+        entities::app_errors::CoreError, generate_random_string, policies::ensure_policy,
+        services::Service,
+    },
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
     health::ports::HealthCheckRepository,
-    jwt::ports::KeyStoreRepository,
+    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::{
-        entities::Realm,
-        ports::{CreateRealmInput, RealmPolicy, RealmRepository, RealmService},
+        entities::{Realm, RealmSetting},
+        ports::{
+            CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
+            GetRealmSettingInput, RealmPolicy, RealmRepository, RealmService, UpdateRealmInput,
+            UpdateRealmSettingInput,
+        },
     },
-    role::{entities::permission::Permissions, ports::RoleRepository},
+    role::{
+        entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
+    },
+    trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN> RealmService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> RealmService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -34,6 +47,8 @@ where
     HC: HealthCheckRepository,
     W: WebhookRepository,
     WN: WebhookNotifierRepository,
+    RT: RefreshTokenRepository,
+    RC: RecoveryCodeRepository,
 {
     async fn create_realm(
         &self,
@@ -47,29 +62,162 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         let realm_master_id = realm_master.id;
-        todo!()
+        ensure_policy(
+            self.policy
+                .can_create_realm(identity.clone(), realm_master)
+                .await,
+            "insufficient permissions",
+        )?;
+
+        let realm = self.realm_repository.create_realm(input.realm_name).await?;
+        self.realm_repository
+            .create_realm_settings(realm.id, "RS256".to_string())
+            .await?;
+
+        let name = format!("{}-realm", realm.name);
+
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest::create_realm_system_client(
+                realm_master_id,
+                name.clone(),
+            ))
+            .await?;
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(client.id),
+                description: None,
+                name,
+                permissions: vec![Permissions::ManageRealm.name()],
+                realm_id: realm_master_id,
+            })
+            .await?;
+
+        let user = match identity {
+            Identity::User(u) => u,
+            Identity::Client(c) => self.user_repository.get_by_client_id(c.id).await?,
+        };
+
+        self.user_role_repository
+            .assign_role(user.id, role.id)
+            .await?;
+
+        // Clients in the new realm
+        self.client_repository
+            .create_client(CreateClientRequest {
+                client_id: "admin-cli".to_string(),
+                client_type: "".to_string(),
+                direct_access_grants_enabled: true,
+                enabled: true,
+                name: "admin-cli".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                realm_id: realm.id,
+                secret: None,
+                service_account_enabled: false,
+            })
+            .await?;
+
+        Ok(realm)
     }
 
     async fn create_realm_with_user(
         &self,
         identity: Identity,
-        input: super::ports::CreateRealmWithUserInput,
+        input: CreateRealmWithUserInput,
     ) -> Result<Realm, CoreError> {
-        todo!()
+        let realm = self
+            .create_realm(
+                identity.clone(),
+                CreateRealmInput {
+                    realm_name: input.realm_name.clone(),
+                },
+            )
+            .await?;
+
+        let user = match identity {
+            Identity::User(user) => user,
+            Identity::Client(client) => self.user_repository.get_by_client_id(client.id).await?,
+        };
+
+        let realm_master = self
+            .realm_repository
+            .get_by_name("master".to_string())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let client_id = format!("{}-realm", input.realm_name);
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                realm_id: realm_master.id,
+                name: client_id.clone(),
+                client_id,
+                secret: Some(generate_random_string()),
+                enabled: true,
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                service_account_enabled: false,
+                direct_access_grants_enabled: false,
+                client_type: "public".into(),
+            })
+            .await?;
+
+        // Create role for client
+        let permissions = Permissions::to_names(&[
+            Permissions::ManageRealm,
+            Permissions::ManageClients,
+            Permissions::ManageRoles,
+            Permissions::ManageUsers,
+        ]);
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(client.id),
+                name: format!("{}-realm-admin", input.realm_name),
+                permissions,
+                realm_id: realm_master.id,
+                description: Some(format!("role for manage realm {}", input.realm_name)),
+            })
+            .await?;
+
+        self.user_role_repository
+            .assign_role(user.id, role.id)
+            .await?;
+
+        Ok(realm)
     }
 
     async fn delete_realm(
         &self,
         identity: Identity,
-        input: super::ports::DeleteRealmInput,
+        input: DeleteRealmInput,
     ) -> Result<(), CoreError> {
-        todo!()
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name.clone())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_delete_realm(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.realm_repository
+            .delete_by_name(input.realm_name)
+            .await?;
+
+        Ok(())
     }
 
     async fn get_realm_by_name(
         &self,
         identity: Identity,
-        input: super::ports::GetRealmInput,
+        input: GetRealmInput,
     ) -> Result<Realm, CoreError> {
         let realm = self
             .realm_repository
@@ -89,9 +237,24 @@ where
     async fn get_realm_setting_by_name(
         &self,
         identity: Identity,
-        input: super::ports::GetRealmSettingInput,
-    ) -> Result<super::entities::RealmSetting, CoreError> {
-        todo!()
+        input: GetRealmSettingInput,
+    ) -> Result<RealmSetting, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+
+        ensure_policy(
+            self.policy.can_view_realm(identity, realm.clone()).await,
+            "insufficient permissions",
+        )?;
+
+        let realm_setting = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        Ok(realm_setting)
     }
 
     async fn get_realms_by_user(&self, identity: Identity) -> Result<Vec<Realm>, CoreError> {
@@ -153,16 +316,50 @@ where
     async fn update_realm(
         &self,
         identity: Identity,
-        input: super::ports::UpdateRealmInput,
+        input: UpdateRealmInput,
     ) -> Result<Realm, CoreError> {
-        todo!()
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name.clone())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_realm(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let realm = self
+            .realm_repository
+            .update_realm(input.realm_name, input.name)
+            .await?;
+
+        Ok(realm)
     }
 
     async fn update_realm_setting(
         &self,
         identity: Identity,
-        input: super::ports::UpdateRealmSettingInput,
-    ) -> Result<super::entities::RealmSetting, CoreError> {
-        todo!()
+        input: UpdateRealmSettingInput,
+    ) -> Result<RealmSetting, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+
+        ensure_policy(
+            self.policy.can_update_realm(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let realm_setting = self
+            .realm_repository
+            .update_realm_setting(realm_id, input.algorithm)
+            .await?;
+
+        Ok(realm_setting)
     }
 }

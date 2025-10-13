@@ -1,69 +1,52 @@
-use std::vec;
-
 use uuid::Uuid;
 
-use crate::{
-    application::common::DefaultJwtService,
-    domain::{
-        authentication::{
-            entities::{
-                AuthSession, AuthenticateOutput, AuthenticationStepStatus, CredentialsAuthParams,
-            },
-            ports::{AuthSessionRepository, AuthenticatePort},
-            value_objects::AuthenticationResult,
+use crate::domain::{
+    authentication::{
+        entities::{
+            AuthSession, AuthenticateOutput, AuthenticationStepStatus, CredentialsAuthParams,
         },
-        client::ports::ClientRepository,
-        common::{entities::app_errors::CoreError, generate_random_string},
-        credential::ports::CredentialRepository,
-        crypto::ports::HasherRepository,
-        jwt::{
-            entities::{ClaimsTyp, JwtClaim},
-            ports::JwtService,
-        },
-        realm::ports::RealmRepository,
-        user::{entities::RequiredAction, ports::UserRepository},
+        ports::{AuthSessionRepository, AuthenticatePort},
+        value_objects::AuthenticationResult,
     },
-    infrastructure::{
-        auth_session::AuthSessionRepoAny, client::repositories::ClientRepoAny,
-        credential::CredentialRepoAny, hasher::HasherRepoAny, realm::repositories::RealmRepoAny,
-        user::UserRepoAny,
+    client::ports::{ClientRepository, RedirectUriRepository},
+    common::{entities::app_errors::CoreError, generate_random_string, services::Service},
+    credential::ports::CredentialRepository,
+    crypto::ports::HasherRepository,
+    health::ports::HealthCheckRepository,
+    jwt::{
+        entities::{ClaimsTyp, JwtClaim},
+        ports::{KeyStoreRepository, RefreshTokenRepository},
     },
+    realm::ports::RealmRepository,
+    role::ports::RoleRepository,
+    trident::ports::RecoveryCodeRepository,
+    user::{
+        entities::RequiredAction,
+        ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    },
+    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
-#[derive(Clone)]
-pub struct AuthenticateFactory {
-    auth_session_repository: AuthSessionRepoAny,
-    user_repository: UserRepoAny,
-    realm_repository: RealmRepoAny,
-    client_repository: ClientRepoAny,
-    credential_repository: CredentialRepoAny,
-    hasher_repository: HasherRepoAny,
-    jwt_service: DefaultJwtService,
-}
-
-impl AuthenticateFactory {
-    pub fn new(
-        auth_session_repository: AuthSessionRepoAny,
-        user_repository: UserRepoAny,
-        realm_repository: RealmRepoAny,
-        client_repository: ClientRepoAny,
-        credential_repository: CredentialRepoAny,
-        hasher_repository: HasherRepoAny,
-        jwt_service: DefaultJwtService,
-    ) -> Self {
-        Self {
-            auth_session_repository,
-            user_repository,
-            realm_repository,
-            client_repository,
-            credential_repository,
-            hasher_repository,
-            jwt_service,
-        }
-    }
-}
-
-impl AuthenticatePort for AuthenticateFactory {
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> AuthenticatePort
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    KS: KeyStoreRepository,
+    UR: UserRoleRepository,
+    URA: UserRequiredActionRepository,
+    HC: HealthCheckRepository,
+    W: WebhookRepository,
+    WN: WebhookNotifierRepository,
+    RT: RefreshTokenRepository,
+    RC: RecoveryCodeRepository,
+{
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
@@ -124,11 +107,7 @@ impl AuthenticatePort for AuthenticateFactory {
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
-        let claims = self
-            .jwt_service
-            .verify_refresh_token(token.clone(), realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let claims = self.verify_refresh_token(token.clone(), realm_id).await?;
 
         let user = self
             .user_repository
@@ -137,11 +116,7 @@ impl AuthenticatePort for AuthenticateFactory {
             .map_err(|_| CoreError::InternalServerError)?;
 
         if !user.required_actions.is_empty() {
-            let jwt_token = self
-                .jwt_service
-                .generate_token(claims, realm_id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
+            let jwt_token = self.generate_token(claims, realm_id).await?;
 
             return Ok(AuthenticateOutput {
                 status: AuthenticationStepStatus::RequiresActions,
@@ -190,20 +165,17 @@ impl AuthenticatePort for AuthenticateFactory {
         let realm = self
             .realm_repository
             .get_by_name(realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
+            .await?
             .ok_or(CoreError::InvalidRealm)?;
 
         self.client_repository
             .get_by_client_id(client_id.clone(), realm.id)
-            .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .await?;
 
         let user = self
             .user_repository
             .get_by_username(username, realm.id)
-            .await
-            .map_err(|_| CoreError::InvalidUser)?;
+            .await?;
 
         let user_credentials = self
             .credential_repository
@@ -253,11 +225,7 @@ impl AuthenticatePort for AuthenticateFactory {
         );
 
         if !user.required_actions.is_empty() || has_temporary_password {
-            let jwt_token = self
-                .jwt_service
-                .generate_token(jwt_claim, realm.id)
-                .await
-                .map_err(|e| CoreError::TokenGenerationError(e.to_string()))?;
+            let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
 
             let required_actions = if has_temporary_password {
                 vec![RequiredAction::UpdatePassword]
@@ -276,11 +244,7 @@ impl AuthenticatePort for AuthenticateFactory {
 
         let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
         if has_otp_credentials {
-            let jwt_token = self
-                .jwt_service
-                .generate_token(jwt_claim, realm.id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
+            let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
 
             return Ok(AuthenticationResult {
                 code: None,

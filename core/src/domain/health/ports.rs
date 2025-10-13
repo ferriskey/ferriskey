@@ -2,7 +2,7 @@ use crate::domain::{
     common::entities::app_errors::CoreError, health::entities::DatabaseHealthStatus,
 };
 
-pub trait HealthCheckService: Clone + Send + Sync + 'static {
+pub trait HealthCheckService: Clone + Send + Sync {
     fn readness(&self) -> impl Future<Output = Result<DatabaseHealthStatus, CoreError>> + Send;
     fn health(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }

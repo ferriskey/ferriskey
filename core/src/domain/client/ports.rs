@@ -16,7 +16,7 @@ use crate::domain::{
     role::entities::Role,
 };
 
-pub trait ClientService: Clone + Send + Sync + 'static {
+pub trait ClientService: Clone + Send + Sync {
     fn create_client(
         &self,
         identity: Identity,

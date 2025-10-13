@@ -19,7 +19,7 @@ use axum::http::{HeaderValue, Method};
 use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
-use ferriskey_core::application::common::FerriskeyService;
+use ferriskey_core::application::create_service;
 use ferriskey_core::domain::common::FerriskeyConfig;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, info_span};
@@ -28,7 +28,8 @@ use utoipa_scalar::{Scalar, Servable};
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
-    let service = FerriskeyService::new(ferriskey_config).await?;
+    //let service = FerrisKeyService::new(ferriskey_config).await?;
+    let service = create_service(ferriskey_config).await?;
 
     Ok(AppState::new(args, service))
 }

@@ -9,7 +9,7 @@ use crate::domain::{
     crypto::entities::HashResult,
 };
 
-pub trait CredentialService: Clone + Send + Sync + 'static {
+pub trait CredentialService: Clone + Send + Sync {
     fn get_credentials(
         &self,
         identity: Identity,

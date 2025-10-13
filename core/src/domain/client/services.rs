@@ -1,30 +1,54 @@
-use crate::{
-    application::common::{FerriskeyService, policies::ensure_policy},
-    domain::{
-        authentication::value_objects::Identity,
-        client::{
-            entities::{
-                Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-                DeleteClientInput, DeleteRedirectUriInput, GetClientInput, GetClientRolesInput,
-                GetClientsInput, GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
-                redirect_uri::RedirectUri,
-            },
-            ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
-            value_objects::CreateClientRequest,
+use crate::domain::{
+    authentication::{ports::AuthSessionRepository, value_objects::Identity},
+    client::{
+        entities::{
+            Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
+            DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
+            GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
+            redirect_uri::RedirectUri,
         },
-        common::{entities::app_errors::CoreError, generate_random_string},
-        realm::ports::RealmRepository,
-        role::{
-            entities::Role,
-            ports::{RolePolicy, RoleRepository},
-            value_objects::CreateRoleRequest,
-        },
+        ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
+        value_objects::CreateClientRequest,
     },
+    common::{
+        entities::app_errors::CoreError, generate_random_string, policies::ensure_policy,
+        services::Service,
+    },
+    credential::ports::CredentialRepository,
+    crypto::ports::HasherRepository,
+    health::ports::HealthCheckRepository,
+    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
+    realm::ports::RealmRepository,
+    role::{
+        entities::Role,
+        ports::{RolePolicy, RoleRepository},
+        value_objects::CreateRoleRequest,
+    },
+    trident::ports::RecoveryCodeRepository,
+    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
-mod policies;
-
-impl ClientService for FerriskeyService {
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> ClientService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    KS: KeyStoreRepository,
+    UR: UserRoleRepository,
+    URA: UserRequiredActionRepository,
+    HC: HealthCheckRepository,
+    W: WebhookRepository,
+    WN: WebhookNotifierRepository,
+    RT: RefreshTokenRepository,
+    RC: RecoveryCodeRepository,
+{
     async fn create_client(
         &self,
         identity: Identity,

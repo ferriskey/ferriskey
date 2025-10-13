@@ -1,18 +1,41 @@
-use crate::{
-    application::common::{FerriskeyService, policies::ensure_policy},
-    domain::{
-        authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
-        credential::{
-            entities::{CredentialOverview, GetCredentialsInput},
-            ports::{CredentialRepository, CredentialService},
-        },
-        realm::ports::RealmRepository,
-        user::ports::UserPolicy,
+use crate::domain::{
+    authentication::{ports::AuthSessionRepository, value_objects::Identity},
+    client::ports::{ClientRepository, RedirectUriRepository},
+    common::{entities::app_errors::CoreError, policies::ensure_policy, services::Service},
+    credential::{
+        entities::{CredentialOverview, GetCredentialsInput},
+        ports::{CredentialRepository, CredentialService},
     },
+    crypto::ports::HasherRepository,
+    health::ports::HealthCheckRepository,
+    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
+    realm::ports::RealmRepository,
+    role::ports::RoleRepository,
+    trident::ports::RecoveryCodeRepository,
+    user::ports::{UserPolicy, UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
-impl CredentialService for FerriskeyService {
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> CredentialService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    KS: KeyStoreRepository,
+    UR: UserRoleRepository,
+    URA: UserRequiredActionRepository,
+    HC: HealthCheckRepository,
+    W: WebhookRepository,
+    WN: WebhookNotifierRepository,
+    RT: RefreshTokenRepository,
+    RC: RecoveryCodeRepository,
+{
     async fn get_credentials(
         &self,
         identity: Identity,

@@ -10,24 +10,7 @@ use crate::domain::{
 };
 use tracing::error;
 
-#[derive(Clone)]
-pub enum WebhookNotifierRepoAny {
-    Postgres(PostgresWebhookNotifierRepository),
-}
-
-impl WebhookNotifierRepository for WebhookNotifierRepoAny {
-    async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
-        &self,
-        webhooks: Vec<Webhook>,
-        payload: WebhookPayload<T>,
-    ) -> Result<(), CoreError> {
-        match self {
-            WebhookNotifierRepoAny::Postgres(r) => r.notify(webhooks, payload).await,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PostgresWebhookNotifierRepository {
     pub http_client: Client,
 }
