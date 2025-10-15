@@ -3,9 +3,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::client::{
-    entities::redirect_uri::RedirectUri,
-    value_objects::{CreateRedirectUriRequest, UpdateClientRequest},
+use crate::domain::{
+    client::{
+        entities::redirect_uri::RedirectUri,
+        value_objects::{CreateRedirectUriRequest, UpdateClientRequest},
+    },
+    common::generate_random_string,
 };
 
 pub mod redirect_uri;
@@ -59,6 +62,30 @@ impl Client {
             direct_access_grants_enabled: config.direct_access_grants_enabled.unwrap_or_default(),
             client_type: config.client_type,
             name: config.name,
+            redirect_uris: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn from_realm_and_client_id(realm_id: Uuid, client_id: String) -> Self {
+        let now = Utc::now();
+        let seconds = now.timestamp().try_into().unwrap_or(0);
+
+        let timestamp = Timestamp::from_unix(NoContext, seconds, 0);
+
+        Self {
+            id: Uuid::new_v7(timestamp),
+            enabled: true,
+            client_id: client_id.clone(),
+            secret: Some(generate_random_string()),
+            realm_id,
+            protocol: "openid-connect".to_string(),
+            public_client: false,
+            service_account_enabled: false,
+            direct_access_grants_enabled: false,
+            client_type: "confidential".to_string(),
+            name: format!("{client_id} Client"),
             redirect_uris: None,
             created_at: now,
             updated_at: now,

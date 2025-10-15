@@ -1174,6 +1174,25 @@ pub mod tests {
         }
     }
 
+    pub fn create_test_user(realm_id: Uuid) -> User {
+        User {
+            id: Uuid::new_v4(),
+            realm_id,
+            username: "test_user".to_string(),
+            firstname: "John".to_string(),
+            lastname: "Doe".to_string(),
+            email: "test@example.com".to_string(),
+            email_verified: true,
+            realm: None,
+            client_id: None,
+            enabled: true,
+            required_actions: Vec::new(),
+            roles: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
     pub fn create_test_user_with_realm(realm: &Realm) -> User {
         User {
             id: Uuid::new_v4(),
@@ -1298,6 +1317,11 @@ pub mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
+    }
+
+    /// Crée une identité utilisateur de test
+    pub fn create_test_user_identity(realm_id: Uuid) -> Identity {
+        Identity::User(create_test_user(realm_id))
     }
 
     pub fn create_test_client_identity(realm_id: Uuid) -> Identity {
