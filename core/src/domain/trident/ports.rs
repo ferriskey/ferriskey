@@ -1,14 +1,11 @@
 use uuid::Uuid;
+use webauthn_rs::prelude::*;
 
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
     crypto::entities::HashResult,
-    trident::entities::{
-        MfaRecoveryCode, TotpSecret, WebAuthnAuthenticatorAssertionResponse,
-        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialIdGroup,
-        WebAuthnPublicKeyCredentialCreationOptions, WebAuthnPublicKeyCredentialRequestOptions,
-    },
+    trident::entities::{MfaRecoveryCode, TotpSecret},
 };
 
 pub trait TotpService: Send + Sync {
@@ -25,35 +22,22 @@ pub struct WebAuthnPublicKeyCreateOptionsInput {
     /// This will work fine for localhost but may not work in other scenario
     pub server_host: String,
 }
-
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-pub struct WebAuthnPublicKeyCreateOptionsOutput(pub WebAuthnPublicKeyCredentialCreationOptions);
+pub struct WebAuthnPublicKeyCreateOptionsOutput(pub CreationChallengeResponse);
 
-pub struct WebAuthnValidatePublicKeyInput {
-    pub credential: WebAuthnCredentialIdGroup,
-    pub response: WebAuthnAuthenticatorAttestationResponse,
-    pub typ: String,
-}
-
+pub struct WebAuthnValidatePublicKeyInput(pub RegisterPublicKeyCredential);
 pub struct WebAuthnValidatePublicKeyOutput {}
 
 pub struct WebAuthnPublicKeyRequestOptionsInput {
     pub session_code: String,
     pub server_host: String,
 }
-
-pub struct WebAuthnPublicKeyRequestOptionsOutput(pub WebAuthnPublicKeyCredentialRequestOptions);
+pub struct WebAuthnPublicKeyRequestOptionsOutput(pub RequestChallengeResponse);
 
 pub struct WebAuthnPublicKeyAuthenticateInput {
-    // Trident required fields
     pub session_code: Uuid,
-
-    // Standard webauthn fields
-    pub credential: WebAuthnCredentialIdGroup,
-    pub response: WebAuthnAuthenticatorAssertionResponse,
-    pub typ: String,
+    pub credential: PublicKeyCredential,
 }
-
 pub struct WebAuthnPublicKeyAuthenticateOutput {
     pub login_url: String,
 }

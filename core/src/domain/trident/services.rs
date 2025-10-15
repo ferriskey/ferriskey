@@ -23,13 +23,7 @@ use crate::{
         realm::ports::RealmRepository,
         role::ports::RoleRepository,
         trident::{
-            entities::{
-                SigningAlgorithm, TotpSecret, WebAuthnAttestationConveyance,
-                WebAuthnAuthenticationExtensionsClientInputs, WebAuthnChallenge,
-                WebAuthnPubKeyCredParams, WebAuthnPublicKeyCredentialCreationOptions,
-                WebAuthnPublicKeyCredentialDescriptor, WebAuthnPublicKeyCredentialRequestOptions,
-                WebAuthnRelayingParty, WebAuthnUser, WebAuthnUserVerificationRequirement,
-            },
+            entities::TotpSecret,
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
