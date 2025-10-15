@@ -125,6 +125,7 @@ impl Permissions {
             "manage_identity_providers" => Some(Self::ManageIdentityProviders),
             "manage_realm" => Some(Self::ManageRealm),
             "manage_users" => Some(Self::ManageUsers),
+            "manage_roles" => Some(Self::ManageRoles),
             "query_clients" => Some(Self::QueryClients),
             "query_groups" => Some(Self::QueryGroups),
             "query_realms" => Some(Self::QueryRealms),
@@ -135,6 +136,10 @@ impl Permissions {
             "view_identity_providers" => Some(Self::ViewIdentityProviders),
             "view_realm" => Some(Self::ViewRealm),
             "view_users" => Some(Self::ViewUsers),
+            "view_roles" => Some(Self::ViewRoles),
+            "manage_webhooks" => Some(Self::ManageWebhooks),
+            "query_webhooks" => Some(Self::QueryWebhooks),
+            "view_webhooks" => Some(Self::ViewWebhooks),
             _ => None,
         }
     }

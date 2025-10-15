@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use reqwest::Client;
 use serde::Serialize;
 use tracing::error;
@@ -13,7 +15,7 @@ pub struct WebhookNotifierServiceImpl<W>
 where
     W: WebhookRepository,
 {
-    webhook_repository: W,
+    webhook_repository: Arc<W>,
     http_client: Client,
 }
 
@@ -21,7 +23,7 @@ impl<W> WebhookNotifierServiceImpl<W>
 where
     W: WebhookRepository,
 {
-    pub fn new(webhook_repository: W) -> Self {
+    pub fn new(webhook_repository: Arc<W>) -> Self {
         WebhookNotifierServiceImpl {
             webhook_repository,
             http_client: Client::new(),
@@ -31,7 +33,7 @@ where
 
 impl<W> WebhookNotifierService for WebhookNotifierServiceImpl<W>
 where
-    W: WebhookRepository,
+    W: WebhookRepository + 'static,
 {
     async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,

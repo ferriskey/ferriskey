@@ -14,7 +14,7 @@ use crate::domain::{
     },
 };
 
-pub trait UserService: Clone + Send + Sync {
+pub trait UserService: Send + Sync {
     fn delete_user(
         &self,
         identity: Identity,
@@ -64,7 +64,8 @@ pub trait UserService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait UserRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait UserRepository: Send + Sync {
     fn create_user(
         &self,
         dto: CreateUserRequest,
@@ -102,7 +103,8 @@ pub trait UserRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 }
 
-pub trait UserRequiredActionRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait UserRequiredActionRepository: Send + Sync {
     fn add_required_action(
         &self,
         user_id: Uuid,
@@ -152,7 +154,7 @@ pub trait UserRoleService: Send + Sync {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
-pub trait UserPolicy: Send + Sync + Clone {
+pub trait UserPolicy: Send + Sync {
     fn can_create_user(
         &self,
         identity: Identity,
@@ -175,7 +177,8 @@ pub trait UserPolicy: Send + Sync + Clone {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
-pub trait UserRoleRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait UserRoleRepository: Send + Sync {
     fn assign_role(
         &self,
         user_id: Uuid,

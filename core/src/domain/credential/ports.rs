@@ -9,7 +9,7 @@ use crate::domain::{
     crypto::entities::HashResult,
 };
 
-pub trait CredentialService: Clone + Send + Sync {
+pub trait CredentialService: Send + Sync {
     fn get_credentials(
         &self,
         identity: Identity,
@@ -22,7 +22,8 @@ pub trait CredentialService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait CredentialRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait CredentialRepository: Send + Sync {
     fn create_credential(
         &self,
         user_id: Uuid,

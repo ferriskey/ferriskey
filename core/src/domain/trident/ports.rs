@@ -8,7 +8,7 @@ use crate::domain::{
     trident::entities::{MfaRecoveryCode, TotpSecret},
 };
 
-pub trait TotpService: Send + Sync + Clone + 'static {
+pub trait TotpService: Send + Sync {
     fn generate_secret(&self) -> Result<TotpSecret, CoreError>;
     fn generate_otpauth_uri(&self, issuer: &str, user_email: &str, secret: &TotpSecret) -> String;
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
@@ -67,7 +67,8 @@ pub struct BurnRecoveryCodeOutput {
     pub login_url: String,
 }
 
-pub trait RecoveryCodeRepository: Send + Sync + Clone + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait RecoveryCodeRepository: Send + Sync {
     fn generate_recovery_code(&self) -> MfaRecoveryCode;
     fn generate_n_recovery_code(&self, n: usize) -> Vec<MfaRecoveryCode> {
         let mut out = Vec::<MfaRecoveryCode>::with_capacity(n);
@@ -92,7 +93,7 @@ pub trait RecoveryCodeRepository: Send + Sync + Clone + 'static {
     ) -> impl Future<Output = Result<Option<Credential>, CoreError>> + Send;
 }
 
-pub trait RecoveryCodeFormatter: Send + Sync + Clone + 'static {
+pub trait RecoveryCodeFormatter: Send + Sync {
     /// Returns a formatted string representing the code
     fn format(code: &MfaRecoveryCode) -> String;
     /// Returns wether or not a user string matches the expected format
@@ -103,7 +104,7 @@ pub trait RecoveryCodeFormatter: Send + Sync + Clone + 'static {
     fn decode(code: String) -> Result<MfaRecoveryCode, CoreError>;
 }
 
-pub trait TridentService: Send + Sync + Clone {
+pub trait TridentService: Send + Sync {
     fn generate_recovery_code(
         &self,
         identity: Identity,

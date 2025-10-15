@@ -11,7 +11,7 @@ use crate::domain::{
     },
 };
 
-pub trait WebhookService: Clone + Send + Sync {
+pub trait WebhookService: Send + Sync {
     fn get_webhooks_by_realm(
         &self,
         identity: Identity,
@@ -49,7 +49,8 @@ pub trait WebhookService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait WebhookRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait WebhookRepository: Send + Sync {
     fn fetch_webhooks_by_realm(
         &self,
         realm_id: Uuid,
@@ -88,7 +89,8 @@ pub trait WebhookRepository: Clone + Send + Sync + 'static {
     fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), WebhookError>> + Send;
 }
 
-pub trait WebhookNotifierRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait WebhookNotifierRepository: Send + Sync {
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         webhooks: Vec<Webhook>,
@@ -96,7 +98,7 @@ pub trait WebhookNotifierRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait WebhookNotifierService: Clone + Send + Sync {
+pub trait WebhookNotifierService: Send + Sync {
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: Uuid,
@@ -104,7 +106,7 @@ pub trait WebhookNotifierService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<(), WebhookError>> + Send;
 }
 
-pub trait WebhookPolicy: Clone + Send + Sync + 'static {
+pub trait WebhookPolicy: Send + Sync {
     fn can_create_webhook(
         &self,
         identity: Identity,

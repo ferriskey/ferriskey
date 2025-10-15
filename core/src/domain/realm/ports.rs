@@ -7,7 +7,7 @@ use crate::domain::{
     user::entities::User,
 };
 
-pub trait RealmService: Clone + Send + Sync {
+pub trait RealmService: Send + Sync {
     fn get_realms_by_user(
         &self,
         identity: Identity,
@@ -56,7 +56,7 @@ pub trait RealmService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait RealmPolicy: Send + Sync + Clone {
+pub trait RealmPolicy: Send + Sync {
     fn can_create_realm(
         &self,
         identity: Identity,
@@ -79,7 +79,8 @@ pub trait RealmPolicy: Send + Sync + Clone {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
-pub trait RealmRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait RealmRepository: Send + Sync {
     fn fetch_realm(&self) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
 
     fn get_by_name(

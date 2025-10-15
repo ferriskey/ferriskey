@@ -18,7 +18,7 @@ use crate::domain::{
 /// This trait defines the contract for implementing specific grant type strategies,
 /// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
-pub trait GrantTypeService: Clone + Send + Sync {
+pub trait GrantTypeService: Send + Sync {
     fn authenticate_with_grant_type(
         &self,
         grant_type: GrantType,
@@ -26,7 +26,7 @@ pub trait GrantTypeService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<JwtToken, AuthenticationError>> + Send;
 }
 
-pub trait AuthSessionService: Clone + Send + Sync + 'static {
+pub trait AuthSessionService: Send + Sync {
     fn create_session(
         &self,
         dto: CreateAuthSessionRequest,
@@ -50,7 +50,8 @@ pub trait AuthSessionService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
 }
 
-pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait AuthSessionRepository: Send + Sync {
     fn create(
         &self,
         session: &AuthSession,
@@ -71,7 +72,7 @@ pub trait AuthSessionRepository: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
 }
 
-pub trait AuthService: Clone + Send + Sync {
+pub trait AuthService: Send + Sync {
     fn auth(&self, input: AuthInput) -> impl Future<Output = Result<AuthOutput, CoreError>> + Send;
     fn get_certs(
         &self,
@@ -96,7 +97,7 @@ pub trait AuthService: Clone + Send + Sync {
 /// This trait defines the contract for implementing specific grant type strategies,
 /// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
-pub trait GrantTypeStrategy: Clone + Send + Sync {
+pub trait GrantTypeStrategy: Send + Sync {
     fn authorization_code(
         &self,
         params: GrantTypeParams,
@@ -115,7 +116,7 @@ pub trait GrantTypeStrategy: Clone + Send + Sync {
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
 }
 
-pub trait AuthenticatePort: Clone + Send + Sync {
+pub trait AuthenticatePort: Send + Sync {
     fn handle_token_refresh(
         &self,
         token: String,

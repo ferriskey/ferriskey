@@ -195,3 +195,73 @@ where
             .map_err(|_| CoreError::InternalServerError)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    use crate::domain::{
+        authentication::value_objects::Identity,
+        common::services::tests::{
+            ServiceTestBuilder, assert_success, create_test_realm, create_test_role,
+            create_test_role_with_params, create_test_user_with_realm,
+        },
+        role::{entities::permission::Permissions, ports::RoleService},
+    };
+
+    #[tokio::test]
+    async fn test_get_role_success() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let role = create_test_role(realm.id);
+        let identity = Identity::User(user.clone());
+
+        let user_role_with_permissions = create_test_role_with_params(
+            realm.id,
+            "viewer-role",
+            vec![Permissions::ViewRoles.name()],
+            None,
+        );
+
+        let service = ServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![user_role_with_permissions])
+            .with_successful_role_lookup(role.id, role.clone())
+            .build();
+
+        let result = service.get_role(identity, realm.name, role.id).await;
+
+        // Assert
+        let returned_role = assert_success(result);
+        assert_eq!(returned_role.id, role.id);
+        assert_eq!(returned_role.name, "test-role");
+        assert_eq!(returned_role.realm_id, realm.id);
+    }
+
+    #[tokio::test]
+    async fn test_get_role_success_with_manage_users_permissions() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let role = create_test_role(realm.id);
+
+        let identity = Identity::User(user.clone());
+
+        let admin_role = create_test_role_with_params(
+            realm.id,
+            "admin-role",
+            vec![Permissions::ManageUsers.name()],
+            None,
+        );
+
+        let service = ServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![admin_role])
+            .with_successful_role_lookup(role.id, role.clone())
+            .build();
+
+        let result = service.get_role(identity, realm.name, role.id).await;
+
+        let returned_role = assert_success(result);
+        assert_eq!(returned_role.id, role.id);
+    }
+}

@@ -16,7 +16,7 @@ use crate::domain::{
     role::entities::Role,
 };
 
-pub trait ClientService: Clone + Send + Sync {
+pub trait ClientService: Send + Sync {
     fn create_client(
         &self,
         identity: Identity,
@@ -75,7 +75,7 @@ pub trait ClientService: Clone + Send + Sync {
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 }
 
-pub trait ClientPolicy: Clone + Send + Sync + 'static {
+pub trait ClientPolicy: Send + Sync {
     fn can_create_client(
         &self,
         identity: Identity,
@@ -98,7 +98,8 @@ pub trait ClientPolicy: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
-pub trait ClientRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait ClientRepository: Send + Sync {
     fn create_client(
         &self,
         data: CreateClientRequest,
@@ -125,7 +126,7 @@ pub trait ClientRepository: Clone + Send + Sync + 'static {
     fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait RedirectUriService: Clone + Send + Sync + 'static {
+pub trait RedirectUriService: Send + Sync {
     fn add_redirect_uri(
         &self,
         payload: CreateRedirectUriRequest,
@@ -152,7 +153,8 @@ pub trait RedirectUriService: Clone + Send + Sync + 'static {
     fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-pub trait RedirectUriRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait RedirectUriRepository: Send + Sync {
     fn create_redirect_uri(
         &self,
         client_id: Uuid,

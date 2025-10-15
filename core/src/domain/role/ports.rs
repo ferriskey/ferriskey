@@ -10,7 +10,7 @@ use crate::domain::{
     },
 };
 
-pub trait RoleService: Send + Sync + Clone {
+pub trait RoleService: Send + Sync {
     fn delete_role(
         &self,
         identity: Identity,
@@ -47,7 +47,7 @@ pub trait RoleService: Send + Sync + Clone {
     ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
 }
 
-pub trait RolePolicy: Send + Sync + Clone {
+pub trait RolePolicy: Send + Sync {
     fn can_create_role(
         &self,
         identity: Identity,
@@ -70,7 +70,8 @@ pub trait RolePolicy: Send + Sync + Clone {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
-pub trait RoleRepository: Send + Sync + Clone {
+#[cfg_attr(test, mockall::automock)]
+pub trait RoleRepository: Send + Sync {
     fn create(
         &self,
         payload: CreateRoleRequest,

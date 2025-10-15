@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -12,7 +12,7 @@ use crate::domain::{
     },
 };
 
-pub trait Policy: Clone + Send + Sync + 'static {
+pub trait Policy: Send + Sync {
     fn get_user_from_identity(
         &self,
         identity: &Identity,
@@ -42,9 +42,9 @@ where
     C: ClientRepository,
     UR: UserRoleRepository,
 {
-    user_repository: U,
-    client_repository: C,
-    user_role_repository: UR,
+    user_repository: Arc<U>,
+    client_repository: Arc<C>,
+    user_role_repository: Arc<UR>,
 }
 
 impl<U, C, UR> FerriskeyPolicy<U, C, UR>
@@ -53,7 +53,11 @@ where
     C: ClientRepository,
     UR: UserRoleRepository,
 {
-    pub fn new(user_repository: U, client_repository: C, user_role_repository: UR) -> Self {
+    pub fn new(
+        user_repository: Arc<U>,
+        client_repository: Arc<C>,
+        user_role_repository: Arc<UR>,
+    ) -> Self {
         Self {
             user_repository,
             client_repository,

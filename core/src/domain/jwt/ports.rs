@@ -6,7 +6,7 @@ use crate::domain::{
     realm::entities::Realm,
 };
 
-pub trait JwtService: Clone + Send + Sync + 'static {
+pub trait JwtService: Send + Sync {
     fn generate_token(
         &self,
         claims: JwtClaim,
@@ -31,7 +31,8 @@ pub trait JwtService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<JwtKeyPair, JwtError>> + Send;
 }
 
-pub trait RefreshTokenRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait RefreshTokenRepository: Send + Sync {
     fn create(
         &self,
         jti: Uuid,
@@ -42,7 +43,8 @@ pub trait RefreshTokenRepository: Clone + Send + Sync + 'static {
     fn delete(&self, jti: Uuid) -> impl Future<Output = Result<(), JwtError>> + Send;
 }
 
-pub trait KeyStoreRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait KeyStoreRepository: Send + Sync {
     fn get_or_generate_key(
         &self,
         realm_id: Uuid,

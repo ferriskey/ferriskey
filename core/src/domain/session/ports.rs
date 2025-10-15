@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::domain::session::entities::{SessionError, UserSession};
 
-pub trait UserSessionService: Clone + Send + Sync + 'static {
+pub trait UserSessionService: Send + Sync {
     fn create_session(
         &self,
         user_id: Uuid,
@@ -12,7 +12,8 @@ pub trait UserSessionService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<UserSession, SessionError>> + Send;
 }
 
-pub trait UserSessionRepository: Clone + Send + Sync + 'static {
+#[cfg_attr(test, mockall::automock)]
+pub trait UserSessionRepository: Send + Sync {
     fn create(
         &self,
         session: &UserSession,

@@ -1,6 +1,6 @@
 use crate::domain::common::entities::{InitializationResult, StartupConfig, app_errors::CoreError};
 
-pub trait CoreService: Clone + Send + Sync {
+pub trait CoreService: Send + Sync {
     fn initialize_application(
         &self,
         config: StartupConfig,

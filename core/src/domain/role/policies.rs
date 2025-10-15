@@ -84,6 +84,8 @@ where
             .get_permission_for_target_realm(&user, &target_realm)
             .await?;
 
+        tracing::info!("permissions: {:?}", permissions);
+
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
             &[
