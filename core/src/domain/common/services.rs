@@ -819,7 +819,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_get_by_name()
                     .with(eq(realm_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(realm));
             })
         }
@@ -829,7 +829,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_get_by_name()
                     .with(eq(realm_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Ok(None)));
             })
         }
@@ -839,7 +839,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_get_by_name()
                     .with(eq(realm_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Err(
                         crate::domain::common::entities::app_errors::CoreError::InternalServerError
                     )));
@@ -851,7 +851,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_get_by_id()
                     .with(eq(role_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(role));
             })
         }
@@ -861,7 +861,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_get_by_id()
                     .with(eq(role_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Ok(None)));
             })
         }
@@ -871,7 +871,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_get_by_id()
                     .with(eq(role_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Err(
                         crate::domain::common::entities::app_errors::CoreError::InternalServerError
                     )));
@@ -883,7 +883,7 @@ pub mod tests {
             self.with_user_role_repo(|repo| {
                 repo.expect_get_user_roles()
                     .with(eq(user_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(roles, direct));
             })
         }
@@ -898,7 +898,7 @@ pub mod tests {
             self.with_user_role_repo(|repo| {
                 repo.expect_get_user_roles()
                     .with(eq(user_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Err(
                         crate::domain::common::entities::app_errors::CoreError::Forbidden(
                             "Access denied".to_string()
@@ -912,7 +912,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_get_by_client_id()
                     .with(eq(client_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(user, direct));
             })
         }
@@ -922,7 +922,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_get_by_id()
                     .with(eq(user_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(user, direct));
             })
         }
@@ -932,7 +932,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_get_by_id()
                     .with(eq(user_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Err(
                         crate::domain::common::entities::app_errors::CoreError::NotFound
                     )));
@@ -949,7 +949,7 @@ pub mod tests {
             self.with_client_repo(|repo| {
                 repo.expect_get_by_client_id()
                     .with(eq(client_id.to_string()), eq(realm_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(client, direct));
             })
         }
@@ -959,7 +959,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_find_by_realm_id()
                     .with(eq(realm_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(roles, direct));
             })
         }
@@ -968,7 +968,7 @@ pub mod tests {
         pub fn with_successful_role_creation(self, role: Role) -> Self {
             self.with_role_repo(|repo| {
                 repo.expect_create()
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(role, direct));
             })
         }
@@ -978,7 +978,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_update_by_id()
                     .with(eq(role_id), mockall::predicate::always())
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(updated_role, direct));
             })
         }
@@ -988,7 +988,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_delete_by_id()
                     .with(eq(role_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Ok(())));
             })
         }
@@ -1002,7 +1002,7 @@ pub mod tests {
             self.with_role_repo(|repo| {
                 repo.expect_update_permissions_by_id()
                     .with(eq(role_id), mockall::predicate::always())
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(updated_role, direct));
             })
         }
@@ -1017,7 +1017,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_get_by_username()
                     .with(eq(username.to_string()), eq(realm_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(user, direct));
             })
         }
@@ -1026,7 +1026,7 @@ pub mod tests {
         pub fn with_successful_user_creation(self, user: User) -> Self {
             self.with_user_repo(|repo| {
                 repo.expect_create_user()
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(user, direct));
             })
         }
@@ -1036,7 +1036,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_update_user()
                     .with(eq(user_id), mockall::predicate::always())
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(updated_user, direct));
             })
         }
@@ -1046,7 +1046,7 @@ pub mod tests {
             self.with_user_repo(|repo| {
                 repo.expect_delete_user()
                     .with(eq(user_id))
-                    .times(1)
+                    .once()
                     .returning(move |_| Box::pin(async move { Ok(deleted_count) }));
             })
         }
@@ -1056,7 +1056,7 @@ pub mod tests {
             self.with_client_repo(|repo| {
                 repo.expect_get_by_client_id()
                     .with(eq(client_id.to_string()), eq(realm_id))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(
                         Err(crate::domain::common::entities::app_errors::CoreError::NotFound),
                         two_params
@@ -1073,7 +1073,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_create_realm()
                     .with(eq(realm_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_1_param!(created_realm, direct));
             })
         }
@@ -1088,7 +1088,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_update_realm()
                     .with(eq(old_name.to_string()), eq(new_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async_with_clone_2_params!(updated_realm, direct));
             })
         }
@@ -1098,7 +1098,7 @@ pub mod tests {
             self.with_realm_repo(|repo| {
                 repo.expect_delete_by_name()
                     .with(eq(realm_name.to_string()))
-                    .times(1)
+                    .once()
                     .returning(mock_async!(Ok(())));
             })
         }
