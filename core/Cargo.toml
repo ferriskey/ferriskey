@@ -46,3 +46,4 @@ hex = "0.4.3"
 p256 = { version = "0.13.2", features = ["ecdsa"] }
 signature = "2.2.0"
 sha2 = "0.10.9"
+webauthn-rs = "0.5.2"
