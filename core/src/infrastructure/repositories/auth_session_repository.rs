@@ -5,13 +5,11 @@ use sea_orm::{
 };
 use tracing::error;
 use uuid::Uuid;
+use webauthn_rs::prelude::PasskeyRegistration;
 
-use crate::domain::{
-    authentication::{
-        entities::{AuthSession, AuthenticationError},
-        ports::AuthSessionRepository,
-    },
-    trident::entities::WebAuthnChallenge,
+use crate::domain::authentication::{
+    entities::{AuthSession, AuthenticationError},
+    ports::AuthSessionRepository,
 };
 
 impl From<crate::entity::auth_sessions::Model> for AuthSession {
@@ -180,7 +178,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn take_webauthn_challenge(
         &self,
         session_code: Uuid,
-    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
+    ) -> Result<Option<PasskeyRegistration>, AuthenticationError> {
         // apparently this can be done in a single sql query with CTEs
         // sea_orm doesn't support them well so two queries it will be
 
@@ -203,7 +201,17 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 AuthenticationError::InternalServerError
             })?;
 
-            Ok(Some(challenge.into()))
+            let payload = str::from_utf8(&challenge).map_err(|e| {
+                error!("Error reading challenge payload as utf8 string: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+            let spk = serde_json::from_str(payload).map_err(|e| {
+                error!("Error parsing challenge payload as PasskeyRegistration: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+            Ok(Some(spk))
         } else {
             Ok(None)
         }

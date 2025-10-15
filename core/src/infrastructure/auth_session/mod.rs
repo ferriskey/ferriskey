@@ -1,8 +1,8 @@
 use crate::domain::authentication::entities::{AuthSession, AuthenticationError};
 use crate::domain::authentication::ports::AuthSessionRepository;
-use crate::domain::trident::entities::WebAuthnChallenge;
 use crate::infrastructure::repositories::auth_session_repository::PostgresAuthSessionRepository;
 use uuid::Uuid;
+use webauthn_rs::prelude::PasskeyRegistration;
 
 #[derive(Clone)]
 pub enum AuthSessionRepoAny {
@@ -60,7 +60,7 @@ impl AuthSessionRepository for AuthSessionRepoAny {
     async fn take_webauthn_challenge(
         &self,
         session_code: Uuid,
-    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
+    ) -> Result<Option<PasskeyRegistration>, AuthenticationError> {
         match self {
             AuthSessionRepoAny::Postgres(repo) => repo.take_webauthn_challenge(session_code).await,
         }

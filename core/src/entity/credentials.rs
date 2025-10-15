@@ -2,8 +2,6 @@
 
 use sea_orm::entity::prelude::*;
 
-use crate::domain::trident::entities::{WebAuthnCredentialId, WebAuthnPublicKey};
-
 #[derive(Copy, Clone, Default, Debug, DeriveEntity)]
 pub struct Entity;
 
@@ -76,12 +74,8 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::Temporary => ColumnType::Boolean.def().null(),
-            Self::WebauthnCredentialId => ColumnType::Binary(WebAuthnCredentialId::MAX_BYTE_LEN)
-                .def()
-                .null(),
-            Self::WebauthnPublicKey => ColumnType::Binary(WebAuthnPublicKey::MAX_BYTE_LEN)
-                .def()
-                .null(),
+            Self::WebauthnCredentialId => ColumnType::Binary(256u32).def().null(),
+            Self::WebauthnPublicKey => ColumnType::Binary(256u32).def().null(),
         }
     }
 }

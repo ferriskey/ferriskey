@@ -1,10 +1,4 @@
-use crate::{
-    domain::trident::entities::{
-        WebAuthnAuthenticatorAttestationResponse, WebAuthnCredentialId, WebAuthnCredentialIdGroup,
-        WebAuthnPublicKey,
-    },
-    entity::credentials::{ActiveModel, Entity as CredentialEntity},
-};
+use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
@@ -12,6 +6,7 @@ use sea_orm::{
 };
 use serde_json::Value;
 use tracing::error;
+use webauthn_rs::prelude::{CredentialID, RegisterPublicKeyCredential};
 
 use crate::domain::{
     common::{generate_timestamp, generate_uuid_v7},
@@ -34,12 +29,6 @@ impl From<crate::entity::credentials::Model> for Credential {
                 algorithm: "default".to_string(),
             });
 
-        let webauthn_credential_id = model
-            .webauthn_credential_id
-            .map(|v| WebAuthnCredentialId(v));
-
-        let webauthn_public_key = model.webauthn_public_key.map(|v| WebAuthnPublicKey(v));
-
         Self {
             id: model.id,
             salt: model.salt,
@@ -51,8 +40,6 @@ impl From<crate::entity::credentials::Model> for Credential {
             temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
-            webauthn_credential_id,
-            webauthn_public_key,
         }
     }
 }
@@ -249,9 +236,10 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn create_webauthn_credential(
         &self,
         user_id: uuid::Uuid,
-        webauthn_credential_id: WebAuthnCredentialIdGroup,
-        attestation_response: WebAuthnAuthenticatorAttestationResponse,
+        webauthn_credential: RegisterPublicKeyCredential,
     ) -> Result<Credential, CredentialError> {
+        unimplemented!();
+        /*
         let (now, _) = generate_timestamp();
 
         let credential_data = CredentialData::new_webauthn(
@@ -282,6 +270,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(model.into())
+        */
     }
 
     async fn get_webauthn_public_key_credentials(
@@ -306,8 +295,10 @@ impl CredentialRepository for PostgresCredentialRepository {
 
     async fn get_webauthn_credential_by_credential_id(
         &self,
-        webauthn_credential_id: WebAuthnCredentialId,
+        webauthn_credential_id: CredentialID,
     ) -> Result<Option<Credential>, CredentialError> {
+        unimplemented!();
+        /*
         let credential = CredentialEntity::find()
             .filter(
                 crate::entity::credentials::Column::WebauthnCredentialId
@@ -319,5 +310,6 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map(Credential::from);
 
         Ok(credential)
+        */
     }
 }
