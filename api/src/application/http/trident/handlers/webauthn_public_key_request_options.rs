@@ -2,13 +2,11 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    trident::{
-        entities::WebAuthnPublicKeyCredentialRequestOptions,
-        ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput},
-    },
+    trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput},
 };
 use serde::Serialize;
 use utoipa::ToSchema;
+use webauthn_rs::prelude::RequestChallengeResponse;
 
 use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
@@ -19,7 +17,8 @@ use crate::application::http::server::{
 pub struct RequestOptionsRequest {}
 
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
-pub struct RequestOptionsResponse(WebAuthnPublicKeyCredentialRequestOptions);
+#[serde(transparent, rename_all = "camelCase")]
+pub struct RequestOptionsResponse(RequestChallengeResponse);
 
 #[utoipa::path(
     post,

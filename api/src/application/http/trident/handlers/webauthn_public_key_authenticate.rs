@@ -2,13 +2,7 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    trident::{
-        entities::{
-            WebAuthnAuthenticationExtensionsClientOutputs,
-            WebAuthnAuthenticatorAssertionResponseJSON, WebAuthnCredentialIdGroup,
-        },
-        ports::{TridentService, WebAuthnPublicKeyAuthenticateInput},
-    },
+    trident::ports::{TridentService, WebAuthnPublicKeyAuthenticateInput},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -21,18 +15,11 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use validator::Validate;
+use webauthn_rs::prelude::PublicKeyCredential;
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]
-#[serde(rename_all="camelCase")]
-pub struct AuthenticationAttemptRequest {
-    pub id: String,
-    pub raw_id: String,
-    pub response: WebAuthnAuthenticatorAssertionResponseJSON,
-    pub authenticator_attachment: String,
-    pub client_extension_results: WebAuthnAuthenticationExtensionsClientOutputs,
-    #[serde(rename = "type")]
-    pub typ: String,
-}
+#[serde(transparent, rename_all = "camelCase")]
+pub struct AuthenticationAttemptRequest(PublicKeyCredential);
 
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
 pub struct AuthenticationAttemptResponse {
@@ -62,23 +49,13 @@ pub async fn webauthn_public_key_authenticate(
         ApiError::BadRequest("Failed to parse session code as a valid UUID".to_string())
     })?;
 
-    let credential = WebAuthnCredentialIdGroup::decode_and_verify(payload.id, payload.raw_id)
-        .map_err(|msg| ApiError::BadRequest(format!("Failed to parse credential id: {msg}")))?;
-
-    let response = payload
-        .response
-        .decode()
-        .map_err(|msg| ApiError::BadRequest(format!("Failed to parse response object: {msg}")))?;
-
     let output = state
         .service
         .webauthn_public_key_authenticate(
             identity,
             WebAuthnPublicKeyAuthenticateInput {
                 session_code,
-                credential,
-                response,
-                typ: payload.typ,
+                credential: payload.0,
             },
         )
         .await

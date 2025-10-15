@@ -6,9 +6,6 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use axum::{Extension, extract::State};
-use ferriskey_core::domain::trident::entities::webauthn::{
-    WebAuthnAuthenticationExtensionsClientOutputs, WebAuthnAuthenticatorAttestationResponseJSON,
-};
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, trident::entities::WebAuthnCredentialIdGroup,
@@ -16,18 +13,11 @@ use ferriskey_core::domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
+use webauthn_rs::prelude::RegisterPublicKeyCredential;
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]
-#[serde(rename_all = "camelCase")]
-pub struct ValidatePublicKeyRequest {
-    pub id: String,
-    pub raw_id: String,
-    pub response: WebAuthnAuthenticatorAttestationResponseJSON,
-    pub authenticator_attachment: String,
-    pub client_extension_results: WebAuthnAuthenticationExtensionsClientOutputs,
-    #[serde(rename = "type")]
-    pub typ: String,
-}
+#[serde(transparent, rename_all = "camelCase")]
+pub struct ValidatePublicKeyRequest(RegisterPublicKeyCredential);
 
 #[derive(Debug, ToSchema, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ValidatePublicKeyResponse {}
@@ -57,13 +47,9 @@ pub async fn webauthn_validate_public_key(
         .decode_and_verify()
         .map_err(|msg| ApiError::BadRequest(msg))?;
 
-    let input = WebAuthnValidatePublicKeyInput {
-        credential: authenticator_credential,
-        response: response_object,
-        typ: payload.typ,
-    };
+    let input = WebAuthnValidatePublicKeyInput(payload);
 
-    let _output = state
+    let _ = state
         .service
         .webauthn_validate_public_key(identity, input)
         .await

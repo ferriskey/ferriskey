@@ -10,6 +10,7 @@ use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCr
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
+use webauthn_rs::prelude::CreationChallengeResponse;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreatePublicKeyRequest {}
@@ -18,7 +19,7 @@ pub struct CreatePublicKeyRequest {}
 /// A tad bit repetetitive but its explicit
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(transparent, rename_all = "camelCase")]
-pub struct CreatePublicKeyResponse(WebAuthnPublicKeyCredentialCreationOptions);
+pub struct CreatePublicKeyResponse(CreationChallengeResponse);
 
 #[utoipa::path(
     post,
