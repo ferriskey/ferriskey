@@ -5,7 +5,7 @@ use crate::domain::{
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthenticateInput, AuthenticateOutput,
             AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken, WebAuthnChallenge,
         },
         value_objects::{
             AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
@@ -14,7 +14,6 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     jwt::entities::JwkKey,
 };
-use webauthn_rs::prelude::PasskeyRegistration;
 
 /// A strategy for handling different OAuth2 grant types during authentication.
 ///
@@ -76,12 +75,12 @@ pub trait AuthSessionRepository: Send + Sync {
     fn save_webauthn_challenge(
         &self,
         session_code: Uuid,
-        challenge: &[u8],
+        challenge: WebAuthnChallenge,
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
     fn take_webauthn_challenge(
         &self,
         session_code: Uuid,
-    ) -> impl Future<Output = Result<Option<PasskeyRegistration>, AuthenticationError>> + Send;
+    ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {

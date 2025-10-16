@@ -29,6 +29,8 @@ impl From<crate::entity::credentials::Model> for Credential {
                 algorithm: "default".to_string(),
             });
 
+        let webauthn_credential_id = model.webauthn_credential_id.map(CredentialID::from);
+
         Self {
             id: model.id,
             salt: model.salt,
@@ -40,6 +42,7 @@ impl From<crate::entity::credentials::Model> for Credential {
             temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
+            webauthn_credential_id,
         }
     }
 }
@@ -79,7 +82,6 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
             webauthn_credential_id: Set(None),
-            webauthn_public_key: Set(None),
         };
 
         let t = payload
@@ -181,7 +183,6 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
             webauthn_credential_id: Set(None),
-            webauthn_public_key: Set(None),
         };
 
         let model = payload
@@ -222,7 +223,6 @@ impl CredentialRepository for PostgresCredentialRepository {
                 updated_at: Set(now.naive_utc()),
                 temporary: Set(Some(false)),
                 webauthn_credential_id: Set(None),
-                webauthn_public_key: Set(None),
             });
 
         let _ = CredentialEntity::insert_many(models)

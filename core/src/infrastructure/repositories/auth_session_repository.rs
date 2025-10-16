@@ -5,10 +5,9 @@ use sea_orm::{
 };
 use tracing::error;
 use uuid::Uuid;
-use webauthn_rs::prelude::PasskeyRegistration;
 
 use crate::domain::authentication::{
-    entities::{AuthSession, AuthenticationError},
+    entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
 };
 
@@ -19,6 +18,12 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
         let webauthn_challenge_issued_at = model
             .webauthn_challenge_issued_at
             .map(|ref dt| Utc.from_utc_datetime(dt));
+
+        let webauthn_challenge = if let Some(webauthn_challenge) = model.webauthn_challenge {
+            serde_json::from_value(webauthn_challenge).ok()
+        } else {
+            None
+        };
 
         AuthSession {
             id: model.id,
@@ -34,7 +39,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             user_id: model.user_id,
             created_at,
             expires_at,
-            webauthn_challenge: model.webauthn_challenge,
+            webauthn_challenge,
             webauthn_challenge_issued_at,
         }
     }
@@ -149,8 +154,13 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn save_webauthn_challenge(
         &self,
         session_code: Uuid,
-        challenge: &[u8],
+        challenge: WebAuthnChallenge,
     ) -> Result<AuthSession, AuthenticationError> {
+        let challenge = serde_json::to_value(&challenge).map_err(|e| {
+            error!("Error serializing WebAuthnChallenge: {e:?}");
+            AuthenticationError::InternalServerError
+        })?;
+
         let session = crate::entity::auth_sessions::Entity::update_many()
             .col_expr(
                 crate::entity::auth_sessions::Column::WebauthnChallenge,
@@ -178,7 +188,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn take_webauthn_challenge(
         &self,
         session_code: Uuid,
-    ) -> Result<Option<PasskeyRegistration>, AuthenticationError> {
+    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
         // apparently this can be done in a single sql query with CTEs
         // sea_orm doesn't support them well so two queries it will be
 
@@ -201,17 +211,12 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 AuthenticationError::InternalServerError
             })?;
 
-            let payload = str::from_utf8(&challenge).map_err(|e| {
-                error!("Error reading challenge payload as utf8 string: {e:?}");
+            let challenge = serde_json::from_value(challenge).map_err(|e| {
+                error!("Error deserializing webauthn_challenge: {e:?}");
                 AuthenticationError::InternalServerError
             })?;
 
-            let spk = serde_json::from_str(payload).map_err(|e| {
-                error!("Error parsing challenge payload as PasskeyRegistration: {e:?}");
-                AuthenticationError::InternalServerError
-            })?;
-
-            Ok(Some(spk))
+            Ok(Some(challenge))
         } else {
             Ok(None)
         }

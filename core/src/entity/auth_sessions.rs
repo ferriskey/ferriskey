@@ -26,7 +26,7 @@ pub struct Model {
     pub authenticated: bool,
     pub created_at: DateTime,
     pub expires_at: DateTime,
-    pub webauthn_challenge: Option<Vec<u8>>,
+    pub webauthn_challenge: Option<Json>,
     pub webauthn_challenge_issued_at: Option<DateTime>,
 }
 
@@ -88,7 +88,7 @@ impl ColumnTrait for Column {
             Self::Authenticated => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
-            Self::WebauthnChallenge => ColumnType::Binary(32u32).def().null(),
+            Self::WebauthnChallenge => ColumnType::JsonBinary.def().null(),
             Self::WebauthnChallengeIssuedAt => ColumnType::DateTime.def(),
         }
     }

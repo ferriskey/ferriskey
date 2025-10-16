@@ -4,6 +4,7 @@ use std::fmt::Display;
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use webauthn_rs::prelude::{CredentialID, Passkey};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
 pub struct Credential {
@@ -17,6 +18,7 @@ pub struct Credential {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<CredentialID>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -96,6 +98,7 @@ impl Credential {
             temporary: config.temporary,
             created_at: config.created_at,
             updated_at: config.updated_at,
+            webauthn_credential_id: config.webauthn_credential_id,
         }
     }
 }
@@ -107,7 +110,9 @@ pub enum CredentialData {
         hash_iterations: u32,
         algorithm: String,
     },
-    WebAuthn {},
+    WebAuthn {
+        passkey: Passkey,
+    },
 }
 
 impl CredentialData {
@@ -118,8 +123,8 @@ impl CredentialData {
         }
     }
 
-    pub fn new_webauthn() -> Self {
-        Self::WebAuthn {}
+    pub fn new_webauthn(passkey: Passkey) -> Self {
+        Self::WebAuthn { passkey }
     }
 }
 
@@ -134,6 +139,7 @@ pub struct CredentialConfig {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<CredentialID>,
 }
 
 #[derive(Debug, Clone, Error)]
