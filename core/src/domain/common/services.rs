@@ -37,6 +37,7 @@ use crate::domain::{
     webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
+#[derive(Clone)]
 pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
 where
     R: RealmRepository,
