@@ -137,7 +137,7 @@ pub enum CredentialDataOverview {
         hash_iterations: u32,
         algorithm: String,
     },
-    // It's not inherently risky to reveal WA credential data but it's a bit unusual...
+    // It's not inherently risky to reveal some WA credential data but it's a bit unusual...
     // I'll leave it empty for now
     WebAuthn,
 }
