@@ -57,7 +57,7 @@ export default function CreateUserModal(props: Props) {
                 name='firstname'
                 render={({ field }) => (
                   <InputText
-                    label='Fisrtname'
+                    label='Firstname'
                     name='firstname'
                     value={field.value}
                     onChange={field.onChange}
