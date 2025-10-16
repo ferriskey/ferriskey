@@ -5,10 +5,9 @@ use crate::application::http::server::{
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::trident::entities::WebAuthnPublicKeyCredentialCreationOptions;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{openapi::{ObjectBuilder, RefOr, Schema}, PartialSchema, ToSchema};
 use validator::Validate;
 use webauthn_rs::prelude::CreationChallengeResponse;
 
@@ -17,9 +16,25 @@ pub struct CreatePublicKeyRequest {}
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 /// A tad bit repetetitive but its explicit
-#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
 pub struct CreatePublicKeyResponse(CreationChallengeResponse);
+
+impl ToSchema for CreatePublicKeyResponse {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("PublicKeyCredentialCreationOptionsJSON")
+    }
+}
+
+impl PartialSchema for CreatePublicKeyResponse {
+    fn schema() -> RefOr<Schema> {
+        RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+            .description(Some("Incomplete schema. see https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson"))
+            .build()
+        ))
+    }
+}
 
 #[utoipa::path(
     post,

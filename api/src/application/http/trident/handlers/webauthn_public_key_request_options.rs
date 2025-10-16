@@ -5,7 +5,7 @@ use ferriskey_core::domain::{
     trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput},
 };
 use serde::Serialize;
-use utoipa::ToSchema;
+use utoipa::{openapi::{ObjectBuilder, RefOr, Schema}, PartialSchema, ToSchema};
 use webauthn_rs::prelude::RequestChallengeResponse;
 
 use crate::application::http::server::{
@@ -16,9 +16,25 @@ use crate::application::http::server::{
 #[derive(Debug, ToSchema, PartialEq, Eq)]
 pub struct RequestOptionsRequest {}
 
-#[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
 pub struct RequestOptionsResponse(RequestChallengeResponse);
+
+impl ToSchema for RequestOptionsResponse {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("PublicKeyCredentialRequestOptionsJSON")
+    }
+}
+
+impl PartialSchema for RequestOptionsResponse {
+    fn schema() -> RefOr<Schema> {
+        RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+            .description(Some("Incomplete schema. see https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptionsjson"))
+            .build()
+        ))
+    }
+}
 
 #[utoipa::path(
     post,

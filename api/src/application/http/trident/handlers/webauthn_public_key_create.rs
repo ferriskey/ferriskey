@@ -7,9 +7,7 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, trident::entities::WebAuthnCredentialIdGroup,
-};
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -38,16 +36,8 @@ pub async fn webauthn_validate_public_key(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
-    let authenticator_credential =
-        WebAuthnCredentialIdGroup::decode_and_verify(payload.id, payload.raw_id)
-            .map_err(|msg| ApiError::BadRequest(msg))?;
 
-    let response_object = payload
-        .response
-        .decode_and_verify()
-        .map_err(|msg| ApiError::BadRequest(msg))?;
-
-    let input = WebAuthnValidatePublicKeyInput(payload);
+    let input = WebAuthnValidatePublicKeyInput(payload.0);
 
     let _ = state
         .service
