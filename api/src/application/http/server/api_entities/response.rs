@@ -5,13 +5,13 @@ use serde::Serialize;
 use super::api_success::ApiSuccess;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Response<T: Serialize + PartialEq> {
+pub enum Response<T: Serialize> {
     OK(T),
     Created(T),
     Accepted(T),
 }
 
-impl<T: Serialize + PartialEq> IntoResponse for Response<T> {
+impl<T: Serialize> IntoResponse for Response<T> {
     fn into_response(self) -> axum::response::Response {
         match self {
             Response::OK(data) => (StatusCode::OK, Json(data)).into_response(),
