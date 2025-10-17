@@ -5,7 +5,10 @@ use ferriskey_core::domain::{
     trident::ports::{TridentService, WebAuthnPublicKeyAuthenticateInput},
 };
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, RefOr, Schema},
+};
 
 use crate::application::http::server::{
     api_entities::{
@@ -17,9 +20,30 @@ use crate::application::http::server::{
 use validator::Validate;
 use webauthn_rs::prelude::PublicKeyCredential;
 
-#[derive(Debug, Deserialize, ToSchema, Validate)]
+#[derive(Debug, Deserialize)]
 #[serde(transparent, rename_all = "camelCase")]
 pub struct AuthenticationAttemptRequest(PublicKeyCredential);
+
+impl Validate for AuthenticationAttemptRequest {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        Ok(())
+    }
+}
+
+impl ToSchema for AuthenticationAttemptRequest {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("PublicKeyCredential")
+    }
+}
+impl PartialSchema for AuthenticationAttemptRequest {
+    fn schema() -> RefOr<Schema> {
+        RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+                .description(Some("Incomplete schema. See https://w3c.github.io/webauthn/#dictdef-publickeycredentialjson"))
+                .build()
+        ))
+    }
+}
 
 #[derive(Debug, Serialize, ToSchema, PartialEq, Eq)]
 pub struct AuthenticationAttemptResponse {

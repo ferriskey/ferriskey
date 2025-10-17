@@ -7,7 +7,10 @@ use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use serde::{Deserialize, Serialize};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema}, PartialSchema, ToSchema};
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, RefOr, Schema},
+};
 use validator::Validate;
 use webauthn_rs::prelude::CreationChallengeResponse;
 
@@ -38,7 +41,7 @@ impl PartialSchema for CreatePublicKeyResponse {
 
 #[utoipa::path(
     post,
-    path = "/protocol/webauthn/create-public-key",
+    path = "login-actions/webauthn-public-key-create-options",
     tag = "auth",
     summary = "Create a webauthn public key",
     description = "Provides a full PublicKeyCredentialCreationOption payload for WebAuthn credential creation/authentication. The payload contains the challenge to resolve in B64Url form as described in the specs. The content is described here: https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.",
@@ -47,7 +50,7 @@ impl PartialSchema for CreatePublicKeyResponse {
         (status = 200, body = CreatePublicKeyResponse)
     )
 )]
-pub async fn webauthn_create_public_key(
+pub async fn webauthn_public_key_create_options(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,

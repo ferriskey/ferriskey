@@ -5,7 +5,10 @@ use ferriskey_core::domain::{
     trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput},
 };
 use serde::Serialize;
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema}, PartialSchema, ToSchema};
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, RefOr, Schema},
+};
 use webauthn_rs::prelude::RequestChallengeResponse;
 
 use crate::application::http::server::{
