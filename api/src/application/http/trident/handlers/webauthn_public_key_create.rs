@@ -6,6 +6,7 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use axum::{Extension, extract::State};
+use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
 use serde::{Deserialize, Serialize};
@@ -58,13 +59,22 @@ pub struct ValidatePublicKeyResponse {}
 pub async fn webauthn_public_key_create(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
-    let input = WebAuthnValidatePublicKeyInput(payload.0);
+    let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
+    let session_code = session_code.value().to_string();
+    let server_host = state.args.server.host.clone();
+
+    let input = WebAuthnValidatePublicKeyInput {
+        server_host,
+        session_code, 
+        credential: payload.0
+    };
 
     let _ = state
         .service
-        .webauthn_validate_public_key(identity, input)
+        .webauthn_public_key_create(identity, input)
         .await
         .map_err(ApiError::from)?;
 

@@ -6,7 +6,7 @@ use sea_orm::{
 };
 use serde_json::Value;
 use tracing::error;
-use webauthn_rs::prelude::{CredentialID, RegisterPublicKeyCredential};
+use webauthn_rs::prelude::{CredentialID, Passkey};
 
 use crate::domain::{
     common::{generate_timestamp, generate_uuid_v7},
@@ -236,16 +236,13 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn create_webauthn_credential(
         &self,
         user_id: uuid::Uuid,
-        webauthn_credential: RegisterPublicKeyCredential,
+        webauthn_credential: Passkey,
     ) -> Result<Credential, CredentialError> {
-        unimplemented!();
-        /*
         let (now, _) = generate_timestamp();
 
-        let credential_data = CredentialData::new_webauthn(
-            attestation_response.attestation_object,
-            attestation_response.transports,
-        );
+        let credential_id = Vec::from(webauthn_credential.cred_id().to_owned());
+        let credential_data = CredentialData::new_webauthn(webauthn_credential);
+
         let credential_data = serde_json::to_value(credential_data)
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
@@ -260,8 +257,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)),
-            webauthn_credential_id: Set(Some(webauthn_credential_id.raw_id)),
-            webauthn_public_key: Set(Some(attestation_response.public_key.0)),
+            webauthn_credential_id: Set(Some(credential_id)),
         };
 
         let model = payload
@@ -270,7 +266,6 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(model.into())
-        */
     }
 
     async fn get_webauthn_public_key_credentials(
@@ -297,12 +292,10 @@ impl CredentialRepository for PostgresCredentialRepository {
         &self,
         webauthn_credential_id: CredentialID,
     ) -> Result<Option<Credential>, CredentialError> {
-        unimplemented!();
-        /*
         let credential = CredentialEntity::find()
             .filter(
                 crate::entity::credentials::Column::WebauthnCredentialId
-                    .eq(webauthn_credential_id.0),
+                    .eq(webauthn_credential_id.as_slice()),
             )
             .one(&self.db)
             .await
@@ -310,6 +303,5 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map(Credential::from);
 
         Ok(credential)
-        */
     }
 }

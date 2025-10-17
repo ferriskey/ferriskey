@@ -18,7 +18,6 @@ use webauthn_rs::prelude::CreationChallengeResponse;
 pub struct CreatePublicKeyRequest {}
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-/// A tad bit repetetitive but its explicit
 #[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
 pub struct CreatePublicKeyResponse(CreationChallengeResponse);

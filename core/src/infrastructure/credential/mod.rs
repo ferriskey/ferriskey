@@ -4,7 +4,7 @@ use crate::domain::crypto::entities::HashResult;
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use serde_json::Value;
 use uuid::Uuid;
-use webauthn_rs::prelude::{CredentialID, RegisterPublicKeyCredential};
+use webauthn_rs::prelude::{CredentialID, Passkey};
 
 #[derive(Clone)]
 pub enum CredentialRepoAny {
@@ -92,7 +92,7 @@ impl CredentialRepository for CredentialRepoAny {
     async fn create_webauthn_credential(
         &self,
         user_id: Uuid,
-        webauthn_credential: RegisterPublicKeyCredential,
+        webauthn_credential: Passkey,
     ) -> Result<Credential, CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => {

@@ -5,11 +5,14 @@ use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha1::Sha1;
 use uuid::Uuid;
+use webauthn_rs::prelude::*;
 
 use crate::{
     domain::{
         authentication::{
-            entities::AuthSession, ports::AuthSessionRepository, value_objects::Identity,
+            entities::{AuthSession, WebAuthnChallenge},
+            ports::AuthSessionRepository,
+            value_objects::Identity,
         },
         client::ports::{ClientRepository, RedirectUriRepository},
         common::{entities::app_errors::CoreError, generate_random_string, services::Service},
@@ -133,6 +136,23 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     match format {
         RecoveryCodeFormat::B32Split4 => B32Split4RecoveryCodeFormatter::decode(code),
     }
+
+fn build_webauthn_client(server_host: String) -> Result<Webauthn, CoreError> {
+    let rp_url = Url::parse(&server_host).map_err(|e| {
+        tracing::error!("Failed to parse server_host as URL: {e}");
+        CoreError::InternalServerError
+    })?;
+
+    Ok(WebauthnBuilder::new(&server_host, &rp_url)
+        .map_err(|e| {
+            tracing::error!("Failed to build Webauthn client: {e:?}");
+            CoreError::InternalServerError
+        })?
+        .build()
+        .map_err(|e| {
+            tracing::error!("Failed to build Webauthn client: {e:?}");
+            CoreError::InternalServerError
+        })?)
 }
 
 /// Generates a random authorization code, stores it in the user auth session
@@ -355,67 +375,91 @@ where
         identity: Identity,
         input: WebAuthnPublicKeyCreateOptionsInput,
     ) -> Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError> {
-        unimplemented!();
-        /*
-        let challenge = WebAuthnChallenge::generate()?;
-        let session_code =
-            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
-
         let user = match identity {
             Identity::User(user) => user,
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
-        let _ = self
-            .auth_session_repository
-            .save_webauthn_challenge(session_code, challenge.0.as_slice())
-            .await
-            .map_err(|_| CoreError::InternalServerError);
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let creation_opts = WebAuthnPublicKeyCredentialCreationOptions {
-            challenge,
-            rp: WebAuthnRelayingParty {
-                id: input.server_host.clone(),
-                name: input.server_host,
-            },
-            user: WebAuthnUser::from(user),
-            attestation: WebAuthnAttestationConveyance::Direct,
-            attestation_formats: vec![],
-            // Add supported signing algorithms here
-            pub_key_cred_params: vec![WebAuthnPubKeyCredParams::new(SigningAlgorithm::ES256)],
-            exclude_credentials: vec![],
-            hints: vec![],
-            timeout: 60000,
-            extensions: WebAuthnAuthenticationExtensionsClientInputs {},
+        let webauthn = build_webauthn_client(input.server_host)?;
+
+        let credentials = self
+            .credential_repository
+            .get_webauthn_public_key_credentials(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let credentials = {
+            let filtered = credentials
+                .into_iter()
+                .filter_map(|v| v.webauthn_credential_id)
+                .collect::<Vec<CredentialID>>();
+            if filtered.is_empty() {
+                None
+            } else {
+                Some(filtered)
+            }
         };
 
-        Ok(WebAuthnPublicKeyCreateOptionsOutput(creation_opts))
-        */
+        let (ccr, pr) = webauthn
+            .start_passkey_registration(user.id, &user.email, &user.username, credentials)
+            .map_err(|e| {
+                tracing::error!("Failed to generate webauthn challenge: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+        let _ = self
+            .auth_session_repository
+            .save_webauthn_challenge(session_code, WebAuthnChallenge::Registration(pr))
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(WebAuthnPublicKeyCreateOptionsOutput(ccr))
     }
 
-    async fn webauthn_validate_public_key(
+    async fn webauthn_public_key_create(
         &self,
         identity: Identity,
         input: WebAuthnValidatePublicKeyInput,
     ) -> Result<WebAuthnValidatePublicKeyOutput, CoreError> {
-        unimplemented!();
-        /*
-        if input.typ != "public-key" {
-            return Err(CoreError::Invalid);
-        }
-
         let user = match identity {
             Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not an user".to_string())),
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let webauthn = build_webauthn_client(input.server_host)?;
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let passkey = match auth_session.webauthn_challenge {
+            Some(WebAuthnChallenge::Registration(ref pk)) => {
+                let passkey = webauthn
+                    .finish_passkey_registration(&input.credential, pk)
+                    .map_err(|e| {
+                        tracing::debug!("Failed to complete passkey registration: {e:?}");
+                        CoreError::Invalid
+                    })?;
+
+                Ok(passkey)
+            }
+            _ => Err(CoreError::Invalid),
+        }?;
+
         self.credential_repository
-            .create_webauthn_credential(user.id, input.credential, input.response)
+            .create_webauthn_credential(user.id, passkey)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(WebAuthnValidatePublicKeyOutput {})
-        */
     }
 
     async fn webauthn_public_key_request_options(
