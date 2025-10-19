@@ -1,0 +1,13 @@
+{{- $annotations := merge dict .Values.common.annotations .Values.operator.annotations -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ferriskey.operator.name" . }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
