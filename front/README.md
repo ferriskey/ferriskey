@@ -1,54 +1,37 @@
-# React + TypeScript + Vite
+# Ferriskey - Webapp (React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## API Client Generation
+This project uses `typed-openapi` to automatically generate TypeScript types and TanStack Query hooks from an OpenAPI specification. This ensures type safety and keeps the frontend in sync with the backend API.
 
-Currently, two official plugins are available:
+### Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Make sure you habe the OpenAPI specification file available (you can go to address API with `/swagger-ui` and downlaod the OpenAPI Document).
 
-## Expanding the ESLint configuration
+### Generating API Client and Types
+To generate the API client and TanStack Query hooks, run:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+pnpm typed-openapi openapi.yaml -o src/api/api.client.ts --tanstack=api.tanstack.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Command Breakdown:**
+- `openapi.yaml`: Path to your OpenAPI specification file
+- `-o src/api/api.client.ts`: Output path for the generated TypeScript types and schemas
+- `--tanstack=api.tanstack.ts`: Generates TanStack Query hooks in the specified file
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+**Generated Files**
+This command generates two main files: `src/api/api.client.ts`
+Contains:
+- **Schemas namespace**: All TypeScript types corresponding to your API models
+- **Endpoints namespace**: Type definitions for all API endpoints
+- **ApiClient class**: Base client for making HTTP requests
+- **Helper types**: Utility types for request/response handling
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+Example usage:
+```ts
+import { Schemas } from '@/api/api.client'
+
+// Use generated types
+type User = Schemas.User
+type CreateUserRequest = Schemas.CreateUserValidator
 ```

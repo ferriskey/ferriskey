@@ -33,8 +33,8 @@ const createQueryKey = <TOptions extends EndpointParameters>(
 }
 
 // <EndpointByMethod.Shorthands>
-export type GetEndpoints = EndpointByMethod['get']
 export type PostEndpoints = EndpointByMethod['post']
+export type GetEndpoints = EndpointByMethod['get']
 export type PutEndpoints = EndpointByMethod['put']
 export type DeleteEndpoints = EndpointByMethod['delete']
 export type PatchEndpoints = EndpointByMethod['patch']
@@ -59,46 +59,6 @@ type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [confi
 // <ApiClient>
 export class TanstackQueryApiClient {
   constructor(public client: ApiClient) {}
-
-  // <ApiClient.get>
-  get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ) {
-    const queryKey = createQueryKey(path, params[0])
-    const query = {
-      /** type-only property if you need easy access to the endpoint params */
-      '~endpoint': {} as TEndpoint,
-      queryKey,
-      queryOptions: queryOptions({
-        queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.get(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
-        },
-        queryKey: queryKey,
-      }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (
-          localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never
-        ) => {
-          const res = await this.client.get(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
-    }
-
-    return query
-  }
-  // </ApiClient.get>
 
   // <ApiClient.post>
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
@@ -139,6 +99,46 @@ export class TanstackQueryApiClient {
     return query
   }
   // </ApiClient.post>
+
+  // <ApiClient.get>
+  get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ) {
+    const queryKey = createQueryKey(path, params[0])
+    const query = {
+      /** type-only property if you need easy access to the endpoint params */
+      '~endpoint': {} as TEndpoint,
+      queryKey,
+      queryOptions: queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+          const res = await this.client.get(path, {
+            ...params,
+            ...queryKey[0],
+            signal,
+          })
+          return res as TEndpoint['response']
+        },
+        queryKey: queryKey,
+      }),
+      mutationOptions: {
+        mutationKey: queryKey,
+        mutationFn: async (
+          localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never
+        ) => {
+          const res = await this.client.get(path, {
+            ...params,
+            ...queryKey[0],
+            ...localOptions,
+          })
+          return res as TEndpoint['response']
+        },
+      },
+    }
+
+    return query
+  }
+  // </ApiClient.get>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(

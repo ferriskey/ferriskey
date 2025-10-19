@@ -17,6 +17,8 @@ export namespace Schemas {
   }
   export type BulkDeleteUserResponse = { count: number; realm_name: string }
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>
+  export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
+  export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpResponse = { url: string }
   export type Client = {
     client_id: string
@@ -144,8 +146,8 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
-  export type DeleteRoleResponse = { message: string; realm_name: string; client_id: string; role_id: string }
   export type DeleteRealmResponse = string
+  export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
   export type DeleteUserCredentialResponse = {
     message: string
     realm_name: string
@@ -153,6 +155,8 @@ export namespace Schemas {
   }
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
+  export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
+  export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = {
     alg: string
     e: string
@@ -248,13 +252,6 @@ export namespace Schemas {
 export namespace Endpoints {
   // <Endpoints>
 
-  export type get_Fetch_realm = {
-    method: 'GET'
-    path: '/realms'
-    requestFormat: 'json'
-    parameters: never
-    response: Array<Schemas.Realm>
-  }
   export type post_Create_realm = {
     method: 'POST'
     path: '/realms'
@@ -422,15 +419,6 @@ export namespace Endpoints {
     }
     response: Schemas.Role
   }
-  export type delete_Delete_role = {
-    method: 'DELETE'
-    path: '/realms/{realm_name}/roles/{role_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; role_id: string }
-    }
-    response: Schemas.DeleteRoleResponse
-  }
   export type post_Authenticate = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/authenticate'
@@ -442,12 +430,30 @@ export namespace Endpoints {
     }
     response: Schemas.AuthenticateResponse
   }
+  export type post_Burn_recovery_code = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/burn-recovery-code'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.BurnRecoveryCodeRequest
+    }
+    response: Schemas.BurnRecoveryCodeResponse
+  }
   export type post_Challenge_otp = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/challenge-otp'
     requestFormat: 'json'
     parameters: never
     response: Schemas.ChallengeOtpResponse
+  }
+  export type post_Generate_recovery_codes = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/generate-recovery-codes'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.GenerateRecoveryCodesRequest
+    }
+    response: Schemas.GenerateRecoveryCodesResponse
   }
   export type get_Setup_otp = {
     method: 'GET'
@@ -483,14 +489,14 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/protocol/openid-connect/auth'
     requestFormat: 'json'
     parameters: {
-      path: {
-        realm_name: string
+      query: Partial<{
         response_type: string
         client_id: string
         redirect_uri: string
-        scope: string | null
-        state: string | null
-      }
+        scope: string
+        state: string
+      }>
+      path: { realm_name: string }
     }
     response: unknown
   }
@@ -540,6 +546,15 @@ export namespace Endpoints {
       body: Schemas.UpdateRoleValidator
     }
     response: Schemas.UpdateRoleResponse
+  }
+  export type delete_Delete_role = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/roles/{role_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; role_id: string }
+    }
+    response: Schemas.DeleteRoleResponse
   }
   export type patch_Update_role_permissions = {
     method: 'PATCH'
@@ -728,8 +743,23 @@ export namespace Endpoints {
 
 // <EndpointByMethod>
 export type EndpointByMethod = {
+  post: {
+    '/realms': Endpoints.post_Create_realm
+    '/realms/{realm_name}/clients': Endpoints.post_Create_client
+    '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
+    '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
+    '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
+    '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
+    '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
+    '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
+    '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
+    '/realms/{realm_name}/users': Endpoints.post_Create_user
+    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
+    '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook
+  }
   get: {
-    '/realms': Endpoints.get_Fetch_realm
     '/realms/{name}': Endpoints.get_Get_realm
     '/realms/{realm_name}/.well-known/openid-configuration': Endpoints.get_Get_openid_configuration
     '/realms/{realm_name}/clients': Endpoints.get_Get_clients
@@ -748,20 +778,6 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/users/{user_id}/roles': Endpoints.get_Get_user_roles
     '/realms/{realm_name}/webhooks': Endpoints.get_Fetch_webhooks
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.get_Get_webhook
-  }
-  post: {
-    '/realms': Endpoints.post_Create_realm
-    '/realms/{realm_name}/clients': Endpoints.post_Create_client
-    '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
-    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
-    '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
-    '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
-    '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
-    '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
-    '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
-    '/realms/{realm_name}/users': Endpoints.post_Create_user
-    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
-    '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook
   }
   put: {
     '/realms/{name}': Endpoints.put_Update_realm
@@ -792,8 +808,8 @@ export type EndpointByMethod = {
 // </EndpointByMethod>
 
 // <EndpointByMethod.Shorthands>
-export type GetEndpoints = EndpointByMethod['get']
 export type PostEndpoints = EndpointByMethod['post']
+export type GetEndpoints = EndpointByMethod['get']
 export type PutEndpoints = EndpointByMethod['put']
 export type DeleteEndpoints = EndpointByMethod['delete']
 export type PatchEndpoints = EndpointByMethod['patch']
@@ -866,17 +882,6 @@ export class ApiClient {
     return response.text() as unknown as T
   }
 
-  // <ApiClient.get>
-  get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('get', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
-  }
-  // </ApiClient.get>
-
   // <ApiClient.post>
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
     path: Path,
@@ -887,6 +892,17 @@ export class ApiClient {
     ) as Promise<TEndpoint['response']>
   }
   // </ApiClient.post>
+
+  // <ApiClient.get>
+  get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<TEndpoint['parameters']>
+  ): Promise<TEndpoint['response']> {
+    return this.fetcher('get', this.baseUrl + path, params[0]).then((response) =>
+      this.parseResponse(response)
+    ) as Promise<TEndpoint['response']>
+  }
+  // </ApiClient.get>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(

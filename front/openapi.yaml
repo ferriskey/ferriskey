@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: FerrisKey API
-  description: ""
+  description: FerrisKey API
   contact:
     name: nathaelb
     email: pro.nathaelbonnal@gmail.com
@@ -10,21 +10,6 @@ info:
   version: 0.1.0
 paths:
   /realms:
-    get:
-      tags:
-        - realm
-      summary: Fetch all realms
-      description: Retrieves a list of all realms available in the system.
-      operationId: fetch_realm
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Realm"
     post:
       tags:
         - realm
@@ -43,26 +28,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Realm"
-  /realms/users/@me/realms:
-    get:
-      tags:
-        - realm
-      summary: Get user realms
-      operationId: get_user_realms
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserRealmsResponse"
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden
-      security:
-        - Authorization:
-            - Bearer
   /realms/{name}:
     get:
       tags:
@@ -563,6 +528,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthenticateResponse"
+  /realms/{realm_name}/login-actions/burn-recovery-code:
+    post:
+      tags:
+        - auth
+      summary: Burn a recovery code to authenticate
+      description: Using a recovery code allows a user to bypass a MFA challenge
+      operationId: burn_recovery_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BurnRecoveryCodeRequest"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BurnRecoveryCodeResponse"
+        "400":
+          description: ""
+          content:
+            text/plain:
+              schema:
+                type: string
   /realms/{realm_name}/login-actions/challenge-otp:
     post:
       tags:
@@ -579,6 +570,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChallengeOtpResponse"
+  /realms/{realm_name}/login-actions/generate-recovery-codes:
+    post:
+      tags:
+        - auth
+      summary: Generate recovery codes
+      description: Generates recovery codes that allows the user to bypass a MFA challenge
+      operationId: generate_recovery_codes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRecoveryCodesRequest"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateRecoveryCodesResponse"
+        "400":
+          description: ""
+          content:
+            text/plain:
+              schema:
+                type: string
   /realms/{realm_name}/login-actions/setup-otp:
     get:
       tags:
@@ -605,6 +622,25 @@ paths:
           description: Forbidden - Only users can set up OTP
         "500":
           description: Internal Server Error - Failed to generate OTP secret
+  /realms/{realm_name}/login-actions/update-password:
+    post:
+      tags:
+        - auth
+      summary: Update Password
+      operationId: update_password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatePasswordResponse"
   /realms/{realm_name}/login-actions/verify-otp:
     post:
       tags:
@@ -648,34 +684,30 @@ paths:
           schema:
             type: string
         - name: response_type
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
             type: string
         - name: client_id
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
             type: string
         - name: redirect_uri
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
             type: string
         - name: scope
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
-            type:
-              - string
-              - "null"
+            type: string
         - name: state
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
-            type:
-              - string
-              - "null"
+            type: string
       responses:
         "302":
           description: Redirects to the login page with session cookie set
@@ -818,6 +850,36 @@ paths:
           description: Invalid request data
         "404":
           description: Role not found
+    delete:
+      tags:
+        - role
+      summary: Delete a role in a realm
+      operationId: delete_role
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: role_id
+          in: path
+          description: Role ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteRoleResponse"
+        "400":
+          description: Invalid request data
+        "404":
+          description: Role not found
   /realms/{realm_name}/roles/{role_id}/permissions:
     patch:
       tags:
@@ -908,6 +970,33 @@ paths:
           description: Unauthorized
         "403":
           description: Forbidden
+  /realms/{realm_name}/users/@me/realms:
+    get:
+      tags:
+        - realm
+      summary: Get user realms
+      operationId: get_user_realms
+      parameters:
+        - name: realm_name
+          in: path
+          description: Name of the realm
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserRealmsResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+      security:
+        - Authorization:
+            - Bearer
   /realms/{realm_name}/users/bulk:
     delete:
       tags:
@@ -923,15 +1012,12 @@ paths:
           required: true
           schema:
             type: string
-        - name: ids
-          in: path
-          description: User IDs
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDeleteUserValidator"
+        required: true
       responses:
         "200":
           description: Users deleted successfully
@@ -971,7 +1057,7 @@ paths:
           description: "Forbidden: User does not have permission to access this user"
         "404":
           description: User not found
-    post:
+    put:
       tags:
         - user
       summary: Update a user in a realm
@@ -1140,9 +1226,9 @@ paths:
         "200":
           description: Password reset successfully
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: "#/components/schemas/ResetPasswordResponse"
   /realms/{realm_name}/users/{user_id}/roles:
     get:
       tags:
@@ -1253,15 +1339,132 @@ paths:
           description: Forbidden - You do not have permission to unassign roles
         "404":
           description: User or role not found
+  /realms/{realm_name}/webhooks:
+    get:
+      tags:
+        - webhook
+      summary: Fetch all webhooks
+      description: Retrieves a list of all webhooks available in the system related to
+        the current realm.
+      operationId: fetch_webhooks
+      parameters:
+        - name: realm_name
+          in: path
+          description: Name of the realm
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetWebhooksResponse"
+    put:
+      tags:
+        - webhook
+      summary: Update webhook
+      description: Updates a webhook in the system related to the current realm.
+      operationId: update_webhook
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+    post:
+      tags:
+        - webhook
+      summary: Create webhook
+      description: Creates a new webhook in the system related to the current realm.
+      operationId: create_webhook
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookValidator"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateWebhookResponse"
+  /realms/{realm_name}/webhooks/{webhook_id}:
+    get:
+      tags:
+        - webhook
+      summary: Get webhook
+      description: Retrieves one webhook in the system related to the current realm.
+      operationId: get_webhook
+      parameters:
+        - name: webhook_id
+          in: path
+          description: Webhook ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+    delete:
+      tags:
+        - webhook
+      summary: Delete webhook
+      description: Deletes a webhook in the system related to the current realm.
+      operationId: delete_webhook
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: webhook_id
+          in: path
+          description: Webhook ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteWebhookResponse"
 components:
   schemas:
     AssignRoleResponse:
       type: object
       required:
         - message
+        - realm_name
+        - user_id
       properties:
         message:
           type: string
+        realm_name:
+          type: string
+        user_id:
+          type: string
+          format: uuid
     AuthResponse:
       type: object
       required:
@@ -1316,11 +1519,39 @@ components:
       type: object
       required:
         - count
+        - realm_name
       properties:
         count:
           type: integer
           format: int32
           minimum: 0
+        realm_name:
+          type: string
+    BulkDeleteUserValidator:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    BurnRecoveryCodeRequest:
+      type: object
+      required:
+        - recovery_code
+        - recovery_code_format
+      properties:
+        recovery_code:
+          type: string
+        recovery_code_format:
+          type: string
+    BurnRecoveryCodeResponse:
+      type: object
+      required:
+        - login_url
+      properties:
+        login_url:
+          type: string
     ChallengeOtpResponse:
       type: object
       required:
@@ -1338,6 +1569,7 @@ components:
         - protocol
         - public_client
         - service_account_enabled
+        - direct_access_grants_enabled
         - client_type
         - name
         - created_at
@@ -1350,6 +1582,8 @@ components:
         created_at:
           type: string
           format: date-time
+        direct_access_grants_enabled:
+          type: boolean
         enabled:
           type: boolean
         id:
@@ -1395,6 +1629,8 @@ components:
           type: string
         client_type:
           type: string
+        direct_access_grants_enabled:
+          type: boolean
         enabled:
           type: boolean
         name:
@@ -1455,6 +1691,30 @@ components:
           type: string
         username:
           type: string
+    CreateWebhookResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Webhook"
+    CreateWebhookValidator:
+      type: object
+      properties:
+        description:
+          type:
+            - string
+            - "null"
+        endpoint:
+          type: string
+        name:
+          type:
+            - string
+            - "null"
+        subscribers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookTrigger"
     CredentialData:
       type: object
       required:
@@ -1501,18 +1761,42 @@ components:
       type: object
       required:
         - message
+        - realm_name
       properties:
         message:
           type: string
+        realm_name:
+          type: string
     DeleteRealmResponse:
       type: string
+    DeleteRoleResponse:
+      type: object
+      required:
+        - message
+        - realm_name
+        - role_id
+      properties:
+        message:
+          type: string
+        realm_name:
+          type: string
+        role_id:
+          type: string
+          format: uuid
     DeleteUserCredentialResponse:
       type: object
       required:
         - message
+        - realm_name
+        - user_id
       properties:
         message:
           type: string
+        realm_name:
+          type: string
+        user_id:
+          type: string
+          format: uuid
     DeleteUserResponse:
       type: object
       required:
@@ -1522,6 +1806,37 @@ components:
           type: integer
           format: int32
           minimum: 0
+    DeleteWebhookResponse:
+      type: object
+      required:
+        - message
+        - realm_name
+      properties:
+        message:
+          type: string
+        realm_name:
+          type: string
+    GenerateRecoveryCodesRequest:
+      type: object
+      required:
+        - amount
+        - code_format
+      properties:
+        amount:
+          type: integer
+          format: int32
+          minimum: 0
+        code_format:
+          type: string
+    GenerateRecoveryCodesResponse:
+      type: object
+      required:
+        - codes
+      properties:
+        codes:
+          type: array
+          items:
+            type: string
     GetCertsResponse:
       type: object
       required:
@@ -1608,6 +1923,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Role"
+    GetWebhooksResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Webhook"
     GrantType:
       type: string
       enum:
@@ -1725,6 +2049,20 @@ components:
         - configure_otp
         - verify_email
         - update_password
+    ResetPasswordResponse:
+      type: object
+      required:
+        - message
+        - user_id
+        - realm_name
+      properties:
+        message:
+          type: string
+        realm_name:
+          type: string
+        user_id:
+          type: string
+          format: uuid
     ResetPasswordValidator:
       type: object
       properties:
@@ -1819,15 +2157,26 @@ components:
       type: object
       required:
         - message
+        - realm_name
+        - user_id
       properties:
         message:
           type: string
+        realm_name:
+          type: string
+        user_id:
+          type: string
+          format: uuid
     UpdateClientValidator:
       type: object
       properties:
         client_id:
           type:
             - string
+            - "null"
+        direct_access_grants_enabled:
+          type:
+            - boolean
             - "null"
         enabled:
           type:
@@ -1837,6 +2186,18 @@ components:
           type:
             - string
             - "null"
+    UpdatePasswordRequest:
+      type: object
+      properties:
+        value:
+          type: string
+    UpdatePasswordResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
     UpdateRealmSettingValidator:
       type: object
       required:
@@ -2009,6 +2370,86 @@ components:
       properties:
         message:
           type: string
+    Webhook:
+      type: object
+      required:
+        - id
+        - endpoint
+        - subscribers
+        - updated_at
+        - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type:
+            - string
+            - "null"
+        endpoint:
+          type: string
+        id:
+          type: string
+          format: uuid
+        name:
+          type:
+            - string
+            - "null"
+        subscribers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookSubscriber"
+        triggered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    WebhookSubscriber:
+      type: object
+      required:
+        - id
+        - name
+        - webhook_id
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          $ref: "#/components/schemas/WebhookTrigger"
+        webhook_id:
+          type: string
+          format: uuid
+    WebhookTrigger:
+      type: string
+      enum:
+        - user.created
+        - user.updated
+        - user.deleted
+        - user.bulk_deleted
+        - user.assign.role
+        - user.unassign.role
+        - user.credentials.deleted
+        - auth.reset_password
+        - client.created
+        - client.updated
+        - client.deleted
+        - client.role.created
+        - client.role.updated
+        - redirect_uri.created
+        - redirect_uri.updated
+        - redirect_uri.deleted
+        - role.created
+        - role.updated
+        - realm.created
+        - realm.updated
+        - realm.deleted
+        - realm.settings.updated
+        - webhook.created
+        - webhook.updated
+        - webhook.deleted
 tags:
   - name: client
     description: Client management
