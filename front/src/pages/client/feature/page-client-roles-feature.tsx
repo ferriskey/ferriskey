@@ -17,11 +17,10 @@ export default function PageClientRolesFeature() {
   const { mutate: deleteRole } = useDeleteRole()
 
   const handleDeleteRole = (role: Role) => {
-    if (realm_name && client_id && role.id) {
+    if (realm_name && role.id) {
       deleteRole({
         path: {
           realm_name,
-          client_id,
           role_id: role.id,
         }
       })

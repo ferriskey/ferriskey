@@ -15,30 +15,24 @@ export default function PageRolesOverviewFeature() {
   const handleDeleteSelected = (items: Role[]) => {
     if (!realm_name) return
     items.forEach((role) => {
-      if (role.client?.id) {
-        deleteRole(
-          {
-            path: {
-              realm_name: realm_name ?? 'master',
-              client_id: role.client.id,
-              role_id: role.id,
-            }
+      deleteRole(
+        {
+          path: {
+            realm_name: realm_name ?? 'master',
+            role_id: role.id,
           }
-        )
-      }
+        }
+      )
     })
   }
 
   const handleDeleteRole = (role: Role) => {
-    if (role.client?.id) {
-      deleteRole({
-        path: {
-          realm_name: realm_name ?? 'master',
-          client_id: role.client.id,
-          role_id: role.id,
-        }
-      })
-    }
+    deleteRole({
+      path: {
+        realm_name: realm_name ?? 'master',
+        role_id: role.id,
+      }
+    })
   }
 
   const handleClickRow = (roleId: string) => {
