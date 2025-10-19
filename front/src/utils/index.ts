@@ -1,5 +1,5 @@
 import { Permissions, RequiredAction } from '@/api/core.interface.ts'
-import { Schemas } from '@/api/api.client.ts'
+import { Schemas } from '@/api/api.client'
 import User = Schemas.User
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 
