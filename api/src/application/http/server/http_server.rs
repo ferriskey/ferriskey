@@ -28,7 +28,6 @@ use utoipa_scalar::{Scalar, Servable};
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
-    //let service = FerrisKeyService::new(ferriskey_config).await?;
     let service = create_service(ferriskey_config).await?;
 
     Ok(AppState::new(args, service))

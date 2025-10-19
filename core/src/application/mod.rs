@@ -62,7 +62,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
 
     let postgres = Postgres::new(PostgresConfig { database_url })
         .await
-        .map_err(|_| CoreError::InternalServerError)?;
+        .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
     let realm = PostgresRealmRepository::new(postgres.get_db());
     let client = PostgresClientRepository::new(postgres.get_db());
