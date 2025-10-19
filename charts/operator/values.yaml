@@ -1,0 +1,129 @@
+# -- Override the name of the release
+nameOverride: ~
+
+common:
+  # -- Default size for emptyDir volumes.
+  emptyDirSize: 100Mi
+
+  # -- Common annotations for all workloads
+  annotations: ""
+  # -- Common labels for all workloads
+  labels: ""
+
+  # -- Common annotations for all pods.
+  podAnnotations: ""
+  # -- Common labels for all pods.
+  podLabels: ""
+
+  image:
+    # -- Default pull policy for all images.
+    pullPolicy: IfNotPresent
+    # -- Default tag for all images. Default to the chart's app version.
+    tag: ~
+
+    # -- Common image pull secrets for all pods.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+    imagePullSecrets: []
+
+    # -- (int) Default revision history limit for all workloads.
+    revisionHistoryLimit: ~
+    # -- Common update strategy for all workloads.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps
+    updateStrategy:
+      type: RollingUpdate
+
+    # -- Common persistent volume claim retention policy for all workloads.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+
+
+  # -- Common environment variables for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Common environment variables from sources for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Common volume mounts for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Common volumes for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Common affinity for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Common tolerations for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Common topology spread constraints for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- (bool) Share by default a single process namespace between all of the containers in all pods.
+  shareProcessNamespace: ~
+
+  # -- Common DNS config for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Common host aliases for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- (bool) Set by default hostname as FQDN for all pods.
+  setHostnameAsFQDN: ~
+  # -- Default subdomain for all pods.
+  subdomain: ~
+
+  # -- Common ephemeral containers for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Common init containers for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Default runtime class name for all pods.
+  runtimeClassName: ~
+  # -- Default scheduler name for all pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Common annotations on the service account.
+    annotations: {}
+    # -- Common labels on all service accounts.
+    labels: {}
+
+    # -- (bool) Automount service account token by default for all service accounts.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Common annotations on all services.
+    annotations: {}
+    # -- Common labels on all services.
+    labels: {}
+
+    # -- Default type for all services.
+    type: ClusterIP
+
+    # -- Default load balancer class for all services.
+    loadBalancerClass: ~
+    # -- Common load balancer source ranges for all services.
+    loadBalancerSourceRanges: []
+
+    # -- Default external traffic policy for all services.
+    externalTrafficPolicy: ~
+    # -- Default internal traffic policy for all services.
+    internalTrafficPolicy: ~
+    # -- Default traffic distribution for all services.
+    trafficDistribution: ~
+
+    # -- Default session affinity for all services.
+    sessionAffinity: ~
+    # -- Common session affinity config for all services.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (bool) Publish not ready addresses by default for all services.
+    publishNotReadyAddresses: ~
