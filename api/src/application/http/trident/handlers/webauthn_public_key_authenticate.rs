@@ -69,9 +69,6 @@ pub async fn webauthn_public_key_authenticate(
 ) -> Result<Response<AuthenticationAttemptResponse>, ApiError> {
     let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
     let session_code = session_code.value().to_string();
-    let session_code = uuid::Uuid::parse_str(&session_code).map_err(|_| {
-        ApiError::BadRequest("Failed to parse session code as a valid UUID".to_string())
-    })?;
 
     let output = state
         .service
@@ -79,6 +76,7 @@ pub async fn webauthn_public_key_authenticate(
             identity,
             WebAuthnPublicKeyAuthenticateInput {
                 session_code,
+                server_host: state.args.server.host.clone(),
                 credential: payload.0,
             },
         )

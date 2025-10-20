@@ -39,7 +39,8 @@ pub struct WebAuthnPublicKeyRequestOptionsInput {
 pub struct WebAuthnPublicKeyRequestOptionsOutput(pub RequestChallengeResponse);
 
 pub struct WebAuthnPublicKeyAuthenticateInput {
-    pub session_code: Uuid,
+    pub session_code: String,
+    pub server_host: String,
     pub credential: PublicKeyCredential,
 }
 pub struct WebAuthnPublicKeyAuthenticateOutput {

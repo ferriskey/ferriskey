@@ -68,8 +68,8 @@ pub async fn webauthn_public_key_create(
 
     let input = WebAuthnValidatePublicKeyInput {
         server_host,
-        session_code, 
-        credential: payload.0
+        session_code,
+        credential: payload.0,
     };
 
     let _ = state

@@ -193,6 +193,12 @@ pub enum CredentialError {
 
     #[error("Delete credential error")]
     DeleteCredentialError,
+
+    #[error("Update credential error")]
+    UpdateCredentialError,
+
+    #[error("Unexpected credential data variant")]
+    UnexpectedCredentialData,
 }
 
 pub struct GetCredentialsInput {

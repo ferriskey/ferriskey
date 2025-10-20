@@ -1,12 +1,12 @@
 use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
-    QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    IntoActiveModel, ModelTrait, QueryFilter,
 };
 use serde_json::Value;
 use tracing::error;
-use webauthn_rs::prelude::{CredentialID, Passkey};
+use webauthn_rs::prelude::{AuthenticationResult, CredentialID, Passkey};
 
 use crate::domain::{
     common::{generate_timestamp, generate_uuid_v7},
@@ -303,5 +303,49 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map(Credential::from);
 
         Ok(credential)
+    }
+
+    async fn update_webauthn_credential(
+        &self,
+        auth_result: &AuthenticationResult,
+    ) -> Result<bool, CredentialError> {
+        let credential_id: &[u8] = auth_result.cred_id().as_slice();
+
+        let credential_model = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::WebauthnCredentialId.eq(credential_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .ok_or(CredentialError::GetUserCredentialsError)?;
+
+        let credential: Credential = credential_model.clone().into();
+
+        let update_res;
+        let updated_data = match credential.credential_data {
+            CredentialData::WebAuthn { credential } => {
+                let mut passkey = Passkey::from(credential);
+
+                update_res = passkey
+                    .update_credential(auth_result)
+                    .ok_or(CredentialError::UpdateCredentialError)?;
+
+                CredentialData::WebAuthn {
+                    credential: passkey.into(),
+                }
+            }
+            _ => return Err(CredentialError::UnexpectedCredentialData),
+        };
+
+        let updated_data = serde_json::to_value(updated_data)
+            .map_err(|_| CredentialError::UpdateCredentialError)?;
+
+        let mut active_model = credential_model.into_active_model();
+        active_model.credential_data = Set(updated_data);
+        active_model
+            .update(&self.db)
+            .await
+            .map_err(|_| CredentialError::UpdateCredentialError)?;
+
+        Ok(update_res)
     }
 }

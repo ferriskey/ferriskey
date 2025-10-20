@@ -441,16 +441,12 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         let passkey = match auth_session.webauthn_challenge {
-            Some(WebAuthnChallenge::Registration(ref pk)) => {
-                let passkey = webauthn
-                    .finish_passkey_registration(&input.credential, pk)
-                    .map_err(|e| {
-                        tracing::debug!("Failed to complete passkey registration: {e:?}");
-                        CoreError::Invalid
-                    })?;
-
-                Ok(passkey)
-            }
+            Some(WebAuthnChallenge::Registration(ref pk)) => webauthn
+                .finish_passkey_registration(&input.credential, pk)
+                .map_err(|e| {
+                    tracing::debug!("Failed to complete passkey registration: {e:?}");
+                    CoreError::Invalid
+                }),
             _ => Err(CoreError::Invalid),
         }?;
 
@@ -467,44 +463,49 @@ where
         identity: Identity,
         input: WebAuthnPublicKeyRequestOptionsInput,
     ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
-        unimplemented!();
-        /*
-        let challenge = WebAuthnChallenge::generate()?;
-        let session_code =
-            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
-
         let user = match identity {
             Identity::User(user) => user,
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
-        let _ = self
-            .auth_session_repository
-            .save_webauthn_challenge(session_code, challenge.0.as_slice())
-            .await
-            .map_err(|_| CoreError::InternalServerError);
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let allow_credentials = self
+        let webauthn = build_webauthn_client(input.server_host)?;
+
+        let creds = self
             .credential_repository
             .get_webauthn_public_key_credentials(user.id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let creds = creds
             .into_iter()
-            .map(WebAuthnPublicKeyCredentialDescriptor::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|v|
+                match v.credential_data {
+                    CredentialData::WebAuthn {credential} => {
+                        Ok(Passkey::from(credential))
+                    },
+                    _ => {
+                        tracing::error!("A Webauthn credential doesn't hold WebAuthn credential data ! Something went wrong during creation...");
+                        Err(CoreError::InternalServerError)
+                    }
+                }
+            )
+            .collect::<Result<Vec<Passkey>, CoreError>>()?;
 
-        let creation_opts = WebAuthnPublicKeyCredentialRequestOptions {
-            challenge,
-            timeout: 60000,
-            rp_id: input.server_host,
-            allow_credentials,
-            user_verification: WebAuthnUserVerificationRequirement::Preferred,
-            hints: vec![],
-            extensions: WebAuthnAuthenticationExtensionsClientInputs {},
-        };
+        let (rcr, pa) = webauthn.start_passkey_authentication(&creds).map_err(|e| {
+            tracing::error!("Failed to generate webauthn challenge: {e:?}");
+            CoreError::InternalServerError
+        })?;
 
-        Ok(WebAuthnPublicKeyRequestOptionsOutput(creation_opts))
-        */
+        let _ = self
+            .auth_session_repository
+            .save_webauthn_challenge(session_code, WebAuthnChallenge::Authentication(pa))
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(WebAuthnPublicKeyRequestOptionsOutput(rcr))
     }
 
     async fn webauthn_public_key_authenticate(
@@ -512,47 +513,46 @@ where
         identity: Identity,
         input: WebAuthnPublicKeyAuthenticateInput,
     ) -> Result<WebAuthnPublicKeyAuthenticateOutput, CoreError> {
-        unimplemented!();
-        /*
-        let session_code = input.session_code;
-
         let user = match identity {
             Identity::User(user) => user,
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
-        // These operations can be parallelized as they don't depend on each other
-        let (auth_session, challenge, webauthn_credential) = futures::try_join!(
-            async {
-                self.auth_session_repository
-                    .get_by_session_code(session_code)
-                    .await
-                    .map_err(|_| CoreError::SessionNotFound)
-            },
-            async {
-                self.auth_session_repository
-                    .take_webauthn_challenge(session_code)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::WebAuthnMissingChallenge)
-            },
-            async {
-                self.credential_repository
-                    .get_webauthn_credential_by_credential_id(input.credential.id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)
-                    .and_then(|v| v.ok_or(CoreError::WebAuthnCredentialNotFound))
-            }
-        )?;
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        match input.response.verify(
-            challenge,
-            webauthn_credential.webauthn_public_key.expect("key"),
-        ) {
-            Ok(res) if !res => return Err(CoreError::WebAuthnChallengeFailed),
-            Err(e) => return Err(e),
-            _ => (),
-        };
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let webauthn = build_webauthn_client(input.server_host)?;
+
+        let auth_result = match auth_session.webauthn_challenge {
+            Some(WebAuthnChallenge::Authentication(ref pa)) => webauthn
+                .finish_passkey_authentication(&input.credential, &pa)
+                .map_err(|e| {
+                    tracing::error!("Error during webauthn verification: {e:?}");
+                    CoreError::InternalServerError
+                }),
+            _ => Err(CoreError::Invalid),
+        }?;
+
+        if auth_result.needs_update() {
+            let _ = self
+                .credential_repository
+                .update_webauthn_credential(&auth_result)
+                .await
+                .map_err(|e| {
+                    tracing::debug!("{e:?}");
+                    CoreError::InternalServerError
+                })?;
+        }
+
+        if !auth_result.user_verified() {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
 
         let login_url = store_auth_code_and_generate_login_url(
             &self.auth_session_repository,
@@ -562,7 +562,6 @@ where
         .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
-        */
     }
 
     async fn challenge_otp(
