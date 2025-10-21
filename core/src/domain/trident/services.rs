@@ -35,7 +35,7 @@ use crate::{
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -137,13 +137,13 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
         RecoveryCodeFormat::B32Split4 => B32Split4RecoveryCodeFormatter::decode(code),
     }
 
-fn build_webauthn_client(server_host: String) -> Result<Webauthn, CoreError> {
-    let rp_url = Url::parse(&server_host).map_err(|e| {
+fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError> {
+    let rp_url = Url::parse(&rp_info.allowed_origin).map_err(|e| {
         tracing::error!("Failed to parse server_host as URL: {e}");
         CoreError::InternalServerError
     })?;
 
-    Ok(WebauthnBuilder::new(&server_host, &rp_url)
+    Ok(WebauthnBuilder::new(&rp_info.rp_id, &rp_url)
         .map_err(|e| {
             tracing::error!("Failed to build Webauthn client: {e:?}");
             CoreError::InternalServerError
@@ -383,7 +383,7 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let webauthn = build_webauthn_client(input.server_host)?;
+        let webauthn = build_webauthn_client(input.rp_info)?;
 
         let credentials = self
             .credential_repository
@@ -432,7 +432,7 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let webauthn = build_webauthn_client(input.server_host)?;
+        let webauthn = build_webauthn_client(input.rp_info)?;
 
         let auth_session = self
             .auth_session_repository
@@ -471,7 +471,7 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let webauthn = build_webauthn_client(input.server_host)?;
+        let webauthn = build_webauthn_client(input.rp_info)?;
 
         let creds = self
             .credential_repository
@@ -527,7 +527,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let webauthn = build_webauthn_client(input.server_host)?;
+        let webauthn = build_webauthn_client(input.rp_info)?;
 
         let auth_result = match auth_session.webauthn_challenge {
             Some(WebAuthnChallenge::Authentication(ref pa)) => webauthn

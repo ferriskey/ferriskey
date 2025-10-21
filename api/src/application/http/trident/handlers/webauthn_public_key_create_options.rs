@@ -4,8 +4,10 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, trident::ports::WebAuthnRpInfo,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::{
     PartialSchema, ToSchema,
@@ -40,7 +42,7 @@ impl PartialSchema for CreatePublicKeyResponse {
 
 #[utoipa::path(
     post,
-    path = "login-actions/webauthn-public-key-create-options",
+    path = "/login-actions/webauthn-public-key-create-options",
     tag = "auth",
     summary = "Create a webauthn public key",
     description = "Provides a full PublicKeyCredentialCreationOption payload for WebAuthn credential creation/authentication. The payload contains the challenge to resolve in B64Url form as described in the specs. The content is described here: https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.",
@@ -57,7 +59,8 @@ pub async fn webauthn_public_key_create_options(
     let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
     let session_code = session_code.value().to_string();
 
-    let server_host = state.args.server.host.clone();
+    let rp_id = state.args.server.host.clone();
+    let allowed_origin = state.args.webapp_url.clone();
 
     let output = state
         .service
@@ -65,7 +68,10 @@ pub async fn webauthn_public_key_create_options(
             identity,
             WebAuthnPublicKeyCreateOptionsInput {
                 session_code,
-                server_host,
+                rp_info: WebAuthnRpInfo {
+                    rp_id,
+                    allowed_origin,
+                },
             },
         )
         .await

@@ -14,19 +14,31 @@ pub trait TotpService: Send + Sync {
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;
 }
 
+/// Required relying party information for the good use of Webauthn
+pub struct WebAuthnRpInfo {
+    /// https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#relying-party-identifier
+    /// tldr; a hostname which determines the scope of origin for the public key.
+    /// e.g: if 'my-app.com' then only origins under 'my-app.com' ('api.my-app.com', 'client.my-app.com', etc.) will be allowed.
+    ///
+    /// For localhost apps set this to 'localhost'
+    pub rp_id: String,
+
+    /// Required for internal validation when receiving a payload from a client.
+    /// The server decides which origin is allowed for this specific context. If the client's
+    /// payload doesn't match, then no further verification is done and the payload is rejected.
+    /// Must be a valid origin format string ! (scheme://host[:port])
+    pub allowed_origin: String,
+}
+
 pub struct WebAuthnPublicKeyCreateOptionsInput {
     pub session_code: String,
-
-    /// This gets passed in the output as RP ID
-    /// (https://w3c.github.io/webauthn/#relying-party-identifier)
-    /// This will work fine for localhost but may not work in other scenario
-    pub server_host: String,
+    pub rp_info: WebAuthnRpInfo,
 }
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 pub struct WebAuthnPublicKeyCreateOptionsOutput(pub CreationChallengeResponse);
 
 pub struct WebAuthnValidatePublicKeyInput {
-    pub server_host: String,
+    pub rp_info: WebAuthnRpInfo,
     pub session_code: String,
     pub credential: RegisterPublicKeyCredential,
 }
@@ -34,13 +46,13 @@ pub struct WebAuthnValidatePublicKeyOutput {}
 
 pub struct WebAuthnPublicKeyRequestOptionsInput {
     pub session_code: String,
-    pub server_host: String,
+    pub rp_info: WebAuthnRpInfo,
 }
 pub struct WebAuthnPublicKeyRequestOptionsOutput(pub RequestChallengeResponse);
 
 pub struct WebAuthnPublicKeyAuthenticateInput {
     pub session_code: String,
-    pub server_host: String,
+    pub rp_info: WebAuthnRpInfo,
     pub credential: PublicKeyCredential,
 }
 pub struct WebAuthnPublicKeyAuthenticateOutput {

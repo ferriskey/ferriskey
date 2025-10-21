@@ -2,7 +2,7 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput},
+    trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput, WebAuthnRpInfo},
 };
 use serde::Serialize;
 use utoipa::{
@@ -58,7 +58,8 @@ pub async fn webauthn_public_key_request_options(
     let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
     let session_code = session_code.value().to_string();
 
-    let server_host = state.args.server.host.clone();
+    let rp_id = state.args.server.host.clone();
+    let allowed_origin = state.args.webapp_url.clone();
 
     let output = state
         .service
@@ -66,7 +67,10 @@ pub async fn webauthn_public_key_request_options(
             identity,
             WebAuthnPublicKeyRequestOptionsInput {
                 session_code,
-                server_host,
+                rp_info: WebAuthnRpInfo {
+                    rp_id,
+                    allowed_origin,
+                },
             },
         )
         .await

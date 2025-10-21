@@ -7,8 +7,10 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
-use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, trident::ports::WebAuthnRpInfo,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::{
     PartialSchema, ToSchema,
@@ -64,10 +66,15 @@ pub async fn webauthn_public_key_create(
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
     let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
     let session_code = session_code.value().to_string();
-    let server_host = state.args.server.host.clone();
+
+    let rp_id = state.args.server.host.clone();
+    let allowed_origin = state.args.webapp_url.clone();
 
     let input = WebAuthnValidatePublicKeyInput {
-        server_host,
+        rp_info: WebAuthnRpInfo {
+            rp_id,
+            allowed_origin,
+        },
         session_code,
         credential: payload.0,
     };
