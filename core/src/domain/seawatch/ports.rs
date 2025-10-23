@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use std::future::Future;
 use uuid::Uuid;
 
 use crate::domain::authentication::entities::Identity;
@@ -8,18 +8,14 @@ use crate::error::CoreError;
 use super::entities::SecurityEvent;
 use super::value_objects::SecurityEventFilter;
 
-type Result<T> = std::result::Result<T, CoreError>;
-
-#[async_trait]
-pub trait SecurityEventRepository: Clone + Send + Sync + 'static {
-    async fn store_event(&self, event: SecurityEvent) -> Result<()>;
-    async fn get_events(&self, realm_id: Uuid, filter: SecurityEventFilter) -> Result<Vec<SecurityEvent>>;
-    async fn get_by_id(&self, id: Uuid) -> Result<SecurityEvent>;
-    async fn count_events(&self, realm_id: Uuid, filter: SecurityEventFilter) -> Result<i64>;
+pub trait SecurityEventRepository: Send + Sync {
+    fn store_event(&self, event: SecurityEvent) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_events(&self, realm_id: Uuid, filter: SecurityEventFilter) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
+    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<SecurityEvent, CoreError>> + Send;
+    fn count_events(&self, realm_id: Uuid, filter: SecurityEventFilter) -> impl Future<Output = Result<i64, CoreError>> + Send;
 }
 
-#[async_trait]
-pub trait SecurityEventPolicy: Send + Sync + Clone {
-    async fn can_view_events(&self, identity: Identity, realm: Realm) -> Result<bool>;
-    async fn can_export_events(&self, identity: Identity, realm: Realm) -> Result<bool>;
+pub trait SecurityEventPolicy: Send + Sync {
+    fn can_view_events(&self, identity: Identity, realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_export_events(&self, identity: Identity, realm: Realm) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
