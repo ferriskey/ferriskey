@@ -17,7 +17,7 @@ pub trait CryptoService: Clone + Send + Sync + 'static {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait HasherRepository: Clone + Send + Sync + 'static {
+pub trait HasherRepository: Send + Sync + 'static {
     fn hash_password(
         &self,
         password: &str,
