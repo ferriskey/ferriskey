@@ -6,7 +6,8 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use ferriskey_core::domain::{
-    authentication::value_objects::Identity, trident::ports::WebAuthnRpInfo,
+    authentication::value_objects::Identity,
+    trident::ports::{CreationChallengeResponse, WebAuthnRpInfo},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{
@@ -14,7 +15,6 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema},
 };
 use validator::Validate;
-use webauthn_rs::prelude::CreationChallengeResponse;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreatePublicKeyRequest {}

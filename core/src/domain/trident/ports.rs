@@ -1,5 +1,4 @@
 use uuid::Uuid;
-use webauthn_rs::prelude::*;
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -8,7 +7,12 @@ use crate::domain::{
     trident::entities::{MfaRecoveryCode, TotpSecret},
 };
 
-pub trait TotpService: Send + Sync {
+pub use webauthn_rs::prelude::{
+    CreationChallengeResponse, PublicKeyCredential, RegisterPublicKeyCredential,
+    RequestChallengeResponse,
+};
+
+pub trait TotpService: Send + Sync + Clone + 'static {
     fn generate_secret(&self) -> Result<TotpSecret, CoreError>;
     fn generate_otpauth_uri(&self, issuer: &str, user_email: &str, secret: &TotpSecret) -> String;
     fn verify(&self, secret: &TotpSecret, code: &str) -> Result<bool, CoreError>;

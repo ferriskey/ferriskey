@@ -2,7 +2,9 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    trident::ports::{TridentService, WebAuthnPublicKeyAuthenticateInput, WebAuthnRpInfo},
+    trident::ports::{
+        PublicKeyCredential, TridentService, WebAuthnPublicKeyAuthenticateInput, WebAuthnRpInfo,
+    },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{
@@ -18,7 +20,6 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 use validator::Validate;
-use webauthn_rs::prelude::PublicKeyCredential;
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent, rename_all = "camelCase")]

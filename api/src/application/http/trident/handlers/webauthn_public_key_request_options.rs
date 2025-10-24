@@ -2,14 +2,16 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    trident::ports::{TridentService, WebAuthnPublicKeyRequestOptionsInput, WebAuthnRpInfo},
+    trident::ports::{
+        RequestChallengeResponse, TridentService, WebAuthnPublicKeyRequestOptionsInput,
+        WebAuthnRpInfo,
+    },
 };
 use serde::Serialize;
 use utoipa::{
     PartialSchema, ToSchema,
     openapi::{ObjectBuilder, RefOr, Schema},
 };
-use webauthn_rs::prelude::RequestChallengeResponse;
 
 use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},

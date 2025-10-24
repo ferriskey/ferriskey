@@ -7,7 +7,9 @@ use crate::application::http::server::{
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
-use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnValidatePublicKeyInput};
+use ferriskey_core::domain::trident::ports::{
+    RegisterPublicKeyCredential, TridentService, WebAuthnValidatePublicKeyInput,
+};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, trident::ports::WebAuthnRpInfo,
 };
@@ -17,7 +19,6 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema},
 };
 use validator::Validate;
-use webauthn_rs::prelude::RegisterPublicKeyCredential;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
