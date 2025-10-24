@@ -1,21 +1,10 @@
 use uuid::Uuid;
 
-use crate::{
-    domain::{
-        authentication::{
-            entities::{AuthenticationError, GrantType, JwtToken},
-            ports::{AuthSessionRepository, GrantTypeService, GrantTypeStrategy},
-            value_objects::GrantTypeParams,
-        },
-        client::ports::ClientRepository,
-        common::entities::app_errors::CoreError,
-        credential::{entities::CredentialData, ports::CredentialRepository},
-        crypto::ports::HasherRepository,
-        jwt::{
-            entities::{ClaimsTyp, Jwt, JwtClaim},
-            ports::{KeyStoreRepository, RefreshTokenRepository},
-        },
-        user::ports::UserRepository,
+use crate::domain::{
+    authentication::{
+        entities::{AuthenticationError, GrantType, JwtToken},
+        ports::{AuthSessionRepository, GrantTypeService, GrantTypeStrategy},
+        value_objects::GrantTypeParams,
     },
     client::ports::{ClientRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, services::Service},

@@ -26,12 +26,12 @@ use crate::{
         realm::ports::RealmRepository,
         role::ports::RoleRepository,
         trident::{
-            entities::TotpSecret,
+            entities::{MfaRecoveryCode, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                RecoveryCodeFormatter, RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput,
+                TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
@@ -44,9 +44,9 @@ use crate::{
         },
         webhook::ports::WebhookRepository,
     },
-    infrastructure::{auth_session::AuthSessionRepoAny, recovery_code::formatters::{
+    infrastructure::recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
-    }},
+    },
 };
 
 type HmacSha1 = Hmac<Sha1>;
@@ -136,6 +136,7 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     match format {
         RecoveryCodeFormat::B32Split4 => B32Split4RecoveryCodeFormatter::decode(code),
     }
+}
 
 fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError> {
     let rp_url = Url::parse(&rp_info.allowed_origin).map_err(|e| {
@@ -157,8 +158,8 @@ fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError>
 
 /// Generates a random authorization code, stores it in the user auth session
 /// and returns it in a formated URL ready to be sent to the user
-async fn store_auth_code_and_generate_login_url(
-    auth_session_repository: &AuthSessionRepoAny,
+async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
+    auth_session_repository: &AS,
     auth_session: &AuthSession,
     user_id: Uuid,
 ) -> Result<String, CoreError> {
@@ -303,14 +304,15 @@ where
             if let CredentialData::Hash {
                 hash_iterations,
                 algorithm,
-            } = &code_cred.credential_data {
+            } = &code_cred.credential_data
+            {
                 let salt = code_cred
                     .salt
                     .as_ref()
                     .ok_or(CoreError::InternalServerError)?;
 
                 let result = self
-                    .recovery_code_repo
+                    .recovery_code_repository
                     .verify(
                         &user_code,
                         &code_cred.secret_data,
@@ -554,7 +556,7 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let login_url = store_auth_code_and_generate_login_url(
+        let login_url = store_auth_code_and_generate_login_url::<AS>(
             &self.auth_session_repository,
             &auth_session,
             user.id.clone(),

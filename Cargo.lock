@@ -1378,6 +1378,7 @@ dependencies = [
  "hmac",
  "jsonwebtoken",
  "mockall",
+ "p256",
  "rand 0.8.5",
  "regex",
  "reqwest",
@@ -2839,6 +2840,18 @@ dependencies = [
  "proc-macro2-diagnostics",
  "quote",
  "syn 2.0.104",
+]
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "primeorder",
+ "sha2",
 ]
 
 [[package]]
