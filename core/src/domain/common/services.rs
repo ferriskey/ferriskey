@@ -18,7 +18,7 @@ use crate::domain::{
         policies::FerriskeyPolicy,
         ports::CoreService,
     },
-    credential::ports::CredentialRepository,
+    credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::ports::HasherRepository,
     health::ports::HealthCheckRepository,
     jwt::{
@@ -161,12 +161,21 @@ where
 
         let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
 
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = credential.credential_data
+        else {
+            return Err(CoreError::InternalServerError);
+        };
+
         let is_valid = self
             .hasher_repository
             .verify_password(
                 &password,
                 &credential.secret_data,
-                &credential.credential_data,
+                hash_iterations,
+                &algorithm,
                 &salt,
             )
             .await

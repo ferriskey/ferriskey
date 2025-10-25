@@ -1,5 +1,4 @@
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::credential::entities::Credential;
 use crate::domain::crypto::entities::HashResult;
 use crate::domain::crypto::ports::HasherRepository;
 use crate::domain::trident::entities::MfaRecoveryCode;
@@ -49,8 +48,11 @@ impl<const L: usize, H: HasherRepository> RecoveryCodeRepository
     async fn verify(
         &self,
         in_code: &MfaRecoveryCode,
-        against: Credential,
-    ) -> Result<Option<Credential>, CoreError> {
+        secret_data: &str,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> Result<bool, CoreError> {
         let in_code = in_code
             .0
             .iter()
@@ -58,23 +60,17 @@ impl<const L: usize, H: HasherRepository> RecoveryCodeRepository
                 format!("{accu}{byte:x?}")
             });
 
-        let salt = against
-            .salt
-            .as_ref()
-            .ok_or(CoreError::InternalServerError)?;
-
-        let verif = self.hasher.verify_password(
+        self.hasher.verify_password(
             in_code.as_str(),
-            &against.secret_data,
-            &against.credential_data,
+            secret_data,
+            hash_iterations,
+            algorithm,
             salt
         )
         .await
         .map_err(|_e| {
             tracing::debug!("An error occured while verifying password. The error message is intentionally left empty as it may contain sensitive data");
             CoreError::VerifyPasswordError(String::from(""))
-        })?;
-
-        if verif { Ok(Some(against)) } else { Ok(None) }
+        })
     }
 }

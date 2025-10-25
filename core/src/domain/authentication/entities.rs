@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
 
 use crate::domain::{
     authentication::value_objects::Identity, common::generate_timestamp, jwt::entities::JwtClaim,
@@ -91,6 +92,13 @@ pub enum AuthenticationError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum WebAuthnChallenge {
+    Registration(PasskeyRegistration),
+    Authentication(PasskeyAuthentication),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthSession {
     pub id: Uuid,
     pub realm_id: Uuid,
@@ -105,6 +113,8 @@ pub struct AuthSession {
     pub authenticated: bool,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    pub webauthn_challenge: Option<WebAuthnChallenge>,
+    pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone)]
@@ -119,6 +129,8 @@ pub struct AuthSessionParams {
     pub user_id: Option<Uuid>,
     pub code: Option<String>,
     pub authenticated: bool,
+    pub webauthn_challenge: Option<WebAuthnChallenge>,
+    pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
 }
 
 impl AuthSession {
@@ -140,6 +152,8 @@ impl AuthSession {
             authenticated: params.authenticated,
             created_at: now,
             expires_at: now + Duration::minutes(10),
+            webauthn_challenge: params.webauthn_challenge,
+            webauthn_challenge_issued_at: params.webauthn_challenge_issued_at,
         }
     }
 }

@@ -18,7 +18,8 @@ use crate::domain::{
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
     trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    user::ports::UserRepository,
+    user::ports::{UserRequiredActionRepository, UserRoleRepository},
     webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 

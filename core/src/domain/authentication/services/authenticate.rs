@@ -8,9 +8,11 @@ use crate::domain::{
         ports::{AuthSessionRepository, AuthenticatePort},
         value_objects::AuthenticationResult,
     },
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, generate_random_string, services::Service},
-    credential::ports::CredentialRepository,
+    client::ports::ClientRepository,
+    client::ports::RedirectUriRepository,
+    common::services::Service,
+    common::{entities::app_errors::CoreError, generate_random_string},
+    credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::ports::HasherRepository,
     health::ports::HealthCheckRepository,
     jwt::{
@@ -20,10 +22,8 @@ use crate::domain::{
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
     trident::ports::RecoveryCodeRepository,
-    user::{
-        entities::RequiredAction,
-        ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    },
+    user::ports::{UserRequiredActionRepository, UserRoleRepository},
+    user::{entities::RequiredAction, ports::UserRepository},
     webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
@@ -198,12 +198,25 @@ where
 
         let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
 
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = &credential.credential_data
+        else {
+            tracing::error!(
+                "A password credential doesn't have Hash credential data.
+This is a server error that should be investigated. Do not forward back this message to the client"
+            );
+            return Err(CoreError::InternalServerError);
+        };
+
         let has_valid_password = self
             .hasher_repository
             .verify_password(
                 &password,
                 &credential.secret_data,
-                &credential.credential_data,
+                *hash_iterations,
+                algorithm,
                 &salt,
             )
             .await

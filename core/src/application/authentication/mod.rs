@@ -1,71 +1,52 @@
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::{
-        entities::{
-            AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticationMethod,
-            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, JwtToken,
+use crate::{
+    application::common::FerriskeyService,
+    domain::{
+        authentication::{
+            entities::{
+                AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateInput,
+                AuthenticateOutput, AuthenticationMethod, AuthorizeRequestInput,
+                AuthorizeRequestOutput, CredentialsAuthParams,
+            },
+            ports::{AuthService, AuthSessionRepository, AuthenticatePort, GrantTypeService},
+            value_objects::{GrantTypeParams, Identity},
         },
-        ports::{AuthService, AuthSessionRepository, AuthenticatePort, GrantTypeService},
-        value_objects::{GrantTypeParams, Identity},
+        client::ports::{ClientRepository, RedirectUriRepository},
+        common::entities::app_errors::CoreError,
+        jwt::{
+            entities::{ClaimsTyp, JwkKey},
+            ports::KeyStoreRepository,
+        },
+        realm::ports::RealmRepository,
+        user::ports::UserRepository,
     },
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, services::Service},
-    credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
-    health::ports::HealthCheckRepository,
-    jwt::{
-        entities::{ClaimsTyp, JwkKey},
-        ports::{KeyStoreRepository, RefreshTokenRepository},
-    },
-    realm::ports::RealmRepository,
-    role::ports::RoleRepository,
-    trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
 };
 
-pub mod authenticate;
-pub mod grant_type_service;
+pub mod services;
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> AuthService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
-where
-    R: RealmRepository,
-    C: ClientRepository,
-    U: UserRepository,
-    CR: CredentialRepository,
-    H: HasherRepository,
-    AS: AuthSessionRepository,
-    RU: RedirectUriRepository,
-    RO: RoleRepository,
-    KS: KeyStoreRepository,
-    UR: UserRoleRepository,
-    URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
-    W: WebhookRepository,
-    WN: WebhookNotifierRepository,
-    RT: RefreshTokenRepository,
-    RC: RecoveryCodeRepository,
-{
+impl AuthService for FerriskeyService {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
-            .await?
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
         let client = self
             .client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
 
         let redirect_uri = input.redirect_uri.clone();
 
         let client_redirect_uris = self
             .redirect_uri_repository
             .get_enabled_by_client_id(client.id)
-            .await?;
+            .await
+            .map_err(|_| CoreError::RedirectUriNotFound)?;
 
         if !client_redirect_uris.iter().any(|uri| {
             if uri.value == redirect_uri {
@@ -119,7 +100,8 @@ where
         let realm = self
             .realm_repository
             .get_by_name(realm_name)
-            .await?
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
         let jwk_keypair = self
@@ -135,16 +117,21 @@ where
         Ok(vec![jwk_key])
     }
 
-    async fn exchange_token(&self, input: ExchangeTokenInput) -> Result<JwtToken, CoreError> {
+    async fn exchange_token(
+        &self,
+        input: crate::domain::authentication::entities::ExchangeTokenInput,
+    ) -> Result<crate::domain::authentication::entities::JwtToken, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
-            .await?
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
         self.client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
 
         let params = GrantTypeParams {
             realm_id: realm.id,
@@ -159,22 +146,33 @@ where
             redirect_uri: None,
         };
 
-        self.authenticate_with_grant_type(input.grant_type, params)
+        self.grant_type_strategies
+            .authenticate_with_grant_type(input.grant_type, params)
             .await
             .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn authorize_request(
         &self,
-        input: super::entities::AuthorizeRequestInput,
-    ) -> Result<super::entities::AuthorizeRequestOutput, CoreError> {
+        input: AuthorizeRequestInput,
+    ) -> Result<AuthorizeRequestOutput, CoreError> {
         if input.claims.typ != ClaimsTyp::Bearer {
             return Err(CoreError::InternalServerError);
         }
 
-        let user = self.user_repository.get_by_id(input.claims.sub).await?;
+        let user = self
+            .user_repository
+            .get_by_id(input.claims.sub)
+            .await
+            .map_err(|e| {
+                tracing::error!("faield to get user by id {}: {:?}", input.claims.sub, e);
 
-        self.verify_token(input.token, user.realm_id).await?;
+                CoreError::InvalidUser
+            })?;
+
+        self.grant_type_strategies
+            .verify_token(input.token, user.realm_id)
+            .await?;
 
         let identity: Identity = match input.claims.is_service_account() {
             true => {
@@ -184,7 +182,14 @@ where
                     CoreError::InvalidClient
                 })?;
 
-                let client = self.client_repository.get_by_id(client_id).await?;
+                let client = self
+                    .client_repository
+                    .get_by_id(client_id)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("failed to get client by id {}: {:?}", client_id, e);
+                        CoreError::InvalidClient
+                    })?;
 
                 Identity::Client(client)
             }
@@ -196,8 +201,8 @@ where
 
     async fn authenticate(
         &self,
-        input: super::entities::AuthenticateInput,
-    ) -> Result<super::entities::AuthenticateOutput, CoreError> {
+        input: AuthenticateInput,
+    ) -> Result<AuthenticateOutput, CoreError> {
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(input.session_code)
@@ -207,12 +212,14 @@ where
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name.clone())
-            .await?
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
         match input.auth_method {
             AuthenticationMethod::ExistingToken { token } => {
-                self.handle_token_refresh(token, realm.id, auth_session, input.session_code)
+                self.authenticate_factory
+                    .handle_token_refresh(token, realm.id, auth_session, input.session_code)
                     .await
             }
             AuthenticationMethod::UserCredentials { username, password } => {
@@ -225,7 +232,8 @@ where
                     password,
                 };
 
-                self.handle_user_credentials_authentication(params, auth_session)
+                self.authenticate_factory
+                    .handle_user_credentials_authentication(params, auth_session)
                     .await
             }
         }
