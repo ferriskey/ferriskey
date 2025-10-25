@@ -63,8 +63,7 @@ where
         let webhooks = self
             .webhook_repository
             .fetch_webhooks_by_realm(realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(webhooks)
     }
@@ -90,8 +89,7 @@ where
         let webhooks = self
             .webhook_repository
             .fetch_webhooks_by_subscriber(realm_id, input.subscriber)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(webhooks)
     }
@@ -117,8 +115,7 @@ where
         let webhook = self
             .webhook_repository
             .get_webhook_by_id(input.webhook_id, realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(webhook)
     }
@@ -151,8 +148,7 @@ where
                 input.endpoint,
                 input.subscribers,
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -163,8 +159,7 @@ where
                     Some(webhook.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(webhook)
     }
@@ -197,8 +192,7 @@ where
                 input.endpoint,
                 input.subscribers,
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -209,8 +203,7 @@ where
                     Some(webhook.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(webhook)
     }
@@ -236,16 +229,14 @@ where
 
         self.webhook_repository
             .delete_webhook(input.webhook_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         self.webhook_repository
             .notify(
                 realm_id,
                 WebhookPayload::<Uuid>::new(WebhookTrigger::WebhookDeleted, realm_id, None),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(())
     }

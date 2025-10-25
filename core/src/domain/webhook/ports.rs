@@ -6,8 +6,7 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     realm::entities::Realm,
     webhook::entities::{
-        errors::WebhookError, webhook::Webhook, webhook_payload::WebhookPayload,
-        webhook_trigger::WebhookTrigger,
+        webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
     },
 };
 
@@ -54,19 +53,19 @@ pub trait WebhookRepository: Send + Sync {
     fn fetch_webhooks_by_realm(
         &self,
         realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Webhook>, WebhookError>> + Send;
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
 
     fn fetch_webhooks_by_subscriber(
         &self,
         realm_id: Uuid,
         subscriber: WebhookTrigger,
-    ) -> impl Future<Output = Result<Vec<Webhook>, WebhookError>> + Send;
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
 
     fn get_webhook_by_id(
         &self,
         webhook_id: Uuid,
         realm_id: Uuid,
-    ) -> impl Future<Output = Result<Option<Webhook>, WebhookError>> + Send;
+    ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
 
     fn create_webhook(
         &self,
@@ -75,7 +74,7 @@ pub trait WebhookRepository: Send + Sync {
         description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
-    ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
     fn update_webhook(
         &self,
@@ -84,15 +83,15 @@ pub trait WebhookRepository: Send + Sync {
         description: Option<String>,
         endpoint: String,
         subscribers: Vec<WebhookTrigger>,
-    ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
-    fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), WebhookError>> + Send;
+    fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: Uuid,
         payload: WebhookPayload<T>,
-    ) -> impl Future<Output = Result<(), WebhookError>> + Send;
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait WebhookPolicy: Send + Sync {

@@ -98,8 +98,7 @@ where
                     Some(client.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(client)
     }
@@ -137,8 +136,7 @@ where
                     Some(redirect_uri.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(redirect_uri)
     }
@@ -178,8 +176,7 @@ where
                 realm_id,
                 WebhookPayload::new(WebhookTrigger::RoleCreated, realm_id, Some(role.clone())),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(role)
     }
@@ -217,8 +214,7 @@ where
                     Some(input.client_id),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(())
     }
@@ -255,8 +251,7 @@ where
                     Some(input.uri_id),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(())
     }
@@ -387,8 +382,7 @@ where
                     Some(client.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(client)
     }
@@ -426,8 +420,7 @@ where
                     Some(redirect_uri.clone()),
                 ),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await?;
 
         Ok(redirect_uri)
     }
