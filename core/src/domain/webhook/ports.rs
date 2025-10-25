@@ -87,18 +87,7 @@ pub trait WebhookRepository: Send + Sync {
     ) -> impl Future<Output = Result<Webhook, WebhookError>> + Send;
 
     fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), WebhookError>> + Send;
-}
 
-#[cfg_attr(test, mockall::automock)]
-pub trait WebhookNotifierRepository: Send + Sync {
-    fn notify<T: Send + Sync + Serialize + Clone + 'static>(
-        &self,
-        webhooks: Vec<Webhook>,
-        payload: WebhookPayload<T>,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-}
-
-pub trait WebhookNotifierService: Send + Sync {
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: Uuid,

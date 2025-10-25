@@ -24,10 +24,7 @@ use crate::{
             },
             repository::PostgresUserRepository,
         },
-        webhook::repositories::{
-            webhook_notifier_repository::PostgresWebhookNotifierRepository,
-            webhook_repository::PostgresWebhookRepository,
-        },
+        webhook::repositories::webhook_repository::PostgresWebhookRepository,
     },
 };
 
@@ -45,7 +42,6 @@ pub type FerrisKeyService = Service<
     PostgresUserRequiredActionRepository,
     PostgresHealthCheckRepository,
     PostgresWebhookRepository,
-    PostgresWebhookNotifierRepository,
     PostgresRefreshTokenRepository,
     RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>,
 >;
@@ -77,7 +73,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
     let user_required_action = PostgresUserRequiredActionRepository::new(postgres.get_db());
     let health_check = PostgresHealthCheckRepository::new(postgres.get_db());
     let webhook = PostgresWebhookRepository::new(postgres.get_db());
-    let webhook_notifier = PostgresWebhookNotifierRepository::new();
     let refresh_token = PostgresRefreshTokenRepository::new(postgres.get_db());
     let recovery_code = RandBytesRecoveryCodeRepository::new(hasher.clone());
 
@@ -95,7 +90,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
         user_required_action,
         health_check,
         webhook,
-        webhook_notifier,
         refresh_token,
         recovery_code,
     ))

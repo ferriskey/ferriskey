@@ -34,11 +34,11 @@ use crate::domain::{
         ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         value_objects::CreateUserRequest,
     },
-    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
+    webhook::ports::WebhookRepository,
 };
 
 #[derive(Clone)]
-pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -53,7 +53,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {
@@ -70,15 +69,14 @@ where
     pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) health_check_repository: Arc<HC>,
     pub(crate) webhook_repository: Arc<W>,
-    pub(crate) webhook_notifier_repository: Arc<WN>,
     pub(crate) refresh_token_repository: Arc<RT>,
     pub(crate) recovery_code_repository: Arc<RC>,
 
     pub(crate) policy: FerriskeyPolicy<U, C, UR>,
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
-    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -93,7 +91,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {
@@ -112,7 +109,6 @@ where
         user_required_action_repository: URA,
         health_check_repository: HC,
         webhook_repository: W,
-        webhook_notifier_repository: WN,
         refresh_token_repository: RT,
         recovery_code_repository: RC,
     ) -> Self {
@@ -140,7 +136,6 @@ where
             user_required_action_repository: Arc::new(user_required_action_repository),
             health_check_repository: Arc::new(health_check_repository),
             webhook_repository: Arc::new(webhook_repository),
-            webhook_notifier_repository: Arc::new(webhook_notifier_repository),
             refresh_token_repository: Arc::new(refresh_token_repository),
             recovery_code_repository: Arc::new(recovery_code_repository),
 
@@ -296,8 +291,8 @@ where
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> CoreService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> CoreService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -312,7 +307,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {
@@ -609,7 +603,7 @@ pub mod tests {
             entities::User,
             ports::{MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository},
         },
-        webhook::ports::{MockWebhookNotifierRepository, MockWebhookRepository},
+        webhook::ports::MockWebhookRepository,
     };
 
     pub type TestService = Service<
@@ -626,7 +620,6 @@ pub mod tests {
         MockUserRequiredActionRepository,
         MockHealthCheckRepository,
         MockWebhookRepository,
-        MockWebhookNotifierRepository,
         MockRefreshTokenRepository,
         MockRecoveryCodeRepository,
     >;
@@ -691,7 +684,6 @@ pub mod tests {
         user_required_action_repo: MockUserRequiredActionRepository,
         health_check_repo: MockHealthCheckRepository,
         webhook_repo: MockWebhookRepository,
-        webhook_notifier_repo: MockWebhookNotifierRepository,
         refresh_token_repo: MockRefreshTokenRepository,
         recovery_code_repo: MockRecoveryCodeRepository,
     }
@@ -718,7 +710,6 @@ pub mod tests {
                 user_required_action_repo: MockUserRequiredActionRepository::new(),
                 health_check_repo: MockHealthCheckRepository::new(),
                 webhook_repo: MockWebhookRepository::new(),
-                webhook_notifier_repo: MockWebhookNotifierRepository::new(),
                 refresh_token_repo: MockRefreshTokenRepository::new(),
                 recovery_code_repo: MockRecoveryCodeRepository::new(),
             }
@@ -1168,7 +1159,6 @@ pub mod tests {
                 self.user_required_action_repo,
                 self.health_check_repo,
                 self.webhook_repo,
-                self.webhook_notifier_repo,
                 self.refresh_token_repo,
                 self.recovery_code_repo,
             )

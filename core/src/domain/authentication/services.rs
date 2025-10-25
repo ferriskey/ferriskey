@@ -22,14 +22,14 @@ use crate::domain::{
     role::ports::RoleRepository,
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
+    webhook::ports::WebhookRepository,
 };
 
 pub mod authenticate;
 pub mod grant_type_service;
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> AuthService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> AuthService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -44,7 +44,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {

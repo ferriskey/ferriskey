@@ -28,12 +28,12 @@ use crate::domain::{
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::{
         entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
-        ports::{WebhookNotifierRepository, WebhookRepository},
+        ports::WebhookRepository,
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> ClientService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> ClientService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -48,7 +48,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {
@@ -90,22 +89,17 @@ where
             .await
             .map_err(|_| CoreError::CreateClientError)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientCreated)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientCreated,
                     realm_id,
                     Some(client.clone()),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(client)
     }
@@ -134,22 +128,17 @@ where
             .await
             .map_err(|_| CoreError::InvalidRedirectUri)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriCreated)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
                     realm_id,
                     Some(redirect_uri.clone()),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(redirect_uri)
     }
@@ -184,18 +173,13 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RoleCreated)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(WebhookTrigger::RoleCreated, realm_id, Some(role.clone())),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(role)
     }
@@ -224,22 +208,17 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientDeleted)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientDeleted,
                     realm_id,
                     Some(input.client_id),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(())
     }
@@ -267,22 +246,17 @@ where
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriDeleted)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriDeleted,
                     realm_id,
                     Some(input.uri_id),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(())
     }
@@ -404,22 +378,17 @@ where
             .await
             .map_err(|_| CoreError::NotFound)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientUpdated)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientUpdated,
                     realm_id,
                     Some(client.clone()),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(client)
     }
@@ -448,22 +417,17 @@ where
             .await
             .map_err(|_| CoreError::NotFound)?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriUpdated)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.webhook_notifier_repository
+        self.webhook_repository
             .notify(
-                webhooks,
+                realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriUpdated,
                     realm_id,
                     Some(redirect_uri.clone()),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(redirect_uri)
     }

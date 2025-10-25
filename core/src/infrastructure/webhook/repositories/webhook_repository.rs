@@ -1,7 +1,12 @@
+use reqwest::Client;
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::domain::webhook::{
-    entities::{errors::WebhookError, webhook::Webhook, webhook_trigger::WebhookTrigger},
+    entities::{
+        errors::WebhookError, webhook::Webhook, webhook_payload::WebhookPayload,
+        webhook_trigger::WebhookTrigger,
+    },
     ports::WebhookRepository,
 };
 
@@ -28,11 +33,15 @@ use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookRepository {
     pub db: DatabaseConnection,
+    pub http_client: Client,
 }
 
 impl PostgresWebhookRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self {
+            db,
+            http_client: Client::new(),
+        }
     }
 }
 
@@ -200,6 +209,42 @@ impl WebhookRepository for PostgresWebhookRepository {
             .exec(&self.db)
             .await
             .map_err(|_| WebhookError::InternalServerError)?;
+
+        Ok(())
+    }
+
+    async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
+        &self,
+        realm_id: Uuid,
+        payload: WebhookPayload<T>,
+    ) -> Result<(), WebhookError> {
+        let repository = self.clone();
+        let client = self.http_client.clone();
+
+        tokio::spawn(async move {
+            let webhooks = repository
+                .fetch_webhooks_by_subscriber(realm_id, payload.event.clone())
+                .await;
+
+            match webhooks {
+                Ok(webhooks) => {
+                    for webhook in webhooks {
+                        let response = client
+                            .post(webhook.endpoint)
+                            .json(&payload.clone())
+                            .send()
+                            .await;
+
+                        if let Err(err) = response {
+                            error!("Webhook POST failed: {:?}", err);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error!("Failed to fetch webhooks: {:?}", err);
+                }
+            }
+        });
 
         Ok(())
     }

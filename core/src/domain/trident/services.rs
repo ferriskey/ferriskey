@@ -30,7 +30,7 @@ use crate::{
             entities::RequiredAction,
             ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         },
-        webhook::ports::{WebhookNotifierRepository, WebhookRepository},
+        webhook::ports::WebhookRepository,
     },
     infrastructure::recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
@@ -126,8 +126,8 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> TridentService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> TridentService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -142,7 +142,6 @@ where
     URA: UserRequiredActionRepository,
     HC: HealthCheckRepository,
     W: WebhookRepository,
-    WN: WebhookNotifierRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
 {
