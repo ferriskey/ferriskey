@@ -26,7 +26,10 @@ use crate::domain::{
     },
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    webhook::ports::{WebhookNotifierRepository, WebhookRepository},
+    webhook::{
+        entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+        ports::{WebhookNotifierRepository, WebhookRepository},
+    },
 };
 
 impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> ClientService
@@ -87,7 +90,22 @@ where
             .await
             .map_err(|_| CoreError::CreateClientError)?;
 
-        // @TODO: Implement webhook notifier call
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientCreated)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientCreated,
+                    realm_id,
+                    Some(client.clone()),
+                ),
+            )
+            .await?;
 
         Ok(client)
     }
@@ -104,6 +122,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id.clone();
         ensure_policy(
             self.policy.can_create_client(identity, realm).await,
             "insufficient permissions",
@@ -115,7 +134,22 @@ where
             .await
             .map_err(|_| CoreError::InvalidRedirectUri)?;
 
-        // @TODO: Implement webhook notifier call
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id.clone(), WebhookTrigger::RedirectUriCreated)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriCreated,
+                    realm_id.clone(),
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
 
         Ok(redirect_uri)
     }
@@ -150,6 +184,19 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RoleCreated)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(WebhookTrigger::RoleCreated, realm_id, Some(role.clone())),
+            )
+            .await?;
+
         Ok(role)
     }
 
@@ -165,6 +212,8 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id.clone();
+
         ensure_policy(
             self.policy.can_delete_client(identity, realm).await,
             "insufficient permissions",
@@ -175,7 +224,23 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        // @TODO: Implement webhook notifier
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientDeleted)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientDeleted,
+                    realm_id,
+                    Some(input.client_id),
+                ),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -191,6 +256,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id.clone();
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
@@ -201,7 +267,23 @@ where
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
 
-        // @TODO: Implement webhook notifier
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriDeleted)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriDeleted,
+                    realm_id,
+                    Some(input.uri_id.clone()),
+                ),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -310,6 +392,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id.clone();
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
@@ -320,6 +403,23 @@ where
             .update_client(input.client_id, input.payload)
             .await
             .map_err(|_| CoreError::NotFound)?;
+
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::ClientUpdated)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientUpdated,
+                    realm_id,
+                    Some(client.clone()),
+                ),
+            )
+            .await?;
 
         Ok(client)
     }
@@ -336,6 +436,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id.clone();
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
@@ -346,6 +447,23 @@ where
             .update_enabled(input.redirect_uri_id, input.enabled)
             .await
             .map_err(|_| CoreError::NotFound)?;
+
+        let webhooks = self
+            .webhook_repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriUpdated)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_notifier_repository
+            .notify(
+                webhooks,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriUpdated,
+                    realm_id,
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
 
         Ok(redirect_uri)
     }
