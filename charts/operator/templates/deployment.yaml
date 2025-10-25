@@ -1,38 +1,28 @@
-{{- $affinity := merge dict .Values.common.affinity .Values.operator.affinity -}}
 {{- $annotations := merge dict .Values.common.annotations .Values.operator.annotations -}}
 {{- $podAnnotations := merge dict .Values.common.podAnnotations .Values.operator.podAnnotations -}}
-{{- $revisionHistoryLimit := .Values.operator.revisionHistoryLimit | default .Values.common.revisionHistoryLimit -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "ferriskey.operator.name" . }}
   {{- with $annotations }}
-  annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   labels:
     {{- include "ferriskey.operator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.operator.replicas }}
-  {{- if ne $revisionHistoryLimit nil }}
-  revisionHistoryLimit: {{ $revisionHistoryLimit }}
-  {{- end }}
   selector:
     matchLabels:
-      {{- include "ferriskey.operator.podLabels" . | indent 6 }}
+      {{- include "ferriskey.operator.podLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with $podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | indent 8 }}
       {{- end }}
       labels:
         {{- include "ferriskey.operator.podLabels" . | nindent 8 }}
     spec:
-      {{- with $affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
         - name: operator
           {{- with .Values.operator.args }}
@@ -43,34 +33,5 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          env:
-            {{- include "ferriskey.global.databaseEnv" . | nindent 12 }}
           image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Values.common.image.tag  | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.operator.image.pullPolicy | default .Values.common.image.pullPolicy }}
-          {{- with .Values.operator.lifecyle }}
-          lifecycle:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.operator.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.operator.server.port }}
-              protocol: TCP
-
-          {{- with .Values.operator.readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.operator.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          volumeMounts:
-            - name: empty-dir
-              mountPath: /tmp
-              readOnly: false
-              subPath: tmp
-            {{- with $volumeMounts }}

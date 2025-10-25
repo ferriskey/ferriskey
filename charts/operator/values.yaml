@@ -6,14 +6,14 @@ common:
   emptyDirSize: 100Mi
 
   # -- Common annotations for all workloads
-  annotations: ""
+  annotations: {}
   # -- Common labels for all workloads
-  labels: ""
+  labels: {}
 
   # -- Common annotations for all pods.
-  podAnnotations: ""
+  podAnnotations: {}
   # -- Common labels for all pods.
-  podLabels: ""
+  podLabels: {}
 
   image:
     # -- Default pull policy for all images.
@@ -21,22 +21,22 @@ common:
     # -- Default tag for all images. Default to the chart's app version.
     tag: ~
 
-    # -- Common image pull secrets for all pods.
-    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
-    imagePullSecrets: []
+  # -- Common image pull secrets for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
 
-    # -- (int) Default revision history limit for all workloads.
-    revisionHistoryLimit: ~
-    # -- Common update strategy for all workloads.
-    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps
-    updateStrategy:
-      type: RollingUpdate
+  # -- (int) Default revision history limit for all workloads.
+  revisionHistoryLimit: ~
+  # -- Common update strategy for all workloads.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps
+  updateStrategy:
+    type: RollingUpdate
 
-    # -- Common persistent volume claim retention policy for all workloads.
-    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps
-    persistentVolumeClaimRetentionPolicy:
-      whenDeleted: Retain
-      whenScaled: Retain
+  # -- Common persistent volume claim retention policy for all workloads.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetpersistentvolumeclaimretentionpolicy-v1-apps
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
 
 
   # -- Common environment variables for all pods.
@@ -127,3 +127,286 @@ common:
 
     # -- (bool) Publish not ready addresses by default for all services.
     publishNotReadyAddresses: ~
+
+operator:
+  server:
+    # -- Allowed origins for the server
+    allowedOrigins: []
+    # -- Port for the server
+    port: 3333
+
+  log:
+    # -- Log filter to use for the API
+    filter: info
+    # -- Whether to log in JSON format
+    json: false
+    # -- EmptyDir size for the API workload.
+    emptyDirSize: ~
+
+  # -- Annotations on API workloads.
+  annotations: {}
+  # -- Labels on API workloads.
+  labels: {}
+
+  # -- Annotations on API pods.
+  podAnnotations: {}
+  # -- Labels on API pods.
+  podLabels: {}
+
+  image:
+    # -- Pull policy for the image.
+    pullPolicy: ~
+    # -- Repository for the image to use.
+    repository: ghcr.io/ferriskey/ferriskey-operator
+    # -- Tag for the image to use. Default to the chart's app version.
+    tag: ~
+
+  # -- Image pull secrets for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- Number of replicas for the API workload.
+  replicas: 1
+
+  # -- (int) Revision history limit for the API workload.
+  revisionHistoryLimit: ~
+
+  # -- Arguments for the API container.
+  args: []
+  # -- Command for the API container.
+  command: []
+  # -- Environment variables for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  # -- Security context for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Lifecycle for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#lifecycle-v1-core
+  lifecycle: {}
+
+  # -- Liveness probe for the API container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  # livenessProbe:
+  #   httpGet:
+  #     path: /api/health/live
+  #     port: http
+  #   initialDelaySeconds: 30
+  #   periodSeconds: 10
+  #   timeoutSeconds: 5
+  #   failureThreshold: 3
+  # # -- Readiness probe for the API container.
+  # # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  # readinessProbe:
+  #   httpGet:
+  #     path: /api/health/ready
+  #     port: http
+  #   initialDelaySeconds: 5
+  #   periodSeconds: 5
+  #   timeoutSeconds: 3
+  #   failureThreshold: 3
+  #   successThreshold: 1
+
+  # -- Affinity for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the API pods.
+  nodeName: ~
+  # -- Node selector for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the API pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the API pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the API pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the API pods.
+  hostUsers: ~
+  # -- (bool) Share a single process namespace between all of the containers for the API pods.
+  shareProcessNamespace: ~
+
+  # -- DNS config for the API workload.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+  # -- Hostname for the API pods.
+  hostname: ~
+  # -- (bool) Set hostname as FQDN for the API pods.
+  setHostnameAsFQDN: ~
+  # -- Subdomain for the API pods.
+  subdomain: ~
+
+  # -- Ephemeral containers for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ephemeralcontainer-v1-core
+  ephemeralContainers: []
+  # -- Init containers for the API pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the API pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the API pods.
+  priority: ~
+  # -- Priority class name for the API pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the API pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the API pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the API pods.
+    create: true
+
+    # -- Name of the service account for the API pods. Default is the API workload name.
+    name: ~
+
+    # -- Annotations on the service account for the API pods.
+    annotations: {}
+    # -- Labels on the service account for the API pods.
+    labels: {}
+
+    # -- (bool) Automount service account token for the API service account.
+    automountServiceAccountToken: ~
+
+  service:
+    # -- Annotations on the service for the API pods.
+    annotations: {}
+    # -- Labels on the service for the API pods.
+    labels: {}
+
+    # -- Type for the service for the API pods.
+    type: ~
+
+    # -- Cluster IP for the service for the API pods.
+    clusterIP: ~
+    # -- Cluster IPs for the service for the API pods.
+    clusterIPs: []
+    # -- External IPs for the service for the API pods.
+    externalIPs: []
+    # -- IP families for the service for the API pods.
+    ipFamilies: []
+    # -- IP family policy for the service for the API pods.
+    ipFamilyPolicy: ~
+
+    # -- External name for the service for the API pods.
+    externalName: ~
+
+    # -- Load balancer class for the service for the API pods.
+    loadBalancerClass: ~
+    # -- Load balancer IP for the service for the API pods.
+    loadBalancerIP: ~
+    # -- Load balancer source ranges for the service for the API pods.
+    loadBalancerSourceRanges: []
+
+    # -- ExternalTrafficPolicy for the service for the API pods.
+    externalTrafficPolicy: ~
+    # -- InternalTrafficPolicy for the service for the API pods.
+    internalTrafficPolicy: ~
+    # -- Traffic distribution for the service for the API pods.
+    trafficDistribution: ~
+
+    # -- Session affinity for the service for the API pods.
+    sessionAffinity: ~
+    # -- Session affinity config for the service for the API pods.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#sessionaffinityconfig-v1-core
+    sessionAffinityConfig: {}
+
+    # -- (int) Health check node port for the service for the API pods.
+    healthCheckNodePort: ~
+    # -- (bool) Publish not ready addresses for the service for the API pods.
+    publishNotReadyAddresses: ~
+
+  serviceMonitor:
+    # -- (bool) Enable the service monitor for the API service.
+    enabled: false
+
+    # -- Annotations on the service monitor for the API service.
+    annotations: {}
+    # -- Labels on the service monitor for the API service.
+    labels: {}
+
+    # -- Interval for the service monitor for the API service.
+    interval: 30s
+    # -- Scrape timeout for the service monitor for the API service.
+    scrapeTimeout: 30s
+
+    # -- (bool) Enable HTTP/2 for the service monitor for the API service.
+    enableHttp2: ~
+
+    # -- (bool) Honor labels for the service monitor for the API service.
+    honorLabels: ~
+    # -- (bool) Honor timestamps for the service monitor for the API service.
+    honorTimestamps: ~
+    # -- (bool) Track timestamps staleness for the service monitor for the API service.
+    trackTimestampsStaleness: ~
+
+    # -- Metrics relabelings for the service monitor for the API service.
+    # https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.RelabelConfig
+    metricsRelabelings: []
+    # -- Relabelings for the service monitor for the API service.
+    # https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.RelabelConfig
+    relabelings: []
+
+    # -- Connect headers for the proxy of the service monitor for the API service.
+    # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretkeyselector-v1-core
+    proxyConnectHeaders: {}
+    # -- (bool) Use HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables for the service monitor for the API service.
+    proxyFromEnvironment: ~
+    # -- Proxy URL for the service monitor for the API service.
+    proxyUrl: ~
+    # -- Comma separated list of domains/IPs/CIDRs excluded from proxying.
+    noProxy: ~
+
+    # -- (bool) Follow redirects for the service monitor for the API service.
+    followRedirects: ~
+
+    # -- (bool) Filter running pods for the service monitor for the API service.
+    filterRunning: ~
