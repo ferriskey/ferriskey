@@ -1,13 +1,23 @@
-
 {{- define "ferriskey.global.name" -}}
-{{ (.Values.nameOverride | default .Releanse.Name | trunc 43 }}
-{{- end- }}
+{{ (.Values.nameOverride | default .Release.Name) | trunc 43 }}
+{{- end -}}
 
 {{- define "ferriskey.operator.name" -}}
 {{ include "ferriskey.global.name" . }}-operator
 {{- end -}}
 
-{{/*
+{{- define "ferriskey.global.labels" -}}
+app.kubernetes.io/instance: {{ include "ferriskey.global.name" . }}
+app.kubernetes.io/version: {{ .Chart.Version }}
+app.kubernetes.io/part-of: ferriskey
+{{- end -}}
+
+{{- define "ferriskey.global.podLabels" -}}
+app.kubernetes.io/instance: {{ include "ferriskey.global.name" . }}
+app.kubernetes.io/part-of: ferriskey
+{{- end -}}
+
+
 Expand the name of the chart.
 */}}
 {{- define "operator.name" -}}
@@ -69,3 +79,21 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "ferriskey.operator.labels" -}}
+{{- $labels := merge .Values.common.labels .Values.operator.labels -}}
+{{- include "ferriskey.global.labels" . }}
+app.kubernetes.io/name: ferriskey-operator
+app.kubernetes.io/component: operator
+{{- with $labels }}
+{{- toYaml . }}
+{{- end }}
+{{- end -}}
+
+
+{{- define "ferriskey.operator.podLabels" -}}
+{{- $labels := merge .Values.common.podLabels .Values.operator.podLabels -}}
+{{- include "ferriskey.global.podLabels" . }}
+app.kubernetes.io/name: ferriskey-api
+app.kubernetes.io/component: api
+{{- end -}}
