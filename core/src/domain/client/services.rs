@@ -122,7 +122,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_create_client(identity, realm).await,
             "insufficient permissions",
@@ -136,7 +136,7 @@ where
 
         let webhooks = self
             .webhook_repository
-            .fetch_webhooks_by_subscriber(realm_id.clone(), WebhookTrigger::RedirectUriCreated)
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::RedirectUriCreated)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -145,7 +145,7 @@ where
                 webhooks,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
-                    realm_id.clone(),
+                    realm_id,
                     Some(redirect_uri.clone()),
                 ),
             )
@@ -212,7 +212,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
 
         ensure_policy(
             self.policy.can_delete_client(identity, realm).await,
@@ -256,7 +256,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
@@ -279,7 +279,7 @@ where
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriDeleted,
                     realm_id,
-                    Some(input.uri_id.clone()),
+                    Some(input.uri_id),
                 ),
             )
             .await?;
@@ -392,7 +392,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
@@ -436,7 +436,7 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id.clone();
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_client(identity, realm).await,
             "insufficient permissions",
