@@ -2,6 +2,9 @@ use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
+use crate::application::http::realm::handlers::get_login_realm_settings::{
+    __path_get_login_realm_settings_handler, get_login_realm_settings_handler,
+};
 use crate::application::http::realm::handlers::get_realm::{__path_get_realm, get_realm};
 use crate::application::http::realm::handlers::get_user_realm_settings::get_user_realm_settings;
 use crate::application::http::realm::handlers::update_realm::{__path_update_realm, update_realm};
@@ -21,6 +24,7 @@ use utoipa::OpenApi;
     delete_realm,
     update_realm_setting,
     get_user_realms,
+    get_login_realm_settings_handler
 ))]
 pub struct RealmApiDoc;
 
@@ -64,4 +68,11 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
             put(update_realm_setting),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-settings",
+                state.args.server.root_path
+            ),
+            get(get_login_realm_settings_handler),
+        )
 }

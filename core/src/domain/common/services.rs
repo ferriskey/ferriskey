@@ -351,6 +351,20 @@ where
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
+        match self.realm_repository.get_realm_settings(realm.id).await? {
+            None => {
+                self.realm_repository
+                    .create_realm_settings(realm.id, "RSA256".to_string())
+                    .await?;
+            }
+            _ => {
+                tracing::info!(
+                    "realm settings already initialized for realm {:}",
+                    realm.name
+                );
+            }
+        };
+
         let client = match self
             .client_repository
             .get_by_client_id(config.default_client_id.clone(), realm.id)
@@ -1261,6 +1275,7 @@ pub mod tests {
         Realm {
             id: Uuid::new_v4(),
             name: "test-realm".to_string(),
+            settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -1270,6 +1285,7 @@ pub mod tests {
         Realm {
             id: Uuid::new_v4(),
             name: name.to_string(),
+            settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

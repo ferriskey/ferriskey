@@ -98,6 +98,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteRealmResponse"
+  /realms/{name}/login-settings:
+    get:
+      tags:
+        - realm
+      summary: Get login settings
+      description: Get the login settings for a specific realm.
+      operationId: get_login_realm_settings_handler
+      parameters:
+        - name: name
+          in: path
+          description: The name of the realm
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RealmLoginSetting"
   /realms/{name}/settings:
     put:
       tags:
@@ -2014,9 +2035,55 @@ components:
           format: uuid
         name:
           type: string
+        settings:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/RealmSetting"
         updated_at:
           type: string
           format: date-time
+    RealmLoginSetting:
+      type: object
+      required:
+        - user_registration_enabled
+        - forgot_password_enabled
+        - remember_me_enabled
+      properties:
+        forgot_password_enabled:
+          type: boolean
+        remember_me_enabled:
+          type: boolean
+        user_registration_enabled:
+          type: boolean
+    RealmSetting:
+      type: object
+      required:
+        - id
+        - realm_id
+        - user_registration_enabled
+        - forgot_password_enabled
+        - remember_me_enabled
+        - updated_at
+      properties:
+        default_signing_algorithm:
+          type:
+            - string
+            - "null"
+        forgot_password_enabled:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        realm_id:
+          type: string
+          format: uuid
+        remember_me_enabled:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+        user_registration_enabled:
+          type: boolean
     RedirectUri:
       type: object
       required:
@@ -2200,11 +2267,23 @@ components:
           type: string
     UpdateRealmSettingValidator:
       type: object
-      required:
-        - default_signing_algorithm
       properties:
         default_signing_algorithm:
-          type: string
+          type:
+            - string
+            - "null"
+        forgot_password_enabled:
+          type:
+            - boolean
+            - "null"
+        remember_me_enabled:
+          type:
+            - boolean
+            - "null"
+        user_registration_enabled:
+          type:
+            - boolean
+            - "null"
     UpdateRealmValidator:
       type: object
       required:

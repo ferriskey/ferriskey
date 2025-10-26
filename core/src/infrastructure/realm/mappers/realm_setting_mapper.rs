@@ -10,6 +10,9 @@ impl From<Model> for RealmSetting {
             id: value.id,
             realm_id: value.realm_id,
             default_signing_algorithm: value.default_signing_algorithm,
+            forgot_password_enabled: value.forgot_password_enabled,
+            remember_me_enabled: value.remember_me_enabled,
+            user_registration_enabled: value.user_registration_enabled,
             updated_at,
         }
     }

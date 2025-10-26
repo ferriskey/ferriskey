@@ -6,6 +6,7 @@ import { AuthenticateSchema } from '../feature/page-login-feature'
 import { cn } from '@/lib/utils'
 import { MagicCard } from '@/components/magicui/magic-card'
 import { InputText } from '@/components/ui/input-text'
+import { Link } from 'react-router'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -77,9 +78,9 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                           Login
                         </Button>
                         <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
-                        <span className='relative z-10 bg-background px-2 text-muted-foreground'>
-                          Or continue with
-                        </span>
+                          <span className='relative z-10 bg-background px-2 text-muted-foreground'>
+                            Or continue with
+                          </span>
                         </div>
                         <div className='grid grid-cols-3 gap-4'>
                           <Button variant='outline' className='w-full'>
@@ -112,9 +113,10 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                         </div>
                         <div className='text-center text-sm'>
                           Don&apos;t have an account?{' '}
-                          <a href='#' className='underline underline-offset-4'>
+                          <Link to={'../register'} className='underline underline-offset-4'>
                             Sign up
-                          </a>
+
+                          </Link>
                         </div>
                       </div>
                     </div>

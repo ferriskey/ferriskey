@@ -10,7 +10,6 @@ use axum::extract::{Path, State};
 
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
-use ferriskey_core::domain::realm::entities::RealmSetting;
 
 #[utoipa::path(
     put,
@@ -31,7 +30,7 @@ pub async fn update_realm_setting(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
-) -> Result<Response<RealmSetting>, ApiError> {
+) -> Result<Response<Realm>, ApiError> {
     state
         .service
         .update_realm_setting(
@@ -39,6 +38,10 @@ pub async fn update_realm_setting(
             UpdateRealmSettingInput {
                 realm_name: name,
                 algorithm: payload.default_signing_algorithm,
+
+                forgot_password_enabled: payload.forgot_password_enabled,
+                remember_me_enabled: payload.remember_me_enabled,
+                user_registration_enabled: payload.user_registration_enabled,
             },
         )
         .await

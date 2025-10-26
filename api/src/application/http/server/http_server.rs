@@ -24,7 +24,10 @@ use ferriskey_core::domain::common::FerriskeyConfig;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, info_span};
 use utoipa::OpenApi;
-use utoipa_scalar::{Scalar, Servable};
+use utoipa_rapidoc::RapiDoc;
+use utoipa_redoc::{Redoc, Servable};
+use utoipa_scalar::{Scalar, Servable as ScalarServable};
+use utoipa_swagger_ui::SwaggerUi;
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
@@ -83,25 +86,31 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .collect();
     openapi.paths = paths;
 
+    let root_path = state.args.server.root_path.clone();
+    let api_docs_url = format!("{}/api-docs/openapi.json", root_path);
+
     let router = axum::Router::new()
         .merge(Scalar::with_url(
-            format!("{}/swagger-ui", state.args.server.root_path),
-            openapi,
+            format!("{}/scalar", root_path),
+            openapi.clone(),
         ))
-        .route(
-            &format!("{}/config", state.args.server.root_path),
-            get(get_config),
+        .merge(
+            SwaggerUi::new(format!("{}/swagger-ui", root_path))
+                .url(api_docs_url.clone(), openapi.clone()),
         )
+        .merge(Redoc::with_url(format!("{}/redoc", root_path), openapi))
+        .merge(RapiDoc::new(api_docs_url).path(format!("{}/rapidoc", root_path)))
+        .route(&format!("{}/config", root_path), get(get_config))
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
         .merge(user_routes(state.clone()))
-        .merge(authentication_routes(&state.args.server.root_path))
+        .merge(authentication_routes(&root_path))
         .merge(role_routes(state.clone()))
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
-        .merge(health_routes(&state.args.server.root_path))
+        .merge(health_routes(&root_path))
         .route(
-            &format!("{}/metrics", state.args.server.root_path),
+            &format!("{}/metrics", root_path),
             get(|| async move { metric_handle.render() }),
         )
         .layer(trace_layer)

@@ -15,7 +15,7 @@ use crate::domain::{
     health::ports::HealthCheckRepository,
     jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::{
-        entities::{Realm, RealmSetting},
+        entities::{Realm, RealmLoginSetting, RealmSetting},
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
             GetRealmSettingInput, RealmPolicy, RealmRepository, RealmService, UpdateRealmInput,
@@ -263,7 +263,11 @@ where
             "insufficient permissions",
         )?;
 
-        let realm_setting = self.realm_repository.get_realm_settings(realm_id).await?;
+        let realm_setting = self
+            .realm_repository
+            .get_realm_settings(realm_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
 
         Ok(realm_setting)
     }
@@ -360,36 +364,59 @@ where
         &self,
         identity: Identity,
         input: UpdateRealmSettingInput,
-    ) -> Result<RealmSetting, CoreError> {
-        let realm = self
+    ) -> Result<Realm, CoreError> {
+        let mut realm = self
             .realm_repository
             .get_by_name(input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_id = realm.id;
-
         ensure_policy(
-            self.policy.can_update_realm(identity, realm).await,
+            self.policy.can_update_realm(identity, realm.clone()).await,
             "insufficient permissions",
         )?;
 
         let realm_setting = self
             .realm_repository
-            .update_realm_setting(realm_id, input.algorithm)
+            .update_realm_setting(
+                realm.id,
+                input.algorithm,
+                input.user_registration_enabled,
+                input.forgot_password_enabled,
+                input.remember_me_enabled,
+            )
             .await?;
 
         self.webhook_repository
             .notify(
-                realm_id,
+                realm.id,
                 WebhookPayload::new(
                     WebhookTrigger::RealmSettingsUpdated,
-                    realm_id,
+                    realm.id,
                     Some(realm_setting.clone()),
                 ),
             )
             .await?;
 
-        Ok(realm_setting)
+        realm.settings = Some(realm_setting);
+
+        Ok(realm)
+    }
+
+    async fn get_login_settings(&self, realm_name: String) -> Result<RealmLoginSetting, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let settings = self
+            .realm_repository
+            .get_realm_settings(realm.id)
+            .await?
+            .ok_or(CoreError::NotFound)?
+            .into();
+
+        Ok(settings)
     }
 }

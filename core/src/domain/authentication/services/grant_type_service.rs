@@ -180,11 +180,11 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InvalidClient)?;
 
         if !client.direct_access_grants_enabled {
             if params.client_secret.is_none() {
-                return Err(CoreError::InternalServerError);
+                return Err(CoreError::InvalidClientSecret);
             }
 
             if client.secret != params.client_secret {

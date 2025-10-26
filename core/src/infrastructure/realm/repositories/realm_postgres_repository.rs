@@ -122,6 +122,7 @@ impl RealmRepository for PostgresRealmRepository {
             realm_id: Set(realm_setting.realm_id),
             default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
             updated_at: Set(realm_setting.updated_at.naive_utc()),
+            ..Default::default()
         };
 
         let model: RealmSetting = active_model
@@ -139,7 +140,10 @@ impl RealmRepository for PostgresRealmRepository {
     async fn update_realm_setting(
         &self,
         realm_id: Uuid,
-        algorithm: String,
+        algorithm: Option<String>,
+        user_registration_enabled: Option<bool>,
+        forgot_password_enabled: Option<bool>,
+        remember_me_enabled: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
@@ -150,7 +154,21 @@ impl RealmRepository for PostgresRealmRepository {
 
         let mut realm_setting: crate::entity::realm_settings::ActiveModel = realm_setting.into();
 
-        realm_setting.default_signing_algorithm = Set(Some(algorithm));
+        if let Some(algorithm) = algorithm {
+            realm_setting.default_signing_algorithm = Set(Some(algorithm));
+        }
+
+        if let Some(user_registration) = user_registration_enabled {
+            realm_setting.user_registration_enabled = Set(user_registration);
+        }
+
+        if let Some(forgot_password_enabled) = forgot_password_enabled {
+            realm_setting.forgot_password_enabled = Set(forgot_password_enabled);
+        }
+
+        if let Some(remember_me_enabled) = remember_me_enabled {
+            realm_setting.remember_me_enabled = Set(remember_me_enabled);
+        }
 
         let realm_setting = realm_setting
             .update(&self.db)
@@ -161,15 +179,13 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm_setting)
     }
 
-    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<RealmSetting, CoreError> {
+    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<Option<RealmSetting>, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::NotFound)?;
-        let realm_setting: RealmSetting = realm_setting.into();
+            .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok(realm_setting)
+        Ok(realm_setting.map(|setting| setting.into()))
     }
 }

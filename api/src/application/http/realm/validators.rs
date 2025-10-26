@@ -17,6 +17,9 @@ pub struct UpdateRealmValidator {
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct UpdateRealmSettingValidator {
-    #[validate(length(min = 1, message = "default_signing_algorithm is required"))]
-    pub default_signing_algorithm: String,
+    pub default_signing_algorithm: Option<String>,
+
+    pub user_registration_enabled: Option<bool>,
+    pub forgot_password_enabled: Option<bool>,
+    pub remember_me_enabled: Option<bool>,
 }

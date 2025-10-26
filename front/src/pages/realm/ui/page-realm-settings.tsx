@@ -32,7 +32,7 @@ export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSetti
             <TabsList className='flex items-center gap-4'>
               <TabsTrigger value={'general'}>General</TabsTrigger>
               <TabsTrigger value={'webhooks'}>Webhooks</TabsTrigger>
-              <TabsTrigger className={'cursor-not-allowed'} disabled={true} value={'login'}>Login</TabsTrigger>
+              <TabsTrigger value={'login'}>Login</TabsTrigger>
               <TabsTrigger className={'cursor-not-allowed'} disabled={true} value={'security'}>Security</TabsTrigger>
             </TabsList>
           </Tabs>

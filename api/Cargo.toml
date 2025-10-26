@@ -36,6 +36,8 @@ base32 = "0.5.1"
 axum-prometheus = "0.9.0"
 url = "2.5.4"
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
+utoipa-redoc = { version = "6.0.0", features = ["axum"] }
+utoipa-rapidoc = { version = "6.0.0", features = ["axum"] }
 
 [dev-dependencies]
 test-context = "*"
