@@ -536,9 +536,9 @@ where
                 .finish_passkey_authentication(&input.credential, &pa)
                 .map_err(|e| {
                     tracing::error!("Error during webauthn verification: {e:?}");
-                    CoreError::InternalServerError
+                    CoreError::WebAuthnChallengeFailed
                 }),
-            _ => Err(CoreError::Invalid),
+            _ => Err(CoreError::WebAuthnMissingChallenge),
         }?;
 
         if auth_result.needs_update() {
