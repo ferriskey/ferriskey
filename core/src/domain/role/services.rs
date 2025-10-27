@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::domain::{
     authentication::{ports::AuthSessionRepository, value_objects::Identity},
     client::ports::{ClientRepository, RedirectUriRepository},

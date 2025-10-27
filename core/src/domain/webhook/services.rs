@@ -227,6 +227,11 @@ where
             "insufficient permissions",
         )?;
 
+        let webhook = self
+            .webhook_repository
+            .get_webhook_by_id(realm_id, input.webhook_id)
+            .await?;
+
         self.webhook_repository
             .delete_webhook(input.webhook_id)
             .await?;
@@ -234,11 +239,7 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(
-                    WebhookTrigger::WebhookDeleted,
-                    realm_id,
-                    Some(input.webhook_id),
-                ),
+                WebhookPayload::new(WebhookTrigger::WebhookDeleted, realm_id, Some(webhook)),
             )
             .await?;
 
