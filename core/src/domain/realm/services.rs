@@ -27,7 +27,10 @@ use crate::domain::{
     },
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    webhook::ports::WebhookRepository,
+    webhook::{
+        entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+        ports::WebhookRepository,
+    },
 };
 
 impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> RealmService
@@ -201,10 +204,19 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
+
         ensure_policy(
-            self.policy.can_delete_realm(identity, realm).await,
+            self.policy.can_delete_realm(identity, realm.clone()).await,
             "insufficient permissions",
         )?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::RealmCreated, realm_id, Some(realm)),
+            )
+            .await?;
 
         self.realm_repository
             .delete_by_name(input.realm_name)
@@ -323,6 +335,7 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_realm(identity, realm).await,
             "insufficient permissions",
@@ -331,6 +344,13 @@ where
         let realm = self
             .realm_repository
             .update_realm(input.realm_name, input.name)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::RealmUpdated, realm_id, Some(realm.clone())),
+            )
             .await?;
 
         Ok(realm)
@@ -357,6 +377,17 @@ where
         let realm_setting = self
             .realm_repository
             .update_realm_setting(realm_id, input.algorithm)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RealmSettingsUpdated,
+                    realm_id,
+                    Some(realm_setting.clone()),
+                ),
+            )
             .await?;
 
         Ok(realm_setting)
