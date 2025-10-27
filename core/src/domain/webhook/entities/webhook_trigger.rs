@@ -42,6 +42,10 @@ pub enum WebhookTrigger {
     RoleCreated,
     #[serde(rename = "role.updated")]
     RoleUpdated,
+    #[serde(rename = "role.deleted")]
+    RoleDeleted,
+    #[serde(rename = "role.permission.updated")]
+    RolePermissionUpdated,
     #[serde(rename = "realm.created")]
     RealmCreated,
     #[serde(rename = "realm.updated")]
@@ -79,6 +83,8 @@ impl Display for WebhookTrigger {
             WebhookTrigger::RedirectUriDeleted => write!(f, "redirect_uri.deleted"),
             WebhookTrigger::RoleCreated => write!(f, "role.created"),
             WebhookTrigger::RoleUpdated => write!(f, "role.updated"),
+            WebhookTrigger::RolePermissionUpdated => write!(f, "role.permission.updated"),
+            WebhookTrigger::RoleDeleted => write!(f, "role.deleted"),
             WebhookTrigger::RealmCreated => write!(f, "realm.created"),
             WebhookTrigger::RealmUpdated => write!(f, "realm.updated"),
             WebhookTrigger::RealmDeleted => write!(f, "realm.deleted"),
@@ -113,6 +119,8 @@ impl TryFrom<String> for WebhookTrigger {
             "redirect_uri.deleted" => Ok(WebhookTrigger::RedirectUriDeleted),
             "role.created" => Ok(WebhookTrigger::RoleCreated),
             "role.updated" => Ok(WebhookTrigger::RoleUpdated),
+            "role.permission.updated" => Ok(WebhookTrigger::RolePermissionUpdated),
+            "role.deleted" => Ok(WebhookTrigger::RoleDeleted),
             "realm.created" => Ok(WebhookTrigger::RealmCreated),
             "realm.updated" => Ok(WebhookTrigger::RealmUpdated),
             "realm.deleted" => Ok(WebhookTrigger::RealmDeleted),
