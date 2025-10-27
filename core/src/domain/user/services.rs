@@ -22,7 +22,10 @@ use crate::domain::{
         },
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
-    webhook::ports::WebhookRepository,
+    webhook::{
+        entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+        ports::WebhookRepository,
+    },
 };
 
 pub mod user_role_service;
@@ -59,16 +62,26 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_user(identity, realm).await,
             "insufficient permissions",
         )?;
+
+        let user = self.user_repository.get_by_id(user_id).await?;
 
         let count = self
             .user_repository
             .delete_user(user_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id, Some(user)),
+            )
+            .await?;
 
         Ok(count)
     }
@@ -135,6 +148,7 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_user(identity, realm).await,
             "You are not allowed to view users in this realm.",
@@ -171,6 +185,13 @@ where
                     .map_err(|_| CoreError::InternalServerError)?;
             }
         }
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(user.clone())),
+            )
+            .await?;
 
         Ok(user)
     }
@@ -210,15 +231,29 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
+
         ensure_policy(
             self.policy.can_update_user(identity, realm).await,
             "insufficient permissions",
         )?;
 
+        let role = self.role_repository.get_by_id(input.role_id).await?;
         self.user_role_repository
             .assign_role(input.user_id, input.role_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserRoleAssigned,
+                    realm_id,
+                    Some(role.clone()),
+                ),
+            )
+            .await?;
 
         Ok(())
     }
@@ -234,6 +269,8 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
+
         ensure_policy(
             self.policy.can_delete_user(identity, realm).await,
             "insufficient permissions",
@@ -241,9 +278,16 @@ where
 
         let count = self
             .user_repository
-            .bulk_delete_user(input.ids)
+            .bulk_delete_user(input.ids.clone())
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::UserBulkDeleted, realm_id, Some(input.ids)),
+            )
+            .await?;
 
         Ok(count)
     }
@@ -282,6 +326,13 @@ where
 
         user.realm = Some(realm);
 
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::UserCreated, realm_id, Some(user.clone())),
+            )
+            .await?;
+
         Ok(user)
     }
 
@@ -314,15 +365,25 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_id = realm.id;
         ensure_policy(
             self.policy.can_update_user(identity, realm).await,
             "insufficient permissions",
         )?;
 
+        let role = self.role_repository.get_by_id(input.role_id).await?;
+
         self.user_role_repository
             .revoke_role(input.user_id, input.role_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(role.clone())),
+            )
+            .await?;
 
         Ok(())
     }

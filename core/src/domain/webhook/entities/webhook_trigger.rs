@@ -12,12 +12,12 @@ pub enum WebhookTrigger {
     UserUpdated,
     #[serde(rename = "user.deleted")]
     UserDeleted,
+    #[serde(rename = "user.role.assigned")]
+    UserRoleAssigned,
+    #[serde(rename = "user.role.unassigned")]
+    UserRoleUnassigned,
     #[serde(rename = "user.bulk_deleted")]
     UserBulkDeleted,
-    #[serde(rename = "user.assign.role")]
-    UserAssignRole,
-    #[serde(rename = "user.unassign.role")]
-    UserUnassignRole,
     #[serde(rename = "user.credentials.deleted")]
     UserDeleteCredentials,
     #[serde(rename = "auth.reset_password")]
@@ -69,9 +69,9 @@ impl Display for WebhookTrigger {
             WebhookTrigger::UserUpdated => write!(f, "user.updated"),
             WebhookTrigger::UserDeleted => write!(f, "user.deleted"),
             WebhookTrigger::UserBulkDeleted => write!(f, "user.bulk_deleted"),
-            WebhookTrigger::UserAssignRole => write!(f, "user.assign.role"),
-            WebhookTrigger::UserUnassignRole => write!(f, "user.unassign.role"),
             WebhookTrigger::UserDeleteCredentials => write!(f, "user.credentials.deleted"),
+            WebhookTrigger::UserRoleAssigned => write!(f, "user.role.assigned"),
+            WebhookTrigger::UserRoleUnassigned => write!(f, "user.role.unassigned"),
             WebhookTrigger::AuthResetPassword => write!(f, "auth.reset_password"),
             WebhookTrigger::ClientCreated => write!(f, "client.created"),
             WebhookTrigger::ClientUpdated => write!(f, "client.updated"),
@@ -105,9 +105,9 @@ impl TryFrom<String> for WebhookTrigger {
             "user.updated" => Ok(WebhookTrigger::UserUpdated),
             "user.deleted" => Ok(WebhookTrigger::UserDeleted),
             "user.bulk_deleted" => Ok(WebhookTrigger::UserBulkDeleted),
-            "user.assign.role" => Ok(WebhookTrigger::UserAssignRole),
-            "user.unassign.role" => Ok(WebhookTrigger::UserUnassignRole),
             "user.credentials.deleted" => Ok(WebhookTrigger::UserDeleteCredentials),
+            "user.role.assigned" => Ok(WebhookTrigger::UserRoleAssigned),
+            "user.role.unassigned" => Ok(WebhookTrigger::UserRoleUnassigned),
             "auth.reset_password" => Ok(WebhookTrigger::AuthResetPassword),
             "client.created" => Ok(WebhookTrigger::ClientCreated),
             "client.updated" => Ok(WebhookTrigger::ClientUpdated),

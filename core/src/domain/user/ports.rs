@@ -138,6 +138,7 @@ pub trait UserRoleService: Send + Sync {
 
     fn revoke_role(
         &self,
+        realm_id: Uuid,
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
