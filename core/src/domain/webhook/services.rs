@@ -234,7 +234,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::<Uuid>::new(WebhookTrigger::WebhookDeleted, realm_id, None),
+                WebhookPayload::new(
+                    WebhookTrigger::WebhookDeleted,
+                    realm_id,
+                    Some(input.webhook_id),
+                ),
             )
             .await?;
 

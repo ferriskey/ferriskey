@@ -60,15 +60,13 @@ where
             "insufficient permissions",
         )?;
 
-        self.role_repository
-            .delete_by_id(role_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let role = self.role_repository.get_by_id(role_id).await?;
+        self.role_repository.delete_by_id(role_id).await?;
 
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::<Uuid>::new(WebhookTrigger::RoleDeleted, realm_id, Some(role_id)),
+                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id, Some(role)),
             )
             .await?;
 
