@@ -21,7 +21,10 @@ use crate::domain::{
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
     trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    user::{
+        ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+        value_objects::CreateUserRequest,
+    },
     webhook::ports::WebhookRepository,
 };
 
