@@ -33,10 +33,6 @@ export default function PageRegisterFeature() {
 
   const form = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: '',
-      email: '',
-    },
   })
 
   function onSubmit(data: RegisterSchema) {
