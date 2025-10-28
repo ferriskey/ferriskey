@@ -101,3 +101,13 @@ export const useTokenMutation = () => {
     },
   })
 }
+
+export const useRegistrationMutation = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/protocol/openid-connect/registrations',
+      async (res) => res.json()
+    ).mutationOptions,
+  })
+}

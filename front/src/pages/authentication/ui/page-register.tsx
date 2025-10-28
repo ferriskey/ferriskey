@@ -8,14 +8,12 @@ import { Button } from "@/components/ui/button";
 
 export interface PageRegisterProps {
   form: UseFormReturn<RegisterSchema>
+  onSubmit: (data: RegisterSchema) => void
   backToLogin?: () => void
 }
 
-export default function PageRegister({ form, backToLogin }: PageRegisterProps) {
+export default function PageRegister({ form, onSubmit, backToLogin }: PageRegisterProps) {
 
-  const onSubmit = (data: RegisterSchema) => {
-    console.log('Register data:', data)
-  }
 
   return (
     <div className='flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10'>

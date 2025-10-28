@@ -52,6 +52,16 @@ pub struct AuthenticationResult {
     pub credentials: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterUserInput {
+    pub realm_name: String,
+    pub username: String,
+    pub password: String,
+    pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+}
+
 impl CreateAuthSessionRequest {
     pub fn new(realm_id: Uuid, client_id: Uuid, redirect_uri: String) -> Self {
         Self {

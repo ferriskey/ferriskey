@@ -204,6 +204,13 @@ export namespace Schemas {
     updated_at: string;
     value: string;
   };
+  export type RegistrationRequest = Partial<{
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+    password: string;
+    username: string;
+  }>;
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string };
@@ -517,6 +524,17 @@ export namespace Endpoints {
     };
     response: Schemas.GetCertsResponse;
   };
+  export type post_Registration_handler = {
+    method: "POST";
+    path: "/realms/{realm_name}/protocol/openid-connect/registrations";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.RegistrationRequest;
+    };
+    response: Schemas.JwtToken;
+  };
   export type post_Exchange_token = {
     method: "POST";
     path: "/realms/{realm_name}/protocol/openid-connect/token";
@@ -762,6 +780,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/generate-recovery-codes": Endpoints.post_Generate_recovery_codes;
     "/realms/{realm_name}/login-actions/update-password": Endpoints.post_Update_password;
     "/realms/{realm_name}/login-actions/verify-otp": Endpoints.post_Verify_otp;
+    "/realms/{realm_name}/protocol/openid-connect/registrations": Endpoints.post_Registration_handler;
     "/realms/{realm_name}/protocol/openid-connect/token": Endpoints.post_Exchange_token;
     "/realms/{realm_name}/users": Endpoints.post_Create_user;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;

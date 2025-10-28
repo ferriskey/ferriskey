@@ -7,14 +7,17 @@ import { cn } from '@/lib/utils'
 import { MagicCard } from '@/components/magicui/magic-card'
 import { InputText } from '@/components/ui/input-text'
 import { Link } from 'react-router'
+import { Schemas } from '@/api/api.client'
+import RealmLoginSetting = Schemas.RealmLoginSetting
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
   onSubmit: (data: AuthenticateSchema) => void
   isError?: boolean
+  loginSettings: RealmLoginSetting
 }
 
-export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
+export default function PageLogin({ form, onSubmit, isError, loginSettings }: PageLoginProps) {
   if (isError) return <ErrorMessage />
 
   return (
@@ -111,13 +114,15 @@ export default function PageLogin({ form, onSubmit, isError }: PageLoginProps) {
                             <span className='sr-only'>Login with Meta</span>
                           </Button>
                         </div>
-                        <div className='text-center text-sm'>
-                          Don&apos;t have an account?{' '}
-                          <Link to={'../register'} className='underline underline-offset-4'>
-                            Sign up
+                        {loginSettings.user_registration_enabled && (
+                          <div className='text-center text-sm'>
+                            Don&apos;t have an account?{' '}
+                            <Link to={'../register'} className='underline underline-offset-4'>
+                              Sign up
 
-                          </Link>
-                        </div>
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     </div>
 

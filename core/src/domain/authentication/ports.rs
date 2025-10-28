@@ -7,7 +7,9 @@ use crate::domain::{
             AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
             CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
         },
-        value_objects::{AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams},
+        value_objects::{
+            AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
+        },
     },
     common::entities::app_errors::CoreError,
     jwt::entities::JwkKey,
@@ -90,6 +92,11 @@ pub trait AuthService: Send + Sync {
         &self,
         input: AuthenticateInput,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
+    fn register_user(
+        &self,
+        url: String,
+        input: RegisterUserInput,
+    ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.

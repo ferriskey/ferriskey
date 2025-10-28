@@ -7,6 +7,7 @@ import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
+import { useGetLoginSettings } from '@/api/realm.api'
 
 const authenticateSchema = z.object({
   username: z.string().min(1),
@@ -20,6 +21,8 @@ export default function PageLoginFeature() {
   const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
   const [isSetup, setIsSetup] = useState(false)
   const navigate = useNavigate()
+
+  const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
 
   const getOAuthParams = useCallback(() => {
@@ -121,5 +124,14 @@ export default function PageLoginFeature() {
     }
   }, [authenticateStatus, form])
 
-  return <PageLogin form={form} onSubmit={onSubmit} isError={undefined} />
+  if (!loginSettings) return null
+
+  return (
+    <PageLogin
+      form={form}
+      onSubmit={onSubmit}
+      isError={undefined}
+      loginSettings={loginSettings}
+    />
+  )
 }

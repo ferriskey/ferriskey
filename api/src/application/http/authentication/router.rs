@@ -9,6 +9,7 @@ use super::handlers::{
     authentificate::{__path_authenticate, authenticate},
     get_certs::{__path_get_certs, get_certs},
     openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
+    registration::{__path_registration_handler, registration_handler},
     token::{__path_exchange_token, exchange_token},
 };
 use crate::application::http::server::app_state::AppState;
@@ -19,7 +20,8 @@ use crate::application::http::server::app_state::AppState;
     authenticate,
     get_certs,
     auth,
-    get_openid_configuration
+    get_openid_configuration,
+    registration_handler,
 ))]
 pub struct AuthenticationApiDoc;
 
@@ -32,6 +34,10 @@ pub fn authentication_routes(root_path: &str) -> Router<AppState> {
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
             get(auth),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/registrations"),
+            post(registration_handler),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),

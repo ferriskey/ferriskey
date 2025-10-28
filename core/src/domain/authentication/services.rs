@@ -7,7 +7,7 @@ use crate::domain::{
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, JwtToken,
         },
         ports::{AuthService, AuthSessionRepository, AuthenticatePort, GrantTypeService},
-        value_objects::{GrantTypeParams, Identity},
+        value_objects::{GrantTypeParams, Identity, RegisterUserInput},
     },
     client::ports::{ClientRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, services::Service},
@@ -15,7 +15,7 @@ use crate::domain::{
     crypto::ports::HasherRepository,
     health::ports::HealthCheckRepository,
     jwt::{
-        entities::{ClaimsTyp, JwkKey},
+        entities::{ClaimsTyp, JwkKey, JwtClaim},
         ports::{KeyStoreRepository, RefreshTokenRepository},
     },
     realm::ports::RealmRepository,
@@ -226,5 +226,74 @@ where
                     .await
             }
         }
+    }
+
+    async fn register_user(
+        &self,
+        url: String,
+        input: RegisterUserInput,
+    ) -> Result<JwtToken, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let firstname: String = input.first_name.unwrap_or_else(|| "FirstName".to_string());
+        let lastname: String = input.last_name.unwrap_or_else(|| "LastName".to_string());
+
+        let user = self
+            .user_repository
+            .create_user(CreateUserRequest {
+                client_id: None,
+                email: input.email,
+                email_verified: true,
+                enabled: true,
+                firstname,
+                lastname,
+                realm_id: realm.id,
+                username: input.username,
+            })
+            .await?;
+
+        // create user credentials
+        let hash_result = self
+            .hasher_repository
+            .hash_password(&input.password)
+            .await
+            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        self.credential_repository
+            .create_credential(user.id, "password".into(), hash_result, "".into(), false)
+            .await
+            .map_err(|_| CoreError::CreateCredentialError)?;
+
+        let iss = format!("{}/realms/{}", url, realm.name);
+        let claims = JwtClaim::new(
+            user.id,
+            user.username.clone(),
+            iss.clone(),
+            vec![format!("{}-realm", realm.name), "account".to_string()],
+            ClaimsTyp::Bearer,
+            "".to_string(),
+            Some(user.email.clone()),
+        );
+
+        let jwt = self.generate_token(claims.clone(), realm.id).await?;
+
+        let refresh_claims =
+            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
+
+        let refresh_token = self
+            .generate_token(refresh_claims.clone(), realm.id)
+            .await?;
+
+        Ok(JwtToken::new(
+            jwt.token,
+            "Bearer".to_string(),
+            refresh_token.token,
+            jwt.expires_at as u32,
+            "id_token".to_string(),
+        ))
     }
 }
