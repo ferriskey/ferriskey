@@ -60,7 +60,7 @@ where
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state)
             .await
-            .map_err(|err| ApiError::InternalServerError(format!("Failed to parse JSON: {err}")))?;
+            .map_err(|err| ApiError::BadRequest(format!("Unexpected payload: {err}")))?;
 
         value.validate()?;
 
