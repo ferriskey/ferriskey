@@ -26,10 +26,10 @@ impl From<CredentialError> for ApiError {
                 ApiError::InternalServerError(format!("Failed to hash password: {error}"))
             }
             CredentialError::UpdateCredentialError => {
-                ApiError::InternalServerError(format!("Internal server error"))
+                ApiError::InternalServerError("Internal server error".to_string())
             }
             CredentialError::UnexpectedCredentialData => {
-                ApiError::InternalServerError(format!("Internal server error"))
+                ApiError::InternalServerError("Internal server error".to_string())
             }
         }
     }

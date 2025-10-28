@@ -306,14 +306,14 @@ impl CredentialRepository for PostgresCredentialRepository {
         let update_res;
         let updated_data = match credential.credential_data {
             CredentialData::WebAuthn { credential } => {
-                let mut passkey = Passkey::from(credential);
+                let mut passkey = Passkey::from(*credential);
 
                 update_res = passkey
                     .update_credential(auth_result)
                     .ok_or(CredentialError::UpdateCredentialError)?;
 
                 CredentialData::WebAuthn {
-                    credential: passkey.into(),
+                    credential: Box::new(passkey.into()),
                 }
             }
             _ => return Err(CredentialError::UnexpectedCredentialData),

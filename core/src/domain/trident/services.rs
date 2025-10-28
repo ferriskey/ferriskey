@@ -144,7 +144,7 @@ fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError>
         CoreError::InternalServerError
     })?;
 
-    Ok(WebauthnBuilder::new(&rp_info.rp_id, &rp_url)
+    WebauthnBuilder::new(&rp_info.rp_id, &rp_url)
         .map_err(|e| {
             tracing::error!("Failed to build Webauthn client: {e:?}");
             CoreError::InternalServerError
@@ -153,7 +153,7 @@ fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError>
         .map_err(|e| {
             tracing::error!("Failed to build Webauthn client: {e:?}");
             CoreError::InternalServerError
-        })?)
+        })
 }
 
 /// Generates a random authorization code, stores it in the user auth session
@@ -486,7 +486,7 @@ where
             .map(|v|
                 match v.credential_data {
                     CredentialData::WebAuthn {credential} => {
-                        Ok(Passkey::from(credential))
+                        Ok(Passkey::from(*credential))
                     },
                     _ => {
                         tracing::error!("A Webauthn credential doesn't hold WebAuthn credential data ! Something went wrong during creation...");
@@ -533,7 +533,7 @@ where
 
         let auth_result = match auth_session.webauthn_challenge {
             Some(WebAuthnChallenge::Authentication(ref pa)) => webauthn
-                .finish_passkey_authentication(&input.credential, &pa)
+                .finish_passkey_authentication(&input.credential, pa)
                 .map_err(|e| {
                     tracing::error!("Error during webauthn verification: {e:?}");
                     CoreError::WebAuthnChallengeFailed
@@ -559,7 +559,7 @@ where
         let login_url = store_auth_code_and_generate_login_url::<AS>(
             &self.auth_session_repository,
             &auth_session,
-            user.id.clone(),
+            user.id,
         )
         .await?;
 
