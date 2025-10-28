@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use super::api_success::ApiSuccess;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Response<T: Serialize> {
     OK(T),
     Created(T),
