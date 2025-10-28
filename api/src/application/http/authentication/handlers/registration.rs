@@ -1,11 +1,7 @@
-use axum::{
-    Form, Json,
-    extract::{Path, State},
-};
+use axum::extract::{Path, State};
 use ferriskey_core::domain::{
     authentication::{entities::JwtToken, ports::AuthService, value_objects::RegisterUserInput},
     realm::ports::RealmService,
-    user::entities::User,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
