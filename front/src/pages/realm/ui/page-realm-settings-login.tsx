@@ -1,9 +1,9 @@
-import { UseFormReturn } from "react-hook-form";
-import { RealmLoginSettingsSchema } from "../feature/page-realm-settings-login-feature";
-import { Form, FormField } from "@/components/ui/form";
-import BlockContent from "@/components/ui/block-content";
-import { FormSwitch } from "@/components/ui/switch";
-import FloatingActionBar from "@/components/ui/floating-action-bar";
+import { UseFormReturn } from 'react-hook-form'
+import { RealmLoginSettingsSchema } from '../feature/page-realm-settings-login-feature'
+import { Form, FormField } from '@/components/ui/form'
+import BlockContent from '@/components/ui/block-content'
+import { FormSwitch } from '@/components/ui/switch'
+import FloatingActionBar from '@/components/ui/floating-action-bar'
 
 export interface PageRealmSettingsLoginProps {
   form: UseFormReturn<RealmLoginSettingsSchema>

@@ -1,12 +1,12 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import PageRealmSettingsLogin from "../ui/page-realm-settings-login"
-import { useGetLoginSettings, useUpdateRealmSettings } from "@/api/realm.api"
-import { useEffect } from "react"
-import { useFormChanges } from "@/hooks/use-form-changes"
-import { useParams } from "react-router"
-import { RouterParams } from "@/routes/router"
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import PageRealmSettingsLogin from '../ui/page-realm-settings-login'
+import { useGetLoginSettings, useUpdateRealmSettings } from '@/api/realm.api'
+import { useEffect } from 'react'
+import { useFormChanges } from '@/hooks/use-form-changes'
+import { useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
 
 const realmLoginSettingsSchema = z.object({
   userRegistration: z.boolean(),

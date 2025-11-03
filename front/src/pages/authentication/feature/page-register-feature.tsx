@@ -1,12 +1,12 @@
-import { z } from "zod";
-import PageRegister from "../ui/page-register";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, useParams } from "react-router";
-import { useEffect } from "react";
-import { useRegistrationMutation } from "@/api/auth.api";
-import { useAuth } from "@/hooks/use-auth";
-import { RouterParams } from "@/routes/router";
+import { z } from 'zod'
+import PageRegister from '../ui/page-register'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate, useParams } from 'react-router'
+import { useEffect } from 'react'
+import { useRegistrationMutation } from '@/api/auth.api'
+import { useAuth } from '@/hooks/use-auth'
+import { RouterParams } from '@/routes/router'
 
 const registerSchema = z.object({
   username: z.string().min(1),

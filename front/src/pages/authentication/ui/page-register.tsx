@@ -1,10 +1,10 @@
-import { MagicCard } from "@/components/magicui/magic-card";
-import { Card, CardContent } from "@/components/ui/card";
-import { Form, FormField } from "@/components/ui/form";
-import { UseFormReturn } from "react-hook-form";
-import { RegisterSchema } from "../feature/page-register-feature";
-import { InputText } from "@/components/ui/input-text";
-import { Button } from "@/components/ui/button";
+import { MagicCard } from '@/components/magicui/magic-card'
+import { Card, CardContent } from '@/components/ui/card'
+import { Form, FormField } from '@/components/ui/form'
+import { UseFormReturn } from 'react-hook-form'
+import { RegisterSchema } from '../feature/page-register-feature'
+import { InputText } from '@/components/ui/input-text'
+import { Button } from '@/components/ui/button'
 
 export interface PageRegisterProps {
   form: UseFormReturn<RegisterSchema>
