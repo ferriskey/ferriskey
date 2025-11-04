@@ -11,7 +11,10 @@ use crate::{
         authentication::{ports::AuthSessionRepository, value_objects::Identity},
         client::ports::{ClientRepository, RedirectUriRepository},
         common::{entities::app_errors::CoreError, generate_random_string, services::Service},
-        credential::{entities::Credential, ports::CredentialRepository},
+        credential::{
+            entities::{Credential, CredentialType},
+            ports::CredentialRepository,
+        },
         crypto::ports::HasherRepository,
         health::ports::HealthCheckRepository,
         jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
@@ -240,7 +243,7 @@ where
 
         let recovery_code_creds = user_credentials
             .into_iter()
-            .filter(|cred| cred.credential_type == "recovery-code")
+            .filter(|cred| cred.credential_type == CredentialType::RecoveryCode)
             .collect::<Vec<Credential>>();
 
         let verify_results = {
@@ -321,7 +324,7 @@ where
 
         let otp_credential = user_credentials
             .iter()
-            .find(|cred| cred.credential_type == "otp")
+            .find(|cred| cred.credential_type == CredentialType::Otp)
             .ok_or_else(|| {
                 CoreError::TotpVerificationFailed("user has not OTP configured".to_string())
             })?;

@@ -31,7 +31,7 @@ impl From<crate::entity::credentials::Model> for Credential {
         Self {
             id: model.id,
             salt: model.salt,
-            credential_type: model.credential_type,
+            credential_type: model.credential_type.into(),
             user_id: model.user_id,
             user_label: model.user_label,
             secret_data: model.secret_data,

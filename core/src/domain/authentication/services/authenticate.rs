@@ -186,7 +186,7 @@ where
 
         let credentials: Vec<String> = user_credentials
             .iter()
-            .map(|cred| cred.credential_type.clone())
+            .map(|cred| cred.credential_type.clone().to_string())
             .collect();
 
         let credential = self
