@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -25,13 +26,14 @@ pub enum CredentialType {
     RecoveryCode,
 }
 
-impl ToString for CredentialType {
-    fn to_string(&self) -> String {
-        match self {
-            CredentialType::Password => "password".to_string(),
-            CredentialType::Otp => "otp".to_string(),
-            CredentialType::RecoveryCode => "recovery-code".to_string(),
-        }
+impl Display for CredentialType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            CredentialType::Password => "password",
+            CredentialType::Otp => "otp",
+            CredentialType::RecoveryCode => "recovery-code",
+        };
+        write!(f, "{}", s)
     }
 }
 
