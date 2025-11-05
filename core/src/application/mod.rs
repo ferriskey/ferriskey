@@ -18,6 +18,7 @@ use crate::{
         webhook::services::WebhookServiceImpl,
     },
     infrastructure::{
+        abyss::repositories::{ldap::LdapAdapter, pg_ldap::PostgresLdapRepository},
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,

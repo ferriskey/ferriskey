@@ -5,6 +5,7 @@ use jsonwebtoken::{Header, Validation};
 use uuid::Uuid;
 
 use crate::domain::{
+    abyss::ports::ldap::{LdapConnector, LdapRepository},
     authentication::{
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
