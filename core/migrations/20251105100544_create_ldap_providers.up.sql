@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS ldap_providers (
     email_attr          TEXT,
     display_name_attr   TEXT,
     enabled             BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================

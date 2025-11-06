@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 pub struct LdapProvider {
@@ -12,4 +13,6 @@ pub struct LdapProvider {
     pub email_attr: Option<String>,
     pub display_name_attr: Option<String>,
     pub enabled: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

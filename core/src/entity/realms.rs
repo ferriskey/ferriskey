@@ -44,6 +44,7 @@ pub enum Relation {
     AuthSessions,
     Clients,
     JwtKeys,
+    LdapProviders,
     RealmSettings,
     Roles,
     SecurityEvents,
@@ -70,6 +71,7 @@ impl RelationTrait for Relation {
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::Clients => Entity::has_many(super::clients::Entity).into(),
             Self::JwtKeys => Entity::has_many(super::jwt_keys::Entity).into(),
+            Self::LdapProviders => Entity::has_many(super::ldap_providers::Entity).into(),
             Self::RealmSettings => Entity::has_many(super::realm_settings::Entity).into(),
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
             Self::SecurityEvents => Entity::has_many(super::security_events::Entity).into(),
@@ -95,6 +97,12 @@ impl Related<super::clients::Entity> for Entity {
 impl Related<super::jwt_keys::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::JwtKeys.def()
+    }
+}
+
+impl Related<super::ldap_providers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::LdapProviders.def()
     }
 }
 

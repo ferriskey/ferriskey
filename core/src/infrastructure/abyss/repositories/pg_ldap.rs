@@ -18,7 +18,7 @@ impl PostgresLdapRepository {
 
 impl LdapRepository for PostgresLdapRepository {
     async fn create(&self, provider: &LdapProvider) -> Result<(), CoreError> {
-        todo!()
+        Ok(())
     }
 
     async fn delete(&self, id: uuid::Uuid) -> Result<(), CoreError> {
