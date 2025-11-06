@@ -26,6 +26,7 @@ pub enum CredentialType {
     Password,
     Otp,
     RecoveryCode,
+    WebAuthnPublicKeyCredential,
 }
 
 impl Display for CredentialType {
@@ -34,6 +35,7 @@ impl Display for CredentialType {
             CredentialType::Password => "password",
             CredentialType::Otp => "otp",
             CredentialType::RecoveryCode => "recovery-code",
+            CredentialType::WebAuthnPublicKeyCredential => "webauthn-public-key-credential",
         };
         write!(f, "{}", s)
     }
@@ -45,6 +47,7 @@ impl From<String> for CredentialType {
             "password" => CredentialType::Password,
             "otp" => CredentialType::Otp,
             "recovery-code" => CredentialType::RecoveryCode,
+            "webauthn-public-key-credential" => CredentialType::WebAuthnPublicKeyCredential,
             _ => CredentialType::Password, // default to Password if unknown
         }
     }
@@ -56,6 +59,7 @@ impl CredentialType {
             CredentialType::Password => "password",
             CredentialType::Otp => "otp",
             CredentialType::RecoveryCode => "recovery-code",
+            CredentialType::WebAuthnPublicKeyCredential => "webauthn-public-key-credential",
         }
     }
 }

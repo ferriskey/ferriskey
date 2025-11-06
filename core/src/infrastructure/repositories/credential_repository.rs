@@ -1,4 +1,7 @@
-use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use crate::{
+    domain::credential::entities::CredentialType,
+    entity::credentials::{ActiveModel, Entity as CredentialEntity},
+};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
@@ -112,7 +115,10 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::UserId.eq(user_id))
-            .filter(crate::entity::credentials::Column::CredentialType.eq("password"))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq(CredentialType::Password.as_str()),
+            )
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -249,7 +255,7 @@ impl CredentialRepository for PostgresCredentialRepository {
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
             salt: Set(None),
-            credential_type: Set("webauthn-public-key-credential".to_string()),
+            credential_type: Set(CredentialType::WebAuthnPublicKeyCredential.to_string()),
             user_id: Set(user_id),
             user_label: Set(None),
             secret_data: Set("".to_string()),
@@ -276,7 +282,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             .filter(crate::entity::credentials::Column::UserId.eq(user_id))
             .filter(
                 crate::entity::credentials::Column::CredentialType
-                    .eq("webauthn-public-key-credential"),
+                    .eq(CredentialType::WebAuthnPublicKeyCredential.as_str()),
             )
             .all(&self.db)
             .await
