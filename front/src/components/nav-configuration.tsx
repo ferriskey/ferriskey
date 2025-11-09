@@ -1,4 +1,4 @@
-import { Folder, ScanFace, Settings } from 'lucide-react'
+import { Folder, ScanFace, Settings, HatGlasses } from 'lucide-react'
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -40,6 +40,13 @@ export function NavConfiguration() {
           <SidebarMenuButton className='flex items-center gap-2 cursor-pointer'>
             <ScanFace />
             <span>Identity Providers</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton className='flex items-center gap-2 cursor-not-allowed text-gray-400 hover:text-gray-400'>
+            <HatGlasses />
+            <span>User Federation</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
