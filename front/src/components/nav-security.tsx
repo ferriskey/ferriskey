@@ -1,4 +1,4 @@
-import { ScanEye, Settings } from "lucide-react";
+import { ScanEye } from "lucide-react";
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
 import { useNavigate, useParams } from "react-router";
 import { RouterParams } from "@/routes/router";
