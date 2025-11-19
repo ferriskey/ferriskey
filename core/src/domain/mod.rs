@@ -7,6 +7,7 @@ pub mod health;
 pub mod jwt;
 pub mod realm;
 pub mod role;
+pub mod seawatch;
 pub mod session;
 pub mod trident;
 pub mod user;

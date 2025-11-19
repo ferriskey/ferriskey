@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::common::generate_uuid_v7;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum SecurityEventType {
     #[serde(rename = "login_success")]
@@ -111,9 +113,30 @@ impl Display for EventStatus {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SecurityEventId(pub Uuid);
+
+impl SecurityEventId {
+    pub fn new() -> Self {
+        SecurityEventId(generate_uuid_v7())
+    }
+}
+
+impl From<Uuid> for SecurityEventId {
+    fn from(value: Uuid) -> Self {
+        SecurityEventId(value)
+    }
+}
+
+impl From<SecurityEventId> for Uuid {
+    fn from(value: SecurityEventId) -> Self {
+        value.0
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SecurityEvent {
-    pub id: Uuid,
+    pub id: SecurityEventId,
     pub realm_id: Uuid,
     pub actor_id: Option<Uuid>,
     pub actor_type: Option<ActorType>,
@@ -130,13 +153,9 @@ pub struct SecurityEvent {
 }
 
 impl SecurityEvent {
-    pub fn new(
-        realm_id: Uuid,
-        event_type: SecurityEventType,
-        status: EventStatus,
-    ) -> Self {
+    pub fn new(realm_id: Uuid, event_type: SecurityEventType, status: EventStatus) -> Self {
         Self {
-            id: Uuid::new_v4(),
+            id: SecurityEventId::new(),
             realm_id,
             actor_id: None,
             actor_type: None,
@@ -159,14 +178,24 @@ impl SecurityEvent {
         self
     }
 
-    pub fn with_target(mut self, target_type: String, target_id: Uuid, resource: Option<String>) -> Self {
+    pub fn with_target(
+        mut self,
+        target_type: String,
+        target_id: Uuid,
+        resource: Option<String>,
+    ) -> Self {
         self.target_type = Some(target_type);
         self.target_id = Some(target_id);
         self.resource = resource;
         self
     }
 
-    pub fn with_context(mut self, ip_address: Option<String>, user_agent: Option<String>, trace_id: Option<String>) -> Self {
+    pub fn with_context(
+        mut self,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        trace_id: Option<String>,
+    ) -> Self {
         self.ip_address = ip_address;
         self.user_agent = user_agent;
         self.trace_id = trace_id;

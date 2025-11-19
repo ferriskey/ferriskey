@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Duration, Utc};
-use futures::future::OptionFuture;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::ToSchema;

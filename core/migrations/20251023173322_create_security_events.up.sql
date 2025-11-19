@@ -9,15 +9,15 @@ CREATE TABLE security_events (
     target_type VARCHAR(50),
     target_id UUID,
     resource TEXT,
-    timestamp TIMESTAMPTZ NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
     trace_id VARCHAR(255),
     ip_address VARCHAR(45),
     user_agent TEXT,
     details JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_security_events_realm
-        FOREIGN KEY (realm_id) 
-        REFERENCES realms(id) 
+        FOREIGN KEY (realm_id)
+        REFERENCES realms(id)
         ON DELETE CASCADE
 );
 

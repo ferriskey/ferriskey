@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{TimeZone, Utc};
 use sea_orm::ActiveValue::Set;
 
 use crate::domain::seawatch::entities::{ActorType, EventStatus, SecurityEvent, SecurityEventType};
@@ -6,8 +6,6 @@ use crate::entity::security_events;
 
 impl From<security_events::Model> for SecurityEvent {
     fn from(model: security_events::Model) -> Self {
-        let timestamp = Utc.from_utc_datetime(&model.timestamp.naive_utc());
-
         let actor_type = model.actor_type.and_then(|s| match s.as_str() {
             "user" => Some(ActorType::User),
             "service_account" => Some(ActorType::ServiceAccount),
@@ -40,7 +38,7 @@ impl From<security_events::Model> for SecurityEvent {
         };
 
         SecurityEvent {
-            id: model.id,
+            id: model.id.into(),
             realm_id: model.realm_id,
             actor_id: model.actor_id,
             actor_type,
@@ -49,7 +47,7 @@ impl From<security_events::Model> for SecurityEvent {
             target_type: model.target_type,
             target_id: model.target_id,
             resource: model.resource,
-            timestamp,
+            timestamp: Utc.from_utc_datetime(&model.timestamp),
             trace_id: model.trace_id,
             ip_address: model.ip_address,
             user_agent: model.user_agent,
@@ -61,7 +59,7 @@ impl From<security_events::Model> for SecurityEvent {
 impl From<SecurityEvent> for security_events::ActiveModel {
     fn from(event: SecurityEvent) -> Self {
         security_events::ActiveModel {
-            id: Set(event.id),
+            id: Set(event.id.into()),
             realm_id: Set(event.realm_id),
             actor_id: Set(event.actor_id),
             actor_type: Set(event.actor_type.map(|t| t.to_string())),

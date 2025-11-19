@@ -1,11 +1,12 @@
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use super::entities::SecurityEventType;
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct SecurityEventFilter {
     pub user_id: Option<Uuid>,
     pub client_id: Option<Uuid>,
+    pub actor_id: Option<Uuid>,
     pub event_types: Option<Vec<SecurityEventType>>,
     pub from_timestamp: Option<DateTime<Utc>>,
     pub to_timestamp: Option<DateTime<Utc>>,
@@ -32,6 +33,7 @@ impl Default for SecurityEventFilter {
     fn default() -> Self {
         Self {
             user_id: None,
+            actor_id: None,
             client_id: None,
             event_types: None,
             from_timestamp: None,
