@@ -8,6 +8,7 @@ use crate::domain::realm::entities::Realm;
 use super::entities::SecurityEvent;
 use super::value_objects::SecurityEventFilter;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait SecurityEventRepository: Send + Sync {
     fn store_event(
         &self,

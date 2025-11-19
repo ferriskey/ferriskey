@@ -153,11 +153,16 @@ pub struct SecurityEvent {
 }
 
 impl SecurityEvent {
-    pub fn new(realm_id: Uuid, event_type: SecurityEventType, status: EventStatus) -> Self {
+    pub fn new(
+        realm_id: Uuid,
+        event_type: SecurityEventType,
+        status: EventStatus,
+        actor_id: Uuid,
+    ) -> Self {
         Self {
             id: SecurityEventId::new(),
             realm_id,
-            actor_id: None,
+            actor_id: Some(actor_id),
             actor_type: None,
             event_type,
             status,
