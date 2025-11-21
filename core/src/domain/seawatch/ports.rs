@@ -6,7 +6,15 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::Realm;
 
 use super::entities::SecurityEvent;
-use super::value_objects::SecurityEventFilter;
+use super::value_objects::{FetchEventsInput, SecurityEventFilter};
+
+pub trait SecurityEventService: Send + Sync {
+    fn fetch_events(
+        &self,
+        identity: Identity,
+        input: FetchEventsInput,
+    ) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
+}
 
 #[cfg_attr(test, mockall::automock)]
 pub trait SecurityEventRepository: Send + Sync {

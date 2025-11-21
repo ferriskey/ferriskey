@@ -140,7 +140,7 @@ impl From<SecurityEventId> for Uuid {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct SecurityEvent {
     pub id: SecurityEventId,
     pub realm_id: Uuid,

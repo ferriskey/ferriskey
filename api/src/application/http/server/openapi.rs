@@ -1,7 +1,7 @@
 use crate::application::http::{
     authentication::router::AuthenticationApiDoc, client::router::ClientApiDoc,
-    realm::router::RealmApiDoc, role::router::RoleApiDoc, trident::router::TridentApiDoc,
-    user::router::UserApiDoc, webhook::router::WebhookApiDoc,
+    realm::router::RealmApiDoc, role::router::RoleApiDoc, seawatch::router::SeawatchApiDoc,
+    trident::router::TridentApiDoc, user::router::UserApiDoc, webhook::router::WebhookApiDoc,
 };
 use utoipa::OpenApi;
 
@@ -18,6 +18,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/roles", api = RoleApiDoc),
         (path = "/realms/{realm_name}/webhooks", api = WebhookApiDoc),
         (path = "/realms/{realm_name}", api = TridentApiDoc),
+        (path = "/realms/{realm_name}", api = SeawatchApiDoc),
     )
 )]
 pub struct ApiDoc;
