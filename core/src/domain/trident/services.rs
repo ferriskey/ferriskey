@@ -20,6 +20,7 @@ use crate::{
         jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
         realm::ports::RealmRepository,
         role::ports::RoleRepository,
+        seawatch::SecurityEventRepository,
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
@@ -129,8 +130,8 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> TridentService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> TridentService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -147,6 +148,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn generate_recovery_code(
         &self,

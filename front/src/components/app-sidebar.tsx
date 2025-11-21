@@ -20,6 +20,7 @@ import { useConfig } from '@/hooks/use-config'
 import BadgeColor from './ui/badge-color'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { useSidebar } from './ui/sidebar-hooks'
+import { NavSecurity } from './nav-security'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
@@ -51,6 +52,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain />
         <NavConfiguration />
+        <NavSecurity />
       </SidebarContent>
       <SidebarFooter>
         {config && (

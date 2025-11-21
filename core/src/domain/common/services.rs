@@ -29,6 +29,7 @@ use crate::domain::{
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
     },
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::{
         ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
@@ -38,7 +39,7 @@ use crate::domain::{
 };
 
 #[derive(Clone)]
-pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -55,6 +56,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -71,12 +73,13 @@ where
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) refresh_token_repository: Arc<RT>,
     pub(crate) recovery_code_repository: Arc<RC>,
+    pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: FerriskeyPolicy<U, C, UR>,
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
-    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -93,6 +96,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -111,6 +115,7 @@ where
         webhook_repository: W,
         refresh_token_repository: RT,
         recovery_code_repository: RC,
+        security_event_repository: SE,
     ) -> Self {
         let user_repo_arc = Arc::new(user_repository);
         let client_repo_arc = Arc::new(client_repository);
@@ -138,6 +143,7 @@ where
             webhook_repository: Arc::new(webhook_repository),
             refresh_token_repository: Arc::new(refresh_token_repository),
             recovery_code_repository: Arc::new(recovery_code_repository),
+            security_event_repository: Arc::new(security_event_repository),
 
             policy,
         }
@@ -291,8 +297,8 @@ where
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> CoreService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> CoreService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -309,6 +315,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn initialize_application(
         &self,
@@ -612,6 +619,7 @@ pub mod tests {
             entities::{Role, permission::Permissions},
             ports::MockRoleRepository,
         },
+        seawatch::ports::MockSecurityEventRepository,
         trident::ports::MockRecoveryCodeRepository,
         user::{
             entities::User,
@@ -636,6 +644,7 @@ pub mod tests {
         MockWebhookRepository,
         MockRefreshTokenRepository,
         MockRecoveryCodeRepository,
+        MockSecurityEventRepository,
     >;
 
     /// Macros pour créer des mocks async avec clonage automatique
@@ -700,6 +709,7 @@ pub mod tests {
         webhook_repo: MockWebhookRepository,
         refresh_token_repo: MockRefreshTokenRepository,
         recovery_code_repo: MockRecoveryCodeRepository,
+        security_event_repo: MockSecurityEventRepository,
     }
 
     impl Default for ServiceTestBuilder {
@@ -726,6 +736,7 @@ pub mod tests {
                 webhook_repo: MockWebhookRepository::new(),
                 refresh_token_repo: MockRefreshTokenRepository::new(),
                 recovery_code_repo: MockRecoveryCodeRepository::new(),
+                security_event_repo: MockSecurityEventRepository::new(),
             }
         }
 
@@ -1175,6 +1186,7 @@ pub mod tests {
                 self.webhook_repo,
                 self.refresh_token_repo,
                 self.recovery_code_repo,
+                self.security_event_repo,
             )
         }
     }

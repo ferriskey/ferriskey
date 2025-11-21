@@ -19,6 +19,7 @@ use crate::domain::{
     },
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::{
         entities::RequiredAction,
@@ -27,8 +28,8 @@ use crate::domain::{
     webhook::ports::WebhookRepository,
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> AuthenticatePort
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> AuthenticatePort
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -45,6 +46,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn determine_next_step(
         &self,

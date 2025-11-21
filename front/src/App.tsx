@@ -17,6 +17,7 @@ import { TanstackQueryApiClient } from './api/api.tanstack'
 import axios, { AxiosInstance } from 'axios'
 import { BasicSpinner } from './components/ui/spinner'
 import { fetcher } from './api'
+import PageSeawatch from './pages/seawatch/page-seawatch'
 
 declare global {
   interface Window {
@@ -153,6 +154,7 @@ function App() {
             <Route path='users/*' element={<PageUser />} />
             <Route path='roles/*' element={<PageRole />} />
             <Route path='realm-settings/*' element={<PageRealm />} />
+            <Route path='seawatch/*' element={<PageSeawatch />} />
           </Route>
         </Route>
 
