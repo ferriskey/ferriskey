@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Activity, AlertTriangle, Eye, Shield, TrendingDown, TrendingUp, Unlock, Lock } from "lucide-react";
+import { Card, CardContent } from '@/components/ui/card'
+import { Activity, AlertTriangle, Eye, Shield, TrendingDown, TrendingUp, Unlock, Lock } from 'lucide-react'
 
 export function SecurityMetrics() {
   return (

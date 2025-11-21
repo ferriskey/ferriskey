@@ -1,8 +1,8 @@
-import { ScanEye } from "lucide-react";
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
-import { useNavigate, useParams } from "react-router";
-import { RouterParams } from "@/routes/router";
-import { SEAWATCH_OVERVIEW_URL } from "@/routes/sub-router/seawatch.router";
+import { ScanEye } from 'lucide-react'
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './ui/sidebar'
+import { useNavigate, useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import { SEAWATCH_OVERVIEW_URL } from '@/routes/sub-router/seawatch.router'
 
 export function NavSecurity() {
   const { realm_name } = useParams<RouterParams>()
