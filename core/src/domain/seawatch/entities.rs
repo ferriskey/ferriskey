@@ -122,6 +122,12 @@ impl SecurityEventId {
     }
 }
 
+impl Default for SecurityEventId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl From<Uuid> for SecurityEventId {
     fn from(value: Uuid) -> Self {
         SecurityEventId(value)

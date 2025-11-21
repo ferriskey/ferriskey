@@ -100,7 +100,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
                     tracing::error!("Failed to get security event by id: {}", e);
                     CoreError::InternalServerError
                 })?
-                .ok_or_else(|| CoreError::NotFound)?;
+                .ok_or(CoreError::NotFound)?;
 
             Ok(model.into())
         }
