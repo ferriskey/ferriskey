@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::entities::app_errors::CoreError,
     realm::ports::RealmRepository,
@@ -73,8 +74,6 @@ where
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
 
-        let realm_id = realm.id;
-
         let role = self
             .role_repository
             .get_by_id(role_id)
@@ -84,6 +83,7 @@ where
 
         let user = self.user_repository.get_by_id(user_id).await?;
 
+        let realm_id = realm.id;
         if user.realm_id != realm.id || role.realm_id != realm.id {
             return Err(CoreError::InternalServerError);
         }
@@ -95,7 +95,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserRoleAssigned, realm_id, Some(role)),
+                WebhookPayload::new(
+                    WebhookTrigger::UserRoleAssigned,
+                    realm_id.into(),
+                    Some(role),
+                ),
             )
             .await?;
 
@@ -112,7 +116,7 @@ where
 
     async fn revoke_role(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         user_id: Uuid,
         role_id: Uuid,
     ) -> Result<(), CoreError> {
@@ -125,7 +129,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserRoleUnassigned, realm_id, Some(role)),
+                WebhookPayload::new(
+                    WebhookTrigger::UserRoleUnassigned,
+                    realm_id.into(),
+                    Some(role),
+                ),
             )
             .await?;
 

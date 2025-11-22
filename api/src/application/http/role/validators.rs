@@ -1,3 +1,4 @@
+use ferriskey_core::domain::realm::entities::RealmId;
 use ferriskey_core::domain::role::value_objects::CreateRoleRequest;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -23,7 +24,7 @@ pub struct UpdateRolePermissionsValidator {
 }
 
 impl CreateRoleValidator {
-    pub fn to_dto(self, realm_id: Uuid, client_id: Option<Uuid>) -> CreateRoleRequest {
+    pub fn to_dto(self, realm_id: RealmId, client_id: Option<Uuid>) -> CreateRoleRequest {
         CreateRoleRequest {
             name: self.name,
             description: self.description,

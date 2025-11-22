@@ -75,7 +75,7 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id, Some(role)),
+                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id.into(), Some(role)),
             )
             .await?;
 
@@ -164,7 +164,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleUpdated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::RoleUpdated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 
@@ -203,7 +207,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RolePermissionUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(role.clone()),
                 ),
             )

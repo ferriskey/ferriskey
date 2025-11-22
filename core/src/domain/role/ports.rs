@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
@@ -85,7 +86,7 @@ pub trait RoleRepository: Send + Sync {
 
     fn find_by_realm_id(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
     fn find_by_name(
         &self,

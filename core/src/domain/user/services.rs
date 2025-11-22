@@ -81,7 +81,7 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id, Some(user)),
+                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id.into(), Some(user)),
             )
             .await?;
 
@@ -191,7 +191,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(user.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserUpdated,
+                    realm_id.into(),
+                    Some(user.clone()),
+                ),
             )
             .await?;
 
@@ -251,7 +255,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::UserRoleAssigned,
-                    realm_id,
+                    realm_id.into(),
                     Some(role.clone()),
                 ),
             )
@@ -287,7 +291,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserBulkDeleted, realm_id, Some(input.ids)),
+                WebhookPayload::new(
+                    WebhookTrigger::UserBulkDeleted,
+                    realm_id.into(),
+                    Some(input.ids),
+                ),
             )
             .await?;
 
@@ -331,7 +339,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserCreated, realm_id, Some(user.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserCreated,
+                    realm_id.into(),
+                    Some(user.clone()),
+                ),
             )
             .await?;
 
@@ -383,7 +395,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserUpdated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 

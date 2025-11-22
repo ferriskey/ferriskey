@@ -4,6 +4,7 @@ use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Header, Validation};
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         ports::AuthSessionRepository, services::grant_type_service::GenerateTokenInput,
@@ -179,7 +180,7 @@ where
     pub(crate) async fn generate_token(
         &self,
         claims: JwtClaim,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -244,7 +245,7 @@ where
     pub(crate) async fn verify_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
@@ -273,7 +274,7 @@ where
     pub(crate) async fn verify_refresh_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<JwtClaim, CoreError> {
         let claims = self.verify_token(token, realm_id).await?;
 
@@ -603,6 +604,7 @@ pub mod tests {
     use mockall::predicate::eq;
     use uuid::Uuid;
 
+    use crate::domain::realm::entities::RealmId;
     use crate::domain::{
         authentication::{ports::MockAuthSessionRepository, value_objects::Identity},
         client::{
@@ -960,7 +962,7 @@ pub mod tests {
         pub fn with_successful_client_lookup(
             self,
             client_id: &str,
-            realm_id: Uuid,
+            realm_id: RealmId,
             client: Client,
         ) -> Self {
             self.with_client_repo(|repo| {
@@ -972,7 +974,7 @@ pub mod tests {
         }
 
         /// Configure une liste de roles par realm_id
-        pub fn with_roles_by_realm(self, realm_id: Uuid, roles: Vec<Role>) -> Self {
+        pub fn with_roles_by_realm(self, realm_id: RealmId, roles: Vec<Role>) -> Self {
             self.with_role_repo(|repo| {
                 repo.expect_find_by_realm_id()
                     .with(eq(realm_id))
@@ -1028,7 +1030,7 @@ pub mod tests {
         pub fn with_successful_user_lookup_by_username(
             self,
             username: &str,
-            realm_id: Uuid,
+            realm_id: RealmId,
             user: User,
         ) -> Self {
             self.with_user_repo(|repo| {
@@ -1069,7 +1071,7 @@ pub mod tests {
         }
 
         /// Configure un client non trouvé
-        pub fn with_client_not_found(self, client_id: &str, realm_id: Uuid) -> Self {
+        pub fn with_client_not_found(self, client_id: &str, realm_id: RealmId) -> Self {
             self.with_client_repo(|repo| {
                 repo.expect_get_by_client_id()
                     .with(eq(client_id.to_string()), eq(realm_id))
@@ -1120,7 +1122,7 @@ pub mod tests {
             })
         }
 
-        pub fn with_user_view_roles_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_view_roles_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_view_permission = create_test_role_with_params(
                 realm_id,
                 "viewer-role",
@@ -1132,7 +1134,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un rôle avec les permissions de manage users
-        pub fn with_user_manage_users_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_manage_users_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_manage_permission = create_test_role_with_params(
                 realm_id,
                 "admin-role",
@@ -1143,7 +1145,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un rôle avec les permissions de manage realm
-        pub fn with_user_manage_realm_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_manage_realm_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_manage_realm_permission = create_test_role_with_params(
                 realm_id,
                 "realm-admin-role",
@@ -1154,7 +1156,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un utilisateur avec toutes les permissions
-        pub fn with_user_all_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_all_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let super_admin_role = create_test_role_with_params(
                 realm_id,
                 "super-admin",
@@ -1191,7 +1193,7 @@ pub mod tests {
         }
     }
 
-    pub fn create_test_user(realm_id: Uuid) -> User {
+    pub fn create_test_user(realm_id: RealmId) -> User {
         User {
             id: Uuid::new_v4(),
             realm_id,
@@ -1258,7 +1260,7 @@ pub mod tests {
     }
 
     pub fn create_test_user_with_params(
-        realm_id: Uuid,
+        realm_id: RealmId,
         firstname: &str,
         lastname: &str,
         username: &str,
@@ -1285,7 +1287,7 @@ pub mod tests {
 
     pub fn create_test_realm() -> Realm {
         Realm {
-            id: Uuid::new_v4(),
+            id: RealmId::default(),
             name: "test-realm".to_string(),
             settings: None,
             created_at: Utc::now(),
@@ -1295,7 +1297,7 @@ pub mod tests {
 
     pub fn create_test_realm_with_name(name: &str) -> Realm {
         Realm {
-            id: Uuid::new_v4(),
+            id: RealmId::default(),
             name: name.to_string(),
             settings: None,
             created_at: Utc::now(),
@@ -1304,7 +1306,7 @@ pub mod tests {
     }
 
     /// Crée un rôle de test
-    pub fn create_test_role(realm_id: Uuid) -> Role {
+    pub fn create_test_role(realm_id: RealmId) -> Role {
         Role {
             id: Uuid::new_v4(),
             name: "test-role".to_string(),
@@ -1320,7 +1322,7 @@ pub mod tests {
 
     /// Crée un rôle de test avec des paramètres personnalisés
     pub fn create_test_role_with_params(
-        realm_id: Uuid,
+        realm_id: RealmId,
         name: &str,
         permissions: Vec<String>,
         client_id: Option<Uuid>,
@@ -1339,11 +1341,11 @@ pub mod tests {
     }
 
     /// Crée une identité utilisateur de test
-    pub fn create_test_user_identity(realm_id: Uuid) -> Identity {
+    pub fn create_test_user_identity(realm_id: RealmId) -> Identity {
         Identity::User(create_test_user(realm_id))
     }
 
-    pub fn create_test_client_identity(realm_id: Uuid) -> Identity {
+    pub fn create_test_client_identity(realm_id: RealmId) -> Identity {
         let client = Client {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),

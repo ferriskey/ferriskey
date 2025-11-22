@@ -13,7 +13,6 @@ use ferriskey_api::{
 };
 
 use sea_orm::Database;
-pub use sea_orm::DatabaseConnection;
 use sea_orm::{ConnectionTrait, Statement};
 use url::Url;
 

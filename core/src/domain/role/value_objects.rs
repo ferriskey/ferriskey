@@ -1,3 +1,4 @@
+use crate::domain::realm::entities::RealmId;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -6,7 +7,7 @@ pub struct CreateRoleRequest {
     pub name: String,
     pub description: Option<String>,
     pub permissions: Vec<String>,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
 }
 

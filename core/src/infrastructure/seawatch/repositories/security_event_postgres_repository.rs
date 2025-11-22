@@ -5,6 +5,7 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::entities::RealmId;
 use crate::domain::seawatch::{
     entities::SecurityEvent, ports::SecurityEventRepository, value_objects::SecurityEventFilter,
 };
@@ -38,11 +39,11 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
 
     async fn get_events(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         filter: SecurityEventFilter,
     ) -> Result<Vec<SecurityEvent>, CoreError> {
-        let mut query =
-            security_events::Entity::find().filter(security_events::Column::RealmId.eq(realm_id));
+        let mut query = security_events::Entity::find()
+            .filter(security_events::Column::RealmId.eq::<Uuid>(realm_id.into()));
 
         if let Some(actor_id) = filter.actor_id {
             query = query.filter(security_events::Column::ActorId.eq(actor_id));

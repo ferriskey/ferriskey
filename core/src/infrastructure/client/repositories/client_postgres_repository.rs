@@ -8,6 +8,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     client::{
         entities::{Client, redirect_uri::RedirectUri},
@@ -34,7 +35,7 @@ impl ClientRepository for PostgresClientRepository {
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
-            realm_id: Set(data.realm_id),
+            realm_id: Set(data.realm_id.into()),
             name: Set(data.name),
             client_id: Set(data.client_id),
             secret: Set(data.secret),
@@ -61,11 +62,11 @@ impl ClientRepository for PostgresClientRepository {
     async fn get_by_client_id(
         &self,
         client_id: String,
-        realm_id: uuid::Uuid,
+        realm_id: RealmId,
     ) -> Result<Client, CoreError> {
         let client = ClientEntity::find()
             .filter(crate::entity::clients::Column::ClientId.eq(client_id))
-            .filter(crate::entity::clients::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::clients::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -101,9 +102,9 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
-    async fn get_by_realm_id(&self, realm_id: uuid::Uuid) -> Result<Vec<Client>, CoreError> {
+    async fn get_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<Client>, CoreError> {
         let clients = ClientEntity::find()
-            .filter(crate::entity::clients::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::clients::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .all(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?;

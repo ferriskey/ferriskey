@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
@@ -74,7 +75,7 @@ pub trait UserRepository: Send + Sync {
     fn get_by_username(
         &self,
         username: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
     fn get_by_client_id(
@@ -86,7 +87,7 @@ pub trait UserRepository: Send + Sync {
 
     fn find_by_realm_id(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
 
     fn bulk_delete_user(
@@ -138,7 +139,7 @@ pub trait UserRoleService: Send + Sync {
 
     fn revoke_role(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;

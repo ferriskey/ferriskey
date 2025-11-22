@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         entities::{AuthenticationError, GrantType, JwtToken},
@@ -30,7 +31,7 @@ pub struct GenerateTokenInput {
     pub username: String,
     pub client_id: String,
     pub email: String,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
 }
 
 impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> GrantTypeService

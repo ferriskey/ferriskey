@@ -1,5 +1,4 @@
-use uuid::Uuid;
-
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
@@ -103,13 +102,13 @@ pub trait RealmRepository: Send + Sync {
 
     fn create_realm_settings(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         algorithm: String,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn update_realm_setting(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         algorithm: Option<String>,
         user_registration_enabled: Option<bool>,
         forgot_password_enabled: Option<bool>,
@@ -118,7 +117,7 @@ pub trait RealmRepository: Send + Sync {
 
     fn get_realm_settings(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<RealmSetting>, CoreError>> + Send;
 }
 

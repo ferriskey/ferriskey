@@ -6,12 +6,13 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{common::generate_uuid_v7, realm::entities::Realm, role::entities::Role};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct User {
     pub id: Uuid,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
@@ -27,7 +28,7 @@ pub struct User {
 }
 
 pub struct UserConfig {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,

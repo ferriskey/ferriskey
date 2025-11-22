@@ -96,7 +96,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(client.clone()),
                 ),
             )
@@ -134,7 +134,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(redirect_uri.clone()),
                 ),
             )
@@ -185,7 +185,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleCreated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::RoleCreated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 
@@ -221,7 +225,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientDeleted,
-                    realm_id,
+                    realm_id.into(),
                     Some(input.client_id),
                 ),
             )
@@ -258,7 +262,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriDeleted,
-                    realm_id,
+                    realm_id.into(),
                     Some(input.uri_id),
                 ),
             )
@@ -389,7 +393,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(client.clone()),
                 ),
             )
@@ -427,7 +431,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(redirect_uri.clone()),
                 ),
             )

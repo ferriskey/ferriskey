@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     client::{
@@ -108,13 +109,13 @@ pub trait ClientRepository: Send + Sync {
     fn get_by_client_id(
         &self,
         client_id: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
     fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
     fn get_by_realm_id(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
 
     fn update_client(

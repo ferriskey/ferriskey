@@ -9,7 +9,7 @@ impl From<crate::entity::users::Model> for User {
 
         User {
             id: value.id,
-            realm_id: value.realm_id,
+            realm_id: value.realm_id.into(),
             username: value.username,
             firstname: value.firstname,
             lastname: value.lastname,

@@ -9,7 +9,7 @@ impl From<Model> for Client {
 
         Client {
             id: model.id,
-            realm_id: model.realm_id,
+            realm_id: model.realm_id.into(),
             name: model.name,
             client_id: model.client_id,
             secret: model.secret,

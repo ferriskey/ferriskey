@@ -5,6 +5,7 @@ use sea_orm::{
 use tracing::error;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::entities::app_errors::CoreError,
     user::{
@@ -40,7 +41,7 @@ impl UserRepository for PostgresUserRepository {
 
         let model = crate::entity::users::ActiveModel {
             id: Set(user.id),
-            realm_id: Set(user.realm_id),
+            realm_id: Set(user.realm_id.into()),
             username: Set(user.username),
             firstname: Set(user.firstname),
             lastname: Set(user.lastname),
@@ -62,10 +63,14 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
-    async fn get_by_username(&self, username: String, realm_id: Uuid) -> Result<User, CoreError> {
+    async fn get_by_username(
+        &self,
+        username: String,
+        realm_id: RealmId,
+    ) -> Result<User, CoreError> {
         let users_model = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::Username.eq(username.clone()))
-            .filter(crate::entity::users::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .find_also_related(crate::entity::realms::Entity)
             .all(&self.db)
             .await
@@ -155,9 +160,9 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
-    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<User>, CoreError> {
+    async fn find_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<User>, CoreError> {
         let users = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .all(&self.db)
             .await
             .map_err(|_| CoreError::NotFound)?;

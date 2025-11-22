@@ -8,7 +8,7 @@ impl From<Model> for RealmSetting {
 
         RealmSetting {
             id: value.id,
-            realm_id: value.realm_id,
+            realm_id: value.realm_id.into(),
             default_signing_algorithm: value.default_signing_algorithm,
             forgot_password_enabled: value.forgot_password_enabled,
             remember_me_enabled: value.remember_me_enabled,

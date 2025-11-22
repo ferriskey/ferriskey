@@ -39,7 +39,7 @@ impl From<security_events::Model> for SecurityEvent {
 
         SecurityEvent {
             id: model.id.into(),
-            realm_id: model.realm_id,
+            realm_id: model.realm_id.into(),
             actor_id: model.actor_id,
             actor_type,
             event_type,
@@ -60,7 +60,7 @@ impl From<SecurityEvent> for security_events::ActiveModel {
     fn from(event: SecurityEvent) -> Self {
         security_events::ActiveModel {
             id: Set(event.id.into()),
-            realm_id: Set(event.realm_id),
+            realm_id: Set(event.realm_id.into()),
             actor_id: Set(event.actor_id),
             actor_type: Set(event.actor_type.map(|t| t.to_string())),
             event_type: Set(event.event_type.to_string()),

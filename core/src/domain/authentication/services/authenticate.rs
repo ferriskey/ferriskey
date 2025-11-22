@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         entities::{
@@ -104,7 +105,7 @@ where
     async fn handle_token_refresh(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {

@@ -155,7 +155,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::WebhookCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(webhook.clone()),
                 ),
             )
@@ -199,7 +199,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::WebhookUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(webhook.clone()),
                 ),
             )
@@ -229,7 +229,7 @@ where
 
         let webhook = self
             .webhook_repository
-            .get_webhook_by_id(realm_id, input.webhook_id)
+            .get_webhook_by_id(input.webhook_id, realm_id)
             .await?;
 
         self.webhook_repository
@@ -239,7 +239,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::WebhookDeleted, realm_id, Some(webhook)),
+                WebhookPayload::new(
+                    WebhookTrigger::WebhookDeleted,
+                    realm_id.into(),
+                    Some(webhook),
+                ),
             )
             .await?;
 

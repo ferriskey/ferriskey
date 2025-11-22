@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     jwt::entities::{Jwt, JwtClaim, JwtError, JwtKeyPair, RefreshToken},
     realm::entities::Realm,
@@ -10,19 +11,19 @@ pub trait JwtService: Send + Sync {
     fn generate_token(
         &self,
         claims: JwtClaim,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Jwt, JwtError>> + Send;
 
     fn verify_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
 
     fn verify_refresh_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<JwtClaim, JwtError>> + Send;
 
     fn retrieve_realm_rsa_keys(
@@ -47,6 +48,6 @@ pub trait RefreshTokenRepository: Send + Sync {
 pub trait KeyStoreRepository: Send + Sync {
     fn get_or_generate_key(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<JwtKeyPair, JwtError>> + Send;
 }
