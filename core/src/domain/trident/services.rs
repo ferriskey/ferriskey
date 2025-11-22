@@ -17,7 +17,7 @@ use crate::{
         client::ports::{ClientRepository, RedirectUriRepository},
         common::{entities::app_errors::CoreError, generate_random_string, services::Service},
         credential::{
-            entities::{Credential, CredentialType},
+            entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
         },
         crypto::ports::HasherRepository,
@@ -181,8 +181,8 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
     ))
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC> TridentService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, WN, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> TridentService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
 where
     R: RealmRepository,
     C: ClientRepository,
