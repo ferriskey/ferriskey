@@ -23,14 +23,12 @@ use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::SpanExporter;
+use opentelemetry_otlp::{Protocol, SpanExporter};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::{
-    Resource,
-    trace::RandomIdGenerator,
-};
+use opentelemetry_sdk::{Resource, trace::RandomIdGenerator};
 use tracing::{debug, error, info};
+use tracing_opentelemetry::MetricsLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Registry, fmt};
@@ -42,28 +40,48 @@ fn init_tracing_and_logging(args: &LogArgs, service_name: &str, otlp_endpoint: &
         EnvFilter::new("info")
     });
     // Create the OTLP exporter
-    let exporter = SpanExporter::builder()
+    let span_exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint(otlp_endpoint)
         .build()
         .expect("Failed to create span exporter");
 
     // Build the tracer provider with the exporter
-    let provider = SdkTracerProvider::builder()
+    let tracer_provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
                 .with_service_name(service_name.to_string())
                 .build(),
         )
         .with_id_generator(RandomIdGenerator::default())
-        .with_batch_exporter(exporter)
+        .with_batch_exporter(span_exporter)
         .build();
 
-    let tracer = provider.tracer(service_name.to_string());
+    let tracer = tracer_provider.tracer(service_name.to_string());
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(tracer_provider);
+
+    let metric_exporter = match opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_protocol(Protocol::Grpc)
+        .with_endpoint("http://localhost:9090/api/v1/otlp/v1/metrics") // TODO make it configurable
+        .build()
+    {
+        Ok(exporter) => exporter,
+        Err(err) => {
+            error!("Failed to create metric exporter: {}", err);
+            return;
+        }
+    };
+
+    let meter_provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
+        .with_periodic_exporter(metric_exporter)
+        .build();
+    global::set_meter_provider(meter_provider.clone());
+    // let meter = global::meter("my_meter");
 
     // Create tracing layers for logging and telemetry
+    let opentelemetry_metrics =  MetricsLayer::new(meter_provider);
     let fmt_layer = fmt::layer().with_writer(std::io::stderr).json(); // TODO Put a condition for json format
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
@@ -71,6 +89,7 @@ fn init_tracing_and_logging(args: &LogArgs, service_name: &str, otlp_endpoint: &
     let subscriber = Registry::default()
         .with(fmt_layer)
         .with(telemetry_layer)
+        .with(opentelemetry_metrics)
         .with(filter);
 
     subscriber.init();
