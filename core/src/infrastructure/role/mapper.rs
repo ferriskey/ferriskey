@@ -18,7 +18,7 @@ impl From<Model> for Role {
             name: model.name,
             description: model.description,
             permissions,
-            realm_id: model.realm_id,
+            realm_id: model.realm_id.into(),
             client_id: model.client_id,
             client: None,
             created_at: Utc.from_utc_datetime(&model.created_at),

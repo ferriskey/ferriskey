@@ -1,7 +1,7 @@
 use super::server::app_state::AppState;
 use chrono::Utc;
 use ferriskey_core::domain::common::generate_uuid_v7;
-use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::realm::entities::{Realm, RealmId};
 use ferriskey_core::domain::role::entities::Role;
 use ferriskey_core::domain::user::entities::User;
 
@@ -79,7 +79,7 @@ impl UserBuilder {
         let id = generate_uuid_v7();
         User {
             id,
-            realm_id: generate_uuid_v7(), // Sera remplacé lors de la création
+            realm_id: RealmId::default(), // Sera remplacé lors de la création
             client_id: None,
             username: self.username.unwrap_or_else(|| format!("user-{id}")),
             firstname: self.firstname.unwrap_or_else(|| "Test".to_string()),

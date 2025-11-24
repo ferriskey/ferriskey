@@ -18,7 +18,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
 
         AuthSession {
             id: model.id,
-            realm_id: model.realm_id,
+            realm_id: model.realm_id.into(),
             client_id: model.client_id,
             redirect_uri: model.redirect_uri,
             response_type: model.response_type,
@@ -49,7 +49,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn create(&self, session: &AuthSession) -> Result<AuthSession, AuthenticationError> {
         let model = crate::entity::auth_sessions::ActiveModel {
             id: Set(session.id),
-            realm_id: Set(session.realm_id),
+            realm_id: Set(session.realm_id.into()),
             client_id: Set(session.client_id),
             redirect_uri: Set(session.redirect_uri.clone()),
             response_type: Set(session.response_type.clone()),

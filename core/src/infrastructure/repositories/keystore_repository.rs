@@ -3,6 +3,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::generate_uuid_v7,
     jwt::{
@@ -38,9 +39,9 @@ impl PostgresKeyStoreRepository {
 }
 
 impl KeyStoreRepository for PostgresKeyStoreRepository {
-    async fn get_or_generate_key(&self, realm_id: Uuid) -> Result<JwtKeyPair, JwtError> {
+    async fn get_or_generate_key(&self, realm_id: RealmId) -> Result<JwtKeyPair, JwtError> {
         let key = crate::entity::jwt_keys::Entity::find()
-            .filter(crate::entity::jwt_keys::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::jwt_keys::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|_| JwtError::RealmKeyNotFound)?;
@@ -56,7 +57,7 @@ impl KeyStoreRepository for PostgresKeyStoreRepository {
 
         let new_key = crate::entity::jwt_keys::ActiveModel {
             id: Set(id),
-            realm_id: Set(realm_id),
+            realm_id: Set(realm_id.into()),
             public_key: Set(public_key),
             private_key: Set(private_key),
             created_at: Set(chrono::Utc::now().naive_utc()),

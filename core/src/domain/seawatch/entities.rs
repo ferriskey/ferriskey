@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::common::generate_uuid_v7;
+use crate::domain::realm::entities::RealmId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum SecurityEventType {
@@ -143,7 +144,7 @@ impl From<SecurityEventId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct SecurityEvent {
     pub id: SecurityEventId,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub actor_id: Option<Uuid>,
     pub actor_type: Option<ActorType>,
     pub event_type: SecurityEventType,
@@ -160,7 +161,7 @@ pub struct SecurityEvent {
 
 impl SecurityEvent {
     pub fn new(
-        realm_id: Uuid,
+        realm_id: RealmId,
         event_type: SecurityEventType,
         status: EventStatus,
         actor_id: Uuid,

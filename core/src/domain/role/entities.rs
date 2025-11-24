@@ -4,6 +4,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::client::entities::Client;
+use crate::domain::realm::entities::RealmId;
 
 pub mod permission;
 
@@ -13,7 +14,7 @@ pub struct Role {
     pub name: String,
     pub description: Option<String>,
     pub permissions: Vec<String>,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub client: Option<Client>,
     pub created_at: DateTime<Utc>,

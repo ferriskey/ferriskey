@@ -1,9 +1,9 @@
+use crate::domain::realm::entities::RealmId;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateClientRequest {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub name: String,
     pub client_id: String,
     pub secret: Option<String>,
@@ -16,7 +16,10 @@ pub struct CreateClientRequest {
 }
 
 impl CreateClientRequest {
-    pub fn create_realm_system_client(realm_id: Uuid, client_name: String) -> CreateClientRequest {
+    pub fn create_realm_system_client(
+        realm_id: RealmId,
+        client_name: String,
+    ) -> CreateClientRequest {
         CreateClientRequest {
             realm_id,
             client_id: client_name.clone(),

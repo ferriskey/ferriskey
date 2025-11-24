@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::Realm;
+use crate::domain::realm::entities::{Realm, RealmId};
 
 use super::entities::SecurityEvent;
 use super::value_objects::{FetchEventsInput, SecurityEventFilter};
@@ -24,7 +24,7 @@ pub trait SecurityEventRepository: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_events(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         filter: SecurityEventFilter,
     ) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
     fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<SecurityEvent, CoreError>> + Send;

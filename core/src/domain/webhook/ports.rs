@@ -1,6 +1,7 @@
 use serde::Serialize;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
@@ -52,24 +53,24 @@ pub trait WebhookService: Send + Sync {
 pub trait WebhookRepository: Send + Sync {
     fn fetch_webhooks_by_realm(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
 
     fn fetch_webhooks_by_subscriber(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         subscriber: WebhookTrigger,
     ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
 
     fn get_webhook_by_id(
         &self,
         webhook_id: Uuid,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
 
     fn create_webhook(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
@@ -89,7 +90,7 @@ pub trait WebhookRepository: Send + Sync {
 
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         payload: WebhookPayload<T>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }

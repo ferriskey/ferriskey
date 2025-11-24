@@ -4,6 +4,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::{entities::app_errors::CoreError, generate_uuid_v7},
     role::{
@@ -35,7 +36,7 @@ impl RoleRepository for PostgresRoleRepository {
             name: Set(payload.name),
             description: Set(payload.description),
             permissions: Set(bitfield as i64),
-            realm_id: Set(payload.realm_id),
+            realm_id: Set(payload.realm_id.into()),
             client_id: Set(payload.client_id),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
@@ -99,9 +100,9 @@ impl RoleRepository for PostgresRoleRepository {
         Ok(())
     }
 
-    async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Vec<Role>, CoreError> {
+    async fn find_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<Role>, CoreError> {
         let roles = crate::entity::roles::Entity::find()
-            .filter(crate::entity::roles::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::roles::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .find_with_related(crate::entity::clients::Entity)
             .all(&self.db)
             .await
