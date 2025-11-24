@@ -42,6 +42,17 @@ export const useGetLoginSettings = ({ realm }: BaseQuery) => {
   })
 }
 
+export const useGetRealm = ({ realm }: BaseQuery) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{name}', {
+      path: {
+        name: realm!,
+      },
+    }).queryOptions,
+    enabled: !!realm,
+  })
+}
+
 export const useUpdateRealmSettings = () => {
   const queryClient = useQueryClient()
 
