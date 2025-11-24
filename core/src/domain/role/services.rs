@@ -12,6 +12,7 @@ use crate::domain::{
         ports::{RolePolicy, RoleRepository, RoleService},
         value_objects::{UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
+    seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::{
@@ -20,8 +21,8 @@ use crate::domain::{
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> RoleService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> RoleService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -38,6 +39,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn delete_role(
         &self,
@@ -54,17 +56,26 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_delete_role(identity, realm).await,
+            self.policy.can_delete_role(identity.clone(), realm).await,
             "insufficient permissions",
         )?;
 
         let role = self.role_repository.get_by_id(role_id).await?;
         self.role_repository.delete_by_id(role_id).await?;
 
+        self.security_event_repository
+            .store_event(SecurityEvent::new(
+                realm_id,
+                SecurityEventType::RoleRemoved,
+                EventStatus::Success,
+                identity.id(),
+            ))
+            .await?;
+
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id, Some(role)),
+                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id.into(), Some(role)),
             )
             .await?;
 
@@ -153,7 +164,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleUpdated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::RoleUpdated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 
@@ -192,7 +207,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RolePermissionUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(role.clone()),
                 ),
             )

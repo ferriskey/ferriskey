@@ -10,6 +10,7 @@ use crate::{
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::realm::{
     entities::{Realm, RealmSetting},
     ports::RealmRepository,
@@ -54,7 +55,7 @@ impl RealmRepository for PostgresRealmRepository {
         let realm = Realm::new(name);
 
         let new_realm = ActiveModel {
-            id: Set(realm.id),
+            id: Set(realm.id.into()),
             name: Set(realm.name),
             created_at: Set(realm.created_at.naive_utc()),
             updated_at: Set(realm.updated_at.naive_utc()),
@@ -112,14 +113,14 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn create_realm_settings(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         algorithm: String,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = RealmSetting::new(realm_id, Some(algorithm));
 
         let active_model = crate::entity::realm_settings::ActiveModel {
             id: Set(realm_setting.id),
-            realm_id: Set(realm_setting.realm_id),
+            realm_id: Set(realm_setting.realm_id.into()),
             default_signing_algorithm: Set(realm_setting.default_signing_algorithm),
             updated_at: Set(realm_setting.updated_at.naive_utc()),
             ..Default::default()
@@ -139,14 +140,14 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn update_realm_setting(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         algorithm: Option<String>,
         user_registration_enabled: Option<bool>,
         forgot_password_enabled: Option<bool>,
         remember_me_enabled: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
-            .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -179,9 +180,12 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm_setting)
     }
 
-    async fn get_realm_settings(&self, realm_id: Uuid) -> Result<Option<RealmSetting>, CoreError> {
+    async fn get_realm_settings(
+        &self,
+        realm_id: RealmId,
+    ) -> Result<Option<RealmSetting>, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
-            .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?;

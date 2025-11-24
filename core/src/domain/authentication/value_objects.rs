@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::entities::GrantType,
     client::entities::Client,
@@ -31,7 +32,7 @@ pub struct CreateAuthSessionRequest {
 }
 
 pub struct GrantTypeParams {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub base_url: String,
     pub realm_name: String,
     pub client_id: String,
@@ -138,7 +139,7 @@ impl Identity {
     }
 
     /// Get the realm ID this identity belongs to
-    pub fn realm_id(&self) -> Uuid {
+    pub fn realm_id(&self) -> RealmId {
         match self {
             Self::User(user) => user.realm_id,
             Self::Client(client) => client.realm_id,

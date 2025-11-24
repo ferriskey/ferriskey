@@ -1,8 +1,9 @@
+use crate::domain::realm::entities::RealmId;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct CreateUserRequest {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,

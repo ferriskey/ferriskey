@@ -9,6 +9,7 @@ pub use super::realms::Entity as Realms;
 pub use super::redirect_uris::Entity as RedirectUris;
 pub use super::refresh_tokens::Entity as RefreshTokens;
 pub use super::roles::Entity as Roles;
+pub use super::security_events::Entity as SecurityEvents;
 pub use super::user_required_actions::Entity as UserRequiredActions;
 pub use super::user_role::Entity as UserRole;
 pub use super::user_sessions::Entity as UserSessions;

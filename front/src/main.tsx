@@ -18,10 +18,15 @@ const queryClient = new QueryClient({
   },
 })
 
+const DISABLE_REACT_QUERY_DEVTOOLS = import.meta.env.VITE_DISABLE_REACT_QUERY_DEVTOOLS === 'true'
+
 const render = (
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {!DISABLE_REACT_QUERY_DEVTOOLS && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
+
       <BrowserRouter>
         <App />
       </BrowserRouter>

@@ -4,6 +4,7 @@ use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Header, Validation};
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         ports::AuthSessionRepository, services::grant_type_service::GenerateTokenInput,
@@ -29,6 +30,7 @@ use crate::domain::{
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
     },
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::{
         ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
@@ -38,7 +40,7 @@ use crate::domain::{
 };
 
 #[derive(Clone)]
-pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+pub struct Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -55,6 +57,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -71,12 +74,13 @@ where
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) refresh_token_repository: Arc<RT>,
     pub(crate) recovery_code_repository: Arc<RC>,
+    pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: FerriskeyPolicy<U, C, UR>,
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
-    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+    Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -93,6 +97,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -111,6 +116,7 @@ where
         webhook_repository: W,
         refresh_token_repository: RT,
         recovery_code_repository: RC,
+        security_event_repository: SE,
     ) -> Self {
         let user_repo_arc = Arc::new(user_repository);
         let client_repo_arc = Arc::new(client_repository);
@@ -138,6 +144,7 @@ where
             webhook_repository: Arc::new(webhook_repository),
             refresh_token_repository: Arc::new(refresh_token_repository),
             recovery_code_repository: Arc::new(recovery_code_repository),
+            security_event_repository: Arc::new(security_event_repository),
 
             policy,
         }
@@ -182,7 +189,7 @@ where
     pub(crate) async fn generate_token(
         &self,
         claims: JwtClaim,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -247,7 +254,7 @@ where
     pub(crate) async fn verify_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
@@ -276,7 +283,7 @@ where
     pub(crate) async fn verify_refresh_token(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<JwtClaim, CoreError> {
         let claims = self.verify_token(token, realm_id).await?;
 
@@ -300,8 +307,8 @@ where
     }
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> CoreService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> CoreService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -318,6 +325,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn initialize_application(
         &self,
@@ -605,6 +613,7 @@ pub mod tests {
     use mockall::predicate::eq;
     use uuid::Uuid;
 
+    use crate::domain::realm::entities::RealmId;
     use crate::domain::{
         authentication::{ports::MockAuthSessionRepository, value_objects::Identity},
         client::{
@@ -621,6 +630,7 @@ pub mod tests {
             entities::{Role, permission::Permissions},
             ports::MockRoleRepository,
         },
+        seawatch::ports::MockSecurityEventRepository,
         trident::ports::MockRecoveryCodeRepository,
         user::{
             entities::User,
@@ -645,6 +655,7 @@ pub mod tests {
         MockWebhookRepository,
         MockRefreshTokenRepository,
         MockRecoveryCodeRepository,
+        MockSecurityEventRepository,
     >;
 
     /// Macros pour créer des mocks async avec clonage automatique
@@ -709,6 +720,7 @@ pub mod tests {
         webhook_repo: MockWebhookRepository,
         refresh_token_repo: MockRefreshTokenRepository,
         recovery_code_repo: MockRecoveryCodeRepository,
+        security_event_repo: MockSecurityEventRepository,
     }
 
     impl Default for ServiceTestBuilder {
@@ -735,6 +747,7 @@ pub mod tests {
                 webhook_repo: MockWebhookRepository::new(),
                 refresh_token_repo: MockRefreshTokenRepository::new(),
                 recovery_code_repo: MockRecoveryCodeRepository::new(),
+                security_event_repo: MockSecurityEventRepository::new(),
             }
         }
 
@@ -958,7 +971,7 @@ pub mod tests {
         pub fn with_successful_client_lookup(
             self,
             client_id: &str,
-            realm_id: Uuid,
+            realm_id: RealmId,
             client: Client,
         ) -> Self {
             self.with_client_repo(|repo| {
@@ -970,7 +983,7 @@ pub mod tests {
         }
 
         /// Configure une liste de roles par realm_id
-        pub fn with_roles_by_realm(self, realm_id: Uuid, roles: Vec<Role>) -> Self {
+        pub fn with_roles_by_realm(self, realm_id: RealmId, roles: Vec<Role>) -> Self {
             self.with_role_repo(|repo| {
                 repo.expect_find_by_realm_id()
                     .with(eq(realm_id))
@@ -1026,7 +1039,7 @@ pub mod tests {
         pub fn with_successful_user_lookup_by_username(
             self,
             username: &str,
-            realm_id: Uuid,
+            realm_id: RealmId,
             user: User,
         ) -> Self {
             self.with_user_repo(|repo| {
@@ -1067,7 +1080,7 @@ pub mod tests {
         }
 
         /// Configure un client non trouvé
-        pub fn with_client_not_found(self, client_id: &str, realm_id: Uuid) -> Self {
+        pub fn with_client_not_found(self, client_id: &str, realm_id: RealmId) -> Self {
             self.with_client_repo(|repo| {
                 repo.expect_get_by_client_id()
                     .with(eq(client_id.to_string()), eq(realm_id))
@@ -1118,7 +1131,7 @@ pub mod tests {
             })
         }
 
-        pub fn with_user_view_roles_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_view_roles_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_view_permission = create_test_role_with_params(
                 realm_id,
                 "viewer-role",
@@ -1130,7 +1143,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un rôle avec les permissions de manage users
-        pub fn with_user_manage_users_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_manage_users_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_manage_permission = create_test_role_with_params(
                 realm_id,
                 "admin-role",
@@ -1141,7 +1154,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un rôle avec les permissions de manage realm
-        pub fn with_user_manage_realm_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_manage_realm_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let role_with_manage_realm_permission = create_test_role_with_params(
                 realm_id,
                 "realm-admin-role",
@@ -1152,7 +1165,7 @@ pub mod tests {
         }
 
         /// Helper pour créer un utilisateur avec toutes les permissions
-        pub fn with_user_all_permissions(self, user_id: Uuid, realm_id: Uuid) -> Self {
+        pub fn with_user_all_permissions(self, user_id: Uuid, realm_id: RealmId) -> Self {
             let super_admin_role = create_test_role_with_params(
                 realm_id,
                 "super-admin",
@@ -1184,11 +1197,12 @@ pub mod tests {
                 self.webhook_repo,
                 self.refresh_token_repo,
                 self.recovery_code_repo,
+                self.security_event_repo,
             )
         }
     }
 
-    pub fn create_test_user(realm_id: Uuid) -> User {
+    pub fn create_test_user(realm_id: RealmId) -> User {
         User {
             id: Uuid::new_v4(),
             realm_id,
@@ -1255,7 +1269,7 @@ pub mod tests {
     }
 
     pub fn create_test_user_with_params(
-        realm_id: Uuid,
+        realm_id: RealmId,
         firstname: &str,
         lastname: &str,
         username: &str,
@@ -1282,7 +1296,7 @@ pub mod tests {
 
     pub fn create_test_realm() -> Realm {
         Realm {
-            id: Uuid::new_v4(),
+            id: RealmId::default(),
             name: "test-realm".to_string(),
             settings: None,
             created_at: Utc::now(),
@@ -1292,7 +1306,7 @@ pub mod tests {
 
     pub fn create_test_realm_with_name(name: &str) -> Realm {
         Realm {
-            id: Uuid::new_v4(),
+            id: RealmId::default(),
             name: name.to_string(),
             settings: None,
             created_at: Utc::now(),
@@ -1301,7 +1315,7 @@ pub mod tests {
     }
 
     /// Crée un rôle de test
-    pub fn create_test_role(realm_id: Uuid) -> Role {
+    pub fn create_test_role(realm_id: RealmId) -> Role {
         Role {
             id: Uuid::new_v4(),
             name: "test-role".to_string(),
@@ -1317,7 +1331,7 @@ pub mod tests {
 
     /// Crée un rôle de test avec des paramètres personnalisés
     pub fn create_test_role_with_params(
-        realm_id: Uuid,
+        realm_id: RealmId,
         name: &str,
         permissions: Vec<String>,
         client_id: Option<Uuid>,
@@ -1336,11 +1350,11 @@ pub mod tests {
     }
 
     /// Crée une identité utilisateur de test
-    pub fn create_test_user_identity(realm_id: Uuid) -> Identity {
+    pub fn create_test_user_identity(realm_id: RealmId) -> Identity {
         Identity::User(create_test_user(realm_id))
     }
 
-    pub fn create_test_client_identity(realm_id: Uuid) -> Identity {
+    pub fn create_test_client_identity(realm_id: RealmId) -> Identity {
         let client = Client {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),

@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         entities::{
@@ -136,7 +137,7 @@ pub trait AuthenticatePort: Send + Sync {
     fn handle_token_refresh(
         &self,
         token: String,
-        realm_id: Uuid,
+        realm_id: RealmId,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     client::{
         entities::redirect_uri::RedirectUri,
@@ -19,7 +20,7 @@ pub struct Client {
     pub enabled: bool,
     pub client_id: String,
     pub secret: Option<String>,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub protocol: String,
     pub public_client: bool,
     pub service_account_enabled: bool,
@@ -32,7 +33,7 @@ pub struct Client {
 }
 
 pub struct ClientConfig {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub name: String,
     pub client_id: String,
     pub secret: Option<String>,
@@ -68,7 +69,7 @@ impl Client {
         }
     }
 
-    pub fn from_realm_and_client_id(realm_id: Uuid, client_id: String) -> Self {
+    pub fn from_realm_and_client_id(realm_id: RealmId, client_id: String) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);
 

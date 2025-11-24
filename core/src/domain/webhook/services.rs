@@ -8,6 +8,7 @@ use crate::domain::{
     jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::{
@@ -21,8 +22,8 @@ use crate::domain::{
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> WebhookService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> WebhookService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -39,6 +40,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn get_webhooks_by_realm(
         &self,
@@ -153,7 +155,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::WebhookCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(webhook.clone()),
                 ),
             )
@@ -197,7 +199,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::WebhookUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(webhook.clone()),
                 ),
             )
@@ -227,7 +229,7 @@ where
 
         let webhook = self
             .webhook_repository
-            .get_webhook_by_id(realm_id, input.webhook_id)
+            .get_webhook_by_id(input.webhook_id, realm_id)
             .await?;
 
         self.webhook_repository
@@ -237,7 +239,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::WebhookDeleted, realm_id, Some(webhook)),
+                WebhookPayload::new(
+                    WebhookTrigger::WebhookDeleted,
+                    realm_id.into(),
+                    Some(webhook),
+                ),
             )
             .await?;
 

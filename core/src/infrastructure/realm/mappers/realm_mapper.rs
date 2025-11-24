@@ -8,7 +8,7 @@ impl From<Model> for Realm {
         let updated_at = Utc.from_utc_datetime(&value.updated_at);
 
         Realm {
-            id: value.id,
+            id: value.id.into(),
             name: value.name,
             settings: None,
             created_at,
@@ -23,7 +23,7 @@ impl From<&Model> for Realm {
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
         Realm {
-            id: model.id,
+            id: model.id.into(),
             name: model.name.clone(),
             settings: None,
             created_at,

@@ -25,6 +25,7 @@ use crate::domain::{
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
     },
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::{
@@ -33,8 +34,8 @@ use crate::domain::{
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> RealmService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> RealmService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -51,6 +52,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn create_realm(
         &self,
@@ -214,7 +216,7 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RealmCreated, realm_id, Some(realm)),
+                WebhookPayload::new(WebhookTrigger::RealmCreated, realm_id.into(), Some(realm)),
             )
             .await?;
 
@@ -353,7 +355,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RealmUpdated, realm_id, Some(realm.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::RealmUpdated,
+                    realm_id.into(),
+                    Some(realm.clone()),
+                ),
             )
             .await?;
 
@@ -392,7 +398,7 @@ where
                 realm.id,
                 WebhookPayload::new(
                     WebhookTrigger::RealmSettingsUpdated,
-                    realm.id,
+                    realm.id.into(),
                     Some(realm_setting.clone()),
                 ),
             )

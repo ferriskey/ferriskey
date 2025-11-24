@@ -1,3 +1,4 @@
+use crate::domain::realm::entities::RealmId;
 use uuid::Uuid;
 
 pub mod app_errors;
@@ -13,7 +14,7 @@ pub struct StartupConfig {
 
 #[derive(Debug, Clone)]
 pub struct InitializationResult {
-    pub master_realm_id: Uuid,
+    pub master_realm_id: RealmId,
     pub admin_user_id: Uuid,
     pub admin_role_id: Uuid,
     pub default_client_id: Uuid,

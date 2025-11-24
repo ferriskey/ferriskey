@@ -20,6 +20,7 @@ use sea_orm::{
 use tracing::error;
 
 use crate::domain::common::generate_timestamp;
+use crate::domain::realm::entities::RealmId;
 use crate::domain::webhook::entities::webhook_subscriber::WebhookSubscriber;
 use crate::entity::webhook_subscribers::{
     ActiveModel as WebhookSubscriberActiveModel, Column as WebhookSubscriberColumn,
@@ -48,9 +49,9 @@ impl PostgresWebhookRepository {
 }
 
 impl WebhookRepository for PostgresWebhookRepository {
-    async fn fetch_webhooks_by_realm(&self, realm_id: Uuid) -> Result<Vec<Webhook>, CoreError> {
+    async fn fetch_webhooks_by_realm(&self, realm_id: RealmId) -> Result<Vec<Webhook>, CoreError> {
         let webhooks = WebhookEntity::find()
-            .filter(WebhookColumn::RealmId.eq(realm_id))
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
             .all(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -63,7 +64,7 @@ impl WebhookRepository for PostgresWebhookRepository {
 
     async fn fetch_webhooks_by_subscriber(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         subscriber: WebhookTrigger,
     ) -> Result<Vec<Webhook>, CoreError> {
         let webhooks = WebhookEntity::find()
@@ -71,7 +72,7 @@ impl WebhookRepository for PostgresWebhookRepository {
                 sea_orm::JoinType::InnerJoin,
                 WebhookRelation::WebhookSubscribers.def(),
             )
-            .filter(WebhookColumn::RealmId.eq(realm_id))
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
             .filter(WebhookSubscriberColumn::Name.eq(subscriber.to_string()))
             .all(&self.db)
             .await
@@ -89,10 +90,10 @@ impl WebhookRepository for PostgresWebhookRepository {
     async fn get_webhook_by_id(
         &self,
         webhook_id: Uuid,
-        realm_id: Uuid,
+        realm_id: RealmId,
     ) -> Result<Option<Webhook>, CoreError> {
         let webhook = WebhookEntity::find()
-            .filter(WebhookColumn::RealmId.eq(realm_id))
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
             .filter(WebhookColumn::Id.eq(webhook_id))
             .one(&self.db)
             .await
@@ -104,7 +105,7 @@ impl WebhookRepository for PostgresWebhookRepository {
 
     async fn create_webhook(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
@@ -118,7 +119,7 @@ impl WebhookRepository for PostgresWebhookRepository {
             endpoint: Set(endpoint),
             name: Set(name),
             description: Set(description),
-            realm_id: Set(realm_id),
+            realm_id: Set(realm_id.into()),
             triggered_at: Set(None),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
@@ -217,7 +218,7 @@ impl WebhookRepository for PostgresWebhookRepository {
 
     async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
-        realm_id: Uuid,
+        realm_id: RealmId,
         payload: WebhookPayload<T>,
     ) -> Result<(), CoreError> {
         let client = self.http_client.clone();

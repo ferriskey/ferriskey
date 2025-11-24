@@ -17,6 +17,7 @@ use crate::{
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
+        seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
         user::{
             repositories::{
                 user_required_action_repository::PostgresUserRequiredActionRepository,
@@ -44,6 +45,7 @@ pub type FerrisKeyService = Service<
     PostgresWebhookRepository,
     PostgresRefreshTokenRepository,
     RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>,
+    PostgresSecurityEventRepository,
 >;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService, CoreError> {
@@ -75,6 +77,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
     let webhook = PostgresWebhookRepository::new(postgres.get_db());
     let refresh_token = PostgresRefreshTokenRepository::new(postgres.get_db());
     let recovery_code = RandBytesRecoveryCodeRepository::new(hasher.clone());
+    let security_event = PostgresSecurityEventRepository::new(postgres.get_db());
 
     Ok(Service::new(
         realm,
@@ -92,5 +95,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
         webhook,
         refresh_token,
         recovery_code,
+        security_event,
     ))
 }

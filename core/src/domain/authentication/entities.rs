@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
 
+use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity, common::generate_timestamp, jwt::entities::JwtClaim,
     user::entities::RequiredAction,
@@ -101,7 +102,7 @@ pub enum WebAuthnChallenge {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthSession {
     pub id: Uuid,
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Uuid,
     pub redirect_uri: String,
     pub response_type: String,
@@ -119,7 +120,7 @@ pub struct AuthSession {
 
 #[derive(Debug, Clone)]
 pub struct AuthSessionParams {
-    pub realm_id: Uuid,
+    pub realm_id: RealmId,
     pub client_id: Uuid,
     pub redirect_uri: String,
     pub response_type: String,

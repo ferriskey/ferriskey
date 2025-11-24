@@ -10,6 +10,7 @@ use crate::domain::{
     jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
+    seawatch::SecurityEventRepository,
     trident::ports::RecoveryCodeRepository,
     user::{
         entities::{
@@ -30,8 +31,8 @@ use crate::domain::{
 
 pub mod user_role_service;
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> UserService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> UserService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -48,6 +49,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn delete_user(
         &self,
@@ -79,7 +81,7 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id, Some(user)),
+                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id.into(), Some(user)),
             )
             .await?;
 
@@ -189,7 +191,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(user.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserUpdated,
+                    realm_id.into(),
+                    Some(user.clone()),
+                ),
             )
             .await?;
 
@@ -249,7 +255,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::UserRoleAssigned,
-                    realm_id,
+                    realm_id.into(),
                     Some(role.clone()),
                 ),
             )
@@ -285,7 +291,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserBulkDeleted, realm_id, Some(input.ids)),
+                WebhookPayload::new(
+                    WebhookTrigger::UserBulkDeleted,
+                    realm_id.into(),
+                    Some(input.ids),
+                ),
             )
             .await?;
 
@@ -329,7 +339,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserCreated, realm_id, Some(user.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserCreated,
+                    realm_id.into(),
+                    Some(user.clone()),
+                ),
             )
             .await?;
 
@@ -381,7 +395,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserUpdated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::UserUpdated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 

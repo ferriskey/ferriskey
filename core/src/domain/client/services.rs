@@ -24,6 +24,7 @@ use crate::domain::{
         ports::{RolePolicy, RoleRepository},
         value_objects::CreateRoleRequest,
     },
+    seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     trident::ports::RecoveryCodeRepository,
     user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
     webhook::{
@@ -32,8 +33,8 @@ use crate::domain::{
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC> ClientService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC>
+impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> ClientService
+    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -50,6 +51,7 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
 {
     async fn create_client(
         &self,
@@ -94,7 +96,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(client.clone()),
                 ),
             )
@@ -132,7 +134,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriCreated,
-                    realm_id,
+                    realm_id.into(),
                     Some(redirect_uri.clone()),
                 ),
             )
@@ -155,7 +157,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_create_role(identity, realm).await,
+            self.policy.can_create_role(identity.clone(), realm).await,
             "insufficient permissions",
         )?;
 
@@ -171,10 +173,23 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        self.security_event_repository
+            .store_event(SecurityEvent::new(
+                realm_id,
+                SecurityEventType::RoleCreated,
+                EventStatus::Success,
+                identity.id(),
+            ))
+            .await?;
+
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleCreated, realm_id, Some(role.clone())),
+                WebhookPayload::new(
+                    WebhookTrigger::RoleCreated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
             )
             .await?;
 
@@ -210,7 +225,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientDeleted,
-                    realm_id,
+                    realm_id.into(),
                     Some(input.client_id),
                 ),
             )
@@ -247,7 +262,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriDeleted,
-                    realm_id,
+                    realm_id.into(),
                     Some(input.uri_id),
                 ),
             )
@@ -378,7 +393,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::ClientUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(client.clone()),
                 ),
             )
@@ -416,7 +431,7 @@ where
                 realm_id,
                 WebhookPayload::new(
                     WebhookTrigger::RedirectUriUpdated,
-                    realm_id,
+                    realm_id.into(),
                     Some(redirect_uri.clone()),
                 ),
             )
