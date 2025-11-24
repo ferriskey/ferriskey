@@ -10,8 +10,8 @@ impl From<CoreError> for ApiError {
             CoreError::Invalid => Self::BadRequest("Invalid resource".to_string()),
             CoreError::Forbidden(msg) => Self::Forbidden(msg),
             CoreError::InternalServerError => {
-                Self::InternalServerError("Internal server error".to_string())
-            }
+                        Self::InternalServerError("Internal server error".to_string())
+                    }
             CoreError::RedirectUriNotFound => Self::NotFound("Redirect URI not found".to_string()),
             CoreError::InvalidRedirectUri => Self::BadRequest("Invalid redirect URI".to_string()),
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".to_string()),
@@ -20,53 +20,53 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidPassword => Self::Unauthorized("Invalid password".to_string()),
             CoreError::InvalidState => Self::BadRequest("Invalid state".to_string()),
             CoreError::InvalidRefreshToken => {
-                Self::Unauthorized("Invalid refresh token".to_string())
-            }
+                        Self::Unauthorized("Invalid refresh token".to_string())
+                    }
             CoreError::InvalidClientSecret => {
-                Self::Unauthorized("Invalid client secret".to_string())
-            }
+                        Self::Unauthorized("Invalid client secret".to_string())
+                    }
             CoreError::InvalidRequest => {
-                Self::BadRequest("Invalid authorization request".to_string())
-            }
+                        Self::BadRequest("Invalid authorization request".to_string())
+                    }
             CoreError::ServiceAccountNotFound => {
-                Self::NotFound("Service account not found".to_string())
-            }
+                        Self::NotFound("Service account not found".to_string())
+                    }
             CoreError::HashPasswordError(msg) => {
-                Self::InternalServerError(format!("Hash password error: {}", msg))
-            }
+                        Self::InternalServerError(format!("Hash password error: {}", msg))
+                    }
             CoreError::VerifyPasswordError(msg) => {
-                Self::InternalServerError(format!("Verify password error: {}", msg))
-            }
+                        Self::InternalServerError(format!("Verify password error: {}", msg))
+                    }
             CoreError::DeletePasswordCredentialError => {
-                Self::InternalServerError("Failed to delete password credential".to_string())
-            }
+                        Self::InternalServerError("Failed to delete password credential".to_string())
+                    }
             CoreError::CreateCredentialError => {
-                Self::InternalServerError("Failed to create credential".to_string())
-            }
+                        Self::InternalServerError("Failed to create credential".to_string())
+                    }
             CoreError::GetPasswordCredentialError => {
-                Self::InternalServerError("Failed to get password credential".to_string())
-            }
+                        Self::InternalServerError("Failed to get password credential".to_string())
+                    }
             CoreError::GetUserCredentialsError => {
-                Self::InternalServerError("Failed to get user credentials".to_string())
-            }
+                        Self::InternalServerError("Failed to get user credentials".to_string())
+                    }
             CoreError::DeleteCredentialError => {
-                Self::InternalServerError("Failed to delete credential".to_string())
-            }
+                        Self::InternalServerError("Failed to delete credential".to_string())
+                    }
             CoreError::TokenGenerationError(msg) => {
-                Self::InternalServerError(format!("Token generation error: {}", msg))
-            }
+                        Self::InternalServerError(format!("Token generation error: {}", msg))
+                    }
             CoreError::TokenValidationError(msg) => {
-                Self::Unauthorized(format!("Token validation error: {}", msg))
-            }
+                        Self::Unauthorized(format!("Token validation error: {}", msg))
+                    }
             CoreError::TokenParsingError(msg) => {
-                Self::BadRequest(format!("Token parsing error: {}", msg))
-            }
+                        Self::BadRequest(format!("Token parsing error: {}", msg))
+                    }
             CoreError::TokenExpirationError(msg) => {
-                Self::Unauthorized(format!("Token expiration error: {}", msg))
-            }
+                        Self::Unauthorized(format!("Token expiration error: {}", msg))
+                    }
             CoreError::RealmKeyNotFound => {
-                Self::InternalServerError("Realm key not found".to_string())
-            }
+                        Self::InternalServerError("Realm key not found".to_string())
+                    }
             CoreError::InvalidToken => Self::Unauthorized("Invalid token".to_string()),
             CoreError::ExpiredToken => Self::Unauthorized("Expired token".to_string()),
             CoreError::InvalidKey(msg) => Self::BadRequest(format!("Invalid key: {}", msg)),
@@ -74,37 +74,52 @@ impl From<CoreError> for ApiError {
             CoreError::SessionExpired => Self::Unauthorized("Session expired".to_string()),
             CoreError::InvalidSession => Self::Unauthorized("Invalid session".to_string()),
             CoreError::SessionCreateError => {
-                Self::InternalServerError("Failed to create session".to_string())
-            }
+                        Self::InternalServerError("Failed to create session".to_string())
+                    }
             CoreError::SessionDeleteError => {
-                Self::InternalServerError("Failed to delete session".to_string())
-            }
+                        Self::InternalServerError("Failed to delete session".to_string())
+                    }
             CoreError::InvalidTotpSecretFormat => {
-                Self::BadRequest("Invalid TOTP secret format".to_string())
-            }
+                        Self::BadRequest("Invalid TOTP secret format".to_string())
+                    }
             CoreError::TotpGenerationFailed(msg) => {
-                Self::InternalServerError(format!("TOTP generation failed: {}", msg))
-            }
+                        Self::InternalServerError(format!("TOTP generation failed: {}", msg))
+                    }
             CoreError::TotpVerificationFailed(msg) => {
-                Self::Unauthorized(format!("TOTP verification failed: {}", msg))
-            }
+                        Self::Unauthorized(format!("TOTP verification failed: {}", msg))
+                    }
             CoreError::CannotDeleteMasterRealm => {
-                Self::Forbidden("Cannot delete master realm".to_string())
-            }
+                        Self::Forbidden("Cannot delete master realm".to_string())
+                    }
             CoreError::WebhookNotFound => Self::NotFound("Webhook not found".to_string()),
             CoreError::WebhookForbidden => Self::Forbidden("Webhook forbidden".to_string()),
             CoreError::FailedWebhookNotification(msg) => {
-                Self::InternalServerError(format!("Failed to notify webhook: {}", msg))
-            }
+                        Self::InternalServerError(format!("Failed to notify webhook: {}", msg))
+                    }
             CoreError::WebhookRealmNotFound => {
-                Self::NotFound("Realm not found for webhook".to_string())
-            }
+                        Self::NotFound("Realm not found for webhook".to_string())
+                    }
             CoreError::CreateClientError => {
-                Self::InternalServerError("Failed to create client".to_string())
-            }
+                        Self::InternalServerError("Failed to create client".to_string())
+                    }
             CoreError::ServiceUnavailable(msg) => Self::ServiceUnavailable(msg),
             CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg),
             CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg),
+            CoreError::AuthorizationCodeStorageFailed => {
+                Self::InternalServerError(String::new())
+            },
+            CoreError::AuthSessionExpectedState => {
+                Self::InternalServerError(String::new())
+            },
+            CoreError::WebAuthnMissingChallenge => {
+                Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".to_string())
+            },
+            CoreError::WebAuthnCredentialNotFound => {
+                Self::BadRequest("Missing webauthn credential for the provided id. Have you created a webauthn credential first ?".to_string())
+            }
+            CoreError::WebAuthnChallengeFailed => {
+                Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".to_string())
+            }
         }
     }
 }

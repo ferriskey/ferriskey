@@ -1,4 +1,5 @@
 use uuid::Uuid;
+use webauthn_rs::prelude::{AuthenticationResult, Passkey};
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -65,4 +66,21 @@ pub trait CredentialRepository: Send + Sync {
         user_id: Uuid,
         hash: Vec<HashResult>,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
+
+    fn create_webauthn_credential(
+        &self,
+        user_id: Uuid,
+        webauthn_credential: Passkey,
+    ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
+
+    fn get_webauthn_public_key_credentials(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Credential>, CredentialError>> + Send;
+
+    /// Sometimes webauthn credential needs an internal counter updated after auth attempt
+    fn update_webauthn_credential(
+        &self,
+        auth_result: &AuthenticationResult,
+    ) -> impl Future<Output = Result<bool, CredentialError>> + Send;
 }

@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-
 use crate::domain::common::entities::app_errors::CoreError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TotpCredentialData {

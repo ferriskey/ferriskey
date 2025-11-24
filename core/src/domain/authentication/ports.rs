@@ -6,7 +6,7 @@ use crate::domain::{
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthenticateInput, AuthenticateOutput,
             AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken, WebAuthnChallenge,
         },
         value_objects::{
             AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
@@ -73,6 +73,15 @@ pub trait AuthSessionRepository: Send + Sync {
         code: String,
         user_id: Uuid,
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+    fn save_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+        challenge: WebAuthnChallenge,
+    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+    fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {

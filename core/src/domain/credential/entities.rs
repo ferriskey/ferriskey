@@ -4,8 +4,9 @@ use std::fmt::Display;
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use webauthn_rs::prelude::{Credential as WebAuthnCredential, CredentialID, Passkey};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub id: Uuid,
     pub salt: Option<String>,
@@ -17,6 +18,7 @@ pub struct Credential {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<CredentialID>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -24,6 +26,7 @@ pub enum CredentialType {
     Password,
     Otp,
     RecoveryCode,
+    WebAuthnPublicKeyCredential,
 }
 
 impl Display for CredentialType {
@@ -32,6 +35,7 @@ impl Display for CredentialType {
             CredentialType::Password => "password",
             CredentialType::Otp => "otp",
             CredentialType::RecoveryCode => "recovery-code",
+            CredentialType::WebAuthnPublicKeyCredential => "webauthn-public-key-credential",
         };
         write!(f, "{}", s)
     }
@@ -43,6 +47,7 @@ impl From<String> for CredentialType {
             "password" => CredentialType::Password,
             "otp" => CredentialType::Otp,
             "recovery-code" => CredentialType::RecoveryCode,
+            "webauthn-public-key-credential" => CredentialType::WebAuthnPublicKeyCredential,
             _ => CredentialType::Password, // default to Password if unknown
         }
     }
@@ -54,17 +59,18 @@ impl CredentialType {
             CredentialType::Password => "password",
             CredentialType::Otp => "otp",
             CredentialType::RecoveryCode => "recovery-code",
+            CredentialType::WebAuthnPublicKeyCredential => "webauthn-public-key-credential",
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd, ToSchema)]
 pub struct CredentialOverview {
     pub id: Uuid,
     pub user_id: Uuid,
     pub credential_type: String,
     pub user_label: Option<String>,
-    pub credential_data: CredentialData,
+    pub credential_data: CredentialDataOverview,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -76,7 +82,7 @@ impl From<Credential> for CredentialOverview {
             user_id: credential.user_id,
             credential_type: credential.credential_type.to_string(),
             user_label: credential.user_label,
-            credential_data: credential.credential_data,
+            credential_data: credential.credential_data.into(),
             created_at: credential.created_at,
             updated_at: credential.updated_at,
         }
@@ -96,21 +102,61 @@ impl Credential {
             temporary: config.temporary,
             created_at: config.created_at,
             updated_at: config.updated_at,
+            webauthn_credential_id: config.webauthn_credential_id,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
-pub struct CredentialData {
-    pub hash_iterations: u32,
-    pub algorithm: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+// for back-compat, maybe we should switch this to tagged in the future ?
+#[serde(untagged)]
+pub enum CredentialData {
+    Hash {
+        hash_iterations: u32,
+        algorithm: String,
+    },
+    WebAuthn {
+        credential: Box<WebAuthnCredential>,
+    },
 }
 
 impl CredentialData {
-    pub fn new(hash_iterations: u32, algorithm: String) -> Self {
-        Self {
+    pub fn new_hash(hash_iterations: u32, algorithm: String) -> Self {
+        Self::Hash {
             hash_iterations,
             algorithm,
+        }
+    }
+
+    pub fn new_webauthn(passkey: Passkey) -> Self {
+        Self::WebAuthn {
+            credential: Box::new(passkey.into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq, ToSchema)]
+pub enum CredentialDataOverview {
+    Hash {
+        hash_iterations: u32,
+        algorithm: String,
+    },
+    // It's not inherently risky to reveal some WA credential data but it's a bit unusual...
+    // I'll leave it empty for now
+    WebAuthn,
+}
+
+impl From<CredentialData> for CredentialDataOverview {
+    fn from(data: CredentialData) -> Self {
+        match data {
+            CredentialData::Hash {
+                hash_iterations,
+                algorithm,
+            } => CredentialDataOverview::Hash {
+                hash_iterations,
+                algorithm,
+            },
+            CredentialData::WebAuthn { .. } => CredentialDataOverview::WebAuthn,
         }
     }
 }
@@ -126,6 +172,7 @@ pub struct CredentialConfig {
     pub temporary: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub webauthn_credential_id: Option<CredentialID>,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -150,6 +197,12 @@ pub enum CredentialError {
 
     #[error("Delete credential error")]
     DeleteCredentialError,
+
+    #[error("Update credential error")]
+    UpdateCredentialError,
+
+    #[error("Unexpected credential data variant")]
+    UnexpectedCredentialData,
 }
 
 pub struct GetCredentialsInput {

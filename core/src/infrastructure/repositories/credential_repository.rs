@@ -1,11 +1,15 @@
-use crate::entity::credentials::{ActiveModel, Entity as CredentialEntity};
+use crate::{
+    domain::credential::entities::CredentialType,
+    entity::credentials::{ActiveModel, Entity as CredentialEntity},
+};
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
-    QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    IntoActiveModel, ModelTrait, QueryFilter,
 };
 use serde_json::Value;
 use tracing::error;
+use webauthn_rs::prelude::{AuthenticationResult, CredentialID, Passkey};
 
 use crate::domain::{
     common::{generate_timestamp, generate_uuid_v7},
@@ -23,10 +27,12 @@ impl From<crate::entity::credentials::Model> for Credential {
 
         let credential_data = serde_json::from_value(model.credential_data)
             .map_err(|_| CredentialError::GetPasswordCredentialError)
-            .unwrap_or(CredentialData {
+            .unwrap_or(CredentialData::Hash {
                 hash_iterations: 0,
                 algorithm: "default".to_string(),
             });
+
+        let webauthn_credential_id = model.webauthn_credential_id.map(CredentialID::from);
 
         Self {
             id: model.id,
@@ -39,6 +45,7 @@ impl From<crate::entity::credentials::Model> for Credential {
             temporary: model.temporary.unwrap_or(false),
             created_at,
             updated_at,
+            webauthn_credential_id,
         }
     }
 }
@@ -77,6 +84,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
+            webauthn_credential_id: Set(None),
         };
 
         let t = payload
@@ -107,7 +115,10 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::UserId.eq(user_id))
-            .filter(crate::entity::credentials::Column::CredentialType.eq("password"))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq(CredentialType::Password.as_str()),
+            )
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -177,6 +188,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
+            webauthn_credential_id: Set(None),
         };
 
         let model = payload
@@ -216,6 +228,7 @@ impl CredentialRepository for PostgresCredentialRepository {
                 created_at: Set(now.naive_utc()),
                 updated_at: Set(now.naive_utc()),
                 temporary: Set(Some(false)),
+                webauthn_credential_id: Set(None),
             });
 
         let _ = CredentialEntity::insert_many(models)
@@ -224,5 +237,104 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
         Ok(())
+    }
+
+    async fn create_webauthn_credential(
+        &self,
+        user_id: uuid::Uuid,
+        webauthn_credential: Passkey,
+    ) -> Result<Credential, CredentialError> {
+        let (now, _) = generate_timestamp();
+
+        let credential_id = Vec::from(webauthn_credential.cred_id().to_owned());
+        let credential_data = CredentialData::new_webauthn(webauthn_credential);
+
+        let credential_data = serde_json::to_value(credential_data)
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        let payload = ActiveModel {
+            id: Set(generate_uuid_v7()),
+            salt: Set(None),
+            credential_type: Set(CredentialType::WebAuthnPublicKeyCredential.to_string()),
+            user_id: Set(user_id),
+            user_label: Set(None),
+            secret_data: Set("".to_string()),
+            credential_data: Set(credential_data),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(false)),
+            webauthn_credential_id: Set(Some(credential_id)),
+        };
+
+        let model = payload
+            .insert(&self.db)
+            .await
+            .map_err(|_| CredentialError::CreateCredentialError)?;
+
+        Ok(model.into())
+    }
+
+    async fn get_webauthn_public_key_credentials(
+        &self,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<Credential>, CredentialError> {
+        let credentials = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq(CredentialType::WebAuthnPublicKeyCredential.as_str()),
+            )
+            .all(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .into_iter()
+            .map(Credential::from)
+            .collect();
+
+        Ok(credentials)
+    }
+
+    async fn update_webauthn_credential(
+        &self,
+        auth_result: &AuthenticationResult,
+    ) -> Result<bool, CredentialError> {
+        let credential_id: &[u8] = auth_result.cred_id().as_slice();
+
+        let credential_model = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::WebauthnCredentialId.eq(credential_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .ok_or(CredentialError::GetUserCredentialsError)?;
+
+        let credential: Credential = credential_model.clone().into();
+
+        let update_res;
+        let updated_data = match credential.credential_data {
+            CredentialData::WebAuthn { credential } => {
+                let mut passkey = Passkey::from(*credential);
+
+                update_res = passkey
+                    .update_credential(auth_result)
+                    .ok_or(CredentialError::UpdateCredentialError)?;
+
+                CredentialData::WebAuthn {
+                    credential: Box::new(passkey.into()),
+                }
+            }
+            _ => return Err(CredentialError::UnexpectedCredentialData),
+        };
+
+        let updated_data = serde_json::to_value(updated_data)
+            .map_err(|_| CredentialError::UpdateCredentialError)?;
+
+        let mut active_model = credential_model.into_active_model();
+        active_model.credential_data = Set(updated_data);
+        active_model
+            .update(&self.db)
+            .await
+            .map_err(|_| CredentialError::UpdateCredentialError)?;
+
+        Ok(update_res)
     }
 }

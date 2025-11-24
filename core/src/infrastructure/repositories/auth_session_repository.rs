@@ -7,7 +7,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::authentication::{
-    entities::{AuthSession, AuthenticationError},
+    entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
 };
 
@@ -15,6 +15,15 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
     fn from(model: crate::entity::auth_sessions::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
+        let webauthn_challenge_issued_at = model
+            .webauthn_challenge_issued_at
+            .map(|ref dt| Utc.from_utc_datetime(dt));
+
+        let webauthn_challenge = if let Some(webauthn_challenge) = model.webauthn_challenge {
+            serde_json::from_value(webauthn_challenge).ok()
+        } else {
+            None
+        };
 
         AuthSession {
             id: model.id,
@@ -30,6 +39,8 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             user_id: model.user_id,
             created_at,
             expires_at,
+            webauthn_challenge,
+            webauthn_challenge_issued_at,
         }
     }
 }
@@ -61,6 +72,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             user_id: Set(None),
             created_at: Set(session.created_at.naive_utc()),
             expires_at: Set(session.expires_at.naive_utc()),
+            webauthn_challenge: Set(None),
+            webauthn_challenge_issued_at: Set(None),
         };
 
         let t = model
@@ -136,5 +149,76 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into();
 
         Ok(session)
+    }
+
+    async fn save_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+        challenge: WebAuthnChallenge,
+    ) -> Result<AuthSession, AuthenticationError> {
+        let challenge = serde_json::to_value(&challenge).map_err(|e| {
+            error!("Error serializing WebAuthnChallenge: {e:?}");
+            AuthenticationError::InternalServerError
+        })?;
+
+        let session = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::WebauthnChallenge,
+                Expr::value(challenge),
+            )
+            .col_expr(
+                crate::entity::auth_sessions::Column::WebauthnChallengeIssuedAt,
+                Expr::value(Utc::now()),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec_with_returning(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session: {:?}", e);
+                AuthenticationError::Invalid
+            })?
+            .into_iter()
+            .next()
+            .ok_or(AuthenticationError::NotFound)?
+            .into();
+
+        Ok(session)
+    }
+
+    async fn take_webauthn_challenge(
+        &self,
+        session_code: Uuid,
+    ) -> Result<Option<WebAuthnChallenge>, AuthenticationError> {
+        // apparently this can be done in a single sql query with CTEs
+        // sea_orm doesn't support them well so two queries it will be
+
+        let auth_session_model = crate::entity::auth_sessions::Entity::find()
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error fetching session: {e:?}");
+                AuthenticationError::InternalServerError
+            })?
+            .ok_or(AuthenticationError::NotFound)?;
+
+        if let Some(challenge) = auth_session_model.webauthn_challenge.clone() {
+            let mut active: crate::entity::auth_sessions::ActiveModel = auth_session_model.into();
+
+            active.webauthn_challenge = Set(None);
+            active.update(&self.db).await.map_err(|e| {
+                error!("Error updating session: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+            let challenge = serde_json::from_value(challenge).map_err(|e| {
+                error!("Error deserializing webauthn_challenge: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+            Ok(Some(challenge))
+        } else {
+            Ok(None)
+        }
     }
 }

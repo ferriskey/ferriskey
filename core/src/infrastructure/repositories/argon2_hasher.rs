@@ -36,7 +36,7 @@ impl HasherRepository for Argon2HasherRepository {
         let argon2 = Argon2::new(argon2::Algorithm::Argon2d, Version::V0x13, params.clone());
 
         let credential_data =
-            CredentialData::new(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
+            CredentialData::new_hash(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
 
         let password_hash = argon2
             .hash_password(password.as_bytes(), &salt)
@@ -51,10 +51,11 @@ impl HasherRepository for Argon2HasherRepository {
         &self,
         password: &str,
         secret_data: &str,
-        credential_data: &CredentialData,
+        hash_iterations: u32,
+        algorithm: &str,
         _salt: &str,
     ) -> Result<bool, anyhow::Error> {
-        let algorithm = match credential_data.algorithm.as_str() {
+        let algorithm = match algorithm {
             "argon2i" => Algorithm::Argon2i,
             "argon2d" => Algorithm::Argon2d,
             _ => Algorithm::Argon2id, // Par défaut, utiliser Argon2id
@@ -63,7 +64,7 @@ impl HasherRepository for Argon2HasherRepository {
         let argon2 = Argon2::new(
             algorithm,
             Version::V0x13,
-            Params::new(65536, credential_data.hash_iterations, 4, None)
+            Params::new(65536, hash_iterations, 4, None)
                 .map_err(|e| anyhow::anyhow!("Erreur de configuration des paramètres: {}", e))?,
         );
 
@@ -86,16 +87,15 @@ mod tests {
         let password = "my_password";
 
         let result = hasher.hash_password(password).await;
-
         assert!(result.is_ok(), "Password hashing should succeed");
 
         let hash_result = result.unwrap();
+        let CredentialData::Hash { algorithm, .. } = hash_result.credential_data else {
+            panic!("Expected credential_data to be Hash")
+        };
         assert!(!hash_result.hash.is_empty(), "Hash should not be empty");
         assert!(!hash_result.salt.is_empty(), "Salt should not be empty");
-        assert!(
-            !hash_result.credential_data.algorithm.is_empty(),
-            "Credential data should not be empty"
-        );
+        assert!(!algorithm.is_empty(), "Credential data should not be empty");
 
         assert!(
             hash_result.hash.starts_with("$argon2"),
@@ -110,11 +110,20 @@ mod tests {
 
         let hash_result = hasher.hash_password(password).await.unwrap();
 
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = hash_result.credential_data
+        else {
+            panic!("Expected credential_data to be Hash")
+        };
+
         let result = hasher
             .verify_password(
                 password,
                 &hash_result.hash,
-                &hash_result.credential_data,
+                hash_iterations,
+                &algorithm,
                 &hash_result.salt,
             )
             .await;
@@ -130,12 +139,20 @@ mod tests {
         let wrong_password = "bad_password";
 
         let hash_result = hasher.hash_password(password).await.unwrap();
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = hash_result.credential_data
+        else {
+            panic!("Expected credential_data to be Hash")
+        };
 
         let result = hasher
             .verify_password(
                 wrong_password,
                 &hash_result.hash,
-                &hash_result.credential_data,
+                hash_iterations,
+                &algorithm,
                 &hash_result.salt,
             )
             .await;
@@ -149,12 +166,15 @@ mod tests {
         let hasher = Argon2HasherRepository::new();
         let password = "my_password";
         let invalid_hash = "invalid_hash";
+        let hash_iterations = 1;
+        let algorithm = "argon2d";
 
         let result = hasher
             .verify_password(
                 password,
                 invalid_hash,
-                &CredentialData::new(1, "argon2d".to_string()),
+                hash_iterations,
+                algorithm,
                 invalid_hash,
             )
             .await;
