@@ -4,17 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { SigningAlgorithm } from '@/api/core.interface'
 import { Form } from '@/components/ui/form'
 import PageRealmSettingsGeneral from '../ui/page-realm-settings-general'
-import useRealmStore from '@/store/realm.store'
-import { mapRealms } from '@/api/core.mapper'
 import { useFormChanges } from '@/hooks/use-form-changes'
-import { useFeature } from '@/hooks/use-feature'
-import { Feature } from '@/lib/features'
+import { useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import { useGetRealm } from '@/api/realm.api'
 
 export default function PageRealmSettingsGeneralFeature() {
-  const enabled = useFeature(Feature.REALM_SETTINGS)
-  const { userRealms } = useRealmStore()
-
-  const realm = mapRealms(userRealms).find((item) => item.name === 'master')
+  const { realm_name } = useParams<RouterParams>()
+  const { data: realm } = useGetRealm({ realm: realm_name })
 
   const form = useForm<UpdateRealmSchema>({
     resolver: zodResolver(updateRealmValidator),
@@ -29,18 +26,18 @@ export default function PageRealmSettingsGeneralFeature() {
     form,
     realm && {
       name: realm.name ?? 'master',
-      default_signing_algorithm:SigningAlgorithm.RS256,
+      default_signing_algorithm: SigningAlgorithm.RS256,
     }
   )
 
 
-  if (!realm) return null
-
-  if (!enabled) return null
+  if (!realm) return (
+    <div>No realm</div>
+  )
 
   return (
     <Form {...form}>
-      <PageRealmSettingsGeneral realm={realm} hasChanges={hasChanges} />
+      <PageRealmSettingsGeneral hasChanges={hasChanges} />
     </Form>
   )
 }
