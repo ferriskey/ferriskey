@@ -1,7 +1,7 @@
 use crate::{
     domain::{
         client::services::ClientServiceImpl, credential::services::CredentialServiceImpl,
-        seawatch::services::SecurityEventServiceImpl,
+        realm::services::RealmServiceImpl, seawatch::services::SecurityEventServiceImpl,
     },
     infrastructure::{
         client::repositories::{
@@ -45,4 +45,6 @@ pub struct ApplicationService {
         RoleRepo,
         SecurityEventRepo,
     >,
+    pub(crate) realm_service:
+        RealmServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, RoleRepo, WebhookRepo>,
 }
