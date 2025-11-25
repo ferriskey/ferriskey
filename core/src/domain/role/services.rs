@@ -1,11 +1,12 @@
+use std::sync::Arc;
+
 use crate::domain::{
-    authentication::{ports::AuthSessionRepository, value_objects::Identity},
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, policies::ensure_policy, services::Service},
-    credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
-    health::ports::HealthCheckRepository,
-    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
+    authentication::value_objects::Identity,
+    client::ports::ClientRepository,
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, ensure_policy},
+    },
     realm::ports::RealmRepository,
     role::{
         entities::{GetUserRolesInput, Role, UpdateRoleInput},
@@ -13,33 +14,71 @@ use crate::domain::{
         value_objects::{UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
-    trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    user::ports::{UserRepository, UserRoleRepository},
     webhook::{
         entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
         ports::WebhookRepository,
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> RoleService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+#[derive(Clone)]
+pub struct RoleServiceImpl<R, U, C, UR, RO, SE, W>
 where
     R: RealmRepository,
-    C: ClientRepository,
     U: UserRepository,
-    CR: CredentialRepository,
-    H: HasherRepository,
-    AS: AuthSessionRepository,
-    RU: RedirectUriRepository,
-    RO: RoleRepository,
-    KS: KeyStoreRepository,
+    C: ClientRepository,
     UR: UserRoleRepository,
-    URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
-    W: WebhookRepository,
-    RT: RefreshTokenRepository,
-    RC: RecoveryCodeRepository,
+    RO: RoleRepository,
     SE: SecurityEventRepository,
+    W: WebhookRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) role_repository: Arc<RO>,
+    pub(crate) security_event_repository: Arc<SE>,
+    pub(crate) webhook_repository: Arc<W>,
+    pub(crate) user_role_repository: Arc<UR>,
+
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, RO, SE, W> RoleServiceImpl<R, U, C, UR, RO, SE, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+    W: WebhookRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        role_repository: Arc<RO>,
+        security_event_repository: Arc<SE>,
+        webhook_repository: Arc<W>,
+        user_role_repository: Arc<UR>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            role_repository,
+            security_event_repository,
+            webhook_repository,
+            user_role_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, RO, SE, W> RoleService for RoleServiceImpl<R, U, C, UR, RO, SE, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+    W: WebhookRepository,
 {
     async fn delete_role(
         &self,
@@ -131,6 +170,29 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
+    async fn get_user_roles(
+        &self,
+        identity: Identity,
+        input: GetUserRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InternalServerError)?;
+
+        ensure_policy(
+            self.policy.can_view_role(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.user_role_repository
+            .get_user_roles(input.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)
+    }
+
     async fn update_role(
         &self,
         identity: Identity,
@@ -215,47 +277,142 @@ where
 
         Ok(role)
     }
-
-    async fn get_user_roles(
-        &self,
-        identity: Identity,
-        input: GetUserRolesInput,
-    ) -> Result<Vec<Role>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(input.realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
-
-        ensure_policy(
-            self.policy.can_view_role(identity, realm).await,
-            "insufficient permissions",
-        )?;
-
-        self.user_role_repository
-            .get_user_roles(input.user_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use mockall::predicate::*;
+    use uuid::Uuid;
+
     use crate::domain::{
         authentication::value_objects::Identity,
-        client::entities::Client,
+        client::{entities::Client, ports::MockClientRepository},
         common::{
             entities::app_errors::CoreError,
+            policies::FerriskeyPolicy,
             services::tests::{
-                ServiceTestBuilder, assert_success, create_test_realm, create_test_realm_with_name,
-                create_test_role, create_test_role_with_params, create_test_user,
-                create_test_user_with_realm,
+                assert_success, create_test_realm, create_test_realm_with_name, create_test_role,
+                create_test_role_with_params, create_test_user, create_test_user_with_realm,
             },
         },
-        role::{entities::permission::Permissions, ports::RoleService},
+        realm::{
+            entities::{Realm, RealmId},
+            ports::MockRealmRepository,
+        },
+        role::{
+            entities::{Role, permission::Permissions},
+            ports::{MockRoleRepository, RoleService},
+            services::RoleServiceImpl,
+        },
+        seawatch::ports::MockSecurityEventRepository,
+        user::ports::{MockUserRepository, MockUserRoleRepository},
+        webhook::ports::MockWebhookRepository,
     };
-    use std::vec;
+    use std::{sync::Arc, vec};
+
+    struct RoleServiceTestBuilder {
+        realm_repo: Arc<MockRealmRepository>,
+        role_repo: Arc<MockRoleRepository>,
+        security_event_repo: Arc<MockSecurityEventRepository>,
+        webhook_repo: Arc<MockWebhookRepository>,
+        user_role_repo: Arc<MockUserRoleRepository>,
+        client_repo: Arc<MockClientRepository>,
+        user_repo: Arc<MockUserRepository>,
+    }
+
+    impl RoleServiceTestBuilder {
+        fn new() -> Self {
+            Self {
+                realm_repo: Arc::new(MockRealmRepository::new()),
+                role_repo: Arc::new(MockRoleRepository::new()),
+                security_event_repo: Arc::new(MockSecurityEventRepository::new()),
+                webhook_repo: Arc::new(MockWebhookRepository::new()),
+                user_role_repo: Arc::new(MockUserRoleRepository::new()),
+                client_repo: Arc::new(MockClientRepository::new()),
+                user_repo: Arc::new(MockUserRepository::new()),
+            }
+        }
+
+        fn with_successful_realm_lookup(mut self, realm_name: &str, realm: Realm) -> Self {
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_get_by_name()
+                .with(eq(realm_name.to_string()))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
+
+            self
+        }
+
+        fn with_successful_role_lookup(mut self, role_id: Uuid, role: Role) -> Self {
+            Arc::get_mut(&mut self.role_repo)
+                .unwrap()
+                .expect_get_by_id()
+                .with(eq(role_id))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(Some(role)) }));
+            self
+        }
+
+        fn with_user_roles(mut self, user_id: Uuid, roles: Vec<Role>) -> Self {
+            Arc::get_mut(&mut self.user_role_repo)
+                .unwrap()
+                .expect_get_user_roles()
+                .with(eq(user_id))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(roles) }));
+            self
+        }
+
+        fn with_no_user_roles(mut self) -> Self {
+            Arc::get_mut(&mut self.user_role_repo)
+                .unwrap()
+                .expect_get_user_roles()
+                .return_once(move |_| Box::pin(async move { Ok(vec![]) }));
+            self
+        }
+
+        fn with_successful_client_lookup(
+            mut self,
+            client_id: &str,
+            realm_id: RealmId,
+            client: Client,
+        ) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_get_by_client_id()
+                .with(eq(client_id.to_string()), eq(realm_id))
+                .times(1)
+                .return_once(move |_, _| Box::pin(async move { Ok(client) }));
+            self
+        }
+
+        fn build(
+            self,
+        ) -> RoleServiceImpl<
+            MockRealmRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+            MockRoleRepository,
+            MockSecurityEventRepository,
+            MockWebhookRepository,
+        > {
+            let policy = FerriskeyPolicy::new(
+                self.user_repo.clone(),
+                self.client_repo.clone(),
+                self.user_role_repo.clone(),
+            );
+            RoleServiceImpl::new(
+                self.realm_repo,
+                self.role_repo,
+                self.security_event_repo,
+                self.webhook_repo,
+                self.user_role_repo,
+                Arc::new(policy),
+            )
+        }
+    }
 
     #[tokio::test]
     async fn test_get_role_success() {
@@ -271,13 +428,15 @@ mod tests {
             None,
         );
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
             .with_user_roles(user.id, vec![user_role_with_permissions])
             .with_successful_role_lookup(role.id, role.clone())
             .build();
 
-        let result = service.get_role(identity, realm.name, role.id).await;
+        let result = service
+            .get_role(identity, realm.name.clone(), role.id)
+            .await;
 
         // Assert
         let returned_role = assert_success(result);
@@ -301,7 +460,7 @@ mod tests {
             None,
         );
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
             .with_user_roles(user.id, vec![admin_role])
             .with_successful_role_lookup(role.id, role.clone())
@@ -328,7 +487,7 @@ mod tests {
             None,
         );
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
             .with_user_roles(user.id, vec![realm_admin_role])
             .with_successful_role_lookup(role.id, role.clone())
@@ -350,11 +509,14 @@ mod tests {
         let role = create_test_role(realm.id);
         let identity = Identity::User(user.clone());
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_no_user_roles()
             .build();
 
-        let result = service.get_role(identity, realm.name, role.id).await;
+        let result = service
+            .get_role(identity, realm.name.clone(), role.id)
+            .await;
 
         assert!(matches!(result.unwrap_err(), CoreError::Forbidden(_)));
     }
@@ -374,7 +536,7 @@ mod tests {
             None,
         );
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
             .with_user_roles(user.id, vec![insufficient_role])
             .build();
@@ -394,9 +556,9 @@ mod tests {
         let role = create_test_role(realm.id);
         let identity = Identity::User(user.clone());
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&realm.name, realm.clone())
-            .with_no_user_roles(user.id)
+            .with_no_user_roles()
             .build();
 
         // Act
@@ -426,7 +588,7 @@ mod tests {
             Some(target_realm_client.id),
         );
 
-        let service = ServiceTestBuilder::new()
+        let service = RoleServiceTestBuilder::new()
             .with_successful_realm_lookup(&target_realm.name, target_realm.clone())
             .with_user_roles(user_in_master.id, vec![cross_realm_role])
             .with_successful_client_lookup(

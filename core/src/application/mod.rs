@@ -1,5 +1,22 @@
+use std::sync::Arc;
+
 use crate::{
-    domain::common::{FerriskeyConfig, entities::app_errors::CoreError, services::Service},
+    domain::{
+        authentication::services::AuthServiceImpl,
+        client::services::ClientServiceImpl,
+        common::{
+            FerriskeyConfig, entities::app_errors::CoreError, policies::FerriskeyPolicy,
+            services::CoreServiceImpl,
+        },
+        credential::services::CredentialServiceImpl,
+        health::services::HealthServiceImpl,
+        realm::services::RealmServiceImpl,
+        role::services::RoleServiceImpl,
+        seawatch::services::SecurityEventServiceImpl,
+        trident::services::TridentServiceImpl,
+        user::services::UserServiceImpl,
+        webhook::services::WebhookServiceImpl,
+    },
     infrastructure::{
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
@@ -29,26 +46,22 @@ use crate::{
     },
 };
 
-pub type FerrisKeyService = Service<
-    PostgresRealmRepository,
-    PostgresClientRepository,
-    PostgresUserRepository,
-    PostgresCredentialRepository,
-    Argon2HasherRepository,
-    PostgresAuthSessionRepository,
-    PostgresRedirectUriRepository,
-    PostgresRoleRepository,
-    PostgresKeyStoreRepository,
-    PostgresUserRoleRepository,
-    PostgresUserRequiredActionRepository,
-    PostgresHealthCheckRepository,
-    PostgresWebhookRepository,
-    PostgresRefreshTokenRepository,
-    RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>,
-    PostgresSecurityEventRepository,
->;
+pub mod services;
 
-pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService, CoreError> {
+pub mod auth;
+pub mod client;
+pub mod credential;
+pub mod health;
+pub mod realm;
+pub mod role;
+pub mod seawatch;
+pub mod trident;
+pub mod user;
+pub mod webhook;
+
+pub use services::ApplicationService;
+
+pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
         config.database.username,
@@ -62,39 +75,110 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<FerrisKeyService,
         .await
         .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
-    let realm = PostgresRealmRepository::new(postgres.get_db());
-    let client = PostgresClientRepository::new(postgres.get_db());
-    let user = PostgresUserRepository::new(postgres.get_db());
-    let credential = PostgresCredentialRepository::new(postgres.get_db());
-    let hasher = Argon2HasherRepository::new();
-    let auth_session = PostgresAuthSessionRepository::new(postgres.get_db());
-    let redirect_uri = PostgresRedirectUriRepository::new(postgres.get_db());
-    let role = PostgresRoleRepository::new(postgres.get_db());
-    let keystore = PostgresKeyStoreRepository::new(postgres.get_db());
-    let user_role = PostgresUserRoleRepository::new(postgres.get_db());
-    let user_required_action = PostgresUserRequiredActionRepository::new(postgres.get_db());
-    let health_check = PostgresHealthCheckRepository::new(postgres.get_db());
-    let webhook = PostgresWebhookRepository::new(postgres.get_db());
-    let refresh_token = PostgresRefreshTokenRepository::new(postgres.get_db());
-    let recovery_code = RandBytesRecoveryCodeRepository::new(hasher.clone());
-    let security_event = PostgresSecurityEventRepository::new(postgres.get_db());
+    let realm = Arc::new(PostgresRealmRepository::new(postgres.get_db()));
+    let client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
+    let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
+    let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
+    let hasher = Arc::new(Argon2HasherRepository::new());
+    let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
+    let redirect_uri = Arc::new(PostgresRedirectUriRepository::new(postgres.get_db()));
+    let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
+    let keystore = Arc::new(PostgresKeyStoreRepository::new(postgres.get_db()));
+    let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
+    let user_required_action =
+        Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
+    let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
+    let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
+    let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
+    let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
+    let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
 
-    Ok(Service::new(
-        realm,
-        client,
-        user,
-        credential,
-        hasher,
-        auth_session,
-        redirect_uri,
-        role,
-        keystore,
-        user_role,
-        user_required_action,
-        health_check,
-        webhook,
-        refresh_token,
-        recovery_code,
-        security_event,
-    ))
+    let policy = Arc::new(FerriskeyPolicy::new(
+        user.clone(),
+        client.clone(),
+        user_role.clone(),
+    ));
+
+    let app = ApplicationService {
+        auth_service: AuthServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            redirect_uri.clone(),
+            user.clone(),
+            credential.clone(),
+            hasher.clone(),
+            auth_session.clone(),
+            keystore.clone(),
+            refresh_token.clone(),
+        ),
+        client_service: ClientServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            webhook.clone(),
+            redirect_uri.clone(),
+            role.clone(),
+            security_event.clone(),
+            policy.clone(),
+        ),
+        credential_service: CredentialServiceImpl::new(
+            realm.clone(),
+            credential.clone(),
+            policy.clone(),
+        ),
+        health_service: HealthServiceImpl::new(health_check.clone()),
+        realm_service: RealmServiceImpl::new(
+            realm.clone(),
+            user.clone(),
+            user_role.clone(),
+            role.clone(),
+            client.clone(),
+            webhook.clone(),
+            policy.clone(),
+        ),
+        role_service: RoleServiceImpl::new(
+            realm.clone(),
+            role.clone(),
+            security_event.clone(),
+            webhook.clone(),
+            user_role.clone(),
+            policy.clone(),
+        ),
+        security_event_service: SecurityEventServiceImpl::new(
+            realm.clone(),
+            security_event.clone(),
+            policy.clone(),
+        ),
+        trident_service: TridentServiceImpl::new(
+            credential.clone(),
+            recovery_code.clone(),
+            auth_session.clone(),
+            hasher.clone(),
+            user_required_action.clone(),
+        ),
+        user_service: UserServiceImpl::new(
+            realm.clone(),
+            user.clone(),
+            credential.clone(),
+            hasher.clone(),
+            user_role.clone(),
+            role.clone(),
+            user_required_action.clone(),
+            webhook.clone(),
+            policy.clone(),
+        ),
+        webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        core_service: CoreServiceImpl::new(
+            realm.clone(),
+            keystore.clone(),
+            client.clone(),
+            user.clone(),
+            role.clone(),
+            user_role.clone(),
+            hasher.clone(),
+            credential.clone(),
+            redirect_uri.clone(),
+        ),
+    };
+
+    Ok(app)
 }

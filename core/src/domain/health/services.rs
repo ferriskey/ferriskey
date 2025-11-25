@@ -1,41 +1,35 @@
+use std::sync::Arc;
+
 use crate::domain::{
-    authentication::ports::AuthSessionRepository,
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, services::Service},
-    credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
+    common::entities::app_errors::CoreError,
     health::{
         entities::DatabaseHealthStatus,
         ports::{HealthCheckRepository, HealthCheckService},
     },
-    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
-    realm::ports::RealmRepository,
-    role::ports::RoleRepository,
-    seawatch::SecurityEventRepository,
-    trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-    webhook::ports::WebhookRepository,
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> HealthCheckService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+#[derive(Clone)]
+pub struct HealthServiceImpl<H>
 where
-    R: RealmRepository,
-    C: ClientRepository,
-    U: UserRepository,
-    CR: CredentialRepository,
-    H: HasherRepository,
-    AS: AuthSessionRepository,
-    RU: RedirectUriRepository,
-    RO: RoleRepository,
-    KS: KeyStoreRepository,
-    UR: UserRoleRepository,
-    URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
-    W: WebhookRepository,
-    RT: RefreshTokenRepository,
-    RC: RecoveryCodeRepository,
-    SE: SecurityEventRepository,
+    H: HealthCheckRepository,
+{
+    pub(crate) health_check_repository: Arc<H>,
+}
+
+impl<H> HealthServiceImpl<H>
+where
+    H: HealthCheckRepository,
+{
+    pub fn new(health_check_repository: Arc<H>) -> Self {
+        Self {
+            health_check_repository,
+        }
+    }
+}
+
+impl<H> HealthCheckService for HealthServiceImpl<H>
+where
+    H: HealthCheckRepository,
 {
     async fn readness(&self) -> Result<DatabaseHealthStatus, CoreError> {
         self.health_check_repository.readness().await

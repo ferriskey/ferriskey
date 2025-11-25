@@ -1,17 +1,18 @@
+use std::sync::Arc;
+
 use uuid::Uuid;
 
 use crate::domain::{
-    authentication::{ports::AuthSessionRepository, value_objects::Identity},
-    client::ports::{ClientRepository, RedirectUriRepository},
-    common::{entities::app_errors::CoreError, policies::ensure_policy, services::Service},
+    authentication::value_objects::Identity,
+    client::ports::ClientRepository,
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, ensure_policy},
+    },
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
-    health::ports::HealthCheckRepository,
-    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
-    seawatch::SecurityEventRepository,
-    trident::ports::RecoveryCodeRepository,
     user::{
         entities::{
             AssignRoleInput, CreateUserInput, GetUserInput, RequiredAction, ResetPasswordInput,
@@ -31,25 +32,80 @@ use crate::domain::{
 
 pub mod user_role_service;
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> UserService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+#[derive(Clone)]
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
 where
     R: RealmRepository,
-    C: ClientRepository,
     U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
-    AS: AuthSessionRepository,
-    RU: RedirectUriRepository,
     RO: RoleRepository,
-    KS: KeyStoreRepository,
-    UR: UserRoleRepository,
     URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
     W: WebhookRepository,
-    RT: RefreshTokenRepository,
-    RC: RecoveryCodeRepository,
-    SE: SecurityEventRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) user_repository: Arc<U>,
+    pub(crate) credential_repository: Arc<CR>,
+    pub(crate) hasher_repository: Arc<H>,
+    pub(crate) user_role_repository: Arc<UR>,
+    pub(crate) role_repository: Arc<RO>,
+    pub(crate) user_required_action_repository: Arc<URA>,
+    pub(crate) webhook_repository: Arc<W>,
+
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CR, H, RO, URA, W> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    RO: RoleRepository,
+    URA: UserRequiredActionRepository,
+    W: WebhookRepository,
+{
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        realm_repository: Arc<R>,
+        user_repository: Arc<U>,
+        credential_repository: Arc<CR>,
+        hasher_repository: Arc<H>,
+        user_role_repository: Arc<UR>,
+        role_repository: Arc<RO>,
+        user_required_action_repository: Arc<URA>,
+        webhook_repository: Arc<W>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            user_repository,
+            credential_repository,
+            hasher_repository,
+            user_role_repository,
+            role_repository,
+            user_required_action_repository,
+            webhook_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, CR, H, RO, URA, W> UserService for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    RO: RoleRepository,
+    URA: UserRequiredActionRepository,
+    W: WebhookRepository,
 {
     async fn delete_user(
         &self,

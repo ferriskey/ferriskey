@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use crate::domain::{
-    authentication::{ports::AuthSessionRepository, value_objects::Identity},
+    authentication::value_objects::Identity,
     client::{
         entities::{
             Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
@@ -11,13 +13,10 @@ use crate::domain::{
         value_objects::CreateClientRequest,
     },
     common::{
-        entities::app_errors::CoreError, generate_random_string, policies::ensure_policy,
-        services::Service,
+        entities::app_errors::CoreError,
+        generate_random_string,
+        policies::{FerriskeyPolicy, ensure_policy},
     },
-    credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
-    health::ports::HealthCheckRepository,
-    jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
     realm::ports::RealmRepository,
     role::{
         entities::Role,
@@ -25,32 +24,76 @@ use crate::domain::{
         value_objects::CreateRoleRequest,
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
-    trident::ports::RecoveryCodeRepository,
-    user::ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
+    user::ports::{UserRepository, UserRoleRepository},
     webhook::{
         entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
         ports::WebhookRepository,
     },
 };
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> ClientService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+#[derive(Clone)]
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
 where
     R: RealmRepository,
-    C: ClientRepository,
     U: UserRepository,
-    CR: CredentialRepository,
-    H: HasherRepository,
-    AS: AuthSessionRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
     RU: RedirectUriRepository,
     RO: RoleRepository,
-    KS: KeyStoreRepository,
+    SE: SecurityEventRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) client_repository: Arc<C>,
+    pub(crate) webhook_repository: Arc<W>,
+    pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) role_repository: Arc<RO>,
+    pub(crate) security_event_repository: Arc<SE>,
+
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, W, RU, RO, SE> ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
     UR: UserRoleRepository,
-    URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
     W: WebhookRepository,
-    RT: RefreshTokenRepository,
-    RC: RecoveryCodeRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_repository: Arc<C>,
+        webhook_repository: Arc<W>,
+        redirect_uri_repository: Arc<RU>,
+        role_repository: Arc<RO>,
+        security_event_repository: Arc<SE>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_repository,
+            webhook_repository,
+            redirect_uri_repository,
+            role_repository,
+            security_event_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, W, RU, RO, SE> ClientService for ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
     SE: SecurityEventRepository,
 {
     async fn create_client(

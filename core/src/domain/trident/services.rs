@@ -1,4 +1,7 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
@@ -14,18 +17,12 @@ use crate::{
             ports::AuthSessionRepository,
             value_objects::Identity,
         },
-        client::ports::{ClientRepository, RedirectUriRepository},
-        common::{entities::app_errors::CoreError, generate_random_string, services::Service},
+        common::{entities::app_errors::CoreError, generate_random_string},
         credential::{
             entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
         },
         crypto::ports::HasherRepository,
-        health::ports::HealthCheckRepository,
-        jwt::ports::{KeyStoreRepository, RefreshTokenRepository},
-        realm::ports::RealmRepository,
-        role::ports::RoleRepository,
-        seawatch::SecurityEventRepository,
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
@@ -39,11 +36,7 @@ use crate::{
                 WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
-        user::{
-            entities::RequiredAction,
-            ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
-        },
-        webhook::ports::WebhookRepository,
+        user::{entities::RequiredAction, ports::UserRequiredActionRepository},
     },
     infrastructure::recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
@@ -182,25 +175,54 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
     ))
 }
 
-impl<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE> TridentService
-    for Service<R, C, U, CR, H, AS, RU, RO, KS, UR, URA, HC, W, RT, RC, SE>
+#[derive(Clone)]
+pub struct TridentServiceImpl<CR, RC, AS, H, URA>
 where
-    R: RealmRepository,
-    C: ClientRepository,
-    U: UserRepository,
     CR: CredentialRepository,
-    H: HasherRepository,
-    AS: AuthSessionRepository,
-    RU: RedirectUriRepository,
-    RO: RoleRepository,
-    KS: KeyStoreRepository,
-    UR: UserRoleRepository,
-    URA: UserRequiredActionRepository,
-    HC: HealthCheckRepository,
-    W: WebhookRepository,
-    RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
-    SE: SecurityEventRepository,
+    AS: AuthSessionRepository,
+    H: HasherRepository,
+    URA: UserRequiredActionRepository,
+{
+    pub(crate) credential_repository: Arc<CR>,
+    pub(crate) recovery_code_repository: Arc<RC>,
+    pub(crate) auth_session_repository: Arc<AS>,
+    pub(crate) hasher_repository: Arc<H>,
+    pub(crate) user_required_action_repository: Arc<URA>,
+}
+
+impl<CR, RC, AS, H, URA> TridentServiceImpl<CR, RC, AS, H, URA>
+where
+    CR: CredentialRepository,
+    RC: RecoveryCodeRepository,
+    AS: AuthSessionRepository,
+    H: HasherRepository,
+    URA: UserRequiredActionRepository,
+{
+    pub fn new(
+        credential_repository: Arc<CR>,
+        recovery_code_repository: Arc<RC>,
+        auth_session_repository: Arc<AS>,
+        hasher_repository: Arc<H>,
+        user_required_action_repository: Arc<URA>,
+    ) -> Self {
+        Self {
+            credential_repository,
+            recovery_code_repository,
+            auth_session_repository,
+            hasher_repository,
+            user_required_action_repository,
+        }
+    }
+}
+
+impl<CR, RC, AS, H, URA> TridentService for TridentServiceImpl<CR, RC, AS, H, URA>
+where
+    CR: CredentialRepository,
+    RC: RecoveryCodeRepository,
+    AS: AuthSessionRepository,
+    H: HasherRepository,
+    URA: UserRequiredActionRepository,
 {
     async fn generate_recovery_code(
         &self,
