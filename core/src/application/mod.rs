@@ -29,6 +29,10 @@ use crate::{
     },
 };
 
+pub mod services;
+
+pub mod seawatch;
+
 pub type FerrisKeyService = Service<
     PostgresRealmRepository,
     PostgresClientRepository,
