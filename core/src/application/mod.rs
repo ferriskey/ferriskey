@@ -5,10 +5,8 @@ use crate::{
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
-            FerriskeyConfig,
-            entities::app_errors::CoreError,
-            policies::FerriskeyPolicy,
-            services::{CoreServiceImpl, Service},
+            FerriskeyConfig, entities::app_errors::CoreError, policies::FerriskeyPolicy,
+            services::CoreServiceImpl,
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
@@ -62,25 +60,6 @@ pub mod user;
 pub mod webhook;
 
 pub use services::ApplicationService;
-
-pub type FerrisKeyService = Service<
-    PostgresRealmRepository,
-    PostgresClientRepository,
-    PostgresUserRepository,
-    PostgresCredentialRepository,
-    Argon2HasherRepository,
-    PostgresAuthSessionRepository,
-    PostgresRedirectUriRepository,
-    PostgresRoleRepository,
-    PostgresKeyStoreRepository,
-    PostgresUserRoleRepository,
-    PostgresUserRequiredActionRepository,
-    PostgresHealthCheckRepository,
-    PostgresWebhookRepository,
-    PostgresRefreshTokenRepository,
-    RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>,
-    PostgresSecurityEventRepository,
->;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(

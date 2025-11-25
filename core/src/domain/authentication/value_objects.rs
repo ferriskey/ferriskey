@@ -161,3 +161,13 @@ impl Identity {
         }
     }
 }
+
+pub struct GenerateTokenInput {
+    pub base_url: String,
+    pub realm_name: String,
+    pub user_id: Uuid,
+    pub username: String,
+    pub client_id: String,
+    pub email: String,
+    pub realm_id: RealmId,
+}
