@@ -445,6 +445,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
 where
     R: RealmRepository,
@@ -464,6 +465,38 @@ where
     pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, W, RU, RO, SE> ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_repository: Arc<C>,
+        webhook_repository: Arc<W>,
+        redirect_uri_repository: Arc<RU>,
+        role_repository: Arc<RO>,
+        security_event_repository: Arc<SE>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_repository,
+            webhook_repository,
+            redirect_uri_repository,
+            role_repository,
+            security_event_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, W, RU, RO, SE> ClientService for ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>

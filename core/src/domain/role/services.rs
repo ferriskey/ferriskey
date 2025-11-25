@@ -246,6 +246,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct RoleServiceImpl<R, U, C, UR, RO, SE, W>
 where
     R: RealmRepository,
@@ -262,7 +263,36 @@ where
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) user_role_repository: Arc<UR>,
 
-    pub(crate) policy: FerriskeyPolicy<U, C, UR>,
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, RO, SE, W> RoleServiceImpl<R, U, C, UR, RO, SE, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+    W: WebhookRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        role_repository: Arc<RO>,
+        security_event_repository: Arc<SE>,
+        webhook_repository: Arc<W>,
+        user_role_repository: Arc<UR>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            role_repository,
+            security_event_repository,
+            webhook_repository,
+            user_role_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, RO, SE, W> RoleService for RoleServiceImpl<R, U, C, UR, RO, SE, W>

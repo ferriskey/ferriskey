@@ -75,6 +75,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct SecurityEventServiceImpl<R, U, C, UR, SE>
 where
     R: RealmRepository,
@@ -86,6 +87,27 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, SE> SecurityEventServiceImpl<R, U, C, UR, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SE: SecurityEventRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        security_event_repository: Arc<SE>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            security_event_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, SE> SecurityEventService for SecurityEventServiceImpl<R, U, C, UR, SE>

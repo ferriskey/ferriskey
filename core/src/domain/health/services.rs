@@ -48,11 +48,23 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct HealthServiceImpl<H>
 where
     H: HealthCheckRepository,
 {
     pub(crate) health_check_repository: Arc<H>,
+}
+
+impl<H> HealthServiceImpl<H>
+where
+    H: HealthCheckRepository,
+{
+    pub fn new(health_check_repository: Arc<H>) -> Self {
+        Self {
+            health_check_repository,
+        }
+    }
 }
 
 impl<H> HealthCheckService for HealthServiceImpl<H>

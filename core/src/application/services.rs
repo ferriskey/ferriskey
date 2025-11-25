@@ -1,10 +1,20 @@
 use crate::{
     domain::{
-        authentication::services::AuthServiceImpl, client::services::ClientServiceImpl,
-        credential::services::CredentialServiceImpl, health::services::HealthServiceImpl,
-        realm::services::RealmServiceImpl, role::services::RoleServiceImpl,
-        seawatch::services::SecurityEventServiceImpl, trident::services::TridentServiceImpl,
-        user::services::UserServiceImpl, webhook::services::WebhookServiceImpl,
+        authentication::services::AuthServiceImpl,
+        client::services::ClientServiceImpl,
+        common::{
+            entities::{InitializationResult, StartupConfig, app_errors::CoreError},
+            ports::CoreService,
+            services::CoreServiceImpl,
+        },
+        credential::services::CredentialServiceImpl,
+        health::services::HealthServiceImpl,
+        realm::services::RealmServiceImpl,
+        role::services::RoleServiceImpl,
+        seawatch::services::SecurityEventServiceImpl,
+        trident::services::TridentServiceImpl,
+        user::services::UserServiceImpl,
+        webhook::services::WebhookServiceImpl,
     },
     infrastructure::{
         client::repositories::{
@@ -51,6 +61,7 @@ type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 
+#[derive(Clone)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
@@ -110,4 +121,24 @@ pub struct ApplicationService {
         KeystoreRepo,
         RefreshTokenRepo,
     >,
+    pub(crate) core_service: CoreServiceImpl<
+        RealmRepo,
+        KeystoreRepo,
+        ClientRepo,
+        UserRepo,
+        RoleRepo,
+        UserRoleRepo,
+        HasherRepo,
+        CredentialRepo,
+        RedirectUriRepo,
+    >,
+}
+
+impl CoreService for ApplicationService {
+    async fn initialize_application(
+        &self,
+        config: StartupConfig,
+    ) -> Result<InitializationResult, CoreError> {
+        self.core_service.initialize_application(config).await
+    }
 }

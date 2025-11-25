@@ -257,6 +257,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct WebhookServiceImpl<R, U, C, UR, W>
 where
     R: RealmRepository,
@@ -269,6 +270,27 @@ where
     pub(crate) webhook_repository: Arc<W>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, W> WebhookServiceImpl<R, U, C, UR, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        webhook_repository: Arc<W>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            webhook_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, W> WebhookService for WebhookServiceImpl<R, U, C, UR, W>

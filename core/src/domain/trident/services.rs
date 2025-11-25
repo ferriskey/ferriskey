@@ -750,6 +750,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct TridentServiceImpl<CR, RC, AS, H, URA>
 where
     CR: CredentialRepository,
@@ -763,6 +764,31 @@ where
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) user_required_action_repository: Arc<URA>,
+}
+
+impl<CR, RC, AS, H, URA> TridentServiceImpl<CR, RC, AS, H, URA>
+where
+    CR: CredentialRepository,
+    RC: RecoveryCodeRepository,
+    AS: AuthSessionRepository,
+    H: HasherRepository,
+    URA: UserRequiredActionRepository,
+{
+    pub fn new(
+        credential_repository: Arc<CR>,
+        recovery_code_repository: Arc<RC>,
+        auth_session_repository: Arc<AS>,
+        hasher_repository: Arc<H>,
+        user_required_action_repository: Arc<URA>,
+    ) -> Self {
+        Self {
+            credential_repository,
+            recovery_code_repository,
+            auth_session_repository,
+            hasher_repository,
+            user_required_action_repository,
+        }
+    }
 }
 
 impl<CR, RC, AS, H, URA> TridentService for TridentServiceImpl<CR, RC, AS, H, URA>

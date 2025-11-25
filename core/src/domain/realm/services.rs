@@ -429,6 +429,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct RealmServiceImpl<R, U, C, UR, RO, W>
 where
     R: RealmRepository,
@@ -446,6 +447,36 @@ where
     pub(crate) webhook_repository: Arc<W>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, RO, W> RealmServiceImpl<R, U, C, UR, RO, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    W: WebhookRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        user_repository: Arc<U>,
+        user_role_repository: Arc<UR>,
+        role_repository: Arc<RO>,
+        client_repository: Arc<C>,
+        webhook_repository: Arc<W>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            user_repository,
+            user_role_repository,
+            role_repository,
+            client_repository,
+            webhook_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, RO, W> RealmService for RealmServiceImpl<R, U, C, UR, RO, W>

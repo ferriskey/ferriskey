@@ -413,6 +413,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
 where
     R: RealmRepository,
@@ -435,6 +436,44 @@ where
     pub(crate) webhook_repository: Arc<W>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CR, H, RO, URA, W> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    RO: RoleRepository,
+    URA: UserRequiredActionRepository,
+    W: WebhookRepository,
+{
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        realm_repository: Arc<R>,
+        user_repository: Arc<U>,
+        credential_repository: Arc<CR>,
+        hasher_repository: Arc<H>,
+        user_role_repository: Arc<UR>,
+        role_repository: Arc<RO>,
+        user_required_action_repository: Arc<URA>,
+        webhook_repository: Arc<W>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            user_repository,
+            credential_repository,
+            hasher_repository,
+            user_role_repository,
+            role_repository,
+            user_required_action_repository,
+            webhook_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, CR, H, RO, URA, W> UserService for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>

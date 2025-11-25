@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::crypto::entities::HashResult;
 use crate::domain::crypto::ports::HasherRepository;
@@ -11,11 +13,11 @@ use rand::prelude::*;
 /// as different byte length/formatter combos aren't always user friendly for display
 #[derive(Clone)]
 pub struct RandBytesRecoveryCodeRepository<const L: usize, H: HasherRepository> {
-    hasher: H,
+    hasher: Arc<H>,
 }
 
 impl<const L: usize, H: HasherRepository> RandBytesRecoveryCodeRepository<L, H> {
-    pub fn new(hasher: H) -> Self {
+    pub fn new(hasher: Arc<H>) -> Self {
         RandBytesRecoveryCodeRepository { hasher }
     }
 }

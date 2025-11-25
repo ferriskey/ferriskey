@@ -312,6 +312,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
 where
     R: RealmRepository,
@@ -333,6 +334,44 @@ where
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) keystore_repository: Arc<KS>,
     pub(crate) refresh_token_repository: Arc<RT>,
+}
+
+impl<R, C, RU, U, CR, H, AS, KS, RT> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    RU: RedirectUriRepository,
+    U: UserRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    KS: KeyStoreRepository,
+    RT: RefreshTokenRepository,
+{
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_repository: Arc<C>,
+        redirect_uri_repository: Arc<RU>,
+        user_repository: Arc<U>,
+        credential_repository: Arc<CR>,
+        hasher_repository: Arc<H>,
+        auth_session_repository: Arc<AS>,
+        keystore_repository: Arc<KS>,
+        refresh_token_repository: Arc<RT>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_repository,
+            redirect_uri_repository,
+            user_repository,
+            credential_repository,
+            hasher_repository,
+            auth_session_repository,
+            keystore_repository,
+            refresh_token_repository,
+        }
+    }
 }
 
 impl<R, C, RU, U, CR, H, AS, KS, RT> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>

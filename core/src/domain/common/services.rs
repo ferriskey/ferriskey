@@ -605,6 +605,358 @@ where
     }
 }
 
+#[derive(Clone)]
+pub struct CoreServiceImpl<R, K, C, U, RO, UR, H, CR, RU>
+where
+    R: RealmRepository,
+    K: KeyStoreRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    RO: RoleRepository,
+    UR: UserRoleRepository,
+    H: HasherRepository,
+    CR: CredentialRepository,
+    RU: RedirectUriRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) keystore_repository: Arc<K>,
+    pub(crate) client_repository: Arc<C>,
+    pub(crate) user_repository: Arc<U>,
+    pub(crate) role_repository: Arc<RO>,
+    pub(crate) user_role_repository: Arc<UR>,
+    pub(crate) hasher_repository: Arc<H>,
+    pub(crate) credential_repository: Arc<CR>,
+    pub(crate) redirect_uri_repository: Arc<RU>,
+}
+
+impl<R, K, C, U, RO, UR, H, CR, RU> CoreServiceImpl<R, K, C, U, RO, UR, H, CR, RU>
+where
+    R: RealmRepository,
+    K: KeyStoreRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    RO: RoleRepository,
+    UR: UserRoleRepository,
+    H: HasherRepository,
+    CR: CredentialRepository,
+    RU: RedirectUriRepository,
+{
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        realm_repository: Arc<R>,
+        keystore_repository: Arc<K>,
+        client_repository: Arc<C>,
+        user_repository: Arc<U>,
+        role_repository: Arc<RO>,
+        user_role_repository: Arc<UR>,
+        hasher_repository: Arc<H>,
+        credential_repository: Arc<CR>,
+        redirect_uri_repository: Arc<RU>,
+    ) -> Self {
+        CoreServiceImpl {
+            realm_repository,
+            keystore_repository,
+            client_repository,
+            user_repository,
+            role_repository,
+            user_role_repository,
+            hasher_repository,
+            credential_repository,
+            redirect_uri_repository,
+        }
+    }
+}
+
+impl<R, K, C, U, RO, UR, H, CR, RU> CoreService for CoreServiceImpl<R, K, C, U, RO, UR, H, CR, RU>
+where
+    R: RealmRepository,
+    K: KeyStoreRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    RO: RoleRepository,
+    UR: UserRoleRepository,
+    H: HasherRepository,
+    CR: CredentialRepository,
+    RU: RedirectUriRepository,
+{
+    async fn initialize_application(
+        &self,
+        config: StartupConfig,
+    ) -> Result<InitializationResult, CoreError> {
+        let realm = match self
+            .realm_repository
+            .get_by_name(config.master_realm_name.clone())
+            .await
+        {
+            Ok(Some(realm)) => {
+                tracing::info!("{} already exists", config.master_realm_name);
+                realm
+            }
+            Ok(None) => {
+                tracing::info!("creating master realm");
+
+                let realm = self
+                    .realm_repository
+                    .create_realm(config.master_realm_name.clone())
+                    .await?;
+
+                tracing::info!("{} realm created", config.master_realm_name);
+                realm
+            }
+            Err(_) => {
+                tracing::info!("creating master realm");
+                let realm = self
+                    .realm_repository
+                    .create_realm(config.master_realm_name.clone())
+                    .await?;
+
+                tracing::info!("{} realm created", config.master_realm_name);
+                realm
+            }
+        };
+
+        self.keystore_repository
+            .get_or_generate_key(realm.id)
+            .await
+            .map_err(|_| CoreError::RealmKeyNotFound)?;
+
+        match self.realm_repository.get_realm_settings(realm.id).await? {
+            None => {
+                self.realm_repository
+                    .create_realm_settings(realm.id, "RSA256".to_string())
+                    .await?;
+            }
+            _ => {
+                tracing::info!(
+                    "realm settings already initialized for realm {:}",
+                    realm.name
+                );
+            }
+        };
+
+        let client = match self
+            .client_repository
+            .get_by_client_id(config.default_client_id.clone(), realm.id)
+            .await
+        {
+            Ok(client) => {
+                tracing::info!(
+                    "client {:} already exists",
+                    config.default_client_id.clone()
+                );
+
+                client
+            }
+            Err(_) => {
+                tracing::info!("createing client {:}", config.default_client_id.clone());
+                let client = self
+                    .client_repository
+                    .create_client(CreateClientRequest {
+                        realm_id: realm.id,
+                        name: config.default_client_id.clone(),
+                        client_id: config.default_client_id.clone(),
+                        enabled: true,
+                        protocol: "openid-connect".to_string(),
+                        public_client: false,
+                        service_account_enabled: false,
+                        direct_access_grants_enabled: false,
+                        client_type: "confidential".to_string(),
+                        secret: Some(generate_random_string()),
+                    })
+                    .await
+                    .map_err(|_| CoreError::CreateClientError)?;
+
+                tracing::info!("client {:} created", config.default_client_id.clone());
+
+                client
+            }
+        };
+
+        let master_realm_client_id = format!("{}-realm", config.master_realm_name);
+
+        let master_realm_client = match self
+            .client_repository
+            .get_by_client_id(master_realm_client_id.clone(), realm.id)
+            .await
+        {
+            Ok(client) => {
+                tracing::info!("client {:} created", master_realm_client_id.clone());
+                client
+            }
+            Err(_) => {
+                tracing::info!("creating client {:}", master_realm_client_id.clone());
+
+                let client = self
+                    .client_repository
+                    .create_client(CreateClientRequest {
+                        realm_id: realm.id,
+                        name: master_realm_client_id.clone(),
+                        client_id: master_realm_client_id.clone(),
+                        enabled: true,
+                        protocol: "openid-connect".to_string(),
+                        public_client: false,
+                        service_account_enabled: false,
+                        direct_access_grants_enabled: true,
+                        client_type: "confidential".to_string(),
+                        secret: Some(generate_random_string()),
+                    })
+                    .await
+                    .map_err(|_| CoreError::CreateClientError)?;
+
+                tracing::info!("client {:} created", master_realm_client_id.clone());
+
+                client
+            }
+        };
+
+        let user = match self
+            .user_repository
+            .get_by_username(config.admin_username.clone(), realm.id)
+            .await
+        {
+            Ok(user) => {
+                let username = user.username.clone();
+                tracing::info!("user {username:} already exists");
+                user
+            }
+            Err(_) => {
+                let client_id = config.default_client_id.clone();
+                tracing::info!("Creating user for client {client_id:}");
+                let user = self
+                    .user_repository
+                    .create_user(CreateUserRequest {
+                        email: config.admin_email.clone(),
+                        email_verified: true,
+                        enabled: true,
+                        firstname: config.admin_username.clone(),
+                        lastname: config.admin_username.clone(),
+                        realm_id: realm.id,
+                        client_id: None,
+                        username: config.admin_username.clone(),
+                    })
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+
+                tracing::info!("user {:} created", user.username);
+                user
+            }
+        };
+
+        let roles = self
+            .role_repository
+            .get_by_client_id(master_realm_client.id) // Updated to remove clone()
+            .await
+            .unwrap_or_default();
+        let role = match roles
+            .into_iter()
+            .find(|r| r.name == master_realm_client_id.clone())
+        {
+            Some(role) => {
+                tracing::info!("role {:} already exists", role.name);
+                role
+            }
+            None => {
+                let role = self
+                    .role_repository
+                    .create(CreateRoleRequest {
+                        client_id: Some(master_realm_client.id),
+                        name: master_realm_client_id.clone(),
+                        permissions: Permissions::to_names(&[Permissions::ManageRealm]),
+                        realm_id: realm.id,
+                        description: None,
+                    })
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+
+                tracing::info!("role {:} created", master_realm_client_id.clone());
+                role
+            }
+        };
+
+        match self
+            .user_role_repository
+            .assign_role(user.id, role.id)
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("role {:} assigned to user {:}", role.name, user.username);
+            }
+            Err(_) => {
+                tracing::info!(
+                    "role {:} already assigned to user {:}",
+                    role.name,
+                    user.username
+                );
+            }
+        }
+
+        let hash = self
+            .hasher_repository
+            .hash_password(&config.admin_password)
+            .await
+            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        match self
+            .credential_repository
+            .create_credential(user.id, "password".to_string(), hash, "".into(), false)
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("credential created for user {:}", user.username);
+            }
+            Err(_) => {
+                tracing::info!("credential already exists for user {:}", user.username);
+            }
+        }
+
+        let admin_redirect_patterns = vec![
+            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
+            "^http://localhost:[0-9]+/.*",
+            "^/*",
+            "http://localhost:3000/admin",
+            "http://localhost:5173/admin",
+        ];
+
+        let existing_uris = self
+            .redirect_uri_repository
+            .get_by_client_id(client.id)
+            .await
+            .unwrap_or_default();
+
+        for pattern in admin_redirect_patterns {
+            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+
+            if !pattern_exists {
+                match self
+                    .redirect_uri_repository
+                    .create_redirect_uri(client.id, pattern.to_string(), true)
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("redirect uri created for client {:}", client.id);
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "failed to create redirect uri for client {:}: {}",
+                            client.id,
+                            e
+                        );
+                    }
+                }
+            } else {
+                tracing::info!("admin redirect URI already exists: {}", pattern);
+            }
+        }
+
+        Ok(InitializationResult {
+            master_realm_id: realm.id,
+            admin_role_id: role.id,
+            admin_user_id: user.id,
+            default_client_id: client.id,
+        })
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use std::panic;

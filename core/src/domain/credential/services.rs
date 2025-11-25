@@ -100,6 +100,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct CredentialServiceImpl<R, U, C, UR, CR>
 where
     R: RealmRepository,
@@ -112,6 +113,27 @@ where
     pub(crate) credential_repository: Arc<CR>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CR> CredentialServiceImpl<R, U, C, UR, CR>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        credential_repository: Arc<CR>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            credential_repository,
+            policy,
+        }
+    }
 }
 
 impl<R, U, C, UR, CR> CredentialService for CredentialServiceImpl<R, U, C, UR, CR>
