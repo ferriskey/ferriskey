@@ -31,11 +31,16 @@ use crate::{
 
 pub mod services;
 
+pub mod auth;
 pub mod client;
 pub mod credential;
+pub mod health;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
+pub mod trident;
+pub mod user;
+pub mod webhook;
 
 pub use services::ApplicationService;
 

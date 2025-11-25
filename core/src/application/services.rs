@@ -1,20 +1,33 @@
 use crate::{
     domain::{
-        client::services::ClientServiceImpl, credential::services::CredentialServiceImpl,
+        authentication::services::AuthServiceImpl, client::services::ClientServiceImpl,
+        credential::services::CredentialServiceImpl, health::services::HealthServiceImpl,
         realm::services::RealmServiceImpl, role::services::RoleServiceImpl,
-        seawatch::services::SecurityEventServiceImpl,
+        seawatch::services::SecurityEventServiceImpl, trident::services::TridentServiceImpl,
+        user::services::UserServiceImpl, webhook::services::WebhookServiceImpl,
     },
     infrastructure::{
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
+        health::repositories::PostgresHealthCheckRepository,
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
-        repositories::credential_repository::PostgresCredentialRepository,
+        repositories::{
+            argon2_hasher::Argon2HasherRepository,
+            auth_session_repository::PostgresAuthSessionRepository,
+            credential_repository::PostgresCredentialRepository,
+            keystore_repository::PostgresKeyStoreRepository,
+            random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
+            refresh_token_repository::PostgresRefreshTokenRepository,
+        },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
         user::{
-            repositories::user_role_repository::PostgresUserRoleRepository,
+            repositories::{
+                user_required_action_repository::PostgresUserRequiredActionRepository,
+                user_role_repository::PostgresUserRoleRepository,
+            },
             repository::PostgresUserRepository,
         },
         webhook::repositories::webhook_repository::PostgresWebhookRepository,
@@ -30,6 +43,13 @@ type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
 type RoleRepo = PostgresRoleRepository;
+type HealthCheckRepo = PostgresHealthCheckRepository;
+type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
+type AuthSessionRepo = PostgresAuthSessionRepository;
+type HasherRepo = Argon2HasherRepository;
+type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
+type KeystoreRepo = PostgresKeyStoreRepository;
+type RefreshTokenRepo = PostgresRefreshTokenRepository;
 
 pub struct ApplicationService {
     pub(crate) security_event_service:
@@ -56,5 +76,38 @@ pub struct ApplicationService {
         RoleRepo,
         SecurityEventRepo,
         WebhookRepo,
+    >,
+    pub(crate) trident_service: TridentServiceImpl<
+        CredentialRepo,
+        RecoveryCodeRepo,
+        AuthSessionRepo,
+        HasherRepo,
+        UserRequiredActionRepo,
+    >,
+    pub(crate) user_service: UserServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        CredentialRepo,
+        HasherRepo,
+        RoleRepo,
+        UserRequiredActionRepo,
+        WebhookRepo,
+    >,
+    pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
+    pub(crate) webhook_service:
+        WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
+
+    pub(crate) auth_service: AuthServiceImpl<
+        RealmRepo,
+        ClientRepo,
+        RedirectUriRepo,
+        UserRepo,
+        CredentialRepo,
+        HasherRepo,
+        AuthSessionRepo,
+        KeystoreRepo,
+        RefreshTokenRepo,
     >,
 }
