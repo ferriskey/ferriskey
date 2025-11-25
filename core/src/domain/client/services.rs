@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::domain::{
     authentication::{ports::AuthSessionRepository, value_objects::Identity},
     client::{
@@ -11,7 +13,9 @@ use crate::domain::{
         value_objects::CreateClientRequest,
     },
     common::{
-        entities::app_errors::CoreError, generate_random_string, policies::ensure_policy,
+        entities::app_errors::CoreError,
+        generate_random_string,
+        policies::{FerriskeyPolicy, ensure_policy},
         services::Service,
     },
     credential::ports::CredentialRepository,
@@ -51,6 +55,426 @@ where
     W: WebhookRepository,
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
+    SE: SecurityEventRepository,
+{
+    async fn create_client(
+        &self,
+        identity: Identity,
+        input: CreateClientInput,
+    ) -> Result<Client, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+
+        ensure_policy(
+            self.policy.can_create_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let secret = (!input.public_client).then(generate_random_string);
+
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                realm_id,
+                name: input.name,
+                client_id: input.client_id,
+                secret,
+                enabled: input.enabled,
+                protocol: input.protocol,
+                public_client: input.public_client,
+                service_account_enabled: input.service_account_enabled,
+                direct_access_grants_enabled: input.direct_access_grants_enabled,
+                client_type: input.client_type,
+            })
+            .await
+            .map_err(|_| CoreError::CreateClientError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientCreated,
+                    realm_id.into(),
+                    Some(client.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(client)
+    }
+
+    async fn create_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreateRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_create_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .redirect_uri_repository
+            .create_redirect_uri(input.client_id, input.payload.value, input.payload.enabled)
+            .await
+            .map_err(|_| CoreError::InvalidRedirectUri)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriCreated,
+                    realm_id.into(),
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(redirect_uri)
+    }
+
+    async fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> Result<Role, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_create_role(identity.clone(), realm).await,
+            "insufficient permissions",
+        )?;
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(input.client_id),
+                description: input.description,
+                name: input.name,
+                permissions: input.permissions,
+                realm_id,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.security_event_repository
+            .store_event(SecurityEvent::new(
+                realm_id,
+                SecurityEventType::RoleCreated,
+                EventStatus::Success,
+                identity.id(),
+            ))
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RoleCreated,
+                    realm_id.into(),
+                    Some(role.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(role)
+    }
+
+    async fn delete_client(
+        &self,
+        identity: Identity,
+        input: DeleteClientInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+
+        ensure_policy(
+            self.policy.can_delete_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .delete_by_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientDeleted,
+                    realm_id.into(),
+                    Some(input.client_id),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn delete_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeleteRedirectUriInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.redirect_uri_repository
+            .delete(input.uri_id)
+            .await
+            .map_err(|_| CoreError::RedirectUriNotFound)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriDeleted,
+                    realm_id.into(),
+                    Some(input.uri_id),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_client_by_id(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<Client, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .get_by_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)
+    }
+
+    async fn get_client_roles(
+        &self,
+        identity: Identity,
+        input: GetClientRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.role_repository
+            .get_by_client_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
+    }
+
+    async fn get_clients(
+        &self,
+        identity: Identity,
+        input: GetClientsInput,
+    ) -> Result<Vec<Client>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.client_repository
+            .get_by_realm_id(realm_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
+    }
+
+    async fn get_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetRedirectUrisInput,
+    ) -> Result<Vec<RedirectUri>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.redirect_uri_repository
+            .get_by_client_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
+    }
+
+    async fn update_client(
+        &self,
+        identity: Identity,
+        input: UpdateClientInput,
+    ) -> Result<Client, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_repository
+            .update_client(input.client_id, input.payload)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientUpdated,
+                    realm_id.into(),
+                    Some(client.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(client)
+    }
+
+    async fn update_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdateRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(identity, realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .redirect_uri_repository
+            .update_enabled(input.redirect_uri_id, input.enabled)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriUpdated,
+                    realm_id.into(),
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(redirect_uri)
+    }
+}
+
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) client_repository: Arc<C>,
+    pub(crate) webhook_repository: Arc<W>,
+    pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) role_repository: Arc<RO>,
+    pub(crate) security_event_repository: Arc<SE>,
+
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, W, RU, RO, SE> ClientService for ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    RU: RedirectUriRepository,
+    RO: RoleRepository,
     SE: SecurityEventRepository,
 {
     async fn create_client(

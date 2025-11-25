@@ -31,6 +31,7 @@ use crate::{
 
 pub mod services;
 
+pub mod client;
 pub mod credential;
 pub mod seawatch;
 
