@@ -121,6 +121,7 @@ pub trait RealmRepository: Send + Sync {
     ) -> impl Future<Output = Result<Option<RealmSetting>, CoreError>> + Send;
 }
 
+#[derive(Debug)] // TODO derive debug for instrumetnation
 pub struct GetRealmInput {
     pub realm_name: String,
 }

@@ -59,6 +59,20 @@ pub struct Args {
         long_help = "The url to the webapp to use"
     )]
     pub webapp_url: String,
+    #[arg(
+        long,
+        env,
+        default_value = "http://localhost:4317/",
+        long_help = "The OTLP endpoint to use"
+    )]
+    pub otlp_endpoint: String,
+    #[arg(
+        long,
+        env,
+        default_value = "http://localhost:4318/v1/metrics",
+        long_help = "The Prometheus endpoint to use"
+    )]
+    pub prometheus_endpoint: String,
 }
 
 impl Default for Args {
@@ -70,6 +84,8 @@ impl Default for Args {
             log: LogArgs::default(),
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
+            otlp_endpoint: "http://localhost:4317".to_string(),
+            prometheus_endpoint: "http://localhost:9090".to_string(),
         }
     }
 }

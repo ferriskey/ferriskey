@@ -23,17 +23,22 @@ use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{Protocol, SpanExporter};
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{Protocol, SpanExporter};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::{Resource, trace::RandomIdGenerator};
 use tracing::{debug, error, info};
 use tracing_opentelemetry::MetricsLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt as _;
-use tracing_subscriber::{EnvFilter, Registry, fmt};
+use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
 
-fn init_tracing_and_logging(args: &LogArgs, service_name: &str, otlp_endpoint: &str) {
+fn init_tracing_and_logging(
+    args: &LogArgs,
+    service_name: &str,
+    otlp_endpoint: &str,
+    prometheus_endpoint: &str,
+) {
     let filter = EnvFilter::try_new(&args.filter).unwrap_or_else(|err| {
         eprint!("invalid log filter: {err}");
         eprint!("using default log filter: info");
@@ -61,10 +66,12 @@ fn init_tracing_and_logging(args: &LogArgs, service_name: &str, otlp_endpoint: &
 
     global::set_tracer_provider(tracer_provider);
 
+    // Prometheus natively supports accepting metrics via the OTLP protocol
+    // Create the metric exporter
     let metric_exporter = match opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
         .with_protocol(Protocol::Grpc)
-        .with_endpoint("http://localhost:9090/api/v1/otlp/v1/metrics") // TODO make it configurable
+        .with_endpoint(prometheus_endpoint)
         .build()
     {
         Ok(exporter) => exporter,
@@ -80,16 +87,23 @@ fn init_tracing_and_logging(args: &LogArgs, service_name: &str, otlp_endpoint: &
     global::set_meter_provider(meter_provider.clone());
     // let meter = global::meter("my_meter");
 
-    // Create tracing layers for logging and telemetry
-    let opentelemetry_metrics =  MetricsLayer::new(meter_provider);
-    let fmt_layer = fmt::layer().with_writer(std::io::stderr).json(); // TODO Put a condition for json format
-    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    // Metrics layer for tracing
+    let metrics_layer = MetricsLayer::new(meter_provider);
+
+    // Format layer for logging
+    let fmt_layer = match &args.json {
+        true => fmt::layer().with_writer(std::io::stderr).json().boxed(),
+        false => fmt::layer().with_writer(std::io::stderr).boxed(),
+    };
+
+    // Trace layer for tracing
+    let trace_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
     // Combine layers into a subscriber
     let subscriber = Registry::default()
         .with(fmt_layer)
-        .with(telemetry_layer)
-        .with(opentelemetry_metrics)
+        .with(trace_layer)
+        .with(metrics_layer)
         .with(filter);
 
     subscriber.init();
@@ -100,7 +114,12 @@ async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
 
     let args = Arc::new(Args::parse());
-    init_tracing_and_logging(&args.log, "ferriskey_server", "http://localhost:4317"); // TODO extract endpoint from config
+    init_tracing_and_logging(
+        &args.log,
+        "ferriskey_server",
+        &args.otlp_endpoint,
+        &args.prometheus_endpoint,
+    );
 
     let app_state = state(args.clone()).await?;
 
