@@ -34,6 +34,7 @@ pub mod services;
 pub mod client;
 pub mod credential;
 pub mod realm;
+pub mod role;
 pub mod seawatch;
 
 pub use services::ApplicationService;

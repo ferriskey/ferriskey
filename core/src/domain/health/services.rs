@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::domain::{
     authentication::ports::AuthSessionRepository,
     client::ports::{ClientRepository, RedirectUriRepository},
@@ -36,6 +38,26 @@ where
     RT: RefreshTokenRepository,
     RC: RecoveryCodeRepository,
     SE: SecurityEventRepository,
+{
+    async fn readness(&self) -> Result<DatabaseHealthStatus, CoreError> {
+        self.health_check_repository.readness().await
+    }
+
+    async fn health(&self) -> Result<u64, CoreError> {
+        self.health_check_repository.health().await
+    }
+}
+
+pub struct HealthServiceImpl<H>
+where
+    H: HealthCheckRepository,
+{
+    pub(crate) health_check_repository: Arc<H>,
+}
+
+impl<H> HealthCheckService for HealthServiceImpl<H>
+where
+    H: HealthCheckRepository,
 {
     async fn readness(&self) -> Result<DatabaseHealthStatus, CoreError> {
         self.health_check_repository.readness().await
