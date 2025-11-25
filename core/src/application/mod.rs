@@ -31,6 +31,7 @@ use crate::{
 
 pub mod services;
 
+pub mod credential;
 pub mod seawatch;
 
 pub type FerrisKeyService = Service<
