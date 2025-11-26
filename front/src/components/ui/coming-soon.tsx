@@ -62,33 +62,33 @@ export function ComingSoon({
       </div>
 
       {/* Main overlay */}
-      <div className='absolute inset-0 flex items-center justify-center p-4 z-20'>
-        <div className='w-full max-w-5xl'>
-          <Card className='shadow-2xl border-2 bg-card/95 backdrop-blur-sm overflow-hidden'>
-            <div className='flex flex-col lg:flex-row'>
+      <div className='absolute inset-0 flex transform items-center  justify-center p-4 z-20'>
+        <div className='w-full max-w-6xl'>
+          <Card className='shadow-2xl border-2 bg-card/95 backdrop-blur-sm overflow-hidden py-0'>
+            <div className='flex flex-col lg:flex-row h-full'>
               {/* Content Section */}
-              <div className='flex-1 lg:flex-[2]'>
+              <div className='flex-1 lg:flex-[2] flex flex-col p-0 py-6'>
                 <CardHeader className='space-y-4 pb-6'>
                   <div className='flex items-center gap-2'>
                     <Badge variant='secondary' className='bg-primary/10 text-primary border-primary/20'>
                       {badgeText}
                     </Badge>
                   </div>
-                  <CardTitle className='text-3xl font-bold tracking-tight'>
+                  <CardTitle className='text-2xl lg:text-3xl font-bold tracking-tight'>
                     {title}
                   </CardTitle>
-                  <p className='text-muted-foreground text-lg leading-relaxed'>
+                  <p className='text-muted-foreground leading-relaxed'>
                     {description}
                   </p>
                 </CardHeader>
 
-                <CardContent className='space-y-6 pt-0'>
+                <CardContent className='space-y-6 pt-0 flex-1 flex flex-col'>
                   {/* Custom bullet points */}
                   {bulletPoints && bulletPoints.length > 0 && (
-                    <div className='space-y-3'>
+                    <div className='space-y-2 flex-1'>
                       {bulletPoints.map((point, index) => (
                         <div key={index} className='flex items-start gap-3'>
-                          <div className='size-2 rounded-full bg-primary mt-2.5 flex-shrink-0' />
+                          <div className='size-2 rounded-full bg-primary mt-2 flex-shrink-0' />
                           <span className='text-sm leading-relaxed'>
                             {point.highlight ? (
                               <>
@@ -104,7 +104,7 @@ export function ComingSoon({
                   )}
 
                   {/* Action buttons */}
-                  <div className='flex flex-col sm:flex-row gap-3 pt-6'>
+                  <div className='flex flex-col sm:flex-row gap-3 mt-auto pt-4'>
                     <Button
                       size='lg'
                       className='bg-primary hover:bg-primary/90'
@@ -136,23 +136,21 @@ export function ComingSoon({
               </div>
 
               {/* Image Section */}
-              <div className='flex-1 lg:border-l'>
-                <div className='relative h-64 lg:h-full min-h-[400px]'>
-                  <img
-                    src={imageSrc}
-                    alt={imageAlt}
-                    className='absolute inset-0 w-full h-full object-cover'
-                  />
-                  <div className='absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-600/20' />
+              <div className='flex-1 lg:border-l relative h-64 lg:h-auto'>
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className='w-full h-full object-contain'
+                />
+                <div className='absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-600/20' />
 
-                  {/* Optional overlay content on image */}
-                  <div className='absolute inset-0 flex flex-col justify-end p-6 text-white'>
-                    <div className='bg-black/20 backdrop-blur-sm rounded-lg p-4'>
-                      <h3 className='font-semibold text-lg mb-2'>Preview Available Soon</h3>
-                      <p className='text-sm text-white/90'>
-                        Get a sneak peek at what's coming to FerrisKey
-                      </p>
-                    </div>
+                {/* Optional overlay content on image */}
+                <div className='absolute inset-0 flex flex-col justify-end p-4 lg:p-6 text-white'>
+                  <div className='bg-black/20 backdrop-blur-sm rounded-lg p-3 lg:p-4'>
+                    <h3 className='font-semibold text-base lg:text-lg mb-1 lg:mb-2'>Preview Available Soon</h3>
+                    <p className='text-xs lg:text-sm text-white/90'>
+                      Get a sneak peek at what's coming to FerrisKey
+                    </p>
                   </div>
                 </div>
               </div>
