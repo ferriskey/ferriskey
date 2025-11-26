@@ -18,7 +18,7 @@ import {
 import { useNavigate, useParams } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMemo } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, CartesianGrid, Legend } from 'recharts'
 import { PageHomeData, HomeMetrics, ChartDataItem, HomeChartConfig, QuickAccessItem } from '@/types'
 
 const quickAccessItems: QuickAccessItem[] = [
@@ -54,6 +54,17 @@ const chartConfig: HomeChartConfig = {
   roles: {
     label: 'Roles',
     color: '#8b5cf6',
+  },
+}
+
+const barChartConfig = {
+  active: {
+    label: 'Active',
+    color: '#10b981',
+  },
+  inactive: {
+    label: 'Inactive',
+    color: '#6b7280',
   },
 }
 
@@ -97,9 +108,8 @@ export default function PageHome({ data }: PageHomeProps) {
     { name: 'Roles', value: metrics.totalRoles, fill: '#8b5cf6' },
   ], [metrics])
 
-  const barChartData: ChartDataItem[] = useMemo(() => [
-    { name: 'Active', value: metrics.activeClients, fill: '#10b981' },
-    { name: 'Inactive', value: metrics.totalClients - metrics.activeClients, fill: '#6b7280' },
+  const barChartData = useMemo(() => [
+    { name: 'Active', active: metrics.activeClients, inactive: metrics.totalClients - metrics.activeClients },
   ], [metrics])
 
   return (
@@ -242,8 +252,8 @@ export default function PageHome({ data }: PageHomeProps) {
                             ))}
                           </Pie>
                           <ChartTooltip
-                            content={<ChartTooltipContent />}
-                            formatter={(value, name) => [value, name]}
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
                           />
                           <Legend
                             verticalAlign='bottom'
@@ -271,30 +281,22 @@ export default function PageHome({ data }: PageHomeProps) {
                 </CardHeader>
                 <CardContent className='p-0 overflow-hidden'>
                   <div className='p-4 sm:p-6'>
-                    <ChartContainer config={chartConfig} className='h-[200px] sm:h-[250px] w-full'>
-                      <ResponsiveContainer width='100%' height='100%' minWidth={0}>
-                        <BarChart data={barChartData} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
-                          <XAxis
-                            dataKey='name'
-                            fontSize={10}
-                            tickLine={false}
-                            axisLine={false}
-                            interval={0}
-                          />
-                          <YAxis
-                            fontSize={10}
-                            tickLine={false}
-                            axisLine={false}
-                            width={35}
-                          />
-                          <Bar dataKey='value' radius={4}>
-                            {barChartData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <ChartContainer config={barChartConfig} className='h-[200px] sm:h-[250px] w-full'>
+                      <BarChart accessibilityLayer data={barChartData}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                          dataKey='name'
+                          tickLine={false}
+                          tickMargin={10}
+                          axisLine={false}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent indicator='dashed' />}
+                        />
+                        <Bar dataKey='active' fill='#10b981' radius={4} />
+                        <Bar dataKey='inactive' fill='#6b7280' radius={4} />
+                      </BarChart>
                     </ChartContainer>
                   </div>
                 </CardContent>
