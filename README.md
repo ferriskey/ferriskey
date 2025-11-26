@@ -123,7 +123,7 @@ cargo run
 
 ```bash
 cd ../front
-source env.sh
+cp .env.example .env
 pnpm install
 pnpm run dev
 ```
