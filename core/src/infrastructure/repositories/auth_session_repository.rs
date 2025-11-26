@@ -45,7 +45,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresAuthSessionRepository {
     pub db: DatabaseConnection,
 }

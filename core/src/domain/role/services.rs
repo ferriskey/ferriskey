@@ -21,7 +21,7 @@ use crate::domain::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RoleServiceImpl<R, U, C, UR, RO, SE, W>
 where
     R: RealmRepository,

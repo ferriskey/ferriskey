@@ -15,7 +15,7 @@ use crate::domain::{
     user::ports::{UserPolicy, UserRepository, UserRoleRepository},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CredentialServiceImpl<R, U, C, UR, CR>
 where
     R: RealmRepository,

@@ -25,9 +25,9 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
-// use tracing::instrument;
+use tracing::instrument;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RealmServiceImpl<R, U, C, UR, RO, W>
 where
     R: RealmRepository,
@@ -259,7 +259,7 @@ where
         Ok(())
     }
 
-    // #[instrument] // TODO Waiting for refacto to impl debug trait in services generic types
+    #[instrument]
     async fn get_realm_by_name(
         &self,
         identity: Identity,

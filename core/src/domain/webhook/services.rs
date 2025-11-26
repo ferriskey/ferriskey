@@ -20,7 +20,7 @@ use crate::domain::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WebhookServiceImpl<R, U, C, UR, W>
 where
     R: RealmRepository,

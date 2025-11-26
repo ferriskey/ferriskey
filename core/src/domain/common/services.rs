@@ -23,7 +23,7 @@ use crate::domain::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CoreServiceImpl<R, K, C, U, RO, UR, H, CR, RU>
 where
     R: RealmRepository,

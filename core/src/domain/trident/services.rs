@@ -175,7 +175,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
     ))
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TridentServiceImpl<CR, RC, AS, H, URA>
 where
     CR: CredentialRepository,

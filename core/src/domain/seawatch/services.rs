@@ -15,7 +15,7 @@ use crate::domain::{
     user::ports::{UserRepository, UserRoleRepository},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SecurityEventServiceImpl<R, U, C, UR, SE>
 where
     R: RealmRepository,

@@ -12,6 +12,7 @@ use crate::{
         },
     },
 };
+use tracing::instrument;
 
 impl RealmService for ApplicationService {
     async fn create_realm(
@@ -44,6 +45,7 @@ impl RealmService for ApplicationService {
         self.realm_service.get_login_settings(realm_name).await
     }
 
+    #[instrument]
     async fn get_realm_by_name(
         &self,
         identity: Identity,

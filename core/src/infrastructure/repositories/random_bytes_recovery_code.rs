@@ -11,7 +11,7 @@ use rand::prelude::*;
 /// MFA code of L bytes generated randomly.
 /// You generally don't want to use this directly but rather variants of RecoveryCodeRepoAny
 /// as different byte length/formatter combos aren't always user friendly for display
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RandBytesRecoveryCodeRepository<const L: usize, H: HasherRepository> {
     hasher: Arc<H>,
 }

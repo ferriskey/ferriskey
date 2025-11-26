@@ -35,7 +35,7 @@ pub trait Policy: Send + Sync {
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FerriskeyPolicy<U, C, UR>
 where
     U: UserRepository,

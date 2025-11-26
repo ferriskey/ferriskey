@@ -8,7 +8,7 @@ use crate::domain::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HealthServiceImpl<H>
 where
     H: HealthCheckRepository,
