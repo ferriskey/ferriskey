@@ -2,7 +2,7 @@
  * Enhanced Home Page for FerrisKey Identity Management
  *
  * Features included:
- * - Real-time metrics dashboard with data from APIs
+ * - Real-time metrics dashboard with data from props
  * - Interactive charts using ShadCN chart components
  * - Quick access cards with improved UI
  * - Loading states with skeleton components
@@ -27,12 +27,10 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
-import { useGetClients } from '@/api/client.api'
-import { useGetUsers } from '@/api/user.api'
-import { useGetRoles } from '@/api/role.api'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts'
+import { PageHomeData } from '../feature/page-home-feature'
 
 const quickAccessItems = [
   {
@@ -70,28 +68,29 @@ const chartConfig = {
   },
 }
 
-export default function PageHome() {
+interface PageHomeProps {
+  data: PageHomeData
+}
+
+export default function PageHome({ data }: PageHomeProps) {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
 
-  // Fetch real-time data for metrics dashboard
-  const { data: clients, isLoading: isLoadingClients } = useGetClients({ realm: realm_name })
-  const { data: users, isLoading: isLoadingUsers } = useGetUsers({ realm: realm_name })
-  const { data: roles, isLoading: isLoadingRoles } = useGetRoles({ realm: realm_name })
+  const { clients, users, roles, isLoading } = data
 
   const handleClick = (url: string) => {
     if (!realm_name) return
     navigate(`${REALM_URL(realm_name)}${url}`)
   }
 
-  // Calculate real-time metrics from API data
+  // Calculate real-time metrics from passed data
   const metrics = useMemo(() => {
-    const totalClients = clients?.data?.length || 0
-    const totalUsers = users?.data?.length || 0
-    const totalRoles = roles?.data?.length || 0
+    const totalClients = clients?.length || 0
+    const totalUsers = users?.length || 0
+    const totalRoles = roles?.length || 0
 
-    const activeClients = clients?.data?.filter(client => client.enabled)?.length || 0
-    const serviceAccountClients = clients?.data?.filter(client => client.service_account_enabled)?.length || 0
+    const activeClients = clients?.filter(client => client.enabled)?.length || 0
+    const serviceAccountClients = clients?.filter(client => client.service_account_enabled)?.length || 0
 
     return {
       totalClients,
@@ -113,8 +112,6 @@ export default function PageHome() {
     { name: 'Active', value: metrics.activeClients, fill: '#10b981' },
     { name: 'Inactive', value: metrics.totalClients - metrics.activeClients, fill: '#6b7280' },
   ], [metrics])
-
-  const isLoading = isLoadingClients || isLoadingUsers || isLoadingRoles
 
   return (
     <div className='flex flex-col gap-8 p-6 md:p-10 container mx-auto max-w-7xl'>
