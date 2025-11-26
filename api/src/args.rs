@@ -292,6 +292,14 @@ pub struct ServerTlsArgs {
 #[derive(clap::Args, Debug, Clone)]
 pub struct ObservabilityArgs {
     #[arg(
+        long = "active-observability",
+        env = "ACTIVE_OBSERVABILITY",
+        name = "ACTIVE_OBSERVABILITY",
+        default_value_t = false,
+        long_help = "Whether to enable observability features like tracing and metrics"
+    )]
+    pub active_observability: bool,
+    #[arg(
         short = 'O',
         long = "otlp-endpoint",
         env = "OTLP_ENDPOINT",
@@ -312,6 +320,7 @@ pub struct ObservabilityArgs {
 impl Default for ObservabilityArgs {
     fn default() -> Self {
         Self {
+            active_observability: false,
             otlp_endpoint: "http://localhost:4317".to_string(),
             metrics_endpoint: "http://localhost:4317".to_string(),
         }
