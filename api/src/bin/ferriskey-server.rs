@@ -21,7 +21,6 @@ use ferriskey_api::application::http::server::http_server::{router, state};
 use ferriskey_api::args::{Args, LogArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
-use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{Protocol, SpanExporter};
@@ -64,8 +63,6 @@ fn init_tracing_and_logging(
 
     let tracer = tracer_provider.tracer(service_name.to_string());
 
-    global::set_tracer_provider(tracer_provider);
-
     // Prometheus natively supports accepting metrics via the OTLP protocol
     // Create the metric exporter
     let metric_exporter = match opentelemetry_otlp::MetricExporter::builder()
@@ -84,8 +81,6 @@ fn init_tracing_and_logging(
     let meter_provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
         .with_periodic_exporter(metric_exporter)
         .build();
-    global::set_meter_provider(meter_provider.clone());
-    // let meter = global::meter("my_meter");
 
     // Metrics layer for tracing
     let metrics_layer = MetricsLayer::new(meter_provider);
