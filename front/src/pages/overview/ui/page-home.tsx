@@ -1,14 +1,3 @@
-/**
- * Enhanced Home Page for FerrisKey Identity Management
- *
- * Features included:
- * - Real-time metrics dashboard with data from props
- * - Interactive charts using ShadCN chart components
- * - Quick access cards with improved UI
- * - Loading states with skeleton components
- * - Responsive grid layout
- */
-
 import { Heading } from '@/components/ui/heading'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,9 +19,9 @@ import { useNavigate, useParams } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts'
-import { PageHomeData } from '../feature/page-home-feature'
+import { PageHomeData, HomeMetrics, ChartDataItem, HomeChartConfig, QuickAccessItem } from '@/types'
 
-const quickAccessItems = [
+const quickAccessItems: QuickAccessItem[] = [
   {
     title: 'Clients',
     icon: Pyramid,
@@ -53,7 +42,7 @@ const quickAccessItems = [
   },
 ]
 
-const chartConfig = {
+const chartConfig: HomeChartConfig = {
   clients: {
     label: 'Clients',
     color: '#3b82f6',
@@ -84,7 +73,7 @@ export default function PageHome({ data }: PageHomeProps) {
   }
 
   // Calculate real-time metrics from passed data
-  const metrics = useMemo(() => {
+  const metrics: HomeMetrics = useMemo(() => {
     const totalClients = clients?.length || 0
     const totalUsers = users?.length || 0
     const totalRoles = roles?.length || 0
@@ -102,13 +91,13 @@ export default function PageHome({ data }: PageHomeProps) {
     }
   }, [clients, users, roles])
 
-  const chartData = useMemo(() => [
+  const chartData: ChartDataItem[] = useMemo(() => [
     { name: 'Clients', value: metrics.totalClients, fill: '#3b82f6' },
     { name: 'Users', value: metrics.totalUsers, fill: '#10b981' },
     { name: 'Roles', value: metrics.totalRoles, fill: '#8b5cf6' },
   ], [metrics])
 
-  const barChartData = useMemo(() => [
+  const barChartData: ChartDataItem[] = useMemo(() => [
     { name: 'Active', value: metrics.activeClients, fill: '#10b981' },
     { name: 'Inactive', value: metrics.totalClients - metrics.activeClients, fill: '#6b7280' },
   ], [metrics])
