@@ -1,5 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
+use tracing::instrument;
+
 use crate::domain::{
     authentication::value_objects::Identity,
     client::{entities::Client, ports::ClientRepository},
@@ -88,6 +90,7 @@ where
     C: ClientRepository,
     UR: UserRoleRepository,
 {
+    #[instrument]
     async fn get_user_from_identity(&self, identity: &Identity) -> Result<User, CoreError> {
         match identity {
             Identity::User(user) => Ok(user.clone()),
@@ -103,6 +106,7 @@ where
         }
     }
 
+    #[instrument]
     async fn get_client_specific_permissions(
         &self,
         user: &User,
@@ -138,6 +142,7 @@ where
         Ok(permissions)
     }
 
+    #[instrument]
     async fn get_permission_for_target_realm(
         &self,
         user: &User,
@@ -176,6 +181,7 @@ where
         Ok(permissions)
     }
 
+    #[instrument]
     async fn get_user_permissions(&self, user: &User) -> Result<HashSet<Permissions>, CoreError> {
         let roles = self
             .user_role_repository
@@ -202,10 +208,12 @@ where
         Ok(permissions)
     }
 
+    #[instrument]
     fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == target_realm.name || user_realm.name == "master"
     }
 
+    #[instrument]
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == "master" && user_realm.name != target_realm.name
     }

@@ -18,7 +18,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 
 use ferriskey_api::application::http::server::http_server::{router, state};
-use ferriskey_api::args::{Args, LogArgs};
+use ferriskey_api::args::{Args, LogArgs, ObservabilityArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
@@ -33,12 +33,11 @@ use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
 
 fn init_tracing_and_logging(
-    args: &LogArgs,
+    log_args: &LogArgs,
     service_name: &str,
-    otlp_endpoint: &str,
-    prometheus_endpoint: &str,
+    otlp_endpoint: &ObservabilityArgs,
 ) {
-    let filter = EnvFilter::try_new(&args.filter).unwrap_or_else(|err| {
+    let filter = EnvFilter::try_new(&log_args.filter).unwrap_or_else(|err| {
         eprint!("invalid log filter: {err}");
         eprint!("using default log filter: info");
         EnvFilter::new("info")
@@ -46,7 +45,7 @@ fn init_tracing_and_logging(
     // Create the OTLP exporter
     let span_exporter = SpanExporter::builder()
         .with_tonic()
-        .with_endpoint(otlp_endpoint)
+        .with_endpoint(&otlp_endpoint.otlp_endpoint)
         .build()
         .expect("Failed to create span exporter");
 
@@ -68,7 +67,7 @@ fn init_tracing_and_logging(
     let metric_exporter = match opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
         .with_protocol(Protocol::Grpc)
-        .with_endpoint(prometheus_endpoint)
+        .with_endpoint(&otlp_endpoint.metrics_endpoint)
         .build()
     {
         Ok(exporter) => exporter,
@@ -86,7 +85,7 @@ fn init_tracing_and_logging(
     let metrics_layer = MetricsLayer::new(meter_provider);
 
     // Format layer for logging
-    let fmt_layer = match &args.json {
+    let fmt_layer = match &log_args.json {
         true => fmt::layer().with_writer(std::io::stderr).json().boxed(),
         false => fmt::layer().with_writer(std::io::stderr).boxed(),
     };
@@ -109,12 +108,7 @@ async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
 
     let args = Arc::new(Args::parse());
-    init_tracing_and_logging(
-        &args.log,
-        "ferriskey_server",
-        &args.otlp_endpoint,
-        &args.prometheus_endpoint,
-    );
+    init_tracing_and_logging(&args.log, "ferriskey_server", &args.observability);
 
     let app_state = state(args.clone()).await?;
 

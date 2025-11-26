@@ -2,7 +2,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
     ModelTrait, QueryFilter,
 };
-use tracing::error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -108,6 +108,7 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
+    #[instrument]
     async fn get_by_client_id(&self, client_id: Uuid) -> Result<User, CoreError> {
         let user = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::ClientId.eq(client_id))

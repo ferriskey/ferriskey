@@ -6,6 +6,7 @@ use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -59,6 +60,7 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
+    #[instrument]
     async fn get_by_client_id(
         &self,
         client_id: String,
