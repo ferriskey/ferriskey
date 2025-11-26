@@ -119,11 +119,6 @@ cd ../api
 cargo run
 ```
 
-4. See the exported traces
-```bash
-docker run -p 4317:4317 otel/opentelemetry-collector:latest
-```
-
 4. Launch the frontend (optional)
 
 ```bash
