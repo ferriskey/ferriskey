@@ -18,26 +18,103 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 
 use ferriskey_api::application::http::server::http_server::{router, state};
-use ferriskey_api::args::{Args, LogArgs};
+use ferriskey_api::args::{Args, LogArgs, ObservabilityArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_otlp::{MetricExporter, WithExportConfig};
+use opentelemetry_otlp::{Protocol, SpanExporter};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::{Resource, trace::RandomIdGenerator};
 use tracing::{debug, error, info};
-use tracing_subscriber::EnvFilter;
+use tracing_opentelemetry::MetricsLayer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt as _;
+use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
 
-fn init_logger(args: &LogArgs) {
-    let filter = EnvFilter::try_new(&args.filter).unwrap_or_else(|err| {
+fn init_tracing_and_logging(
+    log_args: &LogArgs,
+    service_name: &str,
+    observability_args: &ObservabilityArgs,
+) -> Result<(), anyhow::Error> {
+    let filter = EnvFilter::try_new(&log_args.filter).unwrap_or_else(|err| {
         eprint!("invalid log filter: {err}");
         eprint!("using default log filter: info");
         EnvFilter::new("info")
     });
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr);
-    if args.json {
-        subscriber.json().init();
+
+    // Format layer for logging
+    let fmt_layer = match &log_args.json {
+        true => fmt::layer().with_writer(std::io::stderr).json().boxed(),
+        false => fmt::layer().with_writer(std::io::stderr).boxed(),
+    };
+
+    if observability_args.active_observability {
+        // Check if endpoints are provided
+        let otlp_endpoint = observability_args.otlp_endpoint.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("OTLP endpoint is required when observability is active")
+        })?;
+
+        let metrics_endpoint = observability_args
+            .metrics_endpoint
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow::anyhow!("Metrics endpoint is required when observability is active")
+            })?;
+
+        // Create the OTLP exporter
+        let span_exporter = SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(otlp_endpoint)
+            .build()?;
+
+        // Build the tracer provider with the exporter
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_resource(
+                Resource::builder()
+                    .with_service_name(service_name.to_string())
+                    .build(),
+            )
+            .with_id_generator(RandomIdGenerator::default())
+            .with_batch_exporter(span_exporter)
+            .build();
+
+        let tracer = tracer_provider.tracer(service_name.to_string());
+
+        // Prometheus natively supports accepting metrics via the OTLP protocol
+        // Create the metric exporter
+        let metric_exporter = MetricExporter::builder()
+            .with_tonic()
+            .with_protocol(Protocol::Grpc)
+            .with_endpoint(metrics_endpoint)
+            .build()?;
+
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter)
+            .build();
+
+        // Metrics layer for tracing
+        let metrics_layer = MetricsLayer::new(meter_provider);
+
+        // Trace layer for tracing
+        let trace_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+        // Combine layers into a subscriber
+        let subscriber = Registry::default()
+            .with(fmt_layer)
+            .with(trace_layer)
+            .with(metrics_layer)
+            .with(filter);
+
+        subscriber.init();
     } else {
+        let subscriber = Registry::default().with(fmt_layer);
+
         subscriber.init();
     }
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -45,7 +122,7 @@ async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
 
     let args = Arc::new(Args::parse());
-    init_logger(&args.log);
+    init_tracing_and_logging(&args.log, "ferriskey_server", &args.observability)?;
 
     let app_state = state(args.clone()).await?;
 

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -101,6 +102,7 @@ impl Permissions {
             .all(|required_permission| permissions.contains(required_permission))
     }
 
+    #[instrument]
     pub fn has_one_of_permissions(
         permissions: &[Permissions],
         required_permissions: &[Permissions],

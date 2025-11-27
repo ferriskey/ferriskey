@@ -31,7 +31,7 @@ use crate::domain::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
 where
     R: RealmRepository,

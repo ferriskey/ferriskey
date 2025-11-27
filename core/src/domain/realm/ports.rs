@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -83,7 +85,7 @@ pub trait RealmPolicy: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait RealmRepository: Send + Sync {
+pub trait RealmRepository: Send + Sync + Debug {
     fn fetch_realm(&self) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
 
     fn get_by_name(
@@ -121,6 +123,7 @@ pub trait RealmRepository: Send + Sync {
     ) -> impl Future<Output = Result<Option<RealmSetting>, CoreError>> + Send;
 }
 
+#[derive(Debug)] // TODO derive debug for instrumetnation
 pub struct GetRealmInput {
     pub realm_name: String,
 }

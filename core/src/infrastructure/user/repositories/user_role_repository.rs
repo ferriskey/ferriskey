@@ -2,7 +2,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
     JoinType, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
 };
-use tracing::error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -54,6 +54,7 @@ impl UserRoleRepository for PostgresUserRoleRepository {
         Ok(())
     }
 
+    #[instrument]
     async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
         let roles = crate::entity::roles::Entity::find()
             .join(

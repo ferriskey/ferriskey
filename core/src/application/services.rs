@@ -61,7 +61,7 @@ type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,

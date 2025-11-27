@@ -15,6 +15,7 @@ use crate::domain::realm::{
     entities::{Realm, RealmSetting},
     ports::RealmRepository,
 };
+use tracing::info_span;
 
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
@@ -41,6 +42,7 @@ impl RealmRepository for PostgresRealmRepository {
     }
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, CoreError> {
+        info_span!("Fetching realm by name", name = name);
         let realm = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)

@@ -28,7 +28,7 @@ use crate::domain::{
     user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
 where
     R: RealmRepository,

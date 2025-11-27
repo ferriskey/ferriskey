@@ -32,7 +32,7 @@ use crate::domain::{
 
 pub mod user_role_service;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
 where
     R: RealmRepository,

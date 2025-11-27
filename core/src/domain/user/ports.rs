@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -66,7 +68,7 @@ pub trait UserService: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait UserRepository: Send + Sync {
+pub trait UserRepository: Send + Sync + Debug {
     fn create_user(
         &self,
         dto: CreateUserRequest,
@@ -180,7 +182,7 @@ pub trait UserPolicy: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait UserRoleRepository: Send + Sync {
+pub trait UserRoleRepository: Send + Sync + Debug {
     fn assign_role(
         &self,
         user_id: Uuid,

@@ -4,7 +4,7 @@ use crate::domain::health::ports::HealthCheckRepository;
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use tokio::time::Instant;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresHealthCheckRepository {
     db: DatabaseConnection,
 }
