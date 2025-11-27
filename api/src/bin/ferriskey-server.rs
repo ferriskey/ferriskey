@@ -51,10 +51,22 @@ fn init_tracing_and_logging(
     };
 
     if observability_args.active_observability {
+        // Check if endpoints are provided
+        let otlp_endpoint = observability_args.otlp_endpoint.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("OTLP endpoint is required when observability is active")
+        })?;
+
+        let metrics_endpoint = observability_args
+            .metrics_endpoint
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow::anyhow!("Metrics endpoint is required when observability is active")
+            })?;
+
         // Create the OTLP exporter
         let span_exporter = SpanExporter::builder()
             .with_tonic()
-            .with_endpoint(&observability_args.otlp_endpoint)
+            .with_endpoint(otlp_endpoint)
             .build()?;
 
         // Build the tracer provider with the exporter
@@ -75,7 +87,7 @@ fn init_tracing_and_logging(
         let metric_exporter = MetricExporter::builder()
             .with_tonic()
             .with_protocol(Protocol::Grpc)
-            .with_endpoint(&observability_args.metrics_endpoint)
+            .with_endpoint(metrics_endpoint)
             .build()?;
 
         let meter_provider = SdkMeterProvider::builder()

@@ -308,7 +308,7 @@ pub struct ObservabilityArgs {
         long_help = "The endpoint for the traces collector",
         required = false
     )]
-    pub otlp_endpoint: String,
+    pub otlp_endpoint: Option<String>,
     #[arg(
         short = 'M',
         long = "metrics-endpoint",
@@ -317,15 +317,15 @@ pub struct ObservabilityArgs {
         long_help = "The endpoint for the metrics collector",
         required = false
     )]
-    pub metrics_endpoint: String,
+    pub metrics_endpoint: Option<String>,
 }
 
 impl Default for ObservabilityArgs {
     fn default() -> Self {
         Self {
             active_observability: false,
-            otlp_endpoint: "http://localhost:4317".to_string(),
-            metrics_endpoint: "http://localhost:4317".to_string(),
+            otlp_endpoint: Some("http://localhost:4317".to_string()),
+            metrics_endpoint: Some("http://localhost:4317".to_string()),
         }
     }
 }
