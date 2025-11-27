@@ -43,7 +43,7 @@ export default function PageUsersOverview({
       },
     })
   }
-  
+
   return (
     <Fragment>
       <DataTable

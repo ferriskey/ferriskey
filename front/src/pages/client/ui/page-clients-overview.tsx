@@ -25,7 +25,7 @@ export default function PageClientsOverview({
   handleDeleteClient,
   handleCreateClient,
 }: PageClientsOverviewProps) {
-  
+
   const { confirm, ask, close } = useConfirmDeleteAlert()
 
   const onRowDelete = (client: Client) => {
