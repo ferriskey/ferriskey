@@ -47,7 +47,7 @@ export function ComingSoon({
   }
 
   return (
-    <div className={cn('relative min-h-screen', className)}>
+    <div className={cn('relative max-h-screen', className)}>
       {/* Background content with gradient fade */}
       <div className={cn(
         'relative transition-all duration-700',

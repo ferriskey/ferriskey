@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useNavigate, useParams } from 'react-router'
 import { REALM_SETTINGS_URL, RouterParams } from '@/routes/router'
+import { IDENTITY_PROVIDERS_OVERVIEW_URL } from '@/routes/sub-router/identity-providers.router'
 
 export function NavConfiguration() {
   const { realm_name } = useParams<RouterParams>()
@@ -35,8 +36,8 @@ export function NavConfiguration() {
           </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <SidebarMenuItem>
-          <SidebarMenuButton className='flex items-center gap-2 cursor-not-allowed text-gray-400 hover:text-gray-400'>
+        <SidebarMenuItem onClick={() => handleClick(`${IDENTITY_PROVIDERS_OVERVIEW_URL(realm_name)}`)}>
+          <SidebarMenuButton className='flex items-center gap-2 cursor-pointer'>
             <ScanFace />
             <span>Identity Providers</span>
           </SidebarMenuButton>
