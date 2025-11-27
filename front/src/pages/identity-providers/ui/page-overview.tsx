@@ -40,7 +40,7 @@ export default function PageOverview() {
       imageAlt='Identity Providers management interface'
       blurIntensity='medium'
     >
-      <div className='flex flex-col gap-6 p-6 md:p-10 container mx-auto'>
+      <div className='flex flex-col gap-6 p-6 md:p-10 max-h-screen mx-auto overflow-y-scroll'>
         {/* Header */}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
