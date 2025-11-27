@@ -6,6 +6,9 @@ import { columns } from '../columns/list-user.column'
 import CreateUserModalFeature from '../feature/create-user-modal-feature.tsx'
 import { Dispatch, SetStateAction } from 'react'
 import { Schemas } from '@/api/api.client.ts'
+import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
+import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+
 import User = Schemas.User
 
 export interface PageUsersOverviewOverviewProps {
@@ -28,6 +31,19 @@ export default function PageUsersOverview({
   setOpenCreateUserModal,
 }: PageUsersOverviewOverviewProps) {
   const navigate = useNavigate()
+  const { confirm, ask, close } = useConfirmDeleteAlert()
+
+  const onRowDelete = (user: User) => {
+    ask({
+      title: 'Delete user?',
+      description: `Are you sure you want to delete "${user.username}"?`,
+      onConfirm: () => {
+        handleDeleteSelected([user])
+        close()
+      },
+    })
+  }
+  
   return (
     <Fragment>
       <DataTable
@@ -62,15 +78,21 @@ export default function PageUsersOverview({
             label: 'Delete',
             icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
-            onClick: (user) => handleDeleteSelected([user]),
+            onClick: (user) => onRowDelete(user),
           },
         ]}
       />
-
       <CreateUserModalFeature
         realm={realmName}
         open={openCreateUserModal}
         setOpen={setOpenCreateUserModal}
+      />
+      <ConfirmDeleteAlert
+        title={confirm.title}
+        description={confirm.description}
+        open={confirm.open}
+        onConfirm={confirm.onConfirm}
+        onCancel={close}
       />
     </Fragment>
   )
