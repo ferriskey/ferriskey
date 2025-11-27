@@ -38,7 +38,7 @@ export default function PageOverview() {
       ]}
       imageSrc='/logo_ferriskey.png'
       imageAlt='Identity Providers management interface'
-      blurIntensity='medium'
+      blurIntensity='light'
     >
       <div className='flex flex-col gap-6 p-6 md:p-10 max-h-screen mx-auto overflow-y-scroll'>
         {/* Header */}
@@ -178,15 +178,6 @@ export default function PageOverview() {
                       lastSync: '10 minutes ago',
                       icon: '🏢',
                       domain: 'ldap.company.local'
-                    },
-                    {
-                      name: 'Okta',
-                      type: 'SAML',
-                      status: 'warning',
-                      users: 78,
-                      lastSync: '2 hours ago',
-                      icon: '🔐',
-                      domain: 'company.okta.com'
                     }
                   ].map((provider, index) => (
                     <div key={index} className='border rounded-lg p-4 hover:shadow-md transition-all'>
