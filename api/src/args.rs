@@ -296,7 +296,8 @@ pub struct ObservabilityArgs {
         env = "ACTIVE_OBSERVABILITY",
         name = "ACTIVE_OBSERVABILITY",
         default_value_t = false,
-        long_help = "Whether to enable observability features like tracing and metrics"
+        long_help = "Whether to enable observability features like tracing and metrics",
+        required = false
     )]
     pub active_observability: bool,
     #[arg(
@@ -304,7 +305,8 @@ pub struct ObservabilityArgs {
         long = "otlp-endpoint",
         env = "OTLP_ENDPOINT",
         name = "OTLP_ENDPOINT",
-        long_help = "The endpoint for the traces collector"
+        long_help = "The endpoint for the traces collector",
+        required = false
     )]
     pub otlp_endpoint: String,
     #[arg(
@@ -312,7 +314,8 @@ pub struct ObservabilityArgs {
         long = "metrics-endpoint",
         env = "METRICS_ENDPOINT",
         name = "METRICS_ENDPOINT",
-        long_help = "The endpoint for the metrics collector"
+        long_help = "The endpoint for the metrics collector",
+        required = false
     )]
     pub metrics_endpoint: String,
 }
