@@ -9,11 +9,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar'
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import useRealmStore from '@/store/realm.store'
 import { ChevronsUpDown, Command, Map, Plus } from 'lucide-react'
@@ -157,7 +153,7 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
 
   const handleSubmit = () => {
     createRealm({
-      body: form.getValues()
+      body: form.getValues(),
     })
   }
   const isValid = form.formState.isValid
@@ -196,8 +192,10 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
             />
 
             <DialogFooter className='mt-4'>
-              <Button variant='destructive'>Cancel</Button>
-              <Button variant='outline' disabled={!isValid} onClick={handleSubmit}>
+              <Button variant='ghost' onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant='default' disabled={!isValid} onClick={handleSubmit}>
                 Create Realm
               </Button>
             </DialogFooter>
