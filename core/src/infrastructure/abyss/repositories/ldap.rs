@@ -8,6 +8,7 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
 };
 
+#[allow(unused)]
 pub struct LdapAdapter;
 
 impl LdapConnector for LdapAdapter {

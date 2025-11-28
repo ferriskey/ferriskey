@@ -95,8 +95,6 @@ where
     RU: RedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
-    LC: LdapConnector,
-    LR: LdapRepository,
 {
     async fn create_client(
         &self,

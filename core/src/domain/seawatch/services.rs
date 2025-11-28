@@ -57,8 +57,6 @@ where
     C: ClientRepository,
     UR: UserRoleRepository,
     SE: SecurityEventRepository,
-    LC: LdapConnector,
-    LR: LdapRepository,
 {
     async fn fetch_events(
         &self,
