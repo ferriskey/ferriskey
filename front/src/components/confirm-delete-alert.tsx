@@ -43,7 +43,7 @@ export function ConfirmDeleteAlert({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className='bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-1 rounded-md text-white ml-2 cursor-pointer'
+            className='bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-1 rounded-md text-white ml-3 cursor-pointer'
           >
             Confirm
           </AlertDialogAction>
