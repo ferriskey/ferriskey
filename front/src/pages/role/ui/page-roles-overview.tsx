@@ -5,6 +5,9 @@ import { Heading } from '@/components/ui/heading'
 import { useNavigate } from 'react-router-dom'
 import { ROLE_CREATE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
 import { Schemas } from '@/api/api.client'
+import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
+import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+
 import Role = Schemas.Role
 
 export interface PageRolesOverviewProps {
@@ -25,6 +28,18 @@ export default function PageRolesOverview({
   handleDeleteRole,
 }: PageRolesOverviewProps) {
   const navigate = useNavigate()
+  const { confirm, ask, close } = useConfirmDeleteAlert()
+
+  const onRowDelete = (role: Role) => {
+    ask({
+      title: 'Delete role?',
+      description: `Are you sure you want to delete "${role.name}"?`,
+      onConfirm: () => {
+        handleDeleteRole(role)
+        close()
+      },
+    })
+  }
 
   const handleViewSettings = (role: Role) => {
     navigate(`/realms/${realmName}/roles/${role.id}/settings`)
@@ -78,9 +93,16 @@ export default function PageRolesOverview({
             label: 'Delete',
             icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
-            onClick: (role) => handleDeleteRole(role),
+            onClick: (role) => onRowDelete(role),
           },
         ]}
+      />
+      <ConfirmDeleteAlert
+        title={confirm.title}
+        description={confirm.description}
+        open={confirm.open}
+        onConfirm={confirm.onConfirm}
+        onCancel={close}
       />
     </div>
   )

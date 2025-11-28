@@ -2,8 +2,10 @@ import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
 import { Schemas } from '@/api/api.client.ts'
-import Client = Schemas.Client
+import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
+import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 
+import Client = Schemas.Client
 
 export interface PageClientsOverviewProps {
   isLoading?: boolean
@@ -23,8 +25,22 @@ export default function PageClientsOverview({
   handleDeleteClient,
   handleCreateClient,
 }: PageClientsOverviewProps) {
+
+  const { confirm, ask, close } = useConfirmDeleteAlert()
+
+  const onRowDelete = (client: Client) => {
+    ask({
+      title: 'Delete client?',
+      description: `Are you sure you want to delete "${client.name}"?`,
+      onConfirm: () => {
+        handleDeleteClient(client.id)
+        close()
+      },
+    })
+  }
+
   return (
-    <div>
+    <>
       <DataTable
         data={data}
         columns={columns}
@@ -55,10 +71,17 @@ export default function PageClientsOverview({
             label: 'Delete',
             icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
-            onClick: (client) => handleDeleteClient(client.id),
+            onClick: (client) => onRowDelete(client),
           },
         ]}
       />
-    </div>
+      <ConfirmDeleteAlert
+        title={confirm.title}
+        description={confirm.description}
+        open={confirm.open}
+        onConfirm={confirm.onConfirm}
+        onCancel={close}
+      />
+    </>
   )
 }

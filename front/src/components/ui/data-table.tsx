@@ -230,7 +230,7 @@ export function DataTable<T extends { id: string }>({
 
                         {rowActions.length > 0 && (
                           <TableCell className='text-right'>
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant='ghost'
@@ -273,8 +273,7 @@ export function DataTable<T extends { id: string }>({
                         }
                         className='h-24 text-center'
                       >
-                        {emptyState ||
-                          (search ? 'No result found' : 'No data available.')}
+                        {emptyState || (search ? 'No result found' : 'No data available.')}
                       </TableCell>
                     </TableRow>
                   )}
