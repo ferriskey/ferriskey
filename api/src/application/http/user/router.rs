@@ -56,11 +56,17 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
             get(get_user),
         )
         .route(
-            "/realms/{realm_name}/users/{user_id}/roles",
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/roles",
+                state.args.server.root_path
+            ),
             get(get_user_roles),
         )
         .route(
-            "/realms/{realm_name}/users/{user_id}/credentials",
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/credentials",
+                state.args.server.root_path
+            ),
             get(get_user_credentials),
         )
         .route(
