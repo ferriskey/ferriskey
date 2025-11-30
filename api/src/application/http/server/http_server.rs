@@ -105,7 +105,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
         .merge(user_routes(state.clone()))
-        .merge(authentication_routes(&root_path))
+        .merge(authentication_routes(state.clone(), &root_path))
         .merge(role_routes(state.clone()))
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))

@@ -57,7 +57,7 @@ pub struct AuthResponse {
         (status = 500, description = "Internal Server Error")
     )
 )]
-pub async fn auth(
+pub async fn auth_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Query(params): Query<AuthRequest>,
