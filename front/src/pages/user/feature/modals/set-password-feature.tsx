@@ -3,7 +3,7 @@ import SetPassword from '../../ui/modals/set-password'
 import { setCredentialPasswordSchema, SetCredentialPasswordSchema } from '../../schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useResetUserPassword } from '@/api/user.api'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
@@ -16,14 +16,14 @@ export interface SetPasswordFeatureProps {
 export default function SetPasswordFeature({ contentText }: SetPasswordFeatureProps) {
   const [open, setOpen] = useState(false)
   const { realm_name, user_id } = useParams<RouterParams>()
-  const { mutate: resetPassword, data } = useResetUserPassword()
+  const { mutate: resetPassword } = useResetUserPassword()
   const form = useForm<SetCredentialPasswordSchema>({
     resolver: zodResolver(setCredentialPasswordSchema),
     defaultValues: {
       password: '',
       confirmPassword: '',
       temporary: false,
-    }
+    },
   })
 
   const handleCloseModal = () => {
@@ -36,31 +36,33 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
       toast.error('User ID or Realm Name is missing')
       return
     }
+
     const values = form.getValues()
 
-    resetPassword({
-      body: {
-        credential_type: 'password',
-        temporary: values.temporary,
-        value: values.password
+    resetPassword(
+      {
+        body: {
+          credential_type: 'password',
+          temporary: values.temporary,
+          value: values.password,
+        },
+        path: {
+          realm_name,
+          user_id,
+        },
       },
-      path: {
-        realm_name,
-        user_id
+      {
+        onSuccess: () => {
+          toast.success('Password has been set successfully')
+          form.reset()
+          setOpen(false)
+        },
+        onError: () => {
+          toast.error('Failed to set password')
+        },
       }
-    })
-
-    form.reset()
-    setOpen(false)
+    )
   }
-
-  useEffect(() => {
-    if (data) {
-      toast.success('Password has been set successfully')
-    }
-  }, [data])
-
-
   return (
     <Form {...form}>
       <SetPassword
@@ -71,8 +73,6 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
         handleSubmit={handleSubmit}
         contentText={contentText}
       />
-
     </Form>
-
   )
 }
