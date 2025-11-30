@@ -1,5 +1,11 @@
-use reqwest::Client;
+use std::{collections::HashMap, str::FromStr};
+
+use reqwest::{
+    Client,
+    header::{HeaderMap, HeaderName, HeaderValue},
+};
 use serde::Serialize;
+use serde_json::to_value;
 use uuid::Uuid;
 
 use crate::domain::{
@@ -109,14 +115,17 @@ impl WebhookRepository for PostgresWebhookRepository {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
+        headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, CoreError> {
         let (_, timestamp) = generate_timestamp();
         let subscription_id = Uuid::new_v7(timestamp);
+        let headers = to_value(headers).unwrap_or_default();
 
         let mut webhook = WebhookEntity::insert(WebhookActiveModel {
             id: Set(subscription_id),
             endpoint: Set(endpoint),
+            headers: Set(headers),
             name: Set(name),
             description: Set(description),
             realm_id: Set(realm_id.into()),
@@ -159,12 +168,15 @@ impl WebhookRepository for PostgresWebhookRepository {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
+        headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, CoreError> {
+        let headers = to_value(headers).unwrap_or_default();
         let mut webhook = WebhookEntity::update(WebhookActiveModel {
             name: Set(name),
             description: Set(description),
             endpoint: Set(endpoint),
+            headers: Set(headers),
             updated_at: Set(Utc::now().naive_utc()),
             ..Default::default()
         })
@@ -230,8 +242,24 @@ impl WebhookRepository for PostgresWebhookRepository {
             match webhooks {
                 Ok(webhooks) => {
                     for webhook in webhooks {
+                        let mut headers = HeaderMap::new();
+                        for (key, value) in webhook.headers {
+                            match (HeaderName::from_str(&key), HeaderValue::from_str(&value)) {
+                                (Ok(name), Ok(val)) => {
+                                    headers.insert(name, val);
+                                }
+                                (Err(e), _) => {
+                                    error!("Invalid header name '{}': {}", key, e);
+                                }
+                                (_, Err(e)) => {
+                                    error!("Invalid header value for '{}': {}", key, e);
+                                }
+                            }
+                        }
+
                         let response = client
                             .post(webhook.endpoint)
+                            .headers(headers)
                             .json(&payload.clone())
                             .send()
                             .await;

@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use chrono::{TimeZone, Utc};
+use serde_json::from_value;
 
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::entities::{webhook::Webhook, webhook_subscriber::WebhookSubscriber};
@@ -13,12 +16,16 @@ impl From<&WebhookModel> for Webhook {
             .triggered_at
             .map(|triggered_at| Utc.from_utc_datetime(&triggered_at));
 
+        let headers =
+            from_value::<HashMap<String, String>>(value.headers.clone()).unwrap_or_default();
+
         Self {
             id: value.id,
             endpoint: value.endpoint.clone(),
             subscribers: Vec::new(),
             description: value.description.clone(),
             name: value.name.clone(),
+            headers,
             triggered_at,
             created_at,
             updated_at,
@@ -34,12 +41,16 @@ impl From<WebhookModel> for Webhook {
             .triggered_at
             .map(|triggered_at| Utc.from_utc_datetime(&triggered_at));
 
+        let headers =
+            from_value::<HashMap<String, String>>(value.headers.clone()).unwrap_or_default();
+
         Self {
             id: value.id,
             endpoint: value.endpoint.clone(),
             subscribers: Vec::new(),
             description: value.description,
             name: value.name,
+            headers,
             triggered_at,
             created_at,
             updated_at,

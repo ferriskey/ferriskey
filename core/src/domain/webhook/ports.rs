@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use serde::Serialize;
@@ -76,6 +77,7 @@ pub trait WebhookRepository: Send + Sync + Debug {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
+        headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
@@ -85,6 +87,7 @@ pub trait WebhookRepository: Send + Sync + Debug {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
+        headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
@@ -142,6 +145,7 @@ pub struct CreateWebhookInput {
     pub name: Option<String>,
     pub description: Option<String>,
     pub endpoint: String,
+    pub headers: HashMap<String, String>,
     pub subscribers: Vec<WebhookTrigger>,
 }
 
@@ -151,6 +155,7 @@ pub struct UpdateWebhookInput {
     pub name: Option<String>,
     pub description: Option<String>,
     pub endpoint: String,
+    pub headers: HashMap<String, String>,
     pub subscribers: Vec<WebhookTrigger>,
 }
 

@@ -168,6 +168,7 @@ where
                 input.name,
                 input.description,
                 input.endpoint,
+                input.headers,
                 input.subscribers,
             )
             .await?;
@@ -212,6 +213,7 @@ where
                 input.name,
                 input.description,
                 input.endpoint,
+                input.headers,
                 input.subscribers,
             )
             .await?;
