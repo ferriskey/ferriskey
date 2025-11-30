@@ -14,6 +14,7 @@ import { WebhookCategory } from '@/utils/webhook-utils'
 import WebhookTrigger = Schemas.WebhookTrigger
 import { FormField } from '@/components/ui/form'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
+import ManageWebhookHeaders from '../components/manage-webhook-headers'
 
 export interface PageRealmSettingsCreateWebhookProps {
   webhoobCategories: WebhookCategory[]
@@ -91,6 +92,21 @@ export default function PageRealmSettingsCreateWebhook({
         </BlockContent>
       </div>
 
+      <div className='lg:w-1/3'>
+        <BlockContent title='HTTP Headers'>
+          <FormField
+            control={form.control}
+            name='headers'
+            render={({ field }) => (
+              <ManageWebhookHeaders
+                headers={field.value || []}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </BlockContent>
+      </div>
+
       <div>
         <BlockContent className='rounded-none' classNameContent='p-0' title='Events to subscribe'>
           <Tabs defaultValue={webhoobCategories[0].category} className='flex'>
@@ -149,6 +165,6 @@ export default function PageRealmSettingsCreateWebhook({
           icon={<PlusIcon className='w-4 h-4' />}
         />
       </div>
-    </div>
+    </div >
   )
 }
