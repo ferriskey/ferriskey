@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -7,10 +9,11 @@ use crate::domain::{
     common::generate_timestamp, webhook::entities::webhook_subscriber::WebhookSubscriber,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Webhook {
     pub id: Uuid,
     pub endpoint: String,
+    pub headers: HashMap<String, String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub subscribers: Vec<WebhookSubscriber>,
@@ -33,6 +36,7 @@ impl Webhook {
 
         Self {
             id: Uuid::new_v7(timestamp),
+            headers: HashMap::new(),
             endpoint,
             name,
             description,

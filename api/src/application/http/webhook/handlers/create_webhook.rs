@@ -46,6 +46,7 @@ pub async fn create_webhook(
                 name: payload.name,
                 description: payload.description,
                 endpoint: payload.endpoint,
+                headers: payload.headers,
                 subscribers: payload.subscribers,
             },
         )

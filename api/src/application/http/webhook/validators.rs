@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ferriskey_core::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -15,6 +17,9 @@ pub struct CreateWebhookValidator {
     #[serde(default)]
     pub endpoint: String,
 
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+
     #[validate(length(min = 1, message = "subscribers is required"))]
     #[serde(default)]
     pub subscribers: Vec<WebhookTrigger>,
@@ -31,6 +36,9 @@ pub struct UpdateWebhookValidator {
     #[validate(length(min = 1, message = "endpoint is required"))]
     #[serde(default)]
     pub endpoint: String,
+
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 
     #[validate(length(min = 1, message = "subscribers is required"))]
     #[serde(default)]
