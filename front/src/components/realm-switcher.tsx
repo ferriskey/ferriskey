@@ -22,10 +22,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog.tsx'
 import { InputText } from '@/components/ui/input-text.tsx'
-import { Form, useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FormField } from '@/components/ui/form.tsx'
+import { Form, FormField } from '@/components/ui/form.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { useCreateRealm } from '@/api/realm.api.ts'
 import { toast } from 'sonner'
@@ -125,7 +125,7 @@ export default function RealmSwitcher() {
         </SidebarMenuItem>
       </SidebarMenu>
 
-      <ModalCreateRealm open={open} setOpen={setOpen} />
+      {realm_name && <ModalCreateRealm open={open} setOpen={setOpen} realm_name={realm_name} />}
     </>
   )
 }
@@ -133,16 +133,17 @@ export default function RealmSwitcher() {
 interface ModalCreateRealmProps {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>
+  realm_name: string
 }
 
 const createRealmSchema = z.object({
-  name: z.string().min(1, { message: 'Realm name is required' }),
+  name: z.string().trim().min(1, { message: 'Realm name is required' }),
 })
 
 type CreateRealmSchema = z.infer<typeof createRealmSchema>
 
-function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
-  const { mutate: createRealm, data } = useCreateRealm()
+function ModalCreateRealm({ open, setOpen, realm_name }: ModalCreateRealmProps) {
+  const { mutate: createRealm, data } = useCreateRealm({ realm: realm_name ?? 'master' })
 
   const form = useForm<CreateRealmSchema>({
     resolver: zodResolver(createRealmSchema),
@@ -165,6 +166,12 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
     }
   }, [data, setOpen])
 
+  useEffect(() => {
+    if (!open) {
+      form.reset()
+    }
+  }, [open, form])
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
@@ -176,31 +183,29 @@ function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
             authenticate the users that they control.
           </DialogDescription>
         </DialogHeader>
-        <div>
-          <Form {...form}>
-            <FormField
-              name='name'
-              control={form.control}
-              render={({ field }) => (
-                <InputText
-                  name={'name'}
-                  label='Realm Name'
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
+        <Form {...form}>
+          <FormField
+            name='name'
+            control={form.control}
+            render={({ field }) => (
+              <InputText
+                name={'name'}
+                label='Realm Name'
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
-            <DialogFooter className='mt-4'>
-              <Button variant='ghost' onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant='default' disabled={!isValid} onClick={handleSubmit}>
-                Create Realm
-              </Button>
-            </DialogFooter>
-          </Form>
-        </div>
+          <DialogFooter className='mt-4'>
+            <Button variant='ghost' onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant='default' disabled={!isValid} onClick={handleSubmit}>
+              Create Realm
+            </Button>
+          </DialogFooter>
+        </Form>
       </DialogContent>
     </Dialog>
   )

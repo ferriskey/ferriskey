@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 
@@ -15,18 +16,28 @@ export const useGetUserRealmsQuery = ({ realm }: UserRealmsQuery) => {
   )
 }
 
-export const useCreateRealm = () => {
+export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms', async (response) => {
-      const data = await response.json()
-      return data
+    ...window.tanstackApi.mutation('post', '/realms', async (res) => {
+      return await res.json()
     }).mutationOptions,
+
     onSuccess: async () => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
+        path: {
+          realm_name: realm,
+        },
+      }).queryKey
+
       await queryClient.invalidateQueries({
-        queryKey: ['user-realms'],
+        queryKey: keys,
       })
+    },
+
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }
