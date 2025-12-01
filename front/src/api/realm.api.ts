@@ -16,27 +16,26 @@ export const useGetUserRealmsQuery = ({ realm }: UserRealmsQuery) => {
   )
 }
 
-export const useCreateRealm = () => {
+export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms', async (response) => {
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(
-          (data as unknown as { message: string }).message || 'Failed to create realm'
-        )
-      }
-      return data
+    ...window.tanstackApi.mutation('post', '/realms', async (res) => {
+      return await res.json()
     }).mutationOptions,
+
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        predicate: (query) => {
-          const queryKey = query.queryKey[0] as { _id?: string }
-          return queryKey._id === '/realms/{realm_name}/users/@me/realms'
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
+        path: {
+          realm_name: realm,
         },
+      }).queryKey
+
+      await queryClient.invalidateQueries({
+        queryKey: keys,
       })
     },
+
     onError: (error: Error) => {
       toast.error(error.message)
     },
