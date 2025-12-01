@@ -14,6 +14,7 @@ import { WebhookCategory } from '@/utils/webhook-utils'
 import WebhookTrigger = Schemas.WebhookTrigger
 import { FormField } from '@/components/ui/form'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
+import ManageWebhookHeaders from '../components/manage-webhook-headers'
 
 export interface PageRealmSettingsCreateWebhookProps {
   webhoobCategories: WebhookCategory[]
@@ -61,7 +62,7 @@ export default function PageRealmSettingsCreateWebhook({
         </p>
       </div>
 
-      <div className='lg:w-1/3'>
+      <div className='xl:w-1/2 2xl:w-1/3 w-full'>
         <BlockContent title='General Details'>
           <div className='flex flex-col gap-5'>
             <FormField
@@ -91,8 +92,23 @@ export default function PageRealmSettingsCreateWebhook({
         </BlockContent>
       </div>
 
+      <div className='xl:w-1/2 2xl:w-1/3 w-full'>
+        <BlockContent title='HTTP Headers'>
+          <FormField
+            control={form.control}
+            name='headers'
+            render={({ field }) => (
+              <ManageWebhookHeaders
+                headers={field.value || []}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </BlockContent>
+      </div>
+
       <div>
-        <BlockContent className='rounded-none' classNameContent='p-0' title='Events to subscribe'>
+        <BlockContent classNameContent='p-0' title='Events to subscribe'>
           <Tabs defaultValue={webhoobCategories[0].category} className='flex'>
             <TabsList asChild>
               <ScrollArea className='h-[400px] rounded-none w-[200px] bg-background border-r border-neutral-250 px-3 py-2'>
@@ -149,6 +165,6 @@ export default function PageRealmSettingsCreateWebhook({
           icon={<PlusIcon className='w-4 h-4' />}
         />
       </div>
-    </div>
+    </div >
   )
 }

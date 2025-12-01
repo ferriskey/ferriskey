@@ -11,6 +11,14 @@ export const createWebhookValidator = z.object({
   description: z.string().optional(),
   endpoint: z.string().url().optional(),
   subscribers: z.array(z.string()),
+  headers: z
+    .array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+      })
+    )
+    .optional(),
 })
 
 export type UpdateRealmSchema = z.infer<typeof updateRealmValidator>
