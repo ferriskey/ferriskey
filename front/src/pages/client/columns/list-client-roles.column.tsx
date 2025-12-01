@@ -5,7 +5,7 @@ import Role = Schemas.Role
 export const columns: ColumnDef<Role>[] = [
   {
     id: 'Name',
-    header: 'Nom du rôle',
+    header: 'Role Name',
     cell: (role) => <div className='font-medium'>{role.name}</div>,
   },
   {
@@ -15,7 +15,7 @@ export const columns: ColumnDef<Role>[] = [
   },
   {
     id: 'Created At',
-    header: 'Créé le',
+    header: 'Created At',
     cell: (role) => (
       <div className='text-muted-foreground'>{new Date(role.created_at).toLocaleDateString()}</div>
     ),

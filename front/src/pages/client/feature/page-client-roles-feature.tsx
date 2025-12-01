@@ -9,21 +9,27 @@ import Role = Schemas.Role
 export default function PageClientRolesFeature() {
   const { realm_name, client_id } = useParams<ClientRouterParams>()
 
-  const { data: roles, isLoading, isError } = useGetClientRoles({
+  const {
+    data: roles,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetClientRoles({
     realm: realm_name || 'master',
-    clientId: client_id
+    clientId: client_id,
   })
 
-  const { mutate: deleteRole } = useDeleteRole()
+  const { mutateAsync: deleteRole } = useDeleteRole()
 
-  const handleDeleteRole = (role: Role) => {
+  const handleDeleteRole = async (role: Role) => {
     if (realm_name && role.id) {
-      deleteRole({
+      await deleteRole({
         path: {
           realm_name,
           role_id: role.id,
-        }
+        },
       })
+      await refetch()
     }
   }
 
