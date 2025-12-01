@@ -125,7 +125,7 @@ export default function RealmSwitcher() {
         </SidebarMenuItem>
       </SidebarMenu>
 
-      <ModalCreateRealm open={open} setOpen={setOpen} />
+      {realm_name && <ModalCreateRealm open={open} setOpen={setOpen} realm_name={realm_name} />}
     </>
   )
 }
@@ -133,6 +133,7 @@ export default function RealmSwitcher() {
 interface ModalCreateRealmProps {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>
+  realm_name: string
 }
 
 const createRealmSchema = z.object({
@@ -141,8 +142,8 @@ const createRealmSchema = z.object({
 
 type CreateRealmSchema = z.infer<typeof createRealmSchema>
 
-function ModalCreateRealm({ open, setOpen }: ModalCreateRealmProps) {
-  const { mutate: createRealm, data } = useCreateRealm()
+function ModalCreateRealm({ open, setOpen, realm_name }: ModalCreateRealmProps) {
+  const { mutate: createRealm, data } = useCreateRealm({ realm: realm_name ?? 'master' })
 
   const form = useForm<CreateRealmSchema>({
     resolver: zodResolver(createRealmSchema),
