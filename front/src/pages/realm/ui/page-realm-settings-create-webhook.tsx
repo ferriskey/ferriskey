@@ -62,7 +62,7 @@ export default function PageRealmSettingsCreateWebhook({
         </p>
       </div>
 
-      <div className='lg:w-1/3'>
+      <div className='xl:w-1/2 2xl:w-1/3 w-full'>
         <BlockContent title='General Details'>
           <div className='flex flex-col gap-5'>
             <FormField
@@ -92,7 +92,7 @@ export default function PageRealmSettingsCreateWebhook({
         </BlockContent>
       </div>
 
-      <div className='lg:w-1/3'>
+      <div className='xl:w-1/2 2xl:w-1/3 w-full'>
         <BlockContent title='HTTP Headers'>
           <FormField
             control={form.control}
@@ -108,7 +108,7 @@ export default function PageRealmSettingsCreateWebhook({
       </div>
 
       <div>
-        <BlockContent className='rounded-none' classNameContent='p-0' title='Events to subscribe'>
+        <BlockContent classNameContent='p-0' title='Events to subscribe'>
           <Tabs defaultValue={webhoobCategories[0].category} className='flex'>
             <TabsList asChild>
               <ScrollArea className='h-[400px] rounded-none w-[200px] bg-background border-r border-neutral-250 px-3 py-2'>
