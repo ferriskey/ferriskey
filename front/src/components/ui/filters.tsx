@@ -1,7 +1,7 @@
-'use client';
+'use client'
 
-import type React from 'react';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import type React from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import {
   Command,
   CommandEmpty,
@@ -10,19 +10,19 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from '@/components/ui/command';
+} from '@/components/ui/command'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { AlertCircle, Check, Plus, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { AlertCircle, Check, Plus, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // i18n Configuration Interface
 export interface FilterI18nConfig {
@@ -170,7 +170,7 @@ export const DEFAULT_I18N: FilterI18nConfig = {
     invalidTel: 'Invalid phone format',
     invalid: 'Invalid input format',
   },
-};
+}
 
 // Context for all Filter component props
 interface FilterContextValue {
@@ -205,9 +205,9 @@ const FilterContext = createContext<FilterContextValue>({
   showSearchInput: true,
   trigger: undefined,
   allowMultiple: true,
-});
+})
 
-const useFilterContext = () => useContext(FilterContext);
+const useFilterContext = () => useContext(FilterContext)
 
 // Reusable input variant component for consistent styling
 const filterInputVariants = cva(
@@ -247,7 +247,7 @@ const filterInputVariants = cva(
       cursorPointer: true,
     },
   },
-);
+)
 
 // Reusable remove button variant component
 const filterRemoveButtonVariants = cva(
@@ -279,7 +279,7 @@ const filterRemoveButtonVariants = cva(
       cursorPointer: true,
     },
   },
-);
+)
 
 const filterAddButtonVariants = cva(
   [
@@ -312,7 +312,7 @@ const filterAddButtonVariants = cva(
       cursorPointer: true,
     },
   },
-);
+)
 
 const filterOperatorVariants = cva(
   [
@@ -341,7 +341,7 @@ const filterOperatorVariants = cva(
       cursorPointer: true,
     },
   },
-);
+)
 
 const filterFieldLabelVariants = cva(
   [
@@ -369,7 +369,7 @@ const filterFieldLabelVariants = cva(
       size: 'md',
     },
   },
-);
+)
 
 const filterFieldValueVariants = cva(
   'text-foreground transition shrink-0 flex items-center gap-1 relative focus-visible:z-1',
@@ -395,7 +395,7 @@ const filterFieldValueVariants = cva(
       cursorPointer: true,
     },
   },
-);
+)
 
 const filterFieldAddonVariants = cva('text-foreground shrink-0 flex items-center justify-center', {
   variants: {
@@ -413,7 +413,7 @@ const filterFieldAddonVariants = cva('text-foreground shrink-0 flex items-center
     variant: 'outline',
     size: 'md',
   },
-});
+})
 
 const filterFieldBetweenVariants = cva('text-muted-foreground shrink-0 flex items-center', {
   variants: {
@@ -431,7 +431,7 @@ const filterFieldBetweenVariants = cva('text-muted-foreground shrink-0 flex item
     variant: 'outline',
     size: 'md',
   },
-});
+})
 
 const filtersContainerVariants = cva('flex flex-wrap items-center', {
   variants: {
@@ -449,7 +449,7 @@ const filtersContainerVariants = cva('flex flex-wrap items-center', {
     variant: 'outline',
     size: 'md',
   },
-});
+})
 
 const filterItemVariants = cva('flex items-center shadow-xs shadow-black/5', {
   variants: {
@@ -461,7 +461,7 @@ const filterItemVariants = cva('flex items-center shadow-xs shadow-black/5', {
   defaultVariants: {
     variant: 'outline',
   },
-});
+})
 
 function FilterInput<T = unknown>({
   field,
@@ -476,83 +476,83 @@ function FilterInput<T = unknown>({
   field?: FilterFieldConfig<T>;
   onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
-  const context = useFilterContext();
-  const [isValid, setIsValid] = useState(true);
-  const [validationMessage, setValidationMessage] = useState('');
+  const context = useFilterContext()
+  const [isValid, setIsValid] = useState(true)
+  const [validationMessage, setValidationMessage] = useState('')
 
   // Validation function to check if input matches pattern
   const validateInput = (value: string, pattern?: string): boolean => {
-    if (!pattern || !value) return true;
-    const regex = new RegExp(pattern);
-    return regex.test(value);
-  };
+    if (!pattern || !value) return true
+    const regex = new RegExp(pattern)
+    return regex.test(value)
+  }
 
   // Get validation message for field type
   const getValidationMessage = (fieldType: string, hasCustomPattern: boolean = false): string => {
     // If it's a text or number field with a custom pattern, use the generic invalid message
     if ((fieldType === 'text' || fieldType === 'number') && hasCustomPattern) {
-      return context.i18n.validation.invalid;
+      return context.i18n.validation.invalid
     }
 
     switch (fieldType) {
       case 'email':
-        return context.i18n.validation.invalidEmail;
+        return context.i18n.validation.invalidEmail
       case 'url':
-        return context.i18n.validation.invalidUrl;
+        return context.i18n.validation.invalidUrl
       case 'tel':
-        return context.i18n.validation.invalidTel;
+        return context.i18n.validation.invalidTel
       default:
-        return context.i18n.validation.invalid;
+        return context.i18n.validation.invalid
     }
-  };
+  }
 
   // Handle input change - allow typing without validation
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Always allow typing, just call the original onChange
-    onChange?.(e);
-  };
+    onChange?.(e)
+  }
 
   // Handle blur event - validate when user leaves input
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const pattern = field?.pattern || props.pattern;
+    const value = e.target.value
+    const pattern = field?.pattern || props.pattern
 
     // Only validate if there's a value and pattern
     if (value && pattern) {
-      let valid = true;
+      let valid = true
 
       // If there's a custom validation function, use it
       if (field?.validation) {
-        valid = field.validation(value);
+        valid = field.validation(value)
       } else {
         // Use pattern validation
-        valid = validateInput(value, pattern);
+        valid = validateInput(value, pattern)
       }
 
-      setIsValid(valid);
-      const hasCustomPattern = !!(field?.pattern || props.pattern);
-      setValidationMessage(valid ? '' : getValidationMessage(field?.type || '', hasCustomPattern));
+      setIsValid(valid)
+      const hasCustomPattern = !!(field?.pattern || props.pattern)
+      setValidationMessage(valid ? '' : getValidationMessage(field?.type || '', hasCustomPattern))
     } else {
       // Reset validation state for empty values or no pattern
-      setIsValid(true);
-      setValidationMessage('');
+      setIsValid(true)
+      setValidationMessage('')
     }
 
     // Call onInputChange if provided (for blur-based filter updates)
     if (onInputChange) {
-      onInputChange(e as React.ChangeEvent<HTMLInputElement>);
+      onInputChange(e as React.ChangeEvent<HTMLInputElement>)
     }
 
     // Call the original onBlur if provided
-    onBlur?.(e);
-  };
+    onBlur?.(e)
+  }
 
   // Handle keydown event - hide validation error when user starts typing
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Hide validation error when user starts typing (any key except special keys)
     if (!isValid && !['Tab', 'Escape', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      setIsValid(true);
-      setValidationMessage('');
+      setIsValid(true)
+      setValidationMessage('')
     }
 
     // Handle Enter key for immediate filter updates
@@ -562,48 +562,48 @@ function FilterInput<T = unknown>({
         ...e,
         target: e.target as HTMLInputElement,
         currentTarget: e.currentTarget as HTMLInputElement,
-      } as React.ChangeEvent<HTMLInputElement>;
-      onInputChange(syntheticEvent);
+      } as React.ChangeEvent<HTMLInputElement>
+      onInputChange(syntheticEvent)
     }
 
     // Call the original onKeyDown if provided
-    onKeyDown?.(e);
-  };
+    onKeyDown?.(e)
+  }
 
   return (
     <div
       className={cn('w-36', filterInputVariants({ variant: context.variant, size: context.size }), className)}
-      data-slot="filters-input-wrapper"
+      data-slot='filters-input-wrapper'
     >
       {field?.prefix && (
         <div
-          data-slot="filters-prefix"
+          data-slot='filters-prefix'
           className={filterFieldAddonVariants({ variant: context.variant, size: context.size })}
         >
           {field.prefix}
         </div>
       )}
 
-      <div className="w-full flex items-stretch">
+      <div className='w-full flex items-stretch'>
         <input
-          className="w-full outline-none"
+          className='w-full outline-none'
           aria-invalid={!isValid}
           aria-describedby={!isValid && validationMessage ? `${field?.key || 'input'}-error` : undefined}
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          data-slot="filters-input"
+          data-slot='filters-input'
           {...props}
         />
         {!isValid && validationMessage && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                <AlertCircle className="size-3.5 text-destructive" />
+              <div className='absolute right-2 top-1/2 -translate-y-1/2 flex items-center'>
+                <AlertCircle className='size-3.5 text-destructive' />
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-sm">{validationMessage}</p>
+              <p className='text-sm'>{validationMessage}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -611,28 +611,28 @@ function FilterInput<T = unknown>({
 
       {field?.suffix && (
         <div
-          data-slot="filters-suffix"
+          data-slot='filters-suffix'
           className={cn(filterFieldAddonVariants({ variant: context.variant, size: context.size }))}
         >
           {field.suffix}
         </div>
       )}
     </div>
-  );
+  )
 }
 
 interface FilterRemoveButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof filterRemoveButtonVariants> {
+  VariantProps<typeof filterRemoveButtonVariants> {
   icon?: React.ReactNode;
 }
 
 function FilterRemoveButton({ className, icon = <X />, ...props }: FilterRemoveButtonProps) {
-  const context = useFilterContext();
+  const context = useFilterContext()
 
   return (
     <button
-      data-slot="filters-remove"
+      data-slot='filters-remove'
       className={cn(
         filterRemoveButtonVariants({
           variant: context.variant,
@@ -646,7 +646,7 @@ function FilterRemoveButton({ className, icon = <X />, ...props }: FilterRemoveB
     >
       {icon}
     </button>
-  );
+  )
 }
 
 // Generic types for flexible filter system
@@ -685,21 +685,21 @@ export interface FilterFieldConfig<T = unknown> {
   label?: string;
   icon?: React.ReactNode;
   type?:
-    | 'select'
-    | 'multiselect'
-    | 'date'
-    | 'daterange'
-    | 'text'
-    | 'number'
-    | 'numberrange'
-    | 'boolean'
-    | 'email'
-    | 'url'
-    | 'tel'
-    | 'time'
-    | 'datetime'
-    | 'custom'
-    | 'separator';
+  | 'select'
+  | 'multiselect'
+  | 'date'
+  | 'daterange'
+  | 'text'
+  | 'number'
+  | 'numberrange'
+  | 'boolean'
+  | 'email'
+  | 'url'
+  | 'tel'
+  | 'time'
+  | 'datetime'
+  | 'custom'
+  | 'separator';
   // Group-level configuration
   group?: string;
   fields?: FilterFieldConfig<T>[];
@@ -738,40 +738,40 @@ export interface FilterFieldConfig<T = unknown> {
 
 // Helper functions to handle both flat and grouped field configurations
 const isFieldGroup = <T = unknown,>(item: FilterFieldConfig<T> | FilterFieldGroup<T>): item is FilterFieldGroup<T> => {
-  return 'fields' in item && Array.isArray(item.fields);
-};
+  return 'fields' in item && Array.isArray(item.fields)
+}
 
 // Helper function to check if a FilterFieldConfig is a group-level configuration
 const isGroupLevelField = <T = unknown,>(field: FilterFieldConfig<T>): boolean => {
-  return Boolean(field.group && field.fields);
-};
+  return Boolean(field.group && field.fields)
+}
 
 const flattenFields = <T = unknown,>(fields: FilterFieldsConfig<T>): FilterFieldConfig<T>[] => {
   return fields.reduce<FilterFieldConfig<T>[]>((acc, item) => {
     if (isFieldGroup(item)) {
-      return [...acc, ...item.fields];
+      return [...acc, ...item.fields]
     }
     // Handle group-level fields (new structure)
     if (isGroupLevelField(item)) {
-      return [...acc, ...item.fields!];
+      return [...acc, ...item.fields!]
     }
-    return [...acc, item];
-  }, []);
-};
+    return [...acc, item]
+  }, [])
+}
 
 const getFieldsMap = <T = unknown,>(fields: FilterFieldsConfig<T>): Record<string, FilterFieldConfig<T>> => {
-  const flatFields = flattenFields(fields);
+  const flatFields = flattenFields(fields)
   return flatFields.reduce(
     (acc, field) => {
       // Only add fields that have a key (skip group-level configurations)
       if (field.key) {
-        acc[field.key] = field;
+        acc[field.key] = field
       }
-      return acc;
+      return acc
     },
     {} as Record<string, FilterFieldConfig<T>>,
-  );
-};
+  )
+}
 
 // Helper function to create operators from i18n config
 const createOperatorsFromI18n = (i18n: FilterI18nConfig): Record<string, FilterOperator[]> => ({
@@ -877,10 +877,10 @@ const createOperatorsFromI18n = (i18n: FilterI18nConfig): Record<string, FilterO
     { value: 'empty', label: i18n.operators.empty },
     { value: 'not_empty', label: i18n.operators.notEmpty },
   ],
-});
+})
 
 // Default operators for different field types (using default i18n)
-export const DEFAULT_OPERATORS: Record<string, FilterOperator[]> = createOperatorsFromI18n(DEFAULT_I18N);
+export const DEFAULT_OPERATORS: Record<string, FilterOperator[]> = createOperatorsFromI18n(DEFAULT_I18N)
 
 // Helper function to get operators for a field
 const getOperatorsForField = <T = unknown,>(
@@ -888,25 +888,25 @@ const getOperatorsForField = <T = unknown,>(
   values: T[],
   i18n: FilterI18nConfig,
 ): FilterOperator[] => {
-  if (field.operators) return field.operators;
+  if (field.operators) return field.operators
 
-  const operators = createOperatorsFromI18n(i18n);
+  const operators = createOperatorsFromI18n(i18n)
 
   // Determine field type for operator selection
-  let fieldType = field.type || 'select';
+  let fieldType = field.type || 'select'
 
   // If it's a select field but has multiple values, treat as multiselect
   if (fieldType === 'select' && values.length > 1) {
-    fieldType = 'multiselect';
+    fieldType = 'multiselect'
   }
 
   // If it's a multiselect field or has multiselect operators, use multiselect operators
   if (fieldType === 'multiselect' || field.type === 'multiselect') {
-    return operators.multiselect;
+    return operators.multiselect
   }
 
-  return operators[fieldType] || operators.select;
-};
+  return operators[fieldType] || operators.select
+}
 
 interface FilterOperatorDropdownProps<T = unknown> {
   field: FilterFieldConfig<T>;
@@ -916,19 +916,19 @@ interface FilterOperatorDropdownProps<T = unknown> {
 }
 
 function FilterOperatorDropdown<T = unknown>({ field, operator, values, onChange }: FilterOperatorDropdownProps<T>) {
-  const context = useFilterContext();
-  const operators = getOperatorsForField(field, values, context.i18n);
+  const context = useFilterContext()
+  const operators = getOperatorsForField(field, values, context.i18n)
 
   // Find the operator label, with fallback to formatted operator name
   const operatorLabel =
-    operators.find((op) => op.value === operator)?.label || context.i18n.helpers.formatOperator(operator);
+    operators.find((op) => op.value === operator)?.label || context.i18n.helpers.formatOperator(operator)
 
   // Debug logging to help identify the issue
   if (!operators.find((op) => op.value === operator)) {
     console.warn(
       `Operator "${operator}" not found in operators for field "${field.key}" (type: ${field.type}). Available operators:`,
       operators.map((op) => op.value),
-    );
+    )
   }
 
   return (
@@ -936,12 +936,12 @@ function FilterOperatorDropdown<T = unknown>({ field, operator, values, onChange
       <DropdownMenuTrigger className={filterOperatorVariants({ variant: context.variant, size: context.size })}>
         {operatorLabel}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-fit min-w-fit">
+      <DropdownMenuContent align='start' className='w-fit min-w-fit'>
         {operators.map((op) => (
           <DropdownMenuItem
             key={op.value}
             onClick={() => onChange(op.value)}
-            className="flex items-center justify-between"
+            className='flex items-center justify-between'
           >
             <span>{op.label}</span>
             <Check className={`text-primary ms-auto ${op.value === operator ? 'opacity-100' : 'opacity-0'}`} />
@@ -949,7 +949,7 @@ function FilterOperatorDropdown<T = unknown>({ field, operator, values, onChange
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
 
 interface FilterValueSelectorProps<T = unknown> {
@@ -976,29 +976,29 @@ function SelectOptionsPopover<T = unknown>({
   onClose,
   inline = false,
 }: SelectOptionsPopoverProps<T>) {
-  const [open, setOpen] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const context = useFilterContext();
+  const [open, setOpen] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const context = useFilterContext()
 
-  const isMultiSelect = field.type === 'multiselect' || values.length > 1;
-  const effectiveValues = (field.value !== undefined ? (field.value as T[]) : values) || [];
-  const selectedOptions = field.options?.filter((opt) => effectiveValues.includes(opt.value)) || [];
-  const unselectedOptions = field.options?.filter((opt) => !effectiveValues.includes(opt.value)) || [];
+  const isMultiSelect = field.type === 'multiselect' || values.length > 1
+  const effectiveValues = (field.value !== undefined ? (field.value as T[]) : values) || []
+  const selectedOptions = field.options?.filter((opt) => effectiveValues.includes(opt.value)) || []
+  const unselectedOptions = field.options?.filter((opt) => !effectiveValues.includes(opt.value)) || []
 
   const handleClose = () => {
-    setOpen(false);
-    onClose?.();
-  };
+    setOpen(false)
+    onClose?.()
+  }
 
   // If inline mode, render the content directly without popover
   if (inline) {
     return (
-      <div className="w-full">
+      <div className='w-full'>
         <Command>
           {field.searchable !== false && (
             <CommandInput
               placeholder={context.i18n.placeholders.searchField(field.label || '')}
-              className="h-8.5 text-sm"
+              className='h-8.5 text-sm'
               value={searchInput}
               onValueChange={setSearchInput}
             />
@@ -1012,27 +1012,27 @@ function SelectOptionsPopover<T = unknown>({
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className='group flex gap-2 items-center'
                     onSelect={() => {
                       if (isMultiSelect) {
-                        const next = effectiveValues.filter((v) => v !== option.value) as T[];
+                        const next = effectiveValues.filter((v) => v !== option.value) as T[]
                         if (field.onValueChange) {
-                          field.onValueChange(next);
+                          field.onValueChange(next)
                         } else {
-                          onChange(next);
+                          onChange(next)
                         }
                       } else {
                         if (field.onValueChange) {
-                          field.onValueChange([] as T[]);
+                          field.onValueChange([] as T[])
                         } else {
-                          onChange([] as T[]);
+                          onChange([] as T[])
                         }
                       }
                     }}
                   >
                     {option.icon && option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <Check className="text-primary ms-auto" />
+                    <span className='text-accent-foreground truncate'>{option.label}</span>
+                    <Check className='text-primary ms-auto' />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1046,33 +1046,33 @@ function SelectOptionsPopover<T = unknown>({
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className='group flex gap-2 items-center'
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
-                          const newValues = [...effectiveValues, option.value] as T[];
+                          const newValues = [...effectiveValues, option.value] as T[]
                           if (field.maxSelections && newValues.length > field.maxSelections) {
-                            return; // Don't exceed max selections
+                            return // Don't exceed max selections
                           }
                           if (field.onValueChange) {
-                            field.onValueChange(newValues);
+                            field.onValueChange(newValues)
                           } else {
-                            onChange(newValues);
+                            onChange(newValues)
                           }
                           // For multiselect, don't close the popover to allow multiple selections
                         } else {
                           if (field.onValueChange) {
-                            field.onValueChange([option.value] as T[]);
+                            field.onValueChange([option.value] as T[])
                           } else {
-                            onChange([option.value] as T[]);
+                            onChange([option.value] as T[])
                           }
-                          onClose?.();
+                          onClose?.()
                         }
                       }}
                     >
                       {option.icon && option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <Check className="text-primary ms-auto opacity-0" />
+                      <span className='text-accent-foreground truncate'>{option.label}</span>
+                      <Check className='text-primary ms-auto opacity-0' />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -1081,16 +1081,16 @@ function SelectOptionsPopover<T = unknown>({
           </CommandList>
         </Command>
       </div>
-    );
+    )
   }
 
   return (
     <Popover
       open={open}
       onOpenChange={(open) => {
-        setOpen(open);
+        setOpen(open)
         if (!open) {
-          setTimeout(() => setSearchInput(''), 200);
+          setTimeout(() => setSearchInput(''), 200)
         }
       }}
     >
@@ -1101,7 +1101,7 @@ function SelectOptionsPopover<T = unknown>({
           cursorPointer: context.cursorPointer,
         })}
       >
-        <div className="flex gap-1.5 items-center">
+        <div className='flex gap-1.5 items-center'>
           {field.customValueRenderer ? (
             field.customValueRenderer(values, field.options || [])
           ) : (
@@ -1122,12 +1122,12 @@ function SelectOptionsPopover<T = unknown>({
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn('w-[200px] p-0', field.className)}>
+      <PopoverContent align='start' className={cn('w-[200px] p-0', field.className)}>
         <Command>
           {field.searchable !== false && (
             <CommandInput
               placeholder={context.i18n.placeholders.searchField(field.label || '')}
-              className="h-9 text-sm"
+              className='h-9 text-sm'
               value={searchInput}
               onValueChange={setSearchInput}
             />
@@ -1141,22 +1141,22 @@ function SelectOptionsPopover<T = unknown>({
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className='group flex gap-2 items-center'
                     onSelect={() => {
                       if (isMultiSelect) {
-                        onChange(values.filter((v) => v !== option.value) as T[]);
+                        onChange(values.filter((v) => v !== option.value) as T[])
                       } else {
-                        onChange([] as T[]);
+                        onChange([] as T[])
                       }
                       if (!isMultiSelect) {
-                        setOpen(false);
-                        handleClose();
+                        setOpen(false)
+                        handleClose()
                       }
                     }}
                   >
                     {option.icon && option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <Check className="text-primary ms-auto" />
+                    <span className='text-accent-foreground truncate'>{option.label}</span>
+                    <Check className='text-primary ms-auto' />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1170,25 +1170,25 @@ function SelectOptionsPopover<T = unknown>({
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className='group flex gap-2 items-center'
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
-                          const newValues = [...values, option.value] as T[];
+                          const newValues = [...values, option.value] as T[]
                           if (field.maxSelections && newValues.length > field.maxSelections) {
-                            return; // Don't exceed max selections
+                            return // Don't exceed max selections
                           }
-                          onChange(newValues);
+                          onChange(newValues)
                         } else {
-                          onChange([option.value] as T[]);
-                          setOpen(false);
-                          handleClose();
+                          onChange([option.value] as T[])
+                          setOpen(false)
+                          handleClose()
                         }
                       }}
                     >
                       {option.icon && option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <Check className="text-primary ms-auto opacity-0" />
+                      <span className='text-accent-foreground truncate'>{option.label}</span>
+                      <Check className='text-primary ms-auto opacity-0' />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -1198,17 +1198,17 @@ function SelectOptionsPopover<T = unknown>({
         </Command>
       </PopoverContent>
     </Popover>
-  );
+  )
 }
 
 function FilterValueSelector<T = unknown>({ field, values, onChange, operator }: FilterValueSelectorProps<T>) {
-  const [open, setOpen] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const context = useFilterContext();
+  const [open, setOpen] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const context = useFilterContext()
 
   // Hide value input for empty/not empty operators
   if (operator === 'empty' || operator === 'not_empty') {
-    return null;
+    return null
   }
 
   // Use custom renderer if provided
@@ -1223,15 +1223,15 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
       >
         {field.customRenderer({ field, values, onChange, operator })}
       </div>
-    );
+    )
   }
 
   if (field.type === 'boolean') {
-    const isChecked = values[0] === true;
+    const isChecked = values[0] === true
 
     // Use custom labels if provided, otherwise fall back to i18n defaults
-    const onLabel = field.onLabel || context.i18n.true;
-    const offLabel = field.offLabel || context.i18n.false;
+    const onLabel = field.onLabel || context.i18n.true
+    const offLabel = field.offLabel || context.i18n.false
 
     return (
       <div
@@ -1241,25 +1241,25 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           cursorPointer: context.cursorPointer,
         })}
       >
-        <div className="flex items-center gap-2">
-          <Switch checked={isChecked} onCheckedChange={(checked) => onChange([checked as T])} size="sm" />
+        <div className='flex items-center gap-2'>
+          <Switch checked={isChecked} onCheckedChange={(checked) => onChange([checked as T])} />
           {field.onLabel && field.offLabel && (
-            <span className="text-xs text-muted-foreground">{isChecked ? onLabel : offLabel}</span>
+            <span className='text-xs text-muted-foreground'>{isChecked ? onLabel : offLabel}</span>
           )}
         </div>
       </div>
-    );
+    )
   }
 
   if (field.type === 'time') {
     if (operator === 'between') {
-      const startTime = (values[0] as string) || '';
-      const endTime = (values[1] as string) || '';
+      const startTime = (values[0] as string) || ''
+      const endTime = (values[1] as string) || ''
 
       return (
-        <div className="flex items-center" data-slot="filters-item">
+        <div className='flex items-center' data-slot='filters-item'>
           <FilterInput
-            type="time"
+            type='time'
             value={startTime}
             onChange={(e) => onChange([e.target.value, endTime] as T[])}
             onInputChange={field.onInputChange}
@@ -1267,13 +1267,13 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
           <div
-            data-slot="filters-between"
+            data-slot='filters-between'
             className={filterFieldBetweenVariants({ variant: context.variant, size: context.size })}
           >
             {context.i18n.to}
           </div>
           <FilterInput
-            type="time"
+            type='time'
             value={endTime}
             onChange={(e) => onChange([startTime, e.target.value] as T[])}
             onInputChange={field.onInputChange}
@@ -1281,30 +1281,30 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
         </div>
-      );
+      )
     }
 
     return (
       <FilterInput
-        type="time"
+        type='time'
         value={(values[0] as string) || ''}
         onChange={(e) => onChange([e.target.value] as T[])}
         onInputChange={field.onInputChange}
         field={field}
         className={field.className}
       />
-    );
+    )
   }
 
   if (field.type === 'datetime') {
     if (operator === 'between') {
-      const startDateTime = (values[0] as string) || '';
-      const endDateTime = (values[1] as string) || '';
+      const startDateTime = (values[0] as string) || ''
+      const endDateTime = (values[1] as string) || ''
 
       return (
-        <div className="flex items-center" data-slot="filters-item">
+        <div className='flex items-center' data-slot='filters-item'>
           <FilterInput
-            type="datetime-local"
+            type='datetime-local'
             value={startDateTime}
             onChange={(e) => onChange([e.target.value, endDateTime] as T[])}
             onInputChange={field.onInputChange}
@@ -1312,13 +1312,13 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
           <div
-            data-slot="filters-between"
+            data-slot='filters-between'
             className={filterFieldBetweenVariants({ variant: context.variant, size: context.size })}
           >
             {context.i18n.to}
           </div>
           <FilterInput
-            type="datetime-local"
+            type='datetime-local'
             value={endDateTime}
             onChange={(e) => onChange([startDateTime, e.target.value] as T[])}
             onInputChange={field.onInputChange}
@@ -1326,47 +1326,47 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
         </div>
-      );
+      )
     }
 
     return (
       <FilterInput
-        type="datetime-local"
+        type='datetime-local'
         value={(values[0] as string) || ''}
         onChange={(e) => onChange([e.target.value] as T[])}
         onInputChange={field.onInputChange}
         className={cn('w-36', field.className)}
         field={field}
       />
-    );
+    )
   }
 
   if (['email', 'url', 'tel'].includes(field.type || '')) {
     const getInputType = () => {
       switch (field.type) {
         case 'email':
-          return 'email';
+          return 'email'
         case 'url':
-          return 'url';
+          return 'url'
         case 'tel':
-          return 'tel';
+          return 'tel'
         default:
-          return 'text';
+          return 'text'
       }
-    };
+    }
 
     const getPattern = () => {
       switch (field.type) {
         case 'email':
-          return '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$';
+          return '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'
         case 'url':
-          return '^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)$';
+          return '^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)$'
         case 'tel':
-          return '^[\\+]?[1-9][\\d]{0,15}$';
+          return '^[\\+]?[1-9][\\d]{0,15}$'
         default:
-          return undefined;
+          return undefined
       }
-    };
+    }
 
     return (
       <FilterInput
@@ -1379,12 +1379,12 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
         className={field.className}
         field={field}
       />
-    );
+    )
   }
 
   if (field.type === 'daterange') {
-    const startDate = (values[0] as string) || '';
-    const endDate = (values[1] as string) || '';
+    const startDate = (values[0] as string) || ''
+    const endDate = (values[1] as string) || ''
 
     return (
       <div
@@ -1395,7 +1395,7 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
         })}
       >
         <FilterInput
-          type="date"
+          type='date'
           value={startDate}
           onChange={(e) => onChange([e.target.value, endDate] as T[])}
           onInputChange={field.onInputChange}
@@ -1403,13 +1403,13 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           field={field}
         />
         <div
-          data-slot="filters-between"
+          data-slot='filters-between'
           className={filterFieldBetweenVariants({ variant: context.variant, size: context.size })}
         >
           {context.i18n.to}
         </div>
         <FilterInput
-          type="date"
+          type='date'
           value={endDate}
           onChange={(e) => onChange([startDate, e.target.value] as T[])}
           onInputChange={field.onInputChange}
@@ -1417,19 +1417,19 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           field={field}
         />
       </div>
-    );
+    )
   }
 
   // Handle different field types
   if (field.type === 'text' || field.type === 'number') {
     if (field.type === 'number' && operator === 'between') {
-      const minVal = (values[0] as string) || '';
-      const maxVal = (values[1] as string) || '';
+      const minVal = (values[0] as string) || ''
+      const maxVal = (values[1] as string) || ''
 
       return (
-        <div className="flex items-center" data-slot="filters-item">
+        <div className='flex items-center' data-slot='filters-item'>
           <FilterInput
-            type="number"
+            type='number'
             value={minVal}
             onChange={(e) => onChange([e.target.value, maxVal] as T[])}
             onInputChange={field.onInputChange}
@@ -1442,13 +1442,13 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
           <div
-            data-slot="filters-between"
+            data-slot='filters-between'
             className={filterFieldBetweenVariants({ variant: context.variant, size: context.size })}
           >
             {context.i18n.to}
           </div>
           <FilterInput
-            type="number"
+            type='number'
             value={maxVal}
             onChange={(e) => onChange([minVal, e.target.value] as T[])}
             onInputChange={field.onInputChange}
@@ -1461,11 +1461,11 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
             field={field}
           />
         </div>
-      );
+      )
     }
 
     return (
-      <div className="flex items-center" data-slot="filters-item">
+      <div className='flex items-center' data-slot='filters-item'>
         <FilterInput
           type={field.type === 'number' ? 'number' : 'text'}
           value={(values[0] as string) || ''}
@@ -1480,38 +1480,38 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           className={cn('w-36', field.className)}
         />
       </div>
-    );
+    )
   }
 
   if (field.type === 'date') {
     return (
       <FilterInput
-        type="date"
+        type='date'
         value={(values[0] as string) || ''}
         onChange={(e) => onChange([e.target.value] as T[])}
         onInputChange={field.onInputChange}
         field={field}
         className={cn('w-16', field.className)}
       />
-    );
+    )
   }
 
   // For select and multiselect types, use the SelectOptionsPopover component
   if (field.type === 'select' || field.type === 'multiselect') {
-    return <SelectOptionsPopover field={field} values={values} onChange={onChange} />;
+    return <SelectOptionsPopover field={field} values={values} onChange={onChange} />
   }
 
-  const isMultiSelect = values.length > 1;
-  const selectedOptions = field.options?.filter((opt) => values.includes(opt.value)) || [];
-  const unselectedOptions = field.options?.filter((opt) => !values.includes(opt.value)) || [];
+  const isMultiSelect = values.length > 1
+  const selectedOptions = field.options?.filter((opt) => values.includes(opt.value)) || []
+  const unselectedOptions = field.options?.filter((opt) => !values.includes(opt.value)) || []
 
   return (
     <Popover
       open={open}
       onOpenChange={(open) => {
-        setOpen(open);
+        setOpen(open)
         if (!open) {
-          setTimeout(() => setSearchInput(''), 200);
+          setTimeout(() => setSearchInput(''), 200)
         }
       }}
     >
@@ -1522,13 +1522,13 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           cursorPointer: context.cursorPointer,
         })}
       >
-        <div className="flex gap-1.5 items-center">
+        <div className='flex gap-1.5 items-center'>
           {field.customValueRenderer ? (
             field.customValueRenderer(values, field.options || [])
           ) : (
             <>
               {selectedOptions.length > 0 && (
-                <div className="flex items-center -space-x-1.5">
+                <div className='flex items-center -space-x-1.5'>
                   {selectedOptions.slice(0, 3).map((option) => (
                     <div key={String(option.value)}>{option.icon}</div>
                   ))}
@@ -1548,7 +1548,7 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
           {field.searchable !== false && (
             <CommandInput
               placeholder={context.i18n.placeholders.searchField(field.label || '')}
-              className="h-9 text-sm"
+              className='h-9 text-sm'
               value={searchInput}
               onValueChange={setSearchInput}
             />
@@ -1562,19 +1562,19 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className='group flex gap-2 items-center'
                     onSelect={() => {
                       if (isMultiSelect) {
-                        onChange(values.filter((v) => v !== option.value) as T[]);
+                        onChange(values.filter((v) => v !== option.value) as T[])
                       } else {
-                        onChange([] as T[]);
+                        onChange([] as T[])
                       }
-                      if (!isMultiSelect) setOpen(false);
+                      if (!isMultiSelect) setOpen(false)
                     }}
                   >
                     {option.icon && option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <Check className="text-primary ms-auto" />
+                    <span className='text-accent-foreground truncate'>{option.label}</span>
+                    <Check className='text-primary ms-auto' />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1588,24 +1588,24 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className='group flex gap-2 items-center'
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
-                          const newValues = [...values, option.value] as T[];
+                          const newValues = [...values, option.value] as T[]
                           if (field.maxSelections && newValues.length > field.maxSelections) {
-                            return; // Don't exceed max selections
+                            return // Don't exceed max selections
                           }
-                          onChange(newValues);
+                          onChange(newValues)
                         } else {
-                          onChange([option.value] as T[]);
-                          setOpen(false);
+                          onChange([option.value] as T[])
+                          setOpen(false)
                         }
                       }}
                     >
                       {option.icon && option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <Check className="text-primary ms-auto opacity-0" />
+                      <span className='text-accent-foreground truncate'>{option.label}</span>
+                      <Check className='text-primary ms-auto opacity-0' />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -1615,7 +1615,7 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
         </Command>
       </PopoverContent>
     </Popover>
-  );
+  )
 }
 
 export interface Filter<T = unknown> {
@@ -1640,43 +1640,43 @@ interface FiltersContentProps<T = unknown> {
 }
 
 export const FiltersContent = <T = unknown,>({ filters, fields, onChange }: FiltersContentProps<T>) => {
-  const context = useFilterContext();
-  const fieldsMap = useMemo(() => getFieldsMap(fields), [fields]);
+  const context = useFilterContext()
+  const fieldsMap = useMemo(() => getFieldsMap(fields), [fields])
 
   const updateFilter = useCallback(
     (filterId: string, updates: Partial<Filter<T>>) => {
       onChange(
         filters.map((filter) => {
           if (filter.id === filterId) {
-            const updatedFilter = { ...filter, ...updates };
+            const updatedFilter = { ...filter, ...updates }
             // Clear values for empty/not empty operators
             if (updates.operator === 'empty' || updates.operator === 'not_empty') {
-              updatedFilter.values = [] as T[];
+              updatedFilter.values = [] as T[]
             }
-            return updatedFilter;
+            return updatedFilter
           }
-          return filter;
+          return filter
         }),
-      );
+      )
     },
     [filters, onChange],
-  );
+  )
 
   const removeFilter = useCallback(
     (filterId: string) => {
-      onChange(filters.filter((filter) => filter.id !== filterId));
+      onChange(filters.filter((filter) => filter.id !== filterId))
     },
     [filters, onChange],
-  );
+  )
 
   return (
     <div className={cn(filtersContainerVariants({ variant: context.variant, size: context.size }), context.className)}>
       {filters.map((filter) => {
-        const field = fieldsMap[filter.field];
-        if (!field) return null;
+        const field = fieldsMap[filter.field]
+        if (!field) return null
 
         return (
-          <div key={filter.id} className={filterItemVariants({ variant: context.variant })} data-slot="filter-item">
+          <div key={filter.id} className={filterItemVariants({ variant: context.variant })} data-slot='filter-item'>
             {/* Field Label */}
             <div
               className={filterFieldLabelVariants({
@@ -1708,11 +1708,11 @@ export const FiltersContent = <T = unknown,>({ filters, fields, onChange }: Filt
             {/* Remove Button */}
             <FilterRemoveButton onClick={() => removeFilter(filter.id)} />
           </div>
-        );
+        )
       })}
     </div>
-  );
-};
+  )
+}
 
 interface FiltersProps<T = unknown> {
   filters: Filter<T>[];
@@ -1755,9 +1755,9 @@ export function Filters<T = unknown>({
   allowMultiple = true,
   popoverContentClassName,
 }: FiltersProps<T>) {
-  const [addFilterOpen, setAddFilterOpen] = useState(false);
-  const [selectedFieldForOptions, setSelectedFieldForOptions] = useState<FilterFieldConfig<T> | null>(null);
-  const [tempSelectedValues, setTempSelectedValues] = useState<unknown[]>([]);
+  const [addFilterOpen, setAddFilterOpen] = useState(false)
+  const [selectedFieldForOptions, setSelectedFieldForOptions] = useState<FilterFieldConfig<T> | null>(null)
+  const [tempSelectedValues, setTempSelectedValues] = useState<unknown[]>([])
 
   // Merge provided i18n with defaults
   const mergedI18n: FilterI18nConfig = {
@@ -1775,48 +1775,48 @@ export function Filters<T = unknown>({
       ...DEFAULT_I18N.validation,
       ...i18n?.validation,
     },
-  };
+  }
 
-  const fieldsMap = useMemo(() => getFieldsMap(fields), [fields]);
+  const fieldsMap = useMemo(() => getFieldsMap(fields), [fields])
 
   const updateFilter = useCallback(
     (filterId: string, updates: Partial<Filter<T>>) => {
       onChange(
         filters.map((filter) => {
           if (filter.id === filterId) {
-            const updatedFilter = { ...filter, ...updates };
+            const updatedFilter = { ...filter, ...updates }
             // Clear values for empty/not empty operators
             if (updates.operator === 'empty' || updates.operator === 'not_empty') {
-              updatedFilter.values = [] as T[];
+              updatedFilter.values = [] as T[]
             }
-            return updatedFilter;
+            return updatedFilter
           }
-          return filter;
+          return filter
         }),
-      );
+      )
     },
     [filters, onChange],
-  );
+  )
 
   const removeFilter = useCallback(
     (filterId: string) => {
-      onChange(filters.filter((filter) => filter.id !== filterId));
+      onChange(filters.filter((filter) => filter.id !== filterId))
     },
     [filters, onChange],
-  );
+  )
 
   const addFilter = useCallback(
     (fieldKey: string) => {
-      const field = fieldsMap[fieldKey];
+      const field = fieldsMap[fieldKey]
       if (field && field.key) {
         // For select and multiselect types, show options directly
         if (field.type === 'select' || field.type === 'multiselect') {
-          setSelectedFieldForOptions(field);
+          setSelectedFieldForOptions(field)
           // For multiselect, check if there's already a filter and use its values
-          const existingFilter = filters.find((f) => f.field === fieldKey);
-          const initialValues = field.type === 'multiselect' && existingFilter ? existingFilter.values : [];
-          setTempSelectedValues(initialValues);
-          return;
+          const existingFilter = filters.find((f) => f.field === fieldKey)
+          const initialValues = field.type === 'multiselect' && existingFilter ? existingFilter.values : []
+          setTempSelectedValues(initialValues)
+          return
         }
 
         // For other types, add filter directly
@@ -1828,83 +1828,83 @@ export function Filters<T = unknown>({
               ? 'between'
               : field.type === 'boolean'
                 ? 'is'
-                : 'is');
-        let defaultValues: unknown[] = [];
+                : 'is')
+        let defaultValues: unknown[] = []
 
         if (['text', 'number', 'date', 'email', 'url', 'tel', 'time', 'datetime'].includes(field.type || '')) {
-          defaultValues = [''] as unknown[];
+          defaultValues = [''] as unknown[]
         } else if (field.type === 'daterange') {
-          defaultValues = ['', ''] as unknown[];
+          defaultValues = ['', ''] as unknown[]
         } else if (field.type === 'numberrange') {
-          defaultValues = [field.min || 0, field.max || 100] as unknown[];
+          defaultValues = [field.min || 0, field.max || 100] as unknown[]
         } else if (field.type === 'boolean') {
-          defaultValues = [false] as unknown[];
+          defaultValues = [false] as unknown[]
         } else if (field.type === 'time') {
-          defaultValues = [''] as unknown[];
+          defaultValues = [''] as unknown[]
         } else if (field.type === 'datetime') {
-          defaultValues = [''] as unknown[];
+          defaultValues = [''] as unknown[]
         }
 
-        const newFilter = createFilter<T>(fieldKey, defaultOperator, defaultValues as T[]);
-        const newFilters = [...filters, newFilter];
-        onChange(newFilters);
-        setAddFilterOpen(false);
+        const newFilter = createFilter<T>(fieldKey, defaultOperator, defaultValues as T[])
+        const newFilters = [...filters, newFilter]
+        onChange(newFilters)
+        setAddFilterOpen(false)
       }
     },
     [fieldsMap, filters, onChange],
-  );
+  )
 
   const addFilterWithOption = useCallback(
     (field: FilterFieldConfig<T>, values: unknown[], closePopover: boolean = true) => {
-      if (!field.key) return;
+      if (!field.key) return
 
-      const defaultOperator = field.defaultOperator || (field.type === 'multiselect' ? 'is_any_of' : 'is');
+      const defaultOperator = field.defaultOperator || (field.type === 'multiselect' ? 'is_any_of' : 'is')
 
       // Check if there's already a filter for this field
-      const existingFilterIndex = filters.findIndex((f) => f.field === field.key);
+      const existingFilterIndex = filters.findIndex((f) => f.field === field.key)
 
       if (existingFilterIndex >= 0) {
         // Update existing filter
-        const updatedFilters = [...filters];
+        const updatedFilters = [...filters]
         updatedFilters[existingFilterIndex] = {
           ...updatedFilters[existingFilterIndex],
           values: values as T[],
-        };
-        onChange(updatedFilters);
+        }
+        onChange(updatedFilters)
       } else {
         // Create new filter
-        const newFilter = createFilter<T>(field.key, defaultOperator, values as T[]);
-        const newFilters = [...filters, newFilter];
-        onChange(newFilters);
+        const newFilter = createFilter<T>(field.key, defaultOperator, values as T[])
+        const newFilters = [...filters, newFilter]
+        onChange(newFilters)
       }
 
       if (closePopover) {
-        setAddFilterOpen(false);
-        setSelectedFieldForOptions(null);
-        setTempSelectedValues([]);
+        setAddFilterOpen(false)
+        setSelectedFieldForOptions(null)
+        setTempSelectedValues([])
       } else {
         // For multiselect, keep popover open but update temp values
-        setTempSelectedValues(values as unknown[]);
+        setTempSelectedValues(values as unknown[])
       }
     },
     [filters, onChange],
-  );
+  )
 
   const selectableFields = useMemo(() => {
-    const flatFields = flattenFields(fields);
+    const flatFields = flattenFields(fields)
     return flatFields.filter((field) => {
       // Only include actual filterable fields (must have key and type)
       if (!field.key || field.type === 'separator') {
-        return false;
+        return false
       }
       // If allowMultiple is true, don't filter out fields that already have filters
       if (allowMultiple) {
-        return true;
+        return true
       }
       // Filter out fields that already have filters (default behavior)
-      return !filters.some((filter) => filter.field === field.key);
-    });
-  }, [fields, filters, allowMultiple]);
+      return !filters.some((filter) => filter.field === field.key)
+    })
+  }, [fields, filters, allowMultiple])
 
   return (
     <FilterContext.Provider
@@ -1930,10 +1930,10 @@ export function Filters<T = unknown>({
           <Popover
             open={addFilterOpen}
             onOpenChange={(open) => {
-              setAddFilterOpen(open);
+              setAddFilterOpen(open)
               if (!open) {
-                setSelectedFieldForOptions(null);
-                setTempSelectedValues([]);
+                setSelectedFieldForOptions(null)
+                setTempSelectedValues([])
               }
             }}
           >
@@ -1958,7 +1958,7 @@ export function Filters<T = unknown>({
                 </button>
               )}
             </PopoverTrigger>
-            <PopoverContent className={cn('w-[200px] p-0', popoverContentClassName)} align="start">
+            <PopoverContent className={cn('w-[200px] p-0', popoverContentClassName)} align='start'>
               <Command>
                 {selectedFieldForOptions ? (
                   // Show original select/multiselect rendering without back button
@@ -1968,8 +1968,8 @@ export function Filters<T = unknown>({
                     onChange={(values) => {
                       // For multiselect, create filter immediately but keep popover open
                       // For single select, create filter and close popover
-                      const shouldClosePopover = selectedFieldForOptions.type === 'select';
-                      addFilterWithOption(selectedFieldForOptions, values as unknown[], shouldClosePopover);
+                      const shouldClosePopover = selectedFieldForOptions.type === 'select'
+                      addFilterWithOption(selectedFieldForOptions, values as unknown[], shouldClosePopover)
                     }}
                     onClose={() => setAddFilterOpen(false)}
                     inline={true}
@@ -1977,7 +1977,7 @@ export function Filters<T = unknown>({
                 ) : (
                   // Show field selection
                   <>
-                    {showSearchInput && <CommandInput placeholder={mergedI18n.searchFields} className="h-9" />}
+                    {showSearchInput && <CommandInput placeholder={mergedI18n.searchFields} className='h-9' />}
                     <CommandList>
                       <CommandEmpty>{mergedI18n.noFieldsFound}</CommandEmpty>
                       {fields.map((item, index) => {
@@ -1986,24 +1986,24 @@ export function Filters<T = unknown>({
                           const groupFields = item.fields.filter((field) => {
                             // Include separators and labels for display
                             if (field.type === 'separator') {
-                              return true;
+                              return true
                             }
                             // If allowMultiple is true, don't filter out fields that already have filters
                             if (allowMultiple) {
-                              return true;
+                              return true
                             }
                             // Filter out fields that already have filters (default behavior)
-                            return !filters.some((filter) => filter.field === field.key);
-                          });
+                            return !filters.some((filter) => filter.field === field.key)
+                          })
 
-                          if (groupFields.length === 0) return null;
+                          if (groupFields.length === 0) return null
 
                           return (
                             <CommandGroup key={`group-${index}`} heading={item.group || 'Fields'}>
                               {groupFields.map((field, fieldIndex) => {
                                 // Handle separator
                                 if (field.type === 'separator') {
-                                  return <CommandSeparator key={`separator-${fieldIndex}`} />;
+                                  return <CommandSeparator key={`separator-${fieldIndex}`} />
                                 }
 
                                 // Regular field
@@ -2012,10 +2012,10 @@ export function Filters<T = unknown>({
                                     {field.icon}
                                     <span>{field.label}</span>
                                   </CommandItem>
-                                );
+                                )
                               })}
                             </CommandGroup>
-                          );
+                          )
                         }
 
                         // Handle group-level fields (new FilterFieldConfig structure with group property)
@@ -2023,24 +2023,24 @@ export function Filters<T = unknown>({
                           const groupFields = item.fields!.filter((field) => {
                             // Include separators and labels for display
                             if (field.type === 'separator') {
-                              return true;
+                              return true
                             }
                             // If allowMultiple is true, don't filter out fields that already have filters
                             if (allowMultiple) {
-                              return true;
+                              return true
                             }
                             // Filter out fields that already have filters (default behavior)
-                            return !filters.some((filter) => filter.field === field.key);
-                          });
+                            return !filters.some((filter) => filter.field === field.key)
+                          })
 
-                          if (groupFields.length === 0) return null;
+                          if (groupFields.length === 0) return null
 
                           return (
                             <CommandGroup key={`group-${index}`} heading={item.group || 'Fields'}>
                               {groupFields.map((field, fieldIndex) => {
                                 // Handle separator
                                 if (field.type === 'separator') {
-                                  return <CommandSeparator key={`separator-${fieldIndex}`} />;
+                                  return <CommandSeparator key={`separator-${fieldIndex}`} />
                                 }
 
                                 // Regular field
@@ -2049,18 +2049,18 @@ export function Filters<T = unknown>({
                                     {field.icon}
                                     <span>{field.label}</span>
                                   </CommandItem>
-                                );
+                                )
                               })}
                             </CommandGroup>
-                          );
+                          )
                         }
 
                         // Handle flat field configuration (backward compatibility)
-                        const field = item as FilterFieldConfig<T>;
+                        const field = item as FilterFieldConfig<T>
 
                         // Handle separator
                         if (field.type === 'separator') {
-                          return <CommandSeparator key={`separator-${index}`} />;
+                          return <CommandSeparator key={`separator-${index}`} />
                         }
 
                         // Regular field
@@ -2069,7 +2069,7 @@ export function Filters<T = unknown>({
                             {field.icon}
                             <span>{field.label}</span>
                           </CommandItem>
-                        );
+                        )
                       })}
                     </CommandList>
                   </>
@@ -2080,11 +2080,11 @@ export function Filters<T = unknown>({
         )}
 
         {filters.map((filter) => {
-          const field = fieldsMap[filter.field];
-          if (!field) return null;
+          const field = fieldsMap[filter.field]
+          if (!field) return null
 
           return (
-            <div key={filter.id} className={filterItemVariants({ variant })} data-slot="filter-item">
+            <div key={filter.id} className={filterItemVariants({ variant })} data-slot='filter-item'>
               {/* Field Label */}
               <div className={filterFieldLabelVariants({ variant: variant, size: size, radius: radius })}>
                 {field.icon}
@@ -2110,11 +2110,11 @@ export function Filters<T = unknown>({
               {/* Remove Button */}
               <FilterRemoveButton onClick={() => removeFilter(filter.id)} />
             </div>
-          );
+          )
         })}
       </div>
     </FilterContext.Provider>
-  );
+  )
 }
 
 export const createFilter = <T = unknown,>(field: string, operator?: string, values: T[] = []): Filter<T> => ({
@@ -2122,7 +2122,7 @@ export const createFilter = <T = unknown,>(field: string, operator?: string, val
   field,
   operator: operator || 'is',
   values,
-});
+})
 
 export const createFilterGroup = <T = unknown,>(
   id: string,
@@ -2134,4 +2134,4 @@ export const createFilterGroup = <T = unknown,>(
   label,
   filters: initialFilters,
   fields,
-});
+})
