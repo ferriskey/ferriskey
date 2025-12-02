@@ -30,7 +30,7 @@ export default function PageClientRoles({
     return <div>Error while loading roles.</div>
   }
 
-  const onRowDelete = (role: Role) => {
+  function onRowDelete(role: Role) {
     ask({
       title: 'Delete role?',
       description: `Are you sure you want to delete "${role.name}"?`,
@@ -53,7 +53,7 @@ export default function PageClientRoles({
             label: 'Delete',
             icon: <Trash2 className='h-4 w-4' />,
             variant: 'destructive',
-            onClick: (role) => onRowDelete(role),
+            onClick: onRowDelete,
           },
         ]}
       />
