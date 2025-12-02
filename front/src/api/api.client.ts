@@ -1,5 +1,6 @@
 export namespace Schemas {
   // <Schemas>
+  export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>
@@ -15,11 +16,13 @@ export namespace Schemas {
     token?: (string | null) | undefined
     url?: (string | null) | undefined
   }
+  export type AuthenticationAttemptResponse = { login_url: string }
   export type BulkDeleteUserResponse = { count: number; realm_name: string }
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
   export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpResponse = { url: string }
+  export type RealmId = string
   export type Client = {
     client_id: string
     client_type: string
@@ -30,7 +33,7 @@ export namespace Schemas {
     name: string
     protocol: string
     public_client: boolean
-    realm_id: string
+    realm_id: RealmId
     redirect_uris?: (Array<RedirectUri> | null) | undefined
     secret?: (string | null) | undefined
     service_account_enabled: boolean
@@ -47,6 +50,7 @@ export namespace Schemas {
     public_client: boolean
     service_account_enabled: boolean
   }>
+  export type CreatePublicKeyRequest = Record<string, unknown>
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
   export type CreateRoleValidator = {
@@ -58,14 +62,14 @@ export namespace Schemas {
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
-    realm_id: string
+    realm_id: RealmId
     remember_me_enabled: boolean
     updated_at: string
     user_registration_enabled: boolean
   }
   export type Realm = {
     created_at: string
-    id: string
+    id: RealmId
     name: string
     settings?: (null | RealmSetting) | undefined
     updated_at: string
@@ -79,7 +83,7 @@ export namespace Schemas {
     id: string
     name: string
     permissions: Array<string>
-    realm_id: string
+    realm_id: RealmId
     updated_at: string
   }
   export type User = {
@@ -92,7 +96,7 @@ export namespace Schemas {
     id: string
     lastname: string
     realm?: (null | Realm) | undefined
-    realm_id: string
+    realm_id: RealmId
     required_actions: Array<RequiredAction>
     roles: Array<Role>
     updated_at: string
@@ -110,9 +114,9 @@ export namespace Schemas {
     | 'user.created'
     | 'user.updated'
     | 'user.deleted'
+    | 'user.role.assigned'
+    | 'user.role.unassigned'
     | 'user.bulk_deleted'
-    | 'user.assign.role'
-    | 'user.unassign.role'
     | 'user.credentials.deleted'
     | 'auth.reset_password'
     | 'client.created'
@@ -125,6 +129,8 @@ export namespace Schemas {
     | 'redirect_uri.deleted'
     | 'role.created'
     | 'role.updated'
+    | 'role.deleted'
+    | 'role.permission.updated'
     | 'realm.created'
     | 'realm.updated'
     | 'realm.deleted'
@@ -137,6 +143,7 @@ export namespace Schemas {
     created_at: string
     description?: (string | null) | undefined
     endpoint: string
+    headers: Record<string, string>
     id: string
     name?: (string | null) | undefined
     subscribers: Array<WebhookSubscriber>
@@ -147,13 +154,16 @@ export namespace Schemas {
   export type CreateWebhookValidator = Partial<{
     description: string | null
     endpoint: string
+    headers: Record<string, string>
     name: string | null
     subscribers: Array<WebhookTrigger>
   }>
-  export type CredentialData = { algorithm: string; hash_iterations: number }
+  export type CredentialDataOverview =
+    | { Hash: { algorithm: string; hash_iterations: number } }
+    | 'WebAuthn'
   export type CredentialOverview = {
     created_at: string
-    credential_data: CredentialData
+    credential_data: CredentialDataOverview
     credential_type: string
     id: string
     updated_at: string
@@ -170,6 +180,7 @@ export namespace Schemas {
   }
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
+  export type EventStatus = 'success' | 'failure'
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = {
@@ -195,6 +206,38 @@ export namespace Schemas {
   }
   export type GetRoleResponse = { data: Role }
   export type GetRolesResponse = { data: Array<Role> }
+  export type SecurityEventType =
+    | 'login_success'
+    | 'login_failure'
+    | 'password_reset'
+    | 'user_created'
+    | 'user_deleted'
+    | 'role_assigned'
+    | 'role_unassigned'
+    | 'role_created'
+    | 'role_removed'
+    | 'client_created'
+    | 'client_deleted'
+    | 'client_secret_rotated'
+    | 'realm_config_changed'
+  export type SecurityEventId = string
+  export type SecurityEvent = {
+    actor_id?: (string | null) | undefined
+    actor_type?: (null | ActorType) | undefined
+    details?: unknown | undefined
+    event_type: SecurityEventType
+    id: SecurityEventId
+    ip_address?: (string | null) | undefined
+    realm_id: RealmId
+    resource?: (string | null) | undefined
+    status: EventStatus
+    target_id?: (string | null) | undefined
+    target_type?: (string | null) | undefined
+    timestamp: string
+    trace_id?: (string | null) | undefined
+    user_agent?: (string | null) | undefined
+  }
+  export type GetSecurityEventsResponse = { data: Array<SecurityEvent> }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
   export type GetWebhooksResponse = { data: Array<Webhook> }
@@ -207,6 +250,9 @@ export namespace Schemas {
     token_type: string
   }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
+  export type PublicKeyCredential = Record<string, unknown>
+  export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
+  export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
     forgot_password_enabled: boolean
     remember_me_enabled: boolean
@@ -227,6 +273,7 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type RequestOptionsRequest = Record<string, unknown>
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
     credential_type: string
@@ -276,6 +323,7 @@ export namespace Schemas {
   export type UserRealmsResponse = { data: Array<Realm> }
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
+  export type ValidatePublicKeyResponse = Record<string, unknown>
   export type VerifyOtpResponse = { message: string }
 
   // </Schemas>
@@ -525,6 +573,42 @@ export namespace Endpoints {
     }
     response: Schemas.VerifyOtpResponse
   }
+  export type post_Webauthn_public_key_authenticate = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.PublicKeyCredential
+    }
+    response: Schemas.AuthenticationAttemptResponse
+  }
+  export type post_Webauthn_public_key_create = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-create'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.PublicKeyCredential
+    }
+    response: Schemas.ValidatePublicKeyResponse
+  }
+  export type post_Webauthn_public_key_create_options = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-create-options'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.CreatePublicKeyRequest
+    }
+    response: Schemas.PublicKeyCredentialCreationOptionsJSON
+  }
+  export type post_Webauthn_public_key_request_options = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-request-options'
+    requestFormat: 'json'
+    parameters: {
+      body: Schemas.RequestOptionsRequest
+    }
+    response: Schemas.PublicKeyCredentialRequestOptionsJSON
+  }
   export type get_Auth = {
     method: 'GET'
     path: '/realms/{realm_name}/protocol/openid-connect/auth'
@@ -618,6 +702,15 @@ export namespace Endpoints {
       body: Schemas.UpdateRolePermissionsValidator
     }
     response: Schemas.UpdateRolePermissionsResponse
+  }
+  export type get_Get_security_events = {
+    method: 'GET'
+    path: '/realms/{realm_name}/seawatch/v1/security-events'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.GetSecurityEventsResponse
   }
   export type get_Get_users = {
     method: 'GET'
@@ -806,6 +899,10 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
+    '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate
+    '/realms/{realm_name}/login-actions/webauthn-public-key-create': Endpoints.post_Webauthn_public_key_create
+    '/realms/{realm_name}/login-actions/webauthn-public-key-create-options': Endpoints.post_Webauthn_public_key_create_options
+    '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
     '/realms/{realm_name}/users': Endpoints.post_Create_user
@@ -825,6 +922,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
+    '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
     '/realms/{realm_name}/users': Endpoints.get_Get_users
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
     '/realms/{realm_name}/users/{user_id}': Endpoints.get_Get_user

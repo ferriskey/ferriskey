@@ -14,12 +14,12 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
   Realm: ['realm.created', 'realm.deleted', 'realm.settings.updated', 'realm.updated'],
   Role: ['role.created', 'role.updated'],
   User: [
-    'user.assign.role',
+    'user.role.assigned',
     'user.bulk_deleted',
     'user.created',
     'user.credentials.deleted',
     'user.deleted',
-    'user.unassign.role',
+    'user.role.unassigned',
     'user.updated',
     'auth.reset_password',
   ],
@@ -43,13 +43,15 @@ export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
 
   'role.created': 'Role Created',
   'role.updated': 'Role Updated',
+  'role.deleted': 'Role Deleted',
+  'role.permission.updated': 'Role Permission Updated',
 
-  'user.assign.role': 'User Assigned Role',
+  'user.role.assigned': 'User Assigned Role',
   'user.bulk_deleted': 'User Bulk Deleted',
   'user.created': 'User Created',
   'user.credentials.deleted': 'User Deleted Credentials',
   'user.deleted': 'User Deleted',
-  'user.unassign.role': 'User Unassigned Role',
+  'user.role.unassigned': 'User Unassigned Role',
   'user.updated': 'User Updated',
   'auth.reset_password': 'Auth Reset Password',
 
@@ -75,13 +77,15 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
 
   'role.created': 'A new role has been created.',
   'role.updated': 'A role has been updated.',
+  'role.deleted': 'A role has been deleted.',
+  'role.permission.updated': 'A role permission has been updated.',
 
-  'user.assign.role': 'A user has been assigned a role.',
+  'user.role.assigned': 'A user has been assigned a role.',
   'user.bulk_deleted': 'Multiple users have been deleted.',
   'user.created': 'A new user has been created.',
   'user.credentials.deleted': 'A user credentials have been deleted.',
   'user.deleted': 'A user has been deleted.',
-  'user.unassign.role': 'A user has been unassigned a role.',
+  'user.role.unassigned': 'A user has been unassigned a role.',
   'user.updated': 'A user has been updated.',
   'auth.reset_password': 'A user password has been reset.',
 

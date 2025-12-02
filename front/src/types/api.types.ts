@@ -31,7 +31,7 @@ export type AuthenticateResponse = Schemas.AuthenticateResponse
 export type AuthenticationStatus = Schemas.AuthenticationStatus
 
 // Credential types
-export type CredentialData = Schemas.CredentialData
+export type CredentialData = Schemas.CredentialOverview
 export type CredentialOverview = Schemas.CredentialOverview
 
 // Settings types

@@ -54,12 +54,20 @@ export default function PageRealmSettingsCreateWebhookFeature() {
   const onSubmit = form.handleSubmit((data) => {
     if (!realm_name) return
 
+    const headers: Record<string, string> = {}
+    if (data.headers) {
+      data.headers.forEach(header => {
+        headers[header.key] = header.value
+      })
+    }
+
     createWebhook({
       body: {
         description: data.description,
         endpoint: data.endpoint,
         name: data.name,
-        subscribers: selectedTriggers
+        subscribers: selectedTriggers,
+        headers,
       },
       path: {
         realm_name
