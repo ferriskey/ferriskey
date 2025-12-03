@@ -10,8 +10,8 @@ import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 
 const authenticateSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
+  username: z.string().min(1, { message: 'Username is required' }),
+  password: z.string().min(1, { message: 'Password is required' }),
 })
 
 export type AuthenticateSchema = z.infer<typeof authenticateSchema>
@@ -120,7 +120,6 @@ export default function PageLoginFeature() {
   useEffect(() => {
     if (authenticateStatus === 'error') {
       toast.error('Authentication failed. Please check your credentials and try again.')
-      form.reset()
     }
   }, [authenticateStatus, form])
 
