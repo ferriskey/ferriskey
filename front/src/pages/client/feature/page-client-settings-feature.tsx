@@ -11,7 +11,7 @@ import { useFormChanges } from '@/hooks/use-form-changes'
 
 export default function PageClientSettingsFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
-  const { data: clientResponse } = useGetClient({
+  const { data: clientResponse ,refetch} = useGetClient({
     realm: realm_name ?? 'master',
     clientId: client_id ?? '',
   })
@@ -66,6 +66,7 @@ export default function PageClientSettingsFeature() {
             form={form}
             handleSubmit={handleSubmit}
             hasChanges={hasChanges}
+            refetch={refetch}
           />
         )}
       </>
