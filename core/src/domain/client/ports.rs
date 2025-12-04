@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -102,7 +100,7 @@ pub trait ClientPolicy: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait ClientRepository: Send + Sync + Debug {
+pub trait ClientRepository: Send + Sync {
     fn create_client(
         &self,
         data: CreateClientRequest,

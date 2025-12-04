@@ -86,6 +86,14 @@ where
     UR: UserRoleRepository,
     W: WebhookRepository,
 {
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn create_realm(
         &self,
         identity: Identity,
@@ -159,6 +167,14 @@ where
         Ok(realm)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn create_realm_with_user(
         &self,
         identity: Identity,
@@ -227,6 +243,14 @@ where
         Ok(realm)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn delete_realm(
         &self,
         identity: Identity,
@@ -259,7 +283,14 @@ where
         Ok(())
     }
 
-    #[instrument]
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn get_realm_by_name(
         &self,
         identity: Identity,
@@ -280,6 +311,14 @@ where
         Ok(realm)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn get_realm_setting_by_name(
         &self,
         identity: Identity,
@@ -307,6 +346,13 @@ where
         Ok(realm_setting)
     }
 
+    #[instrument(
+        skip(self, identity),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+        )
+    )]
     async fn get_realms_by_user(&self, identity: Identity) -> Result<Vec<Realm>, CoreError> {
         let user = match identity {
             Identity::User(user) => user,
@@ -363,6 +409,14 @@ where
         Ok(user_realms)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn update_realm(
         &self,
         identity: Identity,
@@ -399,6 +453,14 @@ where
         Ok(realm)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn update_realm_setting(
         &self,
         identity: Identity,
@@ -442,6 +504,12 @@ where
         Ok(realm)
     }
 
+    #[instrument(
+        skip(self, realm_name),
+        fields(
+            realm.name = %realm_name,
+        )
+    )]
     async fn get_login_settings(&self, realm_name: String) -> Result<RealmLoginSetting, CoreError> {
         let realm = self
             .realm_repository

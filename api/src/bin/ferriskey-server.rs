@@ -45,9 +45,10 @@ fn init_tracing_and_logging(
     });
 
     // Format layer for logging
-    let fmt_layer = match &log_args.json {
-        true => fmt::layer().with_writer(std::io::stderr).json().boxed(),
-        false => fmt::layer().with_writer(std::io::stderr).boxed(),
+    let fmt_layer = if log_args.json {
+        fmt::layer().with_writer(std::io::stderr).json().boxed()
+    } else {
+        fmt::layer().with_writer(std::io::stderr).boxed()
     };
 
     if observability_args.active_observability {
