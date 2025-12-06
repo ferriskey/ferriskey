@@ -459,3 +459,277 @@ where
         Ok(settings)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        domain::{
+            client::ports::MockClientRepository,
+            common::services::tests::{
+                create_test_realm_with_name, create_test_user_identity_with_realm,
+            },
+            realm::{entities::RealmId, ports::MockRealmRepository},
+            role::ports::MockRoleRepository,
+            user::ports::{MockUserRepository, MockUserRoleRepository},
+            webhook::ports::MockWebhookRepository,
+        },
+        entity::realm_settings::{self, Entity},
+    };
+
+    struct RealmServiceTestBuilder {
+        realm_repo: Arc<MockRealmRepository>,
+        role_repo: Arc<MockRoleRepository>,
+        webhook_repo: Arc<MockWebhookRepository>,
+        user_role_repo: Arc<MockUserRoleRepository>,
+        client_repo: Arc<MockClientRepository>,
+        user_repo: Arc<MockUserRepository>,
+    }
+
+    impl RealmServiceTestBuilder {
+        pub fn new() -> Self {
+            let realm_repo = Arc::new(MockRealmRepository::new());
+            let role_repo = Arc::new(MockRoleRepository::new());
+            let webhook_repo = Arc::new(MockWebhookRepository::new());
+            let user_role_repo = Arc::new(MockUserRoleRepository::new());
+            let client_repo = Arc::new(MockClientRepository::new());
+            let user_repo = Arc::new(MockUserRepository::new());
+
+            Self {
+                realm_repo,
+                role_repo,
+                webhook_repo,
+                user_role_repo,
+                client_repo,
+                user_repo,
+            }
+        }
+
+        fn with_master_realm(mut self, master_realm: Realm) -> Self {
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_get_by_name()
+                .with(mockall::predicate::eq("master".to_string()))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(Some(master_realm)) }));
+            self
+        }
+
+        fn with_created_realm(mut self, realm_name: String, new_realm: Realm) -> Self {
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_create_realm()
+                .with(mockall::predicate::eq(realm_name))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(new_realm) }));
+            self
+        }
+
+        fn with_user_permissions(
+            mut self,
+            user_id: uuid::Uuid,
+            roles: Vec<crate::domain::role::entities::Role>,
+        ) -> Self {
+            Arc::get_mut(&mut self.user_role_repo)
+                .unwrap()
+                .expect_get_user_roles()
+                .with(mockall::predicate::eq(user_id))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(roles) }));
+            self
+        }
+
+        fn with_realm_settings(mut self, realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_create_realm_settings()
+                .with(
+                    mockall::predicate::eq(realm_id),
+                    mockall::predicate::eq("RS256".to_string()),
+                )
+                .times(1)
+                .return_once(move |realm_id, algorithm| {
+                    Box::pin(async move { Ok(RealmSetting::new(realm_id, Some(algorithm))) })
+                });
+            self
+        }
+
+        fn with_system_client(mut self, master_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_create_client()
+                .withf(move |req| {
+                    // Vérifier que c'est le client système
+                    req.name.contains("-realm") && req.realm_id == master_realm_id
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id: req.realm_id,
+                                name: req.name.clone(),
+                                client_id: req.client_id.clone(),
+                                secret: req.secret.clone(),
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: req.public_client,
+                                service_account_enabled: req.service_account_enabled,
+                                client_type: req.client_type.clone(),
+                                direct_access_grants_enabled: Some(
+                                    req.direct_access_grants_enabled,
+                                ),
+                            },
+                        ))
+                    })
+                });
+            self
+        }
+
+        fn with_admin_cli_client(mut self, new_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_create_client()
+                .withf(move |req| {
+                    // Vérifier que c'est admin-cli
+                    req.client_id == "admin-cli" && req.realm_id == new_realm_id
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id: req.realm_id,
+                                name: req.name.clone(),
+                                client_id: req.client_id.clone(),
+                                secret: None,
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: true,
+                                service_account_enabled: false,
+                                client_type: req.client_type.clone(),
+                                direct_access_grants_enabled: Some(true),
+                            },
+                        ))
+                    })
+                });
+            self
+        }
+
+        fn with_role_creation(mut self, master_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.role_repo)
+                .unwrap()
+                .expect_create()
+                .withf(move |req| {
+                    req.realm_id == master_realm_id
+                        && req.permissions.contains(&"manage_realm".to_string())
+                        && req.name.ends_with("-realm")
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::role::entities::Role {
+                            id: uuid::Uuid::new_v4(),
+                            name: req.name,
+                            description: req.description,
+                            permissions: req.permissions,
+                            realm_id: req.realm_id,
+                            client_id: req.client_id,
+                            client: None,
+                            created_at: chrono::Utc::now(),
+                            updated_at: chrono::Utc::now(),
+                        })
+                    })
+                });
+
+            self
+        }
+
+        fn with_assign_role(mut self) -> Self {
+            Arc::get_mut(&mut self.user_role_repo)
+                .unwrap()
+                .expect_assign_role()
+                .withf(|_, _| true) // Accepter n'importe quel user_id et role_id
+                .times(1)
+                .return_once(|_, _| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn build(
+            self,
+        ) -> RealmServiceImpl<
+            MockRealmRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+            MockRoleRepository,
+            MockWebhookRepository,
+        > {
+            let policy = FerriskeyPolicy::new(
+                self.user_repo.clone(),
+                self.client_repo.clone(),
+                self.user_role_repo.clone(),
+            );
+            RealmServiceImpl::new(
+                self.realm_repo,
+                self.user_repo,
+                self.user_role_repo,
+                self.role_repo,
+                self.client_repo,
+                self.webhook_repo,
+                Arc::new(policy),
+            )
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_realm() -> Result<(), CoreError> {
+        let realm_name = "realm_test";
+        let master_realm = create_test_realm_with_name("master");
+        let identity = create_test_user_identity_with_realm(&master_realm);
+
+        // Extract user for mocking permissions
+        let user = match &identity {
+            Identity::User(u) => u,
+            _ => panic!("Expected user identity"),
+        };
+
+        // Create role with ManageRealm permission for the user
+        let admin_role = crate::domain::role::entities::Role {
+            id: uuid::Uuid::new_v4(),
+            name: "admin".to_string(),
+            description: None,
+            permissions: vec![
+                crate::domain::role::entities::permission::Permissions::ManageRealm.name(),
+            ],
+            realm_id: master_realm.id,
+            client_id: None,
+            client: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        let input = CreateRealmInput {
+            realm_name: "realm_test".to_string(),
+        };
+
+        // Create the new realm that will be returned
+        let new_realm = create_test_realm_with_name(realm_name);
+
+        let service = RealmServiceTestBuilder::new()
+            .with_master_realm(master_realm.clone())
+            .with_user_permissions(user.id, vec![admin_role])
+            .with_created_realm("realm_test".to_string(), new_realm.clone())
+            .with_realm_settings(new_realm.id)
+            .with_system_client(master_realm.id)
+            .with_role_creation(master_realm.id)
+            .with_assign_role()
+            .with_admin_cli_client(new_realm.id)
+            .build();
+
+        let created_realm = service.create_realm(identity, input).await?;
+        assert_eq!(created_realm.name, realm_name);
+
+        Ok(())
+    }
+}
