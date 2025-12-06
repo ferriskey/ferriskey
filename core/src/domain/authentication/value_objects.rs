@@ -1,3 +1,4 @@
+use enum_display::EnumDisplay;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -160,6 +161,21 @@ impl Identity {
             Self::Client(client) => format!("client:{}", client.client_id),
         }
     }
+
+    /// Get the kind of this identity
+    pub fn kind(&self) -> IdentityKind {
+        match self {
+            Self::User(_) => IdentityKind::User,
+            Self::Client(_) => IdentityKind::Client,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, EnumDisplay, Eq, PartialEq)]
+#[display(case = "Kebab")]
+pub enum IdentityKind {
+    User,
+    Client,
 }
 
 pub struct GenerateTokenInput {

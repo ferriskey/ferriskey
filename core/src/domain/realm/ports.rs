@@ -85,7 +85,7 @@ pub trait RealmPolicy: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait RealmRepository: Send + Sync + Debug {
+pub trait RealmRepository: Send + Sync {
     fn fetch_realm(&self) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
 
     fn get_by_name(

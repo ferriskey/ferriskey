@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
 
 use serde::Serialize;
 use uuid::Uuid;
@@ -53,7 +52,7 @@ pub trait WebhookService: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait WebhookRepository: Send + Sync + Debug {
+pub trait WebhookRepository: Send + Sync {
     fn fetch_webhooks_by_realm(
         &self,
         realm_id: RealmId,

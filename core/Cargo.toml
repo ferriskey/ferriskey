@@ -11,6 +11,7 @@ argon2 = "0.5.3"
 base32 = "0.5.1"
 base64 = "0.22.1"
 chrono = { version = "0.4.41", features = ["serde"] }
+enum-display = "0.2.1"
 hmac = "0.12.1"
 jsonwebtoken = "9.3.1"
 rand = "0.8.0"

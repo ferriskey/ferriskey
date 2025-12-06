@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -74,7 +72,7 @@ pub trait RolePolicy: Send + Sync {
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait RoleRepository: Send + Sync + Debug {
+pub trait RoleRepository: Send + Sync {
     fn create(
         &self,
         payload: CreateRoleRequest,

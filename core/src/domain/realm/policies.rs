@@ -1,5 +1,3 @@
-use tracing::instrument;
-
 use crate::domain::{
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
@@ -18,7 +16,6 @@ where
     C: ClientRepository,
     UR: UserRoleRepository,
 {
-    #[instrument]
     async fn can_view_realm(
         &self,
         identity: Identity,
