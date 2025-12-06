@@ -463,18 +463,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        domain::{
-            client::ports::MockClientRepository,
-            common::services::tests::{
-                create_test_realm_with_name, create_test_user_identity_with_realm,
-            },
-            realm::{entities::RealmId, ports::MockRealmRepository},
-            role::ports::MockRoleRepository,
-            user::ports::{MockUserRepository, MockUserRoleRepository},
-            webhook::ports::MockWebhookRepository,
+    use crate::domain::{
+        client::ports::MockClientRepository,
+        common::services::tests::{
+            create_test_realm_with_name, create_test_user_identity_with_realm,
         },
-        entity::realm_settings::{self, Entity},
+        realm::{entities::RealmId, ports::MockRealmRepository},
+        role::ports::MockRoleRepository,
+        user::ports::{MockUserRepository, MockUserRoleRepository},
+        webhook::ports::MockWebhookRepository,
     };
 
     struct RealmServiceTestBuilder {
