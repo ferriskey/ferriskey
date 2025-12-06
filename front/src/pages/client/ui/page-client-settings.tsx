@@ -14,6 +14,7 @@ export interface PageClientSettingsProps {
   form: UseFormReturn<UpdateClientSchema>
   handleSubmit: () => void
   hasChanges: boolean
+  refetch: () => void
 }
 
 export default function PageClientSettings({
@@ -21,6 +22,7 @@ export default function PageClientSettings({
   form,
   handleSubmit,
   hasChanges,
+  refetch,
 }: PageClientSettingsProps) {
   return (
     <div>
@@ -77,7 +79,7 @@ export default function PageClientSettings({
 
         <BlockContent title='Access Settings' className='w-full md:w-2/3 2xl:w-1/3'>
           <div>
-            <ManageRedirectUris redirectUris={client.redirect_uris ?? []} />
+            <ManageRedirectUris redirectUris={client.redirect_uris ?? []} refetch={refetch}/>
           </div>
         </BlockContent>
       </div>
