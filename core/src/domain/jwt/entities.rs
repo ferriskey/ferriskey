@@ -28,6 +28,7 @@ pub struct JwtClaim {
     pub typ: ClaimsTyp,
     pub azp: String,
     pub aud: Vec<String>,
+    pub scope: Option<String>,
 
     pub exp: Option<i64>,
     pub preferred_username: Option<String>,
@@ -38,6 +39,7 @@ pub struct JwtClaim {
 }
 
 impl JwtClaim {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         sub: Uuid,
         preferred_username: String,
@@ -46,6 +48,7 @@ impl JwtClaim {
         typ: ClaimsTyp,
         azp: String,
         email: Option<String>,
+        scope: Option<String>,
     ) -> Self {
         let timestamp = Utc::now().timestamp();
         Self {
@@ -59,6 +62,7 @@ impl JwtClaim {
             typ,
             azp,
             email,
+            scope,
             client_id: None,
         }
     }
@@ -72,6 +76,7 @@ impl JwtClaim {
             aud,
             typ: ClaimsTyp::Refresh,
             azp,
+            scope: None,
             preferred_username: None,
             email: None,
             exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
