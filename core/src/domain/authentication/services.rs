@@ -137,6 +137,7 @@ where
             ClaimsTyp::Bearer,
             input.client_id,
             Some(input.email),
+            input.scope,
         );
 
         let jwt = self.generate_token(claims.clone(), input.realm_id).await?;
@@ -266,6 +267,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
+                scope: Some(auth_session.scope),
             })
             .await?;
 
@@ -304,6 +306,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
+                scope: None,
             })
             .await?;
         Ok(JwtToken::new(
@@ -361,6 +364,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
+                scope: None,
             })
             .await?;
 
@@ -404,6 +408,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
+                scope: None,
             })
             .await?;
 
@@ -578,6 +583,13 @@ This is a server error that should be investigated. Do not forward back this mes
         if !has_valid_password {
             return Err(CoreError::InvalidPassword);
         }
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
         let jwt_claim = JwtClaim::new(
@@ -588,6 +600,7 @@ This is a server error that should be investigated. Do not forward back this mes
             ClaimsTyp::Bearer,
             client_id.clone(),
             Some(user.email.clone()),
+            Some(auth_session.scope),
         );
 
         if !user.required_actions.is_empty() || has_temporary_password {
@@ -607,7 +620,6 @@ This is a server error that should be investigated. Do not forward back this mes
                 credentials,
             });
         }
-
         let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
         if has_otp_credentials {
             let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
@@ -620,11 +632,6 @@ This is a server error that should be investigated. Do not forward back this mes
                 credentials,
             });
         }
-
-        self.auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(AuthenticationResult {
             code: Some(generate_random_string()),
@@ -929,6 +936,7 @@ where
             ClaimsTyp::Bearer,
             "".to_string(),
             Some(user.email.clone()),
+            None,
         );
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;

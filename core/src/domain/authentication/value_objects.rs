@@ -25,7 +25,7 @@ pub struct CreateAuthSessionRequest {
     pub client_id: Uuid,
     pub redirect_uri: String,
     pub response_type: String,
-    pub scope: String,
+    pub scope: Option<String>,
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
@@ -70,7 +70,7 @@ impl CreateAuthSessionRequest {
             client_id,
             redirect_uri,
             response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            scope: Some("openid".to_string()),
             state: None,
             nonce: None,
             user_id: None,
@@ -85,7 +85,7 @@ impl CreateAuthSessionRequest {
         nonce: Option<String>,
     ) -> Self {
         self.response_type = response_type;
-        self.scope = scope;
+        self.scope = Some(scope);
         self.state = state;
         self.nonce = nonce;
         self
@@ -170,4 +170,5 @@ pub struct GenerateTokenInput {
     pub client_id: String,
     pub email: String,
     pub realm_id: RealmId,
+    pub scope: Option<String>,
 }
