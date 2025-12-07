@@ -15,6 +15,7 @@ import {
 import { Input } from './input'
 import { Skeleton } from './skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table'
+import { Filters, Filter, FilterFieldsConfig } from './filters'
 
 export type ColumnDef<T> = {
   id: string
@@ -52,6 +53,10 @@ export type DataTableProps<T> = {
   pageSize?: number
   onDeleteSelected?: (items: T[]) => void
   onRowClick?: (item: T) => void
+  enableFilters?: boolean
+  filterFields?: FilterFieldsConfig
+  filters?: Filter[]
+  onFiltersChange?: (filters: Filter[]) => void
 }
 
 export function DataTable<T extends { id: string }>({
@@ -71,6 +76,10 @@ export function DataTable<T extends { id: string }>({
   pageSize = 10,
   onDeleteSelected,
   onRowClick,
+  enableFilters = false,
+  filterFields = [],
+  filters = [],
+  onFiltersChange,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('')
   const [selectedItems, setSelectedItems] = useState<T[]>([])
@@ -130,188 +139,216 @@ export function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className='space-y-4 flex flex-col'>
-      {/* Header avec recherche et titre */}
-
+    <div className='space-y-6 flex flex-col'>
+      {/* Header Section */}
       <div className='flex flex-col gap-4'>
-        <div className='flex flex-col gap-1'>
+        {/* Title and Description */}
+        {(title || description) && (
           <div className='flex flex-col gap-1'>
-            {title && <h2 className='text-xl font-semibold'>{title}</h2>}
+            {title && <h2 className='text-2xl font-semibold tracking-tight'>{title}</h2>}
             {description && <p className='text-sm text-muted-foreground'>{description}</p>}
           </div>
+        )}
 
-          <div className='flex items-center gap-3'>
+        {/* Search Bar and Create Button */}
+        <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
+          <div className='flex flex-1 items-center gap-3 w-full sm:w-auto'>
             {searchKeys.length > 0 && (
-              <div className='relative'>
-                <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+              <div className='relative flex-1 sm:flex-initial sm:min-w-[320px]'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
                 <Input
                   type='search'
                   placeholder={searchPlaceholder}
-                  className='pl-8 max-w-xs'
+                  className='pl-10 h-10 bg-background'
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
             )}
-
-            <div>
-              {createData && (
-                <Button variant='default' onClick={createData.onClick}>
-                  {createData.label}
-                </Button>
-              )}
-            </div>
           </div>
-        </div>
 
-        {/* Table */}
-        <div className='rounded-md border'>
-          {isLoading ? (
-            <TableSkeleton columns={columns.length} enableSelection={enableSelection} />
-          ) : (
-            <div className='relative w-full overflow-auto'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {enableSelection && (
-                      <TableHead className='w-[40px] px-2'>
-                        <Checkbox
-                          checked={
-                            paginatedData.length > 0 &&
-                            selectedItems.length === paginatedData.length
-                          }
-                          onCheckedChange={handleSelectAll}
-                          aria-label='Select all'
-                        />
-                      </TableHead>
-                    )}
-
-                    {columns.map((column) => (
-                      <TableHead key={column.id}>{column.header}</TableHead>
-                    ))}
-
-                    {rowActions.length > 0 && <TableHead className='w-[80px]'></TableHead>}
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {paginatedData.length > 0 ? (
-                    paginatedData.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className={cn('hover:bg-muted/50', onRowClick && 'cursor-pointer')}
-                      >
-                        {enableSelection && (
-                          <TableCell className='px-2'>
-                            <Checkbox
-                              checked={selectedItems.some((item) => item.id === row.id)}
-                              onCheckedChange={() => handleSelectItem(row)}
-                              aria-label={'Select row'}
-                            />
-                          </TableCell>
-                        )}
-
-                        {columns.map((column) => (
-                          <TableCell
-                            key={column.id}
-                            onClick={() => {
-                              if (onRowClick) {
-                                onRowClick(row)
-                              }
-                            }}
-                          >
-                            {column.cell
-                              ? column.cell(row)
-                              : column.accessorKey
-                                ? String(row[column.accessorKey] || '')
-                                : ''}
-                          </TableCell>
-                        ))}
-
-                        {rowActions.length > 0 && (
-                          <TableCell className='text-right'>
-                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant='ghost'
-                                  size='icon'
-                                  className='h-8 w-8 cursor-pointer'
-                                >
-                                  <span className='sr-only'>Ouvrir le menu</span>
-                                  <MoreVertical className='h-4 w-4' />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align='end'>
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {rowActions.map((action, index) => (
-                                  <DropdownMenuItem
-                                    key={index}
-                                    onClick={() => action.onClick(row)}
-                                    className={cn(
-                                      'flex items-center gap-2 cursor-pointer',
-                                      action.variant === 'destructive' && 'text-destructive'
-                                    )}
-                                  >
-                                    {action.icon}
-                                    <span>{action.label}</span>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={
-                          columns.length +
-                          (enableSelection ? 1 : 0) +
-                          (rowActions.length > 0 ? 1 : 0)
-                        }
-                        className='h-24 text-center'
-                      >
-                        {emptyState || (search ? 'No result found' : 'No data available.')}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+          {createData && (
+            <Button variant='default' onClick={createData.onClick} className='w-full sm:w-auto'>
+              {createData.label}
+            </Button>
           )}
         </div>
 
-        {/* Pagination */}
-        {enablePagination && totalPages > 1 && (
-          <div className='flex items-center justify-between py-2'>
-            <div className='text-sm text-muted-foreground'>
-              Page {currentPage} sur {totalPages}
-            </div>
-            <div className='flex items-center gap-2'>
+        {/* Filters Section */}
+        {enableFilters && filterFields && filterFields.length > 0 && (
+          <div className='flex items-center gap-2'>
+            <Filters
+              fields={filterFields}
+              filters={filters}
+              onChange={onFiltersChange || (() => { })}
+              variant='outline'
+              size='sm'
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Table Section */}
+      <div className='rounded-lg border bg-card shadow-sm'>
+        {isLoading ? (
+          <TableSkeleton columns={columns.length} enableSelection={enableSelection} />
+        ) : (
+          <div className='relative w-full overflow-auto'>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {enableSelection && (
+                    <TableHead className='w-[40px] px-2'>
+                      <Checkbox
+                        checked={
+                          paginatedData.length > 0 &&
+                          selectedItems.length === paginatedData.length
+                        }
+                        onCheckedChange={handleSelectAll}
+                        aria-label='Select all'
+                      />
+                    </TableHead>
+                  )}
+
+                  {columns.map((column) => (
+                    <TableHead key={column.id}>{column.header}</TableHead>
+                  ))}
+
+                  {rowActions.length > 0 && <TableHead className='w-[80px]'></TableHead>}
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {paginatedData.length > 0 ? (
+                  paginatedData.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className={cn('hover:bg-muted/50', onRowClick && 'cursor-pointer')}
+                    >
+                      {enableSelection && (
+                        <TableCell className='px-2'>
+                          <Checkbox
+                            checked={selectedItems.some((item) => item.id === row.id)}
+                            onCheckedChange={() => handleSelectItem(row)}
+                            aria-label={'Select row'}
+                          />
+                        </TableCell>
+                      )}
+
+                      {columns.map((column) => (
+                        <TableCell
+                          key={column.id}
+                          onClick={() => {
+                            if (onRowClick) {
+                              onRowClick(row)
+                            }
+                          }}
+                        >
+                          {column.cell
+                            ? column.cell(row)
+                            : column.accessorKey
+                              ? String(row[column.accessorKey] || '')
+                              : ''}
+                        </TableCell>
+                      ))}
+
+                      {rowActions.length > 0 && (
+                        <TableCell className='text-right'>
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                className='h-8 w-8 cursor-pointer'
+                              >
+                                <span className='sr-only'>Ouvrir le menu</span>
+                                <MoreVertical className='h-4 w-4' />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align='end'>
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {rowActions.map((action, index) => (
+                                <DropdownMenuItem
+                                  key={index}
+                                  onClick={() => action.onClick(row)}
+                                  className={cn(
+                                    'flex items-center gap-2 cursor-pointer',
+                                    action.variant === 'destructive' && 'text-destructive'
+                                  )}
+                                >
+                                  {action.icon}
+                                  <span>{action.label}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={
+                        columns.length +
+                        (enableSelection ? 1 : 0) +
+                        (rowActions.length > 0 ? 1 : 0)
+                      }
+                      className='h-24 text-center'
+                    >
+                      {emptyState || (search ? 'No result found' : 'No data available.')}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {enablePagination && totalPages > 1 && (
+        <div className='flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 border-t bg-muted/30'>
+          <div className='flex items-center gap-2'>
+            <p className='text-sm text-muted-foreground'>
+              Showing <span className='font-medium text-foreground'>{(currentPage - 1) * pageSize + 1}</span> to{' '}
+              <span className='font-medium text-foreground'>
+                {Math.min(currentPage * pageSize, filteredData.length)}
+              </span>{' '}
+              of <span className='font-medium text-foreground'>{filteredData.length}</span> results
+            </p>
+          </div>
+          <div className='flex items-center gap-2'>
+            <p className='text-sm text-muted-foreground'>
+              Page <span className='font-medium text-foreground'>{currentPage}</span> of{' '}
+              <span className='font-medium text-foreground'>{totalPages}</span>
+            </p>
+            <div className='flex items-center gap-1'>
               <Button
                 variant='outline'
                 size='sm'
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage <= 1}
+                className='h-8 w-8 p-0'
               >
                 <ChevronLeft className='h-4 w-4' />
-                <span className='sr-only'>Page précédente</span>
+                <span className='sr-only'>Previous page</span>
               </Button>
               <Button
                 variant='outline'
                 size='sm'
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage >= totalPages}
+                className='h-8 w-8 p-0'
               >
                 <ChevronRight className='h-4 w-4' />
-                <span className='sr-only'>Page suivante</span>
+                <span className='sr-only'>Next page</span>
               </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Bannière flottante de confirmation de suppression (style Discord) */}
       <AnimatePresence>
@@ -321,23 +358,32 @@ export function DataTable<T extends { id: string }>({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className='fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md bg-background shadow-lg rounded-lg border px-4 py-3'
+            className='fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md bg-background shadow-2xl rounded-xl border-2 px-4 py-4'
           >
             <div className='flex items-center justify-between gap-4'>
               <div className='flex items-center gap-3'>
-                <div className='bg-primary/10 text-primary p-2 rounded-full'>
+                <div className='bg-destructive/10 text-destructive p-2.5 rounded-lg'>
                   <Trash2 className='h-5 w-5' />
                 </div>
                 <div>
-                  <p className='font-medium'>
-                    {selectedItems.length} {selectedItems.length === 1 ? 'element' : 'elements'}{' '}
-                    selected
+                  <p className='font-semibold text-base'>
+                    {selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'} selected
                   </p>
-                  <p className='text-sm text-muted-foreground'>What would you like to do ?</p>
+                  <p className='text-sm text-muted-foreground'>
+                    {isConfirmingDelete ? 'Click confirm to delete permanently' : 'Ready to delete?'}
+                  </p>
                 </div>
               </div>
               <div className='flex gap-2'>
-                <Button variant='ghost' size='sm' onClick={() => setSelectedItems([])}>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => {
+                    setSelectedItems([])
+                    setIsConfirmingDelete(false)
+                  }}
+                  className='hover:bg-muted'
+                >
                   Cancel
                 </Button>
                 <Button
@@ -346,6 +392,7 @@ export function DataTable<T extends { id: string }>({
                   onClick={
                     isConfirmingDelete ? handleConfirmDelete : () => setIsConfirmingDelete(true)
                   }
+                  className='min-w-[80px]'
                 >
                   {isConfirmingDelete ? 'Confirm' : 'Delete'}
                 </Button>
