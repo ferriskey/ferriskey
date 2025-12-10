@@ -122,8 +122,8 @@ export default function PageCreateRole({
                 {selectedPermissions.length === 0 ? (
                   <span className='flex w-full items-center justify-center text-neutral-400'>No permissions selected</span>
                 ) : (
-                  selectedPermissions.map((permission) => (
-                    <div
+                  selectedPermissions.map((permission,index) => (
+                    <div key={index}
                       onClick={() => handlePermissionToggle(permission)}
                     >
                       <BadgeColor
