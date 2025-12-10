@@ -38,6 +38,12 @@ export const useCreateRole = () => {
     ).mutationOptions,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
+       toast.success('Role created successfully')
+    },
+    onError(error) {
+      toast.error('Failed to create role', {
+        description: error.message,
+      })
     },
   })
 }
