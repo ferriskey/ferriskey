@@ -17,6 +17,7 @@ use uuid::Uuid;
 pub enum ClaimsTyp {
     Refresh,
     Bearer,
+    Temporary,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -81,6 +82,23 @@ impl JwtClaim {
             email: None,
             exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
             client_id: None,
+        }
+    }
+
+    pub fn new_temporary_token(claims: JwtClaim) -> Self {
+        Self {
+            sub: claims.sub,
+            iat: claims.iat,
+            jti: claims.jti,
+            iss: claims.iss,
+            aud: claims.aud,
+            typ: ClaimsTyp::Temporary,
+            azp: claims.azp,
+            scope: claims.scope,
+            preferred_username: claims.preferred_username,
+            email: claims.email,
+            exp: Some(chrono::Utc::now().timestamp() + 300), // 5 minutes
+            client_id: claims.client_id,
         }
     }
 

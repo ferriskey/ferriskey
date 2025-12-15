@@ -23,10 +23,24 @@ export default function ConfigureOtpFeature() {
 
   const token = searchParams.get('client_data')
 
-  const { data } = useSetupOtp({
+  const { data, isError, error } = useSetupOtp({
     realm: realm_name ?? 'master',
     token: token,
   })
+
+  useEffect(() => {
+    if (!token) {
+      toast.error('Token is missing')
+      navigate(`/realms/${realm_name}/authentication/login`)
+    }
+  }, [token, navigate, realm_name])
+
+  useEffect(() => {
+    if (isError) {
+      toast.error('Error during OTP configuration')
+      console.error(error)
+    }
+  }, [isError, error])
 
   const form = useForm<VerifyOtpSchema>({
     resolver: zodResolver(verifyOtpSchema),

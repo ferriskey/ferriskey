@@ -2,14 +2,15 @@ use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Header, Validation};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::{
     authentication::{
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
-            AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
+            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
@@ -649,7 +650,13 @@ This is a server error that should be investigated. Do not forward back this mes
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
-        let claims = self.verify_refresh_token(token.clone(), realm_id).await?;
+        let claims = self
+            .verify_token(token.clone(), realm_id)
+            .await
+            .map_err(|e| {
+                error!("Failed to verify token: {:?}", e);
+                e
+            })?;
 
         let user = self
             .user_repository
@@ -822,10 +829,10 @@ where
 
     async fn authorize_request(
         &self,
-        input: super::entities::AuthorizeRequestInput,
-    ) -> Result<super::entities::AuthorizeRequestOutput, CoreError> {
+        input: AuthorizeRequestInput,
+    ) -> Result<AuthorizeRequestOutput, CoreError> {
         if input.claims.typ != ClaimsTyp::Bearer {
-            return Err(CoreError::InternalServerError);
+            return Err(CoreError::InvalidToken);
         }
 
         let user = self.user_repository.get_by_id(input.claims.sub).await?;
@@ -858,7 +865,10 @@ where
             .auth_session_repository
             .get_by_session_code(input.session_code)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|e| {
+                error!("Failed to get auth session by session code: {:?}", e);
+                CoreError::InternalServerError
+            })?;
 
         let realm = self
             .realm_repository
