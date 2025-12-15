@@ -7,12 +7,13 @@ import { challengeOtpSchema, ChallengeOtpSchema } from '../schemas/challange-otp
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { useCallback, useEffect } from 'react'
+import { toast } from 'sonner'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { mutate: challengeOtp, data: challengeOtpData } = useChallengeOtp()
+  const { mutate: challengeOtp, data: challengeOtpData, isPending, error } = useChallengeOtp()
 
   const token = searchParams.get('token')
 
@@ -51,12 +52,19 @@ export default function PageOtpChallengeFeature() {
     window.location.href = challengeOtpData.url
   }, [challengeOtpData])
 
+  useEffect(() => {
+    if (error) {
+      toast.error('Invalid OTP code, please try again.')
+    }
+  }, [error])
+
   return (
     <Form {...form}>
       <PageOtpChallenge
         handleCancelClick={handleCancelClick}
         handleClick={handleClick}
         email={email()}
+        isLoading={isPending}
       />
     </Form>
   )

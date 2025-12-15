@@ -7,17 +7,20 @@ import { Shield } from 'lucide-react'
 import { ChallengeOtpSchema } from '../schemas/challange-otp.schema'
 import { useFormContext } from 'react-hook-form'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
+import { BasicSpinner } from '@/components/ui/spinner'
 
 export interface PageOtpChallengeProps {
   handleCancelClick: () => void
   handleClick: (values: ChallengeOtpSchema) => void
   email?: string
+  isLoading?: boolean
 }
 
 export default function PageOtpChallenge({
   handleCancelClick,
   handleClick,
   email,
+  isLoading
 }: PageOtpChallengeProps) {
   const form = useFormContext<ChallengeOtpSchema>()
 
@@ -93,10 +96,16 @@ export default function PageOtpChallenge({
 
                 <div className='mt-4 flex flex-col gap-2'>
                   <Button
-                    disabled={!form.formState.isValid}
+
+                    disabled={!form.formState.isValid || isLoading}
                     onClick={form.handleSubmit(handleClick)}
                   >
-                    Sign In
+                    {isLoading ? <div className='flex items-center gap-2'>
+                      <BasicSpinner />
+                      <span>
+                        Signing In...
+                      </span>
+                    </div> : <>Sign In</>}
                   </Button>
 
                   <Button variant='outline' onClick={handleCancelClick}>
