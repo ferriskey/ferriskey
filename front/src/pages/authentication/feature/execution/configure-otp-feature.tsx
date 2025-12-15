@@ -37,7 +37,7 @@ export default function ConfigureOtpFeature() {
 
   useEffect(() => {
     if (isError) {
-      toast.error('Erreur lors de la configuration OTP')
+      toast.error('Error during OTP configuration')
       console.error(error)
     }
   }, [isError, error])

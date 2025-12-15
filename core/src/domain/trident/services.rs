@@ -7,6 +7,7 @@ use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha1::Sha1;
+use tracing::{debug, error};
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
@@ -89,12 +90,12 @@ fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, C
 
 fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
     let Ok(expected_code) = code.parse::<u32>() else {
-        tracing::error!("failed to parse code: {}", code);
+        error!("failed to parse code: {}", code);
         return Ok(false);
     };
 
     let Ok(secret_bytes) = secret.to_bytes() else {
-        tracing::error!("failed to convert secret to bytes");
+        error!("failed to convert secret to bytes");
         return Ok(false);
     };
 
@@ -118,13 +119,6 @@ fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
         }
     }
 
-    tracing::error!("OTP verification failed - no match found");
-    tracing::error!(
-        "Expected code: {}, tried counters: {} to {}",
-        expected_code,
-        counter - 1,
-        counter + 1
-    );
     Ok(false)
 }
 
@@ -142,18 +136,18 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
 
 fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError> {
     let rp_url = Url::parse(&rp_info.allowed_origin).map_err(|e| {
-        tracing::error!("Failed to parse server_host as URL: {e}");
+        error!("Failed to parse server_host as URL: {e}");
         CoreError::InternalServerError
     })?;
 
     WebauthnBuilder::new(&rp_info.rp_id, &rp_url)
         .map_err(|e| {
-            tracing::error!("Failed to build Webauthn client: {e:?}");
+            error!("Failed to build Webauthn client: {e:?}");
             CoreError::InternalServerError
         })?
         .build()
         .map_err(|e| {
-            tracing::error!("Failed to build Webauthn client: {e:?}");
+            error!("Failed to build Webauthn client: {e:?}");
             CoreError::InternalServerError
         })
 }
@@ -269,7 +263,7 @@ where
             .create_recovery_code_credentials(user.id, secure_codes)
             .await
             .map_err(|e| {
-                tracing::error!("{e}");
+                error!("{e}");
                 CoreError::InternalServerError
             })?;
 
@@ -281,7 +275,7 @@ where
             try_join_all(futures).await
         }
         .map_err(|e| {
-            tracing::error!("Failed to delete previously fetched credentials: {e}");
+            error!("Failed to delete previously fetched credentials: {e}");
             CoreError::InternalServerError
         })?;
 
@@ -359,7 +353,7 @@ where
                     break;
                 }
             } else {
-                tracing::error!(
+                error!(
                     "A recovery code credential has no Hash credential data. This is a server bug. Do not forward this message back to the user"
                 );
                 return Err(CoreError::InternalServerError);
@@ -381,7 +375,7 @@ where
             .delete_by_id(burnt_code.id)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
+                error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
                 CoreError::InternalServerError
             })?;
 
@@ -440,7 +434,7 @@ where
         let (ccr, pr) = webauthn
             .start_passkey_registration(user.id, &user.email, &user.username, credentials)
             .map_err(|e| {
-                tracing::error!("Failed to generate webauthn challenge: {e:?}");
+                error!("Failed to generate webauthn challenge: {e:?}");
                 CoreError::InternalServerError
             })?;
 
@@ -478,7 +472,7 @@ where
             Some(WebAuthnChallenge::Registration(ref pk)) => webauthn
                 .finish_passkey_registration(&input.credential, pk)
                 .map_err(|e| {
-                    tracing::debug!("Failed to complete passkey registration: {e:?}");
+                    debug!("Failed to complete passkey registration: {e:?}");
                     CoreError::Invalid
                 }),
             _ => Err(CoreError::Invalid),
@@ -521,7 +515,7 @@ where
                         Ok(Passkey::from(*credential))
                     },
                     _ => {
-                        tracing::error!("A Webauthn credential doesn't hold WebAuthn credential data ! Something went wrong during creation...");
+                        error!("A Webauthn credential doesn't hold WebAuthn credential data ! Something went wrong during creation...");
                         Err(CoreError::InternalServerError)
                     }
                 }
@@ -529,7 +523,7 @@ where
             .collect::<Result<Vec<Passkey>, CoreError>>()?;
 
         let (rcr, pa) = webauthn.start_passkey_authentication(&creds).map_err(|e| {
-            tracing::error!("Failed to generate webauthn challenge: {e:?}");
+            error!("Failed to generate webauthn challenge: {e:?}");
             CoreError::InternalServerError
         })?;
 
@@ -567,7 +561,7 @@ where
             Some(WebAuthnChallenge::Authentication(ref pa)) => webauthn
                 .finish_passkey_authentication(&input.credential, pa)
                 .map_err(|e| {
-                    tracing::error!("Error during webauthn verification: {e:?}");
+                    error!("Error during webauthn verification: {e:?}");
                     CoreError::WebAuthnChallengeFailed
                 }),
             _ => Err(CoreError::WebAuthnMissingChallenge),
@@ -579,7 +573,7 @@ where
                 .update_webauthn_credential(&auth_result)
                 .await
                 .map_err(|e| {
-                    tracing::debug!("{e:?}");
+                    debug!("{e:?}");
                     CoreError::InternalServerError
                 })?;
         }
@@ -635,7 +629,7 @@ where
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
-            tracing::error!("invalid OTP code for user: {}", user.email);
+            error!("invalid OTP code for user: {}", user.email);
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
             ));
@@ -742,7 +736,7 @@ where
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
-            tracing::error!("invalid OTP code");
+            error!("invalid OTP code");
             return Err(CoreError::InternalServerError);
         }
 
