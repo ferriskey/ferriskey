@@ -76,7 +76,6 @@ fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, C
 
     mac.update(&counter_bytes);
 
-    mac.update(&counter_bytes);
     let hmac_result = mac.finalize().into_bytes();
 
     let offset = (hmac_result[19] & 0x0f) as usize;
@@ -90,7 +89,7 @@ fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, C
 
 fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
     let Ok(expected_code) = code.parse::<u32>() else {
-        tracing::error!("failed to parse code");
+        tracing::error!("failed to parse code: {}", code);
         return Ok(false);
     };
 
@@ -109,14 +108,23 @@ fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
 
     let counter = now / time_step;
 
-    for i in -1..=1 {
-        let adjusted_counter = counter.wrapping_add(i as u64);
-        let generated = generate_totp_code(&secret_bytes, adjusted_counter, digits)?;
+    let counters_to_check = [counter.saturating_sub(1), counter, counter + 1];
+
+    for &check_counter in counters_to_check.iter() {
+        let generated = generate_totp_code(&secret_bytes, check_counter, digits)?;
+
         if generated == expected_code {
             return Ok(true);
         }
     }
 
+    tracing::error!("OTP verification failed - no match found");
+    tracing::error!(
+        "Expected code: {}, tried counters: {} to {}",
+        expected_code,
+        counter - 1,
+        counter + 1
+    );
     Ok(false)
 }
 
