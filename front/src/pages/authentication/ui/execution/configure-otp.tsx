@@ -41,8 +41,8 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
           {/* Header */}
           <div className='text-center mb-8'>
             <div className='flex justify-center mb-4'>
-              <div className='p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full'>
-                <Shield className='h-8 w-8 text-[#19323C] dark:text-blue-400' />
+              <div className='p-3 bg-primary dark:bg-primary/30 rounded-full'>
+                <Shield className='h-8 w-8 text-[#19323C] dark:text-white' />
               </div>
             </div>
             <Heading size={2} className='mb-2 text-center'>
