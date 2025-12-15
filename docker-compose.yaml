@@ -74,14 +74,14 @@ services:
   api-registry:
     image: ghcr.io/ferriskey/ferriskey-api
     environment:
-      ALLOWED_ORIGINS: http://localhost:5556
-      WEBAPP_URL: http://localhost:5556
+      ALLOWED_ORIGINS: http://localhost:5555
+      WEBAPP_URL: http://localhost:5555
       DATABASE_HOST: db
       DATABASE_NAME: ferriskey
       DATABASE_PASSWORD: ferriskey
       DATABASE_USER: ferriskey
     ports:
-      - 3334:3333
+      - 3333:3333
     depends_on:
       db-migrations-registry:
         condition: service_completed_successfully
@@ -109,9 +109,9 @@ services:
   webapp-registry:
     image: ghcr.io/ferriskey/ferriskey-webapp
     environment:
-      API_URL: http://localhost:3334
+      API_URL: http://localhost:3333
     ports:
-      - 5556:80
+      - 5555:80
     profiles:
       - registry
 volumes:
