@@ -1,93 +1,134 @@
 import { DataTable } from '@/components/ui/data-table'
-import { Edit, ExternalLink, Trash2, Settings } from 'lucide-react'
+import { Edit, ExternalLink, Trash2, Shield, ShieldCheck, ShieldAlert, Activity } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
-import { Heading } from '@/components/ui/heading'
-import { useNavigate } from 'react-router-dom'
-import { ROLE_CREATE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
 import { Schemas } from '@/api/api.client'
-import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
+import StatisticsCard from '../components/statistics-card'
 
 import Role = Schemas.Role
+
+interface Statistics {
+  totalRoles: number
+  realmRoles: number
+  clientRoles: number
+  rolesWithPermissions: number
+}
+
+interface ConfirmState {
+  title: string
+  description: string
+  open: boolean
+  onConfirm: () => void
+}
 
 export interface PageRolesOverviewProps {
   isLoading?: boolean
   data: Role[]
   realmName: string
+  statistics: Statistics
+  filters: Filter[]
+  filterFields: FilterFieldsConfig
+  onFiltersChange: (filters: Filter[]) => void
+  confirm: ConfirmState
+  onConfirmClose: () => void
   handleDeleteSelected: (items: Role[]) => void
   handleClickRow: (roleId: string) => void
-  handleDeleteRole: (role: Role) => void
+  handleCreateRole: () => void
+  onRowDelete: (role: Role) => void
 }
 
 export default function PageRolesOverview({
   data,
   isLoading,
-  realmName,
+  statistics,
+  filters,
+  filterFields,
+  onFiltersChange,
+  confirm,
+  onConfirmClose,
   handleDeleteSelected,
   handleClickRow,
-  handleDeleteRole,
+  handleCreateRole,
+  onRowDelete,
 }: PageRolesOverviewProps) {
-  const navigate = useNavigate()
-  const { confirm, ask, close } = useConfirmDeleteAlert()
-
-  const onRowDelete = (role: Role) => {
-    ask({
-      title: 'Delete role?',
-      description: `Are you sure you want to delete "${role.name}"?`,
-      onConfirm: () => {
-        handleDeleteRole(role)
-        close()
-      },
-    })
-  }
-
-  const handleViewSettings = (role: Role) => {
-    navigate(`/realms/${realmName}/roles/${role.id}/settings`)
-  }
-
-  const handleCreateRole = () => {
-    navigate(`${ROLES_URL(realmName)}${ROLE_CREATE_URL}`)
-  }
+  const { totalRoles, realmRoles, clientRoles, rolesWithPermissions } = statistics
 
   return (
-    <div className='flex flex-col gap-4 p-8'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <Heading>Roles</Heading>
-          <p className='text-muted-foreground'>Manage roles in {realmName}</p>
-        </div>
+    <div className='flex flex-col gap-6'>
+      {/* Statistics Cards */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        <StatisticsCard
+          title='Total Roles'
+          value={totalRoles}
+          description='All registered roles'
+          icon={Shield}
+          isLoading={isLoading}
+        />
+
+        <StatisticsCard
+          title='Realm Roles'
+          value={realmRoles}
+          description={
+            realmRoles > 0 && totalRoles > 0 ? (
+              <span className='text-blue-600 font-medium'>
+                {((realmRoles / totalRoles) * 100).toFixed(0)}% of total
+              </span>
+            ) : (
+              'No realm roles'
+            )
+          }
+          icon={ShieldCheck}
+          isLoading={isLoading}
+        />
+
+        <StatisticsCard
+          title='Client Roles'
+          value={clientRoles}
+          description='Client-specific roles'
+          icon={ShieldAlert}
+          isLoading={isLoading}
+        />
+
+        <StatisticsCard
+          title='With Permissions'
+          value={rolesWithPermissions}
+          description='Roles with permissions'
+          icon={Activity}
+          isLoading={isLoading}
+        />
       </div>
 
+      {/* Data Table */}
       <DataTable
         data={data}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder='Search a client...'
-        searchKeys={['name', 'client_id']}
-        enableSelection={true}
-        onDeleteSelected={handleDeleteSelected}
+        searchPlaceholder='Search roles by name or description...'
         createData={{
           label: 'Create Role',
           onClick: handleCreateRole,
         }}
+        searchKeys={['name', 'description']}
+        enableSelection={true}
+        enableFilters={true}
+        filterFields={filterFields}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
         onRowClick={(role) => {
           handleClickRow(role.id)
         }}
+        onDeleteSelected={handleDeleteSelected}
         rowActions={[
-          {
-            label: 'Settings',
-            icon: <Settings className='h-4 w-4' />,
-            onClick: handleViewSettings,
-          },
           {
             label: 'Edit',
             icon: <Edit className='h-4 w-4' />,
-            onClick: (client) => console.log('Edit', client),
+            onClick: (role) => console.log('Edit', role),
           },
           {
-            label: 'See details',
+            label: 'View',
             icon: <ExternalLink className='h-4 w-4' />,
-            onClick: (client) => console.log('View', client),
+            onClick: (role) => console.log('View', role),
           },
           {
             label: 'Delete',
@@ -102,7 +143,7 @@ export default function PageRolesOverview({
         description={confirm.description}
         open={confirm.open}
         onConfirm={confirm.onConfirm}
-        onCancel={close}
+        onCancel={onConfirmClose}
       />
     </div>
   )
