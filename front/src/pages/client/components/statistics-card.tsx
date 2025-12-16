@@ -10,6 +10,7 @@ interface StatisticsCardProps {
   icon: LucideIcon
   isLoading?: boolean
   descriptionClassName?: string
+  chart?: ReactNode
 }
 
 export default function StatisticsCard({
@@ -19,6 +20,7 @@ export default function StatisticsCard({
   icon: Icon,
   isLoading = false,
   descriptionClassName,
+  chart,
 }: StatisticsCardProps) {
   if (isLoading) {
     return (
@@ -52,6 +54,11 @@ export default function StatisticsCard({
             {description}
           </div>
         </div>
+        {chart && (
+          <div className='mt-4'>
+            {chart}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

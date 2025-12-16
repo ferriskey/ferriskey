@@ -5,6 +5,7 @@ import { Schemas } from '@/api/api.client.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
+import ClientTrendChart from '../components/client-trend-chart'
 
 import Client = Schemas.Client
 
@@ -61,9 +62,10 @@ export default function PageClientsOverview({
         <StatisticsCard
           title='Total Clients'
           value={totalClients}
-          description='All registered clients'
+          description='Last 7 days trend'
           icon={Users}
           isLoading={isLoading}
+          chart={!isLoading && <ClientTrendChart clients={data} days={7} useMockData={true} />}
         />
 
         <StatisticsCard
@@ -78,6 +80,7 @@ export default function PageClientsOverview({
               'No active clients'
             )
           }
+
           icon={Activity}
           isLoading={isLoading}
         />
