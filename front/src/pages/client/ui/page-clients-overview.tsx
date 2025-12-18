@@ -1,10 +1,11 @@
 import { DataTable } from '@/components/ui/data-table'
-import { Edit, ExternalLink, Trash2, Users, Globe, Lock, Activity } from 'lucide-react'
+import { Edit, ExternalLink, Trash2 } from 'lucide-react'
 import { columns } from '../columns/list-client.column'
 import { Schemas } from '@/api/api.client.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
+import ClientTrendChart from '../components/client-trend-chart'
 
 import Client = Schemas.Client
 
@@ -61,41 +62,33 @@ export default function PageClientsOverview({
         <StatisticsCard
           title='Total Clients'
           value={totalClients}
-          description='All registered clients'
-          icon={Users}
           isLoading={isLoading}
+          chart={!isLoading && <ClientTrendChart clients={data} days={7} color='hsl(200 76% 36%)' />}
         />
 
         <StatisticsCard
           title='Active Clients'
           value={activeClients}
-          description={
-            activeClients > 0 && totalClients > 0 ? (
-              <span className='text-emerald-600 font-medium'>
-                {((activeClients / totalClients) * 100).toFixed(0)}% enabled
-              </span>
-            ) : (
-              'No active clients'
-            )
-          }
-          icon={Activity}
           isLoading={isLoading}
+          trend={{
+            value: activeClients > 0 && totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0,
+            direction: 'up',
+          }}
+          chart={!isLoading && <ClientTrendChart clients={data.filter(c => c.enabled)} days={7} color='hsl(142 76% 36%)' />}
         />
 
         <StatisticsCard
           title='Public Clients'
           value={publicClients}
-          description='OAuth public flow'
-          icon={Globe}
           isLoading={isLoading}
+          chart={!isLoading && <ClientTrendChart clients={data.filter(c => c.public_client)} days={7} color='hsl(221 83% 53%)' />}
         />
 
         <StatisticsCard
           title='Confidential Clients'
           value={confidentialClients}
-          description='OAuth confidential flow'
-          icon={Lock}
           isLoading={isLoading}
+          chart={!isLoading && <ClientTrendChart clients={data.filter(c => !c.public_client)} days={7} color='hsl(262 83% 58%)' />}
         />
       </div>
 
