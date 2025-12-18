@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import { LucideIcon } from 'lucide-react'
 import { ReactNode } from 'react'
 
@@ -48,7 +49,7 @@ export default function StatisticsCard({
         </div>
         <div className='mt-4'>
           <div className='text-4xl font-bold'>{value}</div>
-          <div className={`text-sm mt-2 ${descriptionClassName || 'text-muted-foreground'}`}>
+          <div className={cn('text-sm mt-2', descriptionClassName || 'text-muted-foreground')}>
             {description}
           </div>
         </div>
