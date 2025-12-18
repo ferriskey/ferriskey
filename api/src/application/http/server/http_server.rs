@@ -42,7 +42,8 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
     let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
         |request: &axum::extract::Request| {
             let uri: String = request.uri().to_string();
-            info_span!("http_request", method = ?request.method(), uri)
+            let span_name = format!("{} {}", request.method(), uri);
+            info_span!("http_request", otel.name = %span_name, http.method = %request.method(), http.target = %uri)
         },
     );
 
