@@ -2,9 +2,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use ferriskey_core::domain::authentication::{
+    ports::AuthService,
+    value_objects::{GetUserInfoInput, Identity, UserInfoResponse},
+};
 
 use crate::application::{
     decoded_token::OptionalToken,
@@ -13,17 +14,6 @@ use crate::application::{
         app_state::AppState,
     },
 };
-
-#[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-pub struct GetUserInfoResponse {
-    sub: String,
-    email_verified: bool,
-    name: String,
-    preferred_username: String,
-    given_name: String,
-    family_name: String,
-    email: String,
-}
 
 #[utoipa::path(
     get,
@@ -35,7 +25,7 @@ pub struct GetUserInfoResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = GetUserInfoResponse),
+        (status = 200, body = UserInfoResponse),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 500, description = "Internal Server Error")
@@ -46,18 +36,18 @@ pub async fn get_userinfo(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     OptionalToken(optional_token): OptionalToken,
-) -> Result<Response<GetUserInfoResponse>, ApiError> {
-    let token = optional_token.unwrap();
+) -> Result<Response<UserInfoResponse>, ApiError> {
+    let result_token = optional_token
+        .ok_or_else(|| ApiError::Unauthorized("Missing or invalid access token".to_string()))?;
 
-    println!("{:?}", token);
+    let user_info = state
+        .service
+        .get_userinfo(GetUserInfoInput {
+            identity,
+            realm_name,
+            token: result_token.decoded_token,
+        })
+        .await?;
 
-    Ok(Response::OK(GetUserInfoResponse {
-        email: "".to_string(),
-        email_verified: true,
-        family_name: "".to_string(),
-        given_name: "".to_string(),
-        name: "".to_string(),
-        preferred_username: "".to_string(),
-        sub: "".to_string(),
-    }))
+    Ok(Response::OK(user_info))
 }
