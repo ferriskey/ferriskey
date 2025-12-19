@@ -33,6 +33,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
             get(get_userinfo),
         )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
+            post(get_userinfo),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
