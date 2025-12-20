@@ -8,16 +8,19 @@ import { useRegistrationMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 
-const registerSchema = z.object({
-  username: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6, 'Password must be at least 6 characters long'),
-  confirmPassword: z.string().min(6, 'Confirm Password must be at least 6 characters long'),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-})
+const registerSchema = z
+  .object({
+    username: z.string().min(1, 'Username is required'),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(6, 'Password must be at least 6 characters long'),
+    confirmPassword: z.string().min(6, 'Confirm Password must be at least 6 characters long'),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'], // ✅ important
+    message: 'Passwords do not match',
+  })
 
 export type RegisterSchema = z.infer<typeof registerSchema>
 
@@ -33,6 +36,15 @@ export default function PageRegisterFeature() {
 
   const form = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
+    mode: 'onChange',
+    defaultValues: {
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+    },
   })
 
   function onSubmit(data: RegisterSchema) {
@@ -42,11 +54,11 @@ export default function PageRegisterFeature() {
         first_name: data.firstName,
         last_name: data.lastName,
         password: data.password,
-        username: data.username
+        username: data.username,
       },
       path: {
-        realm_name: realm_name ?? 'master'
-      }
+        realm_name: realm_name ?? 'master',
+      },
     })
   }
 
@@ -57,7 +69,5 @@ export default function PageRegisterFeature() {
     }
   }, [data, setAuthTokens, navigate, realm_name])
 
-  return (
-    <PageRegister form={form} onSubmit={onSubmit} backToLogin={backToLogin} />
-  )
+  return <PageRegister form={form} onSubmit={onSubmit} backToLogin={backToLogin} />
 }
