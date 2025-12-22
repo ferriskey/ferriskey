@@ -307,7 +307,7 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         let scope_manager = ScopeManager::new();
-        let final_scope = scope_manager.validate_and_filter(params.scope);
+        let final_scope = scope_manager.merge_with_defaults(params.scope);
 
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
@@ -368,7 +368,7 @@ where
         }
 
         let scope_manager = ScopeManager::new();
-        let final_scope = scope_manager.validate_and_filter(params.scope);
+        let final_scope = scope_manager.merge_with_defaults(params.scope);
 
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
