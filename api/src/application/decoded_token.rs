@@ -1,13 +1,6 @@
 use axum::extract::FromRequestParts;
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::domain::jwt::entities::JwtError;
-use serde::Deserialize;
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DecodedToken {
-    pub sub: String,
-    pub preferred_username: String,
-}
+use ferriskey_core::domain::{authentication::entities::DecodedToken, jwt::entities::JwtError};
 
 #[derive(Debug, Clone)]
 pub struct ResultToken {

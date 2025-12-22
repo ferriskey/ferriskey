@@ -7,7 +7,7 @@ use crate::{
                 AuthorizeRequestInput, AuthorizeRequestOutput, ExchangeTokenInput, JwtToken,
             },
             ports::AuthService,
-            value_objects::RegisterUserInput,
+            value_objects::{GetUserInfoInput, RegisterUserInput, UserInfoResponse},
         },
         common::entities::app_errors::CoreError,
         jwt::entities::JwkKey,
@@ -47,5 +47,9 @@ impl AuthService for ApplicationService {
         input: RegisterUserInput,
     ) -> Result<JwtToken, CoreError> {
         self.auth_service.register_user(url, input).await
+    }
+
+    async fn get_userinfo(&self, input: GetUserInfoInput) -> Result<UserInfoResponse, CoreError> {
+        self.auth_service.get_userinfo(input).await
     }
 }

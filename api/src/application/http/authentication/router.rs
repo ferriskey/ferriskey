@@ -1,39 +1,50 @@
 use axum::{
-    Router,
+    Router, middleware,
     routing::{get, post},
 };
 use utoipa::OpenApi;
 
 use super::handlers::{
-    auth::{__path_auth, auth},
+    auth::{__path_auth_handler, auth_handler},
     authentificate::{__path_authenticate, authenticate},
     get_certs::{__path_get_certs, get_certs},
     openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
     registration::{__path_registration_handler, registration_handler},
     token::{__path_exchange_token, exchange_token},
+    userinfo::{__path_get_userinfo, get_userinfo},
 };
-use crate::application::http::server::app_state::AppState;
+use crate::application::{auth::auth, http::server::app_state::AppState};
 
 #[derive(OpenApi)]
 #[openapi(paths(
     exchange_token,
     authenticate,
     get_certs,
-    auth,
+    auth_handler,
     get_openid_configuration,
     registration_handler,
+    get_userinfo,
 ))]
 pub struct AuthenticationApiDoc;
 
-pub fn authentication_routes(root_path: &str) -> Router<AppState> {
+pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppState> {
     Router::new()
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
+            get(get_userinfo),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
+            post(get_userinfo),
+        )
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
             post(exchange_token),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
-            get(auth),
+            get(auth_handler),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/registrations"),

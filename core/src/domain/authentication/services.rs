@@ -14,7 +14,8 @@ use crate::domain::{
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, GenerateTokenInput, GrantTypeParams, Identity, RegisterUserInput,
+            AuthenticationResult, GenerateTokenInput, GetUserInfoInput, GrantTypeParams, Identity,
+            RegisterUserInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, RedirectUriRepository},
@@ -965,5 +966,43 @@ where
             jwt.expires_at as u32,
             "id_token".to_string(),
         ))
+    }
+
+    async fn get_userinfo(&self, input: GetUserInfoInput) -> Result<UserInfoResponse, CoreError> {
+        let scopes: Vec<String> = if let Some(scope_str) = input.token.scope {
+            scope_str
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        let contains_openid = scopes.contains(&"openid".to_string());
+        if scopes.is_empty() || !contains_openid {
+            return Err(CoreError::InvalidToken);
+        }
+
+        let user_id = input.identity.id();
+        let user = self.user_repository.get_by_id(user_id).await?;
+
+        let mut response = UserInfoResponse {
+            sub: user.id.to_string(),
+            ..Default::default()
+        };
+
+        if scopes.contains(&"profile".to_string()) {
+            response.name = Some(format!("{} {}", user.firstname, user.lastname));
+            response.given_name = Some(user.firstname.clone());
+            response.family_name = Some(user.lastname.clone());
+            response.preferred_username = Some(user.username.clone());
+        }
+
+        if scopes.contains(&"email".to_string()) {
+            response.email = Some(user.email.clone());
+            response.email_verified = Some(user.email_verified);
+        }
+
+        Ok(response)
     }
 }
