@@ -306,6 +306,9 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let scope_manager = ScopeManager::new();
+        let final_scope = scope_manager.validate_and_filter(params.scope);
+
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -315,7 +318,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: None,
+                scope: Some(final_scope),
             })
             .await?;
         Ok(JwtToken::new(
@@ -364,6 +367,9 @@ where
             return Err(CoreError::Invalid);
         }
 
+        let scope_manager = ScopeManager::new();
+        let final_scope = scope_manager.validate_and_filter(params.scope);
+
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -373,7 +379,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: None,
+                scope: Some(final_scope),
             })
             .await?;
 
