@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::domain::authentication::value_objects::{GetUserInfoInput, UserInfoResponse};
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
@@ -107,6 +108,10 @@ pub trait AuthService: Send + Sync {
         url: String,
         input: RegisterUserInput,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+    fn get_userinfo(
+        &self,
+        input: GetUserInfoInput,
+    ) -> impl Future<Output = Result<UserInfoResponse, CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.

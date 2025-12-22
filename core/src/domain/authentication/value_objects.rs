@@ -1,7 +1,9 @@
 use enum_display::EnumDisplay;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::authentication::entities::DecodedToken;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::entities::GrantType,
@@ -187,4 +189,46 @@ pub struct GenerateTokenInput {
     pub email: String,
     pub realm_id: RealmId,
     pub scope: Option<String>,
+}
+
+pub struct GetUserInfoInput {
+    pub realm_name: String,
+    pub identity: Identity,
+    pub token: DecodedToken,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]
+pub struct UserInfoResponse {
+    pub sub: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family_name: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preferred_username: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_verified: Option<bool>,
+}
+
+impl UserInfoResponse {
+    pub fn from_user(user: &User) -> Self {
+        Self {
+            sub: user.id.to_string(),
+            email: Some(user.email.to_string()),
+            email_verified: Some(user.email_verified),
+            family_name: Some(user.firstname.to_string()),
+            given_name: Some(user.lastname.to_string()),
+            name: Some(format!("{} {}", user.firstname, user.lastname)),
+            preferred_username: Some(user.username.to_string()),
+        }
+    }
 }

@@ -4,3 +4,4 @@ pub mod get_certs;
 pub mod openid_configuration;
 pub mod registration;
 pub mod token;
+pub mod userinfo;
