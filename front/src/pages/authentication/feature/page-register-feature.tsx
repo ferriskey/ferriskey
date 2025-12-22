@@ -18,7 +18,7 @@ const registerSchema = z
     lastName: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    path: ['confirmPassword'], // ✅ important
+    path: ['confirmPassword'],
     message: 'Passwords do not match',
   })
 
