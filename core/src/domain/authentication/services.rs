@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     authentication::{
+        ScopeManager,
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
@@ -257,8 +258,14 @@ where
             .ok_or(CoreError::NotFound)?;
 
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
-
         let user = self.user_repository.get_by_id(user_id).await?;
+
+        let scope_manager = ScopeManager::new();
+        let final_scope = if params.scope.is_some() {
+            scope_manager.validate_and_filter(params.scope)
+        } else {
+            auth_session.scope
+        };
 
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
@@ -269,7 +276,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: Some(auth_session.scope),
+                scope: Some(final_scope),
             })
             .await?;
 
@@ -821,6 +828,7 @@ where
             password: input.password,
             refresh_token: input.refresh_token,
             redirect_uri: None,
+            scope: input.scope,
         };
 
         self.authenticate_with_grant_type(input.grant_type, params)

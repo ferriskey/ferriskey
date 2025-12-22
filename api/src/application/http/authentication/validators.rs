@@ -26,4 +26,9 @@ pub struct TokenRequestValidator {
 
     #[serde(default)]
     pub refresh_token: Option<String>,
+
+    // Scace-delimited list of scopes requested
+    // Example: "openid profile email"
+    #[serde(default)]
+    pub scope: Option<String>,
 }
