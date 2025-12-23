@@ -45,6 +45,7 @@ pub struct GrantTypeParams {
     pub password: Option<String>,
     pub refresh_token: Option<String>,
     pub redirect_uri: Option<String>,
+    pub scope: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

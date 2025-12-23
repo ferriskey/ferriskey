@@ -39,6 +39,7 @@ pub async fn exchange_token(
             refresh_token: payload.refresh_token,
             base_url,
             grant_type: payload.grant_type,
+            scope: payload.scope,
         })
         .await
         .map(Response::OK)

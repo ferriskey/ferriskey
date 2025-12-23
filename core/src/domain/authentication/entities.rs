@@ -210,6 +210,7 @@ pub struct ExchangeTokenInput {
     pub refresh_token: Option<String>,
     pub base_url: String,
     pub grant_type: GrantType,
+    pub scope: Option<String>,
 }
 
 pub struct AuthorizeRequestInput {
