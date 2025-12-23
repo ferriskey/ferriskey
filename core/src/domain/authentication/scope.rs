@@ -244,7 +244,6 @@ mod tests {
         let manager = ScopeManager::new();
         let result = manager.merge_with_defaults(Some("phone address openid".to_string()));
 
-        // openid doit toujours être en premier même s'il était en dernier dans la requête
         assert!(
             result.starts_with("openid"),
             "openid should always be first when present"
