@@ -113,6 +113,13 @@ impl ScopeManager {
     pub fn parse_scopes(scope_string: &str) -> Vec<String> {
         scope_string.split_whitespace().map(String::from).collect()
     }
+
+    /// Get all allowed scopes as a space-separated string
+    pub fn allowed_scopes(&self) -> String {
+        let mut scopes: Vec<String> = self.allowed_scopes.iter().cloned().collect();
+        scopes.sort();
+        scopes.join(" ")
+    }
 }
 
 impl Default for ScopeManager {

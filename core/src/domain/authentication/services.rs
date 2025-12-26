@@ -261,11 +261,7 @@ where
         let user = self.user_repository.get_by_id(user_id).await?;
 
         let scope_manager = ScopeManager::new();
-        let final_scope = if params.scope.is_some() {
-            scope_manager.validate_and_filter(params.scope)
-        } else {
-            auth_session.scope
-        };
+        let final_scope = scope_manager.allowed_scopes();
 
         let (jwt, refresh_token) = self
             .create_jwt(GenerateTokenInput {
@@ -982,23 +978,24 @@ where
         ))
     }
 
-    async fn get_userinfo(&self, input: GetUserInfoInput) -> Result<UserInfoResponse, CoreError> {
-        let scopes: Vec<String> = if let Some(scope_str) = input.token.scope {
-            scope_str
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect()
-        } else {
-            Vec::new()
-        };
+    async fn get_userinfo(
+        &self,
+        identity: Identity,
+        input: GetUserInfoInput,
+    ) -> Result<UserInfoResponse, CoreError> {
+        let user = self.user_repository.get_by_id(identity.id()).await?;
+
+        let scopes = input
+            .claims
+            .scope
+            .as_ref()
+            .map(|s| s.split_whitespace().map(String::from).collect::<Vec<_>>())
+            .unwrap_or_default();
 
         let contains_openid = scopes.contains(&"openid".to_string());
         if scopes.is_empty() || !contains_openid {
             return Err(CoreError::InvalidToken);
         }
-
-        let user_id = input.identity.id();
-        let user = self.user_repository.get_by_id(user_id).await?;
 
         let mut response = UserInfoResponse {
             sub: user.id.to_string(),
