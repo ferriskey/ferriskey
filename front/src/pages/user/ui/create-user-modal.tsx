@@ -24,8 +24,13 @@ export default function CreateUserModal(props: Props) {
   const form = useFormContext<CreateUserSchema>()
   const [open, setOpen] = props.openState
 
+  const onOpenChange = (open: boolean) => {
+    setOpen(open)
+    form.reset()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
@@ -40,12 +45,13 @@ export default function CreateUserModal(props: Props) {
               <FormField
                 control={form.control}
                 name='username'
-                render={({ field }) => (
+                render={({ field, formState }) => (
                   <InputText
                     label='Username'
                     name='username'
                     value={field.value}
                     onChange={field.onChange}
+                    error={formState.errors.username?.message}
                   />
                 )}
               />
@@ -55,12 +61,13 @@ export default function CreateUserModal(props: Props) {
               <FormField
                 control={form.control}
                 name='firstname'
-                render={({ field }) => (
+                render={({ field, formState }) => (
                   <InputText
-                    label='Firstname'
+                    label='First Name'
                     name='firstname'
                     value={field.value}
                     onChange={field.onChange}
+                    error={formState.errors.firstname?.message}
                   />
                 )}
               />
@@ -70,12 +77,13 @@ export default function CreateUserModal(props: Props) {
               <FormField
                 control={form.control}
                 name='lastname'
-                render={({ field }) => (
+                render={({ field, formState }) => (
                   <InputText
-                    label='Lastname'
+                    label='Last Name'
                     name='lastname'
                     value={field.value}
                     onChange={field.onChange}
+                    error={formState.errors.lastname?.message}
                   />
                 )}
               />
@@ -85,12 +93,13 @@ export default function CreateUserModal(props: Props) {
               <FormField
                 control={form.control}
                 name='email'
-                render={({ field }) => (
+                render={({ field, formState }) => (
                   <InputText
                     label='Email'
                     name='email'
                     value={field.value}
                     onChange={field.onChange}
+                    error={formState.errors.email?.message}
                   />
                 )}
               />
