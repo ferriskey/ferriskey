@@ -35,18 +35,19 @@ pub async fn get_userinfo(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    OptionalToken(optional_token): OptionalToken,
+    OptionalToken(jwt): OptionalToken,
 ) -> Result<Response<UserInfoResponse>, ApiError> {
-    let result_token = optional_token
-        .ok_or_else(|| ApiError::Unauthorized("Missing or invalid access token".to_string()))?;
-
+    let jwt = jwt.ok_or(ApiError::Unauthorized("not authorized".to_string()))?;
     let user_info = state
         .service
-        .get_userinfo(GetUserInfoInput {
+        .get_userinfo(
             identity,
-            realm_name,
-            token: result_token.decoded_token,
-        })
+            GetUserInfoInput {
+                realm_name,
+                token: jwt.token,
+                claims: jwt.decoded_token,
+            },
+        )
         .await?;
 
     Ok(Response::OK(user_info))
