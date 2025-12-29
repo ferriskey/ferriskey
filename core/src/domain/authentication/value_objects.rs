@@ -194,8 +194,8 @@ pub struct GenerateTokenInput {
 
 pub struct GetUserInfoInput {
     pub realm_name: String,
-    pub identity: Identity,
-    pub token: DecodedToken,
+    pub token: String,
+    pub claims: DecodedToken,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]

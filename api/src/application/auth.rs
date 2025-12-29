@@ -19,8 +19,8 @@ use super::http::server::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Jwt {
-    claims: JwtClaim,
-    token: String,
+    pub(crate) claims: JwtClaim,
+    pub(crate) token: String,
 }
 
 #[derive(Debug, Error, Deserialize, Serialize, PartialEq, Eq)]

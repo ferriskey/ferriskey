@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::domain::authentication::value_objects::{GetUserInfoInput, UserInfoResponse};
+use crate::domain::authentication::value_objects::{GetUserInfoInput, Identity, UserInfoResponse};
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
@@ -110,6 +110,7 @@ pub trait AuthService: Send + Sync {
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
     fn get_userinfo(
         &self,
+        identity: Identity,
         input: GetUserInfoInput,
     ) -> impl Future<Output = Result<UserInfoResponse, CoreError>> + Send;
 }
