@@ -113,6 +113,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         client_service: ClientServiceImpl::new(
             realm.clone(),
+            user.clone(),
             client.clone(),
             webhook.clone(),
             redirect_uri.clone(),

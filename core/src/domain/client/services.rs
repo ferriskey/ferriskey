@@ -24,7 +24,10 @@ use crate::domain::{
         value_objects::CreateRoleRequest,
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
-    user::ports::{UserRepository, UserRoleRepository},
+    user::{
+        ports::{UserRepository, UserRoleRepository},
+        value_objects::CreateUserRequest,
+    },
     webhook::{
         entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
         ports::WebhookRepository,
@@ -44,6 +47,7 @@ where
     SE: SecurityEventRepository,
 {
     pub(crate) realm_repository: Arc<R>,
+    pub(crate) user_repository: Arc<U>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) redirect_uri_repository: Arc<RU>,
@@ -64,8 +68,10 @@ where
     RO: RoleRepository,
     SE: SecurityEventRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         realm_repository: Arc<R>,
+        user_repository: Arc<U>,
         client_repository: Arc<C>,
         webhook_repository: Arc<W>,
         redirect_uri_repository: Arc<RU>,
@@ -75,6 +81,7 @@ where
     ) -> Self {
         Self {
             realm_repository,
+            user_repository,
             client_repository,
             webhook_repository,
             redirect_uri_repository,
@@ -122,7 +129,7 @@ where
             .create_client(CreateClientRequest {
                 realm_id,
                 name: input.name,
-                client_id: input.client_id,
+                client_id: input.client_id.clone(),
                 secret,
                 enabled: input.enabled,
                 protocol: input.protocol,
@@ -133,6 +140,25 @@ where
             })
             .await
             .map_err(|_| CoreError::CreateClientError)?;
+
+        if input.service_account_enabled {
+            let service_account_username = format!("service-account-{}", input.client_id);
+            let service_account_email = format!("{}@serviceaccount.local", input.client_id);
+
+            self.user_repository
+                .create_user(CreateUserRequest {
+                    realm_id,
+                    client_id: Some(client.id),
+                    username: service_account_username,
+                    firstname: "Service".to_string(),
+                    lastname: "Account".to_string(),
+                    email: service_account_email,
+                    email_verified: true,
+                    enabled: true,
+                })
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+        }
 
         self.webhook_repository
             .notify(

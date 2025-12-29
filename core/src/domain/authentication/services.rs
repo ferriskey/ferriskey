@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Header, Validation};
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -296,11 +296,16 @@ where
             return Err(CoreError::InvalidClientSecret);
         }
 
+        info!("try to fetch user client, client id: {}", client.id);
+
         let user = self
             .user_repository
             .get_by_client_id(client.id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|e| {
+                error!("error when get client (user): {}", e);
+                CoreError::InternalServerError
+            })?;
 
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.merge_with_defaults(params.scope);
