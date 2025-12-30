@@ -74,10 +74,21 @@ export const useUpdateUser = () => {
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}', async (res) => {
       return res.json()
     }).mutationOptions,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['user'],
-      })
+    onSuccess: (_res, variables) => {
+      const { realm_name, user_id } = variables.path
+      const userDetailKey = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}', {
+        path: {
+          realm_name,
+          user_id,
+        },
+      }).queryKey
+      const usersListKey = window.tanstackApi.get('/realms/{realm_name}/users', {
+        path: {
+          realm_name,
+        },
+      }).queryKey
+      queryClient.invalidateQueries({ queryKey: userDetailKey })
+      queryClient.invalidateQueries({ queryKey: usersListKey })
     },
   })
 }
