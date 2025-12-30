@@ -475,7 +475,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let (jwt, refresh_token, _) = self
+        let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
@@ -493,12 +493,14 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let id_token_value = id_token.map(|t| t.token);
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
             3600,
-            None,
+            id_token_value,
         ))
     }
 
