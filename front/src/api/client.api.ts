@@ -48,12 +48,19 @@ export const useUpdateClient = () => {
   return useMutation({
     ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/clients/{client_id}')
       .mutationOptions,
-    onSuccess: async (payload) => {
+    onSuccess: async (payload, variables) => {
       const client = await payload.json()
+
+      const keys = window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
+        path: {
+          client_id: variables.path.client_id,
+          realm_name: variables.path.realm_name,
+        },
+      }).queryKey
 
       toast.success(`Client ${client.name} was updated successfully`)
       queryClient.invalidateQueries({
-        queryKey: ['client', client.id],
+        queryKey: keys,
       })
     },
   })
