@@ -1,14 +1,12 @@
 use axum::extract::Path;
-use axum::http::header::{LOCATION, ORIGIN};
+use axum::http::header::LOCATION;
 use axum::{
     extract::{Query, State},
-    http::{
-        self, HeaderMap, HeaderValue, StatusCode,
-        header::{CONTENT_TYPE, SET_COOKIE},
-    },
+    http::{HeaderValue, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
 };
 
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::entities::AuthInput;
 use ferriskey_core::domain::authentication::ports::AuthService;
 use serde::{Deserialize, Serialize};
@@ -82,46 +80,25 @@ pub async fn auth_handler(
         result.login_url.clone()
     );
 
-    let cookie_value = format!(
-        "session_code={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
-        result.session.id
-    );
+    let mut session_cookie = Cookie::build(("FERRISKEY_SESSION", result.session.id.to_string()))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax);
 
-    let session_cookie = format!(
-        "FERRISKEY_SESSION={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
-        result.session.id
-    );
+    if full_url.starts_with("https") {
+        session_cookie = session_cookie.secure(true)
+    }
 
-    let mut headers = HeaderMap::new();
-
-    headers.insert(
-        SET_COOKIE,
-        HeaderValue::from_str(&cookie_value)
-            .map_err(|_| ApiError::InternalServerError("".to_string()))?,
-    );
-
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-    headers.insert(
-        SET_COOKIE,
-        HeaderValue::from_str(&session_cookie)
-            .map_err(|_| ApiError::InternalServerError("".to_string()))?,
-    );
-
-    let response = AuthResponse {
-        url: full_url.clone(),
-    };
-    let json_body = serde_json::to_string(&response)
-        .map_err(|_| ApiError::InternalServerError("Failed to serialize response".to_string()))?;
-
-    let axum_response = axum::response::Response::builder()
+    let mut axum_response = axum::response::Response::builder()
         .status(StatusCode::FOUND)
-        .header(http::header::SET_COOKIE, cookie_value)
-        .header(SET_COOKIE, session_cookie)
-        .header(LOCATION, full_url)
-        .header(ORIGIN, state.args.webapp_url.clone())
-        .body(axum::body::Body::from(json_body))
+        .header(LOCATION, &full_url)
+        .body(axum::body::Body::empty())
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
+
+    axum_response.headers_mut().append(
+        SET_COOKIE,
+        HeaderValue::from_str(&session_cookie.to_string()).unwrap(),
+    );
 
     Ok(axum_response)
 }
