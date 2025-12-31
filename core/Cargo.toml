@@ -15,7 +15,7 @@ enum-display = "0.2.1"
 hmac = "0.12.1"
 jsonwebtoken = "9.3.1"
 rand = "0.8.0"
-rsa = { version = "0.9.8", features = ["pem"] }
+rsa = { version = "0.9.9", features = ["pem"] }
 sea-orm = { version = "1.1.14", features = [
     "sqlx-postgres",
     "macros",
