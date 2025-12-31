@@ -41,8 +41,11 @@ pub async fn challenge_otp(
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ChallengeOtpRequest>,
 ) -> Result<Response<ChallengeOtpResponse>, ApiError> {
-    let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
-    let session_code = session_code.value().to_string();
+    let session_code = cookie
+        .get("FERRISKEY_SESSION")
+        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))? // Ou un type d'erreur 401/403
+        .value()
+        .to_string();
 
     let result = state
         .service

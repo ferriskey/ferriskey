@@ -14,6 +14,7 @@ use crate::args::Args;
 
 use super::config::get_config;
 use crate::application::http::health::health_routes;
+use anyhow::Context;
 use axum::Router;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
 use axum::http::{HeaderValue, Method};
@@ -51,8 +52,11 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .server
         .allowed_origins
         .iter()
-        .map(|origin| HeaderValue::from_str(origin).unwrap())
-        .collect::<Vec<HeaderValue>>();
+        .map(|origin| {
+            HeaderValue::from_str(origin)
+                .with_context(|| format!("Invalid origin in configuration: '{}'", origin))
+        })
+        .collect::<anyhow::Result<Vec<HeaderValue>>>()?;
 
     debug!("Allowed origins: {:?}", allowed_origins);
 
