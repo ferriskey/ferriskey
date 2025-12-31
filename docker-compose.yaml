@@ -50,7 +50,7 @@ services:
       - migrate
       - run
       - --source
-      - /usr/build/src/ferriskey/migrations
+      - /usr/local/src/ferriskey/migrations
     environment:
       DATABASE_URL: postgresql://ferriskey:ferriskey@db/ferriskey
     restart: no
