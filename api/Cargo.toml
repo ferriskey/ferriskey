@@ -8,27 +8,27 @@ edition.workspace = true
 [dependencies]
 ferriskey-core = { path = "../core" }
 anyhow = "1.0.97"
-axum = "0.8.1"
+axum = "0.8.8"
 axum-cookie = "0.2.3"
-axum-extra = { version = "0.10.0", features = ["cookie", "typed-header"] }
+axum-extra = { version = "0.12.5", features = ["cookie", "typed-header"] }
 axum-macros = "0.5.0"
-axum-server = { version = "0.7.2", features = ["tls-rustls"] }
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
 base64 = "0.22.1"
 chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive", "env"] }
 dotenv = "0.15.0"
 regex = "1.11.1"
-rustls = { version = "0.23.31" }
-serde = "1.0.219"
-serde_json = "1.0.140"
-thiserror = "2.0.12"
-tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros"] }
-tower-http = { version = "0.6.2", features = ["cors", "trace"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
-utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
+rustls = { version = "0.23.35" }
+serde = "1.0.228"
+serde_json = "1.0.148"
+thiserror = "2.0.17"
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
+utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum"] }
-uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
+uuid = { version = "1.19.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
 base32 = "0.5.1"
 axum-prometheus = "0.9.0"
