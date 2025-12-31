@@ -26,7 +26,7 @@ services:
       context: .
       target: api
     environment:
-      ALLOWED_ORIGINS: http://buildhost:5555
+      ALLOWED_ORIGINS: http://localhost:5555,http://127.0.0.1:5555
       DATABASE_HOST: db
       DATABASE_NAME: ferriskey
       DATABASE_PASSWORD: ferriskey
