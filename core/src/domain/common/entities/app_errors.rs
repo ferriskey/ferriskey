@@ -160,4 +160,20 @@ pub enum CoreError {
 
     #[error("Webauthn challenge failed")]
     WebAuthnChallengeFailed,
+
+    // Provider (Abyss) errors
+    #[error("Provider not found")]
+    ProviderNotFound,
+
+    #[error("Provider name already exists")]
+    ProviderNameAlreadyExists,
+
+    #[error("Invalid provider configuration")]
+    InvalidProviderConfiguration,
+
+    #[error("Provider is disabled")]
+    ProviderDisabled,
+
+    #[error("Invalid provider URL")]
+    InvalidProviderUrl,
 }

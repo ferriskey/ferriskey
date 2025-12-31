@@ -120,6 +120,21 @@ impl From<CoreError> for ApiError {
             CoreError::WebAuthnChallengeFailed => {
                 Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".to_string())
             }
+            CoreError::ProviderNotFound => {
+                Self::NotFound("Provider not found".to_string())
+            }
+            CoreError::ProviderNameAlreadyExists => {
+                Self::BadRequest("Provider name already exists".to_string())
+            }
+            CoreError::InvalidProviderConfiguration => {
+                Self::BadRequest("Invalid provider configuration".to_string())
+            }
+            CoreError::ProviderDisabled => {
+                Self::Forbidden("Provider is disabled".to_string())
+            }
+            CoreError::InvalidProviderUrl => {
+                Self::BadRequest("Invalid provider URL".to_string())
+            }
         }
     }
 }
