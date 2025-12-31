@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:17
     environment:
+      PGUSER: ferriskey
       POSTGRES_DB: ferriskey
       POSTGRES_PASSWORD: ferriskey
       POSTGRES_USER: ferriskey
@@ -13,8 +14,6 @@ services:
       test:
         - CMD-SHELL
         - pg_isready
-        - -U
-        - ferriskey
         - -d
         - ferriskey
       interval: 10s
