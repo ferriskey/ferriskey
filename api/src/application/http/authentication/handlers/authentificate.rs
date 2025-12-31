@@ -116,7 +116,8 @@ pub async fn authenticate(
     };
     let session_code = session_code.value().to_string();
 
-    let session_code = Uuid::parse_str(&session_code).unwrap();
+    let session_code = Uuid::parse_str(&session_code)
+        .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
 
     let authenticate_params = if let Some(token) = optional_token {
         AuthenticateInput::with_existing_token(

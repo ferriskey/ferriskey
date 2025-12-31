@@ -56,8 +56,11 @@ pub async fn webauthn_public_key_create_options(
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
 ) -> Result<Response<CreatePublicKeyResponse>, ApiError> {
-    let session_code = cookie.get("FERRISKEY_SESSION").unwrap();
-    let session_code = session_code.value().to_string();
+    let session_code = cookie
+        .get("FERRISKEY_SESSION")
+        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))? // Ou un type d'erreur 401/403
+        .value()
+        .to_string();
 
     let rp_id = state.args.server.host.clone();
     let allowed_origin = state.args.webapp_url.clone();
