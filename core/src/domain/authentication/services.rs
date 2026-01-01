@@ -290,7 +290,7 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InvalidClient)?;
 
         if client.secret != params.client_secret {
             return Err(CoreError::InvalidClientSecret);
@@ -302,9 +302,9 @@ where
             .user_repository
             .get_by_client_id(client.id)
             .await
-            .map_err(|e| {
-                error!("error when get client (user): {}", e);
-                CoreError::InternalServerError
+            .map_err(|e| match e {
+                CoreError::NotFound => CoreError::ServiceAccountNotFound,
+                _ => CoreError::InternalServerError,
             })?;
 
         let scope_manager = ScopeManager::new();
@@ -840,7 +840,6 @@ where
 
         self.authenticate_with_grant_type(input.grant_type, params)
             .await
-            .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn authorize_request(
