@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:17
     environment:
+      PGUSER: ferriskey
       POSTGRES_DB: ferriskey
       POSTGRES_PASSWORD: ferriskey
       POSTGRES_USER: ferriskey
@@ -13,8 +14,6 @@ services:
       test:
         - CMD-SHELL
         - pg_isready
-        - -U
-        - ferriskey
         - -d
         - ferriskey
       interval: 10s
@@ -27,7 +26,7 @@ services:
       context: .
       target: api
     environment:
-      ALLOWED_ORIGINS: http://buildhost:5555
+      ALLOWED_ORIGINS: http://localhost:5555,http://127.0.0.1:5555
       DATABASE_HOST: db
       DATABASE_NAME: ferriskey
       DATABASE_PASSWORD: ferriskey
@@ -50,7 +49,7 @@ services:
       - migrate
       - run
       - --source
-      - /usr/build/src/ferriskey/migrations
+      - /usr/local/src/ferriskey/migrations
     environment:
       DATABASE_URL: postgresql://ferriskey:ferriskey@db/ferriskey
     restart: no

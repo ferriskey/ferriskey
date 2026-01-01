@@ -83,7 +83,7 @@ Then visit [http://localhost:5556](http://localhost:5556) to access the console.
 ### Option B — Re-build Docker image
 
 ```yaml
-docker compose --profile local up -d
+docker compose --profile build up -d
 ```
 
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
