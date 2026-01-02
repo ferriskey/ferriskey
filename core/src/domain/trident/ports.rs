@@ -1,10 +1,11 @@
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
     crypto::HashResult,
-    trident::entities::{MfaRecoveryCode, TotpSecret},
+    trident::entities::{MagicLink, MfaRecoveryCode, TotpSecret},
 };
 
 pub use webauthn_rs::prelude::{
@@ -114,6 +115,35 @@ pub struct BurnRecoveryCodeInput {
 
 pub struct BurnRecoveryCodeOutput {
     pub login_url: String,
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait MagicLinkRepository: Send + Sync {
+    fn generate_magic_link(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+        token: String,
+        expires_at: DateTime<Utc>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_by_token(
+        &self,
+        token: &str,
+    ) -> impl Future<Output = Result<Option<MagicLink>, CoreError>> + Send;
+
+    fn delete_by_token(&self, token: &str) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn cleanup_expired(
+        &self,
+        realm_id: Option<Uuid>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_user_active_links(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<MagicLink>, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
