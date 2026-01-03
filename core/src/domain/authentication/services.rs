@@ -17,6 +17,7 @@ use crate::domain::{
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
+            MagicLinkAuthParams,
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
@@ -594,6 +595,16 @@ where
             .await
     }
 
+    async fn handle_magic_link_authentication(
+        &self,
+        params: MagicLinkAuthParams,
+        _auth_session: AuthSession,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        // TODO implement
+        info!("param magic token: {}", params.magic_token);
+        unimplemented!()
+    }
+
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
@@ -1152,6 +1163,18 @@ where
                 };
 
                 self.handle_user_credentials_authentication(params, auth_session)
+                    .await
+            }
+            AuthenticationMethod::MagicLink { magic_token } => {
+                let params = MagicLinkAuthParams {
+                    magic_token,
+                    email: "".to_string(), // TODO
+                    realm_name: input.realm_name,
+                    client_id: input.client_id,
+                    session_code: input.session_code,
+                    base_url: input.base_url,
+                };
+                self.handle_magic_link_authentication(params, auth_session)
                     .await
             }
         }

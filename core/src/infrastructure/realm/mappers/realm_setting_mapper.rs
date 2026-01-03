@@ -13,6 +13,8 @@ impl From<Model> for RealmSetting {
             forgot_password_enabled: value.forgot_password_enabled,
             remember_me_enabled: value.remember_me_enabled,
             user_registration_enabled: value.user_registration_enabled,
+            magic_link_enabled: Some(value.magic_link_enabled),
+            magic_link_ttl_minutes: Some(value.magic_link_ttl_minutes as u32),
             updated_at,
         }
     }
