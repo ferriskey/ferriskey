@@ -3,6 +3,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::{Duration, Utc};
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
@@ -24,20 +25,26 @@ use crate::{
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
+        realm::ports::RealmRepository,
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                RecoveryCodeFormatter, RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput,
-                TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
-                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                MagicLinkInput, MagicLinkOutput, MagicLinkRepository, RecoveryCodeFormatter,
+                RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
+                UpdatePasswordInput, VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput,
+                VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
+                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
+                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
-        user::{entities::RequiredAction, ports::UserRequiredActionRepository},
+        user::{
+            entities::RequiredAction,
+            ports::{UserRepository, UserRequiredActionRepository},
+        },
     },
     infrastructure::recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
@@ -178,35 +185,48 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, RR, UR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    RR: RealmRepository,
+    UR: UserRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) user_required_action_repository: Arc<URA>,
+    pub(crate) magic_link_repository: Arc<ML>,
+    pub(crate) realm_repository: Arc<RR>,
+    pub(crate) user_repository: Arc<UR>,
 }
 
-impl<CR, RC, AS, H, URA> TridentServiceImpl<CR, RC, AS, H, URA>
+impl<CR, RC, AS, H, URA, ML, RR, UR> TridentServiceImpl<CR, RC, AS, H, URA, ML, RR, UR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    RR: RealmRepository,
+    UR: UserRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         credential_repository: Arc<CR>,
         recovery_code_repository: Arc<RC>,
         auth_session_repository: Arc<AS>,
         hasher_repository: Arc<H>,
         user_required_action_repository: Arc<URA>,
+        magic_link_repository: Arc<ML>,
+        realm_repository: Arc<RR>,
+        user_repository: Arc<UR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -214,17 +234,24 @@ where
             auth_session_repository,
             hasher_repository,
             user_required_action_repository,
+            magic_link_repository,
+            realm_repository,
+            user_repository,
         }
     }
 }
 
-impl<CR, RC, AS, H, URA> TridentService for TridentServiceImpl<CR, RC, AS, H, URA>
+impl<CR, RC, AS, H, URA, ML, RR, UR> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, RR, UR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    RR: RealmRepository,
+    UR: UserRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -767,6 +794,99 @@ where
         Ok(VerifyOtpOutput {
             message: "OTP verified successfully".to_string(),
             user_id: user.id,
+        })
+    }
+
+    async fn generate_magic_link(
+        &self,
+        input: MagicLinkInput,
+    ) -> Result<MagicLinkOutput, CoreError> {
+        // Find the realm
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let settings = realm
+            .settings
+            .as_ref()
+            .ok_or(CoreError::MagicLinkNotEnabled)?;
+
+        if !settings.magic_link_enabled.unwrap_or(false) {
+            return Err(CoreError::MagicLinkNotEnabled);
+        }
+        let user = self
+            .user_repository
+            .find_by_email_in_realm(input.email, realm.id)
+            .await
+            .map_err(|_| CoreError::InvalidUser)?;
+
+        self.magic_link_repository
+            .cleanup_expired(Some(realm.id.into()))
+            .await?;
+
+        let magic_token = generate_random_string();
+
+        let ttl_minutes = settings.magic_link_ttl_minutes.unwrap_or(15);
+        let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
+
+        self.magic_link_repository
+            .create_magic_link(user.id, realm.id.into(), magic_token.clone(), expires_at)
+            .await?;
+
+        // Generate magic link URL
+        let magic_link_url = format!(
+            "/realms/{}/auth/magic-link/verify?token={}",
+            realm.name, magic_token
+        );
+
+        // TODO send via email
+        debug!(
+            "Generated magic link for user {}: {}",
+            user.email, magic_link_url
+        );
+
+        Ok(MagicLinkOutput {
+            token: magic_token,
+            expires_at,
+            magic_link_url,
+        })
+    }
+
+    async fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> Result<VerifyMagicLinkOutput, CoreError> {
+        let magic_link = self
+            .magic_link_repository
+            .get_by_token(&input.token)
+            .await?
+            .ok_or(CoreError::InvalidMagicLink)?;
+
+        if Utc::now() > magic_link.expires_at {
+            let _ = self
+                .magic_link_repository
+                .delete_by_token(&input.token)
+                .await;
+            return Err(CoreError::MagicLinkExpired);
+        }
+
+        let _user = self
+            .user_repository
+            .get_by_id(magic_link.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        self.magic_link_repository
+            .delete_by_token(&input.token)
+            .await?;
+
+        // Generate login URL
+
+        Ok(VerifyMagicLinkOutput {
+            login_url: "".to_string(),
         })
     }
 }

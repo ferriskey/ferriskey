@@ -5,8 +5,9 @@ use crate::{
         common::entities::app_errors::CoreError,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, SetupOtpInput, SetupOtpOutput,
-            TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkOutput,
+            SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
+            VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput, VerifyOtpOutput,
             WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
             WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
             WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
@@ -106,5 +107,19 @@ impl TridentService for ApplicationService {
         self.trident_service
             .webauthn_public_key_request_options(identity, input)
             .await
+    }
+
+    async fn generate_magic_link(
+        &self,
+        input: MagicLinkInput,
+    ) -> Result<MagicLinkOutput, CoreError> {
+        self.trident_service.generate_magic_link(input).await
+    }
+
+    async fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> Result<VerifyMagicLinkOutput, CoreError> {
+        self.trident_service.verify_magic_link(input).await
     }
 }

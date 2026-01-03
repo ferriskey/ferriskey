@@ -38,6 +38,7 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -112,12 +113,24 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new());
+    let magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
         client.clone(),
         user_role.clone(),
     ));
+
+    let trident_service = TridentServiceImpl::new(
+        credential.clone(),
+        recovery_code.clone(),
+        auth_session.clone(),
+        hasher.clone(),
+        user_required_action.clone(),
+        magic_link.clone(),
+        realm.clone(),
+        user.clone(),
+    );
 
     let app = ApplicationService {
         auth_service: AuthServiceImpl::new(
@@ -172,13 +185,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             security_event.clone(),
             policy.clone(),
         ),
-        trident_service: TridentServiceImpl::new(
-            credential.clone(),
-            recovery_code.clone(),
-            auth_session.clone(),
-            hasher.clone(),
-            user_required_action.clone(),
-        ),
+        trident_service: trident_service.clone(),
         user_service: UserServiceImpl::new(
             realm.clone(),
             user.clone(),

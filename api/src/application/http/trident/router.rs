@@ -12,6 +12,10 @@ use crate::application::{
             burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
             challenge_otp::{__path_challenge_otp, challenge_otp},
             generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
+            magic_link::{
+                __path_send_magic_link, __path_verify_magic_link, send_magic_link,
+                verify_magic_link,
+            },
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
@@ -39,6 +43,8 @@ use crate::application::{
     update_password,
     burn_recovery_code,
     generate_recovery_codes,
+    send_magic_link,
+    verify_magic_link,
     webauthn_public_key_create,
     webauthn_public_key_create_options,
     webauthn_public_key_authenticate,
@@ -117,6 +123,20 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(burn_recovery_code),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/send_magic_link",
+                state.args.server.root_path
+            ),
+            post(send_magic_link),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/verify-magic-link",
+                state.args.server.root_path
+            ),
+            get(verify_magic_link),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

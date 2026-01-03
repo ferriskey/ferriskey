@@ -117,9 +117,29 @@ pub struct BurnRecoveryCodeOutput {
     pub login_url: String,
 }
 
+pub struct MagicLinkInput {
+    pub realm_name: String,
+    pub email: String,
+}
+
+pub struct MagicLinkOutput {
+    pub magic_link_url: String,
+    pub expires_at: DateTime<Utc>,
+    pub token: String,
+}
+
+pub struct VerifyMagicLinkInput {
+    pub token: String,
+    pub session_code: String,
+}
+
+pub struct VerifyMagicLinkOutput {
+    pub login_url: String,
+}
+
 #[cfg_attr(test, mockall::automock)]
 pub trait MagicLinkRepository: Send + Sync {
-    fn generate_magic_link(
+    fn create_magic_link(
         &self,
         user_id: Uuid,
         realm_id: Uuid,
@@ -238,4 +258,13 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: VerifyOtpInput,
     ) -> impl Future<Output = Result<VerifyOtpOutput, CoreError>> + Send;
+
+    fn generate_magic_link(
+        &self,
+        input: MagicLinkInput,
+    ) -> impl Future<Output = Result<MagicLinkOutput, CoreError>> + Send;
+    fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> impl Future<Output = Result<VerifyMagicLinkOutput, CoreError>> + Send;
 }
