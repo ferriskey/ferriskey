@@ -95,13 +95,11 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         Ok(())
     }
 
-    async fn cleanup_expired(&self, realm_id: Option<Uuid>) -> Result<(), CoreError> {
+    async fn cleanup_expired(&self, realm_id: Uuid) -> Result<(), CoreError> {
         let mut query = MagicLinkEntity::delete_many()
             .filter(MagicLinkColumn::ExpiresAt.lt(Utc::now().naive_utc()));
 
-        if let Some(realm_id) = realm_id {
-            query = query.filter(MagicLinkColumn::RealmId.eq(realm_id));
-        }
+        query = query.filter(MagicLinkColumn::RealmId.eq(realm_id));
 
         query.exec(&self.db).await.map_err(|e| {
             error!("Failed to cleanup expired magic links: {}", e);

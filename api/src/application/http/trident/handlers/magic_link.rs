@@ -16,10 +16,7 @@ use crate::application::{
     http::{
         authentication::handlers::authentificate::AuthenticateResponse,
         server::{
-            api_entities::{
-                api_error::{ApiError, ValidateJson},
-                response::Response as ApiResponse,
-            },
+            api_entities::api_error::{ApiError, ValidateJson},
             app_state::AppState,
         },
     },
@@ -30,11 +27,6 @@ use crate::application::{
 pub struct MagicLinkRequest {
     #[validate(email)]
     pub email: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct MagicLinkResponse {
-    pub message: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,16 +46,16 @@ pub struct VerifyMagicLinkQuery {
     ),
     request_body = MagicLinkRequest,
     responses(
-        (status = 200, body = MagicLinkResponse, description = "Magic link sent successfully"),
-        (status = 400, description = "Bad Request - Invalid email"),
-        (status = 500, description = "Internal Server Error")
+        (status = 200),
+        (status = 400),
+        (status = 500)
     )
 )]
 pub async fn send_magic_link(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<MagicLinkRequest>,
-) -> Result<ApiResponse<MagicLinkResponse>, ApiError> {
+) -> Result<Response<()>, ApiError> {
     debug!(
         "Sending magic link for email: {} in realm: {}",
         payload.email, realm_name
@@ -77,9 +69,7 @@ pub async fn send_magic_link(
         })
         .await?;
 
-    Ok(Response::OK(MagicLinkResponse {
-        message: "Magic link sent successfully".to_string(),
-    }))
+    Ok(Response::OK(()))
 }
 
 #[utoipa::path(
@@ -89,7 +79,6 @@ pub async fn send_magic_link(
     summary = "Verify magic link and authenticate user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-        ("client_id" = String, Query, description = "Client ID"),
         ("token" = String, Query, description = "Magic link token"),
     ),
     responses(
@@ -117,7 +106,7 @@ pub async fn verify_magic_link(
 
     let authenticate_params = AuthenticateInput::with_magic_token(
         realm_name,
-        query.client_id,
+        query.client_id, // TODO not sure if keep this
         session_code,
         base_url,
         query.token,

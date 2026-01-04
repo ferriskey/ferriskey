@@ -5,13 +5,13 @@ use crate::{
         common::entities::app_errors::CoreError,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkOutput,
-            SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
-            VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput, VerifyOtpOutput,
-            WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-            WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-            WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-            WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput, SetupOtpInput,
+            SetupOtpOutput, TridentService, UpdatePasswordInput, VerifyMagicLinkInput,
+            VerifyOtpInput, VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
+            WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+            WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+            WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
+            WebAuthnValidatePublicKeyOutput,
         },
     },
 };
@@ -109,17 +109,11 @@ impl TridentService for ApplicationService {
             .await
     }
 
-    async fn generate_magic_link(
-        &self,
-        input: MagicLinkInput,
-    ) -> Result<MagicLinkOutput, CoreError> {
+    async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {
         self.trident_service.generate_magic_link(input).await
     }
 
-    async fn verify_magic_link(
-        &self,
-        input: VerifyMagicLinkInput,
-    ) -> Result<VerifyMagicLinkOutput, CoreError> {
+    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<(), CoreError> {
         self.trident_service.verify_magic_link(input).await
     }
 }

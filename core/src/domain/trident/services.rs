@@ -19,7 +19,7 @@ use crate::{
             ports::AuthSessionRepository,
             value_objects::Identity,
         },
-        common::{entities::app_errors::CoreError, generate_random_string},
+        common::{entities::app_errors::CoreError, generate_random_string, generate_secure_token},
         credential::{
             entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
@@ -31,14 +31,13 @@ use crate::{
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                MagicLinkInput, MagicLinkOutput, MagicLinkRepository, RecoveryCodeFormatter,
-                RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput,
-                VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
-                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
-                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
-                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
-                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                MagicLinkInput, MagicLinkRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
+                SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
+                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
+                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
+                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
+                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
+                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -797,11 +796,7 @@ where
         })
     }
 
-    async fn generate_magic_link(
-        &self,
-        input: MagicLinkInput,
-    ) -> Result<MagicLinkOutput, CoreError> {
-        // Find the realm
+    async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
@@ -824,10 +819,10 @@ where
             .map_err(|_| CoreError::InvalidUser)?;
 
         self.magic_link_repository
-            .cleanup_expired(Some(realm.id.into()))
+            .cleanup_expired(realm.id.into())
             .await?;
 
-        let magic_token = generate_random_string();
+        let magic_token = generate_secure_token();
 
         let ttl_minutes = settings.magic_link_ttl_minutes.unwrap_or(15);
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
@@ -838,9 +833,9 @@ where
 
         // Generate magic link URL
         let magic_link_url = format!(
-            "/realms/{}/auth/magic-link/verify?token={}",
+            "/realms/{}/login-actions/verify-magic-link?token={}",
             realm.name, magic_token
-        );
+        ); // TODO Not sure about this
 
         // TODO send via email
         debug!(
@@ -848,17 +843,10 @@ where
             user.email, magic_link_url
         );
 
-        Ok(MagicLinkOutput {
-            token: magic_token,
-            expires_at,
-            magic_link_url,
-        })
+        Ok(())
     }
 
-    async fn verify_magic_link(
-        &self,
-        input: VerifyMagicLinkInput,
-    ) -> Result<VerifyMagicLinkOutput, CoreError> {
+    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<(), CoreError> {
         let magic_link = self
             .magic_link_repository
             .get_by_token(&input.token)
@@ -885,8 +873,6 @@ where
 
         // Generate login URL
 
-        Ok(VerifyMagicLinkOutput {
-            login_url: "".to_string(),
-        })
+        Ok(())
     }
 }

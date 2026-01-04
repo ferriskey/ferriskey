@@ -122,19 +122,9 @@ pub struct MagicLinkInput {
     pub email: String,
 }
 
-pub struct MagicLinkOutput {
-    pub magic_link_url: String,
-    pub expires_at: DateTime<Utc>,
-    pub token: String,
-}
-
 pub struct VerifyMagicLinkInput {
     pub token: String,
     pub session_code: String,
-}
-
-pub struct VerifyMagicLinkOutput {
-    pub login_url: String,
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -154,10 +144,8 @@ pub trait MagicLinkRepository: Send + Sync {
 
     fn delete_by_token(&self, token: &str) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn cleanup_expired(
-        &self,
-        realm_id: Option<Uuid>,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn cleanup_expired(&self, realm_id: Uuid)
+    -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_user_active_links(
         &self,
@@ -262,9 +250,9 @@ pub trait TridentService: Send + Sync {
     fn generate_magic_link(
         &self,
         input: MagicLinkInput,
-    ) -> impl Future<Output = Result<MagicLinkOutput, CoreError>> + Send;
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn verify_magic_link(
         &self,
         input: VerifyMagicLinkInput,
-    ) -> impl Future<Output = Result<VerifyMagicLinkOutput, CoreError>> + Send;
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
