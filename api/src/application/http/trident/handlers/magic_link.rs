@@ -1,5 +1,6 @@
+use crate::application::http::server::api_entities::response::Response;
 use axum::extract::{Path, Query, State};
-use axum_extra::extract::CookieJar;
+use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::entities::AuthenticateInput,
     authentication::ports::AuthService,
@@ -12,12 +13,15 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::application::{
-    http::server::{
-        api_entities::{
-            api_error::{ApiError, ValidateJson},
-            response::Response as ApiResponse,
+    http::{
+        authentication::handlers::authentificate::AuthenticateResponse,
+        server::{
+            api_entities::{
+                api_error::{ApiError, ValidateJson},
+                response::Response as ApiResponse,
+            },
+            app_state::AppState,
         },
-        app_state::AppState,
     },
     url::FullUrl,
 };
@@ -33,23 +37,18 @@ pub struct MagicLinkResponse {
     pub message: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct VerifyMagicLinkResponse {
-    pub url: Option<String>,
-    pub message: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct VerifyMagicLinkQuery {
-    pub token: String,
+    client_id: String,
+    token: String,
 }
 
 #[utoipa::path(
     post,
     path = "/realms/{realm_name}/login-actions/send_magic_link",
     tag = "auth",
-    summary = "Send magic link",
-    description = "Generates and sends a magic link for authentication",
+    summary = "Log magic link",
+    description = "Generates and logs a magic link for authentication",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
@@ -78,7 +77,7 @@ pub async fn send_magic_link(
         })
         .await?;
 
-    Ok(ApiResponse::OK(MagicLinkResponse {
+    Ok(Response::OK(MagicLinkResponse {
         message: "Magic link sent successfully".to_string(),
     }))
 }
@@ -87,62 +86,45 @@ pub async fn send_magic_link(
     get,
     path = "/realms/{realm_name}/login-actions/verify-magic-link",
     tag = "auth",
-    summary = "Verify magic link",
-    description = "Verifies a magic link token and authenticates the user using the unified authentication flow",
+    summary = "Verify magic link and authenticate user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = String, Query, description = "Client ID"),
         ("token" = String, Query, description = "Magic link token"),
     ),
     responses(
-        (status = 200, body = VerifyMagicLinkResponse, description = "Magic link verified successfully"),
-        (status = 400, description = "Bad Request - Invalid token"),
-        (status = 401, description = "Unauthorized - Missing session cookie"),
-        (status = 500, description = "Internal Server Error")
+        (status = 200, body = AuthenticateResponse, description = "Magic link verified successfully"),
+        (status = 400),
+        (status = 401),
+        (status = 500)
     )
 )]
 pub async fn verify_magic_link(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    Query(query): Query<VerifyMagicLinkQuery>,
-    jar: CookieJar,
     FullUrl(_, base_url): FullUrl,
-) -> Result<ApiResponse<VerifyMagicLinkResponse>, ApiError> {
-    // Extract session code from cookie
-    let session_code = jar
-        .get("FERRISKEY_SESSION")
-        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))?
-        .value()
-        .parse::<Uuid>()
-        .map_err(|_| ApiError::BadRequest("Invalid session code".to_string()))?;
+    Query(query): Query<VerifyMagicLinkQuery>,
+    cookie: CookieManager,
+) -> Result<Response<AuthenticateResponse>, ApiError> {
+    let session_code = match cookie.get("FERRISKEY_SESSION") {
+        Some(cookie) => cookie,
+        None => return Err(ApiError::Unauthorized("Missing session cookie".to_string())),
+    };
+    let session_code = session_code.value().to_string();
 
-    debug!(
-        "Verifying magic link token: {} for session: {} in realm: {}",
-        query.token, session_code, realm_name
-    );
+    let session_code = Uuid::parse_str(&session_code)
+        .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
 
-    let authenticate_input = AuthenticateInput::with_magic_token(
+    let authenticate_params = AuthenticateInput::with_magic_token(
         realm_name,
-        "security-admin-console".to_string(), // TODO Get from query params or session
+        query.client_id,
         session_code,
         base_url,
         query.token,
     );
 
-    let result = state.service.authenticate(authenticate_input).await?;
+    let result = state.service.authenticate(authenticate_params).await?;
 
-    let response = VerifyMagicLinkResponse {
-        url: result.redirect_url,
-        message: match result.status {
-            ferriskey_core::domain::authentication::entities::AuthenticationStepStatus::Success =>
-                Some("Magic link authentication successful".to_string()),
-            ferriskey_core::domain::authentication::entities::AuthenticationStepStatus::RequiresActions =>
-                Some("Additional actions required before login".to_string()),
-            ferriskey_core::domain::authentication::entities::AuthenticationStepStatus::RequiresOtpChallenge =>
-                Some("OTP verification required".to_string()),
-            ferriskey_core::domain::authentication::entities::AuthenticationStepStatus::Failed =>
-                Some("Magic link authentication failed".to_string()),
-        },
-    };
-
-    Ok(ApiResponse::OK(response))
+    let response: AuthenticateResponse = result.into();
+    Ok(Response::OK(response))
 }
