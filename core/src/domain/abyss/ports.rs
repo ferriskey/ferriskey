@@ -2,9 +2,9 @@ use std::future::Future;
 
 use crate::domain::abyss::entities::{Provider, ProviderId, ProviderMapping, ProviderMappingId};
 use crate::domain::abyss::value_objects::{
-    CreateMappingInput, CreateProviderInput, DeleteMappingInput, DeleteProviderInput,
-    GetMappingsByProviderInput, GetProviderInput, GetProvidersByRealmInput, ToggleProviderInput,
-    UpdateProviderInput,
+    CreateProviderInput, CreateProviderMappingInput, DeleteProviderInput,
+    DeleteProviderMappingInput, GetProviderInput, GetProviderMappingsByProviderInput,
+    GetProvidersByRealmInput, ToggleProviderInput, UpdateProviderInput,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -118,10 +118,10 @@ pub trait ProviderService: Send + Sync {
     ///
     /// # Returns
     /// The created mapping
-    fn create_mapping(
+    fn create_provider_mapping(
         &self,
         identity: Identity,
-        input: CreateMappingInput,
+        input: CreateProviderMappingInput,
     ) -> impl Future<Output = Result<ProviderMapping, CoreError>> + Send;
 
     /// Gets all mappings for a provider
@@ -132,10 +132,10 @@ pub trait ProviderService: Send + Sync {
     ///
     /// # Returns
     /// List of mappings for the provider
-    fn get_mappings_by_provider(
+    fn list_provider_mappings(
         &self,
         identity: Identity,
-        input: GetMappingsByProviderInput,
+        input: GetProviderMappingsByProviderInput,
     ) -> impl Future<Output = Result<Vec<ProviderMapping>, CoreError>> + Send;
 
     /// Deletes an attribute mapping
@@ -143,10 +143,10 @@ pub trait ProviderService: Send + Sync {
     /// # Arguments
     /// * `identity` - The identity performing the operation
     /// * `input` - Contains the mapping ID to delete
-    fn delete_mapping(
+    fn delete_provider_mapping(
         &self,
         identity: Identity,
-        input: DeleteMappingInput,
+        input: DeleteProviderMappingInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
@@ -213,7 +213,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The created provider with any database-generated fields
-    fn create(
+    fn create_provider(
         &self,
         provider: &Provider,
     ) -> impl Future<Output = Result<Provider, CoreError>> + Send;
@@ -225,7 +225,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The provider if found, None otherwise
-    fn get_by_id(
+    fn get_provider_by_id(
         &self,
         id: ProviderId,
     ) -> impl Future<Output = Result<Option<Provider>, CoreError>> + Send;
@@ -237,7 +237,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// List of all providers in the realm
-    fn get_by_realm(
+    fn list_providers_by_realm(
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Provider>, CoreError>> + Send;
@@ -250,7 +250,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The provider if found, None otherwise
-    fn get_by_realm_and_name(
+    fn get_provider_by_realm_and_name(
         &self,
         realm_id: RealmId,
         name: String,
@@ -263,7 +263,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The updated provider
-    fn update(
+    fn update_provider(
         &self,
         provider: &Provider,
     ) -> impl Future<Output = Result<Provider, CoreError>> + Send;
@@ -272,7 +272,8 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Arguments
     /// * `id` - The provider ID to delete
-    fn delete(&self, id: ProviderId) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_provider(&self, id: ProviderId)
+    -> impl Future<Output = Result<(), CoreError>> + Send;
 
     /// Lists all enabled providers for a realm
     ///
@@ -281,7 +282,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// List of enabled providers
-    fn list_enabled_by_realm(
+    fn list_enabled_providers_by_realm(
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Provider>, CoreError>> + Send;
@@ -293,7 +294,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The created mapping
-    fn create_mapping(
+    fn create_provider_mapping(
         &self,
         mapping: &ProviderMapping,
     ) -> impl Future<Output = Result<ProviderMapping, CoreError>> + Send;
@@ -305,7 +306,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// List of mappings for the provider
-    fn get_mappings_by_provider(
+    fn list_provider_mappings_by_provider(
         &self,
         provider_id: ProviderId,
     ) -> impl Future<Output = Result<Vec<ProviderMapping>, CoreError>> + Send;
@@ -314,7 +315,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Arguments
     /// * `id` - The mapping ID to delete
-    fn delete_mapping(
+    fn delete_provider_mapping(
         &self,
         id: ProviderMappingId,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
@@ -326,7 +327,7 @@ pub trait ProviderRepository: Send + Sync {
     ///
     /// # Returns
     /// The mapping if found, None otherwise
-    fn get_mapping_by_id(
+    fn get_provider_mapping_by_id(
         &self,
         id: ProviderMappingId,
     ) -> impl Future<Output = Result<Option<ProviderMapping>, CoreError>> + Send;

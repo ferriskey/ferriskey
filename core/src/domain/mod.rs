@@ -5,6 +5,7 @@ pub mod common;
 pub mod credential;
 pub mod crypto;
 pub mod health;
+pub mod identity_provider;
 pub mod jwt;
 pub mod realm;
 pub mod role;

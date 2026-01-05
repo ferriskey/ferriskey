@@ -9,6 +9,7 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -22,6 +23,7 @@ use crate::{
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         health::repositories::PostgresHealthCheckRepository,
+        identity_provider::PostgresIdentityProviderRepository,
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
             argon2_hasher::Argon2HasherRepository,
@@ -60,6 +62,7 @@ type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
+type IdentityProviderRepo = PostgresIdentityProviderRepository;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -131,6 +134,11 @@ pub struct ApplicationService {
         HasherRepo,
         CredentialRepo,
         RedirectUriRepo,
+    >,
+    pub(crate) identity_provider_service: IdentityProviderServiceImpl<
+        IdentityProviderRepo,
+        crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+        RealmRepo,
     >,
 }
 

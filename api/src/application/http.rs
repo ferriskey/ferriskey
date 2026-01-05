@@ -3,6 +3,7 @@ pub mod client;
 
 pub mod error;
 pub mod health;
+pub mod identity_provider;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
