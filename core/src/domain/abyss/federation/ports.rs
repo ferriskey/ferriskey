@@ -46,30 +46,33 @@ pub trait FederationRepository: Send + Sync {
 }
 
 pub trait FederationService: Send + Sync {
-    fn create_provider(
+    fn create_federation_provider(
         &self,
         request: CreateProviderRequest,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
-    fn get_provider(
+    fn get_federation_provider(
         &self,
         id: Uuid,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
-    fn update_provider(
+    fn update_federation_provider(
         &self,
         id: Uuid,
         request: UpdateProviderRequest,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
-    fn delete_provider(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn list_providers(
+    fn delete_federation_provider(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn list_federation_providers(
         &self,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
 
-    fn test_connection(
+    fn test_federation_connection(
         &self,
         id: Uuid,
     ) -> impl Future<Output = Result<TestConnectionResult, CoreError>> + Send;
-    fn sync_users(
+    fn sync_federation_users(
         &self,
         id: Uuid,
         mode: SyncMode,
