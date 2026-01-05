@@ -10,6 +10,9 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::identity_provider::{
+    entities::DeleteIdentityProviderInput, ports::IdentityProviderService,
+};
 
 #[utoipa::path(
     delete,
@@ -30,9 +33,14 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
     tag = "identity_provider",
 )]
 pub async fn delete_identity_provider(
-    Path((_realm_name, _alias)): Path<(String, String)>,
-    State(_state): State<AppState>,
-    Extension(_identity): Extension<Identity>,
+    Path((realm_name, alias)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<DeleteIdentityProviderResponse>, ApiError> {
-    unimplemented!()
+    state
+        .service
+        .delete_identity_provider(identity, DeleteIdentityProviderInput { realm_name, alias })
+        .await?;
+
+    Ok(Response::OK(DeleteIdentityProviderResponse { count: 1 }))
 }

@@ -9,7 +9,12 @@ use axum::{
     Extension,
     extract::{Path, Query, State},
 };
-use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::identity_provider::{
+    entities::ListIdentityProvidersInput, ports::IdentityProviderService,
+};
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, identity_provider::IdentityProvider,
+};
 
 #[utoipa::path(
     get,
@@ -29,10 +34,15 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
     tag = "identity_provider",
 )]
 pub async fn list_identity_providers(
-    Path(_realm_name): Path<String>,
-    State(_state): State<AppState>,
-    Extension(_identity): Extension<Identity>,
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
     Query(_query): Query<ListIdentityProvidersQuery>,
-) -> Result<Response<IdentityProvidersResponse>, ApiError> {
-    unimplemented!()
+) -> Result<Response<Vec<IdentityProvider>>, ApiError> {
+    let providers = state
+        .service
+        .list_identity_providers(identity, ListIdentityProvidersInput { realm_name })
+        .await?;
+
+    Ok(Response::OK(providers))
 }

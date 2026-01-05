@@ -10,6 +10,7 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -24,6 +25,7 @@ use crate::{
         },
         db::postgres::{Postgres, PostgresConfig},
         health::repositories::PostgresHealthCheckRepository,
+        identity_provider::PostgresIdentityProviderRepository,
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
             argon2_hasher::Argon2HasherRepository,
@@ -52,6 +54,7 @@ pub mod auth;
 pub mod client;
 pub mod credential;
 pub mod health;
+pub mod identity_provider;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -92,6 +95,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
+    let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -178,6 +182,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             hasher.clone(),
             credential.clone(),
             redirect_uri.clone(),
+        ),
+        identity_provider_service: IdentityProviderServiceImpl::new(
+            identity_provider.clone(),
+            policy.clone(),
+            realm.clone(),
         ),
     };
 
