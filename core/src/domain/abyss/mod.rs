@@ -57,6 +57,7 @@
 //! - Only enabled providers are available for authentication
 
 pub mod entities;
+pub mod federation;
 pub mod policies;
 pub mod ports;
 pub mod services;
