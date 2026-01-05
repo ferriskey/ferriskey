@@ -5,6 +5,7 @@ import type { IdentityProvider } from '@/api/identity-providers.api'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
+import ProvidersEmptyState from '../components/providers-empty-state'
 
 interface Statistics {
   totalProviders: number
@@ -51,6 +52,16 @@ export default function PageOverview({
   onRowDelete,
 }: PageOverviewProps) {
   const { totalProviders, enabledProviders, disabledProviders, providerTypes } = statistics
+  const isEmpty = !isLoading && data.length === 0
+
+  // Show empty state when there are no providers
+  if (isEmpty) {
+    return (
+      <div className='flex flex-col gap-6'>
+        <ProvidersEmptyState onCreateProvider={handleCreateProvider} />
+      </div>
+    )
+  }
 
   return (
     <div className='flex flex-col gap-6'>

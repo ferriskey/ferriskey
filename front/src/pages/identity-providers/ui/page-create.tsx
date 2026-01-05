@@ -1,275 +1,163 @@
-import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
 import { UseFormReturn } from 'react-hook-form'
-import { Heading } from '@/components/ui/heading'
-import BlockContent from '@/components/ui/block-content'
-import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
-import { InputText } from '@/components/ui/input-text'
-import { Switch } from '@/components/ui/switch'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import type { CreateProviderSchema } from '../schemas/create-provider.schema'
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import type { ProviderTemplate } from '@/constants/identity-provider-templates'
+import ProviderWizardProgress, { WIZARD_STEPS } from '../components/provider-wizard-progress'
+import ProviderGallery from '../components/provider-gallery'
+import ProviderConfigForm, { type ProviderFormData } from '../components/provider-config-form'
+import ProviderReview from '../components/provider-review'
+import ProviderHelpPanel from '../components/provider-help-panel'
 
-export interface PageCreateProps {
-  form: UseFormReturn<CreateProviderSchema>
-  handleBack: () => void
-  handleSubmit: () => void
-  formIsValid?: boolean
+interface PageCreateProps {
+  form: UseFormReturn<ProviderFormData>
+  currentStep: number
+  selectedTemplate: ProviderTemplate | null
+  callbackUrl: string
+  isPending: boolean
+  onSelectTemplate: (template: ProviderTemplate) => void
+  onNextStep: () => void
+  onPrevStep: () => void
+  onSubmit: () => void
+  onCancel: () => void
 }
 
-export default function PageCreate({ form, handleBack, handleSubmit, formIsValid }: PageCreateProps) {
-  const providerType = form.watch('providerType')
+export default function PageCreate({
+  form,
+  currentStep,
+  selectedTemplate,
+  callbackUrl,
+  isPending,
+  onSelectTemplate,
+  onNextStep,
+  onPrevStep,
+  onSubmit,
+  onCancel,
+}: PageCreateProps) {
+  const canProceedFromStep1 = selectedTemplate !== null
+  const canProceedFromStep2 = form.formState.isValid
 
   return (
-    <div className='flex flex-col p-4 gap-4'>
-      <div className='flex items-center gap-3'>
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={handleBack}
-        >
-          <ArrowLeft className='h-3 w-3' />
+    <div className='flex flex-col p-4 md:p-8 gap-4 max-w-7xl mx-auto'>
+      {/* Header */}
+      <div className='flex items-center gap-4'>
+        <Button variant='ghost' size='icon' onClick={onCancel}>
+          <ArrowLeft className='h-4 w-4' />
         </Button>
-        <span className='text-gray-500 text-sm font-medium'>Back to providers</span>
+        <div>
+          <h1 className='text-xl font-semibold'>Add Identity Provider</h1>
+          <p className='text-sm text-muted-foreground'>
+            Connect an external authentication provider
+          </p>
+        </div>
       </div>
 
-      <div className='flex flex-col mb-4'>
-        <Heading size={3} className='text-gray-800'>
-          Create Identity Provider
-        </Heading>
+      {/* Progress Indicator */}
+      <Card>
+        <CardContent className='p-4'>
+          <ProviderWizardProgress steps={WIZARD_STEPS} currentStep={currentStep} />
+        </CardContent>
+      </Card>
 
-        <p className='text-sm text-gray-500 mt-1'>
-          Configure an external authentication source to enable SSO and federated identity.
-        </p>
+      {/* Step Content */}
+      {currentStep === 1 && (
+        <Card>
+          <CardContent className='p-6'>
+            <div className='space-y-4'>
+              <div>
+                <h2 className='text-base font-medium'>Select a Provider</h2>
+                <p className='text-sm text-muted-foreground'>
+                  Choose an identity provider to configure. We'll pre-fill the technical details for you.
+                </p>
+              </div>
+              <ProviderGallery
+                onSelect={onSelectTemplate}
+                selectedId={selectedTemplate?.id}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentStep === 2 && selectedTemplate && (
+        <div className='grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4'>
+          {/* Form Column */}
+          <Card>
+            <CardContent className='p-6'>
+              <div className='space-y-4'>
+                <div>
+                  <h2 className='text-base font-medium'>Configure {selectedTemplate.displayName}</h2>
+                  <p className='text-sm text-muted-foreground'>
+                    Enter your OAuth credentials from the {selectedTemplate.displayName} developer console.
+                  </p>
+                </div>
+                <ProviderConfigForm
+                  template={selectedTemplate}
+                  form={form}
+                  callbackUrl={callbackUrl}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Help Panel Column */}
+          <ProviderHelpPanel
+            template={selectedTemplate}
+            callbackUrl={callbackUrl}
+          />
+        </div>
+      )}
+
+      {currentStep === 3 && selectedTemplate && (
+        <Card>
+          <CardContent className='p-6'>
+            <div className='space-y-4'>
+              <div>
+                <h2 className='text-base font-medium'>Review Configuration</h2>
+                <p className='text-sm text-muted-foreground'>
+                  Please review your settings before creating the provider.
+                </p>
+              </div>
+              <ProviderReview
+                template={selectedTemplate}
+                formData={form.getValues()}
+                callbackUrl={callbackUrl}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Navigation */}
+      <div className='flex items-center justify-between'>
+        <Button
+          variant='outline'
+          onClick={currentStep === 1 ? onCancel : onPrevStep}
+        >
+          <ArrowLeft className='h-4 w-4 mr-2' />
+          {currentStep === 1 ? 'Cancel' : 'Back'}
+        </Button>
+
+        <div className='flex items-center gap-2'>
+          {currentStep < 3 ? (
+            <Button
+              onClick={onNextStep}
+              disabled={
+                (currentStep === 1 && !canProceedFromStep1) ||
+                (currentStep === 2 && !canProceedFromStep2)
+              }
+            >
+              Next
+              <ArrowRight className='h-4 w-4 ml-2' />
+            </Button>
+          ) : (
+            <Button onClick={onSubmit} disabled={isPending}>
+              {isPending && <Loader2 className='h-4 w-4 mr-2 animate-spin' />}
+              Create Provider
+            </Button>
+          )}
+        </div>
       </div>
-
-      <div className='lg:w-1/2'>
-        <BlockContent title='Basic Settings'>
-          <div className='flex flex-col gap-5'>
-            <FormField
-              control={form.control}
-              name='alias'
-              render={({ field }) => (
-                <InputText
-                  label='Alias'
-                  {...field}
-                  error={form.formState.errors.alias?.message}
-                />
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='displayName'
-              render={({ field }) => (
-                <InputText
-                  label='Display Name'
-                  {...field}
-                  error={form.formState.errors.displayName?.message}
-                />
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='providerType'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Provider Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder='Select provider type' />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='oidc'>OpenID Connect (OIDC)</SelectItem>
-                      <SelectItem value='oauth2'>OAuth 2.0</SelectItem>
-                      <SelectItem value='saml'>SAML 2.0</SelectItem>
-                      <SelectItem value='ldap'>LDAP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='enabled'
-              render={({ field }) => (
-                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm'>
-                  <div className='space-y-0.5'>
-                    <FormLabel>Enabled</FormLabel>
-                    <FormDescription>
-                      Allow users to authenticate using this provider.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-        </BlockContent>
-
-        {(providerType === 'oidc' || providerType === 'oauth2') && (
-          <BlockContent title={providerType === 'oidc' ? 'OpenID Connect Settings' : 'OAuth 2.0 Settings'}>
-            <div className='flex flex-col gap-5'>
-              <FormField
-                control={form.control}
-                name='clientId'
-                render={({ field }) => (
-                  <InputText
-                    label='Client ID'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='clientSecret'
-                render={({ field }) => (
-                  <InputText
-                    label='Client Secret'
-                    type='password'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='authorizationUrl'
-                render={({ field }) => (
-                  <InputText
-                    label='Authorization URL'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='tokenUrl'
-                render={({ field }) => (
-                  <InputText
-                    label='Token URL'
-                    {...field}
-                  />
-                )}
-              />
-
-              {providerType === 'oidc' && (
-                <FormField
-                  control={form.control}
-                  name='userinfoUrl'
-                  render={({ field }) => (
-                    <InputText
-                      label='User Info URL'
-                      {...field}
-                    />
-                  )}
-                />
-              )}
-            </div>
-          </BlockContent>
-        )}
-
-        {providerType === 'saml' && (
-          <BlockContent title='SAML Settings'>
-            <div className='flex flex-col gap-5'>
-              <FormField
-                control={form.control}
-                name='entityId'
-                render={({ field }) => (
-                  <InputText
-                    label='Entity ID'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='ssoUrl'
-                render={({ field }) => (
-                  <InputText
-                    label='Single Sign-On URL'
-                    {...field}
-                  />
-                )}
-              />
-            </div>
-          </BlockContent>
-        )}
-
-        {providerType === 'ldap' && (
-          <BlockContent title='LDAP Settings'>
-            <div className='flex flex-col gap-5'>
-              <FormField
-                control={form.control}
-                name='ldapUrl'
-                render={({ field }) => (
-                  <InputText
-                    label='LDAP URL'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='bindDn'
-                render={({ field }) => (
-                  <InputText
-                    label='Bind DN'
-                    {...field}
-                  />
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='bindCredential'
-                render={({ field }) => (
-                  <InputText
-                    label='Bind Credential'
-                    type='password'
-                    {...field}
-                  />
-                )}
-              />
-            </div>
-          </BlockContent>
-        )}
-      </div>
-
-      <FloatingActionBar
-        show={formIsValid ?? false}
-        title='Create Provider'
-        onCancel={handleBack}
-        description='Create a new identity provider with the specified configuration.'
-        actions={[
-          {
-            label: 'Create',
-            onClick: handleSubmit,
-          }
-        ]}
-      />
     </div>
   )
 }
