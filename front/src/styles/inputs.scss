@@ -4,13 +4,13 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .input {
-  @apply relative min-h-[52px] cursor-pointer rounded-md border border-neutral-200 bg-white px-3 py-2;
+  @apply relative min-h-[52px] cursor-pointer rounded-md border border-input bg-background px-3 py-2;
   transition:
     120ms all $timing-cubic,
     0 outline;
 
   label {
-    @apply absolute translate-y-2 select-none text-sm text-neutral-500  duration-200 ease-in-out;
+    @apply absolute translate-y-2 select-none text-sm text-muted-foreground duration-200 ease-in-out;
   }
 
   input:focus,
@@ -21,7 +21,7 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
   &:hover:not(.input--error),
   &.input--focused:not(.input--error),
   .input__button--focused {
-    @apply border-gray-500;
+    @apply border-ring;
     box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
 
     input,
@@ -36,12 +36,13 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .input__value {
-  @apply absolute bottom-[7px] left-0 w-full appearance-none bg-transparent px-3 text-sm text-neutral-600 ring-0 dark:text-neutral-50;
+  @apply absolute bottom-[7px] left-0 w-full appearance-none bg-transparent px-3 text-sm text-foreground ring-0;
 }
 
 .input--focused,
 .input__button--focused {
-  outline: 3px solid theme("colors.gray.100");
+  outline: 3px solid var(--ring);
+  outline-offset: 0;
   label {
     @apply translate-y-0 text-xs;
   }
@@ -52,42 +53,16 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
     @apply translate-y-0 text-xs;
   }
   .input__value[type="time"] {
-    color: theme("colors.neutral.400");
-  }
-}
-
-.input--filter {
-  min-height: theme("space.9");
-  height: theme("space.9");
-  padding: theme("space.2");
-  background-color: theme("colors.neutral.100");
-  padding-top: 0;
-  border-color: transparent;
-
-  .input-select__value-container {
-    margin-top: 0;
-    top: 0;
-  }
-
-  .input-select__menu {
-    width: 296px !important;
-    margin-top: theme("space.2") !important;
-  }
-
-  .input-select__placeholder {
-    display: block !important;
-    font-size: theme("fontSize.sm") !important;
-    color: theme("colors.neutral.300") !important;
-    font-weight: 400;
+    color: var(--muted-foreground);
   }
 }
 
 .input--disabled {
-  @apply pointer-events-none border-neutral-200 bg-neutral-100;
+  @apply pointer-events-none border-input bg-muted/50 opacity-50;
   box-shadow: none !important;
 
   label {
-    @apply text-neutral-300;
+    @apply text-muted-foreground/50;
   }
 
   .input__button--focused {
@@ -97,16 +72,16 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 
 .input--error,
 .input--error .input__button {
-  @apply border-red-500;
+  @apply border-destructive;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
 
   &:hover {
-    @apply border-red-500;
+    @apply border-destructive;
   }
 }
 
 .input--error.input--focused {
-  outline: 1px solid theme("colors.red.500");
+  outline: 1px solid var(--destructive);
 }
 
 .input--success {
@@ -125,13 +100,13 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
   &:hover,
   &:focus,
   &[aria-expanded="true"] {
-    @apply border-gray-500;
+    @apply border-ring;
     box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
   }
 }
 
 .input__list {
-  @apply pointer-events-auto mt-2 max-h-96 w-full list-none overflow-scroll rounded border-neutral-200 bg-white p-2 text-neutral-400 focus-within:outline-none;
+  @apply pointer-events-auto mt-2 max-h-96 w-full list-none overflow-scroll rounded border-input bg-popover p-2 text-popover-foreground focus-within:outline-none;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 
   ul {
@@ -140,17 +115,17 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .input__item {
-  @apply mb-1 cursor-pointer select-none rounded px-3 py-2 text-sm font-medium text-neutral-400 last:mb-0 hover:bg-neutral-100 hover:text-neutral-400;
+  @apply mb-1 cursor-pointer select-none rounded px-3 py-2 text-sm font-medium text-muted-foreground last:mb-0 hover:bg-accent hover:text-accent-foreground;
 
   &.is-active,
   &[data-current-selected],
   &[data-current-nav] {
-    @apply bg-neutral-100 text-neutral-400;
+    @apply bg-accent text-accent-foreground;
   }
 }
 
 .input__arrow {
-  @apply absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400;
+  @apply absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground;
 }
 
 // time

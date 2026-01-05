@@ -17,6 +17,7 @@ import FloatingActionBar from '@/components/ui/floating-action-bar'
 import SelectClientBox from './components/select-client-box'
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
 import { Schemas } from '@/api/api.client.ts'
+import BlockContent from '@/components/ui/block-content'
 import Client = Schemas.Client
 
 export interface PageCreateRoleProps {
@@ -51,20 +52,15 @@ export default function PageCreateRole({
       </div>
 
       <div className='flex flex-col mb-4'>
-        <Heading size={3} className='text-gray-800 '>
+        <Heading size={3} className='text-foreground'>
           Create Role
         </Heading>
-        <p className='text-sm text-gray-500 mt-1'>
+        <p className='text-sm text-muted-foreground mt-1'>
           Define a new role with specific permissions that can be assigned to users or clients.
         </p>
       </div>
-      <div className='flex flex-col gap-4 p-4 bg-muted/25 rounded-md border lg:w-2/3'>
-        <div>
-          <Heading size={5} className='text-gray-800'>
-            Role Details
-          </Heading>
-        </div>
 
+      <BlockContent title='Role Details' customWidth='lg:w-2/3'>
         <div className='flex flex-col gap-2'>
           <FormField
             control={form.control}
@@ -102,15 +98,11 @@ export default function PageCreateRole({
             )}
           />
         </div>
-      </div>
+      </BlockContent>
 
-      <div className='flex flex-col p-4 bg-muted/25 rounded-md border lg:w-2/3'>
+      <BlockContent title='Permissions' customWidth='lg:w-2/3'>
         <div className='flex flex-col gap-2 mb-4'>
-          <Heading size={5} className='text-gray-800'>
-            Permissions
-          </Heading>
-
-          <p className='text-sm text-gray-500 mb-2'>
+          <p className='text-sm text-muted-foreground mb-2'>
             Select the permissions that this role will have. You can select multiple permissions from different groups.
           </p>
 
@@ -118,9 +110,9 @@ export default function PageCreateRole({
           <div className='grid grid-cols-6 gap-4 grid-flow-dense'>
 
             <div className='col-span-3 order-2'>
-              <div className='flex flex-wrap gap-1 min-h-[60px] p-2 border rounded-md bg-white'>
+              <div className='flex flex-wrap gap-1 min-h-[60px] p-2 border rounded-md bg-background'>
                 {selectedPermissions.length === 0 ? (
-                  <span className='flex w-full items-center justify-center text-neutral-400'>No permissions selected</span>
+                  <span className='flex w-full items-center justify-center text-muted-foreground'>No permissions selected</span>
                 ) : (
                   selectedPermissions.map((permission,index) => (
                     <div key={index}
@@ -226,7 +218,7 @@ export default function PageCreateRole({
           description='Once you create this role, it will be available for assignment to users and clients.'
           icon={<Smile className='h-4 w-4' />}
         />
-      </div>
+      </BlockContent>
     </div>
   )
 }

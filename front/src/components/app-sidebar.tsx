@@ -32,17 +32,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <Link
           className={cn(
-            'flex items-center gap-3 cursor-pointer',
-            state === 'expanded' && 'hover:bg-gray-100 rounded-md'
+            'flex items-center gap-3 cursor-pointer p-2',
+            state === 'expanded' && 'hover:bg-sidebar-accent/50 rounded-md transition-colors'
           )}
           to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
         >
           <div className='flex items-center gap-2'>
-            <div className='size-12'>
-              <img src='/logo_ferriskey.png' />
+            <div className='size-8'>
+              <img src='/logo_ferriskey.png' className='object-contain' />
             </div>
             <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')}>
-              <span className='text-lg font-medium text-gray-600'>FerrisKey</span>
+              <span className='text-lg font-bold text-primary tracking-tight'>FerrisKey</span>
             </div>
           </div>
           <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
@@ -93,7 +93,7 @@ function ConsoleBadge({ className }: ConsoleBadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-[2px] bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white',
+        'inline-flex items-center rounded-[2px] bg-zinc-900 dark:bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground tracking-wide uppercase',
         className
       )}
     >

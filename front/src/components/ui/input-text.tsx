@@ -85,7 +85,7 @@ export function InputText({
 
             {(currentValue as string)?.length > 0 && type === 'password' && (
               <div
-                className='absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors hover:text-neutral-400'
+                className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-muted-foreground'
                 onClick={() => {
                   console.log('Toggle password visibility')
 
@@ -106,7 +106,7 @@ export function InputText({
       </div>
 
       {error && (
-        <p className='mt-0.5 px-3 text-xs font-medium text-red-500'>{error}</p>
+        <p className='mt-0.5 px-3 text-xs font-medium text-destructive'>{error}</p>
       )}
     </div>
   )
