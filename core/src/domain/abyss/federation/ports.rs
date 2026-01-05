@@ -1,0 +1,77 @@
+use std::future::Future;
+use uuid::Uuid;
+
+use super::entities::{FederationMapping, FederationProvider, SyncMode};
+use super::value_objects::{
+    CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
+};
+use crate::domain::common::entities::app_errors::CoreError;
+
+pub trait FederationRepository: Send + Sync {
+    // Provider CRUD
+    fn create(
+        &self,
+        request: CreateProviderRequest,
+    ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Option<FederationProvider>, CoreError>> + Send;
+    fn update(
+        &self,
+        id: Uuid,
+        request: UpdateProviderRequest,
+    ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn list_by_realm(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
+
+    // Mappings
+    fn create_mapping(
+        &self,
+        mapping: FederationMapping,
+    ) -> impl Future<Output = Result<FederationMapping, CoreError>> + Send;
+    fn get_mapping(
+        &self,
+        provider_id: Uuid,
+        external_id: &str,
+    ) -> impl Future<Output = Result<Option<FederationMapping>, CoreError>> + Send;
+    fn update_mapping(
+        &self,
+        mapping: FederationMapping,
+    ) -> impl Future<Output = Result<FederationMapping, CoreError>> + Send;
+    fn delete_mapping(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait FederationService: Send + Sync {
+    fn create_provider(
+        &self,
+        request: CreateProviderRequest,
+    ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
+    fn get_provider(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
+    fn update_provider(
+        &self,
+        id: Uuid,
+        request: UpdateProviderRequest,
+    ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
+    fn delete_provider(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn list_providers(
+        &self,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
+
+    fn test_connection(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<TestConnectionResult, CoreError>> + Send;
+    fn sync_users(
+        &self,
+        id: Uuid,
+        mode: SyncMode,
+    ) -> impl Future<Output = Result<SyncResult, CoreError>> + Send;
+}
