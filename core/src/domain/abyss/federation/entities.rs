@@ -14,6 +14,17 @@ pub enum FederationType {
     Custom(String),
 }
 
+impl fmt::Display for FederationType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FederationType::Ldap => write!(f, "Ldap"),
+            FederationType::Kerberos => write!(f, "Kerberos"),
+            FederationType::ActiveDirectory => write!(f, "ActiveDirectory"),
+            FederationType::Custom(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SyncMode {
     Import,

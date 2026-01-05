@@ -3,6 +3,7 @@ pub mod common;
 pub mod db;
 pub mod health;
 pub mod identity_provider;
+pub mod ldap;
 pub mod realm;
 pub mod recovery_code;
 pub mod repositories;

@@ -176,4 +176,16 @@ pub enum CoreError {
 
     #[error("Invalid provider URL")]
     InvalidProviderUrl,
+
+    #[error("External error: {0}")]
+    External(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    #[error("Authentication error: {0}")]
+    Authentication(String),
 }
