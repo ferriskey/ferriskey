@@ -77,7 +77,7 @@ pub struct ToggleProviderInput {
 
 /// Input for creating a provider attribute mapping
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateMappingInput {
+pub struct CreateProviderMappingInput {
     /// ID of the provider this mapping belongs to
     pub provider_id: Uuid,
     /// External field name from the provider
@@ -90,7 +90,7 @@ pub struct CreateMappingInput {
 
 /// Input for deleting a provider attribute mapping
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeleteMappingInput {
+pub struct DeleteProviderMappingInput {
     /// ID of the mapping to delete
     pub id: Uuid,
 }
@@ -104,7 +104,7 @@ pub struct GetProvidersByRealmInput {
 
 /// Input for retrieving mappings by provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetMappingsByProviderInput {
+pub struct GetProviderMappingsByProviderInput {
     /// ID of the provider to get mappings for
     pub provider_id: Uuid,
 }
@@ -161,8 +161,8 @@ mod tests {
     }
 
     #[test]
-    fn test_create_mapping_input() {
-        let input = CreateMappingInput {
+    fn test_create_provider_mapping_input() {
+        let input = CreateProviderMappingInput {
             provider_id: Uuid::new_v4(),
             external_field: "email".to_string(),
             internal_field: "email".to_string(),

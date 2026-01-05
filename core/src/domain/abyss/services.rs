@@ -7,9 +7,9 @@ use crate::domain::abyss::entities::{
 };
 use crate::domain::abyss::ports::{ProviderPolicy, ProviderRepository, ProviderService};
 use crate::domain::abyss::value_objects::{
-    CreateMappingInput, CreateProviderInput, DeleteMappingInput, DeleteProviderInput,
-    GetMappingsByProviderInput, GetProviderInput, GetProvidersByRealmInput, ToggleProviderInput,
-    UpdateProviderInput,
+    CreateProviderInput, CreateProviderMappingInput, DeleteProviderInput,
+    DeleteProviderMappingInput, GetProviderInput, GetProviderMappingsByProviderInput,
+    GetProvidersByRealmInput, ToggleProviderInput, UpdateProviderInput,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -26,8 +26,8 @@ where
     R: ProviderRepository,
     P: ProviderPolicy,
 {
-    repository: Arc<R>,
-    policy: Arc<P>,
+    provider_repository: Arc<R>,
+    provider_policy: Arc<P>,
 }
 
 impl<R, P> ProviderServiceImpl<R, P>
@@ -38,10 +38,13 @@ where
     /// Creates a new ProviderServiceImpl
     ///
     /// # Arguments
-    /// * `repository` - The provider repository
-    /// * `policy` - The authorization policy
-    pub fn new(repository: Arc<R>, policy: Arc<P>) -> Self {
-        Self { repository, policy }
+    /// * `provider_repository` - The provider repository for data access
+    /// * `provider_policy` - The authorization policy for access control
+    pub fn new(provider_repository: Arc<R>, provider_policy: Arc<P>) -> Self {
+        Self {
+            provider_repository,
+            provider_policy,
+        }
     }
 
     /// Validates that a URL is well-formed
@@ -108,7 +111,7 @@ where
     ) -> Result<Provider, CoreError> {
         // Check authorization
         ensure_policy(
-            self.policy
+            self.provider_policy
                 .can_create_provider(identity, input.realm_id)
                 .await,
             "insufficient permissions to create provider",
@@ -119,8 +122,8 @@ where
 
         // Check if provider name already exists in realm
         let existing = self
-            .repository
-            .get_by_realm_and_name(input.realm_id, input.name.clone())
+            .provider_repository
+            .get_provider_by_realm_and_name(input.realm_id, input.name.clone())
             .await?;
 
         if existing.is_some() {
@@ -141,7 +144,7 @@ where
             configuration: input.configuration,
         });
 
-        self.repository.create(&provider).await
+        self.provider_repository.create_provider(&provider).await
     }
 
     #[instrument(
@@ -158,14 +161,16 @@ where
         input: GetProviderInput,
     ) -> Result<Provider, CoreError> {
         let provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         // Check authorization
         ensure_policy(
-            self.policy.can_view_provider(&identity, &provider).await,
+            self.provider_policy
+                .can_view_provider(&identity, &provider)
+                .await,
             "insufficient permissions to view provider",
         )?;
 
@@ -185,13 +190,16 @@ where
         identity: Identity,
         input: GetProvidersByRealmInput,
     ) -> Result<Vec<Provider>, CoreError> {
-        let providers = self.repository.get_by_realm(input.realm_id).await?;
+        let providers = self
+            .provider_repository
+            .list_providers_by_realm(input.realm_id)
+            .await?;
 
         // Filter providers based on view permission
         let mut accessible_providers = Vec::new();
         for provider in providers {
             if self
-                .policy
+                .provider_policy
                 .can_view_provider(&identity, &provider)
                 .await
                 .unwrap_or(false)
@@ -210,7 +218,9 @@ where
         )
     )]
     async fn list_enabled_providers(&self, realm_id: RealmId) -> Result<Vec<Provider>, CoreError> {
-        self.repository.list_enabled_by_realm(realm_id).await
+        self.provider_repository
+            .list_enabled_providers_by_realm(realm_id)
+            .await
     }
 
     #[instrument(
@@ -227,14 +237,16 @@ where
         input: UpdateProviderInput,
     ) -> Result<Provider, CoreError> {
         let mut provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         // Check authorization
         ensure_policy(
-            self.policy.can_update_provider(&identity, &provider).await,
+            self.provider_policy
+                .can_update_provider(&identity, &provider)
+                .await,
             "insufficient permissions to update provider",
         )?;
 
@@ -254,8 +266,8 @@ where
             && new_name != &provider.name
         {
             let existing = self
-                .repository
-                .get_by_realm_and_name(provider.realm_id, new_name.clone())
+                .provider_repository
+                .get_provider_by_realm_and_name(provider.realm_id, new_name.clone())
                 .await?;
 
             if existing.is_some() {
@@ -300,7 +312,7 @@ where
             provider.set_configuration(configuration);
         }
 
-        self.repository.update(&provider).await
+        self.provider_repository.update_provider(&provider).await
     }
 
     #[instrument(
@@ -317,18 +329,22 @@ where
         input: DeleteProviderInput,
     ) -> Result<(), CoreError> {
         let provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         // Check authorization
         ensure_policy(
-            self.policy.can_delete_provider(&identity, &provider).await,
+            self.provider_policy
+                .can_delete_provider(&identity, &provider)
+                .await,
             "insufficient permissions to delete provider",
         )?;
 
-        self.repository.delete(ProviderId::from(input.id)).await
+        self.provider_repository
+            .delete_provider(ProviderId::from(input.id))
+            .await
     }
 
     #[instrument(
@@ -346,20 +362,22 @@ where
         input: ToggleProviderInput,
     ) -> Result<Provider, CoreError> {
         let mut provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         // Check authorization
         ensure_policy(
-            self.policy.can_update_provider(&identity, &provider).await,
+            self.provider_policy
+                .can_update_provider(&identity, &provider)
+                .await,
             "insufficient permissions to toggle provider",
         )?;
 
         provider.set_enabled(input.enabled);
 
-        self.repository.update(&provider).await
+        self.provider_repository.update_provider(&provider).await
     }
 
     #[instrument(
@@ -370,21 +388,23 @@ where
             provider.id = ?input.provider_id,
         )
     )]
-    async fn create_mapping(
+    async fn create_provider_mapping(
         &self,
         identity: Identity,
-        input: CreateMappingInput,
+        input: CreateProviderMappingInput,
     ) -> Result<ProviderMapping, CoreError> {
         // Verify provider exists and check authorization
         let provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.provider_id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.provider_id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         ensure_policy(
-            self.policy.can_update_provider(&identity, &provider).await,
-            "insufficient permissions to create mapping",
+            self.provider_policy
+                .can_update_provider(&identity, &provider)
+                .await,
+            "insufficient permissions to create provider mapping",
         )?;
 
         // Validate mapping fields
@@ -399,7 +419,9 @@ where
             is_required: input.is_required,
         });
 
-        self.repository.create_mapping(&mapping).await
+        self.provider_repository
+            .create_provider_mapping(&mapping)
+            .await
     }
 
     #[instrument(
@@ -410,25 +432,27 @@ where
             provider.id = ?input.provider_id,
         )
     )]
-    async fn get_mappings_by_provider(
+    async fn list_provider_mappings(
         &self,
         identity: Identity,
-        input: GetMappingsByProviderInput,
+        input: GetProviderMappingsByProviderInput,
     ) -> Result<Vec<ProviderMapping>, CoreError> {
         // Verify provider exists and check authorization
         let provider = self
-            .repository
-            .get_by_id(ProviderId::from(input.provider_id))
+            .provider_repository
+            .get_provider_by_id(ProviderId::from(input.provider_id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         ensure_policy(
-            self.policy.can_view_provider(&identity, &provider).await,
-            "insufficient permissions to view mappings",
+            self.provider_policy
+                .can_view_provider(&identity, &provider)
+                .await,
+            "insufficient permissions to view provider mappings",
         )?;
 
-        self.repository
-            .get_mappings_by_provider(ProviderId::from(input.provider_id))
+        self.provider_repository
+            .list_provider_mappings_by_provider(ProviderId::from(input.provider_id))
             .await
     }
 
@@ -440,32 +464,34 @@ where
             mapping.id = ?input.id,
         )
     )]
-    async fn delete_mapping(
+    async fn delete_provider_mapping(
         &self,
         identity: Identity,
-        input: DeleteMappingInput,
+        input: DeleteProviderMappingInput,
     ) -> Result<(), CoreError> {
         // Get the mapping first to find its provider
         let mapping = self
-            .repository
-            .get_mapping_by_id(ProviderMappingId::from(input.id))
+            .provider_repository
+            .get_provider_mapping_by_id(ProviderMappingId::from(input.id))
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         // Get the provider and check authorization
         let provider = self
-            .repository
-            .get_by_id(mapping.provider_id)
+            .provider_repository
+            .get_provider_by_id(mapping.provider_id)
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
         ensure_policy(
-            self.policy.can_update_provider(&identity, &provider).await,
-            "insufficient permissions to delete mapping",
+            self.provider_policy
+                .can_update_provider(&identity, &provider)
+                .await,
+            "insufficient permissions to delete provider mapping",
         )?;
 
-        self.repository
-            .delete_mapping(ProviderMappingId::from(input.id))
+        self.provider_repository
+            .delete_provider_mapping(ProviderMappingId::from(input.id))
             .await
     }
 }
@@ -617,16 +643,19 @@ mod tests {
 
         // Expect check for existing provider
         mock_repo
-            .expect_get_by_realm_and_name()
+            .expect_get_provider_by_realm_and_name()
             .with(predicate::eq(realm_id), predicate::eq("Google".to_string()))
             .times(1)
             .returning(|_, _| Box::pin(async { Ok(None) }));
 
         // Expect create
-        mock_repo.expect_create().times(1).returning(|provider| {
-            let p = provider.clone();
-            Box::pin(async move { Ok(p) })
-        });
+        mock_repo
+            .expect_create_provider()
+            .times(1)
+            .returning(|provider| {
+                let p = provider.clone();
+                Box::pin(async move { Ok(p) })
+            });
 
         let policy = MockProviderPolicy::allow_all();
         let service = ProviderServiceImpl::new(Arc::new(mock_repo), Arc::new(policy));
@@ -662,7 +691,7 @@ mod tests {
         });
 
         mock_repo
-            .expect_get_by_realm_and_name()
+            .expect_get_provider_by_realm_and_name()
             .times(1)
             .returning(move |_, _| {
                 let provider = existing_provider.clone();
@@ -724,10 +753,13 @@ mod tests {
 
         let mut mock_repo = MockProviderRepository::new();
         let provider_clone = provider.clone();
-        mock_repo.expect_get_by_id().times(1).returning(move |_| {
-            let p = provider_clone.clone();
-            Box::pin(async move { Ok(Some(p)) })
-        });
+        mock_repo
+            .expect_get_provider_by_id()
+            .times(1)
+            .returning(move |_| {
+                let p = provider_clone.clone();
+                Box::pin(async move { Ok(Some(p)) })
+            });
 
         let policy = MockProviderPolicy::allow_all();
         let service = ProviderServiceImpl::new(Arc::new(mock_repo), Arc::new(policy));
@@ -744,7 +776,7 @@ mod tests {
     async fn test_get_provider_not_found() {
         let mut mock_repo = MockProviderRepository::new();
         mock_repo
-            .expect_get_by_id()
+            .expect_get_provider_by_id()
             .times(1)
             .returning(|_| Box::pin(async { Ok(None) }));
 
@@ -783,15 +815,21 @@ mod tests {
         let mut mock_repo = MockProviderRepository::new();
         let provider_clone = provider.clone();
 
-        mock_repo.expect_get_by_id().times(1).returning(move |_| {
-            let p = provider_clone.clone();
-            Box::pin(async move { Ok(Some(p)) })
-        });
+        mock_repo
+            .expect_get_provider_by_id()
+            .times(1)
+            .returning(move |_| {
+                let p = provider_clone.clone();
+                Box::pin(async move { Ok(Some(p)) })
+            });
 
-        mock_repo.expect_update().times(1).returning(|provider| {
-            let p = provider.clone();
-            Box::pin(async move { Ok(p) })
-        });
+        mock_repo
+            .expect_update_provider()
+            .times(1)
+            .returning(|provider| {
+                let p = provider.clone();
+                Box::pin(async move { Ok(p) })
+            });
 
         let policy = MockProviderPolicy::allow_all();
         let service = ProviderServiceImpl::new(Arc::new(mock_repo), Arc::new(policy));
@@ -830,7 +868,7 @@ mod tests {
         let provider_clone = provider.clone();
 
         mock_repo
-            .expect_list_enabled_by_realm()
+            .expect_list_enabled_providers_by_realm()
             .times(1)
             .returning(move |_| {
                 let p = provider_clone.clone();

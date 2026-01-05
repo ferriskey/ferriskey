@@ -14,20 +14,27 @@ use crate::domain::identity_provider::{
 use crate::domain::realm::entities::RealmId;
 use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
 
+/// PostgreSQL implementation of the IdentityProviderRepository trait
+///
+/// Provides data access operations for identity providers using SeaORM.
 #[derive(Debug, Clone)]
 pub struct PostgresIdentityProviderRepository {
-    pub db: DatabaseConnection,
+    db: DatabaseConnection,
 }
 
 impl PostgresIdentityProviderRepository {
+    /// Creates a new PostgresIdentityProviderRepository
+    ///
+    /// # Arguments
+    /// * `db` - The database connection
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 }
 
 impl IdentityProviderRepository for PostgresIdentityProviderRepository {
-    #[instrument(skip(self))]
-    async fn create(
+    #[instrument(skip(self, request), fields(realm_id = ?request.realm_id, alias = %request.alias))]
+    async fn create_identity_provider(
         &self,
         request: CreateIdentityProviderRequest,
     ) -> Result<IdentityProvider, CoreError> {
@@ -52,21 +59,24 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         };
 
         let identity_provider = payload.insert(&self.db).await.map_err(|e| {
-            tracing::error!("Failed to insert identity provider: {}", e);
+            tracing::error!("Failed to create identity provider: {}", e);
             CoreError::InternalServerError
         })?;
 
         Ok(identity_provider.into())
     }
 
-    #[instrument(skip(self))]
-    async fn find_by_id(&self, id: Uuid) -> Result<Option<IdentityProvider>, CoreError> {
+    #[instrument(skip(self), fields(identity_provider_id = %id))]
+    async fn get_identity_provider_by_id(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<IdentityProvider>, CoreError> {
         let identity_provider = IdentityProviderEntity::find()
             .filter(Column::Id.eq(id))
             .one(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to find identity provider by id: {}", e);
+                tracing::error!("Failed to get identity provider by id: {}", e);
                 CoreError::InternalServerError
             })?
             .map(IdentityProvider::from);
@@ -74,8 +84,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(identity_provider)
     }
 
-    #[instrument(skip(self))]
-    async fn find_by_realm_and_alias(
+    #[instrument(skip(self), fields(realm_id = ?realm_id, alias = %alias))]
+    async fn get_identity_provider_by_realm_and_alias(
         &self,
         realm_id: RealmId,
         alias: &str,
@@ -86,7 +96,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             .one(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to find identity provider by realm and alias: {}", e);
+                tracing::error!("Failed to get identity provider by realm and alias: {}", e);
                 CoreError::InternalServerError
             })?
             .map(IdentityProvider::from);
@@ -94,15 +104,18 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(identity_provider)
     }
 
-    #[instrument(skip(self))]
-    async fn find_by_realm(&self, realm_id: RealmId) -> Result<Vec<IdentityProvider>, CoreError> {
+    #[instrument(skip(self), fields(realm_id = ?realm_id))]
+    async fn list_identity_providers_by_realm(
+        &self,
+        realm_id: RealmId,
+    ) -> Result<Vec<IdentityProvider>, CoreError> {
         let identity_providers = IdentityProviderEntity::find()
             .filter(Column::RealmId.eq::<Uuid>(realm_id.into()))
             .order_by_asc(Column::Alias)
             .all(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to find identity providers by realm: {}", e);
+                tracing::error!("Failed to list identity providers by realm: {}", e);
                 CoreError::InternalServerError
             })?;
 
@@ -114,8 +127,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(identity_providers)
     }
 
-    #[instrument(skip(self))]
-    async fn update(
+    #[instrument(skip(self, request), fields(identity_provider_id = %id))]
+    async fn update_identity_provider(
         &self,
         id: Uuid,
         request: UpdateIdentityProviderRequest,
@@ -172,8 +185,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(updated.into())
     }
 
-    #[instrument(skip(self))]
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(identity_provider_id = %id))]
+    async fn delete_identity_provider(&self, id: Uuid) -> Result<(), CoreError> {
         let result = IdentityProviderEntity::delete_many()
             .filter(Column::Id.eq(id))
             .exec(&self.db)
@@ -190,8 +203,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    async fn exists_by_realm_and_alias(
+    #[instrument(skip(self), fields(realm_id = ?realm_id, alias = %alias))]
+    async fn exists_identity_provider_by_realm_and_alias(
         &self,
         realm_id: RealmId,
         alias: &str,

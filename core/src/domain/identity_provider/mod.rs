@@ -7,5 +7,5 @@ pub use entities::{
     IdentityProvider, IdentityProviderConfig, IdentityProviderId, ListIdentityProvidersInput,
     UpdateIdentityProviderInput,
 };
-pub use ports::IdentityProviderRepository;
+pub use ports::{IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService};
 pub use value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
