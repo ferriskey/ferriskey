@@ -1,0 +1,3 @@
+pub mod identity_provider_postgres_repository;
+
+pub use identity_provider_postgres_repository::PostgresIdentityProviderRepository;
