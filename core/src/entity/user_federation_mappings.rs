@@ -7,28 +7,30 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "refresh_tokens"
+        "user_federation_mappings"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub id: Uuid,
-    pub jti: Uuid,
+    pub provider_id: Uuid,
     pub user_id: Uuid,
-    pub revoked: bool,
-    pub expires_at: Option<DateTime>,
-    pub created_at: DateTime,
+    pub external_id: String,
+    pub external_username: String,
+    pub mapping_metadata: Option<Json>,
+    pub last_synced_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    Jti,
+    ProviderId,
     UserId,
-    Revoked,
-    ExpiresAt,
-    CreatedAt,
+    ExternalId,
+    ExternalUsername,
+    MappingMetadata,
+    LastSyncedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -45,6 +47,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    UserFederationProviders,
     Users,
 }
 
@@ -53,11 +56,12 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::Jti => ColumnType::Uuid.def().unique(),
+            Self::ProviderId => ColumnType::Uuid.def(),
             Self::UserId => ColumnType::Uuid.def(),
-            Self::Revoked => ColumnType::Boolean.def(),
-            Self::ExpiresAt => ColumnType::DateTime.def().null(),
-            Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::ExternalId => ColumnType::String(StringLen::N(512u32)).def(),
+            Self::ExternalUsername => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::MappingMetadata => ColumnType::JsonBinary.def().null(),
+            Self::LastSyncedAt => ColumnType::TimestampWithTimeZone.def(),
         }
     }
 }
@@ -65,11 +69,23 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::UserFederationProviders => {
+                Entity::belongs_to(super::user_federation_providers::Entity)
+                    .from(Column::ProviderId)
+                    .to(super::user_federation_providers::Column::Id)
+                    .into()
+            }
             Self::Users => Entity::belongs_to(super::users::Entity)
                 .from(Column::UserId)
                 .to(super::users::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::user_federation_providers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserFederationProviders.def()
     }
 }
 
