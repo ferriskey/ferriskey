@@ -177,6 +177,7 @@ pub enum CoreError {
     #[error("Invalid provider URL")]
     InvalidProviderUrl,
 
+    // Infrastructure errors
     #[error("External error: {0}")]
     External(String),
 
@@ -186,6 +187,6 @@ pub enum CoreError {
     #[error("Configuration error: {0}")]
     Configuration(String),
 
-    #[error("Authentication error: {0}")]
-    Authentication(String),
+    #[error("Federation authentication error: {0}")]
+    FederationAuthenticationFailed(String),
 }

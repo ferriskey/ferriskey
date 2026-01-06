@@ -7,11 +7,14 @@ use crate::domain::abyss::federation::entities::{
     FederationMapping, FederationProvider, FederationType, SyncMode,
 };
 use crate::domain::abyss::federation::ports::FederationRepository;
-use crate::domain::abyss::federation::value_objects::{CreateProviderRequest, UpdateProviderRequest};
+use crate::domain::abyss::federation::value_objects::{
+    CreateProviderRequest, UpdateProviderRequest,
+};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::entity::{user_federation_mappings, user_federation_providers};
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct FederationRepositoryImpl {
     db: DatabaseConnection,
 }
@@ -24,6 +27,7 @@ struct SyncSettings {
 }
 
 impl FederationRepositoryImpl {
+    #[allow(dead_code)]
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
@@ -132,22 +136,20 @@ impl FederationRepository for FederationRepositoryImpl {
     ) -> Result<FederationProvider, CoreError> {
         let active_model: user_federation_providers::ActiveModel = request.try_into()?;
 
-        let model = active_model
-            .insert(&self.db)
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to create federation provider: {}", e)))?;
+        let model = active_model.insert(&self.db).await.map_err(|e| {
+            CoreError::Database(format!("Failed to create federation provider: {}", e))
+        })?;
 
         model.try_into()
     }
 
-    async fn get_by_id(
-        &self,
-        id: Uuid,
-    ) -> Result<Option<FederationProvider>, CoreError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<FederationProvider>, CoreError> {
         let model = user_federation_providers::Entity::find_by_id(id)
             .one(&self.db)
             .await
-            .map_err(|e| CoreError::Database(format!("Failed to get federation provider: {}", e)))?;
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to get federation provider: {}", e))
+            })?;
 
         match model {
             Some(m) => Ok(Some(m.try_into()?)),
@@ -184,11 +186,11 @@ impl FederationRepository for FederationRepositoryImpl {
         if let Some(config) = request.config {
             active_model.config = Set(config);
         }
-        
+
         if let Some(sync_settings_json) = request.sync_settings {
             let sync_settings: SyncSettings = serde_json::from_value(sync_settings_json)
                 .map_err(|e| CoreError::Configuration(format!("Invalid sync settings: {}", e)))?;
-            
+
             active_model.sync_enabled = Set(sync_settings.enabled);
             active_model.sync_mode = Set(sync_settings.mode.to_string());
             active_model.sync_interval_minutes = Set(sync_settings.interval_minutes);
@@ -196,10 +198,9 @@ impl FederationRepository for FederationRepositoryImpl {
 
         active_model.updated_at = Set(now.into());
 
-        let updated_model = active_model
-            .update(&self.db)
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to update federation provider: {}", e)))?;
+        let updated_model = active_model.update(&self.db).await.map_err(|e| {
+            CoreError::Database(format!("Failed to update federation provider: {}", e))
+        })?;
 
         updated_model.try_into()
     }
@@ -208,24 +209,22 @@ impl FederationRepository for FederationRepositoryImpl {
         user_federation_providers::Entity::delete_by_id(id)
             .exec(&self.db)
             .await
-            .map_err(|e| CoreError::Database(format!("Failed to delete federation provider: {}", e)))?;
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to delete federation provider: {}", e))
+            })?;
         Ok(())
     }
 
-    async fn list_by_realm(
-        &self,
-        realm_id: Uuid,
-    ) -> Result<Vec<FederationProvider>, CoreError> {
+    async fn list_by_realm(&self, realm_id: Uuid) -> Result<Vec<FederationProvider>, CoreError> {
         let models = user_federation_providers::Entity::find()
             .filter(user_federation_providers::Column::RealmId.eq(realm_id))
             .all(&self.db)
             .await
-            .map_err(|e| CoreError::Database(format!("Failed to list federation providers: {}", e)))?;
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to list federation providers: {}", e))
+            })?;
 
-        models
-            .into_iter()
-            .map(|m| m.try_into())
-            .collect()
+        models.into_iter().map(|m| m.try_into()).collect()
     }
 
     async fn create_mapping(
@@ -234,10 +233,9 @@ impl FederationRepository for FederationRepositoryImpl {
     ) -> Result<FederationMapping, CoreError> {
         let active_model: user_federation_mappings::ActiveModel = mapping.try_into()?;
 
-        let model = active_model
-            .insert(&self.db)
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to create federation mapping: {}", e)))?;
+        let model = active_model.insert(&self.db).await.map_err(|e| {
+            CoreError::Database(format!("Failed to create federation mapping: {}", e))
+        })?;
 
         model.try_into()
     }
@@ -249,7 +247,8 @@ impl FederationRepository for FederationRepositoryImpl {
     ) -> Result<Option<FederationMapping>, CoreError> {
         let model = user_federation_mappings::Entity::find()
             .filter(
-                user_federation_mappings::Column::ProviderId.eq(provider_id)
+                user_federation_mappings::Column::ProviderId
+                    .eq(provider_id)
                     .and(user_federation_mappings::Column::ExternalId.eq(external_id)),
             )
             .one(&self.db)
@@ -269,20 +268,24 @@ impl FederationRepository for FederationRepositoryImpl {
         let model = user_federation_mappings::Entity::find_by_id(mapping.id)
             .one(&self.db)
             .await
-            .map_err(|e| CoreError::Database(format!("Failed to find federation mapping for update: {}", e)))?
+            .map_err(|e| {
+                CoreError::Database(format!(
+                    "Failed to find federation mapping for update: {}",
+                    e
+                ))
+            })?
             .ok_or(CoreError::NotFound)?;
 
         let mut active_model: user_federation_mappings::ActiveModel = model.into();
-        
+
         // Update fields
         active_model.mapping_metadata = Set(Some(mapping.mapping_metadata));
         active_model.last_synced_at = Set(mapping.last_synced_at.into());
         active_model.external_username = Set(mapping.external_username);
 
-        let updated_model = active_model
-            .update(&self.db)
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to update federation mapping: {}", e)))?;
+        let updated_model = active_model.update(&self.db).await.map_err(|e| {
+            CoreError::Database(format!("Failed to update federation mapping: {}", e))
+        })?;
 
         updated_model.try_into()
     }
@@ -291,7 +294,9 @@ impl FederationRepository for FederationRepositoryImpl {
         user_federation_mappings::Entity::delete_by_id(id)
             .exec(&self.db)
             .await
-            .map_err(|e| CoreError::Database(format!("Failed to delete federation mapping: {}", e)))?;
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to delete federation mapping: {}", e))
+            })?;
         Ok(())
     }
 }

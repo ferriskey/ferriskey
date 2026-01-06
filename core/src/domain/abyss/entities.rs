@@ -298,9 +298,9 @@ mod tests {
 
     #[test]
     fn test_provider_type_from_str() {
-        assert_eq!(ProviderType::from_str("oauth2"), Some(ProviderType::OAuth2));
-        assert_eq!(ProviderType::from_str("OIDC"), Some(ProviderType::Oidc));
-        assert_eq!(ProviderType::from_str("invalid"), None);
+        assert_eq!(ProviderType::from_str("oauth2"), Ok(ProviderType::OAuth2));
+        assert_eq!(ProviderType::from_str("OIDC"), Ok(ProviderType::Oidc));
+        assert_eq!(ProviderType::from_str("invalid"), Err(()));
     }
 
     #[test]
