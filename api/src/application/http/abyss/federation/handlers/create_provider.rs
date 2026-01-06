@@ -23,6 +23,7 @@ use crate::application::http::{
 #[utoipa::path(
     post,
     path = "/federation/providers",
+    summary = "Create Federation Provider",
     request_body = CreateProviderRequest,
     responses(
         (status = 201, description = "Provider created", body = ProviderResponse),
@@ -32,7 +33,7 @@ use crate::application::http::{
         (status = 404, description = "Realm not found"),
     ),
     params(
-        ("realm" = String, Path, description = "Realm name")
+        ("realm_name" = String, Path, description = "Realm name")
     ),
     tag = "Federation"
 )]

@@ -115,11 +115,8 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
         .merge(seawatch_router(state.clone()))
+        .merge(abyss_routes(state.clone()))
         .merge(health_routes(&root_path))
-        .nest(
-            &format!("{}/realms/:realm/abyss", root_path),
-            abyss_routes(),
-        )
         .route(
             &format!("{}/metrics", root_path),
             get(|| async move { metric_handle.render() }),

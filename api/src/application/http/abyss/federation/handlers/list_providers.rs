@@ -17,6 +17,7 @@ use crate::application::http::{
 #[utoipa::path(
     get,
     path = "/federation/providers",
+    summary = "List federation providers in a realm",
     responses(
         (status = 200, description = "List of providers", body = Vec<ProviderResponse>),
         (status = 401, description = "Unauthorized"),
@@ -24,7 +25,7 @@ use crate::application::http::{
         (status = 404, description = "Realm not found"),
     ),
     params(
-        ("realm" = String, Path, description = "Realm name")
+        ("realm_name" = String, Path, description = "Realm name")
     ),
     tag = "Federation"
 )]

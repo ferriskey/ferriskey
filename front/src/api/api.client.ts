@@ -50,6 +50,16 @@ export namespace Schemas {
     public_client: boolean
     service_account_enabled: boolean
   }>
+  export type CreateProviderRequest = {
+    config: unknown
+    enabled: boolean
+    name: string
+    priority: number
+    provider_type: string
+    sync_enabled: boolean
+    sync_interval_minutes?: (number | null) | undefined
+    sync_mode: string
+  }
   export type CreatePublicKeyRequest = Record<string, unknown>
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
@@ -245,11 +255,27 @@ export namespace Schemas {
   export type JwtToken = {
     access_token: string
     expires_in: number
-    id_token: string
+    id_token?: (string | null) | undefined
     refresh_token: string
     token_type: string
   }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
+  export type ProviderResponse = {
+    config: unknown
+    created_at: string
+    enabled: boolean
+    id: string
+    last_sync_at?: (string | null) | undefined
+    last_sync_status?: (string | null) | undefined
+    name: string
+    priority: number
+    provider_type: string
+    realm_id: string
+    sync_enabled: boolean
+    sync_interval_minutes?: (number | null) | undefined
+    sync_mode: string
+    updated_at: string
+  }
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
@@ -288,6 +314,7 @@ export namespace Schemas {
     grant_type: GrantType
     password: string | null
     refresh_token: string | null
+    scope: string | null
     username: string | null
   }>
   export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string }
@@ -299,6 +326,16 @@ export namespace Schemas {
   }>
   export type UpdatePasswordRequest = Partial<{ value: string }>
   export type UpdatePasswordResponse = { message: string }
+  export type UpdateProviderRequest = Partial<{
+    config: unknown
+    enabled: boolean | null
+    name: string | null
+    priority: number | null
+    provider_type: string | null
+    sync_enabled: boolean | null
+    sync_interval_minutes: number | null
+    sync_mode: string | null
+  }>
   export type UpdateRealmSettingValidator = Partial<{
     default_signing_algorithm: string | null
     forgot_password_enabled: boolean | null
@@ -320,6 +357,15 @@ export namespace Schemas {
     lastname: string
     required_actions: Array<string> | null
   }>
+  export type UserInfoResponse = {
+    email?: (string | null) | undefined
+    email_verified?: (boolean | null) | undefined
+    family_name?: (string | null) | undefined
+    given_name?: (string | null) | undefined
+    name?: (string | null) | undefined
+    preferred_username?: (string | null) | undefined
+    sub: string
+  }
   export type UserRealmsResponse = { data: Array<Realm> }
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
@@ -508,6 +554,55 @@ export namespace Endpoints {
     }
     response: Schemas.Role
   }
+  export type get_List_providers = {
+    method: 'GET'
+    path: '/realms/{realm_name}/federation/providers'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm: string }
+    }
+    response: Array<Schemas.ProviderResponse>
+  }
+  export type post_Create_provider = {
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm: string }
+
+      body: Schemas.CreateProviderRequest
+    }
+    response: Schemas.ProviderResponse
+  }
+  export type get_Get_provider = {
+    method: 'GET'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm: string; id: string }
+    }
+    response: Schemas.ProviderResponse
+  }
+  export type put_Update_provider = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm: string; id: string }
+
+      body: Schemas.UpdateProviderRequest
+    }
+    response: Schemas.ProviderResponse
+  }
+  export type delete_Delete_provider = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm: string; id: string }
+    }
+    response: unknown
+  }
   export type post_Authenticate = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/authenticate'
@@ -609,7 +704,7 @@ export namespace Endpoints {
     }
     response: Schemas.PublicKeyCredentialRequestOptionsJSON
   }
-  export type get_Auth = {
+  export type get_Auth_handler = {
     method: 'GET'
     path: '/realms/{realm_name}/protocol/openid-connect/auth'
     requestFormat: 'json'
@@ -653,6 +748,15 @@ export namespace Endpoints {
       body: Schemas.TokenRequestValidator
     }
     response: Schemas.JwtToken
+  }
+  export type get_Get_userinfo = {
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/userinfo'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.UserInfoResponse
   }
   export type get_Get_roles = {
     method: 'GET'
@@ -893,6 +997,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
+    '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
     '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
@@ -917,9 +1022,12 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
+    '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
     '/realms/{realm_name}/login-actions/setup-otp': Endpoints.get_Setup_otp
-    '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth
+    '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
+    '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
@@ -935,6 +1043,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.put_Update_realm
     '/realms/{name}/settings': Endpoints.put_Update_realm_setting
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
     '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
     '/realms/{realm_name}/users/{user_id}/reset-password': Endpoints.put_Reset_password
@@ -944,6 +1053,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.delete_Delete_realm
     '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
     '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user
     '/realms/{realm_name}/users/{user_id}': Endpoints.delete_Delete_user

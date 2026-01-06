@@ -19,7 +19,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/webhooks", api = WebhookApiDoc),
         (path = "/realms/{realm_name}", api = TridentApiDoc),
         (path = "/realms/{realm_name}", api = SeawatchApiDoc),
-        (path = "/realms/{realm}/abyss", api = AbyssApiDoc),
+        (path = "/realms/{realm_name}", api = AbyssApiDoc),
     )
 )]
 pub struct ApiDoc;
