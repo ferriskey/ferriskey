@@ -4,9 +4,7 @@ use axum::{
     http::StatusCode,
 };
 use ferriskey_core::domain::{
-    abyss::federation::ports::FederationService,
-    authentication::value_objects::Identity,
-    realm::ports::{GetRealmInput, RealmService},
+    abyss::federation::ports::FederationService, authentication::value_objects::Identity,
 };
 use uuid::Uuid;
 
@@ -35,30 +33,9 @@ pub async fn delete_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<StatusCode, ApiError> {
-    // 1. Verify realm access
-    let realm = state
-        .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
-
-    // 2. Verify existence and ownership
-    let existing = state
-        .service
-        .get_federation_provider(id)
-        .await
-        .map_err(ApiError::from)?;
-
-    if existing.realm_id != Into::<Uuid>::into(realm.id) {
-        return Err(ApiError::NotFound(
-            "Provider not found in this realm".to_string(),
-        ));
-    }
-
-    // 3. Delete
     state
         .service
-        .delete_federation_provider(id)
+        .delete_federation_provider(identity, id, realm_name)
         .await
         .map_err(ApiError::from)?;
 

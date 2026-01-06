@@ -192,7 +192,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
             realm.clone(),
         ),
-        federation_service: FederationServiceImpl::new(federation.clone()),
+        federation_service: FederationServiceImpl::new(realm.clone(), federation.clone()),
     };
 
     Ok(app)

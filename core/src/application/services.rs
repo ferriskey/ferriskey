@@ -143,7 +143,10 @@ pub struct ApplicationService {
         RealmRepo,
     >,
     pub(crate) federation_service:
-        crate::domain::abyss::federation::services::FederationServiceImpl<FederationRepo>,
+        crate::domain::abyss::federation::services::FederationServiceImpl<
+            RealmRepo,
+            FederationRepo,
+        >,
 }
 
 impl CoreService for ApplicationService {

@@ -1,13 +1,16 @@
 use crate::{
     ApplicationService,
-    domain::abyss::federation::{
-        entities::{FederationProvider, SyncMode},
-        ports::FederationService,
-        value_objects::{
-            CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
+    domain::{
+        abyss::federation::{
+            entities::{FederationProvider, SyncMode},
+            ports::FederationService,
+            value_objects::{
+                CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
+            },
         },
+        authentication::value_objects::Identity,
+        common::entities::app_errors::CoreError,
     },
-    domain::common::entities::app_errors::CoreError,
 };
 use uuid::Uuid;
 
@@ -21,8 +24,15 @@ impl FederationService for ApplicationService {
             .await
     }
 
-    async fn get_federation_provider(&self, id: Uuid) -> Result<FederationProvider, CoreError> {
-        self.federation_service.get_federation_provider(id).await
+    async fn get_federation_provider(
+        &self,
+        identity: Identity,
+        id: Uuid,
+        realm_name: String,
+    ) -> Result<FederationProvider, CoreError> {
+        self.federation_service
+            .get_federation_provider(identity, id, realm_name)
+            .await
     }
 
     async fn update_federation_provider(
@@ -35,8 +45,15 @@ impl FederationService for ApplicationService {
             .await
     }
 
-    async fn delete_federation_provider(&self, id: Uuid) -> Result<(), CoreError> {
-        self.federation_service.delete_federation_provider(id).await
+    async fn delete_federation_provider(
+        &self,
+        identity: Identity,
+        id: Uuid,
+        realm_name: String,
+    ) -> Result<(), CoreError> {
+        self.federation_service
+            .delete_federation_provider(identity, id, realm_name)
+            .await
     }
 
     async fn list_federation_providers(

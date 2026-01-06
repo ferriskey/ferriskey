@@ -8,33 +8,40 @@ use crate::domain::abyss::federation::ports::{FederationRepository, FederationSe
 use crate::domain::abyss::federation::value_objects::{
     CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
 };
+use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::ports::RealmRepository;
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct FederationServiceImpl<R>
+pub struct FederationServiceImpl<R, F>
 where
-    R: FederationRepository,
+    R: RealmRepository,
+    F: FederationRepository,
 {
-    repository: Arc<R>,
+    federation_repository: Arc<F>,
+    realm_repository: Arc<R>,
     ldap_client: LdapClientImpl,
 }
 
-impl<R> FederationServiceImpl<R>
+impl<R, F> FederationServiceImpl<R, F>
 where
-    R: FederationRepository,
+    R: RealmRepository,
+    F: FederationRepository,
 {
-    pub fn new(repository: Arc<R>) -> Self {
+    pub fn new(realm_repository: Arc<R>, federation_repository: Arc<F>) -> Self {
         Self {
-            repository,
+            realm_repository,
+            federation_repository,
             ldap_client: LdapClientImpl,
         }
     }
 }
 
-impl<R> FederationService for FederationServiceImpl<R>
+impl<R, F> FederationService for FederationServiceImpl<R, F>
 where
-    R: FederationRepository,
+    R: RealmRepository,
+    F: FederationRepository,
 {
     #[instrument(skip(self, request))]
     async fn create_federation_provider(
@@ -42,15 +49,33 @@ where
         request: CreateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
         // TODO: Validate config based on provider type
-        self.repository.create(request).await
+        self.federation_repository.create(request).await
     }
 
     #[instrument(skip(self))]
-    async fn get_federation_provider(&self, id: Uuid) -> Result<FederationProvider, CoreError> {
-        self.repository
+    async fn get_federation_provider(
+        &self,
+        identity: Identity,
+        id: Uuid,
+        realm_name: String,
+    ) -> Result<FederationProvider, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let federation = self
+            .federation_repository
             .get_by_id(id)
             .await?
-            .ok_or(CoreError::NotFound)
+            .ok_or(CoreError::NotFound)?;
+
+        if federation.realm_id != Into::<Uuid>::into(realm.id) {
+            return Err(CoreError::Forbidden("forbidden".to_string()));
+        }
+
+        Ok(federation)
     }
 
     #[instrument(skip(self, request))]
@@ -59,12 +84,33 @@ where
         id: Uuid,
         request: UpdateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
-        self.repository.update(id, request).await
+        self.federation_repository.update(id, request).await
     }
 
     #[instrument(skip(self))]
-    async fn delete_federation_provider(&self, id: Uuid) -> Result<(), CoreError> {
-        self.repository.delete(id).await
+    async fn delete_federation_provider(
+        &self,
+        identity: Identity,
+        id: Uuid,
+        realm_name: String,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let existing = self
+            .federation_repository
+            .get_by_id(id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if existing.realm_id != Into::<Uuid>::into(realm.id) {
+            return Err(CoreError::Forbidden("forbidden".to_string()));
+        }
+
+        self.federation_repository.delete(id).await
     }
 
     #[instrument(skip(self))]
@@ -72,7 +118,7 @@ where
         &self,
         realm_id: Uuid,
     ) -> Result<Vec<FederationProvider>, CoreError> {
-        self.repository.list_by_realm(realm_id).await
+        self.federation_repository.list_by_realm(realm_id).await
     }
 
     #[instrument(skip(self))]
@@ -80,7 +126,11 @@ where
         &self,
         id: Uuid,
     ) -> Result<TestConnectionResult, CoreError> {
-        let provider = self.get_federation_provider(id).await?;
+        let provider = self
+            .federation_repository
+            .get_by_id(id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
 
         match provider.provider_type {
             FederationType::Ldap | FederationType::ActiveDirectory => {
@@ -100,7 +150,11 @@ where
         id: Uuid,
         mode: SyncMode,
     ) -> Result<SyncResult, CoreError> {
-        let provider = self.get_federation_provider(id).await?;
+        let provider = self
+            .federation_repository
+            .get_by_id(id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
 
         // Basic stub for sync - just searching for now
         match provider.provider_type {

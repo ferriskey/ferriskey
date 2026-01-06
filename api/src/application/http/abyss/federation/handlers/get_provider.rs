@@ -1,18 +1,16 @@
 use axum::{
-    Extension, Json,
+    Extension,
     extract::{Path, State},
-    http::StatusCode,
 };
 use ferriskey_core::domain::{
-    abyss::federation::ports::FederationService,
+    abyss::federation::{entities::FederationProvider, ports::FederationService},
     authentication::value_objects::Identity,
-    realm::ports::{GetRealmInput, RealmService},
 };
 use uuid::Uuid;
 
-use crate::application::http::{
-    abyss::federation::dto::ProviderResponse, server::api_entities::api_error::ApiError,
-    server::app_state::AppState,
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
 };
 
 #[utoipa::path(
@@ -20,7 +18,7 @@ use crate::application::http::{
     path = "/federation/providers/{id}",
     summary = "Get Federation Provider Details",
     responses(
-        (status = 200, description = "Provider details", body = ProviderResponse),
+        (status = 200, description = "Provider details", body = FederationProvider),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Realm or Provider not found"),
@@ -35,27 +33,12 @@ pub async fn get_provider(
     Path((realm_name, id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<(StatusCode, Json<ProviderResponse>), ApiError> {
-    // 1. Verify realm access
-    let realm = state
-        .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
-
-    // 2. Get provider
+) -> Result<Response<FederationProvider>, ApiError> {
     let provider = state
         .service
-        .get_federation_provider(id)
+        .get_federation_provider(identity, id, realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    // 3. Verify provider belongs to realm
-    if provider.realm_id != Into::<Uuid>::into(realm.id) {
-        return Err(ApiError::NotFound(
-            "Provider not found in this realm".to_string(),
-        ));
-    }
-
-    Ok((StatusCode::OK, Json(ProviderResponse::from(provider))))
+    Ok(Response::OK(provider))
 }

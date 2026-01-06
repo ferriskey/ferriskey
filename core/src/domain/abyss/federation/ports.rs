@@ -5,6 +5,7 @@ use super::entities::{FederationMapping, FederationProvider, SyncMode};
 use super::value_objects::{
     CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
 };
+use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
 
 pub trait FederationRepository: Send + Sync {
@@ -52,7 +53,9 @@ pub trait FederationService: Send + Sync {
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
     fn get_federation_provider(
         &self,
+        identity: Identity,
         id: Uuid,
+        realm_name: String,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
     fn update_federation_provider(
         &self,
@@ -61,7 +64,9 @@ pub trait FederationService: Send + Sync {
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
     fn delete_federation_provider(
         &self,
+        identity: Identity,
         id: Uuid,
+        realm_name: String,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn list_federation_providers(
         &self,

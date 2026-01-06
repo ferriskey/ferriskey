@@ -48,14 +48,19 @@ pub async fn update_provider(
     // 1. Verify realm access
     let realm = state
         .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
+        .get_realm_by_name(
+            identity.clone(),
+            GetRealmInput {
+                realm_name: realm_name.clone(),
+            },
+        )
         .await
         .map_err(ApiError::from)?;
 
     // 2. Verify existence and ownership
     let existing = state
         .service
-        .get_federation_provider(id)
+        .get_federation_provider(identity, id, realm_name)
         .await
         .map_err(ApiError::from)?;
 
