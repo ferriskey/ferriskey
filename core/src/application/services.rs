@@ -146,6 +146,7 @@ pub struct ApplicationService {
         crate::domain::abyss::federation::services::FederationServiceImpl<
             RealmRepo,
             FederationRepo,
+            crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
         >,
 }
 

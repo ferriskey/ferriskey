@@ -1,17 +1,15 @@
 use axum::{
-    Extension, Json,
+    Extension,
     extract::{Path, State},
-    http::StatusCode,
 };
 use ferriskey_core::domain::{
-    abyss::federation::ports::FederationService,
+    abyss::federation::{entities::FederationProvider, ports::FederationService},
     authentication::value_objects::Identity,
-    realm::ports::{GetRealmInput, RealmService},
 };
 
-use crate::application::http::{
-    abyss::federation::dto::ProviderResponse, server::api_entities::api_error::ApiError,
-    server::app_state::AppState,
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
 };
 
 #[utoipa::path(
@@ -19,7 +17,7 @@ use crate::application::http::{
     path = "/federation/providers",
     summary = "List federation providers in a realm",
     responses(
-        (status = 200, description = "List of providers", body = Vec<ProviderResponse>),
+        (status = 200, description = "List of providers", body = Vec<FederationProvider>),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Realm not found"),
@@ -33,24 +31,12 @@ pub async fn list_providers(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<(StatusCode, Json<Vec<ProviderResponse>>), ApiError> {
-    // 1. Get realm
-    let realm = state
-        .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
-
-    // 2. List providers
+) -> Result<Response<Vec<FederationProvider>>, ApiError> {
     let providers = state
         .service
-        .list_federation_providers(realm.id.into())
+        .list_federation_providers(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    // 3. Map to DTOs
-    let response: Vec<ProviderResponse> =
-        providers.into_iter().map(ProviderResponse::from).collect();
-
-    Ok((StatusCode::OK, Json(response)))
+    Ok(Response::OK(providers))
 }

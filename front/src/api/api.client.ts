@@ -191,6 +191,19 @@ export namespace Schemas {
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
   export type EventStatus = 'success' | 'failure'
+  export type FederationType = 'Ldap' | 'Kerberos' | 'ActiveDirectory' | { Custom: string }
+  export type FederationProvider = {
+    config: unknown
+    created_at: string
+    enabled: boolean
+    id: string
+    name: string
+    priority: number
+    provider_type: FederationType
+    realm_id: string
+    sync_settings: unknown
+    updated_at: string
+  }
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = {
@@ -559,16 +572,16 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/federation/providers'
     requestFormat: 'json'
     parameters: {
-      path: { realm: string }
+      path: { realm_name: string }
     }
-    response: Array<Schemas.ProviderResponse>
+    response: Array<Schemas.FederationProvider>
   }
   export type post_Create_provider = {
     method: 'POST'
     path: '/realms/{realm_name}/federation/providers'
     requestFormat: 'json'
     parameters: {
-      path: { realm: string }
+      path: { realm_name: string }
 
       body: Schemas.CreateProviderRequest
     }
@@ -579,27 +592,27 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/federation/providers/{id}'
     requestFormat: 'json'
     parameters: {
-      path: { realm: string; id: string }
+      path: { realm_name: string; id: string }
     }
-    response: Schemas.ProviderResponse
+    response: Schemas.FederationProvider
   }
   export type put_Update_provider = {
     method: 'PUT'
     path: '/realms/{realm_name}/federation/providers/{id}'
     requestFormat: 'json'
     parameters: {
-      path: { realm: string; id: string }
+      path: { realm_name: string; id: string }
 
       body: Schemas.UpdateProviderRequest
     }
-    response: Schemas.ProviderResponse
+    response: Schemas.FederationProvider
   }
   export type delete_Delete_provider = {
     method: 'DELETE'
     path: '/realms/{realm_name}/federation/providers/{id}'
     requestFormat: 'json'
     parameters: {
-      path: { realm: string; id: string }
+      path: { realm_name: string; id: string }
     }
     response: unknown
   }

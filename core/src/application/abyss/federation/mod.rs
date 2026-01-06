@@ -17,10 +17,12 @@ use uuid::Uuid;
 impl FederationService for ApplicationService {
     async fn create_federation_provider(
         &self,
+        identity: Identity,
+        realm_name: String,
         request: CreateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
         self.federation_service
-            .create_federation_provider(request)
+            .create_federation_provider(identity, realm_name, request)
             .await
     }
 
@@ -37,11 +39,13 @@ impl FederationService for ApplicationService {
 
     async fn update_federation_provider(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
         request: UpdateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
         self.federation_service
-            .update_federation_provider(id, request)
+            .update_federation_provider(identity, realm_name, id, request)
             .await
     }
 
@@ -58,10 +62,11 @@ impl FederationService for ApplicationService {
 
     async fn list_federation_providers(
         &self,
-        realm_id: Uuid,
+        identity: Identity,
+        realm_name: String,
     ) -> Result<Vec<FederationProvider>, CoreError> {
         self.federation_service
-            .list_federation_providers(realm_id)
+            .list_federation_providers(identity, realm_name)
             .await
     }
 

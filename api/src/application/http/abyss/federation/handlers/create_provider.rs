@@ -10,9 +10,9 @@ use ferriskey_core::domain::{
         value_objects::CreateProviderRequest as CoreCreateProviderRequest,
     },
     authentication::value_objects::Identity,
-    realm::ports::{GetRealmInput, RealmService},
 };
 use std::str::FromStr;
+use uuid::Uuid;
 
 use crate::application::http::{
     abyss::federation::dto::{CreateProviderRequest, ProviderResponse},
@@ -43,19 +43,7 @@ pub async fn create_provider(
     Extension(identity): Extension<Identity>,
     Json(payload): Json<CreateProviderRequest>,
 ) -> Result<(StatusCode, Json<ProviderResponse>), ApiError> {
-    // 1. Get realm to verify it exists and get ID
-    let realm = state
-        .service
-        .get_realm_by_name(
-            identity.clone(),
-            GetRealmInput {
-                realm_name: realm_name.clone(),
-            },
-        )
-        .await
-        .map_err(ApiError::from)?;
-
-    // 2. Parse Enums
+    // 1. Parse Enums
     let provider_type = match payload.provider_type.as_str() {
         "Ldap" => FederationType::Ldap,
         "Kerberos" => FederationType::Kerberos,
@@ -66,7 +54,7 @@ pub async fn create_provider(
     let _sync_mode = SyncMode::from_str(&payload.sync_mode)
         .map_err(|_| ApiError::BadRequest(format!("Invalid sync mode: {}", payload.sync_mode)))?;
 
-    // 3. Construct Core Request
+    // 2. Construct Core Request
     let sync_settings = serde_json::json!({
         "enabled": payload.sync_enabled,
         "mode": payload.sync_mode,
@@ -74,7 +62,7 @@ pub async fn create_provider(
     });
 
     let core_request = CoreCreateProviderRequest {
-        realm_id: realm.id.into(),
+        realm_id: Uuid::default(), // Service will set this
         name: payload.name,
         provider_type,
         enabled: payload.enabled,
@@ -83,13 +71,13 @@ pub async fn create_provider(
         sync_settings,
     };
 
-    // 4. Call Service
+    // 3. Call Service
     let provider = state
         .service
-        .create_federation_provider(core_request)
+        .create_federation_provider(identity, realm_name, core_request)
         .await
         .map_err(ApiError::from)?;
 
-    // 5. Response
+    // 4. Response
     Ok((StatusCode::CREATED, Json(ProviderResponse::from(provider))))
 }

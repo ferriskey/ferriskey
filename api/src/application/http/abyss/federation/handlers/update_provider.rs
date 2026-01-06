@@ -1,24 +1,24 @@
 use axum::{
     Extension, Json,
     extract::{Path, State},
-    http::StatusCode,
 };
 use ferriskey_core::domain::{
     abyss::federation::{
-        entities::{FederationType, SyncMode},
+        entities::{FederationProvider, FederationType, SyncMode},
         ports::FederationService,
         value_objects::UpdateProviderRequest as CoreUpdateProviderRequest,
     },
     authentication::value_objects::Identity,
-    realm::ports::{GetRealmInput, RealmService},
 };
 use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::application::http::{
-    abyss::federation::dto::{ProviderResponse, UpdateProviderRequest},
-    server::api_entities::api_error::ApiError,
-    server::app_state::AppState,
+    abyss::federation::dto::UpdateProviderRequest,
+    server::{
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
+    },
 };
 
 #[utoipa::path(
@@ -27,7 +27,7 @@ use crate::application::http::{
     summary = "Update a federation provider",
     request_body = UpdateProviderRequest,
     responses(
-        (status = 200, description = "Provider updated", body = ProviderResponse),
+        (status = 200, description = "Provider updated", body = FederationProvider),
         (status = 400, description = "Invalid input"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
@@ -44,33 +44,7 @@ pub async fn update_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Json(payload): Json<UpdateProviderRequest>,
-) -> Result<(StatusCode, Json<ProviderResponse>), ApiError> {
-    // 1. Verify realm access
-    let realm = state
-        .service
-        .get_realm_by_name(
-            identity.clone(),
-            GetRealmInput {
-                realm_name: realm_name.clone(),
-            },
-        )
-        .await
-        .map_err(ApiError::from)?;
-
-    // 2. Verify existence and ownership
-    let existing = state
-        .service
-        .get_federation_provider(identity, id, realm_name)
-        .await
-        .map_err(ApiError::from)?;
-
-    if existing.realm_id != Into::<Uuid>::into(realm.id) {
-        return Err(ApiError::NotFound(
-            "Provider not found in this realm".to_string(),
-        ));
-    }
-
-    // 3. Map Request
+) -> Result<Response<FederationProvider>, ApiError> {
     let provider_type = payload.provider_type.map(|pt| match pt.as_str() {
         "Ldap" => FederationType::Ldap,
         "Kerberos" => FederationType::Kerberos,
@@ -82,36 +56,13 @@ pub async fn update_provider(
         || payload.sync_mode.is_some()
         || payload.sync_interval_minutes.is_some()
     {
-        let existing_sync = &existing.sync_settings;
-
-        let enabled = payload.sync_enabled.unwrap_or(
-            existing_sync
-                .get("enabled")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-        );
-
-        let mode_str = if let Some(m) = payload.sync_mode {
-            m
-        } else {
-            existing_sync
-                .get("mode")
-                .and_then(|v| v.as_str())
-                .unwrap_or("LinkOnly")
-                .to_string()
-        };
+        let enabled = payload.sync_enabled.unwrap_or(false);
+        let mode_str = payload.sync_mode.clone().unwrap_or("LinkOnly".to_string()); // Clone because we consume payload
 
         let _ = SyncMode::from_str(&mode_str)
             .map_err(|_| ApiError::BadRequest(format!("Invalid sync mode: {}", mode_str)))?;
 
-        let interval = if payload.sync_interval_minutes.is_some() {
-            payload.sync_interval_minutes
-        } else {
-            existing_sync
-                .get("interval_minutes")
-                .and_then(|v| v.as_i64())
-                .map(|v| v as i32)
-        };
+        let interval = payload.sync_interval_minutes; // Option<i32>
 
         Some(serde_json::json!({
             "enabled": enabled,
@@ -131,12 +82,12 @@ pub async fn update_provider(
         sync_settings,
     };
 
-    // 4. Update
+    // 3. Update
     let provider = state
         .service
-        .update_federation_provider(id, core_request)
+        .update_federation_provider(identity, realm_name, id, core_request)
         .await
         .map_err(ApiError::from)?;
 
-    Ok((StatusCode::OK, Json(ProviderResponse::from(provider))))
+    Ok(Response::OK(provider))
 }

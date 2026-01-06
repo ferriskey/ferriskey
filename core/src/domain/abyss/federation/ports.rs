@@ -7,6 +7,7 @@ use super::value_objects::{
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::entities::Realm;
 
 pub trait FederationRepository: Send + Sync {
     // Provider CRUD
@@ -46,9 +47,37 @@ pub trait FederationRepository: Send + Sync {
     fn delete_mapping(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
+pub trait FederationPolicy: Send + Sync {
+    fn can_create_federation_provider(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_update_federation_provider(
+        &self,
+        identity: &Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_view_federation_provider(
+        &self,
+        identity: &Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_delete_federation_provider(
+        &self,
+        identity: &Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
 pub trait FederationService: Send + Sync {
     fn create_federation_provider(
         &self,
+        identity: Identity,
+        realm_name: String,
         request: CreateProviderRequest,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
     fn get_federation_provider(
@@ -59,6 +88,8 @@ pub trait FederationService: Send + Sync {
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
     fn update_federation_provider(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
         request: UpdateProviderRequest,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
@@ -70,7 +101,8 @@ pub trait FederationService: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn list_federation_providers(
         &self,
-        realm_id: Uuid,
+        identity: Identity,
+        realm_name: String,
     ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
 
     fn test_federation_connection(
