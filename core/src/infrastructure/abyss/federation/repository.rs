@@ -13,7 +13,7 @@ use crate::domain::abyss::federation::value_objects::{
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::entity::{user_federation_mappings, user_federation_providers};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct FederationRepositoryImpl {
     db: DatabaseConnection,

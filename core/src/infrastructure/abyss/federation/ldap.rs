@@ -10,7 +10,7 @@ use crate::domain::abyss::federation::entities::{FederatedUser, FederationProvid
 use crate::domain::abyss::federation::value_objects::TestConnectionResult;
 use crate::domain::common::entities::app_errors::CoreError;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct LdapClientImpl;
 
