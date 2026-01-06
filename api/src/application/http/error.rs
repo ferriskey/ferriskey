@@ -134,7 +134,11 @@ impl From<CoreError> for ApiError {
             }
             CoreError::InvalidProviderUrl => {
                 Self::BadRequest("Invalid provider URL".to_string())
-            }
+            },
+            CoreError::External(msg) => Self::ServiceUnavailable(format!("External service error: {}", msg)),
+            CoreError::Database(msg) => Self::InternalServerError(format!("Database error: {}", msg)),
+            CoreError::Configuration(msg) => Self::InternalServerError(format!("Configuration error: {}", msg)),
+            CoreError::FederationAuthenticationFailed(msg) => Self::Unauthorized(format!("Federation authentication error: {}", msg)),
         }
     }
 }

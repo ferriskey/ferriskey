@@ -1,3 +1,4 @@
+pub mod abyss;
 pub mod client;
 pub mod common;
 pub mod db;
