@@ -25,11 +25,11 @@ export default function BlockContent({
   return (
     <div
       data-testid={dataTestId}
-      className={cn('mb-5 rounded border border-border bg-muted/30', customWidth, className)}
+      className={cn('mb-5 rounded border border-border bg-muted/75', customWidth, className)}
     >
 
       <div className={cn('flex items-center justify-between border-b border-border px-5', headHeight ? headHeight : 'h-9')}>
-        <h2 className='text-sm font-medium text-muted-foreground'>{title}</h2>
+        <h2 className='text-sm text-foreground'>{title}</h2>
         {headRight}
       </div>
 

@@ -7,8 +7,9 @@ export default function PageOverviewFeature() {
   const navigate = useNavigate()
   const { realm_name } = useParams<RouterParams>()
 
-  const handleCreateProvider = () => {
-    navigate(`${USER_FEDERATION_URL(realm_name)}${USER_FEDERATION_CREATE_URL}`)
+  const handleCreateProvider = (type?: 'LDAP' | 'Kerberos') => {
+    const url = `${USER_FEDERATION_URL(realm_name)}/${type ? type.toLowerCase() : ''}${USER_FEDERATION_CREATE_URL}/`
+    navigate(url)
   }
 
   return (

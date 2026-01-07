@@ -3,6 +3,7 @@ import { Filters, Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useState, useMemo } from 'react'
 import StatisticsCard from '../components/statistics-card'
 import ProviderCard from '../components/provider-card'
+import EmptyStateProviders from '../components/empty-state-providers'
 
 import {
   Database,
@@ -12,7 +13,6 @@ import {
   Server,
   Wrench,
   Key,
-  Cog,
   RefreshCw,
   Plus,
 } from 'lucide-react'
@@ -23,7 +23,6 @@ const PROVIDER_ICONS = {
   'Active Directory': Server,
   'Development LDAP': Wrench,
   'Legacy Kerberos': Key,
-  'Custom User Storage': Cog,
 }
 
 interface Provider {
@@ -37,55 +36,46 @@ interface Provider {
 }
 
 const PROVIDERS_DATA: Provider[] = [
-  {
-    name: 'Corporate LDAP',
-    type: 'LDAP',
-    status: 'active',
-    users: 1456,
-    lastSync: '5 minutes ago',
-    connection: 'ldap.company.local:389',
-    priority: 'Primary',
-  },
-  {
-    name: 'Active Directory',
-    type: 'LDAP',
-    status: 'active',
-    users: 892,
-    lastSync: '10 minutes ago',
-    connection: 'ad.company.com:636',
-    priority: 'Secondary',
-  },
-  {
-    name: 'Development LDAP',
-    type: 'LDAP',
-    status: 'syncing',
-    users: 234,
-    lastSync: 'Syncing now...',
-    connection: 'dev-ldap.local:389',
-    priority: 'Development',
-  },
-  {
-    name: 'Legacy Kerberos',
-    type: 'Kerberos',
-    status: 'inactive',
-    users: 156,
-    lastSync: '2 days ago',
-    connection: 'kerberos.legacy.local',
-    priority: 'Legacy',
-  },
-  {
-    name: 'Custom User Storage',
-    type: 'Custom',
-    status: 'active',
-    users: 109,
-    lastSync: '1 hour ago',
-    connection: 'api.users.company.com',
-    priority: 'Custom',
-  }
+  // {
+  //   name: 'Corporate LDAP',
+  //   type: 'LDAP',
+  //   status: 'active',
+  //   users: 1456,
+  //   lastSync: '5 minutes ago',
+  //   connection: 'ldap.company.local:389',
+  //   priority: 'Primary',
+  // },
+  // {
+  //   name: 'Active Directory',
+  //   type: 'LDAP',
+  //   status: 'active',
+  //   users: 892,
+  //   lastSync: '10 minutes ago',
+  //   connection: 'ad.company.com:636',
+  //   priority: 'Secondary',
+  // },
+  // {
+  //   name: 'Development LDAP',
+  //   type: 'LDAP',
+  //   status: 'syncing',
+  //   users: 234,
+  //   lastSync: 'Syncing now...',
+  //   connection: 'dev-ldap.local:389',
+  //   priority: 'Development',
+  // },
+  // {
+  //   name: 'Legacy Kerberos',
+  //   type: 'Kerberos',
+  //   status: 'inactive',
+  //   users: 156,
+  //   lastSync: '2 days ago',
+  //   connection: 'kerberos.legacy.local',
+  //   priority: 'Legacy',
+  // },
 ]
 
 interface PageOverviewProps {
-  onCreateProvider: () => void
+  onCreateProvider: (type?: 'LDAP' | 'Kerberos') => void
 }
 
 export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
@@ -159,19 +149,25 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
     })
   }, [filters])
 
+  if (PROVIDERS_DATA.length === 0) {
+    return (
+      <EmptyStateProviders onCreateProvider={onCreateProvider} />
+    )
+  }
+
   return (
     <div className='flex flex-col gap-6'>
       {/* Stats */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         <StatisticsCard
           title='Total Providers'
-          value={5}
-          description='3 active'
+          value={filteredProviders.length}
+          description={`${filteredProviders.filter(p => p.status === 'active').length} active`}
           icon={Database}
         />
         <StatisticsCard
           title='Federated Users'
-          value={2847}
+          value={filteredProviders.reduce((acc, p) => acc + p.users, 0)}
           description='From all providers'
           icon={Users}
         />
@@ -190,7 +186,7 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
           fields={filterFields}
           onChange={setFilters}
         />
-        <Button onClick={onCreateProvider}>
+        <Button onClick={() => onCreateProvider()}>
           <Plus className='h-4 w-4 mr-2' />
           Add Provider
         </Button>
