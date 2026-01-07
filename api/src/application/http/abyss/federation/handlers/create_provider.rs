@@ -1,7 +1,6 @@
 use axum::{
     Extension, Json,
     extract::{Path, State},
-    http::StatusCode,
 };
 use ferriskey_core::domain::{
     abyss::federation::{
@@ -16,8 +15,10 @@ use uuid::Uuid;
 
 use crate::application::http::{
     abyss::federation::dto::{CreateProviderRequest, ProviderResponse},
-    server::api_entities::api_error::ApiError,
-    server::app_state::AppState,
+    server::{
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
+    },
 };
 
 #[utoipa::path(
@@ -42,7 +43,7 @@ pub async fn create_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Json(payload): Json<CreateProviderRequest>,
-) -> Result<(StatusCode, Json<ProviderResponse>), ApiError> {
+) -> Result<Response<ProviderResponse>, ApiError> {
     // 1. Parse Enums
     let provider_type = match payload.provider_type.as_str() {
         "Ldap" => FederationType::Ldap,
@@ -78,6 +79,5 @@ pub async fn create_provider(
         .await
         .map_err(ApiError::from)?;
 
-    // 4. Response
-    Ok((StatusCode::CREATED, Json(ProviderResponse::from(provider))))
+    Ok(Response::Created(provider.into()))
 }

@@ -4,7 +4,7 @@ use axum::{
 };
 use ferriskey_core::domain::{
     abyss::federation::{
-        entities::{FederationProvider, FederationType, SyncMode},
+        entities::{FederationType, SyncMode},
         ports::FederationService,
         value_objects::UpdateProviderRequest as CoreUpdateProviderRequest,
     },
@@ -14,7 +14,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::application::http::{
-    abyss::federation::dto::UpdateProviderRequest,
+    abyss::federation::dto::{ProviderResponse, UpdateProviderRequest},
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
@@ -27,7 +27,7 @@ use crate::application::http::{
     summary = "Update a federation provider",
     request_body = UpdateProviderRequest,
     responses(
-        (status = 200, description = "Provider updated", body = FederationProvider),
+        (status = 200, description = "Provider updated", body = ProviderResponse),
         (status = 400, description = "Invalid input"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
@@ -44,7 +44,7 @@ pub async fn update_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Json(payload): Json<UpdateProviderRequest>,
-) -> Result<Response<FederationProvider>, ApiError> {
+) -> Result<Response<ProviderResponse>, ApiError> {
     let provider_type = payload.provider_type.map(|pt| match pt.as_str() {
         "Ldap" => FederationType::Ldap,
         "Kerberos" => FederationType::Kerberos,
@@ -89,5 +89,5 @@ pub async fn update_provider(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(provider))
+    Ok(Response::OK(provider.into()))
 }

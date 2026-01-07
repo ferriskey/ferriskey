@@ -3,14 +3,16 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::{
-    abyss::federation::{entities::FederationProvider, ports::FederationService},
-    authentication::value_objects::Identity,
+    abyss::federation::ports::FederationService, authentication::value_objects::Identity,
 };
 use uuid::Uuid;
 
-use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
-    app_state::AppState,
+use crate::application::http::{
+    abyss::federation::dto::ProviderResponse,
+    server::{
+        api_entities::{api_error::ApiError, response::Response},
+        app_state::AppState,
+    },
 };
 
 #[utoipa::path(
@@ -18,7 +20,7 @@ use crate::application::http::server::{
     path = "/federation/providers/{id}",
     summary = "Get Federation Provider Details",
     responses(
-        (status = 200, description = "Provider details", body = FederationProvider),
+        (status = 200, description = "Provider details", body = ProviderResponse),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Realm or Provider not found"),
@@ -33,12 +35,12 @@ pub async fn get_provider(
     Path((realm_name, id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<FederationProvider>, ApiError> {
+) -> Result<Response<ProviderResponse>, ApiError> {
     let provider = state
         .service
         .get_federation_provider(identity, id, realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(provider))
+    Ok(Response::OK(provider.into()))
 }
