@@ -20,6 +20,7 @@ import { fetcher } from './api'
 import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
 import { useTheme } from './components/theme-provider'
+import PageUserFederation from './pages/user-federation/page-user-federation'
 
 declare global {
   interface Window {
@@ -129,6 +130,7 @@ function App() {
             <Route path='realm-settings/*' element={<PageRealm />} />
             <Route path='seawatch/*' element={<PageSeawatch />} />
             <Route path='identity-providers/*' element={<PageIdentityProviders />} />
+            <Route path='user-federation/*' element={<PageUserFederation />} />
           </Route>
         </Route>
 

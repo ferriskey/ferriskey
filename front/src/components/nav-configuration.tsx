@@ -9,6 +9,7 @@ import {
 import { useNavigate, useParams } from 'react-router'
 import { REALM_SETTINGS_URL, RouterParams } from '@/routes/router'
 import { IDENTITY_PROVIDERS_OVERVIEW_URL } from '@/routes/sub-router/identity-providers.router'
+import { USER_FEDERATION_OVERVIEW_URL } from '@/routes/sub-router/user-federation.router'
 
 export function NavConfiguration() {
   const { realm_name } = useParams<RouterParams>()
@@ -40,6 +41,13 @@ export function NavConfiguration() {
           <SidebarMenuButton className='flex items-center gap-2 cursor-pointer'>
             <ScanFace />
             <span>Identity Providers</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem onClick={() => handleClick(`${USER_FEDERATION_OVERVIEW_URL(realm_name)}`)}>
+          <SidebarMenuButton className='flex items-center gap-2 cursor-pointer'>
+            <Folder />
+            <span>User Federation</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
