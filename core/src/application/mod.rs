@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     domain::{
+        abyss::federation::services::FederationServiceImpl,
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -19,6 +20,7 @@ use crate::{
         webhook::services::WebhookServiceImpl,
     },
     infrastructure::{
+        abyss::federation::repository::FederationRepositoryImpl,
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
@@ -50,6 +52,7 @@ use crate::{
 
 pub mod services;
 
+pub mod abyss;
 pub mod auth;
 pub mod client;
 pub mod credential;
@@ -96,6 +99,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
+    let federation = Arc::new(FederationRepositoryImpl::new(postgres.get_db()));
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -187,6 +191,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             identity_provider.clone(),
             policy.clone(),
             realm.clone(),
+        ),
+        federation_service: FederationServiceImpl::new(
+            realm.clone(),
+            federation.clone(),
+            policy.clone(),
         ),
     };
 

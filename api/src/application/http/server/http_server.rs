@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::application::http::abyss::routes::abyss_routes;
 use crate::application::http::authentication::router::authentication_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::realm::router::realm_routes;
@@ -114,6 +115,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
         .merge(seawatch_router(state.clone()))
+        .merge(abyss_routes(state.clone()))
         .merge(health_routes(&root_path))
         .route(
             &format!("{}/metrics", root_path),

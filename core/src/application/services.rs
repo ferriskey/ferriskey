@@ -18,6 +18,7 @@ use crate::{
         webhook::services::WebhookServiceImpl,
     },
     infrastructure::{
+        abyss::federation::repository::FederationRepositoryImpl,
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
@@ -63,6 +64,7 @@ type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
+type FederationRepo = FederationRepositoryImpl;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -140,6 +142,12 @@ pub struct ApplicationService {
         crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
         RealmRepo,
     >,
+    pub(crate) federation_service:
+        crate::domain::abyss::federation::services::FederationServiceImpl<
+            RealmRepo,
+            FederationRepo,
+            crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+        >,
 }
 
 impl CoreService for ApplicationService {
