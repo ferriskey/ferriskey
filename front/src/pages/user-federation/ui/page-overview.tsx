@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Filters, Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useState, useMemo } from 'react'
@@ -17,6 +16,7 @@ import {
   RefreshCw,
   Plus,
 } from 'lucide-react'
+import BlockContent from '@/components/ui/block-content'
 
 const PROVIDER_ICONS = {
   'Corporate LDAP': Building2,
@@ -197,40 +197,32 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
       </div>
 
       {/* Providers List */}
-      <Card>
-        <CardHeader>
-          <div className='flex items-center justify-between'>
-            <CardTitle>Federation Providers ({filteredProviders.length})</CardTitle>
-            <Button variant='outline' size='sm'>
-              <RefreshCw className='h-4 w-4 mr-2' />
-              Sync All
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-2'>
-            {filteredProviders.map((provider, index) => {
-              const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS]
+      <BlockContent title={`Federation Providers (${(filteredProviders.length)})`} headHeight='h-12' headRight={<Button variant='outline' size='sm'>
+        <RefreshCw className='h-4 w-4 mr-2' />
+        Sync All
+      </Button>}>
+        <div className='space-y-2'>
+          {filteredProviders.map((provider, index) => {
+            const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS]
 
-              return (
-                <ProviderCard
-                  key={index}
-                  name={provider.name}
-                  type={provider.type}
-                  status={provider.status}
-                  users={provider.users}
-                  lastSync={provider.lastSync}
-                  connection={provider.connection}
-                  priority={provider.priority}
-                  icon={Icon}
-                  onClick={() => console.log('Provider clicked:', provider.name)}
-                  onSettings={() => console.log('Settings clicked:', provider.name)}
-                />
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+            return (
+              <ProviderCard
+                key={index}
+                name={provider.name}
+                type={provider.type}
+                status={provider.status}
+                users={provider.users}
+                lastSync={provider.lastSync}
+                connection={provider.connection}
+                priority={provider.priority}
+                icon={Icon}
+                onClick={() => console.log('Provider clicked:', provider.name)}
+                onSettings={() => console.log('Settings clicked:', provider.name)}
+              />
+            )
+          })}
+        </div>
+      </BlockContent>
     </div>
   )
 }

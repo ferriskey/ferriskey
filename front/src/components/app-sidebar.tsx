@@ -28,11 +28,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { config } = useConfig()
 
   return (
-    <Sidebar variant='inset' collapsible='icon' {...props}>
+    <Sidebar variant='floating' collapsible='icon' {...props}>
       <SidebarHeader>
         <Link
           className={cn(
-            'flex items-center gap-3 cursor-pointer p-2',
+            'flex items-center gap-3 cursor-pointer py-2',
             state === 'expanded' && 'hover:bg-sidebar-accent/50 rounded-md transition-colors'
           )}
           to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
