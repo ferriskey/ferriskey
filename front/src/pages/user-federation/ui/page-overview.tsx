@@ -1,23 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Filters, Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useState, useMemo } from 'react'
+import StatisticsCard from '../components/statistics-card'
+import ProviderCard from '../components/provider-card'
 
 import {
   Database,
-  Settings,
   Users,
   CheckCircle,
-  Clock,
   Building2,
   Server,
   Wrench,
   Key,
   Cog,
   RefreshCw,
-  ChevronRight,
-  CircleDot,
+  Plus,
 } from 'lucide-react'
 
 const PROVIDER_ICONS = {
@@ -31,7 +29,7 @@ const PROVIDER_ICONS = {
 interface Provider {
   name: string
   type: string
-  status: string
+  status: 'active' | 'syncing' | 'inactive'
   users: number
   lastSync: string
   connection: string
@@ -86,7 +84,11 @@ const PROVIDERS_DATA: Provider[] = [
   }
 ]
 
-export default function PageOverview() {
+interface PageOverviewProps {
+  onCreateProvider: () => void
+}
+
+export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
   const [filters, setFilters] = useState<Filter[]>([])
 
   const filterFields: FilterFieldsConfig = [
@@ -161,46 +163,38 @@ export default function PageOverview() {
     <div className='flex flex-col gap-6'>
       {/* Stats */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Total Providers</CardTitle>
-            <Database className='h-4 w-4 text-muted-foreground' />
-          </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold'>5</div>
-            <p className='text-xs text-muted-foreground'>3 active</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Federated Users</CardTitle>
-            <Users className='h-4 w-4 text-muted-foreground' />
-          </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold'>2,847</div>
-            <p className='text-xs text-muted-foreground'>From all providers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-            <CardTitle className='text-sm font-medium'>Success Rate</CardTitle>
-            <CheckCircle className='h-4 w-4 text-muted-foreground' />
-          </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold'>98.5%</div>
-            <p className='text-xs text-muted-foreground'>Last 7 days</p>
-          </CardContent>
-        </Card>
+        <StatisticsCard
+          title='Total Providers'
+          value={5}
+          description='3 active'
+          icon={Database}
+        />
+        <StatisticsCard
+          title='Federated Users'
+          value={2847}
+          description='From all providers'
+          icon={Users}
+        />
+        <StatisticsCard
+          title='Success Rate'
+          value={98.5}
+          description='Last 7 days'
+          icon={CheckCircle}
+        />
       </div>
 
-      {/* Filters */}
-      <Filters
-        filters={filters}
-        fields={filterFields}
-        onChange={setFilters}
-      />
+      {/* Filters and Actions */}
+      <div className='flex items-center justify-between gap-4'>
+        <Filters
+          filters={filters}
+          fields={filterFields}
+          onChange={setFilters}
+        />
+        <Button onClick={onCreateProvider}>
+          <Plus className='h-4 w-4 mr-2' />
+          Add Provider
+        </Button>
+      </div>
 
       {/* Providers List */}
       <Card>
@@ -219,66 +213,19 @@ export default function PageOverview() {
               const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS]
 
               return (
-                <div
+                <ProviderCard
                   key={index}
-                  className='group flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-all cursor-pointer'
-                >
-                  {/* Icon */}
-                  <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0'>
-                    <Icon className='h-5 w-5 text-primary' />
-                  </div>
-
-                  {/* Main Info */}
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex items-center gap-2 mb-1'>
-                      <h4 className='font-medium text-sm'>{provider.name}</h4>
-                      <Badge variant='outline' className='text-xs'>
-                        {provider.type}
-                      </Badge>
-                      <Badge variant='outline' className='text-xs'>
-                        {provider.priority}
-                      </Badge>
-                    </div>
-                    <div className='flex items-center gap-3 text-xs text-muted-foreground'>
-                      <span className='flex items-center gap-1'>
-                        <Server className='h-3 w-3' />
-                        {provider.connection}
-                      </span>
-                      <span className='flex items-center gap-1'>
-                        <Users className='h-3 w-3' />
-                        {provider.users.toLocaleString()} users
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div className='flex items-center gap-3 shrink-0'>
-                    <div className='flex items-center gap-2'>
-                      <CircleDot className={`h-3 w-3 ${
-                        provider.status === 'active' ? 'text-green-500 fill-green-500' :
-                        provider.status === 'syncing' ? 'text-blue-500 fill-blue-500 animate-pulse' :
-                        'text-gray-400 fill-gray-400'
-                      }`} />
-                      <span className='text-xs text-muted-foreground capitalize'>{provider.status}</span>
-                    </div>
-                    <div className='flex items-center gap-1 text-xs text-muted-foreground'>
-                      <Clock className='h-3 w-3' />
-                      {provider.lastSync}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className='flex items-center gap-1 shrink-0'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='opacity-0 group-hover:opacity-100 transition-opacity'
-                    >
-                      <Settings className='h-4 w-4' />
-                    </Button>
-                    <ChevronRight className='h-4 w-4 text-muted-foreground' />
-                  </div>
-                </div>
+                  name={provider.name}
+                  type={provider.type}
+                  status={provider.status}
+                  users={provider.users}
+                  lastSync={provider.lastSync}
+                  connection={provider.connection}
+                  priority={provider.priority}
+                  icon={Icon}
+                  onClick={() => console.log('Provider clicked:', provider.name)}
+                  onSettings={() => console.log('Settings clicked:', provider.name)}
+                />
               )
             })}
           </div>
