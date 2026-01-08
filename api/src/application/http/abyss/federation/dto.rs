@@ -122,3 +122,8 @@ impl From<FederationProvider> for ProviderResponse {
         }
     }
 }
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ListProvidersResponse {
+    pub data: Vec<ProviderResponse>,
+}

@@ -35,50 +35,13 @@ interface Provider {
   priority: string
 }
 
-const PROVIDERS_DATA: Provider[] = [
-  // {
-  //   name: 'Corporate LDAP',
-  //   type: 'LDAP',
-  //   status: 'active',
-  //   users: 1456,
-  //   lastSync: '5 minutes ago',
-  //   connection: 'ldap.company.local:389',
-  //   priority: 'Primary',
-  // },
-  // {
-  //   name: 'Active Directory',
-  //   type: 'LDAP',
-  //   status: 'active',
-  //   users: 892,
-  //   lastSync: '10 minutes ago',
-  //   connection: 'ad.company.com:636',
-  //   priority: 'Secondary',
-  // },
-  // {
-  //   name: 'Development LDAP',
-  //   type: 'LDAP',
-  //   status: 'syncing',
-  //   users: 234,
-  //   lastSync: 'Syncing now...',
-  //   connection: 'dev-ldap.local:389',
-  //   priority: 'Development',
-  // },
-  // {
-  //   name: 'Legacy Kerberos',
-  //   type: 'Kerberos',
-  //   status: 'inactive',
-  //   users: 156,
-  //   lastSync: '2 days ago',
-  //   connection: 'kerberos.legacy.local',
-  //   priority: 'Legacy',
-  // },
-]
-
 interface PageOverviewProps {
   onCreateProvider: (type?: 'LDAP' | 'Kerberos') => void
+  providers?: Provider[]
+  isLoading?: boolean
 }
 
-export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
+export default function PageOverview({ onCreateProvider, providers = [], isLoading }: PageOverviewProps) {
   const [filters, setFilters] = useState<Filter[]>([])
 
   const filterFields: FilterFieldsConfig = [
@@ -122,9 +85,9 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
   ]
 
   const filteredProviders = useMemo(() => {
-    if (filters.length === 0) return PROVIDERS_DATA
+    if (filters.length === 0) return providers
 
-    return PROVIDERS_DATA.filter((provider) => {
+    return providers.filter((provider) => {
       return filters.every((filter) => {
         const fieldValue = provider[filter.field as keyof Provider]
         const filterValues = filter.values
@@ -147,9 +110,13 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
         }
       })
     })
-  }, [filters])
+  }, [filters, providers])
 
-  if (PROVIDERS_DATA.length === 0) {
+  if (isLoading) {
+    return <div className='p-4 text-center'>Loading providers...</div>
+  }
+
+  if (providers.length === 0) {
     return (
       <EmptyStateProviders onCreateProvider={onCreateProvider} />
     )
@@ -186,7 +153,7 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
           fields={filterFields}
           onChange={setFilters}
         />
-        <Button onClick={() => onCreateProvider()}>
+        <Button onClick={() => onCreateProvider('LDAP')}>
           <Plus className='h-4 w-4 mr-2' />
           Add Provider
         </Button>
@@ -199,7 +166,7 @@ export default function PageOverview({ onCreateProvider }: PageOverviewProps) {
       </Button>}>
         <div className='space-y-2'>
           {filteredProviders.map((provider, index) => {
-            const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS]
+            const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS] || Database
 
             return (
               <ProviderCard

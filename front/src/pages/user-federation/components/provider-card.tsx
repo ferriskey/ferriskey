@@ -82,17 +82,7 @@ export default function ProviderCard({
 
       {/* Status */}
       <div className='flex items-center gap-3 shrink-0'>
-        <div className='flex items-center gap-2'>
-          <CircleDot
-            className={`h-3 w-3 ${status === 'active'
-              ? 'text-green-500 fill-green-500'
-              : status === 'syncing'
-                ? 'text-blue-500 fill-blue-500 animate-pulse'
-                : 'text-gray-400 fill-gray-400'
-              }`}
-          />
-          <span className='text-xs text-muted-foreground capitalize'>{status}</span>
-        </div>
+
         <div className='flex items-center gap-1 text-xs text-muted-foreground'>
           <Clock className='h-3 w-3' />
           {lastSync}
