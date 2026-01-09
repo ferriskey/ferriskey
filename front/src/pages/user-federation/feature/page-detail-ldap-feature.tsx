@@ -8,59 +8,57 @@ import { createLdapProviderSchema, CreateLdapProviderSchema } from '../schemas/l
 import { Form } from '@/components/ui/form'
 import LdapFormUi from '../ui/ldap-form-ui'
 import { useGetUserFederation, useUpdateUserFederation } from '@/api/user-federation.api'
-import { useEffect } from 'react'
+import { useFormChanges } from '@/hooks/use-form-changes'
+import { Schemas } from '@/api/api.client'
 
-export default function PageDetailLdapFeature() {
+interface LdapConfig {
+  connectionUrl?: string
+  baseDn?: string
+  bindDn?: string
+  bindPassword?: string
+  userSearchFilter?: string
+  useTls?: boolean
+}
+
+const mapPriority = (p: number) => {
+  if (p === 0) return 'Primary'
+  if (p === 10) return 'Secondary'
+  if (p === 20) return 'Development'
+  return 'Legacy'
+}
+
+interface LdapDetailFormProps {
+  providerData: Schemas.ProviderResponse
+  realm_name: string
+  id: string
+}
+
+function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
   const navigate = useNavigate()
-  const { realm_name, id } = useParams<RouterParams & { id: string }>()
-  const { data: providerData, isLoading } = useGetUserFederation(realm_name || '', id || '')
   const { mutateAsync: updateProvider } = useUpdateUserFederation()
+
+  const config = providerData.config as LdapConfig
+  const defaultValues: CreateLdapProviderSchema = {
+    type: 'LDAP',
+    name: providerData.name,
+    priority: mapPriority(providerData.priority) as 'Primary' | 'Secondary' | 'Development' | 'Legacy',
+    enabled: providerData.enabled,
+    connectionUrl: config?.connectionUrl || '',
+    baseDn: config?.baseDn || '',
+    bindDn: config?.bindDn || '',
+    bindPassword: config?.bindPassword || '',
+    userSearchFilter: config?.userSearchFilter || '(objectClass=person)',
+    syncInterval: (providerData.sync_interval_minutes || 60) * 60,
+    useTls: config?.useTls || false,
+  }
 
   const form = useForm<CreateLdapProviderSchema>({
     resolver: zodResolver(createLdapProviderSchema),
     mode: 'onChange',
-    defaultValues: {
-      type: 'LDAP',
-      name: '',
-      priority: 'Secondary',
-      enabled: true,
-      connectionUrl: '',
-      baseDn: '',
-      bindDn: '',
-      bindPassword: '',
-      userSearchFilter: '(objectClass=person)',
-      syncInterval: 3600,
-      useTls: false,
-    },
+    defaultValues,
   })
 
-  useEffect(() => {
-    if (providerData) {
-      const provider = providerData
-      const config = provider.config as Record<string, unknown>
-
-      const mapPriority = (p: number) => {
-        if (p === 0) return 'Primary'
-        if (p === 10) return 'Secondary'
-        if (p === 20) return 'Development'
-        return 'Legacy'
-      }
-
-      form.reset({
-        type: 'LDAP',
-        name: provider.name,
-        priority: mapPriority(provider.priority) as 'Primary' | 'Secondary' | 'Development' | 'Legacy',
-        enabled: provider.enabled,
-        connectionUrl: (config?.connectionUrl as string) || '',
-        baseDn: (config?.baseDn as string) || '',
-        bindDn: (config?.bindDn as string) || '',
-        bindPassword: (config?.bindPassword as string) || '',
-        userSearchFilter: (config?.userSearchFilter as string) || '(objectClass=person)',
-        syncInterval: (provider.sync_interval_minutes || 60) * 60,
-        useTls: (config?.useTls as boolean) || false,
-      })
-    }
-  }, [providerData, form])
+  const hasChanges = useFormChanges(form, defaultValues)
 
   const handleTypeChange = (newType: 'LDAP' | 'Kerberos') => {
     if (newType === 'Kerberos') {
@@ -104,14 +102,6 @@ export default function PageDetailLdapFeature() {
     }
   }
 
-  if (isLoading) {
-    return <div className='p-4 text-center'>Loading provider...</div>
-  }
-
-  if (!providerData) {
-    return <div className='p-4 text-center'>Provider not found</div>
-  }
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -121,8 +111,24 @@ export default function PageDetailLdapFeature() {
           handleSubmit={form.handleSubmit(handleSubmit)}
           onTypeChange={handleTypeChange}
           isEditMode={true}
+          hasChanges={hasChanges}
         />
       </form>
     </Form>
   )
+}
+
+export default function PageDetailLdapFeature() {
+  const { realm_name, id } = useParams<RouterParams & { id: string }>()
+  const { data: providerData, isLoading } = useGetUserFederation(realm_name || '', id || '')
+
+  if (isLoading) {
+    return <div className='p-4 text-center'>Loading provider...</div>
+  }
+
+  if (!providerData) {
+    return <div className='p-4 text-center'>Provider not found</div>
+  }
+
+  return <LdapDetailForm providerData={providerData} realm_name={realm_name || ''} id={id || ''} />
 }

@@ -26,6 +26,7 @@ interface LdapFormUiProps {
   handleSubmit: () => void
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
   isEditMode?: boolean
+  hasChanges?: boolean
 }
 
 export default function LdapFormUi({
@@ -34,6 +35,7 @@ export default function LdapFormUi({
   handleSubmit,
   onTypeChange,
   isEditMode = false,
+  hasChanges = false,
 }: LdapFormUiProps) {
   const providerTypes = [
     {
@@ -163,7 +165,7 @@ export default function LdapFormUi({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className='bg-white'>
                       <SelectValue placeholder='Select priority' />
@@ -316,7 +318,7 @@ export default function LdapFormUi({
       </BlockContent>
 
       <FloatingActionBar
-        show={form.formState.isValid}
+        show={isEditMode ? (hasChanges && form.formState.isValid) : form.formState.isValid}
         title={isEditMode ? 'Update Provider' : 'Create Provider'}
         description={isEditMode
           ? 'Update the provider configuration to apply changes.'
