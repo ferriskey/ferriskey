@@ -1,7 +1,7 @@
 import { UseFormReturn } from 'react-hook-form'
 import { CreateLdapProviderSchema } from '../schemas/ldap-provider.schema'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, CheckCircle, Server, Key } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Server, Key, Plug } from 'lucide-react'
 import { Heading } from '@/components/ui/heading'
 import BlockContent from '@/components/ui/block-content'
 import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
@@ -25,6 +25,8 @@ interface LdapFormUiProps {
   handleBack: () => void
   handleSubmit: () => void
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
+  onTestConnection?: () => void
+  isTestingConnection?: boolean
   isEditMode?: boolean
   hasChanges?: boolean
 }
@@ -34,6 +36,8 @@ export default function LdapFormUi({
   handleBack,
   handleSubmit,
   onTypeChange,
+  onTestConnection,
+  isTestingConnection = false,
   isEditMode = false,
   hasChanges = false,
 }: LdapFormUiProps) {
@@ -249,12 +253,19 @@ export default function LdapFormUi({
               control={form.control}
               name='bindPassword'
               render={({ field }) => (
-                <InputText
-                  label='Bind Password'
-                  type='password'
-                  error={form.formState.errors.bindPassword?.message}
-                  {...field}
-                />
+                <div className='space-y-2'>
+                  <InputText
+                    label='Bind Password'
+                    type='password'
+                    error={form.formState.errors.bindPassword?.message}
+                    {...field}
+                  />
+                  {isEditMode && (
+                    <p className='text-xs text-muted-foreground'>
+                      Leave empty to keep the existing password
+                    </p>
+                  )}
+                </div>
               )}
             />
           </div>
@@ -279,6 +290,20 @@ export default function LdapFormUi({
               </FormItem>
             )}
           />
+
+          {isEditMode && onTestConnection && (
+            <div className='flex justify-end pt-2'>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={onTestConnection}
+                disabled={isTestingConnection}
+              >
+                <Plug className='h-4 w-4 mr-2' />
+                {isTestingConnection ? 'Testing...' : 'Test Connection'}
+              </Button>
+            </div>
+          )}
         </div>
       </BlockContent>
 

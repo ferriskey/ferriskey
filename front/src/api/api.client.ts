@@ -286,6 +286,11 @@ export namespace Schemas {
     updated_at: string
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
+  export type TestConnectionResponse = {
+    success: boolean
+    message: string
+    details?: (unknown | null) | undefined
+  }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
@@ -613,6 +618,15 @@ export namespace Endpoints {
       path: { realm_name: string; id: string }
     }
     response: Schemas.DeleteProviderResponse
+  }
+  export type post_Test_connection = {
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers/{id}/test-connection'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; id: string }
+    }
+    response: Schemas.TestConnectionResponse
   }
   export type post_Authenticate = {
     method: 'POST'
@@ -1009,6 +1023,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
+    '/realms/{realm_name}/federation/providers/{id}/test-connection': Endpoints.post_Test_connection
     '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp

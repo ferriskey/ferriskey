@@ -104,3 +104,13 @@ export const useDeleteUserFederation = () => {
     },
   })
 }
+
+export const useTestUserFederationConnection = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/federation/providers/{id}/test-connection',
+      async (res) => res.json()
+    ).mutationOptions,
+  })
+}

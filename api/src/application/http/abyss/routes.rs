@@ -6,6 +6,7 @@ use crate::application::{
             delete_provider::{__path_delete_provider, delete_provider},
             get_provider::{__path_get_provider, get_provider},
             list_providers::{__path_list_providers, list_providers},
+            test_connection::{__path_test_connection, test_connection},
             update_provider::{__path_update_provider, update_provider},
         },
         server::app_state::AppState,
@@ -24,7 +25,8 @@ use utoipa::OpenApi;
         get_provider,
         update_provider,
         delete_provider,
-        list_providers
+        list_providers,
+        test_connection
     ),
 
     tags(
@@ -45,5 +47,9 @@ pub fn abyss_routes(state: AppState) -> Router<AppState> {
         .route(&format!("{}/{{id}}", root_path), get(get_provider))
         .route(&format!("{}/{{id}}", root_path), put(update_provider))
         .route(&format!("{}/{{id}}", root_path), delete(delete_provider))
+        .route(
+            &format!("{}/{{id}}/test-connection", root_path),
+            post(test_connection),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

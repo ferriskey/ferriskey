@@ -1,4 +1,6 @@
-use ferriskey_core::domain::abyss::federation::entities::FederationProvider;
+use ferriskey_core::domain::abyss::federation::{
+    entities::FederationProvider, value_objects::TestConnectionResult,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -126,4 +128,22 @@ impl From<FederationProvider> for ProviderResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ListProvidersResponse {
     pub data: Vec<ProviderResponse>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestConnectionResponse {
+    pub success: bool,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+}
+
+impl From<TestConnectionResult> for TestConnectionResponse {
+    fn from(result: TestConnectionResult) -> Self {
+        Self {
+            success: result.success,
+            message: result.message,
+            details: result.details,
+        }
+    }
 }
