@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::domain::{
     abyss::federation::ports::FederationPolicy,
     authentication::value_objects::Identity,
@@ -65,6 +67,8 @@ where
         let permissions = self
             .get_permission_for_target_realm(&user, &target_realm)
             .await?;
+
+        info!("permissions: {:?}", permissions);
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),

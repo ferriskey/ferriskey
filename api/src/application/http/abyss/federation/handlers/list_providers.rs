@@ -8,7 +8,7 @@ use ferriskey_core::domain::{
 };
 
 use crate::application::http::{
-    abyss::federation::dto::ProviderResponse,
+    abyss::federation::dto::ListProvidersResponse,
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
@@ -20,7 +20,7 @@ use crate::application::http::{
     path = "/federation/providers",
     summary = "List federation providers in a realm",
     responses(
-        (status = 200, description = "List of providers", body = Vec<ProviderResponse>),
+        (status = 200, description = "List of providers", body = ListProvidersResponse),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Realm not found"),
@@ -34,17 +34,17 @@ pub async fn list_providers(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<Vec<ProviderResponse>>, ApiError> {
+) -> Result<Response<ListProvidersResponse>, ApiError> {
     let providers = state
         .service
         .list_federation_providers(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(
-        providers
+    Ok(Response::OK(ListProvidersResponse {
+        data: providers
             .into_iter()
             .map(FederationProvider::into)
             .collect(),
-    ))
+    }))
 }

@@ -34,20 +34,16 @@ use utoipa::OpenApi;
 pub struct AbyssApiDoc;
 
 pub fn abyss_routes(state: AppState) -> Router<AppState> {
-    let path = format!(
-        "{}/realms/{{realm_name}}/federation",
+    let root_path = format!(
+        "{}/realms/{{realm_name}}/federation/providers",
         state.args.server.root_path
     );
-    Router::new()
-        .nest(&path, federation_routes())
-        .layer(middleware::from_fn_with_state(state.clone(), auth))
-}
 
-fn federation_routes() -> Router<AppState> {
     Router::new()
-        .route("/providers", post(create_provider))
-        .route("/providers", get(list_providers))
-        .route("/providers/{{id}}", get(get_provider))
-        .route("/providers/{{id}}", put(update_provider))
-        .route("/providers/{{id}}", delete(delete_provider))
+        .route(&root_path, post(create_provider))
+        .route(&root_path, get(list_providers))
+        .route(&format!("{}/{{id}}", root_path), get(get_provider))
+        .route(&format!("{}/{{id}}", root_path), put(update_provider))
+        .route(&format!("{}/{{id}}", root_path), delete(delete_provider))
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

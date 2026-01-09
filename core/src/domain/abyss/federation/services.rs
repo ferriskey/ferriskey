@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tracing::instrument;
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 use crate::domain::abyss::federation::entities::{FederationProvider, FederationType, SyncMode};
@@ -165,8 +165,11 @@ where
             .ok_or(CoreError::NotFound)?;
 
         if provider.realm_id != Into::<Uuid>::into(realm.id) {
+            error!("Provider realm ID does not match requested realm");
             return Err(CoreError::NotFound);
         }
+
+        info!("try deleting federation provider with ID: {}", id);
 
         ensure_policy(
             self.policy

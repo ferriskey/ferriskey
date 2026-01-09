@@ -9,6 +9,7 @@ use ferriskey_core::domain::{
     authentication::entities::AuthenticationError, webhook::entities::errors::WebhookError,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -16,13 +17,13 @@ pub struct ApiErrorData {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ValidationError {
     pub message: String,
     pub field: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ToSchema)]
 pub enum ApiError {
     InternalServerError(String),
     UnProcessableEntity(Vec<ValidationError>),

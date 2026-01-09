@@ -1,6 +1,15 @@
 export namespace Schemas {
   // <Schemas>
   export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
+  export type ValidationError = { field: string; message: string }
+  export type ApiError =
+    | { InternalServerError: string }
+    | { UnProcessableEntity: Array<ValidationError> }
+    | { NotFound: string }
+    | { Unauthorized: string }
+    | { Forbidden: string }
+    | { BadRequest: string }
+    | { ServiceUnavailable: string }
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>
@@ -181,6 +190,7 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
+  export type DeleteProviderResponse = { message: string }
   export type DeleteRealmResponse = string
   export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
   export type DeleteUserCredentialResponse = {
@@ -191,19 +201,6 @@ export namespace Schemas {
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
   export type EventStatus = 'success' | 'failure'
-  export type FederationType = 'Ldap' | 'Kerberos' | 'ActiveDirectory' | { Custom: string }
-  export type FederationProvider = {
-    config: unknown
-    created_at: string
-    enabled: boolean
-    id: string
-    name: string
-    priority: number
-    provider_type: FederationType
-    realm_id: string
-    sync_settings: unknown
-    updated_at: string
-  }
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = {
@@ -272,7 +269,6 @@ export namespace Schemas {
     refresh_token: string
     token_type: string
   }
-  export type OtpVerifyRequest = { code: string; label: string; secret: string }
   export type ProviderResponse = {
     config: unknown
     created_at: string
@@ -289,6 +285,8 @@ export namespace Schemas {
     sync_mode: string
     updated_at: string
   }
+  export type ListProvidersResponse = { data: Array<ProviderResponse> }
+  export type OtpVerifyRequest = { code: string; label: string; secret: string }
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
@@ -574,7 +572,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Array<Schemas.FederationProvider>
+    response: Schemas.ListProvidersResponse
   }
   export type post_Create_provider = {
     method: 'POST'
@@ -594,7 +592,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: Schemas.FederationProvider
+    response: Schemas.ProviderResponse
   }
   export type put_Update_provider = {
     method: 'PUT'
@@ -605,7 +603,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateProviderRequest
     }
-    response: Schemas.FederationProvider
+    response: Schemas.ProviderResponse
   }
   export type delete_Delete_provider = {
     method: 'DELETE'
@@ -614,7 +612,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: unknown
+    response: Schemas.DeleteProviderResponse
   }
   export type post_Authenticate = {
     method: 'POST'
