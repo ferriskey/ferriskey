@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use ldap3::{Ldap, LdapConnAsync, Scope, SearchEntry, SearchResult};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use ldap3::{Ldap, LdapConnAsync, LdapConnSettings, Scope, SearchEntry, SearchResult};
 use serde::Deserialize;
 use tokio::time::timeout;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::domain::abyss::federation::entities::{FederatedUser, FederationProvider};
 use crate::domain::abyss::federation::value_objects::TestConnectionResult;
@@ -55,6 +57,10 @@ struct LdapAttributes {
     email: String,
     first_name: String,
     last_name: String,
+    /// Field to use as external_id (e.g., "entryUUID" for OpenLDAP, "objectGUID" for AD)
+    /// If None, will fall back to using DN
+    #[serde(default)]
+    external_id_attribute: Option<String>,
 }
 
 impl LdapClientImpl {
@@ -62,6 +68,26 @@ impl LdapClientImpl {
     fn parse_config(provider: &FederationProvider) -> Result<LdapConfig, CoreError> {
         serde_json::from_value(provider.config.clone())
             .map_err(|e| CoreError::Configuration(format!("Invalid LDAP config: {}", e)))
+    }
+
+    /// Decrypt the encrypted bind password
+    /// TODO: Integrate with a proper encryption service (e.g., KMS, Vault)
+    #[allow(dead_code)]
+    fn decrypt_password(encrypted: &str) -> Result<String, CoreError> {
+        // Placeholder: In production, call your encryption service
+        // For now, assume the password is base64 encoded or plaintext
+        tracing::warn!("Using placeholder password decryption - implement proper KMS integration");
+
+        // Try base64 decode as a simple obfuscation
+        match BASE64_STANDARD.decode(encrypted) {
+            Ok(decoded) => String::from_utf8(decoded)
+                .map_err(|e| CoreError::Configuration(format!("Invalid password encoding: {}", e))),
+            Err(_) => {
+                // If not base64, assume plaintext (for development only!)
+                tracing::warn!("Password not base64 encoded, using as plaintext");
+                Ok(encrypted.to_string())
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -100,18 +126,23 @@ impl LdapClientImpl {
 
         let timeout_duration = Duration::from_secs(config.connection.connection_timeout_seconds);
 
-        let (conn, ldap) = timeout(timeout_duration, LdapConnAsync::new(&url))
-            .await
-            .map_err(|_| CoreError::External("LDAP Connection timeout".to_string()))?
-            .map_err(|e| CoreError::External(format!("LDAP Connection failed: {}", e)))?;
+        // Configure connection settings for StartTLS
+        let settings = if config.connection.use_starttls {
+            LdapConnSettings::new().set_starttls(true)
+        } else {
+            LdapConnSettings::new()
+        };
 
-        if config.connection.use_starttls {
-            // TODO: Implement StartTLS (method not found on Ldap struct in this version?)
-            // let mut ldap_inner = ldap.clone();
-            // ldap_inner.start_tls()
-            //    .await
-            //    .map_err(|e| CoreError::External(format!("LDAP StartTLS failed: {}", e)))?;
-        }
+        let (conn, ldap) = timeout(
+            timeout_duration,
+            LdapConnAsync::with_settings(settings, &url),
+        )
+        .await
+        .map_err(|_| CoreError::External("LDAP Connection timeout".to_string()))?
+        .map_err(|e| CoreError::External(format!("LDAP Connection failed: {}", e)))?;
+
+        // StartTLS is handled by the connection settings
+        // The ldap3 crate will automatically negotiate TLS if set_starttls(true) is used
 
         ldap3::drive!(conn);
 
@@ -124,10 +155,10 @@ impl LdapClientImpl {
         let mut ldap = self.connect(provider).await?;
         let config = Self::parse_config(provider)?;
 
-        // TODO: Decrypt password
-        let password = &config.bind.bind_password_encrypted;
+        // Decrypt the password before using it
+        let password = Self::decrypt_password(&config.bind.bind_password_encrypted)?;
 
-        ldap.simple_bind(&config.bind.bind_dn, password)
+        ldap.simple_bind(&config.bind.bind_dn, &password)
             .await
             .map_err(|e| CoreError::External(format!("LDAP Bind failed: {}", e)))?;
 
@@ -274,9 +305,8 @@ impl LdapClientImpl {
         };
 
         // 2. Test Bind
-        // TODO: Decrypt
-        let password = &config.bind.bind_password_encrypted;
-        if let Err(e) = ldap.simple_bind(&config.bind.bind_dn, password).await {
+        let password = Self::decrypt_password(&config.bind.bind_password_encrypted)?;
+        if let Err(e) = ldap.simple_bind(&config.bind.bind_dn, &password).await {
             return Ok(TestConnectionResult {
                 success: false,
                 message: format!("Failed to bind: {}", e),
@@ -348,13 +378,28 @@ impl LdapClientImpl {
         let first_name = get_attr(&attributes.first_name);
         let last_name = get_attr(&attributes.last_name);
 
+        // Determine external_id based on configuration
+        let external_id = if let Some(ref id_attr) = attributes.external_id_attribute {
+            // Try to use configured attribute (e.g., entryUUID, objectGUID)
+            get_attr(id_attr).unwrap_or_else(|| {
+                warn!(
+                    "Configured external_id attribute '{}' not found, falling back to DN",
+                    id_attr
+                );
+                entry.dn.clone()
+            })
+        } else {
+            // Default to DN if no specific attribute is configured
+            entry.dn.clone()
+        };
+
         let mut all_attributes = HashMap::new();
         for (k, v) in &entry.attrs {
             all_attributes.insert(k.clone(), v.clone());
         }
 
         Ok(FederatedUser {
-            external_id: entry.dn.clone(), // Using DN as external ID for now
+            external_id,
             username,
             email,
             first_name,

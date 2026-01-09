@@ -40,9 +40,17 @@ pub struct TestConnectionResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncResult {
-    pub users_found: u32,
+    pub total_processed: u32,
     pub created: u32,
     pub updated: u32,
+    pub disabled: u32,
     pub failed: u32,
-    pub errors: Vec<String>,
+    pub errors: Vec<SyncError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncError {
+    pub username: Option<String>,
+    pub external_id: String,
+    pub error: String,
 }

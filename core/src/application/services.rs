@@ -147,6 +147,7 @@ pub struct ApplicationService {
             RealmRepo,
             FederationRepo,
             crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+            UserRepo,
         >,
 }
 
