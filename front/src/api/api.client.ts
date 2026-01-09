@@ -1,6 +1,15 @@
 export namespace Schemas {
   // <Schemas>
   export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
+  export type ValidationError = { field: string; message: string }
+  export type ApiError =
+    | { InternalServerError: string }
+    | { UnProcessableEntity: Array<ValidationError> }
+    | { NotFound: string }
+    | { Unauthorized: string }
+    | { Forbidden: string }
+    | { BadRequest: string }
+    | { ServiceUnavailable: string }
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>
@@ -181,6 +190,7 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
+  export type DeleteProviderResponse = { message: string }
   export type DeleteRealmResponse = string
   export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
   export type DeleteUserCredentialResponse = {
@@ -602,7 +612,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: unknown
+    response: Schemas.DeleteProviderResponse
   }
   export type post_Authenticate = {
     method: 'POST'

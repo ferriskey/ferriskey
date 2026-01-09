@@ -1,6 +1,7 @@
 use chrono::Utc;
 use sea_orm::*;
 use serde::Deserialize;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::abyss::federation::entities::{
@@ -210,6 +211,7 @@ impl FederationRepository for FederationRepositoryImpl {
             .exec(&self.db)
             .await
             .map_err(|e| {
+                error!("Failed to delete federation provider: {}", e);
                 CoreError::Database(format!("Failed to delete federation provider: {}", e))
             })?;
         Ok(())

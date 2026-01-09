@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleDot,
   LucideIcon,
+  Trash2,
 } from 'lucide-react'
 
 interface ProviderCardProps {
@@ -21,6 +22,7 @@ interface ProviderCardProps {
   icon: LucideIcon
   onClick?: () => void
   onSettings?: () => void
+  onDelete?: () => void
 }
 
 export default function ProviderCard({
@@ -34,6 +36,7 @@ export default function ProviderCard({
   icon: Icon,
   onClick,
   onSettings,
+  onDelete,
 }: ProviderCardProps) {
   return (
     <div
@@ -101,6 +104,17 @@ export default function ProviderCard({
           className='opacity-0 group-hover:opacity-100 transition-opacity'
         >
           <Settings className='h-4 w-4' />
+        </Button>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete?.()
+          }}
+          className='opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive'
+        >
+          <Trash2 className='h-4 w-4' />
         </Button>
         <ChevronRight className='h-4 w-4 text-muted-foreground' />
       </div>

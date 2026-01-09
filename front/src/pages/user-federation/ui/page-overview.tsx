@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import StatisticsCard from '../components/statistics-card'
 import ProviderCard from '../components/provider-card'
 import EmptyStateProviders from '../components/empty-state-providers'
+import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 
 import {
   Database,
@@ -26,6 +27,7 @@ const PROVIDER_ICONS = {
 }
 
 interface Provider {
+  id: string
   name: string
   type: string
   status: 'active' | 'syncing' | 'inactive'
@@ -35,13 +37,24 @@ interface Provider {
   priority: string
 }
 
-interface PageOverviewProps {
-  onCreateProvider: (type?: 'LDAP' | 'Kerberos') => void
-  providers?: Provider[]
-  isLoading?: boolean
+interface ConfirmState {
+  title: string
+  description: string
+  open: boolean
+  onConfirm: () => void
 }
 
-export default function PageOverview({ onCreateProvider, providers = [], isLoading }: PageOverviewProps) {
+interface PageOverviewProps {
+  onCreateProvider: (type?: 'LDAP' | 'Kerberos') => void
+  onDeleteProvider: (id: string) => void
+  onViewProvider: (id: string, type: string) => void
+  providers?: Provider[]
+  isLoading?: boolean
+  confirm: ConfirmState
+  onConfirmClose: () => void
+}
+
+export default function PageOverview({ onCreateProvider, onDeleteProvider, onViewProvider, providers = [], isLoading, confirm, onConfirmClose }: PageOverviewProps) {
   const [filters, setFilters] = useState<Filter[]>([])
 
   const filterFields: FilterFieldsConfig = [
@@ -165,12 +178,12 @@ export default function PageOverview({ onCreateProvider, providers = [], isLoadi
         Sync All
       </Button>}>
         <div className='space-y-2'>
-          {filteredProviders.map((provider, index) => {
+          {filteredProviders.map((provider) => {
             const Icon = PROVIDER_ICONS[provider.name as keyof typeof PROVIDER_ICONS] || Database
 
             return (
               <ProviderCard
-                key={index}
+                key={provider.id}
                 name={provider.name}
                 type={provider.type}
                 status={provider.status}
@@ -179,13 +192,22 @@ export default function PageOverview({ onCreateProvider, providers = [], isLoadi
                 connection={provider.connection}
                 priority={provider.priority}
                 icon={Icon}
-                onClick={() => console.log('Provider clicked:', provider.name)}
-                onSettings={() => console.log('Settings clicked:', provider.name)}
+                onClick={() => onViewProvider(provider.id, provider.type)}
+                onSettings={() => onViewProvider(provider.id, provider.type)}
+                onDelete={() => onDeleteProvider(provider.id)}
               />
             )
           })}
         </div>
       </BlockContent>
+
+      <ConfirmDeleteAlert
+        title={confirm.title}
+        description={confirm.description}
+        open={confirm.open}
+        onConfirm={confirm.onConfirm}
+        onCancel={onConfirmClose}
+      />
     </div>
   )
 }
