@@ -399,13 +399,17 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if !client.direct_access_grants_enabled {
-            if params.client_secret.is_none() {
-                return Err(CoreError::InvalidClientSecret);
+        if !client.public_client {
+            if !client.direct_access_grants_enabled {
+                if params.client_secret.is_none() {
+                    return Err(CoreError::InvalidClientSecret);
+                }
             }
 
-            if client.secret != params.client_secret {
-                return Err(CoreError::InvalidClientSecret);
+            if let Some(provided_secret) = params.client_secret {
+                if client.secret != Some(provided_secret) {
+                    return Err(CoreError::InvalidClientSecret);
+                }
             }
         }
 
