@@ -797,4 +797,60 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_create_realm_with_user() -> Result<(), CoreError> {
+        let realm_name = "realm_test";
+        let input = CreateRealmInput {
+            realm_name: "realm_test".to_string(),
+        };
+
+        let master_realm = create_test_realm_with_name("master");
+        let identity = create_test_user_identity_with_realm(&master_realm);
+
+        // Extract user for mocking permissions
+        let user = match &identity {
+            Identity::User(u) => u,
+            _ => panic!("Expected user identity"),
+        };
+
+        // Create role with ManageRealm permission for the user
+        let admin_role = crate::domain::role::entities::Role {
+            id: uuid::Uuid::new_v4(),
+            name: "admin".to_string(),
+            description: None,
+            permissions: vec![
+                crate::domain::role::entities::permission::Permissions::ManageRealm.name(),
+            ],
+            realm_id: master_realm.id,
+            client_id: None,
+            client: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        let input = CreateRealmWithUserInput {
+            realm_name: "realm_test".to_string(),
+            user: user.clone(),
+        };
+
+        // Create the new realm that will be returned
+        let new_realm = create_test_realm_with_name(realm_name);
+
+        let service = RealmServiceTestBuilder::new()
+            .with_master_realm(master_realm.clone())
+            .with_user_permissions(user.id, vec![admin_role])
+            .with_created_realm("realm_test".to_string(), new_realm.clone())
+            .with_realm_settings(new_realm.id)
+            .with_system_client(master_realm.id)
+            .with_role_creation(master_realm.id)
+            .with_assign_role()
+            .with_admin_cli_client(new_realm.id)
+            .build();
+
+        let created_realm = service.create_realm_with_user(identity, input).await?;
+        assert_eq!(created_realm.name, realm_name);
+
+        Ok(())
+    }
 }
