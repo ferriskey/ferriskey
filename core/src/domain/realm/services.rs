@@ -580,6 +580,20 @@ mod tests {
             self
         }
 
+        fn with_master_realm_twice(mut self, master_realm: Realm) -> Self {
+            let master_realm_clone = master_realm.clone();
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_get_by_name()
+                .with(mockall::predicate::eq("master".to_string()))
+                .times(2)
+                .returning(move |_| {
+                    let realm = master_realm_clone.clone();
+                    Box::pin(async move { Ok(Some(realm)) })
+                });
+            self
+        }
+
         fn with_created_realm(mut self, realm_name: String, new_realm: Realm) -> Self {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
@@ -655,10 +669,7 @@ mod tests {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
                 .expect_create_client()
-                .withf(move |req| {
-                    // Vérifier que c'est admin-cli
-                    req.client_id == "admin-cli" && req.realm_id == new_realm_id
-                })
+                .withf(move |req| req.client_id == "admin-cli" && req.realm_id == new_realm_id)
                 .times(1)
                 .return_once(move |req| {
                     Box::pin(async move {
@@ -714,9 +725,40 @@ mod tests {
             Arc::get_mut(&mut self.user_role_repo)
                 .unwrap()
                 .expect_assign_role()
-                .withf(|_, _| true) // Accepter n'importe quel user_id et role_id
+                .withf(|_, _| true)
                 .times(1)
                 .return_once(|_, _| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn with_admin_role_creation(mut self, master_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.role_repo)
+                .unwrap()
+                .expect_create()
+                .withf(move |req| {
+                    req.realm_id == master_realm_id
+                        && req.name.ends_with("-realm-admin")
+                        && req.permissions.contains(&"manage_realm".to_string())
+                        && req.permissions.contains(&"manage_clients".to_string())
+                        && req.permissions.contains(&"manage_roles".to_string())
+                        && req.permissions.contains(&"manage_users".to_string())
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::role::entities::Role {
+                            id: uuid::Uuid::new_v4(),
+                            name: req.name,
+                            description: req.description,
+                            permissions: req.permissions,
+                            realm_id: req.realm_id,
+                            client_id: req.client_id,
+                            client: None,
+                            created_at: chrono::Utc::now(),
+                            updated_at: chrono::Utc::now(),
+                        })
+                    })
+                });
             self
         }
 
@@ -801,9 +843,6 @@ mod tests {
     #[tokio::test]
     async fn test_create_realm_with_user() -> Result<(), CoreError> {
         let realm_name = "realm_test";
-        let input = CreateRealmInput {
-            realm_name: "realm_test".to_string(),
-        };
 
         let master_realm = create_test_realm_with_name("master");
         let identity = create_test_user_identity_with_realm(&master_realm);
@@ -838,7 +877,7 @@ mod tests {
         let new_realm = create_test_realm_with_name(realm_name);
 
         let service = RealmServiceTestBuilder::new()
-            .with_master_realm(master_realm.clone())
+            .with_master_realm_twice(master_realm.clone())
             .with_user_permissions(user.id, vec![admin_role])
             .with_created_realm("realm_test".to_string(), new_realm.clone())
             .with_realm_settings(new_realm.id)
@@ -846,6 +885,9 @@ mod tests {
             .with_role_creation(master_realm.id)
             .with_assign_role()
             .with_admin_cli_client(new_realm.id)
+            .with_system_client(master_realm.id)
+            .with_admin_role_creation(master_realm.id)
+            .with_assign_role()
             .build();
 
         let created_realm = service.create_realm_with_user(identity, input).await?;
