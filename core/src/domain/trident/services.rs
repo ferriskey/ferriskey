@@ -8,7 +8,7 @@ use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha1::Sha1;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
@@ -847,87 +847,64 @@ where
             )
             .await?;
 
-        // Generate magic link URL
-        let magic_link_url = format!(
-            "/realms/{}/login-actions/verify-magic-link?token_id={}&magic_token={}",
-            realm.name, magic_token_id, magic_token
-        ); // TODO Not sure about this
-
-        // TODO send via email
         debug!(
-            "Generated magic link for user {}: {}",
-            user.email, magic_link_url
+            "Magic link generated for email {} with a ttl of {} minutes",
+            user.email, ttl_minutes
         );
 
         Ok(())
     }
 
     async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
-        debug!(
-            "verify_magic_link: Starting with token_id={}",
-            input.magic_token_id
-        );
-
         let session_code = Uuid::parse_str(&input.session_code).map_err(|_| {
-            error!("verify_magic_link: Failed to parse session_code");
+            error!("Failed to parse session code");
             CoreError::SessionCreateError
         })?;
-        debug!("verify_magic_link: Parsed session_code={}", session_code);
 
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|e| {
-                error!("verify_magic_link: Failed to get auth_session: {}", e);
+            .map_err(|_| {
+                error!("Session not found");
                 CoreError::SessionNotFound
             })?;
-        debug!("verify_magic_link: Found auth_session");
 
         let magic_link = self
             .magic_link_repository
             .get_by_token_id(input.magic_token_id.clone())
             .await
             .map_err(|e| {
-                error!(
-                    "verify_magic_link: Failed to get magic_link from repo: {}",
-                    e
-                );
+                error!("Failed to retrieve magic link: {}", e);
                 e
             })?
             .ok_or_else(|| {
-                error!(
-                    "verify_magic_link: Magic link not found for token_id={}",
-                    input.magic_token_id
-                );
+                warn!("Magic link not found");
                 CoreError::InvalidMagicLink
             })?;
-        debug!("verify_magic_link: Found magic_link, checking expiration and verifying token");
-
-        let is_valid = self
-            .hasher_repository
-            .verify_magic_token(&input.magic_token, &magic_link.token_hash, 0, "", "")
-            .await
-            .map_err(|e| {
-                error!("verify_magic_link: Failed to verify token: {}", e);
-                CoreError::InternalServerError
-            })?;
-        debug!("verify_magic_link: Token verification result: {}", is_valid);
-
-        if !is_valid {
-            error!("verify_magic_link: Token verification failed");
-            return Err(CoreError::InvalidMagicLink);
-        }
 
         if Utc::now() > magic_link.expires_at {
-            error!("verify_magic_link: Magic link expired");
+            warn!("Magic link has expired");
             let _ = self
                 .magic_link_repository
                 .delete_by_token_id(magic_link.token_id.clone())
                 .await;
             return Err(CoreError::MagicLinkExpired);
         }
-        debug!("verify_magic_link: Token not expired, generating auth code");
+
+        let is_valid = self
+            .hasher_repository
+            .verify_magic_token(&input.magic_token, &magic_link.token_hash, 0, "", "")
+            .await
+            .map_err(|e| {
+                error!("Token verification failed: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        if !is_valid {
+            warn!("Magic token verification failed");
+            return Err(CoreError::InvalidMagicLink);
+        }
 
         let login_url = store_auth_code_and_generate_login_url::<AS>(
             &self.auth_session_repository,
@@ -936,19 +913,19 @@ where
         )
         .await
         .map_err(|e| {
-            error!("verify_magic_link: Failed to generate login URL: {}", e);
+            error!("Failed to generate login URL: {}", e);
             e
         })?;
-        debug!("verify_magic_link: Generated login URL");
 
         self.magic_link_repository
             .delete_by_token_id(magic_link.token_id)
             .await
             .map_err(|e| {
-                error!("verify_magic_link: Failed to delete magic link: {}", e);
+                error!("Failed to delete used magic link: {}", e);
                 e
             })?;
-        debug!("verify_magic_link: Deleted used magic link, returning success");
+
+        debug!("Magic link verification successful");
 
         Ok(login_url)
     }
