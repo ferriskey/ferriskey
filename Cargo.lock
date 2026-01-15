@@ -1471,7 +1471,6 @@ dependencies = [
  "ferriskey-security",
  "ferriskey-trident",
  "futures",
- "hex",
  "hmac",
  "jsonwebtoken",
  "ldap3",

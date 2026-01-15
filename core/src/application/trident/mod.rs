@@ -113,7 +113,7 @@ impl TridentService for ApplicationService {
         self.trident_service.generate_magic_link(input).await
     }
 
-    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<(), CoreError> {
+    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
         self.trident_service.verify_magic_link(input).await
     }
 }

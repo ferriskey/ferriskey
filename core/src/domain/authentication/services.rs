@@ -598,11 +598,23 @@ where
     async fn handle_magic_link_authentication(
         &self,
         params: MagicLinkAuthParams,
-        _auth_session: AuthSession,
+        auth_session: AuthSession,
     ) -> Result<AuthenticateOutput, CoreError> {
-        // TODO implement
         info!("param magic token: {}", params.magic_token);
-        unimplemented!()
+        // TODO temp to test quickly
+        let user_id = auth_session.user_id.ok_or(CoreError::InternalServerError)?;
+        let authorization_code = auth_session
+            .code
+            .clone()
+            .ok_or(CoreError::InternalServerError)?;
+
+        let redirect_url = self.build_redirect_url(&auth_session, &authorization_code)?;
+
+        Ok(AuthenticateOutput::complete_with_redirect(
+            user_id,
+            authorization_code,
+            redirect_url,
+        ))
     }
 
     async fn determine_next_step(

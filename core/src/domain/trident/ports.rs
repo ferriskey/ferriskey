@@ -123,7 +123,7 @@ pub struct MagicLinkInput {
 }
 
 pub struct VerifyMagicLinkInput {
-    pub token: String,
+    pub magic_token: String,
     pub session_code: String,
 }
 
@@ -133,16 +133,19 @@ pub trait MagicLinkRepository: Send + Sync {
         &self,
         user_id: Uuid,
         realm_id: Uuid,
-        token: String,
+        magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_by_token(
         &self,
-        token: &str,
+        token: &HashResult,
     ) -> impl Future<Output = Result<Option<MagicLink>, CoreError>> + Send;
 
-    fn delete_by_token(&self, token: &str) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_by_token(
+        &self,
+        token: &HashResult,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn cleanup_expired(&self, realm_id: Uuid)
     -> impl Future<Output = Result<(), CoreError>> + Send;
@@ -254,5 +257,5 @@ pub trait TridentService: Send + Sync {
     fn verify_magic_link(
         &self,
         input: VerifyMagicLinkInput,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }

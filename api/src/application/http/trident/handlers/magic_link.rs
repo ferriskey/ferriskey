@@ -2,9 +2,8 @@ use crate::application::http::server::api_entities::response::Response;
 use axum::extract::{Path, Query, State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
-    authentication::entities::AuthenticateInput,
-    authentication::ports::AuthService,
-    trident::ports::{MagicLinkInput, TridentService},
+    authentication::{entities::AuthenticateInput, ports::AuthService},
+    trident::ports::{MagicLinkInput, TridentService, VerifyMagicLinkInput},
 };
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -32,7 +31,7 @@ pub struct MagicLinkRequest {
 #[derive(Debug, Deserialize)]
 pub struct VerifyMagicLinkQuery {
     client_id: String,
-    token: String,
+    magic_token: String,
 }
 
 #[utoipa::path(
@@ -99,21 +98,28 @@ pub async fn verify_magic_link(
         Some(cookie) => cookie,
         None => return Err(ApiError::Unauthorized("Missing session cookie".to_string())),
     };
+
     let session_code = session_code.value().to_string();
 
     let session_code = Uuid::parse_str(&session_code)
         .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
 
-    let authenticate_params = AuthenticateInput::with_magic_token(
+    let login_url = state
+        .service
+        .verify_magic_link(VerifyMagicLinkInput {
+            magic_token: query.magic_token,
+            session_code: session_code.to_string(),
+        })
+        .await?;
+
+    let auth_input = AuthenticateInput::with_magic_token(
         realm_name,
-        query.client_id, // TODO not sure if keep this
+        query.client_id,
         session_code,
         base_url,
-        query.token,
+        login_url,
     );
 
-    let result = state.service.authenticate(authenticate_params).await?;
-
-    let response: AuthenticateResponse = result.into();
-    Ok(Response::OK(response))
+    let result = state.service.authenticate(auth_input).await?;
+    Ok(Response::OK(result.into()))
 }

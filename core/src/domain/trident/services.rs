@@ -804,9 +804,11 @@ where
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let settings = realm
-            .settings
-            .as_ref()
+        let settings = self
+            .realm_repository
+            .get_realm_settings(realm.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::MagicLinkNotEnabled)?;
 
         if !settings.magic_link_enabled.unwrap_or(false) {
@@ -823,12 +825,16 @@ where
             .await?;
 
         let magic_token = generate_secure_token();
-
+        let magic_token_hash = self
+            .hasher_repository
+            .hash_magic_token(&magic_token)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
         let ttl_minutes = settings.magic_link_ttl_minutes.unwrap_or(15);
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
 
         self.magic_link_repository
-            .create_magic_link(user.id, realm.id.into(), magic_token.clone(), expires_at)
+            .create_magic_link(user.id, realm.id.into(), &magic_token_hash, expires_at)
             .await?;
 
         // Generate magic link URL
@@ -846,33 +852,49 @@ where
         Ok(())
     }
 
-    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<(), CoreError> {
+    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?;
+
+        let magic_token_hash = self
+            .hasher_repository
+            .hash_magic_token(&input.magic_token)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         let magic_link = self
             .magic_link_repository
-            .get_by_token(&input.token)
+            .get_by_token(&magic_token_hash)
             .await?
             .ok_or(CoreError::InvalidMagicLink)?;
 
         if Utc::now() > magic_link.expires_at {
             let _ = self
                 .magic_link_repository
-                .delete_by_token(&input.token)
+                .delete_by_token(&magic_token_hash)
                 .await;
             return Err(CoreError::MagicLinkExpired);
         }
 
-        let _user = self
-            .user_repository
-            .get_by_id(magic_link.user_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let login_url = store_auth_code_and_generate_login_url::<AS>(
+            &self.auth_session_repository,
+            &auth_session,
+            magic_link.user_id,
+        )
+        .await?;
 
         self.magic_link_repository
-            .delete_by_token(&input.token)
+            .delete_by_token(&magic_token_hash)
             .await?;
 
         // Generate login URL
 
-        Ok(())
+        Ok(login_url)
     }
 }

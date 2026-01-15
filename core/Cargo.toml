@@ -47,13 +47,13 @@ futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation"] }
 ldap3 = "0.12.1"
 subtle = "2.6.1"
+hex = "0.4.3"
+sha2 = "0.10.9"
 
 [dev-dependencies]
 mockall = "0.13.1"
 serde_plain = "1.0.2"
 x509-parser = "0.18.0"
-hex = "0.4.3"
 p256 = { version = "0.13.2", features = ["ecdsa"] }
 signature = "2.2.0"
-sha2 = "0.10.9"
 webauthn-rs = { version = "0.5.2", features = ["danger-allow-state-serialisation", "danger-credential-internals"] }
