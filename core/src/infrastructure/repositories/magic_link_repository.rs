@@ -38,6 +38,7 @@ impl From<MagicLinkModel> for MagicLink {
             id: model.id,
             user_id: model.user_id,
             realm_id: model.realm_id,
+            token_id: model.token_id,
             token_hash: model.token,
             created_at,
             expires_at,
@@ -50,6 +51,7 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         &self,
         user_id: Uuid,
         realm_id: Uuid,
+        token_id: String,
         magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
     ) -> Result<(), CoreError> {
@@ -63,6 +65,7 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
             id: Set(generate_uuid_v7()),
             user_id: Set(user_id),
             realm_id: Set(realm_id),
+            token_id: Set(token_id),
             token: Set(magic_token_hash.to_string()),
             created_at: Set(Utc::now().naive_utc()),
             expires_at: Set(expires_at.naive_utc()),
@@ -76,37 +79,34 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         Ok(())
     }
 
-    async fn get_by_token(&self, token: &HashResult) -> Result<Option<MagicLink>, CoreError> {
-        // Extract the token string from HashResult
-        if token.hash.is_empty() {
+    async fn get_by_token_id(&self, token_id: String) -> Result<Option<MagicLink>, CoreError> {
+        if token_id.is_empty() {
             return Err(CoreError::InvalidMagicLink);
         }
-        let token = &token.hash;
 
         let magic_link = MagicLinkEntity::find()
-            .filter(MagicLinkColumn::Token.eq(token))
+            .filter(MagicLinkColumn::TokenId.eq(token_id))
             .one(&self.db)
             .await
             .map_err(|e| {
-                error!("Failed to get magic link by token: {}", e);
+                error!("Failed to get magic link by token_id: {}", e);
                 CoreError::InternalServerError
             })?;
 
         Ok(magic_link.map(|ml| ml.into()))
     }
 
-    async fn delete_by_token(&self, token: &HashResult) -> Result<(), CoreError> {
-        if token.hash.is_empty() {
+    async fn delete_by_token_id(&self, token_id: String) -> Result<(), CoreError> {
+        if token_id.is_empty() {
             return Err(CoreError::InvalidMagicLink);
         }
-        let token = &token.hash;
 
         MagicLinkEntity::delete_many()
-            .filter(MagicLinkColumn::Token.eq(token))
+            .filter(MagicLinkColumn::TokenId.eq(token_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
-                error!("Failed to delete magic link: {}", e);
+                error!("Failed to delete magic link by token_id: {}", e);
                 CoreError::InternalServerError
             })?;
 

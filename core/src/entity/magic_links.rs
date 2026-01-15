@@ -14,6 +14,8 @@ pub struct Model {
     pub token: String,
     pub created_at: DateTime,
     pub expires_at: DateTime,
+    #[sea_orm(column_type = "Text", unique)]
+    pub token_id: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

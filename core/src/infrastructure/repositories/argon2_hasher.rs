@@ -2,8 +2,6 @@ use argon2::{
     Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
-use hex::encode as hex_encode;
-use sha2::{Digest, Sha256};
 
 use ferriskey_security::SecurityError;
 
@@ -80,35 +78,23 @@ impl HasherRepository for Argon2HasherRepository {
     }
 
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, anyhow::Error> {
-        let mut hasher = Sha256::new();
-        hasher.update(token.as_bytes());
-        let hash = hex_encode(hasher.finalize());
-        // TODO temp to test, but use salt
-        Ok(HashResult::new(
-            hash,
-            String::new(),
-            CredentialData::new_hash(1, "sha256".to_string()),
-        ))
+        self.hash_password(token).await
     }
 
     async fn verify_magic_token(
         &self,
         token: &str,
         secret_data: &str,
-        hash_iterations: u32,
-        algorithm: &str,
+        _hash_iterations: u32,
+        _algorithm: &str,
         _salt: &str,
     ) -> Result<bool, anyhow::Error> {
-        // TODO temp to test, but use salt
-        if algorithm == "sha256" && hash_iterations == 1 {
-            let mut hasher = Sha256::new();
-            hasher.update(token.as_bytes());
-            let hash = hex_encode(hasher.finalize());
-            return Ok(hash == secret_data);
-        }
+        let parsed_hash = PasswordHash::new(secret_data)
+            .map_err(|e| anyhow::anyhow!("Error parsing hash: {}", e))?;
 
-        self.verify_password(token, secret_data, hash_iterations, algorithm, _salt)
-            .await
+        // For magic tokens, use Argon2::default() which extracts all params from the hash
+        let result = Argon2::default().verify_password(token.as_bytes(), &parsed_hash);
+        Ok(result.is_ok())
     }
 }
 

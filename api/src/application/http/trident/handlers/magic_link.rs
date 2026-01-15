@@ -31,6 +31,7 @@ pub struct MagicLinkRequest {
 #[derive(Debug, Deserialize)]
 pub struct VerifyMagicLinkQuery {
     client_id: String,
+    token_id: String,
     magic_token: String,
 }
 
@@ -78,7 +79,8 @@ pub async fn send_magic_link(
     summary = "Verify magic link and authenticate user",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-        ("token" = String, Query, description = "Magic link token"),
+        ("token_id" = String, Query, description = "Magic link token identifier"),
+        ("magic_token" = String, Query, description = "Magic link secret token"),
     ),
     responses(
         (status = 200, body = AuthenticateResponse, description = "Magic link verified successfully"),
@@ -107,6 +109,7 @@ pub async fn verify_magic_link(
     let login_url = state
         .service
         .verify_magic_link(VerifyMagicLinkInput {
+            magic_token_id: query.token_id,
             magic_token: query.magic_token,
             session_code: session_code.to_string(),
         })
