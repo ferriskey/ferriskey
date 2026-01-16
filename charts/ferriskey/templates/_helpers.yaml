@@ -166,3 +166,15 @@ default
 {{ .value }}
 {{- end -}}
 {{- end -}}
+
+{{- define "ferriskey.opentelemetry.env" -}}
+{{- if .Values.opentelemetry.enabled }}
+
+- name: ACTIVE_OBSERVABILITY
+  value: "true"
+
+- name: OTLP_ENDPOINT
+  value: {{ .Values.opentelemetry.otlpEndpoint | quote }}
+
+{{- end }}
+{{- end }}
