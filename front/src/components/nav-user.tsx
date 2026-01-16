@@ -1,6 +1,6 @@
 'use client'
 
-import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from 'lucide-react'
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Sun, Moon, Laptop, Check } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -19,10 +19,12 @@ import {
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { useSidebar } from './ui/sidebar-hooks'
+import { useTheme } from './theme-provider'
 
 export function NavUser() {
   const { isMobile } = useSidebar()
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
 
   if (!user) return null
 
@@ -74,6 +76,25 @@ export function NavUser() {
               <DropdownMenuItem>
                 <Bell />
                 Notifications
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>Theme</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setTheme('light')}>
+                <Sun className='mr-2 h-4 w-4' />
+                Light
+                {theme === 'light' && <Check className='ml-auto h-4 w-4' />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')}>
+                <Moon className='mr-2 h-4 w-4' />
+                Dark
+                {theme === 'dark' && <Check className='ml-auto h-4 w-4' />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('system')}>
+                <Laptop className='mr-2 h-4 w-4' />
+                System
+                {theme === 'system' && <Check className='ml-auto h-4 w-4' />}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

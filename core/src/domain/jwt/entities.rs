@@ -30,14 +30,50 @@ pub struct JwtClaim {
     pub azp: String,
     pub aud: Vec<String>,
     pub scope: Option<String>,
-
     pub exp: Option<i64>,
-    pub preferred_username: Option<String>,
 
+    // Identity claims
+    pub preferred_username: Option<String>,
     pub email: Option<String>,
 
     pub client_id: Option<String>,
 }
+
+pub trait TokenClaims: Serialize {
+    fn get_exp(&self) -> i64;
+    fn get_sub(&self) -> Uuid;
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdTokenClaims {
+    pub iss: String,
+    pub sub: Uuid,
+    pub aud: String,
+    pub exp: i64,
+    pub iat: i64,
+    pub auth_time: Option<i64>,
+
+    // Identity claims
+    pub preferred_username: String,
+    pub email: Option<String>,
+    pub email_verified: Option<bool>,
+}
+
+impl TokenClaims for IdTokenClaims {
+    fn get_exp(&self) -> i64 {
+        self.exp
+    }
+
+    fn get_sub(&self) -> Uuid {
+        self.sub
+    }
+}
+
+// #[derive(Debug, Serialize, Deserialize)]
+// pub enum ClaimPaylaod {
+//     Access(AccessCLaims),
+//     Id(IdTokenClaims),
+// }
 
 impl JwtClaim {
     #[allow(clippy::too_many_arguments)]

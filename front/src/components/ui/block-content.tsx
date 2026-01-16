@@ -23,11 +23,11 @@ export default function BlockContent({
   return (
     <div
       data-testid={dataTestId}
-      className={cn('mb-5 rounded border border-neutral-250 bg-neutral-100/25', customWidth, className)}
+      className={cn('mb-5 rounded border border-border bg-muted/30', customWidth, className)}
     >
 
-      <div className='flex h-9 items-center justify-between border-b border-neutral-250 px-4'>
-        <h2 className='text-sm font-medium text-neutral-400'>{title}</h2>
+      <div className='flex h-9 items-center justify-between border-b border-border px-4'>
+        <h2 className='text-sm font-medium text-muted-foreground'>{title}</h2>
         {headRight}
       </div>
 

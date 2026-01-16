@@ -24,7 +24,7 @@ use crate::domain::{
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::ports::HasherRepository,
     jwt::{
-        entities::{ClaimsTyp, JwkKey, Jwt, JwtClaim},
+        entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
         ports::{KeyStoreRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
@@ -128,7 +128,34 @@ where
         })
     }
 
-    async fn create_jwt(&self, input: GenerateTokenInput) -> Result<(Jwt, Jwt), CoreError> {
+    async fn try_generate_token<T>(&self, claims: &T, realm_id: RealmId) -> Result<Jwt, CoreError>
+    where
+        T: TokenClaims,
+    {
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let token =
+            jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
+                tracing::error!("JWT generation error: {}", e);
+
+                CoreError::TokenGenerationError(e.to_string())
+            })?;
+
+        Ok(Jwt {
+            token,
+            expires_at: claims.get_exp(),
+        })
+    }
+
+    async fn create_jwt(
+        &self,
+        input: GenerateTokenInput,
+    ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
         let realm_audit = format!("{}-realm", input.realm_name);
 
@@ -140,17 +167,43 @@ where
             ClaimsTyp::Bearer,
             input.client_id,
             Some(input.email),
-            input.scope,
+            input.scope.clone(),
         );
 
         let jwt = self.generate_token(claims.clone(), input.realm_id).await?;
 
-        let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
+        let refresh_claims = JwtClaim::new_refresh_token(
+            claims.sub,
+            claims.iss.clone(),
+            claims.aud.clone(),
+            claims.azp,
+        );
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), input.realm_id)
             .await?;
+
+        let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
+
+        let id_token: Option<Jwt> = if contains_openid_scope {
+            let aud = claims.aud.join(" ");
+            let id_claims = IdTokenClaims {
+                iss: claims.iss,
+                aud,
+                auth_time: None,
+                email: None,
+                email_verified: None,
+                exp: 1,
+                iat: 1,
+                preferred_username: "".to_string(),
+                sub: claims.sub,
+            };
+            let t = self.try_generate_token(&id_claims, input.realm_id).await?;
+
+            Some(t)
+        } else {
+            None
+        };
 
         self.refresh_token_repository
             .create(
@@ -161,7 +214,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok((jwt, refresh_token))
+        Ok((jwt, refresh_token, id_token))
     }
 
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
@@ -263,7 +316,7 @@ where
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.allowed_scopes();
 
-        let (jwt, refresh_token) = self
+        let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
@@ -276,12 +329,14 @@ where
             })
             .await?;
 
+        let id_token_value = id_token.map(|t| t.token);
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
             3600,
-            "id_token".to_string(),
+            id_token_value,
         ))
     }
 
@@ -290,7 +345,7 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InvalidClient)?;
 
         if client.secret != params.client_secret {
             return Err(CoreError::InvalidClientSecret);
@@ -302,15 +357,15 @@ where
             .user_repository
             .get_by_client_id(client.id)
             .await
-            .map_err(|e| {
-                error!("error when get client (user): {}", e);
-                CoreError::InternalServerError
+            .map_err(|e| match e {
+                CoreError::NotFound => CoreError::ServiceAccountNotFound,
+                _ => CoreError::InternalServerError,
             })?;
 
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.merge_with_defaults(params.scope);
 
-        let (jwt, refresh_token) = self
+        let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
@@ -322,12 +377,15 @@ where
                 scope: Some(final_scope),
             })
             .await?;
+
+        let id_token_value = id_token.map(|t| t.token);
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
             3600,
-            "id_token".to_string(),
+            id_token_value,
         ))
     }
 
@@ -341,12 +399,14 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if !client.direct_access_grants_enabled {
-            if params.client_secret.is_none() {
+        if !client.public_client {
+            if !client.direct_access_grants_enabled && params.client_secret.is_none() {
                 return Err(CoreError::InvalidClientSecret);
             }
 
-            if client.secret != params.client_secret {
+            if let Some(provided_secret) = params.client_secret
+                && client.secret != Some(provided_secret)
+            {
                 return Err(CoreError::InvalidClientSecret);
             }
         }
@@ -371,7 +431,7 @@ where
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.merge_with_defaults(params.scope);
 
-        let (jwt, refresh_token) = self
+        let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
@@ -384,12 +444,14 @@ where
             })
             .await?;
 
+        let id_token_value = id_token.map(|t| t.token);
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
             3600,
-            "id_token".to_string(),
+            id_token_value,
         ))
     }
 
@@ -415,7 +477,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let (jwt, refresh_token) = self
+        let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
@@ -432,12 +494,15 @@ where
             .delete(claims.jti)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        let id_token_value = id_token.map(|t| t.token);
+
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
             3600,
-            "id_token".to_string(),
+            id_token_value,
         ))
     }
 
@@ -840,7 +905,6 @@ where
 
         self.authenticate_with_grant_type(input.grant_type, params)
             .await
-            .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn authorize_request(
@@ -979,7 +1043,7 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             jwt.expires_at as u32,
-            "id_token".to_string(),
+            None,
         ))
     }
 

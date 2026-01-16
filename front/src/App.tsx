@@ -19,6 +19,7 @@ import { BasicSpinner } from './components/ui/spinner'
 import { fetcher } from './api'
 import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
+import { useTheme } from './components/theme-provider'
 
 declare global {
   interface Window {
@@ -35,6 +36,7 @@ function App() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
   const { setConfig } = useConfig()
+  const { theme } = useTheme()
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
 
   const { data: responseConfig } = useGetConfig()
@@ -104,36 +106,6 @@ function App() {
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name, navigate])
 
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isShortcutPressed = event.ctrlKey && event.shiftKey && event.key === 'T'
-
-      if (isShortcutPressed) {
-        const head = document.head
-        let themeLink = document.getElementById('theme-overrides') as HTMLLinkElement
-
-        if (!themeLink) {
-          themeLink = document.createElement('link')
-          themeLink.rel = 'stylesheet'
-          themeLink.id = 'theme-overrides'
-          head.appendChild(themeLink)
-        }
-
-        const currentTheme = themeLink.getAttribute('href')
-
-        if (currentTheme === '/themes/neo-brutalism.theme.css') {
-          themeLink.removeAttribute('href')
-        } else {
-          themeLink.href = '/themes/neo-brutalism.theme.css'
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-
   if (!apiUrlSetup) {
     return (
       <div className='h-screen flex items-center justify-center text-gray-500'>
@@ -164,7 +136,7 @@ function App() {
       </Routes>
       <Toaster
         richColors
-        theme='light'
+        theme={theme as 'light' | 'dark' | 'system'}
       />
     </>
   )
