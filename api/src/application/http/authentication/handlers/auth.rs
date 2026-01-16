@@ -89,16 +89,15 @@ pub async fn auth_handler(
         session_cookie = session_cookie.secure(true)
     }
 
-    let mut axum_response = axum::response::Response::builder()
+    let cookie_value = HeaderValue::from_str(&session_cookie.to_string())
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+
+    let axum_response = axum::response::Response::builder()
         .status(StatusCode::FOUND)
         .header(LOCATION, &full_url)
+        .header(SET_COOKIE, cookie_value)
         .body(axum::body::Body::empty())
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
-
-    axum_response.headers_mut().append(
-        SET_COOKIE,
-        HeaderValue::from_str(&session_cookie.to_string()).unwrap(),
-    );
 
     Ok(axum_response)
 }

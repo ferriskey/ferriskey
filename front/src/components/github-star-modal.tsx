@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
-import { GitBranch, Heart, Star } from 'lucide-react'
+import { Heart, Star } from 'lucide-react'
 
 const STORAGE_KEY = 'ferriskey-github-star-modal-dismissed'
 
@@ -57,7 +57,7 @@ export default function GithubStarModal() {
           <div className='flex justify-center'>
             <div className='relative'>
               <div className='w-20 h-20 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-pulse'>
-                <GitBranch className='h-10 w-10 text-white' />
+                <img src='/logo_ferriskey.png' alt='Unofficial Rust mascot, Ferris the crab, holding a key in left claw which is used as project branding for FerrisKey' className='h-15 w-15'/>
               </div>
               <div className='absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce'>
                 <Star className='h-3 w-3 text-yellow-800' fill='currentColor' />
