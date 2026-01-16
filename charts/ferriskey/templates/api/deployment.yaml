@@ -61,6 +61,7 @@ spec:
           {{- end }}
           env:
             {{- include "ferriskey.global.databaseEnv" . | nindent 12 }}
+            {{- include "ferriskey.opentelemetry.env" . | nindent 12 }}
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:

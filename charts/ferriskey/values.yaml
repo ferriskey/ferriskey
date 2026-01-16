@@ -853,6 +853,14 @@ databaseMigrations:
     # -- (bool) Automount service account token for the database migrations job service account.
     automountServiceAccountToken: ~
 
+opentelemetry:
+  # -- Enable OpenTelemetry instrumentation.
+  enabled: false
+
+  # -- OTLP endpoint for OpenTelemetry exporter.
+  otlpEndpoint: http://tempo:4317
+
+
 ingress:
   # -- Enable the ingress.
   enabled: false
