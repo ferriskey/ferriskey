@@ -125,6 +125,7 @@ pub struct ApplicationService {
         AuthSessionRepo,
         KeystoreRepo,
         RefreshTokenRepo,
+        FederationRepo,
     >,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
@@ -147,6 +148,8 @@ pub struct ApplicationService {
             RealmRepo,
             FederationRepo,
             crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+            UserRepo,
+            CredentialRepo,
         >,
 }
 

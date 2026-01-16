@@ -263,6 +263,42 @@ impl FederationRepository for FederationRepositoryImpl {
         }
     }
 
+    async fn list_mappings_by_provider(
+        &self,
+        provider_id: Uuid,
+    ) -> Result<Vec<FederationMapping>, CoreError> {
+        let models = user_federation_mappings::Entity::find()
+            .filter(user_federation_mappings::Column::ProviderId.eq(provider_id))
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to list federation mappings: {}", e))
+            })?;
+
+        models.into_iter().map(|m| m.try_into()).collect()
+    }
+
+    async fn get_mapping_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<FederationMapping>, CoreError> {
+        let model = user_federation_mappings::Entity::find()
+            .filter(user_federation_mappings::Column::UserId.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                CoreError::Database(format!(
+                    "Failed to get federation mapping by user_id: {}",
+                    e
+                ))
+            })?;
+
+        match model {
+            Some(m) => Ok(Some(m.try_into()?)),
+            None => Ok(None),
+        }
+    }
+
     async fn update_mapping(
         &self,
         mapping: FederationMapping,

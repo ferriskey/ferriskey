@@ -40,6 +40,14 @@ pub trait FederationRepository: Send + Sync {
         provider_id: Uuid,
         external_id: &str,
     ) -> impl Future<Output = Result<Option<FederationMapping>, CoreError>> + Send;
+    fn list_mappings_by_provider(
+        &self,
+        provider_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<FederationMapping>, CoreError>> + Send;
+    fn get_mapping_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Option<FederationMapping>, CoreError>> + Send;
     fn update_mapping(
         &self,
         mapping: FederationMapping,

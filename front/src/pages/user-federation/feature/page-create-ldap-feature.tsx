@@ -46,24 +46,45 @@ export default function PageCreateLdapFeature() {
     if (!realm_name) return
 
     try {
+      // Parse URL to get host and port
+      const url = new URL(data.connectionUrl.startsWith('ldap') ? data.connectionUrl : `ldap://${data.connectionUrl}`)
+      const port = url.port ? parseInt(url.port) : (data.useTls ? 636 : 389)
+
+      // Encode password as base64 for storage
+      const encodedPassword = btoa(data.bindPassword || '')
+
       await createProvider({
         path: { realm_name },
         body: {
           name: data.name,
           enabled: data.enabled,
           provider_type: 'Ldap',
-          priority: data.priority === 'Primary' ? 0 : data.priority === 'Secondary' ? 10 : 20, // Simple mapping
-          sync_mode: 'Import', // Defaulting to full
+          priority: data.priority === 'Primary' ? 0 : data.priority === 'Secondary' ? 10 : 20,
+          sync_mode: 'Import',
           sync_enabled: true,
           sync_interval_minutes: Math.floor(data.syncInterval / 60),
           config: {
-            connectionUrl: data.connectionUrl,
-            baseDn: data.baseDn,
-            bindDn: data.bindDn,
-            bindPassword: data.bindPassword,
-            userSearchFilter: data.userSearchFilter,
-            useTls: data.useTls,
-            // Add other specific config fields if needed
+            connection: {
+              server_url: url.hostname,
+              port: port,
+              use_tls: data.useTls,
+              use_starttls: false,
+              connection_timeout_seconds: 30
+            },
+            bind: {
+              bind_dn: data.bindDn,
+              bind_password_encrypted: encodedPassword
+            },
+            search: {
+              base_dn: data.baseDn,
+              user_search_filter: data.userSearchFilter
+            },
+            attributes: {
+              username: 'uid',
+              email: 'mail',
+              first_name: 'givenName',
+              last_name: 'sn'
+            }
           }
         }
       })

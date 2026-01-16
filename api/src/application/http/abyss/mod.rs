@@ -11,6 +11,8 @@ pub mod routes;
         federation::handlers::get_provider::get_provider,
         federation::handlers::update_provider::update_provider,
         federation::handlers::delete_provider::delete_provider,
+        federation::handlers::test_connection::test_connection,
+        federation::handlers::sync_users::sync_users,
     ),
     components(
         schemas(

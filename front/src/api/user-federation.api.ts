@@ -104,3 +104,50 @@ export const useDeleteUserFederation = () => {
     },
   })
 }
+
+export const useTestUserFederationConnection = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/federation/providers/{id}/test-connection',
+      async (res) => res.json()
+    ).mutationOptions,
+  })
+}
+
+export const useSyncUsers = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/federation/providers/{id}/sync-users',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, params) => {
+      const listQueryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
+        path: {
+          realm_name: params.path.realm_name,
+        },
+      }).queryKey
+
+      const detailQueryKeys = window.tanstackApi.get(
+        '/realms/{realm_name}/federation/providers/{id}',
+        {
+          path: {
+            realm_name: params.path.realm_name,
+            id: params.path.id,
+          },
+        }
+      ).queryKey
+
+      await queryClient.invalidateQueries({
+        queryKey: listQueryKeys,
+      })
+
+      await queryClient.invalidateQueries({
+        queryKey: detailQueryKeys,
+      })
+    },
+  })
+}
