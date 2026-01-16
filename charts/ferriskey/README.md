@@ -292,6 +292,8 @@ Example:
 | ingress.labels | object | `{}` | Labels on the ingress. |
 | ingress.tls | list | `[]` | TLS configuration for the ingress. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ingresstls-v1-networking-k8s-io |
 | nameOverride | string | `nil` | Override the name of the release. |
+| opentelemetry.enabled | bool | `false` | Enable OpenTelemetry instrumentation. |
+| opentelemetry.otlpEndpoint | string | `"http://tempo:4317"` | OTLP endpoint for OpenTelemetry exporter. |
 | postgresql.affinity | object | `{}` | Affinity for the PostgreSQL pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core |
 | postgresql.annotations | object | `{}` | Annotations on PostgreSQL workloads. |
 | postgresql.args | list | `[]` | Arguments for the PostgreSQL container. |
