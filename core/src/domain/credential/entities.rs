@@ -118,6 +118,10 @@ pub enum CredentialData {
     WebAuthn {
         credential: Box<WebAuthnCredential>,
     },
+    Federated {
+        provider_id: String,
+        provider_type: String,
+    },
 }
 
 impl CredentialData {
@@ -133,6 +137,13 @@ impl CredentialData {
             credential: Box::new(passkey.into()),
         }
     }
+
+    pub fn new_federated(provider_id: String, provider_type: String) -> Self {
+        Self::Federated {
+            provider_id,
+            provider_type,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq, ToSchema)]
@@ -144,6 +155,10 @@ pub enum CredentialDataOverview {
     // It's not inherently risky to reveal some WA credential data but it's a bit unusual...
     // I'll leave it empty for now
     WebAuthn,
+    Federated {
+        provider_id: String,
+        provider_type: String,
+    },
 }
 
 impl From<CredentialData> for CredentialDataOverview {
@@ -157,6 +172,13 @@ impl From<CredentialData> for CredentialDataOverview {
                 algorithm,
             },
             CredentialData::WebAuthn { .. } => CredentialDataOverview::WebAuthn,
+            CredentialData::Federated {
+                provider_id,
+                provider_type,
+            } => CredentialDataOverview::Federated {
+                provider_id,
+                provider_type,
+            },
         }
     }
 }

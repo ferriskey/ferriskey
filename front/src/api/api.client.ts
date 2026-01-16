@@ -286,11 +286,6 @@ export namespace Schemas {
     updated_at: string
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
-  export type TestConnectionResponse = {
-    success: boolean
-    message: string
-    details?: (unknown | null) | undefined
-  }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
@@ -323,6 +318,20 @@ export namespace Schemas {
     value: string
   }>
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string }
+  export type SyncUsersResponse = {
+    completed_at?: (string | null) | undefined
+    created: number
+    disabled: number
+    failed: number
+    started_at?: (string | null) | undefined
+    total_processed: number
+    updated: number
+  }
+  export type TestConnectionResponse = {
+    details?: unknown | undefined
+    message: string
+    success: boolean
+  }
   export type TokenRequestValidator = Partial<{
     client_id: string
     client_secret: string | null
@@ -618,6 +627,15 @@ export namespace Endpoints {
       path: { realm_name: string; id: string }
     }
     response: Schemas.DeleteProviderResponse
+  }
+  export type post_Sync_users = {
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers/{id}/sync-users'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; id: string }
+    }
+    response: Schemas.SyncUsersResponse
   }
   export type post_Test_connection = {
     method: 'POST'
@@ -1023,6 +1041,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
+    '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
     '/realms/{realm_name}/federation/providers/{id}/test-connection': Endpoints.post_Test_connection
     '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code

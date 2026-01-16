@@ -2,6 +2,7 @@ pub mod create_provider;
 pub mod delete_provider;
 pub mod get_provider;
 pub mod list_providers;
+pub mod sync_users;
 pub mod test_connection;
 pub mod update_provider;
 

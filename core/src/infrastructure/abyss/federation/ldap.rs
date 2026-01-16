@@ -6,7 +6,7 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use ldap3::{Ldap, LdapConnAsync, LdapConnSettings, Scope, SearchEntry, SearchResult};
 use serde::Deserialize;
 use tokio::time::timeout;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 use crate::domain::abyss::federation::entities::{FederatedUser, FederationProvider};
 use crate::domain::abyss::federation::value_objects::TestConnectionResult;
@@ -173,6 +173,17 @@ impl LdapClientImpl {
         username: &str,
         password: &str,
     ) -> Result<FederatedUser, CoreError> {
+        // 0. CRITICAL: Reject empty passwords to prevent anonymous/unauthenticated binds
+        if password.is_empty() {
+            warn!(
+                "Rejected LDAP authentication attempt with empty password for user: {}",
+                username
+            );
+            return Err(CoreError::FederationAuthenticationFailed(
+                "Empty password not allowed".to_string(),
+            ));
+        }
+
         // 1. Bind as admin to search for user
         let mut ldap = self.bind(provider).await?;
         let config = Self::parse_config(provider)?;
@@ -194,26 +205,78 @@ impl LdapClientImpl {
             .await
             .map_err(|e| CoreError::External(format!("LDAP User Search failed: {}", e)))?;
 
-        let entry = rs
-            .into_iter()
-            .next()
-            .ok_or(CoreError::FederationAuthenticationFailed(format!(
-                "User {} not found in LDAP",
-                username
-            )))?;
-        let search_entry = SearchEntry::construct(entry);
+        let mut matched_entry: Option<SearchEntry> = None;
+        for entry in rs {
+            let search_entry = SearchEntry::construct(entry);
+            let attr_name = &config.attributes.username;
+            let attr_value = search_entry
+                .attrs
+                .get(attr_name)
+                .and_then(|vals| vals.first())
+                .map(|v| v.as_str());
+
+            if attr_value == Some(username) {
+                matched_entry = Some(search_entry);
+                break;
+            }
+        }
+
+        let search_entry = matched_entry.ok_or(CoreError::FederationAuthenticationFailed(
+            format!("User {} not found in LDAP", username),
+        ))?;
         let user_dn = search_entry.dn.clone();
 
-        // 3. Bind with user DN and password to verify credentials
-        ldap.simple_bind(&user_dn, password).await.map_err(|_| {
-            CoreError::FederationAuthenticationFailed("Invalid LDAP credentials".to_string())
-        })?;
+        info!(
+            "Found user '{}' in LDAP with DN: '{}' (attributes: {:?})",
+            username,
+            user_dn,
+            search_entry.attrs.keys().collect::<Vec<_>>()
+        );
+
+        // Must unbind admin connection before rebinding as user
+        let _ = ldap.unbind().await;
+
+        // 3. CRITICAL: Create NEW connection and bind with user DN and password to verify credentials
+        // Using the same connection can cause issues with some LDAP servers
+        let mut user_ldap = self.connect(provider).await?;
+
+        info!(
+            "Attempting LDAP bind for user '{}' with DN: '{}' and password length: {}",
+            username,
+            user_dn,
+            password.len()
+        );
+
+        let bind_result = user_ldap.simple_bind(&user_dn, password).await;
+
+        match bind_result {
+            Ok(bind_response) => {
+                // Check bind result code - 0 = success, anything else = failure
+                if bind_response.rc != 0 {
+                    warn!(
+                        "LDAP bind failed for user {} with result code: {}",
+                        username, bind_response.rc
+                    );
+                    let _ = user_ldap.unbind().await;
+                    return Err(CoreError::FederationAuthenticationFailed(
+                        "Invalid LDAP credentials".to_string(),
+                    ));
+                }
+            }
+            Err(e) => {
+                warn!("LDAP bind error for user {}: {}", username, e);
+                let _ = user_ldap.unbind().await;
+                return Err(CoreError::FederationAuthenticationFailed(
+                    "Invalid LDAP credentials".to_string(),
+                ));
+            }
+        }
 
         // 4. Map to FederatedUser
         let federated_user = self.map_entry_to_user(&search_entry, &config.attributes)?;
 
         // Cleanup
-        let _ = ldap.unbind().await;
+        let _ = user_ldap.unbind().await;
 
         Ok(federated_user)
     }

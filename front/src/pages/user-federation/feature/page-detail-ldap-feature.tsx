@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createLdapProviderSchema, CreateLdapProviderSchema } from '../schemas/ldap-provider.schema'
 import { Form } from '@/components/ui/form'
 import LdapFormUi from '../ui/ldap-form-ui'
-import { useGetUserFederation, useUpdateUserFederation, useTestUserFederationConnection } from '@/api/user-federation.api'
+import { useGetUserFederation, useUpdateUserFederation, useTestUserFederationConnection, useSyncUsers } from '@/api/user-federation.api'
 import { useFormChanges } from '@/hooks/use-form-changes'
 import { Schemas } from '@/api/api.client'
 import { useConfettiFireworks } from '@/hooks/use-confetti-fireworks'
@@ -63,6 +63,7 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
   const navigate = useNavigate()
   const { mutateAsync: updateProvider } = useUpdateUserFederation()
   const { mutateAsync: testConnection, isPending: isTestingConnection, isSuccess: isTestingConnectionIsSuccess } = useTestUserFederationConnection()
+  const { mutateAsync: syncUsers, isPending: isSyncingUsers } = useSyncUsers()
   const { fire } = useConfettiFireworks()
 
   const config = providerData.config as LdapConfig
@@ -144,6 +145,32 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
     }
   }
 
+  const handleSyncUsers = async () => {
+    if (!realm_name || !id) return
+
+    try {
+      const result = await syncUsers({
+        path: { realm_name, id }
+      })
+
+      const stats = [
+        result.created > 0 ? `${result.created} created` : null,
+        result.updated > 0 ? `${result.updated} updated` : null,
+        result.disabled > 0 ? `${result.disabled} disabled` : null,
+        result.failed > 0 ? `${result.failed} failed` : null,
+      ].filter(Boolean).join(', ')
+
+      toast.success('User synchronization completed', {
+        description: stats || `Processed ${result.total_processed} users`
+      })
+    } catch (error) {
+      console.error('Failed to sync users', error)
+      toast.error('Failed to sync users', {
+        description: 'An unexpected error occurred during synchronization'
+      })
+    }
+  }
+
   const handleSubmit = async (data: CreateLdapProviderSchema) => {
     if (!realm_name || !id) return
 
@@ -217,6 +244,8 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
           onTypeChange={handleTypeChange}
           onTestConnection={handleTestConnection}
           isTestingConnection={isTestingConnection}
+          onSyncUsers={handleSyncUsers}
+          isSyncingUsers={isSyncingUsers}
           isEditMode={true}
           hasChanges={hasChanges}
         />

@@ -6,6 +6,7 @@ use crate::application::{
             delete_provider::{__path_delete_provider, delete_provider},
             get_provider::{__path_get_provider, get_provider},
             list_providers::{__path_list_providers, list_providers},
+            sync_users::{__path_sync_users, sync_users},
             test_connection::{__path_test_connection, test_connection},
             update_provider::{__path_update_provider, update_provider},
         },
@@ -26,11 +27,12 @@ use utoipa::OpenApi;
         update_provider,
         delete_provider,
         list_providers,
-        test_connection
+        test_connection,
+        sync_users,
     ),
 
     tags(
-        (name = "federation", description = "Federation provider management")
+        (name = "Federation", description = "Federation provider management")
     )
 )]
 pub struct AbyssApiDoc;
@@ -50,6 +52,10 @@ pub fn abyss_routes(state: AppState) -> Router<AppState> {
         .route(
             &format!("{}/{{id}}/test-connection", root_path),
             post(test_connection),
+        )
+        .route(
+            &format!("{}/{{id}}/sync-users", root_path),
+            post(sync_users),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

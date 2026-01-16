@@ -1,5 +1,7 @@
+use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::federation::{
-    entities::FederationProvider, value_objects::TestConnectionResult,
+    entities::FederationProvider,
+    value_objects::{SyncResult, TestConnectionResult},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -144,6 +146,41 @@ impl From<TestConnectionResult> for TestConnectionResponse {
             success: result.success,
             message: result.message,
             details: result.details,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SyncUsersResponse {
+    pub total_processed: u32,
+    pub created: u32,
+    pub updated: u32,
+    pub disabled: u32,
+    pub failed: u32,
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+impl From<SyncResult> for SyncUsersResponse {
+    fn from(result: SyncResult) -> Self {
+        let started_at: Option<DateTime<Utc>> = result
+            .started_at
+            .and_then(|dt| DateTime::parse_from_rfc3339(&dt).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+
+        let completed_at: Option<DateTime<Utc>> = result
+            .completed_at
+            .and_then(|dt| DateTime::parse_from_rfc3339(&dt).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+
+        Self {
+            total_processed: result.total_processed,
+            created: result.created,
+            updated: result.updated,
+            disabled: result.disabled,
+            failed: result.failed,
+            started_at,
+            completed_at,
         }
     }
 }

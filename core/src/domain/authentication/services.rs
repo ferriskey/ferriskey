@@ -6,6 +6,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::{
+    abyss::federation::ports::FederationRepository,
     authentication::{
         ScopeManager,
         entities::{
@@ -30,9 +31,10 @@ use crate::domain::{
     realm::{entities::RealmId, ports::RealmRepository},
     user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
 };
+use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
+pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -43,6 +45,7 @@ where
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    F: FederationRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -53,9 +56,11 @@ where
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) keystore_repository: Arc<KS>,
     pub(crate) refresh_token_repository: Arc<RT>,
+    pub(crate) federation_repository: Arc<F>,
+    pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
+impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -66,6 +71,7 @@ where
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    F: FederationRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -78,6 +84,7 @@ where
         auth_session_repository: Arc<AS>,
         keystore_repository: Arc<KS>,
         refresh_token_repository: Arc<RT>,
+        federation_repository: Arc<F>,
     ) -> Self {
         Self {
             realm_repository,
@@ -89,11 +96,13 @@ where
             auth_session_repository,
             keystore_repository,
             refresh_token_repository,
+            federation_repository,
+            ldap_client: LdapClientImpl,
         }
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
+impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -104,6 +113,7 @@ where
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    F: FederationRepository,
 {
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
@@ -614,50 +624,119 @@ where
             .get_by_username(username, realm.id)
             .await?;
 
-        let user_credentials = self
-            .credential_repository
-            .get_credentials_by_user_id(user.id)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
-
-        let has_temporary_password = user_credentials.iter().any(|cred| cred.temporary);
-
-        let credentials: Vec<String> = user_credentials
-            .iter()
-            .map(|cred| cred.credential_type.clone().to_string())
-            .collect();
-
-        let credential = self
-            .credential_repository
-            .get_password_credential(user.id)
+        // Check if user has federation mapping (LDAP authentication) FIRST
+        let federation_mapping = self
+            .federation_repository
+            .get_mapping_by_user_id(user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
+        info!(
+            "User {} (ID: {}): federation_mapping = {}",
+            user.username,
+            user.id,
+            if federation_mapping.is_some() {
+                "YES (LDAP user)"
+            } else {
+                "NO (local user)"
+            }
+        );
 
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = &credential.credential_data
-        else {
-            tracing::error!(
-                "A password credential doesn't have Hash credential data.
+        let (has_valid_password, credentials, has_temporary_password) =
+            if let Some(mapping) = federation_mapping {
+                // User is federated - authenticate via LDAP
+                info!(
+                    "User {} is federated (provider_id: {}), authenticating via LDAP",
+                    user.username, mapping.provider_id
+                );
+
+                let provider = self
+                    .federation_repository
+                    .get_by_id(mapping.provider_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::InternalServerError)?;
+
+                if !provider.enabled {
+                    error!("Federation provider {} is disabled", provider.name);
+                    return Err(CoreError::InvalidPassword);
+                }
+
+                // Authenticate via LDAP
+                let ldap_auth_result = match self
+                    .ldap_client
+                    .authenticate_user(&provider, &user.username, &password)
+                    .await
+                {
+                    Ok(_) => {
+                        info!("LDAP authentication successful for user {}", user.username);
+                        true
+                    }
+                    Err(e) => {
+                        error!(
+                            "LDAP authentication failed for user {}: {}",
+                            user.username, e
+                        );
+                        false
+                    }
+                };
+
+                // Federated users don't have local credentials
+                (ldap_auth_result, vec!["federated".to_string()], false)
+            } else {
+                // User is not federated - use local password hash
+                info!(
+                    "User {} is not federated, using local password hash",
+                    user.username
+                );
+
+                let user_credentials = self
+                    .credential_repository
+                    .get_credentials_by_user_id(user.id)
+                    .await
+                    .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+                let has_temp_password = user_credentials.iter().any(|cred| cred.temporary);
+
+                let creds: Vec<String> = user_credentials
+                    .iter()
+                    .map(|cred| cred.credential_type.clone().to_string())
+                    .collect();
+
+                let credential = self
+                    .credential_repository
+                    .get_password_credential(user.id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+
+                let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
+
+                let CredentialData::Hash {
+                    hash_iterations,
+                    algorithm,
+                } = &credential.credential_data
+                else {
+                    tracing::error!(
+                        "A password credential doesn't have Hash credential data.
 This is a server error that should be investigated. Do not forward back this message to the client"
-            );
-            return Err(CoreError::InternalServerError);
-        };
+                    );
+                    return Err(CoreError::InternalServerError);
+                };
 
-        let has_valid_password = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                *hash_iterations,
-                algorithm,
-                &salt,
-            )
-            .await
-            .map_err(|_| CoreError::InvalidPassword)?;
+                let is_valid = self
+                    .hasher_repository
+                    .verify_password(
+                        &password,
+                        &credential.secret_data,
+                        *hash_iterations,
+                        algorithm,
+                        &salt,
+                    )
+                    .await
+                    .map_err(|_| CoreError::InvalidPassword)?;
+
+                (is_valid, creds, has_temp_password)
+            };
 
         if !has_valid_password {
             return Err(CoreError::InvalidPassword);
@@ -777,7 +856,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT> AuthService for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT>
+impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthService
+    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -788,6 +868,7 @@ where
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    F: FederationRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
