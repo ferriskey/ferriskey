@@ -1,5 +1,6 @@
 pub mod abyss;
 pub mod authentication;
+pub mod broker;
 pub mod client;
 
 pub mod error;

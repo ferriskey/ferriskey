@@ -129,8 +129,8 @@ impl From<CoreError> for ApiError {
             CoreError::ProviderNameAlreadyExists => {
                 Self::BadRequest("Provider name already exists".to_string())
             }
-            CoreError::InvalidProviderConfiguration => {
-                Self::BadRequest("Invalid provider configuration".to_string())
+            CoreError::InvalidProviderConfiguration(msg) => {
+                Self::BadRequest(format!("Invalid provider configuration: {}", msg))
             }
             CoreError::ProviderDisabled => {
                 Self::Forbidden("Provider is disabled".to_string())
@@ -142,6 +142,47 @@ impl From<CoreError> for ApiError {
             CoreError::Database(msg) => Self::InternalServerError(format!("Database error: {}", msg)),
             CoreError::Configuration(msg) => Self::InternalServerError(format!("Configuration error: {}", msg)),
             CoreError::FederationAuthenticationFailed(msg) => Self::Unauthorized(format!("Federation authentication error: {}", msg)),
+
+            // Broker (SSO) errors
+            CoreError::BrokerSessionNotFound => {
+                Self::BadRequest("Invalid or expired SSO session".to_string())
+            }
+            CoreError::BrokerSessionExpired => {
+                Self::BadRequest("SSO session expired, please try again".to_string())
+            }
+            CoreError::InvalidBrokerState => {
+                Self::BadRequest("Invalid state parameter".to_string())
+            }
+            CoreError::IdpTokenExchangeFailed(msg) => {
+                Self::ServiceUnavailable(format!("Identity provider error: {}", msg))
+            }
+            CoreError::IdpUserInfoFailed(msg) => {
+                Self::ServiceUnavailable(format!("Failed to retrieve user info: {}", msg))
+            }
+            CoreError::IdpAuthenticationFailed(msg) => {
+                Self::Unauthorized(format!("Identity provider authentication failed: {}", msg))
+            }
+            CoreError::UserLinkingFailed(msg) => {
+                Self::InternalServerError(format!("User linking failed: {}", msg))
+            }
+            CoreError::LinkOnlyUserNotFound => {
+                Self::Forbidden("No existing account found for linking".to_string())
+            }
+            CoreError::LinkNotFound => {
+                Self::NotFound("Identity provider link not found".to_string())
+            }
+            CoreError::InvalidIdToken => {
+                Self::BadRequest("Invalid ID token from identity provider".to_string())
+            }
+            CoreError::MissingAuthorizationCode => {
+                Self::BadRequest("Missing authorization code from identity provider".to_string())
+            }
+            CoreError::UserNotFound => {
+                Self::NotFound("User not found".to_string())
+            }
+            CoreError::ClientNotFound => {
+                Self::NotFound("Client not found".to_string())
+            }
         }
     }
 }

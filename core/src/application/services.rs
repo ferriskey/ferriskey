@@ -9,6 +9,7 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        identity_provider::broker::services::BrokerServiceImpl,
         identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
@@ -24,7 +25,10 @@ use crate::{
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         health::repositories::PostgresHealthCheckRepository,
-        identity_provider::PostgresIdentityProviderRepository,
+        identity_provider::{
+            PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
+            PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
             argon2_hasher::Argon2HasherRepository,
@@ -65,6 +69,9 @@ type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
 type FederationRepo = FederationRepositoryImpl;
+type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
+type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
+type OAuthClientImpl = ReqwestOAuthClient;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -151,6 +158,17 @@ pub struct ApplicationService {
             UserRepo,
             CredentialRepo,
         >,
+    pub broker_service: BrokerServiceImpl<
+        RealmRepo,
+        IdentityProviderRepo,
+        BrokerAuthSessionRepo,
+        IdentityProviderLinkRepo,
+        ClientRepo,
+        RedirectUriRepo,
+        UserRepo,
+        AuthSessionRepo,
+        OAuthClientImpl,
+    >,
 }
 
 impl CoreService for ApplicationService {

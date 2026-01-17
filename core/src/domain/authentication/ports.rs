@@ -83,6 +83,18 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         session_code: Uuid,
     ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, AuthenticationError>> + Send;
+
+    fn update_user_id(
+        &self,
+        session_code: Uuid,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+
+    fn update_code(
+        &self,
+        session_code: Uuid,
+        code: String,
+    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {
