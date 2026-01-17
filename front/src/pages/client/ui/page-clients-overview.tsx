@@ -63,7 +63,9 @@ export default function PageClientsOverview({
           title='Total Clients'
           value={totalClients}
           isLoading={isLoading}
-          chart={!isLoading && <ClientTrendChart clients={data} days={7} color='hsl(200 76% 36%)' />}
+          chart={
+            !isLoading && <ClientTrendChart clients={data} days={7} color='hsl(200 76% 36%)' />
+          }
         />
 
         <StatisticsCard
@@ -71,24 +73,51 @@ export default function PageClientsOverview({
           value={activeClients}
           isLoading={isLoading}
           trend={{
-            value: activeClients > 0 && totalClients > 0 ? Math.round((activeClients / totalClients) * 100) : 0,
+            value:
+              activeClients > 0 && totalClients > 0
+                ? Math.round((activeClients / totalClients) * 100)
+                : 0,
             direction: 'up',
           }}
-          chart={!isLoading && <ClientTrendChart clients={data.filter(c => c.enabled)} days={7} color='hsl(142 76% 36%)' />}
+          chart={
+            !isLoading && (
+              <ClientTrendChart
+                clients={data.filter((c) => c.enabled)}
+                days={7}
+                color='hsl(142 76% 36%)'
+              />
+            )
+          }
         />
 
         <StatisticsCard
           title='Public Clients'
           value={publicClients}
           isLoading={isLoading}
-          chart={!isLoading && <ClientTrendChart clients={data.filter(c => c.public_client)} days={7} color='hsl(221 83% 53%)' />}
+          chart={
+            !isLoading && (
+              <ClientTrendChart
+                clients={data.filter((c) => c.public_client)}
+                days={7}
+                color='hsl(221 83% 53%)'
+              />
+            )
+          }
         />
 
         <StatisticsCard
           title='Confidential Clients'
           value={confidentialClients}
           isLoading={isLoading}
-          chart={!isLoading && <ClientTrendChart clients={data.filter(c => !c.public_client)} days={7} color='hsl(262 83% 58%)' />}
+          chart={
+            !isLoading && (
+              <ClientTrendChart
+                clients={data.filter((c) => !c.public_client)}
+                days={7}
+                color='hsl(262 83% 58%)'
+              />
+            )
+          }
         />
       </div>
 
@@ -116,12 +145,12 @@ export default function PageClientsOverview({
           {
             label: 'Edit',
             icon: <Edit className='h-4 w-4' />,
-            onClick: (client) => console.log('Edit', client),
+            onClick: (client) => handleClickRow(client.id),
           },
           {
             label: 'View',
             icon: <ExternalLink className='h-4 w-4' />,
-            onClick: (client) => console.log('View', client),
+            onClick: (client) => handleClickRow(client.id),
           },
           {
             label: 'Delete',
