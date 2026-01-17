@@ -193,12 +193,12 @@ where
                 .map_err(|_| CoreError::UserNotFound)?;
 
             // Update token if store_token is enabled
-            if idp.store_token {
-                if let Some(token) = access_token {
-                    self.link_repository
-                        .update_token(link.id, Some(token.to_string()))
-                        .await?;
-                }
+            if idp.store_token
+                && let Some(token) = access_token
+            {
+                self.link_repository
+                    .update_token(link.id, Some(token.to_string()))
+                    .await?;
             }
 
             return Ok((user, false));
@@ -206,30 +206,28 @@ where
 
         // 2. If link_only mode, try to find user by email
         if idp.link_only {
-            if let Some(email) = &user_info.email {
-                if let Some(user) = self.user_repository.get_by_email(email, realm_id).await? {
-                    // Link existing user
-                    self.create_idp_link(&user, idp, user_info, access_token)
-                        .await?;
-                    return Ok((user, false));
-                }
+            if let Some(email) = &user_info.email
+                && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
+            {
+                // Link existing user
+                self.create_idp_link(&user, idp, user_info, access_token)
+                    .await?;
+                return Ok((user, false));
             }
             // link_only mode and no matching user found
             return Err(CoreError::LinkOnlyUserNotFound);
         }
 
         // 3. Try to find by email if trust_email is enabled
-        if idp.trust_email {
-            if let Some(email) = &user_info.email {
-                if user_info.email_verified.unwrap_or(false) {
-                    if let Some(user) = self.user_repository.get_by_email(email, realm_id).await? {
-                        // Link existing user
-                        self.create_idp_link(&user, idp, user_info, access_token)
-                            .await?;
-                        return Ok((user, false));
-                    }
-                }
-            }
+        if idp.trust_email
+            && let Some(email) = &user_info.email
+            && user_info.email_verified.unwrap_or(false)
+            && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
+        {
+            // Link existing user
+            self.create_idp_link(&user, idp, user_info, access_token)
+                .await?;
+            return Ok((user, false));
         }
 
         // 4. Create new user
@@ -488,7 +486,7 @@ where
         // 5. Resolve realm and IdP
         let realm = self
             .realm_repository
-            .get_by_id(broker_session.realm_id.into())
+            .get_by_id(broker_session.realm_id)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -592,10 +590,10 @@ where
         token_response: &OAuthTokenResponse,
     ) -> Result<BrokeredUserInfo, CoreError> {
         // Try to extract from ID token first (more efficient)
-        if let Some(id_token) = &token_response.id_token {
-            if let Ok(user_info) = Self::extract_user_info_from_id_token(id_token) {
-                return Ok(user_info);
-            }
+        if let Some(id_token) = &token_response.id_token
+            && let Ok(user_info) = Self::extract_user_info_from_id_token(id_token)
+        {
+            return Ok(user_info);
         }
 
         // Fall back to userinfo endpoint
