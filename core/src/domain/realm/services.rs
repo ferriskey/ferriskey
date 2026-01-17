@@ -262,6 +262,10 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        if !realm.can_delete() {
+            return Err(CoreError::CannotDeleteMasterRealm);
+        }
+
         let realm_id = realm.id;
 
         ensure_policy(
