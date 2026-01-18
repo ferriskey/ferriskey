@@ -126,7 +126,7 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/login-actions/send_magic_link",
+                "{}/realms/{{realm_name}}/login-actions/send-magic-link",
                 state.args.server.root_path
             ),
             post(send_magic_link),

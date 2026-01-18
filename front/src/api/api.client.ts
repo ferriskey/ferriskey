@@ -94,6 +94,8 @@ export namespace Schemas {
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
+    magic_link_enabled?: (boolean | null) | undefined
+    magic_link_ttl_minutes?: (number | null) | undefined
     realm_id: RealmId
     remember_me_enabled: boolean
     updated_at: string
@@ -358,6 +360,8 @@ export namespace Schemas {
   export type RealmLoginSetting = {
     forgot_password_enabled: boolean
     identity_providers: Array<IdentityProviderPresentation>
+    magic_link_enabled: boolean
+    magic_link_ttl_minutes: number
     remember_me_enabled: boolean
     user_registration_enabled: boolean
   }
@@ -383,6 +387,8 @@ export namespace Schemas {
     temporary: boolean
     value: string
   }>
+  export type SendMagicLinkRequest = { email: string }
+  export type SendMagicLinkResponse = { message: string }
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string }
   export type SyncUsersResponse = {
     completed_at?: (string | null) | undefined
@@ -842,6 +848,17 @@ export namespace Endpoints {
     }
     response: Schemas.GenerateRecoveryCodesResponse
   }
+  export type post_Send_magic_link = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/send-magic-link'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.SendMagicLinkRequest
+    }
+    response: Schemas.SendMagicLinkResponse
+  }
   export type get_Setup_otp = {
     method: 'GET'
     path: '/realms/{realm_name}/login-actions/setup-otp'
@@ -859,6 +876,16 @@ export namespace Endpoints {
       body: Schemas.UpdatePasswordRequest
     }
     response: Schemas.UpdatePasswordResponse
+  }
+  export type get_Verify_magic_link = {
+    method: 'GET'
+    path: '/realms/{realm_name}/login-actions/verify-magic-link'
+    requestFormat: 'json'
+    parameters: {
+      query: { token_id: string; magic_token: string; client_id: string }
+      path: { realm_name: string }
+    }
+    response: Schemas.AuthenticateResponse
   }
   export type post_Verify_otp = {
     method: 'POST'
@@ -1227,6 +1254,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
     '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate
@@ -1254,6 +1282,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/identity-providers': Endpoints.get_List_identity_providers
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.get_Get_identity_provider
     '/realms/{realm_name}/login-actions/setup-otp': Endpoints.get_Setup_otp
+    '/realms/{realm_name}/login-actions/verify-magic-link': Endpoints.get_Verify_magic_link
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo

@@ -42,7 +42,7 @@ pub struct VerifyMagicLinkQuery {
 
 #[utoipa::path(
     post,
-    path = "/realms/{realm_name}/login-actions/send-magic-link",
+    path = "/login-actions/send-magic-link",
     tag = "auth",
     summary = "Send magic link for passwordless authentication",
     description = "Sends a magic link to the user's email for passwordless authentication. The link contains a unique token that can be used to verify the user's identity.",
@@ -84,7 +84,7 @@ pub async fn send_magic_link(
 
 #[utoipa::path(
     get,
-    path = "/realms/{realm_name}/login-actions/verify-magic-link",
+    path = "/login-actions/verify-magic-link",
     tag = "auth",
     summary = "Verify magic link and complete authentication",
     description = "Verifies the magic link token and completes the authentication flow. Returns authentication status and optional redirect URL with authorization code.",

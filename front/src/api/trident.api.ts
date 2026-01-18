@@ -83,3 +83,17 @@ export const useUpdatePassword = () => {
       .mutationOptions,
   })
 }
+
+export const useSendMagicLink = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/send-magic-link')
+      .mutationOptions,
+  })
+}
+
+export const useVerifyMagicLink = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation('get', '/realms/{realm_name}/login-actions/verify-magic-link')
+      .mutationOptions,
+  })
+}

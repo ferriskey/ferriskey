@@ -6,7 +6,7 @@ info:
     name: nathaelb
     email: pro.nathaelbonnal@gmail.com
   license:
-    name: ""
+    name: ''
   version: 0.1.0
 paths:
   /realms:
@@ -19,22 +19,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateRealmValidator"
+              $ref: '#/components/schemas/CreateRealmValidator'
         required: true
       responses:
-        "201":
-          description: ""
+        '201':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Realm"
-  /realms/{name}:
+                $ref: '#/components/schemas/Realm'
+  '/realms/{name}':
     get:
       tags:
         - realm
       summary: Get a realm by name
-      description: Retrieves a realm by its name. This endpoint returns the details of
-        the specified realm.
+      description: >-
+        Retrieves a realm by its name. This endpoint returns the details of the
+        specified realm.
       operationId: get_realm
       parameters:
         - name: name
@@ -44,17 +45,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Realm"
+                $ref: '#/components/schemas/Realm'
     put:
       tags:
         - realm
       summary: Update a realm by name
-      description: Updates the name of an existing realm. This endpoint allows you to
+      description: >-
+        Updates the name of an existing realm. This endpoint allows you to
         change the name of a realm while keeping its associated data intact.
       operationId: update_realm
       parameters:
@@ -68,21 +70,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateRealmValidator"
+              $ref: '#/components/schemas/UpdateRealmValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Realm"
+                $ref: '#/components/schemas/Realm'
     delete:
       tags:
         - realm
       summary: Delete a realm by name
-      description: Deletes a realm by its name. This action is irreversible and will
-        remove all associated data.
+      description: >-
+        Deletes a realm by its name. This action is irreversible and will remove
+        all associated data.
       operationId: delete_realm
       parameters:
         - name: name
@@ -92,13 +95,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Realm deleted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteRealmResponse"
-  /realms/{name}/login-settings:
+                $ref: '#/components/schemas/DeleteRealmResponse'
+  '/realms/{name}/login-settings':
     get:
       tags:
         - realm
@@ -113,18 +116,19 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RealmLoginSetting"
-  /realms/{name}/settings:
+                $ref: '#/components/schemas/RealmLoginSetting'
+  '/realms/{name}/settings':
     put:
       tags:
         - realm
       summary: Update settings for a realm by name
-      description: Updates the settings for a specified realm. This endpoint allows
+      description: >-
+        Updates the settings for a specified realm. This endpoint allows
         modification of various realm settings.
       operationId: update_realm_setting
       parameters:
@@ -138,24 +142,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateRealmSettingValidator"
+              $ref: '#/components/schemas/UpdateRealmSettingValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Realm"
-  /realms/{realm_name}/.well-known/openid-configuration:
+                $ref: '#/components/schemas/Realm'
+  '/realms/{realm_name}/.well-known/openid-configuration':
     get:
       tags:
         - auth
       summary: Get OpenID Connect configuration
-      description: Retrieves the OpenID Connect configuration for a specific realm.
-        This endpoint provides metadata about the OpenID Connect provider,
-        including endpoints for authorization, token issuance, introspection,
-        user information, and JWKs.
+      description: >-
+        Retrieves the OpenID Connect configuration for a specific realm. This
+        endpoint provides metadata about the OpenID Connect provider, including
+        endpoints for authorization, token issuance, introspection, user
+        information, and JWKs.
       operationId: get_openid_configuration
       parameters:
         - name: realm_name
@@ -165,13 +170,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetOpenIdConfigurationResponse"
-  /realms/{realm_name}/clients:
+                $ref: '#/components/schemas/GetOpenIdConfigurationResponse'
+  '/realms/{realm_name}/clients':
     get:
       tags:
         - client
@@ -186,19 +191,20 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Clients retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClientsResponse"
+                $ref: '#/components/schemas/ClientsResponse'
     post:
       tags:
         - client
       summary: Create a new client in a realm
-      description: Creates a new client within the specified realm. This endpoint
-        allows you to register a new client application that can interact with
-        the realm's resources.
+      description: >-
+        Creates a new client within the specified realm. This endpoint allows
+        you to register a new client application that can interact with the
+        realm's resources.
       operationId: create_client
       parameters:
         - name: realm_name
@@ -211,22 +217,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateClientValidator"
+              $ref: '#/components/schemas/CreateClientValidator'
         required: true
       responses:
-        "201":
+        '201':
           description: Client created successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Client"
-        "400":
+                $ref: '#/components/schemas/Client'
+        '400':
           description: Bad request
-        "401":
+        '401':
           description: Unauthorized
-        "403":
+        '403':
           description: Forbidden
-  /realms/{realm_name}/clients/{client_id}:
+  '/realms/{realm_name}/clients/{client_id}':
     get:
       tags:
         - client
@@ -248,18 +254,19 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Client retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetClientResponse"
+                $ref: '#/components/schemas/GetClientResponse'
     delete:
       tags:
         - client
       summary: Delete a client
-      description: Deletes a client from the specified realm. This action is
-        irreversible and will remove all associated data.
+      description: >-
+        Deletes a client from the specified realm. This action is irreversible
+        and will remove all associated data.
       operationId: delete_client
       parameters:
         - name: realm_name
@@ -276,18 +283,19 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Client deleted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteClientResponse"
+                $ref: '#/components/schemas/DeleteClientResponse'
     patch:
       tags:
         - client
       summary: Update a client
-      description: Updates an existing client in the specified realm. This endpoint
-        allows you to modify client details such as name, client ID, and enabled
+      description: >-
+        Updates an existing client in the specified realm. This endpoint allows
+        you to modify client details such as name, client ID, and enabled
         status.
       operationId: update_client
       parameters:
@@ -308,21 +316,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateClientValidator"
+              $ref: '#/components/schemas/UpdateClientValidator'
         required: true
       responses:
-        "200":
+        '200':
           description: Client updated successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Client"
-  /realms/{realm_name}/clients/{client_id}/redirects:
+                $ref: '#/components/schemas/Client'
+  '/realms/{realm_name}/clients/{client_id}/redirects':
     get:
       tags:
         - client
       summary: Get redirect URIs for a client
-      description: Retrieves all redirect URIs associated with a client in a specific
+      description: >-
+        Retrieves all redirect URIs associated with a client in a specific
         realm. This endpoint is useful for OAuth2 or OpenID Connect flows where
         clients need to know their registered redirect URIs.
       operationId: get_redirect_uris
@@ -341,19 +350,20 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/RedirectUri"
+                  $ref: '#/components/schemas/RedirectUri'
     post:
       tags:
         - client
       summary: Create a new redirect URI for a client
-      description: Creates a new redirect URI for the specified client. This endpoint
+      description: >-
+        Creates a new redirect URI for the specified client. This endpoint
         allows you to add a redirect URI that the client can use for OAuth2 or
         OpenID Connect flows.
       operationId: create_redirect_uri
@@ -375,22 +385,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateRedirectUriValidator"
+              $ref: '#/components/schemas/CreateRedirectUriValidator'
         required: true
       responses:
-        "201":
+        '201':
           description: Redirect URI created successfully for the client
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RedirectUri"
-  /realms/{realm_name}/clients/{client_id}/redirects/{uri_id}:
+                $ref: '#/components/schemas/RedirectUri'
+  '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}':
     put:
       tags:
         - client
       summary: Update a redirect URI for a client
-      description: Updates an existing redirect URI for a client in a specific realm.
-        This endpoint allows you to modify the enabled status of a redirect URI.
+      description: >-
+        Updates an existing redirect URI for a client in a specific realm. This
+        endpoint allows you to modify the enabled status of a redirect URI.
       operationId: update_redirect_uri
       parameters:
         - name: realm_name
@@ -417,22 +428,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateRedirectUriValidator"
+              $ref: '#/components/schemas/UpdateRedirectUriValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RedirectUri"
+                $ref: '#/components/schemas/RedirectUri'
     delete:
       tags:
         - client
       summary: Delete a redirect URI for a client
-      description: Deletes a specific redirect URI for a client in a realm. This
-        action is irreversible and will remove the redirect URI from the
-        client's configuration.
+      description: >-
+        Deletes a specific redirect URI for a client in a realm. This action is
+        irreversible and will remove the redirect URI from the client's
+        configuration.
       operationId: delete_redirect_uri
       parameters:
         - name: realm_name
@@ -456,9 +468,9 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Redirect URI deleted successfully
-  /realms/{realm_name}/clients/{client_id}/roles:
+  '/realms/{realm_name}/clients/{client_id}/roles':
     get:
       tags:
         - client
@@ -480,21 +492,22 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Successfully retrieved client roles
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetClientRolesResponse"
-        "500":
+                $ref: '#/components/schemas/GetClientRolesResponse'
+        '500':
           description: Internal server error
     post:
       tags:
         - client
       summary: Create a new role
-      description: Creates a new role for a specific client within a realm. This
-        endpoint allows you to define roles that can be assigned to users or
-        groups in the context of a client application.
+      description: >-
+        Creates a new role for a specific client within a realm. This endpoint
+        allows you to define roles that can be assigned to users or groups in
+        the context of a client application.
       operationId: create_role
       parameters:
         - name: realm_name
@@ -514,16 +527,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateRoleValidator"
+              $ref: '#/components/schemas/CreateRoleValidator'
         required: true
       responses:
-        "201":
-          description: ""
+        '201':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Role"
-  /realms/{realm_name}/login-actions/authenticate:
+                $ref: '#/components/schemas/Role'
+  '/realms/{realm_name}/login-actions/authenticate':
     post:
       tags:
         - auth
@@ -540,16 +553,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthenticateRequest"
+              $ref: '#/components/schemas/AuthenticateRequest'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthenticateResponse"
-  /realms/{realm_name}/login-actions/burn-recovery-code:
+                $ref: '#/components/schemas/AuthenticateResponse'
+  '/realms/{realm_name}/login-actions/burn-recovery-code':
     post:
       tags:
         - auth
@@ -560,38 +573,39 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BurnRecoveryCodeRequest"
+              $ref: '#/components/schemas/BurnRecoveryCodeRequest'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BurnRecoveryCodeResponse"
-        "400":
-          description: ""
+                $ref: '#/components/schemas/BurnRecoveryCodeResponse'
+        '400':
+          description: ''
           content:
             text/plain:
               schema:
                 type: string
-  /realms/{realm_name}/login-actions/challenge-otp:
+  '/realms/{realm_name}/login-actions/challenge-otp':
     post:
       tags:
         - auth
       summary: Challenge OTP for user authentication
-      description: Challenges the user to provide a One-Time Password (OTP) for
+      description: >-
+        Challenges the user to provide a One-Time Password (OTP) for
         authentication. This is typically used in multi-factor authentication
         scenarios.
       operationId: challenge_otp
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ChallengeOtpResponse"
-  /realms/{realm_name}/login-actions/generate-recovery-codes:
+                $ref: '#/components/schemas/ChallengeOtpResponse'
+  '/realms/{realm_name}/login-actions/generate-recovery-codes':
     post:
       tags:
         - auth
@@ -602,27 +616,64 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/GenerateRecoveryCodesRequest"
+              $ref: '#/components/schemas/GenerateRecoveryCodesRequest'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GenerateRecoveryCodesResponse"
-        "400":
-          description: ""
+                $ref: '#/components/schemas/GenerateRecoveryCodesResponse'
+        '400':
+          description: ''
           content:
             text/plain:
               schema:
                 type: string
-  /realms/{realm_name}/login-actions/setup-otp:
+  '/realms/{realm_name}/login-actions/send-magic-link':
+    post:
+      tags:
+        - auth
+      summary: Send magic link for passwordless authentication
+      description: >-
+        Sends a magic link to the user's email for passwordless authentication.
+        The link contains a unique token that can be used to verify the user's
+        identity.
+      operationId: send_magic_link
+      parameters:
+        - name: realm_name
+          in: path
+          description: The realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMagicLinkRequest'
+        required: true
+      responses:
+        '200':
+          description: Magic link sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMagicLinkResponse'
+        '400':
+          description: Bad Request - Invalid email format
+        '404':
+          description: Not Found - User not found in realm
+        '500':
+          description: Internal Server Error
+  '/realms/{realm_name}/login-actions/setup-otp':
     get:
       tags:
         - auth
       summary: Setup OTP for user authentication
-      description: Sets up a One-Time Password (OTP) for user authentication. This is
+      description: >-
+        Sets up a One-Time Password (OTP) for user authentication. This is
         typically used in multi-factor authentication scenarios.
       operationId: setup_otp
       parameters:
@@ -633,17 +684,17 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OTP setup successful
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SetupOtpResponse"
-        "403":
+                $ref: '#/components/schemas/SetupOtpResponse'
+        '403':
           description: Forbidden - Only users can set up OTP
-        "500":
+        '500':
           description: Internal Server Error - Failed to generate OTP secret
-  /realms/{realm_name}/login-actions/update-password:
+  '/realms/{realm_name}/login-actions/update-password':
     post:
       tags:
         - auth
@@ -653,21 +704,72 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdatePasswordRequest"
+              $ref: '#/components/schemas/UpdatePasswordRequest'
         required: true
       responses:
-        "200":
+        '200':
           description: Password updated successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdatePasswordResponse"
-  /realms/{realm_name}/login-actions/verify-otp:
+                $ref: '#/components/schemas/UpdatePasswordResponse'
+  '/realms/{realm_name}/login-actions/verify-magic-link':
+    get:
+      tags:
+        - auth
+      summary: Verify magic link and complete authentication
+      description: >-
+        Verifies the magic link token and completes the authentication flow.
+        Returns authentication status and optional redirect URL with
+        authorization code.
+      operationId: verify_magic_link
+      parameters:
+        - name: realm_name
+          in: path
+          description: The realm name
+          required: true
+          schema:
+            type: string
+        - name: token_id
+          in: query
+          description: The unique token identifier from the magic link
+          required: true
+          schema:
+            type: string
+        - name: magic_token
+          in: query
+          description: The secret verification token from the magic link
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          description: The OAuth 2.0 client identifier
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Magic link verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticateResponse'
+        '400':
+          description: Bad Request - Invalid session code or parameters
+        '401':
+          description: Unauthorized - Missing or invalid session cookie
+        '404':
+          description: Not Found - Magic link not found or expired
+        '500':
+          description: Internal Server Error
+  '/realms/{realm_name}/login-actions/verify-otp':
     post:
       tags:
         - auth
       summary: Verify OTP for user authentication
-      description: Verifies the One-Time Password (OTP) provided by the user. This is
+      description: >-
+        Verifies the One-Time Password (OTP) provided by the user. This is
         typically used in multi-factor authentication scenarios.
       operationId: verify_otp
       parameters:
@@ -681,22 +783,118 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OtpVerifyRequest"
+              $ref: '#/components/schemas/OtpVerifyRequest'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VerifyOtpResponse"
-  /realms/{realm_name}/protocol/openid-connect/auth:
+                $ref: '#/components/schemas/VerifyOtpResponse'
+  '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate':
+    post:
+      tags:
+        - auth
+      summary: Authenticate using webauthn
+      description: >-
+        Attempt authentication using a WebAuthnAssertionResponse payload for
+        webauthn authentication. See
+        https://w3c.github.io/webauthn/#dictdef-authenticationresponsejson and
+        https://w3c.github.io/webauthn/#authenticatorassertionresponse
+      operationId: webauthn_public_key_authenticate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicKeyCredential'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticationAttemptResponse'
+  '/realms/{realm_name}/login-actions/webauthn-public-key-create':
+    post:
+      tags:
+        - auth
+      summary: Validate and save a webauthn public key
+      description: >-
+        Saving a webauthn public key to use it for authentication attempts or
+        MFA later.
+      operationId: webauthn_public_key_create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicKeyCredential'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidatePublicKeyResponse'
+  '/realms/{realm_name}/login-actions/webauthn-public-key-create-options':
+    post:
+      tags:
+        - auth
+      summary: Create a webauthn public key
+      description: >-
+        Provides a full PublicKeyCredentialCreationOption payload for WebAuthn
+        credential creation/authentication. The payload contains the challenge
+        to resolve in B64Url form as described in the specs. The content is
+        described here:
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.
+      operationId: webauthn_public_key_create_options
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePublicKeyRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicKeyCredentialCreationOptionsJSON'
+  '/realms/{realm_name}/login-actions/webauthn-public-key-request-options':
+    post:
+      tags:
+        - auth
+      summary: Request webauthn challenge
+      description: >-
+        Provides a full PublicKeyCredentialRequestOption payload for webauthn
+        authentication. See
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptions
+        and
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptionsjson
+      operationId: webauthn_public_key_request_options
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOptionsRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicKeyCredentialRequestOptionsJSON'
+  '/realms/{realm_name}/protocol/openid-connect/auth':
     get:
       tags:
         - auth
       summary: Authenticate a user
       description: Initiates the authentication process for a user in a specific realm.
-      operationId: auth
+      operationId: auth_handler
       parameters:
         - name: realm_name
           in: path
@@ -730,25 +928,26 @@ paths:
           schema:
             type: string
       responses:
-        "302":
+        '302':
           description: Redirects to the login page with session cookie set
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
-        "400":
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
           description: Bad Request
-        "401":
+        '401':
           description: Unauthorized
-        "500":
+        '500':
           description: Internal Server Error
-  /realms/{realm_name}/protocol/openid-connect/certs:
+  '/realms/{realm_name}/protocol/openid-connect/certs':
     get:
       tags:
         - auth
       summary: Get JWK keys for a realm
-      description: Retrieves the JSON Web Key (JWK) keys for a specific realm, used
-        for verifying JWT tokens.
+      description: >-
+        Retrieves the JSON Web Key (JWK) keys for a specific realm, used for
+        verifying JWT tokens.
       operationId: get_certs
       parameters:
         - name: realm_name
@@ -758,18 +957,48 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetCertsResponse"
-  /realms/{realm_name}/protocol/openid-connect/token:
+                $ref: '#/components/schemas/GetCertsResponse'
+  '/realms/{realm_name}/protocol/openid-connect/registrations':
+    post:
+      tags:
+        - auth
+      summary: Register a new user
+      description: Register a new user in the specified realm
+      operationId: registration_handler
+      parameters:
+        - name: realm_name
+          in: path
+          description: The realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtToken'
+        '403':
+          description: User registration is disabled for this realm
+  '/realms/{realm_name}/protocol/openid-connect/token':
     post:
       tags:
         - auth
       summary: Exchange token
-      description: Exchanges a token for a JWT token. This endpoint allows clients to
+      description: >-
+        Exchanges a token for a JWT token. This endpoint allows clients to
         exchange various types of tokens (like authorization codes, refresh
         tokens, etc.) for a JWT token.
       operationId: exchange_token
@@ -777,16 +1006,45 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TokenRequestValidator"
+              $ref: '#/components/schemas/TokenRequestValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JwtToken"
-  /realms/{realm_name}/roles:
+                $ref: '#/components/schemas/JwtToken'
+  '/realms/{realm_name}/protocol/openid-connect/userinfo':
+    get:
+      tags:
+        - auth
+      summary: Get user info
+      description: >-
+        Retrieves the user information for the authenticated user in a specific
+        realm.
+      operationId: get_userinfo
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+  '/realms/{realm_name}/roles':
     get:
       tags:
         - role
@@ -800,13 +1058,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetRolesResponse"
-  /realms/{realm_name}/roles/{role_id}:
+                $ref: '#/components/schemas/GetRolesResponse'
+  '/realms/{realm_name}/roles/{role_id}':
     get:
       tags:
         - role
@@ -827,13 +1085,13 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetRoleResponse"
-        "404":
+                $ref: '#/components/schemas/GetRoleResponse'
+        '404':
           description: Role not found
     put:
       tags:
@@ -858,18 +1116,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateRoleValidator"
+              $ref: '#/components/schemas/UpdateRoleValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdateRoleResponse"
-        "400":
+                $ref: '#/components/schemas/UpdateRoleResponse'
+        '400':
           description: Invalid request data
-        "404":
+        '404':
           description: Role not found
     delete:
       tags:
@@ -891,17 +1149,17 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Role deleted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteRoleResponse"
-        "400":
+                $ref: '#/components/schemas/DeleteRoleResponse'
+        '400':
           description: Invalid request data
-        "404":
+        '404':
           description: Role not found
-  /realms/{realm_name}/roles/{role_id}/permissions:
+  '/realms/{realm_name}/roles/{role_id}/permissions':
     patch:
       tags:
         - role
@@ -925,20 +1183,40 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateRolePermissionsValidator"
+              $ref: '#/components/schemas/UpdateRolePermissionsValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdateRolePermissionsResponse"
-        "400":
+                $ref: '#/components/schemas/UpdateRolePermissionsResponse'
+        '400':
           description: Invalid request data
-        "404":
+        '404':
           description: Role not found
-  /realms/{realm_name}/users:
+  '/realms/{realm_name}/seawatch/v1/security-events':
+    get:
+      tags:
+        - seawatch
+      summary: Get Security Events
+      operationId: get_security_events
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSecurityEventsResponse'
+  '/realms/{realm_name}/users':
     get:
       tags:
         - user
@@ -953,12 +1231,12 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Users retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UsersResponse"
+                $ref: '#/components/schemas/UsersResponse'
     post:
       tags:
         - user
@@ -976,22 +1254,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateUserValidator"
+              $ref: '#/components/schemas/CreateUserValidator'
         required: true
       responses:
-        "201":
+        '201':
           description: User created successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateUserResponse"
-        "400":
+                $ref: '#/components/schemas/CreateUserResponse'
+        '400':
           description: Bad request
-        "401":
+        '401':
           description: Unauthorized
-        "403":
+        '403':
           description: Forbidden
-  /realms/{realm_name}/users/@me/realms:
+  '/realms/{realm_name}/users/@me/realms':
     get:
       tags:
         - realm
@@ -1005,25 +1283,26 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserRealmsResponse"
-        "401":
+                $ref: '#/components/schemas/UserRealmsResponse'
+        '401':
           description: Unauthorized
-        "403":
+        '403':
           description: Forbidden
       security:
         - Authorization:
             - Bearer
-  /realms/{realm_name}/users/bulk:
+  '/realms/{realm_name}/users/bulk':
     delete:
       tags:
         - user
       summary: Bulk delete users in a realm
-      description: Deletes multiple users in a realm by their IDs. This action is
+      description: >-
+        Deletes multiple users in a realm by their IDs. This action is
         irreversible and will remove all associated data.
       operationId: bulk_delete_user
       parameters:
@@ -1037,22 +1316,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BulkDeleteUserValidator"
+              $ref: '#/components/schemas/BulkDeleteUserValidator'
         required: true
       responses:
-        "200":
+        '200':
           description: Users deleted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BulkDeleteUserResponse"
-  /realms/{realm_name}/users/{user_id}:
+                $ref: '#/components/schemas/BulkDeleteUserResponse'
+  '/realms/{realm_name}/users/{user_id}':
     get:
       tags:
         - user
       summary: Get a user by ID in a realm
-      description: Retrieves a user by their ID in a specific realm. This endpoint
-        returns detailed information about the user.
+      description: >-
+        Retrieves a user by their ID in a specific realm. This endpoint returns
+        detailed information about the user.
       operationId: get_user
       parameters:
         - name: realm_name
@@ -1068,22 +1348,23 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: User retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserResponse"
-        "403":
-          description: "Forbidden: User does not have permission to access this user"
-        "404":
+                $ref: '#/components/schemas/UserResponse'
+        '403':
+          description: 'Forbidden: User does not have permission to access this user'
+        '404':
           description: User not found
     put:
       tags:
         - user
       summary: Update a user in a realm
-      description: Updates an existing user in a specific realm. The user must exist
-        and the request must include the necessary fields to update.
+      description: >-
+        Updates an existing user in a specific realm. The user must exist and
+        the request must include the necessary fields to update.
       operationId: update_user
       parameters:
         - name: realm_name
@@ -1103,29 +1384,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateUserValidator"
+              $ref: '#/components/schemas/UpdateUserValidator'
         required: true
       responses:
-        "200":
+        '200':
           description: User updated successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UpdateUserResponse"
-        "400":
+                $ref: '#/components/schemas/UpdateUserResponse'
+        '400':
           description: Bad request
-        "401":
+        '401':
           description: Unauthorized
-        "403":
+        '403':
           description: Forbidden
-        "404":
+        '404':
           description: User not found
     delete:
       tags:
         - user
       summary: Delete a user in a realm
-      description: Deletes a user in a realm. This action is irreversible and will
-        remove all associated data.
+      description: >-
+        Deletes a user in a realm. This action is irreversible and will remove
+        all associated data.
       operationId: delete_user
       parameters:
         - name: realm_name
@@ -1141,17 +1423,17 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: User deleted successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteUserResponse"
-        "403":
-          description: "Forbidden: User does not have permission to delete this user"
-        "404":
+                $ref: '#/components/schemas/DeleteUserResponse'
+        '403':
+          description: 'Forbidden: User does not have permission to delete this user'
+        '404':
           description: User not found
-  /realms/{realm_name}/users/{user_id}/credentials:
+  '/realms/{realm_name}/users/{user_id}/credentials':
     get:
       tags:
         - user
@@ -1173,18 +1455,19 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: User credentials retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetUserCredentialsResponse"
-  /realms/{realm_name}/users/{user_id}/credentials/{credential_id}:
+                $ref: '#/components/schemas/GetUserCredentialsResponse'
+  '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}':
     delete:
       tags:
         - user
       summary: Delete a user credential in a realm
-      description: Deletes a specific credential for a user in a realm. This action is
+      description: >-
+        Deletes a specific credential for a user in a realm. This action is
         irreversible and will remove all associated data.
       operationId: delete_user_credential
       parameters:
@@ -1209,13 +1492,13 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteUserCredentialResponse"
-  /realms/{realm_name}/users/{user_id}/reset-password:
+                $ref: '#/components/schemas/DeleteUserCredentialResponse'
+  '/realms/{realm_name}/users/{user_id}/reset-password':
     put:
       tags:
         - user
@@ -1241,16 +1524,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ResetPasswordValidator"
+              $ref: '#/components/schemas/ResetPasswordValidator'
         required: true
       responses:
-        "200":
+        '200':
           description: Password reset successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResetPasswordResponse"
-  /realms/{realm_name}/users/{user_id}/roles:
+                $ref: '#/components/schemas/ResetPasswordResponse'
+  '/realms/{realm_name}/users/{user_id}/roles':
     get:
       tags:
         - user
@@ -1272,21 +1555,22 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetUserRolesResponse"
-        "404":
+                $ref: '#/components/schemas/GetUserRolesResponse'
+        '404':
           description: User not found
-  /realms/{realm_name}/users/{user_id}/roles/{role_id}:
+  '/realms/{realm_name}/users/{user_id}/roles/{role_id}':
     post:
       tags:
         - user
       summary: Assign a role to a user in a realm
-      description: Assigns a specified role to a user within a given realm. This
-        endpoint is used to manage user roles in the system.
+      description: >-
+        Assigns a specified role to a user within a given realm. This endpoint
+        is used to manage user roles in the system.
       operationId: assign_role
       parameters:
         - name: realm_name
@@ -1310,21 +1594,22 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Role assigned successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AssignRoleResponse"
-        "403":
+                $ref: '#/components/schemas/AssignRoleResponse'
+        '403':
           description: Forbidden - insufficient permissions
-        "404":
+        '404':
           description: User or role not found
     delete:
       tags:
         - user
       summary: Unassign a role from a user in a realm
-      description: Unassigns a specific role from a user in a realm. This action is
+      description: >-
+        Unassigns a specific role from a user in a realm. This action is
         irreversible and will remove the user's access to the role's
         permissions.
       operationId: unassign_role
@@ -1350,23 +1635,24 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Role unassigned successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnassignRoleResponse"
-        "403":
+                $ref: '#/components/schemas/UnassignRoleResponse'
+        '403':
           description: Forbidden - You do not have permission to unassign roles
-        "404":
+        '404':
           description: User or role not found
-  /realms/{realm_name}/webhooks:
+  '/realms/{realm_name}/webhooks':
     get:
       tags:
         - webhook
       summary: Fetch all webhooks
-      description: Retrieves a list of all webhooks available in the system related to
-        the current realm.
+      description: >-
+        Retrieves a list of all webhooks available in the system related to the
+        current realm.
       operationId: fetch_webhooks
       parameters:
         - name: realm_name
@@ -1376,12 +1662,12 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetWebhooksResponse"
+                $ref: '#/components/schemas/GetWebhooksResponse'
     put:
       tags:
         - webhook
@@ -1389,12 +1675,12 @@ paths:
       description: Updates a webhook in the system related to the current realm.
       operationId: update_webhook
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: '#/components/schemas/Webhook'
     post:
       tags:
         - webhook
@@ -1412,16 +1698,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateWebhookValidator"
+              $ref: '#/components/schemas/CreateWebhookValidator'
         required: true
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateWebhookResponse"
-  /realms/{realm_name}/webhooks/{webhook_id}:
+                $ref: '#/components/schemas/CreateWebhookResponse'
+  '/realms/{realm_name}/webhooks/{webhook_id}':
     get:
       tags:
         - webhook
@@ -1437,12 +1723,12 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: '#/components/schemas/Webhook'
     delete:
       tags:
         - webhook
@@ -1464,14 +1750,21 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: ""
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteWebhookResponse"
+                $ref: '#/components/schemas/DeleteWebhookResponse'
 components:
   schemas:
+    ActorType:
+      type: string
+      enum:
+        - user
+        - service_account
+        - admin
+        - system
     AssignRoleResponse:
       type: object
       required:
@@ -1499,11 +1792,11 @@ components:
         password:
           type:
             - string
-            - "null"
+            - 'null'
         username:
           type:
             - string
-            - "null"
+            - 'null'
     AuthenticateResponse:
       type: object
       required:
@@ -1512,23 +1805,30 @@ components:
         message:
           type:
             - string
-            - "null"
+            - 'null'
         required_actions:
           type:
             - array
-            - "null"
+            - 'null'
           items:
-            $ref: "#/components/schemas/RequiredAction"
+            $ref: '#/components/schemas/RequiredAction'
         status:
-          $ref: "#/components/schemas/AuthenticationStatus"
+          $ref: '#/components/schemas/AuthenticationStatus'
         token:
           type:
             - string
-            - "null"
+            - 'null'
         url:
           type:
             - string
-            - "null"
+            - 'null'
+    AuthenticationAttemptResponse:
+      type: object
+      required:
+        - login_url
+      properties:
+        login_url:
+          type: string
     AuthenticationStatus:
       type: string
       enum:
@@ -1617,18 +1917,17 @@ components:
         public_client:
           type: boolean
         realm_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/RealmId'
         redirect_uris:
           type:
             - array
-            - "null"
+            - 'null'
           items:
-            $ref: "#/components/schemas/RedirectUri"
+            $ref: '#/components/schemas/RedirectUri'
         secret:
           type:
             - string
-            - "null"
+            - 'null'
         service_account_enabled:
           type: boolean
         updated_at:
@@ -1642,7 +1941,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Client"
+            $ref: '#/components/schemas/Client'
     CreateClientValidator:
       type: object
       properties:
@@ -1662,6 +1961,8 @@ components:
           type: boolean
         service_account_enabled:
           type: boolean
+    CreatePublicKeyRequest:
+      type: object
     CreateRealmValidator:
       type: object
       properties:
@@ -1683,7 +1984,7 @@ components:
         description:
           type:
             - string
-            - "null"
+            - 'null'
         name:
           type: string
         permissions:
@@ -1696,7 +1997,7 @@ components:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/User"
+          $ref: '#/components/schemas/User'
     CreateUserValidator:
       type: object
       properties:
@@ -1705,7 +2006,7 @@ components:
         email_verified:
           type:
             - boolean
-            - "null"
+            - 'null'
         firstname:
           type: string
         lastname:
@@ -1718,36 +2019,51 @@ components:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/Webhook"
+          $ref: '#/components/schemas/Webhook'
     CreateWebhookValidator:
       type: object
       properties:
         description:
           type:
             - string
-            - "null"
+            - 'null'
         endpoint:
           type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
         name:
           type:
             - string
-            - "null"
+            - 'null'
         subscribers:
           type: array
           items:
-            $ref: "#/components/schemas/WebhookTrigger"
-    CredentialData:
-      type: object
-      required:
-        - hash_iterations
-        - algorithm
-      properties:
-        algorithm:
-          type: string
-        hash_iterations:
-          type: integer
-          format: int32
-          minimum: 0
+            $ref: '#/components/schemas/WebhookTrigger'
+    CredentialDataOverview:
+      oneOf:
+        - type: object
+          required:
+            - Hash
+          properties:
+            Hash:
+              type: object
+              required:
+                - hash_iterations
+                - algorithm
+              properties:
+                algorithm:
+                  type: string
+                hash_iterations:
+                  type: integer
+                  format: int32
+                  minimum: 0
+        - type: string
+          enum:
+            - WebAuthn
     CredentialOverview:
       type: object
       required:
@@ -1762,7 +2078,7 @@ components:
           type: string
           format: date-time
         credential_data:
-          $ref: "#/components/schemas/CredentialData"
+          $ref: '#/components/schemas/CredentialDataOverview'
         credential_type:
           type: string
         id:
@@ -1777,7 +2093,7 @@ components:
         user_label:
           type:
             - string
-            - "null"
+            - 'null'
     DeleteClientResponse:
       type: object
       required:
@@ -1837,6 +2153,11 @@ components:
           type: string
         realm_name:
           type: string
+    EventStatus:
+      type: string
+      enum:
+        - success
+        - failure
     GenerateRecoveryCodesRequest:
       type: object
       required:
@@ -1866,14 +2187,14 @@ components:
         keys:
           type: array
           items:
-            $ref: "#/components/schemas/JwkKey"
+            $ref: '#/components/schemas/JwkKey'
     GetClientResponse:
       type: object
       required:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/Client"
+          $ref: '#/components/schemas/Client'
     GetClientRolesResponse:
       type: object
       required:
@@ -1882,7 +2203,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Role"
+            $ref: '#/components/schemas/Role'
     GetOpenIdConfigurationResponse:
       type: object
       required:
@@ -1916,7 +2237,7 @@ components:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/Role"
+          $ref: '#/components/schemas/Role'
     GetRolesResponse:
       type: object
       required:
@@ -1925,7 +2246,16 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Role"
+            $ref: '#/components/schemas/Role'
+    GetSecurityEventsResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityEvent'
     GetUserCredentialsResponse:
       type: object
       required:
@@ -1934,7 +2264,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/CredentialOverview"
+            $ref: '#/components/schemas/CredentialOverview'
     GetUserRolesResponse:
       type: object
       required:
@@ -1943,7 +2273,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Role"
+            $ref: '#/components/schemas/Role'
     GetWebhooksResponse:
       type: object
       required:
@@ -1952,7 +2282,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Webhook"
+            $ref: '#/components/schemas/Webhook'
     GrantType:
       type: string
       enum:
@@ -1980,7 +2310,7 @@ components:
           type: string
         kty:
           type: string
-        n:
+        'n':
           type: string
         use_:
           type: string
@@ -2024,6 +2354,21 @@ components:
           type: string
         secret:
           type: string
+    PublicKeyCredential:
+      type: object
+      description: >-
+        Incomplete schema. See
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialjson
+    PublicKeyCredentialCreationOptionsJSON:
+      type: object
+      description: >-
+        Incomplete schema. see
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptionsjson
+    PublicKeyCredentialRequestOptionsJSON:
+      type: object
+      description: >-
+        Incomplete schema. see
+        https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptionsjson
     Realm:
       type: object
       required:
@@ -2036,26 +2381,36 @@ components:
           type: string
           format: date-time
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/RealmId'
         name:
           type: string
         settings:
           oneOf:
-            - type: "null"
-            - $ref: "#/components/schemas/RealmSetting"
+            - type: 'null'
+            - $ref: '#/components/schemas/RealmSetting'
         updated_at:
           type: string
           format: date-time
+    RealmId:
+      type: string
+      format: uuid
     RealmLoginSetting:
       type: object
       required:
         - user_registration_enabled
         - forgot_password_enabled
         - remember_me_enabled
+        - magic_link_enabled
+        - magic_link_ttl_minutes
       properties:
         forgot_password_enabled:
           type: boolean
+        magic_link_enabled:
+          type: boolean
+        magic_link_ttl_minutes:
+          type: integer
+          format: int32
+          minimum: 0
         remember_me_enabled:
           type: boolean
         user_registration_enabled:
@@ -2073,15 +2428,24 @@ components:
         default_signing_algorithm:
           type:
             - string
-            - "null"
+            - 'null'
         forgot_password_enabled:
           type: boolean
         id:
           type: string
           format: uuid
+        magic_link_enabled:
+          type:
+            - boolean
+            - 'null'
+        magic_link_ttl_minutes:
+          type:
+            - integer
+            - 'null'
+          format: int32
+          minimum: 0
         realm_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/RealmId'
         remember_me_enabled:
           type: boolean
         updated_at:
@@ -2115,6 +2479,25 @@ components:
           format: date-time
         value:
           type: string
+    RegistrationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        first_name:
+          type:
+            - string
+            - 'null'
+        last_name:
+          type:
+            - string
+            - 'null'
+        password:
+          type: string
+        username:
+          type: string
+    RequestOptionsRequest:
+      type: object
     RequiredAction:
       type: string
       enum:
@@ -2156,12 +2539,12 @@ components:
       properties:
         client:
           oneOf:
-            - type: "null"
-            - $ref: "#/components/schemas/Client"
+            - type: 'null'
+            - $ref: '#/components/schemas/Client'
         client_id:
           type:
             - string
-            - "null"
+            - 'null'
           format: uuid
         created_at:
           type: string
@@ -2169,7 +2552,7 @@ components:
         description:
           type:
             - string
-            - "null"
+            - 'null'
         id:
           type: string
           format: uuid
@@ -2180,11 +2563,98 @@ components:
           items:
             type: string
         realm_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/RealmId'
         updated_at:
           type: string
           format: date-time
+    SecurityEvent:
+      type: object
+      required:
+        - id
+        - realm_id
+        - event_type
+        - status
+        - timestamp
+      properties:
+        actor_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        actor_type:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ActorType'
+        details: {}
+        event_type:
+          $ref: '#/components/schemas/SecurityEventType'
+        id:
+          $ref: '#/components/schemas/SecurityEventId'
+        ip_address:
+          type:
+            - string
+            - 'null'
+        realm_id:
+          $ref: '#/components/schemas/RealmId'
+        resource:
+          type:
+            - string
+            - 'null'
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        target_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        target_type:
+          type:
+            - string
+            - 'null'
+        timestamp:
+          type: string
+          format: date-time
+        trace_id:
+          type:
+            - string
+            - 'null'
+        user_agent:
+          type:
+            - string
+            - 'null'
+    SecurityEventId:
+      type: string
+      format: uuid
+    SecurityEventType:
+      type: string
+      enum:
+        - login_success
+        - login_failure
+        - password_reset
+        - user_created
+        - user_deleted
+        - role_assigned
+        - role_unassigned
+        - role_created
+        - role_removed
+        - client_created
+        - client_deleted
+        - client_secret_rotated
+        - realm_config_changed
+    SendMagicLinkRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+    SendMagicLinkResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
     SetupOtpResponse:
       type: object
       required:
@@ -2206,25 +2676,29 @@ components:
         client_secret:
           type:
             - string
-            - "null"
+            - 'null'
         code:
           type:
             - string
-            - "null"
+            - 'null'
         grant_type:
-          $ref: "#/components/schemas/GrantType"
+          $ref: '#/components/schemas/GrantType'
         password:
           type:
             - string
-            - "null"
+            - 'null'
         refresh_token:
           type:
             - string
-            - "null"
+            - 'null'
+        scope:
+          type:
+            - string
+            - 'null'
         username:
           type:
             - string
-            - "null"
+            - 'null'
     UnassignRoleResponse:
       type: object
       required:
@@ -2245,19 +2719,19 @@ components:
         client_id:
           type:
             - string
-            - "null"
+            - 'null'
         direct_access_grants_enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
         enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
         name:
           type:
             - string
-            - "null"
+            - 'null'
     UpdatePasswordRequest:
       type: object
       properties:
@@ -2276,19 +2750,19 @@ components:
         default_signing_algorithm:
           type:
             - string
-            - "null"
+            - 'null'
         forgot_password_enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
         remember_me_enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
         user_registration_enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
     UpdateRealmValidator:
       type: object
       required:
@@ -2307,7 +2781,7 @@ components:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/Role"
+          $ref: '#/components/schemas/Role'
     UpdateRolePermissionsValidator:
       type: object
       required:
@@ -2323,25 +2797,25 @@ components:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/Role"
+          $ref: '#/components/schemas/Role'
     UpdateRoleValidator:
       type: object
       properties:
         description:
           type:
             - string
-            - "null"
+            - 'null'
         name:
           type:
             - string
-            - "null"
+            - 'null'
     UpdateUserResponse:
       type: object
       required:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/User"
+          $ref: '#/components/schemas/User'
     UpdateUserValidator:
       type: object
       properties:
@@ -2350,11 +2824,11 @@ components:
         email_verified:
           type:
             - boolean
-            - "null"
+            - 'null'
         enabled:
           type:
             - boolean
-            - "null"
+            - 'null'
         firstname:
           type: string
         lastname:
@@ -2362,7 +2836,7 @@ components:
         required_actions:
           type:
             - array
-            - "null"
+            - 'null'
           items:
             type: string
     User:
@@ -2384,7 +2858,7 @@ components:
         client_id:
           type:
             - string
-            - "null"
+            - 'null'
           format: uuid
         created_at:
           type: string
@@ -2404,23 +2878,53 @@ components:
           type: string
         realm:
           oneOf:
-            - type: "null"
-            - $ref: "#/components/schemas/Realm"
+            - type: 'null'
+            - $ref: '#/components/schemas/Realm'
         realm_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/RealmId'
         required_actions:
           type: array
           items:
-            $ref: "#/components/schemas/RequiredAction"
+            $ref: '#/components/schemas/RequiredAction'
         roles:
           type: array
           items:
-            $ref: "#/components/schemas/Role"
+            $ref: '#/components/schemas/Role'
         updated_at:
           type: string
           format: date-time
         username:
+          type: string
+    UserInfoResponse:
+      type: object
+      required:
+        - sub
+      properties:
+        email:
+          type:
+            - string
+            - 'null'
+        email_verified:
+          type:
+            - boolean
+            - 'null'
+        family_name:
+          type:
+            - string
+            - 'null'
+        given_name:
+          type:
+            - string
+            - 'null'
+        name:
+          type:
+            - string
+            - 'null'
+        preferred_username:
+          type:
+            - string
+            - 'null'
+        sub:
           type: string
     UserRealmsResponse:
       type: object
@@ -2430,14 +2934,14 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Realm"
+            $ref: '#/components/schemas/Realm'
     UserResponse:
       type: object
       required:
         - data
       properties:
         data:
-          $ref: "#/components/schemas/User"
+          $ref: '#/components/schemas/User'
     UsersResponse:
       type: object
       required:
@@ -2446,7 +2950,9 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/User"
+            $ref: '#/components/schemas/User'
+    ValidatePublicKeyResponse:
+      type: object
     VerifyOtpResponse:
       type: object
       required:
@@ -2459,6 +2965,7 @@ components:
       required:
         - id
         - endpoint
+        - headers
         - subscribers
         - updated_at
         - created_at
@@ -2469,24 +2976,30 @@ components:
         description:
           type:
             - string
-            - "null"
+            - 'null'
         endpoint:
           type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
         id:
           type: string
           format: uuid
         name:
           type:
             - string
-            - "null"
+            - 'null'
         subscribers:
           type: array
           items:
-            $ref: "#/components/schemas/WebhookSubscriber"
+            $ref: '#/components/schemas/WebhookSubscriber'
         triggered_at:
           type:
             - string
-            - "null"
+            - 'null'
           format: date-time
         updated_at:
           type: string
@@ -2502,7 +3015,7 @@ components:
           type: string
           format: uuid
         name:
-          $ref: "#/components/schemas/WebhookTrigger"
+          $ref: '#/components/schemas/WebhookTrigger'
         webhook_id:
           type: string
           format: uuid
@@ -2512,9 +3025,9 @@ components:
         - user.created
         - user.updated
         - user.deleted
+        - user.role.assigned
+        - user.role.unassigned
         - user.bulk_deleted
-        - user.assign.role
-        - user.unassign.role
         - user.credentials.deleted
         - auth.reset_password
         - client.created
@@ -2527,6 +3040,8 @@ components:
         - redirect_uri.deleted
         - role.created
         - role.updated
+        - role.deleted
+        - role.permission.updated
         - realm.created
         - realm.updated
         - realm.deleted

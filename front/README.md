@@ -11,13 +11,14 @@ Make sure you habe the OpenAPI specification file available (you can go to addre
 To generate the API client and TanStack Query hooks, run:
 
 ```bash
-pnpm typed-openapi openapi.yaml -o src/api/api.client.ts --tanstack=api.tanstack.ts
+pnpm typed-openapi openapi.yaml -o src/api/api.client.ts --tanstack=api.tanstack.ts && pnpm prettier --write src/api/api.client.ts src/api/api.tanstack.ts
 ```
 
 **Command Breakdown:**
 - `openapi.yaml`: Path to your OpenAPI specification file
 - `-o src/api/api.client.ts`: Output path for the generated TypeScript types and schemas
 - `--tanstack=api.tanstack.ts`: Generates TanStack Query hooks in the specified file
+- `pnpm prettier --write`: Formats the generated files to match  project Prettier config
 
 **Generated Files**
 This command generates two main files: `src/api/api.client.ts`
