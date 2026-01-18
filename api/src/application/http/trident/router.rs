@@ -53,7 +53,25 @@ use crate::application::{
 pub struct TridentApiDoc;
 
 pub fn trident_routes(state: AppState) -> Router<AppState> {
-    Router::new()
+    // Public routes
+    let public_routes = Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/send-magic-link",
+                state.args.server.root_path
+            ),
+            post(send_magic_link),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/verify-magic-link",
+                state.args.server.root_path
+            ),
+            get(verify_magic_link),
+        );
+
+    // Authenticated routes
+    let protected_routes = Router::new()
         .route(
             &format!(
                 "{}/realms/{{realm_name}}/login-actions/setup-otp",
@@ -124,19 +142,8 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             ),
             post(burn_recovery_code),
         )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/login-actions/send-magic-link",
-                state.args.server.root_path
-            ),
-            post(send_magic_link),
-        )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/login-actions/verify-magic-link",
-                state.args.server.root_path
-            ),
-            get(verify_magic_link),
-        )
-        .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .layer(middleware::from_fn_with_state(state.clone(), auth));
+
+    // Merge both router sets
+    public_routes.merge(protected_routes)
 }

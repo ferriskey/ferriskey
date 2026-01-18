@@ -848,8 +848,8 @@ where
             .await?;
 
         debug!(
-            "Magic link generated for email {} with a ttl of {} minutes",
-            user.email, ttl_minutes
+            "------------ Magic link generated with token_id: {}, plain_token: {} (email: {}, ttl: {}min) ------------",
+            magic_token_id, magic_token, user.email, ttl_minutes
         );
 
         Ok(())
@@ -861,12 +861,13 @@ where
             CoreError::SessionCreateError
         })?;
 
+        // Fetch the auth session first
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
             .map_err(|_| {
-                error!("Session not found");
+                error!("Session not found for code: {}", session_code);
                 CoreError::SessionNotFound
             })?;
 
@@ -879,7 +880,10 @@ where
                 e
             })?
             .ok_or_else(|| {
-                warn!("Magic link not found");
+                warn!(
+                    "Magic link not found for token_id: {}",
+                    input.magic_token_id
+                );
                 CoreError::InvalidMagicLink
             })?;
 
@@ -906,6 +910,7 @@ where
             return Err(CoreError::InvalidMagicLink);
         }
 
+        // Generate authorization code and login URL (same as WebAuthn flow)
         let login_url = store_auth_code_and_generate_login_url::<AS>(
             &self.auth_session_repository,
             &auth_session,
@@ -917,6 +922,7 @@ where
             e
         })?;
 
+        // Delete the used magic link (single use)
         self.magic_link_repository
             .delete_by_token_id(magic_link.token_id)
             .await
@@ -925,7 +931,10 @@ where
                 e
             })?;
 
-        debug!("Magic link verification successful");
+        debug!(
+            "✓ Magic link verified for user_id: {}, redirect: {}",
+            magic_link.user_id, login_url
+        );
 
         Ok(login_url)
     }
