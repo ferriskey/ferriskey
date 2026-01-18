@@ -497,6 +497,8 @@ where
                 input.user_registration_enabled,
                 input.forgot_password_enabled,
                 input.remember_me_enabled,
+                input.magic_link_enabled,
+                input.magic_link_ttl_minutes,
             )
             .await?;
 

@@ -120,6 +120,8 @@ pub trait RealmRepository: Send + Sync {
         user_registration_enabled: Option<bool>,
         forgot_password_enabled: Option<bool>,
         remember_me_enabled: Option<bool>,
+        magic_link_enabled: Option<bool>,
+        magic_link_ttl_minutes: Option<u32>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -158,6 +160,8 @@ pub struct UpdateRealmSettingInput {
     pub user_registration_enabled: Option<bool>,
     pub forgot_password_enabled: Option<bool>,
     pub remember_me_enabled: Option<bool>,
+    pub magic_link_enabled: Option<bool>,
+    pub magic_link_ttl_minutes: Option<u32>,
 }
 
 pub struct DeleteRealmInput {

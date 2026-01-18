@@ -22,4 +22,6 @@ pub struct UpdateRealmSettingValidator {
     pub user_registration_enabled: Option<bool>,
     pub forgot_password_enabled: Option<bool>,
     pub remember_me_enabled: Option<bool>,
+    pub magic_link_enabled: Option<bool>,
+    pub magic_link_ttl_minutes: Option<u32>,
 }

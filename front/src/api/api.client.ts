@@ -447,6 +447,8 @@ export namespace Schemas {
   export type UpdateRealmSettingValidator = Partial<{
     default_signing_algorithm: string | null
     forgot_password_enabled: boolean | null
+    magic_link_enabled: boolean | null
+    magic_link_ttl_minutes: number | null
     remember_me_enabled: boolean | null
     user_registration_enabled: boolean | null
   }>

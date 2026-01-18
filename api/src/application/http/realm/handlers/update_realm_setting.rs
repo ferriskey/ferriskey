@@ -42,6 +42,8 @@ pub async fn update_realm_setting(
                 forgot_password_enabled: payload.forgot_password_enabled,
                 remember_me_enabled: payload.remember_me_enabled,
                 user_registration_enabled: payload.user_registration_enabled,
+                magic_link_enabled: payload.magic_link_enabled,
+                magic_link_ttl_minutes: payload.magic_link_ttl_minutes,
             },
         )
         .await

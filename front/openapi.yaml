@@ -2755,6 +2755,16 @@ components:
           type:
             - boolean
             - 'null'
+        magic_link_enabled:
+          type:
+            - boolean
+            - 'null'
+        magic_link_ttl_minutes:
+          type:
+            - integer
+            - 'null'
+          format: int32
+          minimum: 0
         remember_me_enabled:
           type:
             - boolean
