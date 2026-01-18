@@ -1,3 +1,4 @@
+use ferriskey_core::domain::identity_provider::IdentityProvider;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -85,6 +86,25 @@ pub struct IdentityProviderResponse {
     pub trust_email: bool,
     pub link_only: bool,
     pub config: serde_json::Value,
+}
+
+impl From<IdentityProvider> for IdentityProviderResponse {
+    fn from(value: IdentityProvider) -> Self {
+        Self {
+            alias: value.alias,
+            internal_id: value.id.as_uuid(),
+            provider_id: value.provider_id,
+            enabled: value.enabled,
+            display_name: value.display_name,
+            first_broker_login_flow_alias: value.first_broker_login_flow_alias,
+            post_broker_login_flow_alias: value.post_broker_login_flow_alias,
+            store_token: value.store_token,
+            add_read_token_role_on_create: value.add_read_token_role_on_create,
+            trust_email: value.trust_email,
+            link_only: value.link_only,
+            config: value.config, // SANITIZED - no passwords
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]

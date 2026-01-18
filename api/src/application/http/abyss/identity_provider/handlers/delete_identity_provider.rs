@@ -1,5 +1,5 @@
 use crate::application::http::{
-    identity_provider::validators::DeleteIdentityProviderResponse,
+    abyss::identity_provider::dto::DeleteIdentityProviderResponse,
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,

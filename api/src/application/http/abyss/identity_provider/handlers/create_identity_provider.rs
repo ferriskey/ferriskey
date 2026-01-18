@@ -1,5 +1,5 @@
 use crate::application::http::{
-    identity_provider::validators::{CreateIdentityProviderValidator, IdentityProviderResponse},
+    abyss::identity_provider::dto::{CreateIdentityProviderValidator, IdentityProviderResponse},
     server::{
         api_entities::{
             api_error::{ApiError, ValidateJson},
@@ -12,11 +12,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::identity_provider::{
     entities::CreateIdentityProviderInput, ports::IdentityProviderService,
-};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, identity_provider::IdentityProvider,
 };
 
 #[utoipa::path(
@@ -43,7 +41,7 @@ pub async fn create_identity_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateIdentityProviderValidator>,
-) -> Result<Response<IdentityProvider>, ApiError> {
+) -> Result<Response<IdentityProviderResponse>, ApiError> {
     let provider = state
         .service
         .create_identity_provider(
@@ -65,5 +63,5 @@ pub async fn create_identity_provider(
         )
         .await?;
 
-    Ok(Response::Created(provider))
+    Ok(Response::Created(provider.into()))
 }

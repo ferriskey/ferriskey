@@ -1,6 +1,7 @@
 use utoipa::OpenApi;
 
 pub mod federation;
+pub mod identity_provider;
 pub mod routes;
 
 #[derive(OpenApi)]
@@ -13,6 +14,12 @@ pub mod routes;
         federation::handlers::delete_provider::delete_provider,
         federation::handlers::test_connection::test_connection,
         federation::handlers::sync_users::sync_users,
+
+        identity_provider::handlers::create_identity_provider::create_identity_provider,
+        identity_provider::handlers::list_identity_providers::list_identity_providers,
+        identity_provider::handlers::get_identity_provider::get_identity_provider,
+        identity_provider::handlers::update_identity_provider::update_identity_provider,
+        identity_provider::handlers::delete_identity_provider::delete_identity_provider,
     ),
     components(
         schemas(
