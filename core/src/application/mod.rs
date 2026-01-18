@@ -121,17 +121,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         user_role.clone(),
     ));
 
-    let trident_service = TridentServiceImpl::new(
-        credential.clone(),
-        recovery_code.clone(),
-        auth_session.clone(),
-        hasher.clone(),
-        user_required_action.clone(),
-        magic_link.clone(),
-        realm.clone(),
-        user.clone(),
-    );
-
     let app = ApplicationService {
         auth_service: AuthServiceImpl::new(
             realm.clone(),
@@ -185,7 +174,16 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             security_event.clone(),
             policy.clone(),
         ),
-        trident_service: trident_service.clone(),
+        trident_service: TridentServiceImpl::new(
+            credential.clone(),
+            recovery_code.clone(),
+            auth_session.clone(),
+            hasher.clone(),
+            user_required_action.clone(),
+            magic_link.clone(),
+            realm.clone(),
+            user.clone(),
+        ),
         user_service: UserServiceImpl::new(
             realm.clone(),
             user.clone(),

@@ -113,6 +113,7 @@ pub trait RealmRepository: Send + Sync {
         algorithm: String,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
+    #[allow(clippy::too_many_arguments)]
     fn update_realm_setting(
         &self,
         realm_id: RealmId,

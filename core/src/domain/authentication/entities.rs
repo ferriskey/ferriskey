@@ -188,22 +188,6 @@ impl AuthenticateInput {
         }
     }
 
-    pub fn with_magic_token(
-        realm_name: String,
-        client_id: String,
-        session_code: Uuid,
-        base_url: String,
-        magic_token: String,
-    ) -> Self {
-        Self {
-            realm_name,
-            client_id,
-            session_code,
-            base_url,
-            auth_method: AuthenticationMethod::MagicLink { magic_token },
-        }
-    }
-
     pub fn is_token_refresh(&self) -> bool {
         matches!(self.auth_method, AuthenticationMethod::ExistingToken { .. })
     }
@@ -282,16 +266,6 @@ pub struct CredentialsAuthParams {
     pub password: String,
 }
 
-#[derive(Debug)]
-pub struct MagicLinkAuthParams {
-    pub magic_token: String,
-    pub email: String,
-    pub realm_name: String,
-    pub client_id: String,
-    pub session_code: Uuid,
-    pub base_url: String,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum AuthenticationStepStatus {
     Success,
@@ -304,7 +278,6 @@ pub enum AuthenticationStepStatus {
 pub enum AuthenticationMethod {
     UserCredentials { username: String, password: String },
     ExistingToken { token: String },
-    MagicLink { magic_token: String },
 }
 
 #[derive(Debug, Clone, Deserialize)]

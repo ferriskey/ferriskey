@@ -595,28 +595,6 @@ where
             .await
     }
 
-    async fn handle_magic_link_authentication(
-        &self,
-        params: MagicLinkAuthParams,
-        auth_session: AuthSession,
-    ) -> Result<AuthenticateOutput, CoreError> {
-        info!("param magic token: {}", params.magic_token);
-        // TODO temp to test quickly
-        let user_id = auth_session.user_id.ok_or(CoreError::InternalServerError)?;
-        let authorization_code = auth_session
-            .code
-            .clone()
-            .ok_or(CoreError::InternalServerError)?;
-
-        let redirect_url = self.build_redirect_url(&auth_session, &authorization_code)?;
-
-        Ok(AuthenticateOutput::complete_with_redirect(
-            user_id,
-            authorization_code,
-            redirect_url,
-        ))
-    }
-
     async fn determine_next_step(
         &self,
         auth_result: AuthenticationResult,
@@ -1175,18 +1153,6 @@ where
                 };
 
                 self.handle_user_credentials_authentication(params, auth_session)
-                    .await
-            }
-            AuthenticationMethod::MagicLink { magic_token } => {
-                let params = MagicLinkAuthParams {
-                    magic_token,
-                    email: "".to_string(), // TODO
-                    realm_name: input.realm_name,
-                    client_id: input.client_id,
-                    session_code: input.session_code,
-                    base_url: input.base_url,
-                };
-                self.handle_magic_link_authentication(params, auth_session)
                     .await
             }
         }

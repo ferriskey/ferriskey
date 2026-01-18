@@ -1,9 +1,11 @@
-use crate::application::http::server::api_entities::response::Response;
+use crate::application::http::{
+    authentication::handlers::authentificate::AuthenticationStatus,
+    server::api_entities::response::Response,
+};
 use axum::extract::{Path, Query, State};
 use axum_cookie::CookieManager;
-use ferriskey_core::domain::{
-    authentication::{entities::AuthenticateInput, ports::AuthService},
-    trident::ports::{MagicLinkInput, TridentService, VerifyMagicLinkInput},
+use ferriskey_core::domain::trident::ports::{
+    MagicLinkInput, TridentService, VerifyMagicLinkInput,
 };
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
@@ -11,33 +13,29 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::application::{
-    http::{
-        authentication::handlers::authentificate::AuthenticateResponse,
-        server::{
-            api_entities::api_error::{ApiError, ValidateJson},
-            app_state::AppState,
-        },
+use crate::application::http::{
+    authentication::handlers::authentificate::AuthenticateResponse,
+    server::{
+        api_entities::api_error::{ApiError, ValidateJson},
+        app_state::AppState,
     },
-    url::FullUrl,
 };
 
-#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct SendMagicLinkRequest {
     #[validate(email)]
     pub email: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SendMagicLinkResponse {
     pub message: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct VerifyMagicLinkQuery {
-    client_id: String,
-    token_id: String,
-    magic_token: String,
+    pub token_id: String,
+    pub magic_token: String,
 }
 
 #[utoipa::path(
@@ -92,7 +90,6 @@ pub async fn send_magic_link(
         ("realm_name" = String, Path, description = "The realm name"),
         ("token_id" = String, Query, description = "The unique token identifier from the magic link"),
         ("magic_token" = String, Query, description = "The secret verification token from the magic link"),
-        ("client_id" = String, Query, description = "The OAuth 2.0 client identifier"),
     ),
     responses(
         (status = 200, body = AuthenticateResponse, description = "Magic link verified successfully"),
@@ -105,7 +102,6 @@ pub async fn send_magic_link(
 pub async fn verify_magic_link(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
     Query(query): Query<VerifyMagicLinkQuery>,
     cookie: CookieManager,
 ) -> Result<Response<AuthenticateResponse>, ApiError> {
@@ -138,14 +134,16 @@ pub async fn verify_magic_link(
         })
         .await?;
 
-    let auth_input = AuthenticateInput::with_magic_token(
-        realm_name,
-        query.client_id,
-        session_code,
-        base_url,
-        login_url,
-    );
+    debug!("Magic link verified, redirecting to: {}", login_url);
 
-    let result = state.service.authenticate(auth_input).await?;
-    Ok(Response::OK(result.into()))
+    // Return success with redirect URL
+    let response = AuthenticateResponse {
+        status: AuthenticationStatus::Success,
+        url: Some(login_url),
+        required_actions: None,
+        token: None,
+        message: Some("Magic link authentication successful".to_string()),
+    };
+
+    Ok(Response::OK(response))
 }
