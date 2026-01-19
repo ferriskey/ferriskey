@@ -29,7 +29,7 @@ pub mod routes;
         )
     ),
     tags(
-        (name = "Federation", description = "User Federation management (LDAP, Kerberos, etc.)")
+        (name = "federation", description = "User Federation management (LDAP, Kerberos, etc.)")
     )
 )]
 pub struct AbyssApiDoc;

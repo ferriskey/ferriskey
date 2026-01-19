@@ -18,7 +18,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/identity-providers",
     summary = "List all identity providers in a realm",
     description = "Retrieves all identity providers configured for the specified realm. Optionally returns a brief representation with fewer fields.",
     responses(

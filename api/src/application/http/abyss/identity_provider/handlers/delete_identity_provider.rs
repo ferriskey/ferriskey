@@ -16,7 +16,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     delete,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Delete an identity provider",
     description = "Deletes an identity provider from the realm. This action is irreversible. Users who have linked accounts with this identity provider will no longer be able to use it for authentication.",
     responses(

@@ -19,7 +19,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     post,
-    path = "",
+    path = "/identity-providers",
     summary = "Create a new identity provider in a realm",
     description = "Creates a new identity provider configuration for the specified realm. The identity provider will be used for social login (Google, GitHub, etc.) or OIDC/SAML federation.",
     responses(

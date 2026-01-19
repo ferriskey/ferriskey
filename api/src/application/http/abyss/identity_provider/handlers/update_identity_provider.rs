@@ -19,7 +19,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     put,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Update an identity provider",
     description = "Updates an existing identity provider configuration. Only the fields provided in the request body will be updated. The alias cannot be changed after creation.",
     responses(

@@ -25,7 +25,7 @@ use crate::application::http::{
         ("realm_name" = String, Path, description = "Realm name"),
         ("id" = String, Path, description = "Provider ID")
     ),
-    tag = "Federation"
+    tag = "federation"
 )]
 pub async fn test_connection(
     Path((_, id)): Path<(String, Uuid)>,

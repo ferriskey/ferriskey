@@ -16,7 +16,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     get,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Get an identity provider by alias",
     description = "Retrieves the details of a specific identity provider by its alias. Sensitive configuration values (like client secrets) are redacted in the response.",
     responses(

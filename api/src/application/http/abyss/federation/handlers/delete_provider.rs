@@ -34,7 +34,7 @@ pub struct DeleteProviderResponse {
         ("realm_name" = String, Path, description = "Realm name"),
         ("id" = String, Path, description = "Provider ID")
     ),
-    tag = "Federation"
+    tag = "federation"
 )]
 pub async fn delete_provider(
     Path((realm_name, id)): Path<(String, Uuid)>,
