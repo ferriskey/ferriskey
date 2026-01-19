@@ -23,10 +23,10 @@ export interface ProviderFormData {
   displayName: string
   clientId: string
   clientSecret: string
-  authorizationUrl: string
-  tokenUrl: string
-  userinfoUrl: string
-  scopes: string
+  authorizationUrl?: string
+  tokenUrl?: string
+  userinfoUrl?: string
+  scopes?: string
 }
 
 interface ProviderConfigFormProps {

@@ -1,4 +1,5 @@
 import { Settings } from 'lucide-react'
+import type { ReactElement } from 'react'
 import type { ProviderTemplate } from '@/constants/identity-provider-templates'
 
 interface ProviderIconProps {
@@ -16,7 +17,7 @@ const sizeClasses = {
 export default function ProviderIcon({ icon, size = 'md', className = '' }: ProviderIconProps) {
   const sizeClass = sizeClasses[size]
 
-  const icons: Record<ProviderTemplate['icon'], JSX.Element> = {
+  const icons: Record<ProviderTemplate['icon'], ReactElement> = {
     google: (
       <svg viewBox='0 0 24 24' className={`${sizeClass} ${className}`}>
         <path

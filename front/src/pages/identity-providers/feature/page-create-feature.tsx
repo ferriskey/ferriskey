@@ -14,7 +14,7 @@ import type { ProviderTemplate } from '@/constants/identity-provider-templates'
 import type { ProviderFormData } from '../components/provider-config-form'
 import PageCreate from '../ui/page-create'
 
-const formSchema = z.object({
+const formSchema: z.ZodType<ProviderFormData> = z.object({
   displayName: z.string().min(1, 'Display name is required').max(50),
   clientId: z.string().min(1, 'Client ID is required'),
   clientSecret: z.string().min(1, 'Client Secret is required'),
@@ -32,9 +32,7 @@ export default function PageCreateFeature() {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedTemplate, setSelectedTemplate] = useState<ProviderTemplate | null>(null)
 
-  const { mutate: createProvider, isPending, data: responseCreateProvider } = useCreateIdentityProvider({
-    realm,
-  })
+  const { mutate: createProvider, isPending, data: responseCreateProvider } = useCreateIdentityProvider()
 
   const form = useForm<ProviderFormData>({
     resolver: zodResolver(formSchema),
@@ -133,13 +131,22 @@ export default function PageCreateFeature() {
 
     const input: CreateProviderInput = {
       alias: selectedTemplate.name,
+      provider_id: selectedTemplate.name,
       display_name: data.displayName || selectedTemplate.displayName,
-      provider_type: selectedTemplate.provider_type,
       enabled: true,
+      store_token: false,
+      add_read_token_role_on_create: false,
+      trust_email: true,
+      link_only: false,
       config,
     }
 
-    createProvider(input)
+    createProvider({
+      path: {
+        realm_name: realm,
+      },
+      body: input,
+    })
   }
 
   const handleCancel = () => {

@@ -1,23 +1,30 @@
 import BadgeColor from '@/components/ui/badge-color'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { ColumnDef } from '@/components/ui/data-table'
-import type { IdentityProvider, ProviderType } from '@/api/identity-providers.api'
+import type { IdentityProviderListItem } from '../types'
 
-const providerTypeColors: Record<ProviderType, BadgeColorScheme> = {
+const providerTypeColors: Record<string, BadgeColorScheme> = {
   oidc: BadgeColorScheme.BLUE,
   oauth2: BadgeColorScheme.PURPLE,
   saml: BadgeColorScheme.INDIGO,
   ldap: BadgeColorScheme.GREEN,
 }
 
-const providerTypeLabels: Record<ProviderType, string> = {
+const providerTypeLabels: Record<string, string> = {
   oidc: 'OIDC',
   oauth2: 'OAuth2',
   saml: 'SAML',
   ldap: 'LDAP',
 }
 
-export const columns: ColumnDef<IdentityProvider>[] = [
+const resolveProviderType = (providerId: string) => {
+  const normalized = providerId.toLowerCase()
+  const label = providerTypeLabels[normalized] ?? providerId
+  const color = providerTypeColors[normalized] ?? BadgeColorScheme.GRAY
+  return { label, color }
+}
+
+export const columns: ColumnDef<IdentityProviderListItem>[] = [
   {
     id: 'name',
     header: 'Provider',
@@ -38,11 +45,10 @@ export const columns: ColumnDef<IdentityProvider>[] = [
   {
     id: 'type',
     header: 'Type',
-    cell: (provider) => (
-      <BadgeColor color={providerTypeColors[provider.provider_type]}>
-        {providerTypeLabels[provider.provider_type]}
-      </BadgeColor>
-    ),
+    cell: (provider) => {
+      const { label, color } = resolveProviderType(provider.provider_id)
+      return <BadgeColor color={color}>{label}</BadgeColor>
+    },
   },
   {
     id: 'status',
@@ -61,7 +67,7 @@ export const columns: ColumnDef<IdentityProvider>[] = [
     header: 'Last Updated',
     cell: (provider) => (
       <span className='text-sm text-muted-foreground'>
-        {new Date(provider.updated_at).toLocaleDateString()}
+        {provider.updated_at ? new Date(provider.updated_at).toLocaleDateString() : '—'}
       </span>
     ),
   },

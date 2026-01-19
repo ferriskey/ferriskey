@@ -3,11 +3,7 @@ import { useForm } from 'react-hook-form'
 import { useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Form } from '@/components/ui/form'
-import {
-  useIdentityProvider,
-  useUpdateIdentityProvider,
-  useDeleteIdentityProvider,
-} from '@/api/identity-providers.api'
+import { useIdentityProvider, useUpdateIdentityProvider, useDeleteIdentityProvider } from '@/api/identity-providers.api'
 import { IDENTITY_PROVIDERS_URL, IDENTITY_PROVIDER_OVERVIEW_URL } from '@/routes/sub-router/identity-provider.router'
 import PageDetail from '../ui/page-detail'
 
@@ -29,15 +25,8 @@ export default function PageDetailFeature() {
     providerId: providerId || '',
   })
 
-  const { mutate: updateProvider, data: updateResponse } = useUpdateIdentityProvider({
-    realm,
-    providerId: providerId || '',
-  })
-
-  const { mutate: deleteProvider } = useDeleteIdentityProvider({
-    realm,
-    providerId: providerId || '',
-  })
+  const { mutate: updateProvider, data: updateResponse } = useUpdateIdentityProvider()
+  const { mutate: deleteProvider } = useDeleteIdentityProvider()
 
   const form = useForm<UpdateProviderSchema>({
     defaultValues: {
@@ -55,7 +44,7 @@ export default function PageDetailFeature() {
   useEffect(() => {
     if (provider) {
       form.reset({
-        displayName: provider.display_name,
+        displayName: provider.display_name ?? '',
         enabled: provider.enabled,
       })
     }
@@ -70,9 +59,16 @@ export default function PageDetailFeature() {
 
   const handleSubmit = () => {
     const data = form.getValues()
+    if (!providerId) return
     updateProvider({
-      display_name: data.displayName,
-      enabled: data.enabled,
+      path: {
+        realm_name: realm,
+        alias: providerId,
+      },
+      body: {
+        display_name: data.displayName,
+        enabled: data.enabled,
+      },
     })
   }
 
@@ -81,15 +77,24 @@ export default function PageDetailFeature() {
   }
 
   const handleDelete = () => {
-    deleteProvider(undefined, {
-      onSuccess: () => {
-        toast.success('Provider deleted successfully')
-        navigate(url)
+    if (!providerId) return
+    deleteProvider(
+      {
+        path: {
+          realm_name: realm,
+          alias: providerId,
+        },
       },
-      onError: () => {
-        toast.error('Failed to delete provider')
-      },
-    })
+      {
+        onSuccess: () => {
+          toast.success('Provider deleted successfully')
+          navigate(url)
+        },
+        onError: () => {
+          toast.error('Failed to delete provider')
+        },
+      }
+    )
   }
 
   const hasChanges = form.formState.isDirty

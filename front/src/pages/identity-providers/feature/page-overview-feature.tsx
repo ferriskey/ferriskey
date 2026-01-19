@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router'
-import { useIdentityProviders, useDeleteIdentityProvider, type IdentityProvider } from '@/api/identity-providers.api'
-import { useEffect, useState, useMemo } from 'react'
+import { useDeleteIdentityProvider, useGetIdentityProviders } from '@/api/identity-providers.api'
+import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
@@ -9,21 +9,29 @@ import {
   IDENTITY_PROVIDER_CREATE_URL,
 } from '@/routes/sub-router/identity-provider.router'
 import PageOverview from '../ui/page-overview'
+import { Schemas } from '@/api/api.client'
+import type { IdentityProviderListItem } from '../types'
 
 export default function PageOverviewFeature() {
   const { realm_name } = useParams<{ realm_name: string }>()
   const navigate = useNavigate()
   const realm = realm_name || 'master'
 
-  const { data, isLoading } = useIdentityProviders({ realm })
-  const { mutate: deleteProvider, data: responseDeleteProvider } = useDeleteIdentityProvider({
-    realm,
-    providerId: '',
-  })
+  const { data: providersData, isLoading } = useGetIdentityProviders({ realm })
+  const { mutate: deleteProvider } = useDeleteIdentityProvider()
   const { confirm, ask, close } = useConfirmDeleteAlert()
   const [filters, setFilters] = useState<Filter[]>([])
 
-  const providers = useMemo(() => data || [], [data])
+  const providers = useMemo<IdentityProviderListItem[]>(() => {
+    return (providersData?.data ?? []).map((provider: Schemas.IdentityProviderResponse) => ({
+      id: provider.alias,
+      alias: provider.alias,
+      display_name: provider.display_name ?? provider.alias,
+      provider_id: provider.provider_id,
+      enabled: provider.enabled,
+      updated_at: null,
+    }))
+  }, [providersData])
 
   const filterFields: FilterFieldsConfig = [
     {
@@ -37,7 +45,7 @@ export default function PageOverviewFeature() {
       type: 'text',
     },
     {
-      key: 'provider_type',
+      key: 'provider_id',
       label: 'Type',
       type: 'text',
     },
@@ -53,7 +61,7 @@ export default function PageOverviewFeature() {
 
     return providers.filter((provider) => {
       return filters.every((filter) => {
-        const fieldValue = provider[filter.field as keyof IdentityProvider]
+        const fieldValue = provider[filter.field as keyof IdentityProviderListItem]
         const filterValues = filter.values
 
         switch (filter.operator) {
@@ -81,7 +89,7 @@ export default function PageOverviewFeature() {
   }, [providers, filters])
 
   const statistics = useMemo(() => {
-    const uniqueTypes = new Set(providers.map((p) => p.provider_type))
+    const uniqueTypes = new Set(providers.map((p) => p.provider_id))
     return {
       totalProviders: providers.length,
       enabledProviders: providers.filter((p) => p.enabled).length,
@@ -90,13 +98,24 @@ export default function PageOverviewFeature() {
     }
   }, [providers])
 
-  const handleDeleteSelected = (items: IdentityProvider[]) => {
+  const handleDeleteSelected = (items: IdentityProviderListItem[]) => {
     items.forEach((item) => {
-      deleteProvider(undefined, {
-        onSuccess: () => {
-          toast.success(`Provider "${item.display_name}" deleted`)
+      deleteProvider(
+        {
+          path: {
+            realm_name: realm,
+            alias: item.id,
+          },
         },
-      })
+        {
+          onSuccess: () => {
+            toast.success(`Provider "${item.display_name}" deleted`)
+          },
+          onError: () => {
+            toast.error(`Failed to delete "${item.display_name}"`)
+          },
+        }
+      )
     })
   }
 
@@ -105,14 +124,25 @@ export default function PageOverviewFeature() {
   }
 
   const handleDeleteProvider = (providerId: string, providerName: string) => {
-    deleteProvider(undefined, {
-      onSuccess: () => {
-        toast.success(`Provider "${providerName}" deleted`)
+    deleteProvider(
+      {
+        path: {
+          realm_name: realm,
+          alias: providerId,
+        },
       },
-    })
+      {
+        onSuccess: () => {
+          toast.success(`Provider "${providerName}" deleted`)
+        },
+        onError: () => {
+          toast.error(`Failed to delete "${providerName}"`)
+        },
+      }
+    )
   }
 
-  const onRowDelete = (provider: IdentityProvider) => {
+  const onRowDelete = (provider: IdentityProviderListItem) => {
     ask({
       title: 'Delete provider?',
       description: `Are you sure you want to delete "${provider.display_name}"?`,
@@ -126,12 +156,6 @@ export default function PageOverviewFeature() {
   const handleClickRow = (providerId: string) => {
     navigate(`${IDENTITY_PROVIDERS_URL(realm_name)}/${providerId}`)
   }
-
-  useEffect(() => {
-    if (responseDeleteProvider) {
-      toast.success('Provider deleted successfully')
-    }
-  }, [responseDeleteProvider])
 
   return (
     <PageOverview

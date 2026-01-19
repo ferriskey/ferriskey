@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { IdentityProvider, ProviderType } from '@/api/identity-providers.api'
+import type { Schemas } from '@/api/api.client'
 
 interface UpdateProviderSchema {
   displayName: string
@@ -17,7 +17,7 @@ interface UpdateProviderSchema {
 }
 
 export interface PageDetailProps {
-  provider: IdentityProvider | null
+  provider: Schemas.IdentityProviderResponse | null
   isLoading: boolean
   form: UseFormReturn<UpdateProviderSchema>
   handleBack: () => void
@@ -26,14 +26,16 @@ export interface PageDetailProps {
   hasChanges: boolean
 }
 
-function ProviderTypeBadge({ type }: { type: ProviderType }) {
-  const labels: Record<ProviderType, string> = {
-    oidc: 'OIDC',
-    oauth2: 'OAuth2',
-    saml: 'SAML',
-    ldap: 'LDAP',
-  }
-  return <Badge variant='outline'>{labels[type]}</Badge>
+const providerTypeLabels: Record<string, string> = {
+  oidc: 'OIDC',
+  oauth2: 'OAuth2',
+  saml: 'SAML',
+  ldap: 'LDAP',
+}
+
+function ProviderTypeBadge({ type }: { type: string }) {
+  const label = providerTypeLabels[type.toLowerCase()] ?? type
+  return <Badge variant='outline'>{label}</Badge>
 }
 
 function LoadingSkeleton() {
@@ -90,9 +92,9 @@ export default function PageDetail({
       <div className='flex flex-col mb-4'>
         <div className='flex items-center gap-3'>
           <Heading size={3} className='text-gray-800'>
-            {provider.display_name}
+            {provider.display_name ?? provider.alias}
           </Heading>
-          <ProviderTypeBadge type={provider.provider_type} />
+          <ProviderTypeBadge type={provider.provider_id} />
           <Badge variant={provider.enabled ? 'default' : 'secondary'}>
             {provider.enabled ? 'Enabled' : 'Disabled'}
           </Badge>
@@ -147,16 +149,28 @@ export default function PageDetail({
 
         <BlockContent title='Configuration' className='w-full md:w-2/3 2xl:w-1/3'>
           <div className='flex flex-col gap-4'>
-            {Object.entries(provider.config).map(([key, value]) => (
-              <InputText
-                key={key}
-                label={key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                value={key.includes('secret') || key.includes('credential') ? '********' : value}
-                name={key}
-                disabled
-              />
-            ))}
-            {Object.keys(provider.config).length === 0 && (
+            {(() => {
+              const config =
+                provider.config && typeof provider.config === 'object'
+                  ? (provider.config as Record<string, unknown>)
+                  : {}
+              return Object.entries(config).map(([key, value]) => (
+                <InputText
+                  key={key}
+                  label={key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  value={
+                    key.includes('secret') || key.includes('credential')
+                      ? '********'
+                      : String(value ?? '')
+                  }
+                  name={key}
+                  disabled
+                />
+              ))
+            })()}
+            {(!provider.config ||
+              typeof provider.config !== 'object' ||
+              Object.keys(provider.config as Record<string, unknown>).length === 0) && (
               <p className='text-sm text-muted-foreground'>No configuration settings</p>
             )}
           </div>
@@ -165,16 +179,20 @@ export default function PageDetail({
         <BlockContent title='Metadata' className='w-full md:w-2/3 2xl:w-1/3'>
           <div className='grid grid-cols-2 gap-4 text-sm'>
             <div>
+              <p className='text-muted-foreground'>Internal ID</p>
+              <p className='font-mono text-xs'>{provider.internal_id}</p>
+            </div>
+            <div>
               <p className='text-muted-foreground'>Provider ID</p>
-              <p className='font-mono text-xs'>{provider.id}</p>
+              <p className='font-mono text-xs'>{provider.provider_id}</p>
             </div>
             <div>
-              <p className='text-muted-foreground'>Created</p>
-              <p>{new Date(provider.created_at).toLocaleString()}</p>
+              <p className='text-muted-foreground'>First Broker Flow</p>
+              <p>{provider.first_broker_login_flow_alias ?? '—'}</p>
             </div>
             <div>
-              <p className='text-muted-foreground'>Last Updated</p>
-              <p>{new Date(provider.updated_at).toLocaleString()}</p>
+              <p className='text-muted-foreground'>Post Broker Flow</p>
+              <p>{provider.post_broker_login_flow_alias ?? '—'}</p>
             </div>
           </div>
         </BlockContent>

@@ -1,7 +1,7 @@
 import { DataTable } from '@/components/ui/data-table'
 import { Edit, ExternalLink, Trash2, ScanFace, CheckCircle, XCircle, Layers } from 'lucide-react'
 import { columns } from '../columns/list-provider.column'
-import type { IdentityProvider } from '@/api/identity-providers.api'
+import type { IdentityProviderListItem } from '../types'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
@@ -23,7 +23,7 @@ interface ConfirmState {
 
 export interface PageOverviewProps {
   isLoading?: boolean
-  data: IdentityProvider[]
+  data: IdentityProviderListItem[]
   realmName: string
   statistics: Statistics
   filters: Filter[]
@@ -31,10 +31,10 @@ export interface PageOverviewProps {
   onFiltersChange: (filters: Filter[]) => void
   confirm: ConfirmState
   onConfirmClose: () => void
-  handleDeleteSelected: (items: IdentityProvider[]) => void
+  handleDeleteSelected: (items: IdentityProviderListItem[]) => void
   handleClickRow: (providerId: string) => void
   handleCreateProvider: () => void
-  onRowDelete: (provider: IdentityProvider) => void
+  onRowDelete: (provider: IdentityProviderListItem) => void
 }
 
 export default function PageOverview({
