@@ -102,7 +102,7 @@ impl From<IdentityProvider> for IdentityProviderResponse {
             add_read_token_role_on_create: value.add_read_token_role_on_create,
             trust_email: value.trust_email,
             link_only: value.link_only,
-            config: value.config, // SANITIZED - no passwords
+            config: serde_json::to_value(value.config).unwrap_or(serde_json::Value::Null),
         }
     }
 }

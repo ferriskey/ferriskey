@@ -22,6 +22,8 @@ LICENSE
 
 # rust
 target
+**/target
+**/node_modules
 
 # webapp
 front/.editorconfig

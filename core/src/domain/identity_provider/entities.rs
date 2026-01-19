@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use maskass::Masked;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use utoipa::ToSchema;
@@ -81,8 +82,8 @@ pub struct IdentityProvider {
     pub link_only: bool,
 
     /// Provider-specific configuration (OAuth client_id, client_secret, etc.)
-    /// Stored as JSON for flexibility
-    pub config: JsonValue,
+    /// Stored as structured config
+    pub config: IdentityProviderConfig,
 
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
@@ -91,8 +92,21 @@ pub struct IdentityProvider {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Configuration for creating a new IdentityProvider
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct IdentityProviderConfig {
+    /// OAuth client ID
+    pub client_id: Option<String>,
+
+    /// OAuth client secret (always masked on output)
+    pub client_secret: Option<Masked<String>>,
+
+    /// Catch-all for provider-specific configuration
+    #[serde(flatten)]
+    pub extra: JsonValue,
+}
+
+/// Configuration for creating a new IdentityProvider
+pub struct IdentityProviderCreationConfig {
     pub realm_id: RealmId,
     pub alias: String,
     pub provider_id: String,
@@ -104,12 +118,12 @@ pub struct IdentityProviderConfig {
     pub add_read_token_role_on_create: bool,
     pub trust_email: bool,
     pub link_only: bool,
-    pub config: JsonValue,
+    pub config: IdentityProviderConfig,
 }
 
 impl IdentityProvider {
     /// Creates a new IdentityProvider with the given configuration
-    pub fn new(config: IdentityProviderConfig) -> Self {
+    pub fn new(config: IdentityProviderCreationConfig) -> Self {
         let now = Utc::now();
         let seconds = now.timestamp().try_into().unwrap_or(0);
         let timestamp = Timestamp::from_unix(NoContext, seconds, 0);
@@ -145,7 +159,7 @@ impl IdentityProvider {
     }
 
     /// Updates the configuration
-    pub fn update_config(&mut self, config: JsonValue) {
+    pub fn update_config(&mut self, config: IdentityProviderConfig) {
         self.config = config;
         self.updated_at = Utc::now();
     }
@@ -206,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_identity_provider_new() {
-        let config = IdentityProviderConfig {
+        let config = IdentityProviderCreationConfig {
             realm_id: RealmId::from(Uuid::new_v4()),
             alias: "google".to_string(),
             provider_id: "google".to_string(),
@@ -218,7 +232,11 @@ mod tests {
             add_read_token_role_on_create: false,
             trust_email: true,
             link_only: false,
-            config: json!({"client_id": "test", "client_secret": "secret"}),
+            config: IdentityProviderConfig {
+                client_id: Some("test".to_string()),
+                client_secret: Some(Masked::new("secret".to_string())),
+                extra: json!({}),
+            },
         };
 
         let provider = IdentityProvider::new(config);
@@ -232,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_identity_provider_is_usable() {
-        let config = IdentityProviderConfig {
+        let config = IdentityProviderCreationConfig {
             realm_id: RealmId::from(Uuid::new_v4()),
             alias: "github".to_string(),
             provider_id: "github".to_string(),
@@ -244,7 +262,11 @@ mod tests {
             add_read_token_role_on_create: false,
             trust_email: false,
             link_only: false,
-            config: json!({}),
+            config: IdentityProviderConfig {
+                client_id: None,
+                client_secret: None,
+                extra: json!({}),
+            },
         };
 
         let provider = IdentityProvider::new(config);
@@ -253,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_identity_provider_set_enabled() {
-        let config = IdentityProviderConfig {
+        let config = IdentityProviderCreationConfig {
             realm_id: RealmId::from(Uuid::new_v4()),
             alias: "oidc".to_string(),
             provider_id: "oidc".to_string(),
@@ -265,7 +287,11 @@ mod tests {
             add_read_token_role_on_create: false,
             trust_email: false,
             link_only: false,
-            config: json!({}),
+            config: IdentityProviderConfig {
+                client_id: None,
+                client_secret: None,
+                extra: json!({}),
+            },
         };
 
         let mut provider = IdentityProvider::new(config);

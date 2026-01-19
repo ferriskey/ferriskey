@@ -1,9 +1,18 @@
-use crate::domain::identity_provider::{IdentityProvider, IdentityProviderId};
+use crate::domain::identity_provider::{
+    IdentityProvider, IdentityProviderConfig, IdentityProviderId,
+};
 use crate::domain::realm::entities::RealmId;
 use crate::entity::identity_providers::Model;
 
 impl From<Model> for IdentityProvider {
     fn from(model: Model) -> Self {
+        let raw_config = model.config;
+        let config = serde_json::from_value(raw_config.clone()).unwrap_or(IdentityProviderConfig {
+            client_id: None,
+            client_secret: None,
+            extra: raw_config,
+        });
+
         IdentityProvider {
             id: IdentityProviderId::from(model.id),
             realm_id: RealmId::from(model.realm_id),
@@ -17,7 +26,7 @@ impl From<Model> for IdentityProvider {
             add_read_token_role_on_create: model.add_read_token_role_on_create,
             trust_email: model.trust_email,
             link_only: model.link_only,
-            config: model.config,
+            config,
             created_at: model.created_at.into(),
             updated_at: model.updated_at.into(),
         }
