@@ -36,7 +36,7 @@ use crate::application::http::{
     params(
         ("realm_name" = String, Path, description = "Realm name")
     ),
-    tag = "Federation"
+    tag = "federation"
 )]
 pub async fn create_provider(
     Path(realm_name): Path<String>,

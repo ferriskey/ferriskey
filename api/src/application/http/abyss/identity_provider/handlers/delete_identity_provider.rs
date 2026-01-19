@@ -1,5 +1,5 @@
 use crate::application::http::{
-    identity_provider::validators::DeleteIdentityProviderResponse,
+    abyss::identity_provider::dto::DeleteIdentityProviderResponse,
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
@@ -16,7 +16,7 @@ use ferriskey_core::domain::identity_provider::{
 
 #[utoipa::path(
     delete,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Delete an identity provider",
     description = "Deletes an identity provider from the realm. This action is irreversible. Users who have linked accounts with this identity provider will no longer be able to use it for authentication.",
     responses(

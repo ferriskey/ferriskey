@@ -1,5 +1,7 @@
 use crate::application::http::{
-    identity_provider::validators::{IdentityProvidersResponse, ListIdentityProvidersQuery},
+    abyss::identity_provider::dto::{
+        IdentityProviderResponse, IdentityProvidersResponse, ListIdentityProvidersQuery,
+    },
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
@@ -9,16 +11,14 @@ use axum::{
     Extension,
     extract::{Path, Query, State},
 };
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::identity_provider::{
     entities::ListIdentityProvidersInput, ports::IdentityProviderService,
-};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, identity_provider::IdentityProvider,
 };
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/identity-providers",
     summary = "List all identity providers in a realm",
     description = "Retrieves all identity providers configured for the specified realm. Optionally returns a brief representation with fewer fields.",
     responses(
@@ -38,11 +38,14 @@ pub async fn list_identity_providers(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Query(_query): Query<ListIdentityProvidersQuery>,
-) -> Result<Response<Vec<IdentityProvider>>, ApiError> {
+) -> Result<Response<IdentityProvidersResponse>, ApiError> {
     let providers = state
         .service
         .list_identity_providers(identity, ListIdentityProvidersInput { realm_name })
-        .await?;
+        .await?
+        .into_iter()
+        .map(|p| p.into())
+        .collect::<Vec<IdentityProviderResponse>>();
 
-    Ok(Response::OK(providers))
+    Ok(Response::OK(IdentityProvidersResponse { data: providers }))
 }

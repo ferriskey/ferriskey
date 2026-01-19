@@ -1,5 +1,5 @@
 use crate::application::http::{
-    identity_provider::validators::{IdentityProviderResponse, UpdateIdentityProviderValidator},
+    abyss::identity_provider::dto::{IdentityProviderResponse, UpdateIdentityProviderValidator},
     server::{
         api_entities::{
             api_error::{ApiError, ValidateJson},
@@ -12,16 +12,14 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::identity_provider::{
     entities::UpdateIdentityProviderInput, ports::IdentityProviderService,
-};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, identity_provider::IdentityProvider,
 };
 
 #[utoipa::path(
     put,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Update an identity provider",
     description = "Updates an existing identity provider configuration. Only the fields provided in the request body will be updated. The alias cannot be changed after creation.",
     responses(
@@ -43,7 +41,7 @@ pub async fn update_identity_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateIdentityProviderValidator>,
-) -> Result<Response<IdentityProvider>, ApiError> {
+) -> Result<Response<IdentityProviderResponse>, ApiError> {
     let provider = state
         .service
         .update_identity_provider(
@@ -64,5 +62,5 @@ pub async fn update_identity_provider(
         )
         .await?;
 
-    Ok(Response::OK(provider))
+    Ok(Response::OK(provider.into()))
 }

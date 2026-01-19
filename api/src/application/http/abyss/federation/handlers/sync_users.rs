@@ -26,7 +26,7 @@ use crate::application::http::{
         ("realm_name" = String, Path, description = "Realm name"),
         ("id" = String, Path, description = "Provider ID")
     ),
-    tag = "Federation"
+    tag = "federation"
 )]
 pub async fn sync_users(
     Path((_, id)): Path<(String, Uuid)>,

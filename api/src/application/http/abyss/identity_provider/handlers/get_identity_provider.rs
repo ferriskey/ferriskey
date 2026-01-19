@@ -1,5 +1,5 @@
 use crate::application::http::{
-    identity_provider::validators::IdentityProviderResponse,
+    abyss::identity_provider::dto::IdentityProviderResponse,
     server::{
         api_entities::{api_error::ApiError, response::Response},
         app_state::AppState,
@@ -9,16 +9,14 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::identity_provider::{
     entities::GetIdentityProviderInput, ports::IdentityProviderService,
-};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, identity_provider::IdentityProvider,
 };
 
 #[utoipa::path(
     get,
-    path = "/{alias}",
+    path = "/identity-providers/{alias}",
     summary = "Get an identity provider by alias",
     description = "Retrieves the details of a specific identity provider by its alias. Sensitive configuration values (like client secrets) are redacted in the response.",
     responses(
@@ -37,11 +35,11 @@ pub async fn get_identity_provider(
     Path((realm_name, alias)): Path<(String, String)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<IdentityProvider>, ApiError> {
+) -> Result<Response<IdentityProviderResponse>, ApiError> {
     let provider = state
         .service
         .get_identity_provider(identity, GetIdentityProviderInput { realm_name, alias })
         .await?;
 
-    Ok(Response::OK(provider))
+    Ok(Response::OK(provider.into()))
 }
