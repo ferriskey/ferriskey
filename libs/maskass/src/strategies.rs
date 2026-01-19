@@ -44,7 +44,7 @@ impl<const PREFIX: usize, const SUFFIX: usize> MaskStrategy for PartialMask<PREF
 
         let mut out = String::new();
         out.extend(chars.iter().take(PREFIX));
-        out.extend(std::iter::repeat('*').take(len - PREFIX - SUFFIX));
+        out.extend(std::iter::repeat_n('*', len - PREFIX - SUFFIX));
         out.extend(chars.iter().skip(len - SUFFIX));
         out
     }
@@ -72,10 +72,7 @@ mod tests {
 
     #[test]
     fn email_mask_handles_domain_and_missing_at() {
-        assert_eq!(
-            EmailMask::mask("user@example.com"),
-            "******@example.com"
-        );
+        assert_eq!(EmailMask::mask("user@example.com"), "******@example.com");
         assert_eq!(EmailMask::mask("not-an-email"), "******.");
     }
 

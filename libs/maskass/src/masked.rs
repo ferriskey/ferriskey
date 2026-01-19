@@ -2,8 +2,9 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use utoipa::__dev::ComposeSchema;
 use utoipa::{
-    PartialSchema, ToSchema,
+    ToSchema,
     openapi::schema::{SchemaType, Type},
     openapi::{ObjectBuilder, RefOr, Schema},
 };
@@ -11,7 +12,7 @@ use utoipa::{
 use crate::strategies::{FullMask, MaskStrategy};
 
 /// What gets produced when data is serialized / logged.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ToSchema)]
 pub enum Redaction {
     /// Always "***"
     Full,
@@ -25,12 +26,18 @@ pub enum Redaction {
 /// - `Serialize`: outputs redacted string (never the real value)
 /// - `Debug` / `Display`: redacted
 #[derive(Clone, Eq, PartialEq)]
-pub struct Masked<T> {
+pub struct Masked<T>
+where
+    T: ToSchema,
+{
     value: T,
     mode: Redaction,
 }
 
-impl<T> Masked<T> {
+impl<T> Masked<T>
+where
+    T: ToSchema,
+{
     /// Store sensitive value and choose redaction mode.
     pub fn new(value: T) -> Self {
         Self {
@@ -58,21 +65,30 @@ impl<T> Masked<T> {
     }
 }
 
-impl<T> Debug for Masked<T> {
+impl<T> Debug for Masked<T>
+where
+    T: ToSchema,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Never leak
         f.debug_struct("Masked").field("value", &"***").finish()
     }
 }
 
-impl<T> Display for Masked<T> {
+impl<T> Display for Masked<T>
+where
+    T: ToSchema,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Never leak
         write!(f, "***")
     }
 }
 
-impl<T> Serialize for Masked<T> {
+impl<T> Serialize for Masked<T>
+where
+    T: ToSchema,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -84,7 +100,7 @@ impl<T> Serialize for Masked<T> {
 
 impl<'de, T> Deserialize<'de> for Masked<T>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'de> + ToSchema,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -94,14 +110,22 @@ where
     }
 }
 
-impl<T> ToSchema for Masked<T> {
+impl<T> ToSchema for Masked<T>
+where
+    T: ToSchema,
+{
     fn name() -> Cow<'static, str> {
         Cow::Borrowed("Masked")
     }
 }
 
-impl<T> PartialSchema for Masked<T> {
-    fn schema() -> RefOr<Schema> {
+impl<T> ComposeSchema for Masked<T>
+where
+    T: ToSchema,
+{
+    fn compose(
+        _new_generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+    ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
         RefOr::T(Schema::Object(
             ObjectBuilder::new()
                 .schema_type(SchemaType::Type(Type::String))
@@ -183,8 +207,10 @@ impl<S: MaskStrategy> ToSchema for MaskedWith<S> {
     }
 }
 
-impl<S: MaskStrategy> PartialSchema for MaskedWith<S> {
-    fn schema() -> RefOr<Schema> {
+impl<S: MaskStrategy> ComposeSchema for MaskedWith<S> {
+    fn compose(
+        _new_generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+    ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
         RefOr::T(Schema::Object(
             ObjectBuilder::new()
                 .schema_type(SchemaType::Type(Type::String))
@@ -198,10 +224,10 @@ pub type MaskedString = MaskedWith<FullMask>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
-    use utoipa::{PartialSchema, ToSchema};
+
     use utoipa::openapi::RefOr;
     use utoipa::openapi::schema::{SchemaType, Type};
+    use utoipa::{PartialSchema, ToSchema};
 
     #[test]
     fn masked_redacts_in_display_debug_and_serde() {
@@ -217,6 +243,13 @@ mod tests {
     fn masked_deserializes_original_value() {
         let masked: Masked<String> = serde_json::from_str("\"secret\"").unwrap();
         assert_eq!(masked.expose(), "secret");
+    }
+
+    #[test]
+    fn masked_with_mode_preserves_mode_and_inner() {
+        let masked = Masked::with_mode("value".to_string(), Redaction::Strategy);
+        assert_eq!(masked.mode(), Redaction::Strategy);
+        assert_eq!(masked.into_inner(), "value");
     }
 
     #[test]
@@ -239,18 +272,38 @@ mod tests {
     }
 
     #[test]
+    fn masked_with_full_mode_affects_serde_only() {
+        let masked = MaskedWith::<crate::strategies::EmailMask> {
+            value: "user@example.com".to_string(),
+            mode: Redaction::Full,
+            _strategy: core::marker::PhantomData,
+        };
+
+        assert_eq!(masked.mode(), Redaction::Full);
+        assert_eq!(format!("{}", masked), "******@example.com");
+        assert_eq!(serde_json::to_string(&masked).unwrap(), "\"***\"");
+    }
+
+    #[test]
+    fn masked_with_defaults_to_strategy_mode() {
+        let masked = MaskedWith::<crate::strategies::EmailMask>::new("user@example.com");
+        assert_eq!(masked.mode(), Redaction::Strategy);
+        assert_eq!(masked.into_inner(), "user@example.com");
+    }
+
+    #[test]
     fn masked_schema_is_string() {
         let schema = <Masked<String> as PartialSchema>::schema();
         match schema {
             RefOr::T(utoipa::openapi::Schema::Object(object)) => {
-                assert!(matches!(
-                    object.schema_type,
-                    SchemaType::Type(Type::String)
-                ));
+                assert!(matches!(object.schema_type, SchemaType::Type(Type::String)));
             }
             _ => panic!("Expected object schema"),
         }
-        assert_eq!(<Masked<String> as ToSchema>::name(), Cow::Borrowed("Masked"));
+        assert_eq!(
+            <Masked<String> as ToSchema>::name(),
+            Cow::Borrowed("Masked")
+        );
     }
 
     #[test]
@@ -258,10 +311,7 @@ mod tests {
         let schema = <MaskedWith<crate::strategies::FullMask> as PartialSchema>::schema();
         match schema {
             RefOr::T(utoipa::openapi::Schema::Object(object)) => {
-                assert!(matches!(
-                    object.schema_type,
-                    SchemaType::Type(Type::String)
-                ));
+                assert!(matches!(object.schema_type, SchemaType::Type(Type::String)));
             }
             _ => panic!("Expected object schema"),
         }

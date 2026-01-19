@@ -17,8 +17,8 @@ use std::sync::Arc;
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 
-use ferriskey_api::application::http::server::http_server::{router, state};
-use ferriskey_api::args::{Args, LogArgs, ObservabilityArgs};
+use crate::application::http::server::http_server::{router, state};
+use crate::args::{Args, LogArgs, ObservabilityArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
@@ -32,6 +32,9 @@ use tracing_opentelemetry::MetricsLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
+
+pub mod application;
+pub mod args;
 
 fn init_tracing_and_logging(
     log_args: &LogArgs,

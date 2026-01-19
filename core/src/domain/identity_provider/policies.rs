@@ -168,7 +168,7 @@ mod tests {
     use super::*;
     use crate::domain::{
         client::ports::MockClientRepository,
-        identity_provider::entities::IdentityProviderConfig,
+        identity_provider::entities::{IdentityProviderConfig, IdentityProviderCreationConfig},
         realm::entities::Realm,
         role::entities::Role,
         user::{
@@ -209,7 +209,7 @@ mod tests {
     }
 
     fn create_test_identity_provider(realm_id: RealmId) -> IdentityProvider {
-        IdentityProvider::new(IdentityProviderConfig {
+        IdentityProvider::new(IdentityProviderCreationConfig {
             realm_id,
             alias: "google".to_string(),
             provider_id: "oidc".to_string(),
@@ -221,7 +221,11 @@ mod tests {
             add_read_token_role_on_create: false,
             trust_email: false,
             link_only: false,
-            config: serde_json::json!({}),
+            config: IdentityProviderConfig {
+                client_id: None,
+                client_secret: None,
+                extra: serde_json::json!({}),
+            },
         })
     }
 

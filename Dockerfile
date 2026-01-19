@@ -5,23 +5,30 @@ WORKDIR /usr/local/src/ferriskey
 RUN cargo install sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
-COPY api/Cargo.toml ./api/
+COPY libs/maskass/Cargo.toml ./libs/maskass/
+
 COPY core/Cargo.toml ./core/
+
+COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 
 RUN \
-    mkdir -p api/src core/src entity/src operator/src && \
-    echo "fn main() {}" > api/src/main.rs && \
+    mkdir -p api/src core/src entity/src operator/src libs/maskass/src && \
+    touch libs/maskass/src/lib.rs && \
     touch core/src/lib.rs && \
+
     echo "fn main() {}" > operator/src/main.rs && \
+    echo "fn main() {}" > api/src/main.rs && \
     cargo build --release
 
-COPY api api
+COPY libs/maskass libs/maskass
+
 COPY core core
+COPY api api
 COPY operator operator
 
 RUN \
-    touch api/src/main.rs && \
+    touch libs/maskass/src/lib.rs && \
     touch core/src/lib.rs && \
     touch operator/src/main.rs && \
     cargo build --release
@@ -50,13 +57,13 @@ USER ferriskey
 
 FROM runtime AS api
 
-COPY --from=rust-build /usr/local/src/ferriskey/target/release/ferriskey-server /usr/local/bin/
+COPY --from=rust-build /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
 COPY --from=rust-build /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
 COPY --from=rust-build /usr/local/cargo/bin/sqlx /usr/local/bin/
 
 EXPOSE 80
 
-ENTRYPOINT ["ferriskey-server"]
+ENTRYPOINT ["ferriskey-api"]
 
 FROM runtime AS operator
 
