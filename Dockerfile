@@ -1,4 +1,4 @@
-FROM rust:1.89-bookworm AS rust-build
+FROM rust:1.91-bookworm AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -26,6 +26,8 @@ RUN \
     cargo build --release
 
 COPY libs/maskass libs/maskass
+COPY libs/domain libs/domain
+COPY libs/webhook libs/webhook
 
 COPY core core
 COPY api api
