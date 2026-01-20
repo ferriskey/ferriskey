@@ -15,7 +15,7 @@ COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 
 RUN \
-    mkdir -p api/src core/src entity/src operator/src libs/maskass/src && \
+    mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/domain/src libs/webhook/src && \
     touch libs/maskass/src/lib.rs && \
     touch libs/domain/src/lib.rs && \
     touch libs/webhook/src/lib.rs && \
