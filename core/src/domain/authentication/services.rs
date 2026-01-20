@@ -194,6 +194,9 @@ where
             .await?;
 
         let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
+        let exp = claims.exp.unwrap_or(0);
+        let iat = Utc::now().timestamp();
+        let preferred_username: String = claims.preferred_username.clone().unwrap_or_default();
 
         let id_token: Option<Jwt> = if contains_openid_scope {
             let aud = claims.aud.join(" ");
@@ -201,11 +204,11 @@ where
                 iss: claims.iss,
                 aud,
                 auth_time: None,
-                email: None,
+                email: claims.email.clone(),
                 email_verified: None,
-                exp: 1,
-                iat: 1,
-                preferred_username: "".to_string(),
+                exp,
+                iat,
+                preferred_username,
                 sub: claims.sub,
             };
             let t = self.try_generate_token(&id_claims, input.realm_id).await?;
