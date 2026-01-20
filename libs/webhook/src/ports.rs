@@ -1,0 +1,130 @@
+use std::collections::HashMap;
+
+use ferriskey_domain::{
+    CoreError,
+    identity::Identity,
+    realm::{Realm, RealmId},
+};
+use serde::Serialize;
+use uuid::Uuid;
+
+use crate::entities::{
+    Webhook, WebhookPayload,
+    inputs::{
+        CreateWebhookInput, DeleteWebhookInput, GetWebhookInput, GetWebhookSubscribersInput,
+        GetWebhooksInput, UpdateWebhookInput,
+    },
+    trigger::WebhookTrigger,
+};
+
+pub trait WebhookService: Send + Sync {
+    fn get_webhooks_by_realm(
+        &self,
+        identity: Identity,
+        input: GetWebhooksInput,
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+
+    fn get_webhooks_by_subscribers(
+        &self,
+        identity: Identity,
+        input: GetWebhookSubscribersInput,
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+
+    fn get_webhook(
+        &self,
+        identity: Identity,
+        input: GetWebhookInput,
+    ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
+
+    fn create_webhook(
+        &self,
+        identity: Identity,
+        input: CreateWebhookInput,
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
+
+    fn update_webhook(
+        &self,
+        identity: Identity,
+        input: UpdateWebhookInput,
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
+
+    fn delete_webhook(
+        &self,
+        identity: Identity,
+        input: DeleteWebhookInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait WebhookRepository: Send + Sync {
+    fn fetch_webhooks_by_realm(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+
+    fn fetch_webhooks_by_subscriber(
+        &self,
+        realm_id: RealmId,
+        subscriber: WebhookTrigger,
+    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+
+    fn get_webhook_by_id(
+        &self,
+        webhook_id: Uuid,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
+
+    fn create_webhook(
+        &self,
+        realm_id: RealmId,
+        name: Option<String>,
+        description: Option<String>,
+        endpoint: String,
+        headers: HashMap<String, String>,
+        subscribers: Vec<WebhookTrigger>,
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
+
+    fn update_webhook(
+        &self,
+        id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
+        endpoint: String,
+        headers: HashMap<String, String>,
+        subscribers: Vec<WebhookTrigger>,
+    ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
+
+    fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn notify<T: Send + Sync + Serialize + Clone + 'static>(
+        &self,
+        realm_id: RealmId,
+        payload: WebhookPayload<T>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait WebhookPolicy: Send + Sync {
+    fn can_create_webhook(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_update_webhook(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_delete_webhook(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_view_webhook(
+        &self,
+        identity: Identity,
+        target_realm: Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}

@@ -1,0 +1,224 @@
+use chrono::{DateTime, Utc};
+use rand::{Rng, distributions::Alphanumeric};
+use thiserror::Error;
+use uuid::{NoContext, Timestamp, Uuid};
+
+pub mod client;
+pub mod identity;
+pub mod realm;
+pub mod role;
+pub mod user;
+
+pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
+    let now = Utc::now();
+    let ts = Timestamp::from_unix(
+        NoContext,
+        now.timestamp().try_into().unwrap_or(0),
+        now.timestamp_subsec_nanos(),
+    );
+    (now, ts)
+}
+
+pub fn generate_uuid_v7() -> Uuid {
+    let (_, ts) = generate_timestamp();
+    Uuid::new_v7(ts)
+}
+
+pub fn generate_random_string() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect()
+}
+
+#[derive(Error, Debug, Clone)]
+pub enum CoreError {
+    #[error("Not found")]
+    NotFound,
+
+    #[error("Already exists")]
+    AlreadyExists,
+
+    #[error("Invalid resource")]
+    Invalid,
+
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
+
+    #[error("Internal server error")]
+    InternalServerError,
+
+    #[error("Redirect URI not found")]
+    RedirectUriNotFound,
+
+    #[error("Invalid redirect URI")]
+    InvalidRedirectUri,
+
+    #[error("Invalid client")]
+    InvalidClient,
+
+    #[error("Invalid realm")]
+    InvalidRealm,
+
+    #[error("Invalid user")]
+    InvalidUser,
+
+    #[error("Invalid password")]
+    InvalidPassword,
+
+    #[error("Invalid state")]
+    InvalidState,
+
+    #[error("Invalid refresh token")]
+    InvalidRefreshToken,
+
+    #[error("Invalid client secret")]
+    InvalidClientSecret,
+
+    #[error("Invalid authorization request")]
+    InvalidRequest,
+
+    #[error("Service account not found")]
+    ServiceAccountNotFound,
+
+    #[error("Hash password error: {0}")]
+    HashPasswordError(String),
+
+    #[error("Verify password error: {0}")]
+    VerifyPasswordError(String),
+
+    #[error("Failed to delete password credential")]
+    DeletePasswordCredentialError,
+
+    #[error("Failed to create credential")]
+    CreateCredentialError,
+
+    #[error("Failed to get password credential")]
+    GetPasswordCredentialError,
+
+    #[error("Failed to get user credentials")]
+    GetUserCredentialsError,
+
+    #[error("Failed to delete credential")]
+    DeleteCredentialError,
+
+    #[error("Token generation error: {0}")]
+    TokenGenerationError(String),
+
+    #[error("Token validation error: {0}")]
+    TokenValidationError(String),
+
+    #[error("Token parsing error: {0}")]
+    TokenParsingError(String),
+
+    #[error("Token expiration error: {0}")]
+    TokenExpirationError(String),
+
+    #[error("Realm key not found")]
+    RealmKeyNotFound,
+
+    #[error("Invalid token")]
+    InvalidToken,
+
+    #[error("Expired token")]
+    ExpiredToken,
+
+    #[error("Invalid key: {0}")]
+    InvalidKey(String),
+
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Session expired")]
+    SessionExpired,
+
+    #[error("Invalid session")]
+    InvalidSession,
+
+    #[error("Failed to create session")]
+    SessionCreateError,
+
+    #[error("Failed to delete session")]
+    SessionDeleteError,
+
+    #[error("Invalid TOTP secret format")]
+    InvalidTotpSecretFormat,
+
+    #[error("TOTP generation failed: {0}")]
+    TotpGenerationFailed(String),
+
+    #[error("TOTP verification failed: {0}")]
+    TotpVerificationFailed(String),
+
+    #[error("Recovery code generation failed: {0}")]
+    RecoveryCodeGenError(String),
+
+    #[error("Recovery code burning failed: {0}")]
+    RecoveryCodeBurnError(String),
+
+    #[error("Cannot delete master realm")]
+    CannotDeleteMasterRealm,
+
+    #[error("Webhook not found")]
+    WebhookNotFound,
+
+    #[error("Webhook forbidden")]
+    WebhookForbidden,
+
+    #[error("Failed to notify webhook: {0}")]
+    FailedWebhookNotification(String),
+
+    #[error("Realm not found for webhook")]
+    WebhookRealmNotFound,
+
+    #[error("Failed to create client")]
+    CreateClientError,
+
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
+
+    #[error("Authorization code storage failed")]
+    AuthorizationCodeStorageFailed,
+
+    #[error("Expected an auth session state")]
+    AuthSessionExpectedState,
+
+    #[error("Missing webauthn challenge")]
+    WebAuthnMissingChallenge,
+
+    #[error("Webauthn credential not found")]
+    WebAuthnCredentialNotFound,
+
+    #[error("Webauthn challenge failed")]
+    WebAuthnChallengeFailed,
+
+    // Provider (Abyss) errors
+    #[error("Provider not found")]
+    ProviderNotFound,
+
+    #[error("Provider name already exists")]
+    ProviderNameAlreadyExists,
+
+    #[error("Invalid provider configuration")]
+    InvalidProviderConfiguration,
+
+    #[error("Provider is disabled")]
+    ProviderDisabled,
+
+    #[error("Invalid provider URL")]
+    InvalidProviderUrl,
+
+    // Infrastructure errors
+    #[error("External error: {0}")]
+    External(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    #[error("Federation authentication error: {0}")]
+    FederationAuthenticationFailed(String),
+}
