@@ -6,6 +6,8 @@ RUN cargo install sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/maskass/Cargo.toml ./libs/maskass/
+COPY libs/domain/Cargo.toml ./libs/domain/
+COPY libs/webhook/Cargo.toml ./libs/webhook/
 
 COPY core/Cargo.toml ./core/
 
@@ -15,6 +17,8 @@ COPY operator/Cargo.toml ./operator/
 RUN \
     mkdir -p api/src core/src entity/src operator/src libs/maskass/src && \
     touch libs/maskass/src/lib.rs && \
+    touch libs/domain/src/lib.rs && \
+    touch libs/webhook/src/lib.rs && \
     touch core/src/lib.rs && \
 
     echo "fn main() {}" > operator/src/main.rs && \
@@ -29,6 +33,8 @@ COPY operator operator
 
 RUN \
     touch libs/maskass/src/lib.rs && \
+    touch libs/domain/src/lib.rs && \
+    touch libs/webhook/src/lib.rs && \
     touch core/src/lib.rs && \
     touch operator/src/main.rs && \
     cargo build --release
