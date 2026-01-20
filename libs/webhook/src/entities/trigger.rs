@@ -132,3 +132,64 @@ impl TryFrom<String> for WebhookTrigger {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn webhook_trigger_display_and_try_from_round_trip() {
+        let cases = vec![
+            (WebhookTrigger::UserCreated, "user.created"),
+            (WebhookTrigger::UserUpdated, "user.updated"),
+            (WebhookTrigger::UserDeleted, "user.deleted"),
+            (WebhookTrigger::UserRoleAssigned, "user.role.assigned"),
+            (WebhookTrigger::UserRoleUnassigned, "user.role.unassigned"),
+            (WebhookTrigger::UserBulkDeleted, "user.bulk_deleted"),
+            (
+                WebhookTrigger::UserDeleteCredentials,
+                "user.credentials.deleted",
+            ),
+            (WebhookTrigger::AuthResetPassword, "auth.reset_password"),
+            (WebhookTrigger::ClientCreated, "client.created"),
+            (WebhookTrigger::ClientUpdated, "client.updated"),
+            (WebhookTrigger::ClientDeleted, "client.deleted"),
+            (WebhookTrigger::ClientRoleCreated, "client.role.created"),
+            (WebhookTrigger::ClientRoleUpdated, "client.role.updated"),
+            (WebhookTrigger::RedirectUriCreated, "redirect_uri.created"),
+            (WebhookTrigger::RedirectUriUpdated, "redirect_uri.updated"),
+            (WebhookTrigger::RedirectUriDeleted, "redirect_uri.deleted"),
+            (WebhookTrigger::RoleCreated, "role.created"),
+            (WebhookTrigger::RoleUpdated, "role.updated"),
+            (WebhookTrigger::RoleDeleted, "role.deleted"),
+            (
+                WebhookTrigger::RolePermissionUpdated,
+                "role.permission.updated",
+            ),
+            (WebhookTrigger::RealmCreated, "realm.created"),
+            (WebhookTrigger::RealmUpdated, "realm.updated"),
+            (WebhookTrigger::RealmDeleted, "realm.deleted"),
+            (
+                WebhookTrigger::RealmSettingsUpdated,
+                "realm.settings.updated",
+            ),
+            (WebhookTrigger::WebhookCreated, "webhook.created"),
+            (WebhookTrigger::WebhookUpdated, "webhook.updated"),
+            (WebhookTrigger::WebhookDeleted, "webhook.deleted"),
+        ];
+
+        for (variant, expected) in cases {
+            assert_eq!(variant.to_string(), expected);
+            assert_eq!(
+                WebhookTrigger::try_from(expected.to_string()),
+                Ok(variant.clone())
+            );
+        }
+    }
+
+    #[test]
+    fn webhook_trigger_try_from_rejects_unknown() {
+        let result = WebhookTrigger::try_from("unknown.event".to_string());
+        assert!(result.is_err());
+    }
+}

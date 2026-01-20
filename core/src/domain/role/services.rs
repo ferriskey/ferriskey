@@ -281,6 +281,54 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::{
+        common::entities::app_errors::CoreError,
+        realm::entities::{Realm, RealmId, RealmSetting},
+    };
+
+    mockall::mock! {
+        pub RealmRepository {}
+        impl crate::domain::realm::ports::RealmRepository for RealmRepository {
+            fn fetch_realm(
+                &self,
+            ) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
+            fn get_by_name(
+                &self,
+                name: String,
+            ) -> impl Future<Output = Result<Option<Realm>, CoreError>> + Send;
+            fn create_realm(
+                &self,
+                name: String,
+            ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
+            fn update_realm(
+                &self,
+                realm_name: String,
+                name: String,
+            ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
+            fn delete_by_name(
+                &self,
+                name: String,
+            ) -> impl Future<Output = Result<(), CoreError>> + Send;
+            fn create_realm_settings(
+                &self,
+                realm_id: RealmId,
+                algorithm: String,
+            ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
+            fn update_realm_setting(
+                &self,
+                realm_id: RealmId,
+                algorithm: Option<String>,
+                user_registration_enabled: Option<bool>,
+                forgot_password_enabled: Option<bool>,
+                remember_me_enabled: Option<bool>,
+            ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
+            fn get_realm_settings(
+                &self,
+                realm_id: RealmId,
+            ) -> impl Future<Output = Result<Option<RealmSetting>, CoreError>> + Send;
+        }
+    }
+
     use mockall::predicate::*;
     use uuid::Uuid;
 
@@ -288,16 +336,11 @@ mod tests {
         authentication::value_objects::Identity,
         client::{entities::Client, ports::MockClientRepository},
         common::{
-            entities::app_errors::CoreError,
             policies::FerriskeyPolicy,
             services::tests::{
                 assert_success, create_test_realm, create_test_realm_with_name, create_test_role,
                 create_test_role_with_params, create_test_user, create_test_user_with_realm,
             },
-        },
-        realm::{
-            entities::{Realm, RealmId},
-            ports::MockRealmRepository,
         },
         role::{
             entities::{Role, permission::Permissions},

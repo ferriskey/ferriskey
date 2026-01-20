@@ -1427,6 +1427,7 @@ dependencies = [
  "utoipa",
  "uuid",
  "webauthn-rs",
+ "webhook",
  "x509-parser 0.18.0",
 ]
 
