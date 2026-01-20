@@ -3,14 +3,22 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::{generate_timestamp, generate_uuid_v7};
+use crate::{generate_timestamp, generate_uuid_v7};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
+pub mod ports;
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, PartialOrd, Ord,
+)]
 pub struct RealmId(Uuid);
 
 impl RealmId {
-    pub fn new(value: Uuid) -> Self {
-        Self(value)
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn id(&self) -> Uuid {
+        self.0
     }
 }
 
@@ -27,8 +35,8 @@ impl From<Uuid> for RealmId {
 }
 
 impl From<RealmId> for Uuid {
-    fn from(id: RealmId) -> Self {
-        id.0
+    fn from(value: RealmId) -> Self {
+        value.0
     }
 }
 

@@ -1,0 +1,15 @@
+[package]
+name = "ferriskey-domain"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono = { version = "0.4.43", features = ["serde"] }
+enum-display = "0.2.1"
+mockall = "0.14.0"
+rand = "0.8.0"
+serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.18"
+utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+uuid = { version = "1.19.0", features = ["serde", "v7"] }
