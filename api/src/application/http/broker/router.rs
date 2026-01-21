@@ -1,3 +1,4 @@
+use axum::routing::post;
 use axum::{Router, routing::get};
 use utoipa::OpenApi;
 
@@ -19,7 +20,7 @@ pub fn broker_routes(state: AppState, root_path: &str) -> Router<AppState> {
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/broker/{{alias}}/endpoint"),
-            get(broker_callback),
+            post(broker_callback),
         )
         .with_state(state)
 }
