@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::{
+    common::entities::app_errors::CoreError, identity_provider::IdentityProviderConfig,
+};
 
 /// OAuth2/OIDC provider configuration extracted from the identity provider's config JSONB
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,6 +50,40 @@ impl TryFrom<serde_json::Value> for OAuthProviderConfig {
                 e
             ))
         })
+    }
+}
+
+impl TryFrom<IdentityProviderConfig> for OAuthProviderConfig {
+    type Error = CoreError;
+
+    fn try_from(config: IdentityProviderConfig) -> Result<Self, Self::Error> {
+        let mut extra = match config.extra {
+            serde_json::Value::Object(map) => map,
+            serde_json::Value::Null => serde_json::Map::new(),
+            _ => {
+                return Err(CoreError::InvalidProviderConfiguration(
+                    "Provider configuration must be a JSON object".to_string(),
+                ));
+            }
+        };
+
+        let client_id = config.client_id.ok_or_else(|| {
+            CoreError::InvalidProviderConfiguration("Missing client_id".to_string())
+        })?;
+        let client_secret = config.client_secret.ok_or_else(|| {
+            CoreError::InvalidProviderConfiguration("Missing client_secret".to_string())
+        })?;
+
+        extra.insert(
+            "client_id".to_string(),
+            serde_json::Value::String(client_id),
+        );
+        extra.insert(
+            "client_secret".to_string(),
+            serde_json::Value::String(client_secret.expose().clone()),
+        );
+
+        OAuthProviderConfig::try_from(serde_json::Value::Object(extra))
     }
 }
 
