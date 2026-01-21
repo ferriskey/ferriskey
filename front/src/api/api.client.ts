@@ -511,6 +511,39 @@ export namespace Endpoints {
     }
     response: Schemas.GetOpenIdConfigurationResponse
   }
+  export type post_Broker_callback = {
+    method: 'POST'
+    path: '/realms/{realm_name}/broker/{alias}/endpoint'
+    requestFormat: 'json'
+    parameters: {
+      query: {
+        code?: string | undefined
+        state: string
+        error?: string | undefined
+        error_description?: string | undefined
+      }
+      path: { realm_name: string; alias: string }
+    }
+    response: unknown
+  }
+  export type get_Broker_login = {
+    method: 'GET'
+    path: '/realms/{realm_name}/broker/{alias}/login'
+    requestFormat: 'json'
+    parameters: {
+      query: Partial<{
+        client_id: string
+        redirect_uri: string
+        response_type: string
+        scope: string
+        state: string
+        nonce: string
+        session_id: string
+      }>
+      path: { realm_name: string; alias: string }
+    }
+    response: unknown
+  }
   export type get_Get_clients = {
     method: 'GET'
     path: '/realms/{realm_name}/clients'
@@ -1127,6 +1160,7 @@ export namespace Endpoints {
 export type EndpointByMethod = {
   post: {
     '/realms': Endpoints.post_Create_realm
+    '/realms/{realm_name}/broker/{alias}/endpoint': Endpoints.post_Broker_callback
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
@@ -1154,6 +1188,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.get_Get_realm
     '/realms/{name}/login-settings': Endpoints.get_Get_login_realm_settings_handler
     '/realms/{realm_name}/.well-known/openid-configuration': Endpoints.get_Get_openid_configuration
+    '/realms/{realm_name}/broker/{alias}/login': Endpoints.get_Broker_login
     '/realms/{realm_name}/clients': Endpoints.get_Get_clients
     '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
