@@ -17,7 +17,7 @@ use super::super::validators::BrokerLoginRequest;
 /// creates a broker session, and redirects the user to the IdP's authorization URL.
 #[utoipa::path(
     get,
-    path = "/realms/{realm_name}/broker/{alias}/login",
+    path = "/broker/{alias}/login",
     tag = "broker",
     summary = "Initiate SSO login via identity provider",
     description = "Redirects the user to the external identity provider for authentication",

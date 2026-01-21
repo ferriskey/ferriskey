@@ -17,8 +17,8 @@ use super::super::validators::BrokerCallbackQuery;
 /// for tokens, finds or creates the user, and redirects back to the client
 /// with an authorization code.
 #[utoipa::path(
-    get,
-    path = "/realms/{realm_name}/broker/{alias}/endpoint",
+    post,
+    path = "/broker/{alias}/endpoint",
     tag = "broker",
     summary = "Handle SSO callback from identity provider",
     description = "Processes the IdP callback, exchanges code for tokens, and redirects to client",
