@@ -17,6 +17,7 @@ impl ReqwestOAuthClient {
         }
     }
 
+    #[allow(unused)]
     pub fn with_client(client: Client) -> Self {
         Self { client }
     }

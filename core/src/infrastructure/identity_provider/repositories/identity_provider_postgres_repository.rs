@@ -108,9 +108,16 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
     async fn list_identity_providers_by_realm(
         &self,
         realm_id: RealmId,
+        only_enabled: Option<bool>,
     ) -> Result<Vec<IdentityProvider>, CoreError> {
-        let identity_providers = IdentityProviderEntity::find()
-            .filter(Column::RealmId.eq::<Uuid>(realm_id.into()))
+        let mut query =
+            IdentityProviderEntity::find().filter(Column::RealmId.eq::<Uuid>(realm_id.into()));
+
+        if only_enabled.unwrap_or(false) {
+            query = query.filter(Column::Enabled.eq(true))
+        }
+
+        let identity_providers = query
             .order_by_asc(Column::Alias)
             .all(&self.db)
             .await

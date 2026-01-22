@@ -66,6 +66,7 @@ pub trait IdentityProviderRepository: Send + Sync {
     fn list_identity_providers_by_realm(
         &self,
         realm_id: RealmId,
+        only_enabled: Option<bool>,
     ) -> impl Future<Output = Result<Vec<IdentityProvider>, CoreError>> + Send;
 
     /// Updates an existing identity provider

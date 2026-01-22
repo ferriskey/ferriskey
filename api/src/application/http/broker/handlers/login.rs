@@ -40,7 +40,6 @@ pub async fn broker_login(
 ) -> Result<impl IntoResponse, ApiError> {
     let result = state
         .service
-        .broker_service
         .initiate_login(BrokerLoginInput {
             realm_name,
             alias,

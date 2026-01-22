@@ -105,6 +105,27 @@ pub struct IdentityProviderConfig {
     pub extra: JsonValue,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, ToSchema)]
+pub struct IdentityProviderPresentation {
+    pub id: String,
+    pub kind: String,
+    pub display_name: String,
+    pub icon: String,
+    pub login_url: String,
+}
+
+impl IdentityProviderPresentation {
+    pub fn new(provider: IdentityProvider, realm_name: &str) -> Self {
+        Self {
+            display_name: provider.display_name.unwrap_or_default(),
+            icon: provider.provider_id.clone(),
+            id: provider.alias.clone(),
+            kind: provider.provider_id,
+            login_url: format!("/realms/{}/broker/{}/login", realm_name, provider.alias),
+        }
+    }
+}
+
 /// Configuration for creating a new IdentityProvider
 pub struct IdentityProviderCreationConfig {
     pub realm_id: RealmId,

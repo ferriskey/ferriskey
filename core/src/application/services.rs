@@ -89,8 +89,15 @@ pub struct ApplicationService {
         RoleRepo,
         SecurityEventRepo,
     >,
-    pub(crate) realm_service:
-        RealmServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, RoleRepo, WebhookRepo>,
+    pub(crate) realm_service: RealmServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        RoleRepo,
+        WebhookRepo,
+        IdentityProviderRepo,
+    >,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,
         UserRepo,
@@ -158,7 +165,7 @@ pub struct ApplicationService {
             UserRepo,
             CredentialRepo,
         >,
-    pub broker_service: BrokerServiceImpl<
+    pub(crate) broker_service: BrokerServiceImpl<
         RealmRepo,
         IdentityProviderRepo,
         BrokerAuthSessionRepo,

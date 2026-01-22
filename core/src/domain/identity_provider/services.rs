@@ -183,7 +183,7 @@ where
         // Get all identity providers for the realm
         let providers = self
             .identity_provider_repository
-            .list_identity_providers_by_realm(realm.id)
+            .list_identity_providers_by_realm(realm.id, None)
             .await?;
 
         // Filter based on view permission

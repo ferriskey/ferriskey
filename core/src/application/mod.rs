@@ -58,6 +58,7 @@ pub mod services;
 
 pub mod abyss;
 pub mod auth;
+pub mod broker;
 pub mod client;
 pub mod credential;
 pub mod health;
@@ -152,6 +153,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             role.clone(),
             client.clone(),
             webhook.clone(),
+            identity_provider.clone(),
             policy.clone(),
         ),
         role_service: RoleServiceImpl::new(

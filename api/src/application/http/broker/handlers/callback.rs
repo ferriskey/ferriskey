@@ -42,7 +42,6 @@ pub async fn broker_callback(
 ) -> Result<impl IntoResponse, ApiError> {
     let result = state
         .service
-        .broker_service
         .handle_callback(BrokerCallbackInput {
             realm_name,
             alias,
