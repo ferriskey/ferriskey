@@ -1,6 +1,6 @@
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    ModelTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, DbErr,
+    EntityTrait, ModelTrait, QueryFilter,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -14,6 +14,21 @@ use crate::domain::{
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
+
+/// Check if a database error is a unique constraint violation for email
+fn is_email_unique_violation(err: &DbErr) -> bool {
+    match err {
+        DbErr::Query(runtime_err) => {
+            let err_str = runtime_err.to_string().to_lowercase();
+            // PostgreSQL unique violation error code is 23505
+            // The constraint name contains "unique_email_per_realm"
+            err_str.contains("unique_email_per_realm")
+                || (err_str.contains("23505") && err_str.contains("email"))
+                || (err_str.contains("duplicate key") && err_str.contains("email"))
+        }
+        _ => false,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresUserRepository {
@@ -53,10 +68,14 @@ impl UserRepository for PostgresUserRepository {
             updated_at: Set(user.updated_at.naive_utc()),
         };
 
-        let t = model
-            .insert(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let t = model.insert(&self.db).await.map_err(|e| {
+            if is_email_unique_violation(&e) {
+                CoreError::EmailAlreadyExists
+            } else {
+                error!("error creating user: {:?}", e);
+                CoreError::InternalServerError
+            }
+        })?;
 
         let user = t.into();
 
@@ -216,10 +235,14 @@ impl UserRepository for PostgresUserRepository {
         active_model.email_verified = Set(dto.email_verified);
         active_model.enabled = Set(dto.enabled);
 
-        let updated_user = active_model
-            .update(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let updated_user = active_model.update(&self.db).await.map_err(|e| {
+            if is_email_unique_violation(&e) {
+                CoreError::EmailAlreadyExists
+            } else {
+                error!("error updating user: {:?}", e);
+                CoreError::InternalServerError
+            }
+        })?;
 
         Ok(updated_user.into())
     }
