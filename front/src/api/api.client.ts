@@ -277,6 +277,13 @@ export namespace Schemas {
   export type GetUserRolesResponse = { data: Array<Role> }
   export type GetWebhooksResponse = { data: Array<Webhook> }
   export type GrantType = 'authorization_code' | 'password' | 'client_credentials' | 'refresh_token'
+  export type IdentityProviderPresentation = {
+    display_name: string
+    icon: string
+    id: string
+    kind: string
+    login_url: string
+  }
   export type IdentityProviderResponse = {
     add_read_token_role_on_create: boolean
     alias: string
@@ -322,6 +329,7 @@ export namespace Schemas {
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
     forgot_password_enabled: boolean
+    identity_providers: Array<IdentityProviderPresentation>
     remember_me_enabled: boolean
     user_registration_enabled: boolean
   }

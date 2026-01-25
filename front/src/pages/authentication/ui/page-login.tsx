@@ -12,6 +12,7 @@ import appleIcon from '@/assets/icons/apple.svg'
 import googleIcon from '@/assets/icons/google.svg'
 import metaIcon from '@/assets/icons/meta.svg'
 import RealmLoginSetting = Schemas.RealmLoginSetting
+import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -22,6 +23,26 @@ export interface PageLoginProps {
 
 export default function PageLogin({ form, onSubmit, isError, loginSettings }: PageLoginProps) {
   if (isError) return <ErrorMessage />
+
+  const providers = loginSettings.identity_providers ?? []
+  const providerIconMap: Record<string, string> = {
+    apple: appleIcon,
+    google: googleIcon,
+    meta: metaIcon,
+    facebook: metaIcon,
+  }
+
+  const buildProviderLoginUrl = (provider: IdentityProviderPresentation) => {
+    const url = new URL(provider.login_url, window.apiUrl)
+    const currentParams = new URLSearchParams(window.location.search)
+    currentParams.forEach((value, key) => {
+      if (!url.searchParams.has(key)) {
+        url.searchParams.set(key, value)
+      }
+    })
+
+    return url.toString()
+  }
 
   return (
     <div className='flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10'>
@@ -82,25 +103,46 @@ export default function PageLogin({ form, onSubmit, isError, loginSettings }: Pa
                         <Button type='submit' className='w-full'>
                           Login
                         </Button>
-                        <div className='hidden relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
-                          <span className='relative z-10 bg-background px-2 text-muted-foreground'>
-                            Or continue with
-                          </span>
-                        </div>
-                        <div className='hidden grid grid-cols-3 gap-4'>
-                          <Button variant='outline' className='w-full'>
-                            <img src={appleIcon} alt='apple' className='w-5 h-5' />
-                            <span className='sr-only'>Login with Apple</span>
-                          </Button>
-                          <Button variant='outline' className='w-full'>
-                            <img src={googleIcon} alt='google' className='w-4 h-4' />
-                            <span className='sr-only'>Login with Google</span>
-                          </Button>
-                          <Button variant='outline' className='w-full'>
-                            <img src={metaIcon} alt='meta' className='w-5 h-5' />
-                            <span className='sr-only'>Login with Meta</span>
-                          </Button>
-                        </div>
+                        {providers.length > 0 && (
+                          <>
+                            <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
+                              <span className='relative z-10 bg-background px-2 text-muted-foreground'>
+                                Or continue with
+                              </span>
+                            </div>
+                            <div className='grid gap-3'>
+                              {providers.map((provider) => {
+                                const iconKey = provider.icon?.toLowerCase()
+                                const iconSrc = iconKey ? providerIconMap[iconKey] ?? provider.icon : undefined
+                                const loginUrl = buildProviderLoginUrl(provider)
+                                return (
+                                  <Button
+                                    key={provider.id}
+                                    type='button'
+                                    variant='outline'
+                                    className='w-full justify-start gap-3'
+                                    onClick={() => {
+                                      window.location.href = loginUrl
+                                    }}
+                                  >
+                                    {iconSrc ? (
+                                      <img
+                                        src={iconSrc}
+                                        alt={provider.display_name}
+                                        className='h-5 w-5'
+                                      />
+                                    ) : (
+                                      <span className='flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase text-muted-foreground'>
+                                        {provider.display_name?.[0] ?? provider.kind?.[0] ?? '?'}
+                                      </span>
+                                    )}
+                                    <span>Continue with {provider.display_name}</span>
+                                  </Button>
+                                )
+                              })}
+                            </div>
+                          </>
+                        )}
                         {loginSettings.user_registration_enabled && (
                           <div className='text-center text-sm'>
                             Don&apos;t have an account?{' '}
