@@ -7,6 +7,9 @@ impl From<CoreError> for ApiError {
         match error {
             CoreError::NotFound => Self::NotFound("Resource not found".to_string()),
             CoreError::AlreadyExists => Self::BadRequest("Resource already exists".to_string()),
+            CoreError::EmailAlreadyExists => {
+                Self::BadRequest("Email already exists in this realm".to_string())
+            }
             CoreError::Invalid => Self::BadRequest("Invalid resource".to_string()),
             CoreError::Forbidden(msg) => Self::Forbidden(msg),
             CoreError::InternalServerError => {

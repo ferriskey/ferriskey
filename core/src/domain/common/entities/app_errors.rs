@@ -8,6 +8,9 @@ pub enum CoreError {
     #[error("Already exists")]
     AlreadyExists,
 
+    #[error("Email already exists in this realm")]
+    EmailAlreadyExists,
+
     #[error("Invalid resource")]
     Invalid,
 

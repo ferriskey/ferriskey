@@ -47,6 +47,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Configuration](#-configuration)
+- [Database Migrations](#️-database-migrations)
 - [Modules](#-modules)
 - [Architecture](#-architecture)
 - [Observability](#-observability)
@@ -147,6 +148,23 @@ ALLOWED_ORIGINS=http://localhost:5555
 ```
 
 By default, the API will listen on port 3333 and the frontend on port 5555.
+
+## 🗄️ Database Migrations
+
+FerrisKey uses SQLx for database migrations. To apply pending migrations:
+
+```bash
+cd core
+DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
+```
+
+To check migration status:
+
+```bash
+DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate info
+```
+
+> **Note:** If you have `DATABASE_URL` set in your environment or `.env` file, you can omit it from the command.
 
 ## 🧩 Modules
 - Trident — MFA & security scopes

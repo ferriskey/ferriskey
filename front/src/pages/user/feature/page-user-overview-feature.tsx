@@ -53,7 +53,9 @@ export default function PageUserOverviewFeature() {
       },
       {
         onSuccess: () => toast.success('User was updated'),
-        onError: (error) => toast.error(error.message),
+        onError: (error) => {
+          toast.error(error.message)
+        },
       }
     )
   }
