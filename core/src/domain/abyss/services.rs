@@ -112,7 +112,7 @@ where
         // Check authorization
         ensure_policy(
             self.provider_policy
-                .can_create_provider(identity, input.realm_id)
+                .can_create_provider(&identity, input.realm_id)
                 .await,
             "insufficient permissions to create provider",
         )?;
@@ -523,7 +523,7 @@ mod tests {
     impl ProviderPolicy for MockProviderPolicy {
         fn can_create_provider(
             &self,
-            _identity: Identity,
+            _identity: &Identity,
             _realm_id: RealmId,
         ) -> impl Future<Output = Result<bool, CoreError>> + Send {
             let result = self.allow_all;

@@ -22,10 +22,10 @@ where
     /// Requires ManageRealm permission on the target realm.
     async fn can_create_provider(
         &self,
-        identity: Identity,
+        identity: &Identity,
         realm_id: RealmId,
     ) -> Result<bool, CoreError> {
-        let user = self.get_user_from_identity(&identity).await?;
+        let user = self.get_user_from_identity(identity).await?;
 
         // Get the user's realm to check access
         let user_realm = user

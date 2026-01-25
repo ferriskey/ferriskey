@@ -18,13 +18,13 @@ where
 {
     async fn can_create_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> Result<bool, CoreError> {
-        let user = self.get_user_from_identity(&identity).await?;
+        let user = self.get_user_from_identity(identity).await?;
 
         let permissions = self
-            .get_permission_for_target_realm(&user, &target_realm)
+            .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
@@ -37,13 +37,13 @@ where
 
     async fn can_delete_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> Result<bool, CoreError> {
-        let user = self.get_user_from_identity(&identity).await?;
+        let user = self.get_user_from_identity(identity).await?;
 
         let permissions = self
-            .get_permission_for_target_realm(&user, &target_realm)
+            .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
@@ -56,13 +56,13 @@ where
 
     async fn can_update_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> Result<bool, CoreError> {
-        let user = self.get_user_from_identity(&identity).await?;
+        let user = self.get_user_from_identity(identity).await?;
 
         let permissions = self
-            .get_permission_for_target_realm(&user, &target_realm)
+            .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
@@ -75,13 +75,13 @@ where
 
     async fn can_view_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> Result<bool, CoreError> {
-        let user = self.get_user_from_identity(&identity).await?;
+        let user = self.get_user_from_identity(identity).await?;
 
         let permissions = self
-            .get_permission_for_target_realm(&user, &target_realm)
+            .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(

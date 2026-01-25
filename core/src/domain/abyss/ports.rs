@@ -162,7 +162,7 @@ pub trait ProviderPolicy: Send + Sync {
     /// * `realm_id` - The target realm
     fn can_create_provider(
         &self,
-        identity: Identity,
+        identity: &Identity,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 

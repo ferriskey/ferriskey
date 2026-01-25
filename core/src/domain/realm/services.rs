@@ -107,9 +107,7 @@ where
 
         let realm_master_id = realm_master.id;
         ensure_policy(
-            self.policy
-                .can_create_realm(identity.clone(), realm_master)
-                .await,
+            self.policy.can_create_realm(&identity, &realm_master).await,
             "insufficient permissions",
         )?;
 
@@ -269,7 +267,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_delete_realm(identity, realm.clone()).await,
+            self.policy.can_delete_realm(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -308,7 +306,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_realm(identity, realm.clone()).await,
+            self.policy.can_view_realm(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -337,7 +335,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_view_realm(identity, realm.clone()).await,
+            self.policy.can_view_realm(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -434,7 +432,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_realm(identity, realm).await,
+            self.policy.can_update_realm(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -477,7 +475,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_update_realm(identity, realm.clone()).await,
+            self.policy.can_update_realm(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

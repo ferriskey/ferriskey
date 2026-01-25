@@ -78,7 +78,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_webhook(identity, realm).await,
+            self.policy.can_view_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -104,7 +104,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_webhook(identity, realm).await,
+            self.policy.can_view_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -130,7 +130,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_webhook(identity, realm).await,
+            self.policy.can_view_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -157,7 +157,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_create_webhook(identity, realm).await,
+            self.policy.can_create_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -202,7 +202,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_update_webhook(identity, realm).await,
+            self.policy.can_update_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -247,7 +247,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_delete_webhook(identity, realm).await,
+            self.policy.can_delete_webhook(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

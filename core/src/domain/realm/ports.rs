@@ -64,23 +64,23 @@ pub trait RealmService: Send + Sync {
 pub trait RealmPolicy: Send + Sync {
     fn can_create_realm(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_delete_realm(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_view_realm(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_update_realm(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 

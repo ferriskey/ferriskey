@@ -102,26 +102,26 @@ pub trait WebhookRepository: Send + Sync {
 pub trait WebhookPolicy: Send + Sync {
     fn can_create_webhook(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_update_webhook(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_delete_webhook(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_view_webhook(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 

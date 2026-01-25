@@ -72,7 +72,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_user(identity, realm).await,
+            self.policy.can_view_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -101,7 +101,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_delete_user(identity, realm).await,
+            self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

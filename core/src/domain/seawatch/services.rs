@@ -72,7 +72,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_events(identity, realm).await,
+            self.policy.can_view_events(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

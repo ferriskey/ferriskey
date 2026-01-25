@@ -91,7 +91,7 @@ where
 
         ensure_policy(
             self.policy
-                .can_create_federation_provider(identity, realm)
+                .can_create_federation_provider(&identity, &realm)
                 .await,
             "insufficient permissions to create provider",
         )?;
@@ -127,7 +127,7 @@ where
 
         ensure_policy(
             self.policy
-                .can_view_federation_provider(&identity, realm)
+                .can_view_federation_provider(&identity, &realm)
                 .await,
             "insufficient permissions to view provider",
         )?;
@@ -161,7 +161,7 @@ where
 
         ensure_policy(
             self.policy
-                .can_update_federation_provider(&identity, realm)
+                .can_update_federation_provider(&identity, &realm)
                 .await,
             "insufficient permissions to update provider",
         )?;
@@ -197,7 +197,7 @@ where
 
         ensure_policy(
             self.policy
-                .can_delete_federation_provider(&identity, realm)
+                .can_delete_federation_provider(&identity, &realm)
                 .await,
             "insufficient permissions to delete provider",
         )?;

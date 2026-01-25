@@ -192,7 +192,7 @@ pub trait IdentityProviderPolicy: Send + Sync {
     /// Checks if the identity can create an identity provider in the realm
     fn can_create_identity_provider(
         &self,
-        identity: Identity,
+        identity: &Identity,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
