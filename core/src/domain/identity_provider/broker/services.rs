@@ -367,14 +367,10 @@ where
         }
 
         // 4. Parse OAuth config from idp.config
-<<<<<<< HEAD
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into().map_err(|e| {
             error!("error: {e}");
             e
         })?;
-=======
-        let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
->>>>>>> a9b663c (feat: implement sso endpoints)
 
         // 5. Generate secure random state for CSRF protection
         let broker_state = Self::generate_random_string(32);
