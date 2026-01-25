@@ -51,23 +51,23 @@ pub trait RoleService: Send + Sync {
 pub trait RolePolicy: Send + Sync {
     fn can_create_role(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_view_role(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_update_role(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_delete_role(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 

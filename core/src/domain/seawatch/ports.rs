@@ -38,12 +38,12 @@ pub trait SecurityEventRepository: Send + Sync {
 pub trait SecurityEventPolicy: Send + Sync {
     fn can_view_events(
         &self,
-        identity: Identity,
-        realm: Realm,
+        identity: &Identity,
+        realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_export_events(
         &self,
-        identity: Identity,
-        realm: Realm,
+        identity: &Identity,
+        realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }

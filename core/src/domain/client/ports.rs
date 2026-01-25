@@ -79,23 +79,23 @@ pub trait ClientService: Send + Sync {
 pub trait ClientPolicy: Send + Sync {
     fn can_create_client(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_update_client(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_delete_client(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_view_client(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 

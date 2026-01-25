@@ -159,23 +159,23 @@ pub trait UserRoleService: Send + Sync {
 pub trait UserPolicy: Send + Sync {
     fn can_create_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_view_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_update_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
     fn can_delete_user(
         &self,
-        identity: Identity,
-        target_realm: Realm,
+        identity: &Identity,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 

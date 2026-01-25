@@ -95,7 +95,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_delete_role(identity.clone(), realm).await,
+            self.policy.can_delete_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -135,7 +135,7 @@ where
             .ok_or(CoreError::InternalServerError)?;
 
         ensure_policy(
-            self.policy.can_view_role(identity, realm).await,
+            self.policy.can_view_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -160,7 +160,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_role(identity, realm).await,
+            self.policy.can_view_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -183,7 +183,7 @@ where
             .ok_or(CoreError::InternalServerError)?;
 
         ensure_policy(
-            self.policy.can_view_role(identity, realm).await,
+            self.policy.can_view_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -207,7 +207,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_role(identity, realm).await,
+            self.policy.can_update_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -254,7 +254,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_update_role(identity, realm).await,
+            self.policy.can_update_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

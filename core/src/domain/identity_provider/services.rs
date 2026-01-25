@@ -85,7 +85,7 @@ where
         // Check authorization
         ensure_policy(
             self.identity_provider_policy
-                .can_create_identity_provider(identity, realm.id)
+                .can_create_identity_provider(&identity, realm.id)
                 .await,
             "insufficient permissions to create identity provider",
         )?;

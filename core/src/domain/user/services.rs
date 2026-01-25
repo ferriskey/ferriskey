@@ -122,7 +122,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_user(identity, realm).await,
+            self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -157,7 +157,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_update_user(identity, realm).await,
+            self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -208,7 +208,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_user(identity, realm).await,
+            self.policy.can_update_user(&identity, &realm).await,
             "You are not allowed to view users in this realm.",
         )?;
 
@@ -271,7 +271,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_view_user(identity, realm).await,
+            self.policy.can_view_user(&identity, &realm).await,
             "You are not allowed to view users in this realm.",
         )?;
 
@@ -295,7 +295,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_update_user(identity, realm).await,
+            self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -333,7 +333,7 @@ where
         let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_delete_user(identity, realm).await,
+            self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -370,7 +370,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_create_user(identity, realm.clone()).await,
+            self.policy.can_create_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -412,7 +412,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_user(identity, realm).await,
+            self.policy.can_view_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -435,7 +435,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_user(identity, realm).await,
+            self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
