@@ -474,7 +474,9 @@ mod tests {
         crypto::ports::MockHasherRepository,
         realm::{entities::Realm, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
-        user::ports::{MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository},
+        user::ports::{
+            MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository,
+        },
         webhook::{entities::webhook_payload::WebhookPayload, ports::MockWebhookRepository},
     };
 
@@ -551,7 +553,10 @@ mod tests {
             Arc::get_mut(&mut self.user_repo)
                 .unwrap()
                 .expect_update_user()
-                .with(mockall::predicate::eq(user_id), mockall::predicate::always())
+                .with(
+                    mockall::predicate::eq(user_id),
+                    mockall::predicate::always(),
+                )
                 .times(1)
                 .return_once(move |_, _| Box::pin(async move { Ok(updated_user) }));
             self
@@ -561,9 +566,14 @@ mod tests {
             Arc::get_mut(&mut self.user_repo)
                 .unwrap()
                 .expect_update_user()
-                .with(mockall::predicate::eq(user_id), mockall::predicate::always())
+                .with(
+                    mockall::predicate::eq(user_id),
+                    mockall::predicate::always(),
+                )
                 .times(1)
-                .return_once(move |_, _| Box::pin(async move { Err(CoreError::EmailAlreadyExists) }));
+                .return_once(move |_, _| {
+                    Box::pin(async move { Err(CoreError::EmailAlreadyExists) })
+                });
             self
         }
 

@@ -59,9 +59,18 @@ export const fetcher: Fetcher = async (method, apiUrl, params) => {
   })
 
   if (!response.ok) {
-    // You can customize error handling here
-    const error = new Error(`HTTP ${response.status}: ${response.statusText}`)
-    throw error
+    // Parse the error response to get the message from the backend
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+    try {
+      const errorBody = await response.json()
+      if (errorBody.message) {
+        errorMessage = errorBody.message
+      }
+    } catch {
+      // If parsing fails, use the default message
+    }
+
+    throw new Error(errorMessage)
   }
 
   return response
