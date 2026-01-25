@@ -3,7 +3,7 @@ use std::sync::Arc;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
-use tracing::instrument;
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
@@ -340,15 +340,12 @@ where
         &self,
         input: BrokerLoginInput,
     ) -> Result<BrokerLoginOutput, CoreError> {
-        // 1. Resolve realm
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name.clone())
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        // 2. Get client and validate redirect_uri
-        // get_by_client_id takes String (client_id field) and RealmId, returns Result<Client>
         let client = self
             .client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
@@ -370,10 +367,14 @@ where
         }
 
         // 4. Parse OAuth config from idp.config
-        let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
+        let oauth_config: OAuthProviderConfig = idp.config.clone().try_into().map_err(|e| {
+            error!("error: {e}");
+            e
+        })?;
 
         // 5. Generate secure random state for CSRF protection
         let broker_state = Self::generate_random_string(32);
+        info!("OAuth config: {:?}", oauth_config);
 
         // 6. Generate PKCE if enabled
         let (code_verifier, code_challenge) = if oauth_config.use_pkce.unwrap_or(false) {
@@ -383,6 +384,7 @@ where
         } else {
             (None, None)
         };
+        info!("PKCE enabled: {}", oauth_config.use_pkce.unwrap_or(false));
 
         // 7. Create broker session
         let request = CreateBrokerAuthSessionRequest {
@@ -536,6 +538,7 @@ where
 
         // If we have an existing auth session, update it
         if let Some(auth_session_id) = broker_session.auth_session_id {
+            info!("EHh boy you have a session");
             self.auth_session_repository
                 .update_user_id(auth_session_id, user.id)
                 .await?;
@@ -544,6 +547,7 @@ where
                 .await?;
         } else {
             // Create a new auth session
+            info!("create new session");
             let auth_session = AuthSession::new(AuthSessionParams {
                 realm_id: realm.id,
                 client_id: broker_session.client_id,

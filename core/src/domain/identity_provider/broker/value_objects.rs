@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-use uuid::Uuid;
-
 use crate::domain::{
     common::entities::app_errors::CoreError, identity_provider::IdentityProviderConfig,
 };
+use serde::{Deserialize, Deserializer, Serialize};
+use tracing::info;
+use utoipa::ToSchema;
+use uuid::Uuid;
 
 /// OAuth2/OIDC provider configuration extracted from the identity provider's config JSONB
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +28,7 @@ pub struct OAuthProviderConfig {
     pub jwks_url: Option<String>,
 
     /// OAuth scopes to request
+    #[serde(deserialize_with = "deserialize_scopes")]
     pub scopes: Vec<String>,
 
     /// Default scopes if none specified
@@ -40,10 +41,28 @@ pub struct OAuthProviderConfig {
     pub issuer: Option<String>,
 }
 
+fn deserialize_scopes<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrVec {
+        String(String),
+        Vec(Vec<String>),
+    }
+
+    match StringOrVec::deserialize(deserializer)? {
+        StringOrVec::String(s) => Ok(s.split_whitespace().map(String::from).collect()),
+        StringOrVec::Vec(v) => Ok(v),
+    }
+}
+
 impl TryFrom<serde_json::Value> for OAuthProviderConfig {
     type Error = CoreError;
 
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        info!("value: {}", value);
         serde_json::from_value(value).map_err(|e| {
             CoreError::InvalidProviderConfiguration(format!(
                 "Failed to parse OAuth provider config: {}",
@@ -66,6 +85,8 @@ impl TryFrom<IdentityProviderConfig> for OAuthProviderConfig {
                 ));
             }
         };
+
+        info!("debug 1");
 
         let client_id = config.client_id.ok_or_else(|| {
             CoreError::InvalidProviderConfiguration("Missing client_id".to_string())
