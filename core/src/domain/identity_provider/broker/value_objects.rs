@@ -2,7 +2,6 @@ use crate::domain::{
     common::entities::app_errors::CoreError, identity_provider::IdentityProviderConfig,
 };
 use serde::{Deserialize, Deserializer, Serialize};
-use tracing::info;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -62,7 +61,6 @@ impl TryFrom<serde_json::Value> for OAuthProviderConfig {
     type Error = CoreError;
 
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        info!("value: {}", value);
         serde_json::from_value(value).map_err(|e| {
             CoreError::InvalidProviderConfiguration(format!(
                 "Failed to parse OAuth provider config: {}",
@@ -85,8 +83,6 @@ impl TryFrom<IdentityProviderConfig> for OAuthProviderConfig {
                 ));
             }
         };
-
-        info!("debug 1");
 
         let client_id = config.client_id.ok_or_else(|| {
             CoreError::InvalidProviderConfiguration("Missing client_id".to_string())

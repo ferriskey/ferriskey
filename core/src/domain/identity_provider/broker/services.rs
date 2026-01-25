@@ -3,7 +3,7 @@ use std::sync::Arc;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 use uuid::Uuid;
 
 use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
@@ -374,7 +374,6 @@ where
 
         // 5. Generate secure random state for CSRF protection
         let broker_state = Self::generate_random_string(32);
-        info!("OAuth config: {:?}", oauth_config);
 
         // 6. Generate PKCE if enabled
         let (code_verifier, code_challenge) = if oauth_config.use_pkce.unwrap_or(false) {
@@ -384,7 +383,6 @@ where
         } else {
             (None, None)
         };
-        info!("PKCE enabled: {}", oauth_config.use_pkce.unwrap_or(false));
 
         // 7. Create broker session
         let request = CreateBrokerAuthSessionRequest {
@@ -538,7 +536,6 @@ where
 
         // If we have an existing auth session, update it
         if let Some(auth_session_id) = broker_session.auth_session_id {
-            info!("EHh boy you have a session");
             self.auth_session_repository
                 .update_user_id(auth_session_id, user.id)
                 .await?;
@@ -547,7 +544,6 @@ where
                 .await?;
         } else {
             // Create a new auth session
-            info!("create new session");
             let auth_session = AuthSession::new(AuthSessionParams {
                 realm_id: realm.id,
                 client_id: broker_session.client_id,
