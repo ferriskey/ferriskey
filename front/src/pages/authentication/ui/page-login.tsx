@@ -8,10 +8,8 @@ import { MagicCard } from '@/components/magicui/magic-card'
 import { InputText } from '@/components/ui/input-text'
 import { Link } from 'react-router'
 import { Schemas } from '@/api/api.client'
-import appleIcon from '@/assets/icons/apple.svg'
-import googleIcon from '@/assets/icons/google.svg'
-import metaIcon from '@/assets/icons/meta.svg'
 import RealmLoginSetting = Schemas.RealmLoginSetting
+import { LoginProviders } from './login-providers'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -22,6 +20,8 @@ export interface PageLoginProps {
 
 export default function PageLogin({ form, onSubmit, isError, loginSettings }: PageLoginProps) {
   if (isError) return <ErrorMessage />
+
+  const providers = loginSettings.identity_providers ?? []
 
   return (
     <div className='flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10'>
@@ -82,25 +82,7 @@ export default function PageLogin({ form, onSubmit, isError, loginSettings }: Pa
                         <Button type='submit' className='w-full'>
                           Login
                         </Button>
-                        <div className='hidden relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
-                          <span className='relative z-10 bg-background px-2 text-muted-foreground'>
-                            Or continue with
-                          </span>
-                        </div>
-                        <div className='hidden grid grid-cols-3 gap-4'>
-                          <Button variant='outline' className='w-full'>
-                            <img src={appleIcon} alt='apple' className='w-5 h-5' />
-                            <span className='sr-only'>Login with Apple</span>
-                          </Button>
-                          <Button variant='outline' className='w-full'>
-                            <img src={googleIcon} alt='google' className='w-4 h-4' />
-                            <span className='sr-only'>Login with Google</span>
-                          </Button>
-                          <Button variant='outline' className='w-full'>
-                            <img src={metaIcon} alt='meta' className='w-5 h-5' />
-                            <span className='sr-only'>Login with Meta</span>
-                          </Button>
-                        </div>
+                        <LoginProviders providers={providers} />
                         {loginSettings.user_registration_enabled && (
                           <div className='text-center text-sm'>
                             Don&apos;t have an account?{' '}
