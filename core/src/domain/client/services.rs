@@ -171,6 +171,15 @@ where
             )
             .await?;
 
+        self.security_event_repository
+            .store_event(SecurityEvent::new(
+                realm_id,
+                SecurityEventType::ClientCreated,
+                EventStatus::Success,
+                identity.id(),
+            ))
+            .await?;
+
         Ok(client)
     }
 
@@ -297,6 +306,18 @@ where
                     realm_id.into(),
                     Some(input.client_id),
                 ),
+            )
+            .await?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::ClientDeleted,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("client".to_string(), input.client_id, None),
             )
             .await?;
 

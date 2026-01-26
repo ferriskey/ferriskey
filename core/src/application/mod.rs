@@ -185,6 +185,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             role.clone(),
             user_required_action.clone(),
             webhook.clone(),
+            security_event.clone(),
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
