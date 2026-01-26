@@ -3,7 +3,7 @@ import { useTokenMutation } from '@/api/auth.api'
 import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser } from '@/contracts/states.interface'
 
@@ -32,6 +32,9 @@ export function useAuth() {
     setExpiration,
   } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
+  const [hasHydrated, setHasHydrated] = useState<boolean>(
+    authStore.persist?.hasHydrated?.() ?? true
+  )
 
   const setAuthTokensWrapper = useCallback(
     (access_token: string, refresh_token: string, authenticated: boolean = true) => {
@@ -76,6 +79,15 @@ export function useAuth() {
   }, [refreshToken, exchangeToken, realm_name, setAuthenticated])
 
   useEffect(() => {
+    if (!authStore.persist?.onFinishHydration) return
+    const unsubscribe = authStore.persist.onFinishHydration(() => {
+      setHasHydrated(true)
+    })
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    if (!hasHydrated) return
     const interval = setInterval(() => {
       if (location.pathname.includes('authentication')) return
       const authState = localStorage.getItem('auth')
@@ -83,12 +95,12 @@ export function useAuth() {
       if (!authState) {
         setAuthenticated(false)
         localStorage.removeItem('auth')
-        navigate('/authentication/login')
+        navigate(`/realms/${realm_name}/authentication/login`)
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [navigate, setAuthenticated])
+  }, [hasHydrated, navigate, realm_name, setAuthenticated])
 
   useEffect(() => {
     if (responseExchangeToken?.access_token) {
@@ -119,7 +131,7 @@ export function useAuth() {
   }, [isAuthenticated, accessToken, refreshAccessToken])
 
   useEffect(() => {
-    if (!isLoading) return
+    if (!hasHydrated) return
 
     if (!accessToken) {
       setAuthenticated(false)
@@ -148,7 +160,7 @@ export function useAuth() {
 
     setAuthenticated(expTime > currentTime)
     setLoading(false)
-  }, [accessToken, isLoading, setAuthenticated, setLoading, setUser])
+  }, [accessToken, hasHydrated, setAuthenticated, setLoading, setUser])
 
   return {
     setAuthToken: (value: string) => setAuthTokensWrapper(value, '', false),
