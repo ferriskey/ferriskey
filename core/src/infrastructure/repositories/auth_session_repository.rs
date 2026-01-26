@@ -68,8 +68,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             state: Set(session.state.clone()),
             nonce: Set(session.nonce.clone()),
             code: Set(session.code.clone()),
-            authenticated: Set(false),
-            user_id: Set(None),
+            authenticated: Set(session.authenticated),
+            user_id: Set(session.user_id),
             created_at: Set(session.created_at.naive_utc()),
             expires_at: Set(session.expires_at.naive_utc()),
             webauthn_challenge: Set(None),
@@ -220,5 +220,59 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         } else {
             Ok(None)
         }
+    }
+
+    async fn update_user_id(
+        &self,
+        session_code: Uuid,
+        user_id: Uuid,
+    ) -> Result<AuthSession, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::UserId,
+                Expr::value(user_id),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec_with_returning(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session user_id: {:?}", e);
+                AuthenticationError::Invalid
+            })?
+            .into_iter()
+            .next()
+            .ok_or(AuthenticationError::NotFound)?
+            .into();
+
+        Ok(session)
+    }
+
+    async fn update_code(
+        &self,
+        session_code: Uuid,
+        code: String,
+    ) -> Result<AuthSession, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::Code,
+                Expr::value(code),
+            )
+            .col_expr(
+                crate::entity::auth_sessions::Column::Authenticated,
+                Expr::value(true),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec_with_returning(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session code: {:?}", e);
+                AuthenticationError::Invalid
+            })?
+            .into_iter()
+            .next()
+            .ok_or(AuthenticationError::NotFound)?
+            .into();
+
+        Ok(session)
     }
 }

@@ -93,6 +93,11 @@ pub trait RealmRepository: Send + Sync {
         name: String,
     ) -> impl Future<Output = Result<Option<Realm>, CoreError>> + Send;
 
+    fn get_by_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<Realm>, CoreError>> + Send;
+
     fn create_realm(&self, name: String) -> impl Future<Output = Result<Realm, CoreError>> + Send;
 
     fn update_realm(

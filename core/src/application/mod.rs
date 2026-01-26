@@ -11,6 +11,7 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        identity_provider::broker::services::BrokerServiceImpl,
         identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
@@ -27,7 +28,10 @@ use crate::{
         },
         db::postgres::{Postgres, PostgresConfig},
         health::repositories::PostgresHealthCheckRepository,
-        identity_provider::PostgresIdentityProviderRepository,
+        identity_provider::{
+            PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
+            PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
             argon2_hasher::Argon2HasherRepository,
@@ -54,6 +58,7 @@ pub mod services;
 
 pub mod abyss;
 pub mod auth;
+pub mod broker;
 pub mod client;
 pub mod credential;
 pub mod health;
@@ -100,6 +105,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
     let federation = Arc::new(FederationRepositoryImpl::new(postgres.get_db()));
+    let broker_auth_session = Arc::new(PostgresBrokerAuthSessionRepository::new(postgres.get_db()));
+    let identity_provider_link = Arc::new(PostgresIdentityProviderLinkRepository::new(
+        postgres.get_db(),
+    ));
+    let oauth_client = Arc::new(ReqwestOAuthClient::new());
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -143,6 +153,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             role.clone(),
             client.clone(),
             webhook.clone(),
+            identity_provider.clone(),
             policy.clone(),
         ),
         role_service: RoleServiceImpl::new(
@@ -199,6 +210,17 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user.clone(),
             credential.clone(),
             policy.clone(),
+        ),
+        broker_service: BrokerServiceImpl::new(
+            realm.clone(),
+            identity_provider.clone(),
+            broker_auth_session.clone(),
+            identity_provider_link.clone(),
+            client.clone(),
+            redirect_uri.clone(),
+            user.clone(),
+            auth_session.clone(),
+            oauth_client.clone(),
         ),
     };
 

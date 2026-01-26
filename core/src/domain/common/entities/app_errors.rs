@@ -1,3 +1,4 @@
+use crate::domain::authentication::entities::AuthenticationError;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -171,8 +172,8 @@ pub enum CoreError {
     #[error("Provider name already exists")]
     ProviderNameAlreadyExists,
 
-    #[error("Invalid provider configuration")]
-    InvalidProviderConfiguration,
+    #[error("Invalid provider configuration: {0}")]
+    InvalidProviderConfiguration(String),
 
     #[error("Provider is disabled")]
     ProviderDisabled,
@@ -192,4 +193,63 @@ pub enum CoreError {
 
     #[error("Federation authentication error: {0}")]
     FederationAuthenticationFailed(String),
+
+    // Broker (SSO) errors
+    #[error("Broker session not found")]
+    BrokerSessionNotFound,
+
+    #[error("Broker session expired")]
+    BrokerSessionExpired,
+
+    #[error("Invalid broker state")]
+    InvalidBrokerState,
+
+    #[error("Identity provider token exchange failed: {0}")]
+    IdpTokenExchangeFailed(String),
+
+    #[error("Identity provider userinfo failed: {0}")]
+    IdpUserInfoFailed(String),
+
+    #[error("Identity provider authentication failed: {0}")]
+    IdpAuthenticationFailed(String),
+
+    #[error("User linking failed: {0}")]
+    UserLinkingFailed(String),
+
+    #[error("Link only mode - user not found")]
+    LinkOnlyUserNotFound,
+
+    #[error("Identity provider link not found")]
+    LinkNotFound,
+
+    #[error("Invalid ID token")]
+    InvalidIdToken,
+
+    #[error("Missing authorization code")]
+    MissingAuthorizationCode,
+
+    #[error("User not found")]
+    UserNotFound,
+
+    #[error("Client not found")]
+    ClientNotFound,
+}
+
+impl From<AuthenticationError> for CoreError {
+    fn from(err: AuthenticationError) -> Self {
+        match err {
+            AuthenticationError::NotFound => CoreError::SessionNotFound,
+            AuthenticationError::ServiceAccountNotFound => CoreError::ServiceAccountNotFound,
+            AuthenticationError::Invalid => CoreError::InvalidClient,
+            AuthenticationError::InvalidRealm => CoreError::InvalidRealm,
+            AuthenticationError::InvalidClient => CoreError::InvalidClient,
+            AuthenticationError::InvalidUser => CoreError::InvalidUser,
+            AuthenticationError::InvalidPassword => CoreError::InvalidPassword,
+            AuthenticationError::InvalidState => CoreError::InvalidState,
+            AuthenticationError::InvalidRefreshToken => CoreError::InvalidRefreshToken,
+            AuthenticationError::InternalServerError => CoreError::InternalServerError,
+            AuthenticationError::InvalidClientSecret => CoreError::InvalidClientSecret,
+            AuthenticationError::InvalidRequest => CoreError::InvalidRequest,
+        }
+    }
 }

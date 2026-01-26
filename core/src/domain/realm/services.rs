@@ -8,6 +8,7 @@ use crate::domain::{
         generate_random_string,
         policies::{FerriskeyPolicy, ensure_policy},
     },
+    identity_provider::{IdentityProviderRepository, entities::IdentityProviderPresentation},
     realm::{
         entities::{Realm, RealmLoginSetting, RealmSetting},
         ports::{
@@ -28,7 +29,7 @@ use crate::domain::{
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -36,6 +37,7 @@ where
     UR: UserRoleRepository,
     RO: RoleRepository,
     W: WebhookRepository,
+    I: IdentityProviderRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -43,11 +45,12 @@ where
     pub(crate) role_repository: Arc<RO>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) webhook_repository: Arc<W>,
+    pub(crate) identity_provider_repository: Arc<I>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W> RealmServiceImpl<R, U, C, UR, RO, W>
+impl<R, U, C, UR, RO, W, I> RealmServiceImpl<R, U, C, UR, RO, W, I>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -55,7 +58,9 @@ where
     UR: UserRoleRepository,
     RO: RoleRepository,
     W: WebhookRepository,
+    I: IdentityProviderRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         realm_repository: Arc<R>,
         user_repository: Arc<U>,
@@ -63,6 +68,7 @@ where
         role_repository: Arc<RO>,
         client_repository: Arc<C>,
         webhook_repository: Arc<W>,
+        identity_provider_repository: Arc<I>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -72,12 +78,13 @@ where
             role_repository,
             client_repository,
             webhook_repository,
+            identity_provider_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, RO, W> RealmService for RealmServiceImpl<R, U, C, UR, RO, W>
+impl<R, U, C, UR, RO, W, I> RealmService for RealmServiceImpl<R, U, C, UR, RO, W, I>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -85,6 +92,7 @@ where
     RO: RoleRepository,
     UR: UserRoleRepository,
     W: WebhookRepository,
+    I: IdentityProviderRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -519,12 +527,22 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let settings = self
+        let mut settings: RealmLoginSetting = self
             .realm_repository
             .get_realm_settings(realm.id)
             .await?
             .ok_or(CoreError::NotFound)?
             .into();
+
+        let idp: Vec<IdentityProviderPresentation> = self
+            .identity_provider_repository
+            .list_identity_providers_by_realm(realm.id, Some(true))
+            .await?
+            .into_iter()
+            .map(|i| IdentityProviderPresentation::new(i, &realm.name))
+            .collect();
+
+        settings.identity_providers = idp;
 
         Ok(settings)
     }
@@ -538,6 +556,7 @@ mod tests {
         common::services::tests::{
             create_test_realm_with_name, create_test_user_identity_with_realm,
         },
+        identity_provider::ports::MockIdentityProviderRepository,
         realm::{entities::RealmId, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
         user::ports::{MockUserRepository, MockUserRoleRepository},
@@ -551,6 +570,7 @@ mod tests {
         user_role_repo: Arc<MockUserRoleRepository>,
         client_repo: Arc<MockClientRepository>,
         user_repo: Arc<MockUserRepository>,
+        identity_provider: Arc<MockIdentityProviderRepository>,
     }
 
     impl RealmServiceTestBuilder {
@@ -561,6 +581,7 @@ mod tests {
             let user_role_repo = Arc::new(MockUserRoleRepository::new());
             let client_repo = Arc::new(MockClientRepository::new());
             let user_repo = Arc::new(MockUserRepository::new());
+            let identity_provider = Arc::new(MockIdentityProviderRepository::new());
 
             Self {
                 realm_repo,
@@ -569,6 +590,7 @@ mod tests {
                 user_role_repo,
                 client_repo,
                 user_repo,
+                identity_provider,
             }
         }
 
@@ -773,6 +795,7 @@ mod tests {
             MockUserRoleRepository,
             MockRoleRepository,
             MockWebhookRepository,
+            MockIdentityProviderRepository,
         > {
             let policy = FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -786,6 +809,7 @@ mod tests {
                 self.role_repo,
                 self.client_repo,
                 self.webhook_repo,
+                self.identity_provider,
                 Arc::new(policy),
             )
         }

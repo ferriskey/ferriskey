@@ -1,3 +1,4 @@
+pub mod broker;
 pub mod entities;
 pub mod policies;
 pub mod ports;

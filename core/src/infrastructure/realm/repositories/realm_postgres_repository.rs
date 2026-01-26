@@ -53,6 +53,20 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
+    async fn get_by_id(
+        &self,
+        realm_id: crate::domain::realm::entities::RealmId,
+    ) -> Result<Option<Realm>, CoreError> {
+        let realm = RealmEntity::find()
+            .filter(crate::entity::realms::Column::Id.eq::<Uuid>(realm_id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .map(Realm::from);
+
+        Ok(realm)
+    }
+
     async fn create_realm(&self, name: String) -> Result<Realm, CoreError> {
         let realm = Realm::new(name);
 

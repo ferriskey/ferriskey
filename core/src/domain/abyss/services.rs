@@ -65,17 +65,23 @@ where
     fn validate_provider_input(input: &CreateProviderInput) -> Result<(), CoreError> {
         // Validate name is not empty
         if input.name.trim().is_empty() {
-            return Err(CoreError::InvalidProviderConfiguration);
+            return Err(CoreError::InvalidProviderConfiguration(
+                "name must not be empty".to_string(),
+            ));
         }
 
         // Validate client_id is not empty
         if input.client_id.trim().is_empty() {
-            return Err(CoreError::InvalidProviderConfiguration);
+            return Err(CoreError::InvalidProviderConfiguration(
+                "client_id must not be empty".to_string(),
+            ));
         }
 
         // Validate client_secret is not empty
         if input.client_secret.trim().is_empty() {
-            return Err(CoreError::InvalidProviderConfiguration);
+            return Err(CoreError::InvalidProviderConfiguration(
+                "client_secret must not be empty".to_string(),
+            ));
         }
 
         // Validate URLs
@@ -409,7 +415,9 @@ where
 
         // Validate mapping fields
         if input.external_field.trim().is_empty() || input.internal_field.trim().is_empty() {
-            return Err(CoreError::InvalidProviderConfiguration);
+            return Err(CoreError::InvalidProviderConfiguration(
+                "external_field and internal_field must not be empty".to_string(),
+            ));
         }
 
         let mapping = ProviderMapping::new(ProviderMappingConfig {

@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::{generate_timestamp, generate_uuid_v7};
+use crate::domain::{
+    common::{generate_timestamp, generate_uuid_v7},
+    identity_provider::entities::IdentityProviderPresentation,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct RealmId(Uuid);
@@ -63,6 +66,7 @@ pub struct RealmLoginSetting {
     pub user_registration_enabled: bool,
     pub forgot_password_enabled: bool,
     pub remember_me_enabled: bool,
+    pub identity_providers: Vec<IdentityProviderPresentation>,
 }
 
 impl From<RealmSetting> for RealmLoginSetting {
@@ -71,6 +75,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             forgot_password_enabled: value.forgot_password_enabled,
             remember_me_enabled: value.remember_me_enabled,
             user_registration_enabled: value.user_registration_enabled,
+            identity_providers: Vec::new(),
         }
     }
 }

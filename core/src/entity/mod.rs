@@ -3,8 +3,10 @@
 pub mod prelude;
 
 pub mod auth_sessions;
+pub mod broker_auth_sessions;
 pub mod clients;
 pub mod credentials;
+pub mod identity_provider_links;
 pub mod identity_providers;
 pub mod jwt_keys;
 pub mod realm_settings;

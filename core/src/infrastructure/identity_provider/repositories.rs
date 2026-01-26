@@ -1,3 +1,9 @@
+pub mod broker_auth_session_repository;
+pub mod identity_provider_link_repository;
 pub mod identity_provider_postgres_repository;
+pub mod oauth_client;
 
+pub use broker_auth_session_repository::PostgresBrokerAuthSessionRepository;
+pub use identity_provider_link_repository::PostgresIdentityProviderLinkRepository;
 pub use identity_provider_postgres_repository::PostgresIdentityProviderRepository;
+pub use oauth_client::ReqwestOAuthClient;
