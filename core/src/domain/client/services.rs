@@ -171,6 +171,15 @@ where
             )
             .await?;
 
+        self.security_event_repository
+            .store_event(SecurityEvent::new(
+                realm_id,
+                SecurityEventType::ClientCreated,
+                EventStatus::Success,
+                identity.id(),
+            ))
+            .await?;
+
         Ok(client)
     }
 

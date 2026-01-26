@@ -1,239 +1,254 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Schemas } from '@/api/api.client'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Heading } from '@/components/ui/heading'
-import { ComingSoon } from '@/components/ui/coming-soon'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatSnakeCaseToTitleCase } from '@/utils'
 import {
-  Shield,
   Clock,
-  User,
-  Search,
-  Download,
-  RefreshCw,
-  Activity,
-  Lock,
-  Unlock,
   Globe,
-  Smartphone,
+  Lock,
   Monitor,
-  Calendar,
+  Search,
+  Shield,
+  Smartphone,
+  Target,
+  Unlock,
+  User,
 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { FlaggedUsers } from './flagged-users'
 import { SecurityMetrics } from './security-metrics'
 import { StrangeEventsAnalysis } from './strange-events-analysis'
 
-export default function PageOverview() {
+import SecurityEvent = Schemas.SecurityEvent
+
+interface PageOverviewProps {
+  events: SecurityEvent[]
+  isLoading: boolean
+  isError: boolean
+  realmName?: string
+  isMocked: boolean
+}
+
+const formatTimestamp = (timestamp: string) => {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return 'Invalid date'
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+const getDeviceIcon = (userAgent?: string | null) => {
+  if (!userAgent) return Monitor
+  const lower = userAgent.toLowerCase()
+  if (lower.includes('iphone') || lower.includes('android') || lower.includes('mobile')) return Smartphone
+  return Monitor
+}
+
+const getActorLabel = (event: SecurityEvent) => {
+  return event.actor_id ?? event.target_id ?? 'Unknown actor'
+}
+
+const getStatusBadgeVariant = (status: SecurityEvent['status']) => {
+  return status === 'failure' ? 'destructive' : 'default'
+}
+
+export default function PageOverview({
+  events,
+  isLoading,
+  isError,
+  realmName,
+  isMocked,
+}: PageOverviewProps) {
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failure'>('all')
+
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  }, [events])
+
+  const filteredEvents = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return sortedEvents.filter((event) => {
+      if (statusFilter !== 'all' && event.status !== statusFilter) return false
+      if (!normalizedQuery) return true
+      const haystack = [
+        event.event_type,
+        event.actor_id,
+        event.target_id,
+        event.target_type,
+        event.resource,
+        event.ip_address,
+        event.user_agent,
+        event.status,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [query, sortedEvents, statusFilter])
+
   return (
-    <ComingSoon
-      title='SeaWatch is coming soon!'
-      description='We have just released our brand-new SeaWatch security monitoring feature, now available for everyone.'
-      badgeText='Coming Soon'
-      bulletPoints={[
-        { text: 'Advanced threat detection:', highlight: 'AI-powered security monitoring' },
-        { text: 'Real-time alerts:', highlight: 'instant notifications for suspicious activities' },
-        { text: 'Audit trail tracking:', highlight: 'complete visibility into user actions' },
-        { text: 'Compliance reporting:', highlight: 'automated reports for security standards' },
-        { text: 'Zero-config setup:', highlight: 'works out of the box with FerrisKey' },
-        { text: 'Privacy-first approach:', highlight: 'all data stays in your infrastructure' }
-      ]}
-      imageSrc='/logo_ferriskey.png'
-      imageAlt='SeaWatch security monitoring dashboard'
-      blurIntensity='light'
-    >
-      <div className='flex flex-col gap-6 p-6 max-h-screen overflow-y-scroll md:p-10 container mx-auto'>
-        {/* Header */}
-        <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-3'>
-            <div className='h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center'>
+    <div className='min-h-screen bg-gradient-to-b from-background via-background to-muted/40'>
+      <div className='container mx-auto flex flex-col gap-6 p-6 md:p-10 max-w-none'>
+        <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+          <div className='flex items-center gap-4'>
+            <div className='h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center'>
               <Shield className='size-5 text-primary' />
             </div>
             <div>
               <Heading size={3} weight='medium'>SeaWatch</Heading>
-              <span className='text-sm text-muted-foreground'>
-                Advanced security monitoring & audit system
-              </span>
-            </div>
-          </div>
-
-          <div className='flex items-center space-x-3'>
-            <Button variant='outline' size='sm'>
-              <Download className='h-4 w-4 mr-2' />
-              Export
-            </Button>
-            <Button size='sm'>
-              <RefreshCw className='h-4 w-4 mr-2' />
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {/* Security Metrics */}
-        <SecurityMetrics />
-
-        {/* Main Content */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-          {/* Strange Events Analysis */}
-          <StrangeEventsAnalysis />
-
-          {/* Flagged Users */}
-          <FlaggedUsers
-            users={[
-              {
-                name: 'John Doe',
-                email: 'john.doe@company.com',
-                avatar: 'JD',
-                reason: 'Multiple 403 errors',
-                count: 15,
-                risk: 'high'
-              },
-              {
-                name: 'Sarah Wilson',
-                email: 'sarah.wilson@company.com',
-                avatar: 'SW',
-                reason: 'Unusual access pattern',
-                count: 8,
-                risk: 'medium'
-              },
-              {
-                name: 'Mike Johnson',
-                email: 'mike.johnson@company.com',
-                avatar: 'MJ',
-                reason: 'Failed login attempts',
-                count: 12,
-                risk: 'high'
-              }
-            ]}
-          />
-        </div>
-
-        {/* Audit Logs */}
-        <Card>
-          <CardHeader className='pb-4'>
-            <div className='flex items-center justify-between'>
-              <CardTitle className='flex items-center gap-2'>
-                <Activity className='h-4 w-4 text-blue-500' />
-                Recent Audit Logs
-              </CardTitle>
-              <div className='flex items-center space-x-3'>
-                <div className='relative'>
-                  <Search className='h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground' />
-                  <Input
-                    placeholder='Search events...'
-                    className='pl-10 w-64'
-                  />
-                </div>
-                <Button variant='outline' size='sm'>
-                  <Calendar className='h-4 w-4 mr-2' />
-                  Last 24h
-                </Button>
+              <div className='flex flex-wrap items-center gap-2 text-sm text-muted-foreground'>
+                <span>Security events & audit signals</span>
+                {realmName && (
+                  <Badge variant='outline' className='border-primary/30 text-primary'>
+                    Realm: {realmName}
+                  </Badge>
+                )}
+                {isMocked ? (
+                  <Badge variant='secondary'>Mock data</Badge>
+                ) : (
+                  <Badge variant='secondary'>Live feed</Badge>
+                )}
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className='space-y-3'>
-              {[
-                {
-                  action: 'Login Attempt',
-                  user: 'john.doe@company.com',
-                  result: 'Failed',
-                  ip: '192.168.1.100',
-                  device: 'Chrome on Windows',
-                  time: '2024-01-15 14:23:45',
-                  status: 'failed'
-                },
-                {
-                  action: 'Password Reset',
-                  user: 'sarah.wilson@company.com',
-                  result: 'Success',
-                  ip: '10.0.0.15',
-                  device: 'Safari on macOS',
-                  time: '2024-01-15 14:20:12',
-                  status: 'success'
-                },
-                {
-                  action: 'API Access',
-                  user: 'system@ferriskey.rs',
-                  result: 'Forbidden',
-                  ip: '203.45.67.89',
-                  device: 'API Client',
-                  time: '2024-01-15 14:18:33',
-                  status: 'failed'
-                },
-                {
-                  action: 'Role Assignment',
-                  user: 'admin@company.com',
-                  result: 'Success',
-                  ip: '192.168.1.50',
-                  device: 'Firefox on Ubuntu',
-                  time: '2024-01-15 14:15:08',
-                  status: 'success'
-                },
-                {
-                  action: 'Login Attempt',
-                  user: 'mike.johnson@company.com',
-                  result: 'Success',
-                  ip: '10.0.0.25',
-                  device: 'Mobile App',
-                  time: '2024-01-15 14:12:56',
-                  status: 'success'
-                }
-              ].map((log, index) => (
-                <div key={index} className='border rounded-md p-3 py-6 hover:shadow-md transition-all'>
-                  <div className='flex items-center justify-between'>
-                    <div className='flex items-center space-x-3'>
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${log.status === 'success'
-                        ? 'bg-green-500/10'
-                        : 'bg-red-500/10'
-                        }`}>
-                        {log.status === 'success' ? (
-                          <Unlock className='h-4 w-4 text-green-500' />
-                        ) : (
-                          <Lock className='h-4 w-4 text-red-500' />
-                        )}
-                      </div>
-                      <div>
-                        <div className='flex items-center space-x-2'>
-                          <h4 className='font-medium'>
-                            {log.action}
-                          </h4>
-                          <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
-                            {log.result}
-                          </Badge>
-                        </div>
-                        <div className='flex items-center space-x-4 text-sm text-muted-foreground mt-1'>
-                          <span className='flex items-center gap-1'>
-                            <User className='h-3 w-3' />
-                            {log.user}
-                          </span>
-                          <span className='flex items-center gap-1'>
-                            <Globe className='h-3 w-3' />
-                            {log.ip}
-                          </span>
-                          <span className='flex items-center gap-1'>
-                            {log.device.includes('Mobile') ? (
-                              <Smartphone className='h-3 w-3' />
-                            ) : (
-                              <Monitor className='h-3 w-3' />
-                            )}
-                            {log.device}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className='text-right'>
-                      <span className='text-sm text-muted-foreground flex items-center gap-1'>
-                        <Clock className='h-3 w-3' />
-                        {log.time}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+          </div>
+
+          <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+            <div className='relative'>
+              <Search className='h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground' />
+              <Input
+                placeholder='Search events, actors, IPs...'
+                className='pl-10 w-full sm:w-64'
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+        {isError && (
+          <Alert variant='destructive'>
+            <Shield />
+            <AlertTitle>Security events unavailable</AlertTitle>
+            <AlertDescription>
+              We couldn&apos;t fetch the latest events. Showing cached or mocked data.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <SecurityMetrics events={events} isLoading={isLoading} />
+
+        <div className='grid grid-cols-1 xl:grid-cols-3 gap-6'>
+          <Card className='xl:col-span-2'>
+            <CardHeader className='pb-4'>
+              <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                <div>
+                  <CardTitle className='flex items-center gap-2'>
+                    <Shield className='h-4 w-4 text-primary' />
+                    Event Stream
+                  </CardTitle>
+                  <p className='text-sm text-muted-foreground'>Latest activity in this realm.</p>
+                </div>
+                <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+                  <TabsList className='grid grid-cols-3'>
+                    <TabsTrigger value='all'>All</TabsTrigger>
+                    <TabsTrigger value='success'>Success</TabsTrigger>
+                    <TabsTrigger value='failure'>Failure</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className='space-y-3'>
+                {filteredEvents.length === 0 && (
+                  <div className='flex flex-col items-center justify-center py-16 text-muted-foreground'>
+                    <Shield className='h-10 w-10 mb-4 opacity-40' />
+                    <p>No events match your filters.</p>
+                  </div>
+                )}
+                {filteredEvents.map((event) => {
+                  const DeviceIcon = getDeviceIcon(event.user_agent)
+                  const actorLabel = getActorLabel(event)
+                  return (
+                    <div
+                      key={event.id}
+                      className='flex flex-col gap-3 rounded-lg border border-border/70 bg-card/60 p-4 transition hover:border-primary/30 hover:shadow-sm'
+                    >
+                      <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+                        <div className='flex items-center gap-3'>
+                          <div
+                            className={`h-9 w-9 rounded-full flex items-center justify-center ${
+                              event.status === 'failure' ? 'bg-red-500/10' : 'bg-emerald-500/10'
+                            }`}
+                          >
+                            {event.status === 'failure' ? (
+                              <Lock className='h-4 w-4 text-red-500' />
+                            ) : (
+                              <Unlock className='h-4 w-4 text-emerald-500' />
+                            )}
+                          </div>
+                          <div>
+                            <div className='flex flex-wrap items-center gap-2'>
+                              <h4 className='font-medium'>{formatSnakeCaseToTitleCase(event.event_type)}</h4>
+                              <Badge variant={getStatusBadgeVariant(event.status)}>{event.status}</Badge>
+                              {event.resource && (
+                                <Badge variant='secondary'>{event.resource}</Badge>
+                              )}
+                            </div>
+                            <div className='mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground'>
+                              <span className='inline-flex items-center gap-1'>
+                                <User className='h-3 w-3' />
+                                {actorLabel}
+                              </span>
+                              {event.ip_address && (
+                                <span className='inline-flex items-center gap-1'>
+                                  <Globe className='h-3 w-3' />
+                                  {event.ip_address}
+                                </span>
+                              )}
+                              {event.target_id && (
+                                <span className='inline-flex items-center gap-1'>
+                                  <Target className='h-3 w-3' />
+                                  {event.target_id}
+                                </span>
+                              )}
+                              <span className='inline-flex items-center gap-1'>
+                                <DeviceIcon className='h-3 w-3' />
+                                {event.user_agent ?? 'Unknown device'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className='text-sm text-muted-foreground inline-flex items-center gap-1'>
+                          <Clock className='h-3 w-3' />
+                          {formatTimestamp(event.timestamp)}
+                        </div>
+                      </div>
+                      {event.details && (
+                        <div className='text-xs text-muted-foreground border-t border-border/60 pt-3'>
+                          <span className='font-medium text-foreground'>Details:</span>{' '}
+                          {typeof event.details === 'string' ? event.details : 'Additional context available'}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className='flex flex-col gap-6'>
+            <StrangeEventsAnalysis events={events} />
+            <FlaggedUsers events={events} />
+          </div>
+        </div>
       </div>
-    </ComingSoon>
+    </div>
   )
 }
