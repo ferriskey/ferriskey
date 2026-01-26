@@ -50,8 +50,8 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                             FerrisKey
                           </p>
                         </div>
-                        <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground md:text-4xl'>
-                          {realm_name ?? 'Login'}
+                        <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                          {realm_name?.toUpperCase() ?? 'Login'}
                         </h1>
                       </div>
                       <div className='grid gap-3'>
