@@ -8,6 +8,22 @@ interface ProviderIconProps {
   className?: string
 }
 
+export const providerIconKeys = [
+  'google',
+  'discord',
+  'github',
+  'microsoft',
+  'apple',
+  'facebook',
+  'gitlab',
+  'twitter',
+  'linkedin',
+  'custom',
+] as const
+
+export const isProviderIconKey = (icon: string): icon is ProviderTemplate['icon'] =>
+  (providerIconKeys as readonly string[]).includes(icon)
+
 const sizeClasses = {
   sm: 'w-6 h-6',
   md: 'w-10 h-10',

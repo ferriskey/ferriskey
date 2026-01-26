@@ -91,7 +91,7 @@ export default function PageDetail({
 
       <div className='flex flex-col mb-4'>
         <div className='flex items-center gap-3'>
-          <Heading size={3} className='text-gray-800'>
+          <Heading size={3}>
             {provider.display_name ?? provider.alias}
           </Heading>
           <ProviderTypeBadge type={provider.provider_id} />
@@ -171,8 +171,8 @@ export default function PageDetail({
             {(!provider.config ||
               typeof provider.config !== 'object' ||
               Object.keys(provider.config as Record<string, unknown>).length === 0) && (
-              <p className='text-sm text-muted-foreground'>No configuration settings</p>
-            )}
+                <p className='text-sm text-muted-foreground'>No configuration settings</p>
+              )}
           </div>
         </BlockContent>
 
@@ -197,17 +197,17 @@ export default function PageDetail({
           </div>
         </BlockContent>
 
-        <BlockContent title='Danger Zone' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='font-medium'>Delete Provider</p>
-              <p className='text-sm text-muted-foreground'>
-                Permanently delete this identity provider. This action cannot be undone.
-              </p>
+        <BlockContent title='Delete Identity Provider' className='w-full md:w-2/3 2xl:w-1/3'>
+          <div className='flex flex-col gap-4'>
+            <div className='text-sm dark:text-gray-300 text-gray-500'>
+              All your data are going to be deleted. Use it carefully this action is irreversible. The operation might take a few minutes to complete.
             </div>
-            <Button variant='destructive' onClick={handleDelete}>
-              Delete
-            </Button>
+            <div className='flex justify-end'>
+              <Button variant='destructive' onClick={handleDelete}>
+                Delete identity provider
+              </Button>
+            </div>
+
           </div>
         </BlockContent>
       </div>
