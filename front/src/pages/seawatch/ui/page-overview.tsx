@@ -258,7 +258,7 @@ export default function PageOverview({
                               {formatTimestamp(event.timestamp)}
                             </div>
                           </div>
-                          {event.details && (
+                          {Boolean(event.details) && (
                             <div className='text-xs text-muted-foreground border-t border-border/60 pt-3'>
                               <span className='font-medium text-foreground'>Details:</span>{' '}
                               {typeof event.details === 'string' ? event.details : 'Additional context available'}
