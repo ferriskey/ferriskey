@@ -1,0 +1,15 @@
+.login-shell {
+  background: white;
+}
+
+.login-title {
+  font-family: inherit;
+}
+
+.login-card {
+  border-radius: 8px;
+}
+
+.dark .login-shell {
+  background: black;
+}

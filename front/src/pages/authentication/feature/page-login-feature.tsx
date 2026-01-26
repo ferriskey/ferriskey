@@ -123,6 +123,12 @@ export default function PageLoginFeature() {
     }
   }, [authenticateStatus, form])
 
+  const isRedirecting = isSetup && !isAuthInitiated
+
+  if (isRedirecting) {
+    return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
+  }
+
   if (!loginSettings) return null
 
   return (
