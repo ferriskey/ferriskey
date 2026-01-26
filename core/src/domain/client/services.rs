@@ -309,6 +309,18 @@ where
             )
             .await?;
 
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::ClientDeleted,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("client".to_string(), input.client_id, None),
+            )
+            .await?;
+
         Ok(())
     }
 

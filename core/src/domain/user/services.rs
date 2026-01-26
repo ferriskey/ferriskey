@@ -13,6 +13,7 @@ use crate::domain::{
     crypto::ports::HasherRepository,
     realm::ports::RealmRepository,
     role::ports::RoleRepository,
+    seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
         entities::{
             AssignRoleInput, CreateUserInput, GetUserInput, RequiredAction, ResetPasswordInput,
@@ -29,11 +30,12 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
+use serde_json::json;
 
 pub mod user_role_service;
 
 #[derive(Clone, Debug)]
-pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -44,6 +46,7 @@ where
     RO: RoleRepository,
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
+    SE: SecurityEventRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -53,11 +56,12 @@ where
     pub(crate) role_repository: Arc<RO>,
     pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) webhook_repository: Arc<W>,
+    pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -68,6 +72,7 @@ where
     RO: RoleRepository,
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
+    SE: SecurityEventRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -79,6 +84,7 @@ where
         role_repository: Arc<RO>,
         user_required_action_repository: Arc<URA>,
         webhook_repository: Arc<W>,
+        security_event_repository: Arc<SE>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -90,12 +96,14 @@ where
             role_repository,
             user_required_action_repository,
             webhook_repository,
+            security_event_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W> UserService for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserService
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -106,6 +114,7 @@ where
     RO: RoleRepository,
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
+    SE: SecurityEventRepository,
 {
     async fn delete_user(
         &self,
@@ -133,6 +142,18 @@ where
             .delete_user(user_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::UserDeleted,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("user".to_string(), user.id, None),
+            )
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -189,6 +210,18 @@ where
             )
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::PasswordReset,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("user".to_string(), input.user_id, None),
+            )
+            .await?;
 
         // @TODO: webhook call action
 
@@ -305,6 +338,22 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::RoleAssigned,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target(
+                    "user".to_string(),
+                    input.user_id,
+                    role.as_ref().map(|value| value.name.clone()),
+                ),
+            )
+            .await?;
+
         self.webhook_repository
             .notify(
                 realm_id,
@@ -342,6 +391,18 @@ where
             .bulk_delete_user(input.ids.clone())
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::UserDeleted,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_details(json!({ "user_ids": input.ids })),
+            )
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -389,6 +450,18 @@ where
             .await?;
 
         user.realm = Some(realm);
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::UserCreated,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("user".to_string(), user.id, None),
+            )
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -446,6 +519,22 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::RoleUnassigned,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target(
+                    "user".to_string(),
+                    input.user_id,
+                    role.as_ref().map(|value| value.name.clone()),
+                ),
+            )
+            .await?;
+
         self.webhook_repository
             .notify(
                 realm_id,
@@ -474,6 +563,7 @@ mod tests {
         crypto::ports::MockHasherRepository,
         realm::{entities::Realm, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
+        seawatch::ports::MockSecurityEventRepository,
         user::ports::{
             MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository,
         },
@@ -490,6 +580,7 @@ mod tests {
         user_required_action_repo: Arc<MockUserRequiredActionRepository>,
         webhook_repo: Arc<MockWebhookRepository>,
         client_repo: Arc<MockClientRepository>,
+        security_event_repo: Arc<MockSecurityEventRepository>,
     }
 
     impl UserServiceTestBuilder {
@@ -504,6 +595,7 @@ mod tests {
                 user_required_action_repo: Arc::new(MockUserRequiredActionRepository::new()),
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
                 client_repo: Arc::new(MockClientRepository::new()),
+                security_event_repo: Arc::new(MockSecurityEventRepository::new()),
             }
         }
 
@@ -537,6 +629,11 @@ mod tests {
                 .expect_create_user()
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(created_user) }));
+            Arc::get_mut(&mut self.security_event_repo)
+                .unwrap()
+                .expect_store_event()
+                .times(1)
+                .return_once(|_| Box::pin(async move { Ok(()) }));
             self
         }
 
@@ -598,6 +695,7 @@ mod tests {
             MockRoleRepository,
             MockUserRequiredActionRepository,
             MockWebhookRepository,
+            MockSecurityEventRepository,
         > {
             use crate::domain::common::policies::FerriskeyPolicy;
 
@@ -616,6 +714,7 @@ mod tests {
                 self.role_repo,
                 self.user_required_action_repo,
                 self.webhook_repo,
+                self.security_event_repo,
                 Arc::new(policy),
             )
         }
