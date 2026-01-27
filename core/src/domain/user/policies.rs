@@ -110,7 +110,11 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageUsers,
+                Permissions::ViewUsers,
+            ],
         );
 
         Ok(has_permission)
