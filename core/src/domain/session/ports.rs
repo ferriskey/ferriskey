@@ -1,3 +1,4 @@
+use chrono::Duration;
 use uuid::Uuid;
 
 use crate::domain::session::entities::{SessionError, UserSession};
@@ -9,6 +10,7 @@ pub trait UserSessionService: Send + Sync {
         realm_id: Uuid,
         user_agent: Option<String>,
         ip_address: Option<String>,
+        soft_expiry_duration: Duration,
     ) -> impl Future<Output = Result<UserSession, SessionError>> + Send;
 }
 

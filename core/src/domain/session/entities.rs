@@ -1,6 +1,14 @@
 use chrono::{DateTime, Duration, Utc};
+use sea_orm::EnumIter;
 use thiserror::Error;
 use uuid::Uuid;
+
+#[derive(Copy, Clone, Debug, EnumIter)]
+pub enum SessionState {
+    Active,
+    SoftExpired,
+    Expired,
+}
 
 pub struct UserSession {
     pub id: Uuid,
@@ -10,6 +18,7 @@ pub struct UserSession {
     pub ip_address: Option<String>,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    pub soft_expiry_duration: Duration,
 }
 
 impl UserSession {
@@ -18,6 +27,7 @@ impl UserSession {
         realm_id: Uuid,
         user_agent: Option<String>,
         ip_address: Option<String>,
+        soft_expiry_duration: Duration,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -27,10 +37,41 @@ impl UserSession {
             ip_address,
             created_at: Utc::now(),
             expires_at: Utc::now() + Duration::days(1),
+            soft_expiry_duration,
         }
     }
+
     pub fn is_expired(&self) -> bool {
         Utc::now() > self.expires_at
+    }
+
+    pub fn get_state(&self, soft_expiry_duration: Duration) -> SessionState {
+        let now = Utc::now();
+
+        if now > self.expires_at {
+            SessionState::Expired
+        } else if now > self.expires_at - soft_expiry_duration {
+            SessionState::SoftExpired
+        } else {
+            SessionState::Active
+        }
+    }
+}
+
+impl SessionState {
+    // Returns the string representation of the session state
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::SoftExpired => "soft-expired",
+            Self::Expired => "expired",
+        }
+    }
+}
+
+impl std::fmt::Display for SessionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
