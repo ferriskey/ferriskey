@@ -13,6 +13,7 @@ use crate::domain::{common::generate_uuid_v7, realm::entities::Realm, role::enti
 pub struct User {
     pub id: Uuid,
     pub realm_id: RealmId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<Uuid>,
     pub username: String,
     pub firstname: String,
@@ -20,7 +21,9 @@ pub struct User {
     pub email: String,
     pub email_verified: bool,
     pub enabled: bool,
-    pub roles: Vec<Role>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub roles: Option<Vec<Role>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub realm: Option<Realm>,
     pub required_actions: Vec<RequiredAction>,
     pub created_at: DateTime<Utc>,
@@ -100,7 +103,7 @@ impl User {
             email: user_config.email,
             email_verified: user_config.email_verified,
             enabled: user_config.enabled,
-            roles: Vec::new(),
+            roles: Some(Vec::new()),
             realm: None,
             required_actions: Vec::new(),
             created_at: now,
@@ -156,4 +159,9 @@ pub struct UnassignRoleInput {
     pub realm_name: String,
     pub user_id: Uuid,
     pub role_id: Uuid,
+}
+
+pub struct GetUserPermissionsInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
 }

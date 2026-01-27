@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use utoipa::ToSchema;
 
 #[repr(u64)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Permissions {
     // Permissions de création et de gestion

@@ -7,17 +7,17 @@ use crate::domain::{
     client::ports::ClientRepository,
     common::{
         entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
+        policies::{FerriskeyPolicy, Policy, ensure_policy},
     },
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
     realm::ports::RealmRepository,
-    role::ports::RoleRepository,
+    role::{entities::permission::Permissions, ports::RoleRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
         entities::{
-            AssignRoleInput, CreateUserInput, GetUserInput, RequiredAction, ResetPasswordInput,
-            UnassignRoleInput, UpdateUserInput, User,
+            AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
+            RequiredAction, ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
         },
         ports::{
             UserPolicy, UserRepository, UserRequiredActionRepository, UserRoleRepository,
@@ -547,6 +547,45 @@ where
             .await?;
 
         Ok(())
+    }
+
+    async fn get_user_permissions(
+        &self,
+        identity: Identity,
+        input: GetUserPermissionsInput,
+    ) -> Result<Vec<Permissions>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy
+                .can_view_user_permissions(&identity, &realm, input.user_id)
+                .await,
+            "insufficient permissions",
+        )?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        let user_realm = user
+            .realm
+            .as_ref()
+            .ok_or(CoreError::Forbidden("user has no realm".to_string()))?;
+
+        if user_realm.name != realm.name && user_realm.name != "master" {
+            return Err(CoreError::Forbidden(
+                "Cannot access permissions from a different realm".to_string(),
+            ));
+        }
+
+        let permissions = self
+            .policy
+            .get_permission_for_target_realm(&user, &realm)
+            .await?;
+
+        Ok(permissions.into_iter().collect())
     }
 }
 

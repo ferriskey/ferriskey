@@ -41,6 +41,7 @@ function App() {
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
 
   const { data: responseConfig } = useGetConfig()
+  const defaultRealm = realm_name ?? 'master'
 
   const apiCallback = useCallback(async () => {
     const viteUrl = import.meta.env.VITE_API_URL
@@ -95,16 +96,14 @@ function App() {
     const redirectUri = urlParams.get('redirect_uri')
 
     if (isLoading || pathname.includes('/authentication/callback') || (clientId && redirectUri)) return
-    const realm = realm_name ?? 'master'
-
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
-        navigate(`/realms/${realm}/authentication/login`, { replace: true })
+        navigate(`/realms/${defaultRealm}/authentication/login`, { replace: true })
       }
     } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
-      navigate(`/realms/${realm}/overview`, { replace: true })
+      navigate(`/realms/${defaultRealm}/overview`, { replace: true })
     }
-  }, [isAuthenticated, isLoading, authenticateRoute, pathname, realm_name, navigate])
+  }, [isAuthenticated, isLoading, authenticateRoute, pathname, defaultRealm, navigate])
 
 
   if (!apiUrlSetup) {
@@ -134,7 +133,44 @@ function App() {
           </Route>
         </Route>
 
-        <Route path='*' element={<Navigate to='/realms/master/authentication/login' replace />} />
+        <Route
+          path='/'
+          element={
+            isLoading ? (
+              <div className='h-screen flex items-center justify-center text-gray-500'>
+                <BasicSpinner />
+              </div>
+            ) : (
+              <Navigate
+                to={
+                  isAuthenticated
+                    ? `/realms/${defaultRealm}/overview`
+                    : `/realms/${defaultRealm}/authentication/login`
+                }
+                replace
+              />
+            )
+          }
+        />
+        <Route
+          path='*'
+          element={
+            isLoading ? (
+              <div className='h-screen flex items-center justify-center text-gray-500'>
+                <BasicSpinner />
+              </div>
+            ) : (
+              <Navigate
+                to={
+                  isAuthenticated
+                    ? `/realms/${defaultRealm}/overview`
+                    : `/realms/${defaultRealm}/authentication/login`
+                }
+                replace
+              />
+            )
+          }
+        />
       </Routes>
       <Toaster
         richColors
