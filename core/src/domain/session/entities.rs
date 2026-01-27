@@ -45,12 +45,12 @@ impl UserSession {
         Utc::now() > self.expires_at
     }
 
-    pub fn get_state(&self, soft_expiry_duration: Duration) -> SessionState {
+    pub fn get_state(&self) -> SessionState {
         let now = Utc::now();
 
         if now > self.expires_at {
             SessionState::Expired
-        } else if now > self.expires_at - soft_expiry_duration {
+        } else if now > self.expires_at - self.soft_expiry_duration {
             SessionState::SoftExpired
         } else {
             SessionState::Active
