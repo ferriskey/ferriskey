@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use uuid::Uuid;
 
@@ -12,12 +12,12 @@ use crate::domain::{
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
     realm::ports::RealmRepository,
-    role::ports::RoleRepository,
+    role::{entities::permission::Permissions, ports::RoleRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
         entities::{
-            AssignRoleInput, CreateUserInput, GetUserInput, RequiredAction, ResetPasswordInput,
-            UnassignRoleInput, UpdateUserInput, User,
+            AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
+            RequiredAction, ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
         },
         ports::{
             UserPolicy, UserRepository, UserRequiredActionRepository, UserRoleRepository,
@@ -547,6 +547,37 @@ where
             .await?;
 
         Ok(())
+    }
+
+    async fn get_user_permissions(
+        &self,
+        identity: Identity,
+        input: GetUserPermissionsInput,
+    ) -> Result<Vec<Permissions>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy
+                .can_view_user_permissions(&identity, &realm, input.user_id)
+                .await,
+            "insufficient permissions",
+        )?;
+
+        let roles = self
+            .user_role_repository
+            .get_user_roles(input.user_id)
+            .await?;
+
+        let permissions: HashSet<Permissions> = roles
+            .into_iter()
+            .flat_map(|role| Permissions::from_names(&role.permissions))
+            .collect();
+
+        Ok(permissions.into_iter().collect())
     }
 }
 

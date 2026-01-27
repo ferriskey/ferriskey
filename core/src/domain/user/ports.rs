@@ -1,6 +1,8 @@
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
+use crate::domain::role::entities::permission::Permissions;
+use crate::domain::user::entities::GetUserPermissionsInput;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
@@ -63,6 +65,11 @@ pub trait UserService: Send + Sync {
         identity: Identity,
         input: UnassignRoleInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_user_permissions(
+        &self,
+        identity: Identity,
+        input: GetUserPermissionsInput,
+    ) -> impl Future<Output = Result<Vec<Permissions>, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -182,6 +189,12 @@ pub trait UserPolicy: Send + Sync {
         &self,
         identity: &Identity,
         target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_user_permissions(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        target_user_id: Uuid,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
