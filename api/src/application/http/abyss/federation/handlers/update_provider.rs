@@ -16,7 +16,10 @@ use uuid::Uuid;
 use crate::application::http::{
     abyss::federation::dto::{ProviderResponse, UpdateProviderRequest},
     server::{
-        api_entities::{api_error::ApiError, response::Response},
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
         app_state::AppState,
     },
 };
@@ -28,10 +31,11 @@ use crate::application::http::{
     request_body = UpdateProviderRequest,
     responses(
         (status = 200, description = "Provider updated", body = ProviderResponse),
-        (status = 400, description = "Invalid input"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Realm or Provider not found"),
+        (status = 400, description = "Invalid input", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Realm or Provider not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),

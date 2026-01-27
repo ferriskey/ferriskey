@@ -11,7 +11,10 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 
@@ -26,9 +29,11 @@ pub struct DeleteProviderResponse {
     summary = "Delete a federation provider",
     responses(
         (status = 204, description = "Provider deleted", body = DeleteProviderResponse),
-        (status = 401, description = "Unauthorized", body = ApiError),
-        (status = 403, description = "Forbidden", body = ApiError),
-        (status = 404, description = "Realm or Provider not found", body = ApiError),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 401, description = "Invalid realm", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm or Provider not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),

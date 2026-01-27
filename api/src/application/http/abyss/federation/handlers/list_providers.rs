@@ -10,7 +10,10 @@ use ferriskey_core::domain::{
 use crate::application::http::{
     abyss::federation::dto::ListProvidersResponse,
     server::{
-        api_entities::{api_error::ApiError, response::Response},
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
         app_state::AppState,
     },
 };
@@ -21,9 +24,10 @@ use crate::application::http::{
     summary = "List federation providers in a realm",
     responses(
         (status = 200, description = "List of providers", body = ListProvidersResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Realm not found"),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name")
