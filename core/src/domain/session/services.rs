@@ -1,3 +1,5 @@
+use chrono::Duration;
+
 use crate::domain::session::{
     entities::{SessionError, UserSession},
     ports::{UserSessionRepository, UserSessionService},
@@ -32,8 +34,15 @@ where
         realm_id: uuid::Uuid,
         user_agent: Option<String>,
         ip_address: Option<String>,
+        soft_expiry_duration: Duration,
     ) -> Result<UserSession, SessionError> {
-        let session = UserSession::new(user_id, realm_id, user_agent, ip_address);
+        let session = UserSession::new(
+            user_id,
+            realm_id,
+            user_agent,
+            ip_address,
+            soft_expiry_duration,
+        );
 
         self.user_session_repository.create(&session).await?;
 

@@ -1,4 +1,5 @@
 pub mod abyss;
+pub mod account;
 pub mod authentication;
 pub mod client;
 pub mod common;
