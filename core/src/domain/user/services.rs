@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use uuid::Uuid;
 
@@ -7,7 +7,7 @@ use crate::domain::{
     client::ports::ClientRepository,
     common::{
         entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
+        policies::{FerriskeyPolicy, Policy, ensure_policy},
     },
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
@@ -567,15 +567,23 @@ where
             "insufficient permissions",
         )?;
 
-        let roles = self
-            .user_role_repository
-            .get_user_roles(input.user_id)
-            .await?;
+        let user = self.user_repository.get_by_id(input.user_id).await?;
 
-        let permissions: HashSet<Permissions> = roles
-            .into_iter()
-            .flat_map(|role| Permissions::from_names(&role.permissions))
-            .collect();
+        let user_realm = user
+            .realm
+            .as_ref()
+            .ok_or(CoreError::Forbidden("user has no realm".to_string()))?;
+
+        if user_realm.name != realm.name && user_realm.name != "master" {
+            return Err(CoreError::Forbidden(
+                "Cannot access permissions from a different realm".to_string(),
+            ));
+        }
+
+        let permissions = self
+            .policy
+            .get_permission_for_target_realm(&user, &realm)
+            .await?;
 
         Ok(permissions.into_iter().collect())
     }
