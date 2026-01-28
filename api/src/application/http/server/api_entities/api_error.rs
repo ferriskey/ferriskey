@@ -145,6 +145,7 @@ impl From<JwtError> for ApiError {
             JwtError::ValidationError(e) => Self::InternalServerError(e),
             JwtError::ExpirationError(e) => Self::InternalServerError(e),
             JwtError::GenerationError(e) => Self::InternalServerError(e),
+            JwtError::HashingError(e) => Self::InternalServerError(e),
             JwtError::ExpiredToken => Self::InternalServerError("Token expired".to_string()),
             JwtError::InvalidKey(e) => Self::InternalServerError(e),
             JwtError::ParsingError(e) => Self::InternalServerError(e),

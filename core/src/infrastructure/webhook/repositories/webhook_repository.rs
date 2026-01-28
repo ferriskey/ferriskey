@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
+use ferriskey_domain::realm::RealmId;
 use reqwest::{
     Client,
     header::{HeaderMap, HeaderName, HeaderValue},
@@ -26,7 +27,6 @@ use sea_orm::{
 use tracing::error;
 
 use crate::domain::common::generate_timestamp;
-use crate::domain::realm::entities::RealmId;
 use crate::domain::webhook::entities::webhook_subscriber::WebhookSubscriber;
 use crate::entity::webhook_subscribers::{
     ActiveModel as WebhookSubscriberActiveModel, Column as WebhookSubscriberColumn,
