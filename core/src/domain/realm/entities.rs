@@ -1,12 +1,8 @@
-use chrono::Utc;
-use ferriskey_domain::realm::RealmSetting;
+pub use ferriskey_domain::realm::{Realm, RealmId, RealmSetting};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
-use crate::domain::{
-    common::generate_timestamp, identity_provider::entities::IdentityProviderPresentation,
-};
+use crate::domain::identity_provider::entities::IdentityProviderPresentation;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct RealmLoginSetting {
@@ -24,39 +20,5 @@ impl From<RealmSetting> for RealmLoginSetting {
             user_registration_enabled: value.user_registration_enabled,
             identity_providers: Vec::new(),
         }
-    }
-}
-
-impl RealmSetting {
-    pub fn new(realm_id: RealmId, default_signing_algorithm: Option<String>) -> Self {
-        let (now, timestamp) = generate_timestamp();
-
-        Self {
-            id: Uuid::new_v7(timestamp),
-            realm_id,
-            default_signing_algorithm,
-            forgot_password_enabled: false,
-            remember_me_enabled: false,
-            user_registration_enabled: false,
-            updated_at: now,
-        }
-    }
-}
-
-impl Realm {
-    pub fn new(name: String) -> Self {
-        let now = Utc::now();
-
-        Self {
-            id: RealmId::default(),
-            name,
-            settings: None,
-            created_at: now,
-            updated_at: now,
-        }
-    }
-
-    pub fn can_delete(&self) -> bool {
-        self.name != "master"
     }
 }

@@ -30,7 +30,7 @@ pub trait JwtService: Send + Sync {
     ) -> impl Future<Output = Result<JwtKeyPair, SecurityError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait RefreshTokenRepository: Send + Sync {
     fn create(
         &self,

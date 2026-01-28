@@ -15,7 +15,7 @@ pub trait CryptoService: Send + Sync {
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait HasherRepository: Send + Sync {
     fn hash_password(
         &self,

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::generate_uuid_v7;
+use crate::{generate_timestamp, generate_uuid_v7};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct RealmId(Uuid);
@@ -56,4 +56,38 @@ pub struct RealmSetting {
     pub forgot_password_enabled: bool,
     pub remember_me_enabled: bool,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmSetting {
+    pub fn new(realm_id: RealmId, default_signing_algorithm: Option<String>) -> Self {
+        let (now, timestamp) = generate_timestamp();
+
+        Self {
+            id: Uuid::new_v7(timestamp),
+            realm_id,
+            default_signing_algorithm,
+            forgot_password_enabled: false,
+            remember_me_enabled: false,
+            user_registration_enabled: false,
+            updated_at: now,
+        }
+    }
+}
+
+impl Realm {
+    pub fn new(name: String) -> Self {
+        let now = Utc::now();
+
+        Self {
+            id: RealmId::default(),
+            name,
+            settings: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn can_delete(&self) -> bool {
+        self.name != "master"
+    }
 }

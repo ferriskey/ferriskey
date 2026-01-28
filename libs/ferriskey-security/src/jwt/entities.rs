@@ -11,7 +11,6 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::SecurityError;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClaimsTyp {
     Refresh,
@@ -198,17 +197,11 @@ impl JwtKeyPair {
         realm_id: Uuid,
         id: Uuid,
     ) -> Result<Self, SecurityError> {
-        let encoding_key = EncodingKey::from_rsa_pem(private_pem.as_bytes()).map_err(|e| {
-            SecurityError::InvalidKey {
-                details: e.to_string(),
-            }
-        })?;
+        let encoding_key = EncodingKey::from_rsa_pem(private_pem.as_bytes())
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
-        let decoding_key = DecodingKey::from_rsa_pem(public_pem.as_bytes()).map_err(|e| {
-            SecurityError::InvalidKey {
-                details: e.to_string(),
-            }
-        })?;
+        let decoding_key = DecodingKey::from_rsa_pem(public_pem.as_bytes())
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
         Ok(Self {
             id,
@@ -223,34 +216,25 @@ impl JwtKeyPair {
         let mut rng = rand::thread_rng();
         let bits = 2048;
 
-        let private_key =
-            RsaPrivateKey::new(&mut rng, bits).map_err(|e| SecurityError::InvalidKey {
-                details: e.to_string(),
-            })?;
+        let private_key = RsaPrivateKey::new(&mut rng, bits)
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
         let private_pem = private_key
             .to_pkcs8_pem(LineEnding::LF)
-            .map_err(|e| SecurityError::InvalidKey {
-                details: e.to_string(),
-            })?
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?
             .to_string();
 
         let public_pem = private_key
             .to_public_key()
             .to_public_key_pem(LineEnding::LF)
-            .map_err(|e| SecurityError::InvalidKey {
-                details: e.to_string(),
-            })?;
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
         Ok((private_pem, public_pem))
     }
 
-    pub fn to_jwt_key(&self) -> Result<JwkKey, SecurityError> {
-        let public_key = RsaPublicKey::from_public_key_pem(&self.public_key).map_err(|e| {
-            SecurityError::InvalidKey {
-                details: e.to_string(),
-            }
-        })?;
+    pub fn to_jwk_key(&self) -> Result<JwkKey, SecurityError> {
+        let public_key = RsaPublicKey::from_public_key_pem(&self.public_key)
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
         let n = BASE64_URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
         let e = BASE64_URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
@@ -265,5 +249,9 @@ impl JwtKeyPair {
             n,
             e,
         })
+    }
+
+    pub fn to_jwt_key(&self) -> Result<JwkKey, SecurityError> {
+        self.to_jwk_key()
     }
 }
