@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use ferriskey_security::jwt::ports::KeyStoreRepository;
+
 use crate::domain::{
     client::{
         ports::{ClientRepository, RedirectUriRepository},
@@ -12,7 +14,6 @@ use crate::domain::{
     },
     credential::ports::CredentialRepository,
     crypto::ports::HasherRepository,
-    jwt::ports::KeyStoreRepository,
     realm::ports::RealmRepository,
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,

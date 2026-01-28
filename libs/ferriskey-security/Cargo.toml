@@ -1,0 +1,22 @@
+[package]
+name = "ferriskey-security"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-domain = { path = "../ferriskey-domain" }
+argon2 = "0.5.3"
+base64 = "0.22.1"
+chrono = "0.4.43"
+jsonwebtoken = "10.3.0"
+rand = "0.8.0"
+rsa = "0.9.10"
+serde = "1.0.228"
+serde_json = "1.0.149"
+thiserror = "2.0.18"
+utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+uuid = "1.20.0"
+
+[dev-dependencies]
+mockall = "0.14.0"

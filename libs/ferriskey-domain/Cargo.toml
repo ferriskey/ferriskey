@@ -1,0 +1,12 @@
+[package]
+name = "ferriskey-domain"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono = { version = "0.4.43", features = ["serde"] }
+rand = "0.8"
+serde = "1.0.228"
+utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+uuid = { version = "1.20.0", features = ["serde", "v4", "v7"] }
