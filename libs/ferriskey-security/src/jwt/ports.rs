@@ -16,7 +16,7 @@ pub trait JwtService: Send + Sync {
     fn verify_token(
         &self,
         token: String,
-        relam_id: RealmId,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<JwtClaim, SecurityError>> + Send;
     fn verify_refresh_token(
         &self,
