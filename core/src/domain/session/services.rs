@@ -34,6 +34,7 @@ where
         realm_id: uuid::Uuid,
         user_agent: Option<String>,
         ip_address: Option<String>,
+        session_duration: Duration,
         soft_expiry_duration: Duration,
     ) -> Result<UserSession, SessionError> {
         let session = UserSession::new(
@@ -41,6 +42,7 @@ where
             realm_id,
             user_agent,
             ip_address,
+            session_duration,
             soft_expiry_duration,
         );
 

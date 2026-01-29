@@ -1,5 +1,6 @@
 use crate::domain::account::entities::{AccountError, AccountHint};
 use crate::domain::realm::entities::RealmId;
+use std::future::Future;
 use uuid::Uuid;
 
 pub trait AccountHintService: Send + Sync {

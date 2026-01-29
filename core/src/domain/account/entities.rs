@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use thiserror::Error;
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
 pub struct AccountHint {
     pub user_id: Uuid,
     pub realm_id: RealmId,
@@ -31,7 +32,7 @@ impl AccountHint {
 #[derive(Debug, Clone, Error)]
 pub enum AccountError {
     #[error("Account hints not found")]
-    NotFound,
+    HintsNotFound,
 
     #[error("Internal server error")]
     InternalServerError,

@@ -3,7 +3,7 @@ use sea_orm::EnumIter;
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Copy, Clone, Debug, EnumIter)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, EnumIter)]
 pub enum SessionState {
     Active,
     SoftExpired,
@@ -27,8 +27,10 @@ impl UserSession {
         realm_id: Uuid,
         user_agent: Option<String>,
         ip_address: Option<String>,
+        session_duration: Duration,
         soft_expiry_duration: Duration,
     ) -> Self {
+        let expires_at = Utc::now() + session_duration;
         Self {
             id: Uuid::new_v4(),
             user_id,
@@ -36,7 +38,7 @@ impl UserSession {
             user_agent,
             ip_address,
             created_at: Utc::now(),
-            expires_at: Utc::now() + Duration::days(1),
+            expires_at,
             soft_expiry_duration,
         }
     }
