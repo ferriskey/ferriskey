@@ -26,6 +26,8 @@ RUN \
     cargo build --release
 
 COPY libs/maskass libs/maskass
+COPY libs/ferriskey-domain libs/ferriskey-domain
+COPY libs/ferriskey-security libs/ferriskey-security
 
 COPY core core
 COPY api api
