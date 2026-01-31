@@ -1,4 +1,4 @@
-FROM rust:1.89-bookworm AS rust-build
+FROM rust:1.91.1-bookworm AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -6,6 +6,8 @@ RUN cargo install sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/maskass/Cargo.toml ./libs/maskass/
+COPY libs/ferriskey-domain/Cargo.toml ./libs/ferriskey-domain/
+COPY libs/ferriskey-security/Cargo.toml ./libs/ferriskey-security/
 
 COPY core/Cargo.toml ./core/
 
@@ -13,8 +15,10 @@ COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 
 RUN \
-    mkdir -p api/src core/src entity/src operator/src libs/maskass/src && \
+    mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src && \
     touch libs/maskass/src/lib.rs && \
+    touch libs/ferriskey-domain/src/lib.rs && \
+    touch libs/ferriskey-security/src/lib.rs && \
     touch core/src/lib.rs && \
 
     echo "fn main() {}" > operator/src/main.rs && \
@@ -22,6 +26,8 @@ RUN \
     cargo build --release
 
 COPY libs/maskass libs/maskass
+COPY libs/ferriskey-domain libs/ferriskey-domain
+COPY libs/ferriskey-security libs/ferriskey-security
 
 COPY core core
 COPY api api
@@ -29,6 +35,8 @@ COPY operator operator
 
 RUN \
     touch libs/maskass/src/lib.rs && \
+    touch libs/ferriskey-domain/src/lib.rs && \
+    touch libs/ferriskey-security/src/lib.rs && \
     touch core/src/lib.rs && \
     touch operator/src/main.rs && \
     cargo build --release

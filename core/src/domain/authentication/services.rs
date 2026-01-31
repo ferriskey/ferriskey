@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
+use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -26,7 +27,7 @@ use crate::domain::{
     crypto::ports::HasherRepository,
     jwt::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
-        ports::{KeyStoreRepository, RefreshTokenRepository},
+        ports::RefreshTokenRepository,
     },
     realm::{entities::RealmId, ports::RealmRepository},
     user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},

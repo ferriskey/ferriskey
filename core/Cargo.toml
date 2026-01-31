@@ -6,6 +6,8 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+ferriskey-domain = { path = "../libs/ferriskey-domain" }
+ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"
@@ -14,7 +16,7 @@ base64 = "0.22.1"
 chrono = { version = "0.4.41", features = ["serde"] }
 enum-display = "0.2.1"
 hmac = "0.12.1"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.8.0"
 rsa = { version = "0.9.9", features = ["pem"] }
 sea-orm = { version = "1.1.14", features = [

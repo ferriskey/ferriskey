@@ -577,7 +577,7 @@ mod tests {
             firstname: "Test".to_string(),
             lastname: "User".to_string(),
             enabled: true,
-            roles: vec![],
+            roles: Some(vec![]),
             realm: Some(Realm::new("test".to_string())),
             client_id: None,
             required_actions: vec![],
