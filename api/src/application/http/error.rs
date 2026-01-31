@@ -183,6 +183,9 @@ impl From<CoreError> for ApiError {
             CoreError::ClientNotFound => {
                 Self::NotFound("Client not found".to_string())
             }
+            CoreError::HintsNotFound => {
+                Self::NotFound("Account hints not found".to_string())
+            }
         }
     }
 }

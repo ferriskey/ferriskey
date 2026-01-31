@@ -1,7 +1,10 @@
+use uuid::Uuid;
+
 use crate::domain::account::{
-    entities::{AccountError, AccountHint},
+    entities::AccountHint,
     ports::{AccountHintRepository, AccountHintService},
 };
+use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 
 #[derive(Clone)]
@@ -27,16 +30,48 @@ impl<A> AccountHintService for AccountHintServiceImpl<A>
 where
     A: AccountHintRepository,
 {
-    async fn update_last_used_at(
+    async fn create_account_hint(
         &self,
-        user_id: uuid::Uuid,
+        user_id: Uuid,
         realm_id: RealmId,
-    ) -> Result<AccountHint, AccountError> {
-        let account = self
-            .account_hint_repository
-            .update(&user_id, &realm_id)
-            .await?;
+        display_name: &str,
+        avatar_url: Option<String>,
+    ) -> Result<AccountHint, CoreError> {
+        self.account_hint_repository
+            .add_hint(&user_id, &realm_id, display_name, &avatar_url)
+            .await
+    }
 
-        Ok(account)
+    async fn update_account_hint(
+        &self,
+        account_hint: AccountHint,
+    ) -> Result<AccountHint, CoreError> {
+        let repo = &self.account_hint_repository;
+        match repo
+            .get_hints(&account_hint.user_id, &account_hint.realm_id)
+            .await
+        {
+            Ok(_) => {
+                repo.update_hint(&account_hint.user_id, &account_hint.realm_id)
+                    .await
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn get_account_hints(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+    ) -> Result<Vec<AccountHint>, CoreError> {
+        match self
+            .account_hint_repository
+            .get_hints(&user_id, &realm_id)
+            .await
+        {
+            Ok(account_hints) => Ok(account_hints),
+            Err(CoreError::HintsNotFound) => Err(CoreError::HintsNotFound),
+            Err(e) => Err(e),
+        }
     }
 }

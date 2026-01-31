@@ -233,6 +233,9 @@ pub enum CoreError {
 
     #[error("Client not found")]
     ClientNotFound,
+
+    #[error("Account hints not found")]
+    HintsNotFound,
 }
 
 impl From<AuthenticationError> for CoreError {

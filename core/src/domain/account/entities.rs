@@ -1,7 +1,7 @@
-use crate::domain::realm::entities::RealmId;
 use chrono::{DateTime, Utc};
-use thiserror::Error;
 use uuid::Uuid;
+
+use crate::domain::realm::entities::RealmId;
 
 #[derive(Debug, Clone)]
 pub struct AccountHint {
@@ -27,19 +27,4 @@ impl AccountHint {
             last_used_at: Utc::now(),
         }
     }
-}
-
-#[derive(Debug, Clone, Error)]
-pub enum AccountError {
-    #[error("Account hints not found")]
-    HintsNotFound,
-
-    #[error("Internal server error")]
-    InternalServerError,
-
-    #[error("Forbidden")]
-    Forbidden,
-
-    #[error("Account not found")]
-    AccountNotFound,
 }
