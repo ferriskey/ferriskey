@@ -38,6 +38,7 @@ pub async fn broker_login(
     FullUrl(_, base_url): FullUrl,
     Query(params): Query<BrokerLoginRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let base_url = format!("{base_url}{}", state.args.server.root_path);
     let result = state
         .service
         .initiate_login(BrokerLoginInput {
