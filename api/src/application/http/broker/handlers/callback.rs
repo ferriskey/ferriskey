@@ -40,6 +40,7 @@ pub async fn broker_callback(
     FullUrl(_, base_url): FullUrl,
     Query(params): Query<BrokerCallbackQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let base_url = format!("{base_url}{}", state.args.server.root_path);
     let result = state
         .service
         .handle_callback(BrokerCallbackInput {
