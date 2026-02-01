@@ -319,6 +319,6 @@ GitHub Actions workflows in `.github/workflows/`:
 
 ## Useful Links
 
-- Documentation: https://ferriskey.rs/docs/welcome/introduction
+- Documentation: https://docs.ferriskey.rs/getting-started/introduction
 - Helm Chart: `oci://ghcr.io/ferriskey/charts/ferriskey`
 - Discussions: https://github.com/ferriskey/ferriskey/discussions
