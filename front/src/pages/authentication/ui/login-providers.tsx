@@ -10,9 +10,14 @@ export type LoginProvidersProps = {
   providers: IdentityProviderPresentation[]
 }
 
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
+
 const buildProviderLoginUrl = (provider: IdentityProviderPresentation) => {
-  const url = new URL(provider.login_url, window.apiUrl)
+  const base = window.apiUrl.endsWith('/') ? window.apiUrl : `${window.apiUrl}/`
+  const path = provider.login_url.replace(/^\//, '')
+  const url = new URL(isAbsoluteUrl(provider.login_url) ? provider.login_url : path, base)
   const currentParams = new URLSearchParams(window.location.search)
+
   currentParams.forEach((value, key) => {
     if (!url.searchParams.has(key)) {
       url.searchParams.set(key, value)
