@@ -74,12 +74,13 @@ pub use services::ApplicationService;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
+        "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
         config.database.username,
         config.database.password,
         config.database.host,
         config.database.port,
-        config.database.name
+        config.database.name,
+        config.database.schema
     );
 
     let postgres = Postgres::new(PostgresConfig { database_url })

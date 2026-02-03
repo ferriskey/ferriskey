@@ -157,6 +157,14 @@ pub struct DatabaseArgs {
         long_help = "The database user to use"
     )]
     pub user: String,
+    #[arg(
+        long = "database-schema",
+        env = "DATABASE_SCHEMA",
+        default_value = "public",
+        name = "DATABASE_SCHEMA",
+        long_help = "The database schema to use"
+    )]
+    pub schema: String,
 }
 
 impl Default for DatabaseArgs {
@@ -167,6 +175,7 @@ impl Default for DatabaseArgs {
             password: "postgres".to_string(),
             port: 5432,
             user: "postgres".to_string(),
+            schema: "public".to_string(),
         }
     }
 }
@@ -182,6 +191,7 @@ impl From<Url> for DatabaseArgs {
             password: value.password().unwrap_or("").to_string(),
             port: value.port().unwrap_or(5432),
             user: value.username().to_string(),
+            schema: "public".to_string(),
         }
     }
 }
@@ -348,6 +358,7 @@ impl From<Args> for FerriskeyConfig {
                 password: value.db.password,
                 port: value.db.port,
                 username: value.db.user,
+                schema: value.db.schema,
             },
         }
     }
