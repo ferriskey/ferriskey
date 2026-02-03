@@ -80,7 +80,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         config.database.host,
         config.database.port,
         config.database.name,
-        config.database.schema
+        urlencoding::encode(&config.database.schema)
     );
 
     let postgres = Postgres::new(PostgresConfig { database_url })

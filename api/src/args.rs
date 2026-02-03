@@ -182,6 +182,13 @@ impl Default for DatabaseArgs {
 
 impl From<Url> for DatabaseArgs {
     fn from(value: Url) -> Self {
+        // Parse schema from query parameters if available
+        let schema = value
+            .query_pairs()
+            .find(|(key, _)| key == "schema")
+            .map(|(_, v)| v.to_string())
+            .unwrap_or_else(|| "public".to_string());
+
         Self {
             host: value
                 .host()
@@ -191,7 +198,7 @@ impl From<Url> for DatabaseArgs {
             password: value.password().unwrap_or("").to_string(),
             port: value.port().unwrap_or(5432),
             user: value.username().to_string(),
-            schema: "public".to_string(),
+            schema,
         }
     }
 }
