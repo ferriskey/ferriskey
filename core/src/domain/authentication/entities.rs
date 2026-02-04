@@ -39,6 +39,10 @@ impl JwtToken {
             id_token,
         }
     }
+
+    pub fn access_token(&self) -> &str {
+        &self.access_token
+    }
 }
 
 #[derive(Serialize, Deserialize)]

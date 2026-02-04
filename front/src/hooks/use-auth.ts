@@ -1,5 +1,5 @@
 import { GrantType } from '@/api/core.interface'
-import { useTokenMutation } from '@/api/auth.api'
+import { useLogoutMutation, useTokenMutation } from '@/api/auth.api'
 import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
@@ -32,6 +32,7 @@ export function useAuth() {
     setExpiration,
   } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
+  const { mutate: remoteLogout } = useLogoutMutation()
   const [hasHydrated, setHasHydrated] = useState<boolean>(
     authStore.persist?.hasHydrated?.() ?? true
   )
@@ -57,6 +58,7 @@ export function useAuth() {
   }
 
   function logout() {
+    remoteLogout({ path: { realm_name } } as never)
     localStorage.removeItem('auth')
     setAuthenticated(false)
     setLoading(true)

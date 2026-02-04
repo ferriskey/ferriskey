@@ -187,6 +187,9 @@ pub struct BrokerCallbackOutput {
 
     /// Whether this is a newly created user
     pub is_new_user: bool,
+
+    /// OAuth client ID related to this broker authentication
+    pub client_id: String,
 }
 
 /// User info extracted from IdP tokens
