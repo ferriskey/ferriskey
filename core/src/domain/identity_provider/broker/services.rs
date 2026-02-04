@@ -496,6 +496,11 @@ where
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
+        let client = self
+            .client_repository
+            .get_by_id(broker_session.client_id)
+            .await?;
+
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
 
         // 6. Exchange authorization code for tokens
@@ -581,6 +586,7 @@ where
             authorization_code,
             user_id: user.id,
             is_new_user,
+            client_id: client.client_id,
         })
     }
 

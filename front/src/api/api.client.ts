@@ -107,17 +107,6 @@ export namespace Schemas {
     updated_at: string
   }
   export type RequiredAction = 'configure_otp' | 'verify_email' | 'update_password'
-  export type Role = {
-    client?: (null | Client) | undefined
-    client_id?: (string | null) | undefined
-    created_at: string
-    description?: (string | null) | undefined
-    id: string
-    name: string
-    permissions: Array<string>
-    realm_id: RealmId
-    updated_at: string
-  }
   export type User = {
     client_id?: (string | null) | undefined
     created_at: string
@@ -130,7 +119,7 @@ export namespace Schemas {
     realm?: (null | Realm) | undefined
     realm_id: RealmId
     required_actions: Array<RequiredAction>
-    roles: Array<Role>
+    roles?: (Array<Role> | null) | undefined
     updated_at: string
     username: string
   }
@@ -229,6 +218,17 @@ export namespace Schemas {
   }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
+  export type Role = {
+    client?: (null | Client) | undefined
+    client_id?: (string | null) | undefined
+    created_at: string
+    description?: (string | null) | undefined
+    id: string
+    name: string
+    permissions: Array<string>
+    realm_id: RealmId
+    updated_at: string
+  }
   export type GetClientRolesResponse = { data: Array<Role> }
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string
@@ -324,6 +324,29 @@ export namespace Schemas {
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
+  export type Permissions =
+    | 'create_client'
+    | 'manage_authorization'
+    | 'manage_clients'
+    | 'manage_events'
+    | 'manage_identity_providers'
+    | 'manage_realm'
+    | 'manage_users'
+    | 'manage_roles'
+    | 'query_clients'
+    | 'query_groups'
+    | 'query_realms'
+    | 'query_users'
+    | 'view_authorization'
+    | 'view_clients'
+    | 'view_events'
+    | 'view_identity_providers'
+    | 'view_realm'
+    | 'view_users'
+    | 'view_roles'
+    | 'manage_webhooks'
+    | 'query_webhooks'
+    | 'view_webhooks'
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
@@ -440,6 +463,7 @@ export namespace Schemas {
     preferred_username?: (string | null) | undefined
     sub: string
   }
+  export type UserPermissionsResponse = { data: Array<Permissions> }
   export type UserRealmsResponse = { data: Array<Realm> }
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
@@ -903,6 +927,13 @@ export namespace Endpoints {
     }
     response: Schemas.GetCertsResponse
   }
+  export type post_Logout = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/logout'
+    requestFormat: 'json'
+    parameters: never
+    response: unknown
+  }
   export type post_Registration_handler = {
     method: 'POST'
     path: '/realms/{realm_name}/protocol/openid-connect/registrations'
@@ -919,6 +950,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/protocol/openid-connect/token'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.TokenRequestValidator
     }
     response: Schemas.JwtToken
@@ -1077,6 +1110,15 @@ export namespace Endpoints {
     }
     response: Schemas.DeleteUserCredentialResponse
   }
+  export type get_Get_user_permissions = {
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/permissions'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string }
+    }
+    response: Schemas.UserPermissionsResponse
+  }
   export type put_Reset_password = {
     method: 'PUT'
     path: '/realms/{realm_name}/users/{user_id}/reset-password'
@@ -1186,6 +1228,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/webauthn-public-key-create': Endpoints.post_Webauthn_public_key_create
     '/realms/{realm_name}/login-actions/webauthn-public-key-create-options': Endpoints.post_Webauthn_public_key_create_options
     '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
     '/realms/{realm_name}/users': Endpoints.post_Create_user
@@ -1216,6 +1259,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
     '/realms/{realm_name}/users/{user_id}': Endpoints.get_Get_user
     '/realms/{realm_name}/users/{user_id}/credentials': Endpoints.get_Get_user_credentials
+    '/realms/{realm_name}/users/{user_id}/permissions': Endpoints.get_Get_user_permissions
     '/realms/{realm_name}/users/{user_id}/roles': Endpoints.get_Get_user_roles
     '/realms/{realm_name}/webhooks': Endpoints.get_Fetch_webhooks
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.get_Get_webhook
