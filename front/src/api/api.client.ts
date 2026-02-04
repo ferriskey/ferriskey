@@ -950,6 +950,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/protocol/openid-connect/token'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.TokenRequestValidator
     }
     response: Schemas.JwtToken

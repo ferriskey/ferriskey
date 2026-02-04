@@ -21,6 +21,9 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
     summary = "Exchange token",
     description = "Exchanges a token for a JWT token. This endpoint allows clients to exchange various types of tokens (like authorization codes, refresh tokens, etc.) for a JWT token.",
     request_body = TokenRequestValidator,
+    params(
+      ("realm_name" = String, Path, description = "Realm name")
+    ),
     responses(
         (status = 200, body = JwtToken)
     )

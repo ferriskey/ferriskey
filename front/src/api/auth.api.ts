@@ -114,10 +114,7 @@ export const useRegistrationMutation = () => {
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'post',
-      '/realms/{realm_name}/protocol/openid-connect/logout',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/logout')
+      .mutationOptions,
   })
 }
