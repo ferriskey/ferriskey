@@ -7,6 +7,7 @@ import {
 } from './api.interface'
 
 import { JwtToken } from './core.interface'
+import type { Schemas } from './api.client'
 
 export interface AuthenticatePayload {
   data: AuthenticateRequest
@@ -104,17 +105,43 @@ export const useTokenMutation = () => {
 
 export const useRegistrationMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'post',
-      '/realms/{realm_name}/protocol/openid-connect/registrations',
-      async (res) => res.json()
-    ).mutationOptions,
+    mutationFn: async (params: RegistrationPayload): Promise<JwtToken> => {
+      if (!window.axios) {
+        throw new Error('API client not initialized')
+      }
+      const response = await window.axios.post<JwtToken>(
+        `/realms/${params.path.realm_name}/protocol/openid-connect/registrations`,
+        params.body
+      )
+      return response.data
+    },
   })
+}
+
+export interface RegistrationPayload {
+  path: {
+    realm_name: string
+  }
+  body: Schemas.RegistrationRequest
+}
+
+export interface LogoutPayload {
+  path?: {
+    realm_name?: string
+  }
 }
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/logout')
-      .mutationOptions,
+    mutationFn: async (params: LogoutPayload): Promise<unknown> => {
+      if (!window.axios) {
+        throw new Error('API client not initialized')
+      }
+      const realmName = params?.path?.realm_name ?? 'master'
+      const response = await window.axios.post(
+        `/realms/${realmName}/protocol/openid-connect/logout`
+      )
+      return response.data
+    },
   })
 }
