@@ -33,14 +33,7 @@ declare global {
 
 function App() {
   const { realm_name } = useParams()
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { isAuthenticated, isLoading } = useAuth()
-  const { setConfig } = useConfig()
-  const { theme } = useTheme()
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
-
-  const { data: responseConfig } = useGetConfig()
   const defaultRealm = realm_name ?? 'master'
 
   const apiCallback = useCallback(async () => {
@@ -77,6 +70,25 @@ function App() {
     apiCallback()
   }, [apiCallback])
 
+  if (!apiUrlSetup) {
+    return (
+      <div className='h-screen flex items-center justify-center text-gray-500'>
+        <BasicSpinner />
+      </div>
+    )
+  }
+
+  return <AppRoutes defaultRealm={defaultRealm} />
+}
+
+function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { isAuthenticated, isLoading } = useAuth()
+  const { setConfig } = useConfig()
+  const { theme } = useTheme()
+  const { data: responseConfig } = useGetConfig()
+
   useEffect(() => {
     if (responseConfig) {
       setConfig(responseConfig)
@@ -104,15 +116,6 @@ function App() {
       navigate(`/realms/${defaultRealm}/overview`, { replace: true })
     }
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, defaultRealm, navigate])
-
-
-  if (!apiUrlSetup) {
-    return (
-      <div className='h-screen flex items-center justify-center text-gray-500'>
-        <BasicSpinner />
-      </div>
-    )
-  }
 
   return (
     <>
