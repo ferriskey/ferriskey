@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::generate_uuid_v7,
-    jwt::entities::{JwtError, JwtKeyPair},
+    jwt::{JwtError, entities::JwtKeyPair},
 };
 
 impl TryFrom<crate::entity::jwt_keys::Model> for JwtKeyPair {

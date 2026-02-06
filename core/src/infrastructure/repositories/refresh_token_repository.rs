@@ -6,10 +6,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     common::generate_uuid_v7,
-    jwt::{
-        entities::{JwtError, RefreshToken},
-        ports::RefreshTokenRepository,
-    },
+    jwt::{JwtError, entities::RefreshToken, ports::RefreshTokenRepository},
 };
 
 impl From<crate::entity::refresh_tokens::Model> for RefreshToken {
