@@ -35,7 +35,7 @@ where
         user_agent: Option<String>,
         ip_address: Option<String>,
         session_duration: Duration,
-        soft_expiry_duration: Duration,
+        soft_expiry_duration: Option<Duration>,
     ) -> Result<UserSession, SessionError> {
         let session = UserSession::new(
             user_id,

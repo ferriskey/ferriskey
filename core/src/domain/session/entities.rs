@@ -18,7 +18,7 @@ pub struct UserSession {
     pub ip_address: Option<String>,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-    pub soft_expiry_duration: Duration,
+    pub soft_expiry_duration: Option<Duration>,
 }
 
 impl UserSession {
@@ -28,7 +28,7 @@ impl UserSession {
         user_agent: Option<String>,
         ip_address: Option<String>,
         session_duration: Duration,
-        soft_expiry_duration: Duration,
+        soft_expiry_duration: Option<Duration>,
     ) -> Self {
         let expires_at = Utc::now() + session_duration;
         Self {
@@ -52,8 +52,12 @@ impl UserSession {
 
         if now > self.expires_at {
             SessionState::Expired
-        } else if now > self.expires_at - self.soft_expiry_duration {
-            SessionState::SoftExpired
+        } else if let Some(soft_expiry_duration) = self.soft_expiry_duration {
+            if now > self.expires_at - soft_expiry_duration {
+                SessionState::SoftExpired
+            } else {
+                SessionState::Active
+            }
         } else {
             SessionState::Active
         }

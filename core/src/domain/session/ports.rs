@@ -11,7 +11,7 @@ pub trait UserSessionService: Send + Sync {
         user_agent: Option<String>,
         ip_address: Option<String>,
         session_duration: Duration,
-        soft_expiry_duration: Duration,
+        soft_expiry_duration: Option<Duration>,
     ) -> impl Future<Output = Result<UserSession, SessionError>> + Send;
 }
 
