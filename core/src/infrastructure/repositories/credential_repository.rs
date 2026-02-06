@@ -17,7 +17,7 @@ use crate::domain::{
         entities::{Credential, CredentialData, CredentialError},
         ports::CredentialRepository,
     },
-    crypto::entities::HashResult,
+    crypto::HashResult,
 };
 
 impl From<crate::entity::credentials::Model> for Credential {

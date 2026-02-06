@@ -24,7 +24,7 @@ use crate::domain::{
     client::ports::{ClientRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
-    crypto::ports::HasherRepository,
+    crypto::HasherRepository,
     jwt::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
         ports::RefreshTokenRepository,

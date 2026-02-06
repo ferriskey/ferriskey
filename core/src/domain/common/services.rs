@@ -13,7 +13,7 @@ use crate::domain::{
         ports::CoreService,
     },
     credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
+    crypto::HasherRepository,
     realm::ports::RealmRepository,
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,

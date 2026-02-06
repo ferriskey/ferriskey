@@ -5,7 +5,7 @@ use argon2::{
 
 use ferriskey_security::SecurityError;
 
-use crate::domain::crypto::{entities::HashResult, ports::HasherRepository};
+use crate::domain::crypto::{HashResult, HasherRepository};
 
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {}

@@ -1,6 +1,6 @@
 use crate::domain::credential::entities::{Credential, CredentialError};
 use crate::domain::credential::ports::CredentialRepository;
-use crate::domain::crypto::entities::HashResult;
+use crate::domain::crypto::HashResult;
 use crate::infrastructure::repositories::credential_repository::PostgresCredentialRepository;
 use serde_json::Value;
 use uuid::Uuid;

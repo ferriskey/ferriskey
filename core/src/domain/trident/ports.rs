@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
-    crypto::entities::HashResult,
+    crypto::HashResult,
     trident::entities::{MfaRecoveryCode, TotpSecret},
 };
 
