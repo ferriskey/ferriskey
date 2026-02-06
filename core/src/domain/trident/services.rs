@@ -23,7 +23,7 @@ use crate::{
             entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
         },
-        crypto::ports::HasherRepository,
+        crypto::HasherRepository,
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{

@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::crypto::entities::HashResult;
-use crate::domain::crypto::ports::HasherRepository;
+use crate::domain::crypto::{HashResult, HasherRepository};
 use crate::domain::trident::entities::MfaRecoveryCode;
 use crate::domain::trident::ports::RecoveryCodeRepository;
 
