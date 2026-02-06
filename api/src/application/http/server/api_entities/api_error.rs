@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ferriskey_core::domain::jwt::entities::JwtError;
+use ferriskey_core::domain::jwt::JwtError;
 use ferriskey_core::domain::{
     authentication::entities::AuthenticationError, webhook::entities::errors::WebhookError,
 };
