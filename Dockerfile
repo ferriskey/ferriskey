@@ -9,6 +9,7 @@ COPY libs/maskass/Cargo.toml ./libs/maskass/
 COPY libs/ferriskey-domain/Cargo.toml ./libs/ferriskey-domain/
 COPY libs/ferriskey-security/Cargo.toml ./libs/ferriskey-security/
 COPY libs/ferriskey-trident/Cargo.toml ./libs/ferriskey-trident/
+COPY libs/ferriskey-abyss/Cargo.toml ./libs/ferriskey-abyss/
 
 COPY core/Cargo.toml ./core/
 
@@ -32,6 +33,7 @@ COPY libs/maskass libs/maskass
 COPY libs/ferriskey-domain libs/ferriskey-domain
 COPY libs/ferriskey-security libs/ferriskey-security
 COPY libs/ferriskey-trident libs/ferriskey-trident
+COPY libs/ferriskey-abyss libs/ferriskey-abyss
 
 COPY core core
 COPY api api
@@ -42,6 +44,7 @@ RUN \
   touch libs/ferriskey-domain/src/lib.rs && \
   touch libs/ferriskey-security/src/lib.rs && \
   touch libs/ferriskey-trident/src/lib.rs && \
+  touch libs/ferriskey-abyss/src/lib.rs && \
   touch core/src/lib.rs && \
   touch operator/src/main.rs && \
   cargo build --release
