@@ -10,3 +10,4 @@ rand = "0.8"
 serde = { version = "1.0.228", features = ["derive"] }
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.20.0", features = ["serde", "v4", "v7"] }
+thiserror = "2.0.12"
