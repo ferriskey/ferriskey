@@ -1,0 +1,10 @@
+[package]
+name = "ferriskey-trident"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-domain = { path = "../ferriskey-domain" }
+base32 = "0.5.1"
+serde = { version = "1.0.228", features = ["derive"] }

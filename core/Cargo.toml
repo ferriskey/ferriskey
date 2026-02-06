@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 ferriskey-domain = { path = "../libs/ferriskey-domain" }
 ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
+ferriskey-trident = { path = "../libs/ferriskey-trident" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"

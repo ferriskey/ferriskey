@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "api", "operator", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain"]
+members = ["core", "api", "operator", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain", "libs/ferriskey-trident"]
 resolver = "2"
 
 [workspace.package]
