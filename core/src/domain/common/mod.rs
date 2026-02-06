@@ -23,6 +23,7 @@ pub struct DatabaseConfig {
     pub username: String,
     pub password: String,
     pub name: String,
+    pub schema: String,
 }
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
