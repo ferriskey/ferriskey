@@ -1,6 +1,5 @@
-use crate::domain::{
-    common::entities::app_errors::CoreError, identity_provider::IdentityProviderConfig,
-};
+use crate::identity_provider::IdentityProviderConfig;
+use ferriskey_domain::common::app_errors::CoreError;
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;

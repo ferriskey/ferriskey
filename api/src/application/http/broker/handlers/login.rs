@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
 };
 
-use ferriskey_core::domain::identity_provider::broker::{BrokerLoginInput, BrokerService};
+use ferriskey_core::domain::abyss::identity_provider::broker::{BrokerLoginInput, BrokerService};
 
 use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 use crate::application::url::FullUrl;

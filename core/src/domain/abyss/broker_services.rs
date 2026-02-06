@@ -6,27 +6,22 @@ use sha2::{Digest, Sha256};
 use tracing::{error, instrument};
 use uuid::Uuid;
 
+use crate::domain::abyss::identity_provider::broker::{
+    BrokerAuthSessionRepository, BrokerCallbackInput, BrokerCallbackOutput, BrokerLoginInput,
+    BrokerLoginOutput, BrokerService, BrokeredUserInfo, CreateBrokerAuthSessionRequest,
+    CreateIdentityProviderLinkRequest, IdentityProviderLink, IdentityProviderLinkRepository,
+    OAuthClient, OAuthProviderConfig, OAuthTokenResponse,
+};
+use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
 use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
 use crate::domain::authentication::ports::AuthSessionRepository;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::identity_provider::IdentityProvider;
-use crate::domain::identity_provider::ports::IdentityProviderRepository;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
 use crate::domain::user::value_objects::CreateUserRequest;
-
-use super::entities::IdentityProviderLink;
-use super::ports::{
-    BrokerAuthSessionRepository, BrokerService, IdentityProviderLinkRepository, OAuthClient,
-};
-use super::value_objects::{
-    BrokerCallbackInput, BrokerCallbackOutput, BrokerLoginInput, BrokerLoginOutput,
-    BrokeredUserInfo, CreateBrokerAuthSessionRequest, CreateIdentityProviderLinkRequest,
-    OAuthProviderConfig, OAuthTokenResponse,
-};
 
 /// Implementation of the BrokerService trait
 #[derive(Clone, Debug)]

@@ -1398,6 +1398,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
+name = "ferriskey-abyss"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "maskass",
+ "mockall 0.14.0",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-api"
 version = "0.1.0"
 dependencies = [
@@ -1451,6 +1466,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "enum-display",
+ "ferriskey-abyss",
  "ferriskey-domain",
  "ferriskey-security",
  "ferriskey-trident",

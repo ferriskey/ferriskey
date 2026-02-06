@@ -6,6 +6,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+ferriskey-abyss = { path = "../libs/ferriskey-abyss", features = ["mock"] }
 ferriskey-domain = { path = "../libs/ferriskey-domain" }
 ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
 ferriskey-trident = { path = "../libs/ferriskey-trident" }

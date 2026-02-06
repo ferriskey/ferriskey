@@ -7,12 +7,16 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::policies::ensure_policy;
 use crate::domain::realm::ports::RealmRepository;
 
-use super::entities::{
+use crate::domain::abyss::identity_provider::value_objects::{
+    CreateIdentityProviderRequest, UpdateIdentityProviderRequest,
+};
+use crate::domain::abyss::identity_provider::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
     IdentityProvider, ListIdentityProvidersInput, UpdateIdentityProviderInput,
 };
-use super::ports::{IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService};
-use super::value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
+use crate::domain::abyss::identity_provider::{
+    IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService,
+};
 
 /// Implementation of the IdentityProviderService trait
 ///

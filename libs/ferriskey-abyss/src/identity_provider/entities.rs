@@ -7,7 +7,7 @@ use serde_json::Value as JsonValue;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::realm::entities::RealmId;
+use ferriskey_domain::realm::RealmId;
 
 /// Unique identifier for an Identity Provider
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]

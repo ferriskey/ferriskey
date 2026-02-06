@@ -2,8 +2,8 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::identity_provider::IdentityProviderId;
+use crate::identity_provider::IdentityProviderId;
+use ferriskey_domain::common::app_errors::CoreError;
 
 use super::entities::{BrokerAuthSession, IdentityProviderLink};
 use super::value_objects::{
@@ -13,7 +13,6 @@ use super::value_objects::{
 };
 
 /// Repository trait for BrokerAuthSession persistence
-#[cfg_attr(test, mockall::automock)]
 pub trait BrokerAuthSessionRepository: Send + Sync {
     /// Creates a new broker auth session
     fn create(
@@ -41,7 +40,6 @@ pub trait BrokerAuthSessionRepository: Send + Sync {
 }
 
 /// Repository trait for IdentityProviderLink persistence
-#[cfg_attr(test, mockall::automock)]
 pub trait IdentityProviderLinkRepository: Send + Sync {
     /// Creates a new identity provider link
     fn create(
@@ -110,26 +108,18 @@ pub trait OAuthClient: Send + Sync {
 /// Service trait for broker authentication business logic
 pub trait BrokerService: Send + Sync {
     /// Initiates the SSO login flow
-    ///
-    /// Validates the request, creates a broker session, and returns
-    /// the URL to redirect the user to the IdP.
     fn initiate_login(
         &self,
         input: BrokerLoginInput,
     ) -> impl Future<Output = Result<BrokerLoginOutput, CoreError>> + Send;
 
     /// Handles the callback from the IdP
-    ///
-    /// Validates the state, exchanges the code for tokens,
-    /// finds or creates the user, and returns the redirect URL.
     fn handle_callback(
         &self,
         input: BrokerCallbackInput,
     ) -> impl Future<Output = Result<BrokerCallbackOutput, CoreError>> + Send;
 
     /// Extracts user info from OAuth tokens
-    ///
-    /// Attempts to extract from ID token first, falls back to userinfo endpoint.
     fn extract_user_info(
         &self,
         config: &OAuthProviderConfig,

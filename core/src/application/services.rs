@@ -1,5 +1,6 @@
 use crate::{
     domain::{
+        abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -9,8 +10,6 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        identity_provider::broker::services::BrokerServiceImpl,
-        identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,

@@ -1,8 +1,10 @@
 use reqwest::Client;
 use tracing::instrument;
 
+use crate::domain::abyss::identity_provider::broker::{
+    BrokeredUserInfo, OAuthClient, OAuthTokenResponse,
+};
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::identity_provider::broker::{BrokeredUserInfo, OAuthClient, OAuthTokenResponse};
 
 /// HTTP client implementation for OAuth operations with external IdPs
 #[derive(Debug, Clone)]

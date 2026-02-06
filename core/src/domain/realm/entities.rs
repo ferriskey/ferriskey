@@ -2,7 +2,7 @@ pub use ferriskey_domain::realm::{Realm, RealmId, RealmSetting};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::domain::identity_provider::entities::IdentityProviderPresentation;
+use crate::domain::abyss::identity_provider::entities::IdentityProviderPresentation;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct RealmLoginSetting {
