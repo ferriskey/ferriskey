@@ -16,7 +16,7 @@ COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 
 RUN \
-    mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/ libs/ferriskey-trident/ && \
+    mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src && \
     touch libs/maskass/src/lib.rs && \
     touch libs/ferriskey-domain/src/lib.rs && \
     touch libs/ferriskey-security/src/lib.rs && \
