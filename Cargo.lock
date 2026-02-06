@@ -1453,6 +1453,7 @@ dependencies = [
  "enum-display",
  "ferriskey-domain",
  "ferriskey-security",
+ "ferriskey-trident",
  "futures",
  "hex",
  "hmac",
@@ -1536,6 +1537,15 @@ dependencies = [
  "thiserror 2.0.18",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferriskey-trident"
+version = "0.1.0"
+dependencies = [
+ "base32",
+ "ferriskey-domain",
+ "serde",
 ]
 
 [[package]]
