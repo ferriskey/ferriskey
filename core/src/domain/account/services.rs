@@ -46,17 +46,13 @@ where
         &self,
         account_hint: AccountHint,
     ) -> Result<AccountHint, CoreError> {
-        let repo = &self.account_hint_repository;
-        match repo
+        self.account_hint_repository
             .get_hints(&account_hint.user_id, &account_hint.realm_id)
+            .await?;
+
+        self.account_hint_repository
+            .update_hint(&account_hint.user_id, &account_hint.realm_id)
             .await
-        {
-            Ok(_) => {
-                repo.update_hint(&account_hint.user_id, &account_hint.realm_id)
-                    .await
-            }
-            Err(e) => Err(e),
-        }
     }
 
     async fn get_account_hints(
