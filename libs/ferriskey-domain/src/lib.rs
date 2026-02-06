@@ -2,7 +2,13 @@ use chrono::{DateTime, Utc};
 use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
+pub mod auth;
+pub mod authentication;
+pub mod client;
+pub mod common;
 pub mod realm;
+pub mod role;
+pub mod user;
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
     let now = Utc::now();
