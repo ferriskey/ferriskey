@@ -1,11 +1,11 @@
 use crate::domain::{
+    abyss::identity_provider::{IdentityProvider, IdentityProviderPolicy},
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
     common::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, Policy},
     },
-    identity_provider::{entities::IdentityProvider, ports::IdentityProviderPolicy},
     realm::entities::{Realm, RealmId},
     role::entities::permission::Permissions,
     user::ports::{UserRepository, UserRoleRepository},
@@ -167,8 +167,8 @@ where
 mod tests {
     use super::*;
     use crate::domain::{
+        abyss::identity_provider::{IdentityProviderConfig, IdentityProviderCreationConfig},
         client::ports::MockClientRepository,
-        identity_provider::entities::{IdentityProviderConfig, IdentityProviderCreationConfig},
         realm::entities::Realm,
         role::entities::Role,
         user::{

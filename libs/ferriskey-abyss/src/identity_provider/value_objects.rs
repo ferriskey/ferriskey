@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-use crate::domain::realm::entities::RealmId;
+use ferriskey_domain::realm::RealmId;
 
 /// Request DTO for creating a new identity provider
 #[derive(Debug, Clone, Serialize, Deserialize)]

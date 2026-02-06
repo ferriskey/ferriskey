@@ -9,6 +9,7 @@ COPY libs/maskass/Cargo.toml ./libs/maskass/
 COPY libs/ferriskey-domain/Cargo.toml ./libs/ferriskey-domain/
 COPY libs/ferriskey-security/Cargo.toml ./libs/ferriskey-security/
 COPY libs/ferriskey-trident/Cargo.toml ./libs/ferriskey-trident/
+COPY libs/ferriskey-abyss/Cargo.toml ./libs/ferriskey-abyss/
 
 COPY core/Cargo.toml ./core/
 
@@ -16,54 +17,57 @@ COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 
 RUN \
-    mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src && \
-    touch libs/maskass/src/lib.rs && \
-    touch libs/ferriskey-domain/src/lib.rs && \
-    touch libs/ferriskey-security/src/lib.rs && \
-    touch libs/ferriskey-trident/src/lib.rs && \
-    touch core/src/lib.rs && \
+  mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src && \
+  touch libs/maskass/src/lib.rs && \
+  touch libs/ferriskey-domain/src/lib.rs && \
+  touch libs/ferriskey-security/src/lib.rs && \
+  touch libs/ferriskey-trident/src/lib.rs && \
+  touch libs/ferriskey-abyss/src/lib.rs && \
+  touch core/src/lib.rs && \
 
-    echo "fn main() {}" > operator/src/main.rs && \
-    echo "fn main() {}" > api/src/main.rs && \
-    cargo build --release
+  echo "fn main() {}" > operator/src/main.rs && \
+  echo "fn main() {}" > api/src/main.rs && \
+  cargo build --release
 
 COPY libs/maskass libs/maskass
 COPY libs/ferriskey-domain libs/ferriskey-domain
 COPY libs/ferriskey-security libs/ferriskey-security
 COPY libs/ferriskey-trident libs/ferriskey-trident
+COPY libs/ferriskey-abyss libs/ferriskey-abyss
 
 COPY core core
 COPY api api
 COPY operator operator
 
 RUN \
-    touch libs/maskass/src/lib.rs && \
-    touch libs/ferriskey-domain/src/lib.rs && \
-    touch libs/ferriskey-security/src/lib.rs && \
-    touch libs/ferriskey-trident/src/lib.rs && \
-    touch core/src/lib.rs && \
-    touch operator/src/main.rs && \
-    cargo build --release
+  touch libs/maskass/src/lib.rs && \
+  touch libs/ferriskey-domain/src/lib.rs && \
+  touch libs/ferriskey-security/src/lib.rs && \
+  touch libs/ferriskey-trident/src/lib.rs && \
+  touch libs/ferriskey-abyss/src/lib.rs && \
+  touch core/src/lib.rs && \
+  touch operator/src/main.rs && \
+  cargo build --release
 
 FROM debian:bookworm-slim AS runtime
 
 RUN \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates=20230311+deb12u1 \
-    libssl3=3.0.17-1~deb12u2 && \
-    rm -rf /var/lib/apt/lists/* && \
-    addgroup \
-    --system \
-    --gid 1000 \
-    ferriskey && \
-    adduser \
-    --system \
-    --no-create-home \
-    --disabled-login \
-    --uid 1000 \
-    --gid 1000 \
-    ferriskey
+  apt-get update && \
+  apt-get install -y --no-install-recommends \
+  ca-certificates=20230311+deb12u1 \
+  libssl3=3.0.17-1~deb12u2 && \
+  rm -rf /var/lib/apt/lists/* && \
+  addgroup \
+  --system \
+  --gid 1000 \
+  ferriskey && \
+  adduser \
+  --system \
+  --no-create-home \
+  --disabled-login \
+  --uid 1000 \
+  --gid 1000 \
+  ferriskey
 
 USER ferriskey
 
@@ -93,9 +97,9 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 RUN \
-    corepack enable && \
-    corepack prepare pnpm@9.15.0 --activate && \
-    apk --no-cache add dumb-init=1.2.5-r3
+  corepack enable && \
+  corepack prepare pnpm@9.15.0 --activate && \
+  apk --no-cache add dumb-init=1.2.5-r3
 
 COPY front/package.json front/pnpm-lock.yaml ./
 

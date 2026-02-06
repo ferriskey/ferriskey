@@ -5,11 +5,11 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::common::generate_uuid_v7;
-use crate::domain::identity_provider::broker::{
+use crate::domain::abyss::identity_provider::broker::{
     BrokerAuthSession, BrokerAuthSessionRepository, CreateBrokerAuthSessionRequest,
 };
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::generate_uuid_v7;
 use crate::entity::broker_auth_sessions::{ActiveModel, Column, Entity as BrokerAuthSessionEntity};
 
 /// PostgreSQL implementation of the BrokerAuthSessionRepository trait

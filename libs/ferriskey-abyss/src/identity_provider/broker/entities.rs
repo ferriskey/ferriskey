@@ -2,8 +2,8 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::domain::identity_provider::IdentityProviderId;
-use crate::domain::realm::entities::RealmId;
+use crate::identity_provider::IdentityProviderId;
+use ferriskey_domain::realm::RealmId;
 
 /// Broker authentication session - tracks OAuth state during SSO flow
 ///
