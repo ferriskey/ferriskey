@@ -5,13 +5,16 @@ import { SigningAlgorithm } from '@/api/core.interface'
 import { Form } from '@/components/ui/form'
 import PageRealmSettingsGeneral from '../ui/page-realm-settings-general'
 import { useFormChanges } from '@/hooks/use-form-changes'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { useGetRealm } from '@/api/realm.api'
+import { useDeleteRealm, useGetRealm } from '@/api/realm.api'
+import { toast } from 'sonner'
 
 export default function PageRealmSettingsGeneralFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { data: realm } = useGetRealm({ realm: realm_name })
+  const navigate = useNavigate()
+  const deleteRealm = useDeleteRealm()
 
   const form = useForm<UpdateRealmSchema>({
     resolver: zodResolver(updateRealmValidator),
@@ -30,6 +33,19 @@ export default function PageRealmSettingsGeneralFeature() {
     }
   )
 
+  const handleDeleteRealm = () => {
+    if (!realm_name) return
+
+    deleteRealm.mutate(
+      { path: { name: realm_name } },
+      {
+        onSuccess: () => {
+          toast.success(`Realm "${realm_name}" has been deleted.`)
+          navigate('/realms/master/overview')
+        },
+      }
+    )
+  }
 
   if (!realm) return (
     <div>No realm</div>
@@ -37,7 +53,12 @@ export default function PageRealmSettingsGeneralFeature() {
 
   return (
     <Form {...form}>
-      <PageRealmSettingsGeneral hasChanges={hasChanges} />
+      <PageRealmSettingsGeneral
+        hasChanges={hasChanges}
+        realmName={realm_name ?? ''}
+        isMaster={realm_name === 'master'}
+        onDeleteRealm={handleDeleteRealm}
+      />
     </Form>
   )
 }
