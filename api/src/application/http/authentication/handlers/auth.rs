@@ -22,7 +22,7 @@ use crate::application::url::FullUrl;
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
-fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
+pub fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
     if root_path.is_empty() || root_path == "/" {
         return base_url.to_string();
     }

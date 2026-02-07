@@ -1,6 +1,10 @@
-use crate::application::http::server::api_entities::response::Response;
+use super::auth::root_scoped_base_url;
+use crate::application::http::server::{api_entities::response::Response, app_state::AppState};
 use axum::http::Request;
-use axum::{body::Body, extract::Path};
+use axum::{
+    body::Body,
+    extract::{Path, State},
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -30,6 +34,7 @@ pub struct GetOpenIdConfigurationResponse {
 )]
 pub async fn get_openid_configuration(
     Path(realm_name): Path<String>,
+    State(state): State<AppState>,
     req: Request<Body>,
 ) -> Result<Response<GetOpenIdConfigurationResponse>, String> {
     // Here you would typically fetch the issuer from a database or configuration
@@ -46,7 +51,12 @@ pub async fn get_openid_configuration(
     });
 
     let base_url = format!("{scheme}://{host}");
-    let issuer = format!("{base_url}/realms/{realm_name}");
+
+    let issuer = format!(
+        "{}/realms/{}",
+        root_scoped_base_url(&base_url, &state.args.server.root_path),
+        realm_name
+    );
 
     Ok(Response::OK(GetOpenIdConfigurationResponse {
         issuer: issuer.clone(),
