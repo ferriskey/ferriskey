@@ -24,22 +24,35 @@ export default function PageLoginFeature() {
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
+  const getAuthParamsFromUrl = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const clientId = urlParams.get('client_id')
+    const redirectUri = urlParams.get('redirect_uri')
+
+    return {
+      clientId: clientId ?? 'security-admin-console',
+      redirectUri:
+        redirectUri ??
+        `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`,
+    }
+  }, [realm_name])
 
   const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
     sessionStorage.setItem('oauth_state', state)
+    const { clientId, redirectUri } = getAuthParamsFromUrl()
 
     return {
       query: new URLSearchParams({
         response_type: 'code',
-        client_id: 'security-admin-console',
-        redirect_uri: `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`, // URL de callback de votre app
+        client_id: clientId,
+        redirect_uri: redirectUri, // URL de callback de votre app
         scope: 'openid profile email',
         state,
       }).toString(),
       realm: realm_name ?? 'master',
     }
-  }, [realm_name])
+  }, [getAuthParamsFromUrl, realm_name])
 
   const {
     mutate: authenticate,
@@ -90,10 +103,11 @@ export default function PageLoginFeature() {
     )
 
     const sessionCode = cookies['FERRISKEY_SESSION'] || '123456' // Fallback to default if not found
+    const { clientId } = getAuthParamsFromUrl()
     authenticate({
       data,
       realm: realm_name ?? 'master',
-      clientId: 'security-admin-console',
+      clientId,
       sessionCode,
     })
   }

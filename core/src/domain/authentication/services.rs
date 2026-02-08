@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -116,6 +116,11 @@ where
     RT: RefreshTokenRepository,
     F: FederationRepository,
 {
+    fn expires_in_from(exp: i64) -> u32 {
+        let now = Utc::now().timestamp();
+        if exp <= now { 0 } else { (exp - now) as u32 }
+    }
+
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -123,7 +128,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);
@@ -149,7 +155,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);
@@ -349,7 +356,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -398,7 +405,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -464,7 +471,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -515,7 +522,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -547,7 +554,11 @@ where
                 params.password,
                 params.base_url,
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("authentication using session code error: {:?}", e);
+                e
+            })?;
 
         self.determine_next_step(auth_result, params.session_code, auth_session)
             .await
@@ -595,7 +606,13 @@ where
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|e| {
+                warn!(
+                    "failed to update auth session with code and user id: {:?}",
+                    e
+                );
+                CoreError::InternalServerError
+            })?;
 
         let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
 
@@ -623,12 +640,22 @@ where
 
         self.client_repository
             .get_by_client_id(client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("Client not found for client_id {}: {:?}", client_id, e);
+
+                CoreError::InvalidClient
+            })?;
 
         let user = self
             .user_repository
-            .get_by_username(username, realm.id)
-            .await?;
+            .get_by_username(username.clone(), realm.id)
+            .await
+            .map_err(|e| {
+                warn!("User not found for username {}: {:?}", username, e);
+
+                CoreError::UserNotFound
+            })?;
 
         // Check if user has federation mapping (LDAP authentication) FIRST
         let federation_mapping = self
@@ -1031,7 +1058,7 @@ where
             .get_by_session_code(input.session_code)
             .await
             .map_err(|e| {
-                error!("Failed to get auth session by session code: {:?}", e);
+                warn!("Failed to get auth session by session code: {:?}", e);
                 CoreError::InternalServerError
             })?;
 
@@ -1127,7 +1154,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            jwt.expires_at as u32,
+            Self::expires_in_from(jwt.expires_at),
             None,
         ))
     }
