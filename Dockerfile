@@ -24,6 +24,7 @@ RUN \
   touch libs/ferriskey-trident/src/lib.rs && \
   touch libs/ferriskey-abyss/src/lib.rs && \
   touch core/src/lib.rs && \
+
   echo "fn main() {}" > operator/src/main.rs && \
   echo "fn main() {}" > api/src/main.rs && \
   cargo build --release

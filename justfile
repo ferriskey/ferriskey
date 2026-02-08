@@ -155,7 +155,7 @@ dev-setup: _ensure-docker-running
   @# - Start the Postgres container
   @# - Optionally run SQL migrations
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
-  @{{compose}} up -d db
+  @POSTGRES_IMAGE=postgres:18.1 POSTGRES_DATA_PATH=/var/lib/postgresql {{compose}} up -d db
   @just _wait-db
   @read -r -p "Run DB migrations now? [Y/n] " ans; \
     case "${ans:-Y}" in \
