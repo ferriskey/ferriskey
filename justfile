@@ -1,0 +1,120 @@
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+compose := "docker compose -f docker-compose.yaml"
+pgdata_volume_default := "ferriskey_pgdata"
+
+default: help
+
+help:
+  @just --list
+
+_ensure-docker:
+  @if command -v docker >/dev/null 2>&1; then exit 0; fi
+  @echo "Docker not found."
+  @read -r -p "Install Docker now using get.docker.com? [y/N] " ans; \
+    case "${ans:-}" in \
+      y|Y|yes|YES) ;; \
+      *) echo "Skipping Docker install. Install Docker, then re-run." >&2; exit 1;; \
+    esac
+  @if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then \
+    echo "Need 'curl' or 'wget' to install Docker." >&2; \
+    exit 1; \
+  fi
+  @install_cmd=''; \
+    if command -v curl >/dev/null 2>&1; then install_cmd='curl -fsSL https://get.docker.com | sh'; \
+    else install_cmd='wget -qO- https://get.docker.com | sh'; fi; \
+    if command -v sudo >/dev/null 2>&1; then sudo sh -lc "$install_cmd"; else sh -lc "$install_cmd"; fi
+  @echo "Docker install finished. If this is Linux, you may need to log out/in for group permissions."
+
+_ensure-docker-running: _ensure-docker
+  @if ! docker info >/dev/null 2>&1; then \
+    echo "Docker daemon is not running (or you don't have permission)." >&2; \
+    echo "Start Docker Desktop (macOS/Windows) or start the daemon (Linux), then re-run." >&2; \
+    exit 1; \
+  fi
+  @if ! docker compose version >/dev/null 2>&1; then \
+    echo "'docker compose' is not available." >&2; \
+    echo "Install Docker Compose v2, then re-run." >&2; \
+    exit 1; \
+  fi
+
+_ensure-node:
+  @if command -v node >/dev/null 2>&1; then exit 0; fi
+  @echo "Node.js not found."
+  @read -r -p "Install latest Node LTS via nvm? [y/N] " ans; \
+    case "${ans:-}" in \
+      y|Y|yes|YES) ;; \
+      *) echo "Skipping Node install." >&2; exit 1;; \
+    esac
+  @if ! command -v curl >/dev/null 2>&1; then \
+    echo "Need 'curl' to install nvm." >&2; \
+    exit 1; \
+  fi
+  @export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; \
+    if [ ! -s "$NVM_DIR/nvm.sh" ]; then \
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash; \
+    fi; \
+    . "$NVM_DIR/nvm.sh"; \
+    nvm install --lts; \
+    nvm use --lts
+
+_ensure-pnpm: _ensure-node
+  @if command -v pnpm >/dev/null 2>&1; then exit 0; fi
+  @echo "pnpm not found."
+  @read -r -p "Install latest pnpm via corepack? [y/N] " ans; \
+    case "${ans:-}" in \
+      y|Y|yes|YES) ;; \
+      *) echo "Skipping pnpm install." >&2; exit 1;; \
+    esac
+  @corepack enable
+  @corepack prepare pnpm@latest --activate
+
+_ensure-cargo-watch:
+  @if command -v cargo >/dev/null 2>&1; then :; else \
+    echo "Rust toolchain not found (missing 'cargo'). Install rustup, then re-run." >&2; \
+    exit 1; \
+  fi
+  @if command -v cargo-watch >/dev/null 2>&1; then exit 0; fi
+  @echo "cargo-watch not found."
+  @read -r -p "Install cargo-watch (latest) now? [y/N] " ans; \
+    case "${ans:-}" in \
+      y|Y|yes|YES) ;; \
+      *) echo "Skipping cargo-watch install." >&2; exit 1;; \
+    esac
+  @cargo install cargo-watch
+
+dev-setup: _ensure-docker-running
+  @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
+  @{{compose}} up -d db
+  @read -r -p "Run DB migrations now? [Y/n] " ans; \
+    case "${ans:-Y}" in \
+      n|N|no|NO) echo "Skipping migrations. You can run: just migrate";; \
+      *) {{compose}} --profile build run --rm db-migrations-build;; \
+    esac
+
+migrate: _ensure-docker-running
+  @{{compose}} --profile build run --rm db-migrations-build
+
+dev: dev-setup _ensure-cargo-watch
+  @# Ensure api/.env exists (app loads it via dotenv)
+  @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
+  @cd api && cargo watch -x "run --bin ferriskey-api"
+
+dev-test: _ensure-docker-running
+  @# "Full" build profile run (build + run containers)
+  @{{compose}} --profile build up -d --build
+
+test: dev-test
+
+db-down: _ensure-docker-running
+  @# Remove only the db container and its data volume (default: ferriskey_pgdata).
+  @{{compose}} stop db || true
+  @{{compose}} rm -f db || true
+  @docker volume rm -f "${PGDATA_VOLUME:-{{pgdata_volume_default}}}" || true
+
+dev-test-down: _ensure-docker-running
+  @{{compose}} --profile build down -v
+
+web: _ensure-pnpm
+  @if [ ! -f front/.env ]; then cp front/.env.example front/.env; fi
+  @cd front && pnpm install && pnpm run dev --host 0.0.0.0 --port 5555

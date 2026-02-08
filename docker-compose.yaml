@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: ${POSTGRES_IMAGE:-postgres:18.1}
     environment:
       PGUSER: ferriskey
       POSTGRES_DB: ferriskey
@@ -115,3 +115,4 @@ services:
       - registry
 volumes:
   pgdata:
+    name: ${PGDATA_VOLUME:-ferriskey_pgdata}

@@ -73,6 +73,26 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 
 ## 🚀 Quick Start
 
+### Option 0 (Recommended) — `just` + Docker (Postgres) + local dev server
+
+```bash
+# Starts Postgres (Docker) and asks if you want to run migrations
+just dev-setup
+
+# Dev server (auto-restarts on changes)
+just dev
+
+# Production-like build profile (build and run containers)
+just dev-test
+
+# Cleanup
+just db-down
+just dev-test-down
+
+# Optional: frontend dev server
+just web
+```
+
 ### Option A — Using latest Docker image
 
 ```yaml
