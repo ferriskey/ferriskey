@@ -91,17 +91,60 @@ _ensure-cargo-watch:
   esac; \
   cargo install cargo-watch
 
+_ensure-sqlx-cli:
+  @if command -v sqlx >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  if ! command -v cargo >/dev/null 2>&1; then \
+    echo "Missing 'sqlx' (sqlx-cli) and Rust toolchain (missing 'cargo'). Install rustup, then re-run." >&2; \
+    exit 1; \
+  fi; \
+  echo "sqlx-cli not found."; \
+  read -r -p "Install sqlx-cli (postgres) now? [y/N] " ans; \
+  case "${ans:-}" in \
+    y|Y|yes|YES) ;; \
+    *) echo "Skipping sqlx-cli install." >&2; exit 1;; \
+  esac; \
+  cargo install sqlx-cli --no-default-features --features postgres
+
+_wait-db: _ensure-docker-running
+  @# Wait for the Postgres container to accept connections.
+  @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
+  @set -a; . api/.env; set +a; \
+    echo "Waiting for Postgres to accept connections..."; \
+    for i in {1..60}; do \
+      if {{compose}} exec -T db pg_isready -U "${DATABASE_USER:-ferriskey}" -d "${DATABASE_NAME:-ferriskey}" >/dev/null 2>&1; then \
+        exit 0; \
+      fi; \
+      sleep 1; \
+    done; \
+    echo "Postgres did not become ready in time." >&2; \
+    exit 1
+
 dev-setup: _ensure-docker-running
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
   @{{compose}} up -d db
+  @just _wait-db
   @read -r -p "Run DB migrations now? [Y/n] " ans; \
     case "${ans:-Y}" in \
       n|N|no|NO) echo "Skipping migrations. You can run: just migrate";; \
-      *) {{compose}} --profile build run --rm db-migrations-build;; \
+      *) just migrate;; \
     esac
 
-migrate: _ensure-docker-running
-  @{{compose}} --profile build run --rm db-migrations-build
+migrate: _ensure-sqlx-cli
+  @if [ -n "${DATABASE_URL:-}" ]; then \
+    sqlx migrate run --source core/migrations; \
+    exit 0; \
+  fi; \
+  if [ ! -f api/.env ]; then cp api/env.example api/.env; fi; \
+  set -a; . api/.env; set +a; \
+  : "${DATABASE_HOST:=localhost}"; \
+  : "${DATABASE_PORT:=5432}"; \
+  : "${DATABASE_NAME:=ferriskey}"; \
+  : "${DATABASE_USER:=ferriskey}"; \
+  : "${DATABASE_PASSWORD:=ferriskey}"; \
+  export DATABASE_URL="postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"; \
+  sqlx migrate run --source core/migrations
 
 dev: dev-setup _ensure-cargo-watch
   @# Ensure api/.env exists (app loads it via dotenv)

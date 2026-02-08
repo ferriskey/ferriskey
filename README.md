@@ -76,7 +76,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 ### Option 0 (Recommended) — `just` + Docker (Postgres) + local dev server
 
 ```bash
-# Starts Postgres (Docker) and asks if you want to run migrations
+# Starts Postgres (Docker) and asks if you want to run migrations (migrations run locally via sqlx-cli)
 just dev-setup
 
 # Dev server (auto-restarts on changes)
@@ -129,7 +129,7 @@ cp env.example .env
 # feel free to change the env variables in .env to your liking.
 docker compose up -d
 cd ../core
-# to install sqlx you might need to run `cargo install sqlx-cli`
+# to install sqlx you might need to run `cargo install sqlx-cli --no-default-features --features postgres`
 DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
 ```
 3. Launch the API
