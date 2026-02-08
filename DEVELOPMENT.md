@@ -1,6 +1,6 @@
 # Local Development (with `just`)
 
-This repo uses a `justfile` (https://github.com/casey/just) to provide a consistent set of local development commands.
+This repo uses a `justfile` (<https://github.com/casey/just>) to provide a consistent set of local development commands.
 
 ## Prerequisites
 
@@ -31,6 +31,7 @@ just help
 ### 1) First-time setup (database + migrations)
 
 This will:
+
 - create `api/.env` from `api/env.example` if missing
 - start the Postgres container
 - wait for Postgres to be ready
@@ -55,6 +56,7 @@ just dev
 ```
 
 Notes:
+
 - `api/.env` is created automatically (from `api/env.example`) if missing.
 - The API reads config from `api/.env` (via dotenv).
 
@@ -65,6 +67,7 @@ just web
 ```
 
 Notes:
+
 - `front/.env` is created automatically (from `front/.env.example`) if missing.
 - The dev server is started with `--host 0.0.0.0 --port 5555`.
 
@@ -102,4 +105,3 @@ PGDATA_VOLUME=my_volume just db-down
 - Frontend env file: `front/.env` (copied from `front/.env.example`)
 
 `just migrate` uses `DATABASE_URL` if it is already set in your environment; otherwise it builds a `DATABASE_URL` from values in `api/.env`.
-
