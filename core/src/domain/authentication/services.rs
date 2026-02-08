@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -547,7 +547,11 @@ where
                 params.password,
                 params.base_url,
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("authentication using session code error: {:?}", e);
+                e
+            })?;
 
         self.determine_next_step(auth_result, params.session_code, auth_session)
             .await
@@ -595,7 +599,13 @@ where
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|e| {
+                warn!(
+                    "failed to update auth session with code and user id: {:?}",
+                    e
+                );
+                CoreError::InternalServerError
+            })?;
 
         let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
 
@@ -623,12 +633,22 @@ where
 
         self.client_repository
             .get_by_client_id(client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("Client not found for client_id {}: {:?}", client_id, e);
+
+                CoreError::InvalidClient
+            })?;
 
         let user = self
             .user_repository
-            .get_by_username(username, realm.id)
-            .await?;
+            .get_by_username(username.clone(), realm.id)
+            .await
+            .map_err(|e| {
+                warn!("User not found for username {}: {:?}", username, e);
+
+                CoreError::UserNotFound
+            })?;
 
         // Check if user has federation mapping (LDAP authentication) FIRST
         let federation_mapping = self
@@ -1031,7 +1051,7 @@ where
             .get_by_session_code(input.session_code)
             .await
             .map_err(|e| {
-                error!("Failed to get auth session by session code: {:?}", e);
+                warn!("Failed to get auth session by session code: {:?}", e);
                 CoreError::InternalServerError
             })?;
 
