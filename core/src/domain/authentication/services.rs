@@ -123,7 +123,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);
@@ -149,7 +150,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);

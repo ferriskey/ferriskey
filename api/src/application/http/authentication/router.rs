@@ -47,6 +47,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
+            get(logout),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
             post(logout),
         )
         .route(
