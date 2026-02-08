@@ -116,6 +116,11 @@ where
     RT: RefreshTokenRepository,
     F: FederationRepository,
 {
+    fn expires_in_from(exp: i64) -> u32 {
+        let now = Utc::now().timestamp();
+        if exp <= now { 0 } else { (exp - now) as u32 }
+    }
+
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -351,7 +356,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -400,7 +405,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -466,7 +471,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -517,7 +522,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -1149,7 +1154,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            jwt.expires_at as u32,
+            Self::expires_in_from(jwt.expires_at),
             None,
         ))
     }
