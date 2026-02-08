@@ -9,22 +9,24 @@ help:
   @just --list
 
 _ensure-docker:
-  @if command -v docker >/dev/null 2>&1; then exit 0; fi
-  @echo "Docker not found."
-  @read -r -p "Install Docker now using get.docker.com? [y/N] " ans; \
-    case "${ans:-}" in \
-      y|Y|yes|YES) ;; \
-      *) echo "Skipping Docker install. Install Docker, then re-run." >&2; exit 1;; \
-    esac
-  @if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then \
+  @if command -v docker >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  echo "Docker not found."; \
+  read -r -p "Install Docker now using get.docker.com? [y/N] " ans; \
+  case "${ans:-}" in \
+    y|Y|yes|YES) ;; \
+    *) echo "Skipping Docker install. Install Docker, then re-run." >&2; exit 1;; \
+  esac; \
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then \
     echo "Need 'curl' or 'wget' to install Docker." >&2; \
     exit 1; \
-  fi
-  @install_cmd=''; \
-    if command -v curl >/dev/null 2>&1; then install_cmd='curl -fsSL https://get.docker.com | sh'; \
-    else install_cmd='wget -qO- https://get.docker.com | sh'; fi; \
-    if command -v sudo >/dev/null 2>&1; then sudo sh -lc "$install_cmd"; else sh -lc "$install_cmd"; fi
-  @echo "Docker install finished. If this is Linux, you may need to log out/in for group permissions."
+  fi; \
+  install_cmd=''; \
+  if command -v curl >/dev/null 2>&1; then install_cmd='curl -fsSL https://get.docker.com | sh'; \
+  else install_cmd='wget -qO- https://get.docker.com | sh'; fi; \
+  if command -v sudo >/dev/null 2>&1; then sudo sh -lc "$install_cmd"; else sh -lc "$install_cmd"; fi; \
+  echo "Docker install finished. If this is Linux, you may need to log out/in for group permissions."
 
 _ensure-docker-running: _ensure-docker
   @if ! docker info >/dev/null 2>&1; then \
@@ -39,49 +41,55 @@ _ensure-docker-running: _ensure-docker
   fi
 
 _ensure-node:
-  @if command -v node >/dev/null 2>&1; then exit 0; fi
-  @echo "Node.js not found."
-  @read -r -p "Install latest Node LTS via nvm? [y/N] " ans; \
-    case "${ans:-}" in \
-      y|Y|yes|YES) ;; \
-      *) echo "Skipping Node install." >&2; exit 1;; \
-    esac
-  @if ! command -v curl >/dev/null 2>&1; then \
+  @if command -v node >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  echo "Node.js not found."; \
+  read -r -p "Install latest Node LTS via nvm? [y/N] " ans; \
+  case "${ans:-}" in \
+    y|Y|yes|YES) ;; \
+    *) echo "Skipping Node install." >&2; exit 1;; \
+  esac; \
+  if ! command -v curl >/dev/null 2>&1; then \
     echo "Need 'curl' to install nvm." >&2; \
     exit 1; \
-  fi
-  @export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; \
-    if [ ! -s "$NVM_DIR/nvm.sh" ]; then \
-      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash; \
-    fi; \
-    . "$NVM_DIR/nvm.sh"; \
-    nvm install --lts; \
-    nvm use --lts
+  fi; \
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; \
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then \
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash; \
+  fi; \
+  . "$NVM_DIR/nvm.sh"; \
+  nvm install --lts; \
+  nvm use --lts
 
 _ensure-pnpm: _ensure-node
-  @if command -v pnpm >/dev/null 2>&1; then exit 0; fi
-  @echo "pnpm not found."
-  @read -r -p "Install latest pnpm via corepack? [y/N] " ans; \
-    case "${ans:-}" in \
-      y|Y|yes|YES) ;; \
-      *) echo "Skipping pnpm install." >&2; exit 1;; \
-    esac
-  @corepack enable
-  @corepack prepare pnpm@latest --activate
+  @if command -v pnpm >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  echo "pnpm not found."; \
+  read -r -p "Install latest pnpm via corepack? [y/N] " ans; \
+  case "${ans:-}" in \
+    y|Y|yes|YES) ;; \
+    *) echo "Skipping pnpm install." >&2; exit 1;; \
+  esac; \
+  corepack enable; \
+  corepack prepare pnpm@latest --activate
 
 _ensure-cargo-watch:
-  @if command -v cargo >/dev/null 2>&1; then :; else \
+  @if ! command -v cargo >/dev/null 2>&1; then \
     echo "Rust toolchain not found (missing 'cargo'). Install rustup, then re-run." >&2; \
     exit 1; \
-  fi
-  @if command -v cargo-watch >/dev/null 2>&1; then exit 0; fi
-  @echo "cargo-watch not found."
-  @read -r -p "Install cargo-watch (latest) now? [y/N] " ans; \
-    case "${ans:-}" in \
-      y|Y|yes|YES) ;; \
-      *) echo "Skipping cargo-watch install." >&2; exit 1;; \
-    esac
-  @cargo install cargo-watch
+  fi; \
+  if command -v cargo-watch >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  echo "cargo-watch not found."; \
+  read -r -p "Install cargo-watch (latest) now? [y/N] " ans; \
+  case "${ans:-}" in \
+    y|Y|yes|YES) ;; \
+    *) echo "Skipping cargo-watch install." >&2; exit 1;; \
+  esac; \
+  cargo install cargo-watch
 
 dev-setup: _ensure-docker-running
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
