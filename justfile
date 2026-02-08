@@ -146,7 +146,7 @@ migrate: _ensure-sqlx-cli
   export DATABASE_URL="postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"; \
   sqlx migrate run --source core/migrations
 
-dev: dev-setup _ensure-cargo-watch
+dev: _ensure-cargo-watch
   @# Ensure api/.env exists (app loads it via dotenv)
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
   @cd api && cargo watch -x "run --bin ferriskey-api"
@@ -154,8 +154,6 @@ dev: dev-setup _ensure-cargo-watch
 dev-test: _ensure-docker-running
   @# "Full" build profile run (build + run containers)
   @{{compose}} --profile build up -d --build
-
-test: dev-test
 
 db-down: _ensure-docker-running
   @# Remove only the db container and its data volume (default: ferriskey_pgdata).

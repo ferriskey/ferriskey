@@ -41,7 +41,6 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - 🧩 **Extensibility** — native modules for MFA, auditability, and webhooks.
 - ☁️ **Cloud‑native** — official Helm chart; ready for Kubernetes.
 
-
 ## 🧭 Table of Contents
 
 - [Features](#-features)
@@ -57,7 +56,6 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [License](#-license)
 - [Links](#-links)
 
-
 ## 🌟 Features
 
 | Capability                      | Details |
@@ -72,26 +70,6 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 > **License:** Apache‑2.0. No paywalls. Community‑first.
 
 ## 🚀 Quick Start
-
-### Option 0 (Recommended) — `just` + Docker (Postgres) + local dev server
-
-```bash
-# Starts Postgres (Docker) and asks if you want to run migrations (migrations run locally via sqlx-cli)
-just dev-setup
-
-# Dev server (auto-restarts on changes)
-just dev
-
-# Production-like build profile (build and run containers)
-just dev-test
-
-# Cleanup
-just db-down
-just dev-test-down
-
-# Optional: frontend dev server
-just web
-```
 
 ### Option A — Using latest Docker image
 
@@ -110,6 +88,7 @@ docker compose --profile build up -d
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
 ### Option C — Helm (Kubernetes)
+>
 > Requires a reachable Postgres (or include it via your platform’s recommended operator).
 
 See [chart documentation](charts/ferriskey/README.md).
@@ -117,11 +96,12 @@ See [chart documentation](charts/ferriskey/README.md).
 ### Option D - Cargo
 
 1. Clone the repo
+
 ```bash
 git clone https://github.com/ferriskey/ferriskey
 ```
 
-2. Launch the database and execute migrations with sourced env variables
+1. Launch the database and execute migrations with sourced env variables
 
 ```bash
 cd api
@@ -132,7 +112,8 @@ cd ../core
 # to install sqlx you might need to run `cargo install sqlx-cli --no-default-features --features postgres`
 DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
 ```
-3. Launch the API
+
+1. Launch the API
 
 ```bash
 # to upgrade rustc version to 1.89.0, you can run `rustup update`
@@ -140,7 +121,7 @@ cd ../api
 cargo run
 ```
 
-4. Launch the frontend (optional)
+1. Launch the frontend (optional)
 
 ```bash
 cd ../front
@@ -152,6 +133,7 @@ pnpm run dev
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
 ## ⚙️ Configuration
+
 Common environment variables (example):
 
 ```
@@ -187,6 +169,7 @@ DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrat
 > **Note:** If you have `DATABASE_URL` set in your environment or `.env` file, you can omit it from the command.
 
 ## 🧩 Modules
+
 - Trident — MFA & security scopes
 TOTP, WebAuthn, Magic Link; flexible required actions.
 
@@ -196,36 +179,38 @@ Security event trails; queryable from the console; exportable.
 - Webhooks — Event‑driven extensibility
 Subscribe to user/client/realm lifecycle events without forking core.
 
-
-
 ## 🏗️ Architecture
+
 FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business logic pure and infrastructure replaceable.
 
-
-
 ## 📈 Observability
+
 - Metrics: /metrics (Prometheus format)
 - Dashboards: Starter Grafana dashboards included in Helm values (optional)
 
 ## 🤝 Contributing
+
 We welcome contributions of all kinds bugfixes, features, docs, testing.
+
 1. Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 2. Pick an issue (good first issues labelled)
 3. Open a PR with tests and a concise description
+
 > Join discussions to help shape modules, APIs, and UX.
 
 ## 🔐 Security
+
 Please report vulnerabilities responsibly via Security Advisories.
 Avoid filing publicly until coordinated disclosure is agreed.
 
-
-
 ## 📜 License
+
 Apache‑2.0 — free to use, modify, and distribute.
 
 ## 🔗 Links
-- 📂 Source: https://github.com/ferriskey/ferriskey
+
+- 📂 Source: <https://github.com/ferriskey/ferriskey>
 - 📦 Helm Chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
-- 📖 Documentation: https://docs.ferriskey.rs/getting-started/introduction
-- 💬 Discussions: https://github.com/ferriskey/ferriskey/discussions
-- 🏆 Sponsor: https://github.com/sponsors/ferriskey
+- 📖 Documentation: <https://docs.ferriskey.rs/getting-started/introduction>
+- 💬 Discussions: <https://github.com/ferriskey/ferriskey/discussions>
+- 🏆 Sponsor: <https://github.com/sponsors/ferriskey>
