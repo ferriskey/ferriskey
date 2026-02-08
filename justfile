@@ -1,13 +1,41 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+# FerrisKey developer task runner
+#
+# Usage:
+#   just                # same as: just help
+#   just help           # list available recipes
+#   just <recipe> ...   # run a recipe
+#
+# Common local workflows:
+#   1) Start DB + run migrations (first time):
+#        just dev-setup
+#   2) Run API with auto-reload (Rust):
+#        just dev
+#   3) Run frontend dev server (Node/pnpm):
+#        just web
+#
+# Notes:
+# - Some recipes may prompt to install missing tools (Docker, Node, pnpm, etc).
+# - Environment files are created on-demand:
+#     api/.env  from api/env.example
+#     front/.env from front/.env.example
+
+# docker compose wrapper (always uses repo docker-compose.yaml)
 compose := "docker compose -f docker-compose.yaml"
+
+# Default Postgres data volume used by docker-compose.yaml. Override via:
+#   PGDATA_VOLUME=custom_name just db-down
 pgdata_volume_default := "ferriskey_pgdata"
 
 default: help
 
+# List all recipes defined in this file.
 help:
   @just --list
 
+# Internal helpers.
+# Naming convention: recipes starting with '_' are not meant to be called directly.
 _ensure-docker:
   @if command -v docker >/dev/null 2>&1; then \
     exit 0; \
@@ -122,6 +150,10 @@ _wait-db: _ensure-docker-running
     exit 1
 
 dev-setup: _ensure-docker-running
+  @# Bootstrap local development prerequisites:
+  @# - Create api/.env if missing
+  @# - Start the Postgres container
+  @# - Optionally run SQL migrations
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
   @{{compose}} up -d db
   @just _wait-db
@@ -132,6 +164,8 @@ dev-setup: _ensure-docker-running
     esac
 
 migrate: _ensure-sqlx-cli
+  @# Apply SQL migrations from core/migrations.
+  @# Uses DATABASE_URL if set; otherwise constructs it from api/.env values.
   @if [ -n "${DATABASE_URL:-}" ]; then \
     sqlx migrate run --source core/migrations; \
     exit 0; \
@@ -147,23 +181,29 @@ migrate: _ensure-sqlx-cli
   sqlx migrate run --source core/migrations
 
 dev: _ensure-cargo-watch
+  @# Run the Rust API locally with auto-reload on file changes.
   @# Ensure api/.env exists (app loads it via dotenv)
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
   @cd api && cargo watch -x "run --bin ferriskey-api"
 
 dev-test: _ensure-docker-running
+  @# Bring up the full stack using docker compose "build" profile (build + run containers).
   @# "Full" build profile run (build + run containers)
   @{{compose}} --profile build up -d --build
 
 db-down: _ensure-docker-running
+  @# Stop and remove only Postgres + its data volume.
+  @# This is destructive for local data (drops your local DB state).
   @# Remove only the db container and its data volume (default: ferriskey_pgdata).
   @{{compose}} stop db || true
   @{{compose}} rm -f db || true
   @docker volume rm -f "${PGDATA_VOLUME:-{{pgdata_volume_default}}}" || true
 
 dev-test-down: _ensure-docker-running
+  @# Tear down docker compose build profile containers and volumes.
   @{{compose}} --profile build down -v
 
 web: _ensure-pnpm
+  @# Run the frontend dev server (Vite) locally.
   @if [ ! -f front/.env ]; then cp front/.env.example front/.env; fi
   @cd front && pnpm install && pnpm run dev --host 0.0.0.0 --port 5555

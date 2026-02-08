@@ -71,6 +71,8 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 
 ## 🚀 Quick Start
 
+For local development using the repo `justfile`, see `DEVELOPMENT.md`.
+
 ### Option A — Using latest Docker image
 
 ```yaml
