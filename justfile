@@ -153,7 +153,7 @@ dev-setup: _ensure-docker-running
   @# - Start the Postgres container
   @# - Optionally run SQL migrations
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
-  @{{compose}} up -d db
+  @POSTGRES_IMAGE=postgres:18.1 POSTGRES_DATA_PATH=/var/lib/postgresql {{compose}} up -d db
   @just _wait-db
   @read -r -p "Run DB migrations now? [Y/n] " ans; \
     case "${ans:-Y}" in \
@@ -204,13 +204,12 @@ dev-test: _ensure-docker-running
 db-down: _ensure-docker-running
   @# Stop and remove the compose stack + its volumes.
   @# This is destructive for local data (drops your local DB state).
-  @{{compose}} down -v || true
+  @{{compose}} down -v db || true
 
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.
   @{{compose}} --profile build down -v
 
 web: _ensure-pnpm
-  @# Run the frontend dev server (Vite) locally.
-  @if [ ! -f front/.env ]; then cp front/.env.example front/.env; fi
-  @cd front && pnpm install && pnpm run dev --host 0.0.0.0 --port 5555
+  @# Run the frontend server inside container.
+  @{{compose}} up webapp-build
