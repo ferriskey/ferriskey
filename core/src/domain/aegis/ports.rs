@@ -152,7 +152,6 @@ pub trait ClientScopePolicy: Send + Sync {
 }
 
 pub trait ClientScopeService: Send + Sync {
-    // --- Client Scopes ---
     fn create_client_scope(
         &self,
         identity: Identity,
@@ -182,8 +181,9 @@ pub trait ClientScopeService: Send + Sync {
         identity: Identity,
         input: DeleteClientScopeInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
 
-    // --- Protocol Mappers ---
+pub trait ProtocolMapperService: Send + Sync {
     fn create_protocol_mapper(
         &self,
         identity: Identity,
@@ -201,8 +201,9 @@ pub trait ClientScopeService: Send + Sync {
         identity: Identity,
         input: DeleteProtocolMapperInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
 
-    // --- Client Scope Mappings ---
+pub trait ScopeMappingService: Send + Sync {
     fn assign_scope_to_client(
         &self,
         identity: Identity,

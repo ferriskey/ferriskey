@@ -1,10 +1,9 @@
+use std::sync::Arc;
+
 use crate::domain::{
     aegis::{
         entities::ClientScope,
-        ports::{
-            ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository,
-            ProtocolMapperRepository,
-        },
+        ports::{ClientScopePolicy, ClientScopeRepository, ClientScopeService},
         value_objects::{
             CreateClientScopeInput, CreateClientScopeRequest, DeleteClientScopeInput,
             GetClientScopeInput, GetClientScopesInput, UpdateClientScopeInput,
@@ -12,24 +11,58 @@ use crate::domain::{
     },
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
-    common::{entities::app_errors::CoreError, policies::ensure_policy},
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, ensure_policy},
+    },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
-use super::ClientScopeServiceImpl;
-
-impl<R, U, C, UR, CS, PM, CSM> ClientScopeServiceImpl<R, U, C, UR, CS, PM, CSM>
+#[derive(Clone, Debug)]
+pub struct ClientScopeServiceImpl<R, U, C, UR, CS>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
-    PM: ProtocolMapperRepository,
-    CSM: ClientScopeMappingRepository,
 {
-    pub(super) async fn handle_create_client_scope(
+    realm_repository: Arc<R>,
+    client_scope_repository: Arc<CS>,
+    policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CS> ClientScopeServiceImpl<R, U, C, UR, CS>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_scope_repository: Arc<CS>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_scope_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, CS> ClientScopeService for ClientScopeServiceImpl<R, U, C, UR, CS>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+{
+    async fn create_client_scope(
         &self,
         identity: Identity,
         input: CreateClientScopeInput,
@@ -60,7 +93,7 @@ where
         Ok(client_scope)
     }
 
-    pub(super) async fn handle_get_client_scope(
+    async fn get_client_scope(
         &self,
         identity: Identity,
         input: GetClientScopeInput,
@@ -86,7 +119,7 @@ where
         Ok(client_scope)
     }
 
-    pub(super) async fn handle_get_client_scopes(
+    async fn get_client_scopes(
         &self,
         identity: Identity,
         input: GetClientScopesInput,
@@ -111,7 +144,7 @@ where
         Ok(client_scopes)
     }
 
-    pub(super) async fn handle_update_client_scope(
+    async fn update_client_scope(
         &self,
         identity: Identity,
         input: UpdateClientScopeInput,
@@ -136,7 +169,7 @@ where
         Ok(client_scope)
     }
 
-    pub(super) async fn handle_delete_client_scope(
+    async fn delete_client_scope(
         &self,
         identity: Identity,
         input: DeleteClientScopeInput,

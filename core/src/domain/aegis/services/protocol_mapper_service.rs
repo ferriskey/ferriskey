@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use crate::domain::{
     aegis::{
         entities::ProtocolMapper,
         ports::{
-            ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository,
-            ProtocolMapperRepository,
+            ClientScopePolicy, ClientScopeRepository, ProtocolMapperRepository,
+            ProtocolMapperService,
         },
         value_objects::{
             CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteProtocolMapperInput,
@@ -12,14 +14,16 @@ use crate::domain::{
     },
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
-    common::{entities::app_errors::CoreError, policies::ensure_policy},
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, ensure_policy},
+    },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
-use super::ClientScopeServiceImpl;
-
-impl<R, U, C, UR, CS, PM, CSM> ClientScopeServiceImpl<R, U, C, UR, CS, PM, CSM>
+#[derive(Clone, Debug)]
+pub struct ProtocolMapperServiceImpl<R, U, C, UR, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -27,9 +31,47 @@ where
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
-    CSM: ClientScopeMappingRepository,
 {
-    pub(super) async fn handle_create_protocol_mapper(
+    realm_repository: Arc<R>,
+    client_scope_repository: Arc<CS>,
+    protocol_mapper_repository: Arc<PM>,
+    policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CS, PM> ProtocolMapperServiceImpl<R, U, C, UR, CS, PM>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_scope_repository: Arc<CS>,
+        protocol_mapper_repository: Arc<PM>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_scope_repository,
+            protocol_mapper_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, CS, PM> ProtocolMapperService for ProtocolMapperServiceImpl<R, U, C, UR, CS, PM>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+{
+    async fn create_protocol_mapper(
         &self,
         identity: Identity,
         input: CreateProtocolMapperInput,
@@ -64,7 +106,7 @@ where
         Ok(mapper)
     }
 
-    pub(super) async fn handle_update_protocol_mapper(
+    async fn update_protocol_mapper(
         &self,
         identity: Identity,
         input: UpdateProtocolMapperInput,
@@ -94,7 +136,7 @@ where
         Ok(mapper)
     }
 
-    pub(super) async fn handle_delete_protocol_mapper(
+    async fn delete_protocol_mapper(
         &self,
         identity: Identity,
         input: DeleteProtocolMapperInput,

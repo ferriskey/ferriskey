@@ -1,32 +1,74 @@
+use std::sync::Arc;
+
 use crate::domain::{
     aegis::{
         entities::ClientScopeMapping,
         ports::{
             ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository,
-            ProtocolMapperRepository,
+            ScopeMappingService,
         },
         value_objects::{AssignClientScopeInput, UnassignClientScopeInput},
     },
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
-    common::{entities::app_errors::CoreError, policies::ensure_policy},
+    common::{
+        entities::app_errors::CoreError,
+        policies::{FerriskeyPolicy, ensure_policy},
+    },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
-use super::ClientScopeServiceImpl;
-
-impl<R, U, C, UR, CS, PM, CSM> ClientScopeServiceImpl<R, U, C, UR, CS, PM, CSM>
+#[derive(Clone, Debug)]
+pub struct ScopeMappingServiceImpl<R, U, C, UR, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
-    PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
 {
-    pub(super) async fn handle_assign_scope_to_client(
+    realm_repository: Arc<R>,
+    client_scope_repository: Arc<CS>,
+    scope_mapping_repository: Arc<CSM>,
+    policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, CS, CSM> ScopeMappingServiceImpl<R, U, C, UR, CS, CSM>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        client_scope_repository: Arc<CS>,
+        scope_mapping_repository: Arc<CSM>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            client_scope_repository,
+            scope_mapping_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, CS, CSM> ScopeMappingService for ScopeMappingServiceImpl<R, U, C, UR, CS, CSM>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
+{
+    async fn assign_scope_to_client(
         &self,
         identity: Identity,
         input: AssignClientScopeInput,
@@ -61,7 +103,7 @@ where
         Ok(mapping)
     }
 
-    pub(super) async fn handle_unassign_scope_from_client(
+    async fn unassign_scope_from_client(
         &self,
         identity: Identity,
         input: UnassignClientScopeInput,
