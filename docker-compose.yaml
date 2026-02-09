@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: ${POSTGRES_IMAGE:-postgres:17}
     environment:
       PGUSER: ferriskey
       POSTGRES_DB: ferriskey
@@ -9,7 +9,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:${POSTGRES_DATA_PATH:-/var/lib/postgresql/data}
     healthcheck:
       test:
         - CMD-SHELL
