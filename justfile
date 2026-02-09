@@ -24,10 +24,6 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 # docker compose wrapper (always uses repo docker-compose.yaml)
 compose := "docker compose -f docker-compose.yaml"
 
-# Default Postgres data volume used by docker-compose.yaml. Override via:
-#   PGDATA_VOLUME=custom_name just db-down
-pgdata_volume_default := "ferriskey_pgdata"
-
 default: help
 
 # List all recipes defined in this file.
@@ -157,7 +153,7 @@ dev-setup: _ensure-docker-running
   @# - Start the Postgres container
   @# - Optionally run SQL migrations
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
-  @POSTGRES_IMAGE=postgres:18.1 POSTGRES_DATA_PATH=/var/lib/postgresql {{compose}} up -d db
+  @{{compose}} up -d db
   @just _wait-db
   @read -r -p "Run DB migrations now? [Y/n] " ans; \
     case "${ans:-Y}" in \
@@ -206,10 +202,9 @@ dev-test: _ensure-docker-running
   @{{compose}} --profile build up -d --build
 
 db-down: _ensure-docker-running
-  @# Stop and remove only Postgres + its data volume.
+  @# Stop and remove the compose stack + its volumes.
   @# This is destructive for local data (drops your local DB state).
-  @# Remove only the db container and its data volume (default: ferriskey_pgdata).
-  @{{compose}} down -v db || true
+  @{{compose}} down -v || true
 
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.

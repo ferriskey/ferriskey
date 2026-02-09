@@ -87,16 +87,10 @@ just dev-test-down
 
 ## Database Reset / Cleanup
 
-Stop and remove only the Postgres container and delete its data volume:
+Stop and remove Docker Compose containers and delete their volumes (destructive for local DB data):
 
 ```bash
 just db-down
-```
-
-The default volume name is `ferriskey_pgdata`. To override:
-
-```bash
-PGDATA_VOLUME=my_volume just db-down
 ```
 
 ## Environment Variables
