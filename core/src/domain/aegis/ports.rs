@@ -7,7 +7,10 @@ use crate::domain::realm::entities::{Realm, RealmId};
 
 use super::entities::{ClientScope, ClientScopeAttribute, ClientScopeMapping, ProtocolMapper};
 use super::value_objects::{
-    CreateClientScopeRequest, CreateProtocolMapperRequest, UpdateClientScopeRequest,
+    AssignClientScopeInput, CreateClientScopeInput, CreateClientScopeRequest,
+    CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteClientScopeInput,
+    DeleteProtocolMapperInput, GetClientScopeInput, GetClientScopesInput, UnassignClientScopeInput,
+    UpdateClientScopeInput, UpdateClientScopeRequest, UpdateProtocolMapperInput,
     UpdateProtocolMapperRequest,
 };
 
@@ -146,4 +149,69 @@ pub trait ClientScopePolicy: Send + Sync {
         identity: &Identity,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+pub trait ClientScopeService: Send + Sync {
+    // --- Client Scopes ---
+    fn create_client_scope(
+        &self,
+        identity: Identity,
+        input: CreateClientScopeInput,
+    ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
+
+    fn get_client_scope(
+        &self,
+        identity: Identity,
+        input: GetClientScopeInput,
+    ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
+
+    fn get_client_scopes(
+        &self,
+        identity: Identity,
+        input: GetClientScopesInput,
+    ) -> impl Future<Output = Result<Vec<ClientScope>, CoreError>> + Send;
+
+    fn update_client_scope(
+        &self,
+        identity: Identity,
+        input: UpdateClientScopeInput,
+    ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
+
+    fn delete_client_scope(
+        &self,
+        identity: Identity,
+        input: DeleteClientScopeInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    // --- Protocol Mappers ---
+    fn create_protocol_mapper(
+        &self,
+        identity: Identity,
+        input: CreateProtocolMapperInput,
+    ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
+
+    fn update_protocol_mapper(
+        &self,
+        identity: Identity,
+        input: UpdateProtocolMapperInput,
+    ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
+
+    fn delete_protocol_mapper(
+        &self,
+        identity: Identity,
+        input: DeleteProtocolMapperInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    // --- Client Scope Mappings ---
+    fn assign_scope_to_client(
+        &self,
+        identity: Identity,
+        input: AssignClientScopeInput,
+    ) -> impl Future<Output = Result<ClientScopeMapping, CoreError>> + Send;
+
+    fn unassign_scope_from_client(
+        &self,
+        identity: Identity,
+        input: UnassignClientScopeInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }

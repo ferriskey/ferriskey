@@ -34,6 +34,10 @@ pub enum Permissions {
     ManageWebhooks = 1 << 19, // 1 << 19
     QueryWebhooks = 1 << 20,  // 1 << 20
     ViewWebhooks = 1 << 21,   // 1 << 21
+
+    ManageClientScopes = 1 << 22, // 1 << 22
+    QueryClientScopes = 1 << 23,  // 1 << 23
+    ViewClientScopes = 1 << 24,   // 1 << 24
 }
 
 impl Permissions {
@@ -58,6 +62,12 @@ impl Permissions {
             Self::ViewRealm,
             Self::ViewUsers,
             Self::ViewRoles,
+            Self::ManageWebhooks,
+            Self::QueryWebhooks,
+            Self::ViewWebhooks,
+            Self::ManageClientScopes,
+            Self::QueryClientScopes,
+            Self::ViewClientScopes,
         ];
 
         all_permissions
@@ -91,6 +101,9 @@ impl Permissions {
             Self::ViewUsers => "view_users".to_string(),
             Self::ViewRoles => "view_roles".to_string(),
             Self::ViewWebhooks => "view_webhooks".to_string(),
+            Self::ManageClientScopes => "manage_client_scopes".to_string(),
+            Self::QueryClientScopes => "query_client_scopes".to_string(),
+            Self::ViewClientScopes => "view_client_scopes".to_string(),
         }
     }
 
@@ -143,6 +156,9 @@ impl Permissions {
             "manage_webhooks" => Some(Self::ManageWebhooks),
             "query_webhooks" => Some(Self::QueryWebhooks),
             "view_webhooks" => Some(Self::ViewWebhooks),
+            "manage_client_scopes" => Some(Self::ManageClientScopes),
+            "query_client_scopes" => Some(Self::QueryClientScopes),
+            "view_client_scopes" => Some(Self::ViewClientScopes),
             _ => None,
         }
     }

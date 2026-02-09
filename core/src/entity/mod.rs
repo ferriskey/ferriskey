@@ -4,6 +4,10 @@ pub mod prelude;
 
 pub mod auth_sessions;
 pub mod broker_auth_sessions;
+pub mod client_scope_attributes;
+pub mod client_scope_mappings;
+pub mod client_scope_protocol_mappers;
+pub mod client_scopes;
 pub mod clients;
 pub mod credentials;
 pub mod identity_provider_links;
