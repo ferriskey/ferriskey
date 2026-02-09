@@ -4,6 +4,9 @@ use crate::{
     domain::{
         abyss::federation::services::FederationServiceImpl,
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
+        aegis::services::{
+            ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+        },
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -21,6 +24,11 @@ use crate::{
     },
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
+        aegis::repositories::{
+            client_scope_postgres_repository::PostgresClientScopeRepository,
+            protocol_mapper_postgres_repository::PostgresProtocolMapperRepository,
+            scope_mapping_postgres_repository::PostgresScopeMappingRepository,
+        },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
@@ -58,6 +66,7 @@ use crate::{
 pub mod services;
 
 pub mod abyss;
+pub mod aegis;
 pub mod auth;
 pub mod broker;
 pub mod client;
@@ -116,6 +125,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new());
+    let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
+    let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
+    let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -231,6 +243,23 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user.clone(),
             auth_session.clone(),
             oauth_client.clone(),
+        ),
+        client_scope_service: ClientScopeServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            policy.clone(),
+        ),
+        protocol_mapper_service: ProtocolMapperServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            protocol_mapper.clone(),
+            policy.clone(),
+        ),
+        scope_mapping_service: ScopeMappingServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            scope_mapping.clone(),
+            policy.clone(),
         ),
     };
 

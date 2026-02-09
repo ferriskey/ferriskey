@@ -1,6 +1,9 @@
 use crate::{
     domain::{
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
+        aegis::services::{
+            ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+        },
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -19,6 +22,11 @@ use crate::{
     },
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
+        aegis::repositories::{
+            client_scope_postgres_repository::PostgresClientScopeRepository,
+            protocol_mapper_postgres_repository::PostgresProtocolMapperRepository,
+            scope_mapping_postgres_repository::PostgresScopeMappingRepository,
+        },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
@@ -75,6 +83,9 @@ type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
 type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
 type OAuthClientImpl = ReqwestOAuthClient;
+type ClientScopeRepo = PostgresClientScopeRepository;
+type ProtocolMapperRepo = PostgresProtocolMapperRepository;
+type ScopeMappingRepo = PostgresScopeMappingRepository;
 
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
@@ -184,6 +195,24 @@ pub struct ApplicationService {
         UserRepo,
         AuthSessionRepo,
         OAuthClientImpl,
+    >,
+    pub(crate) client_scope_service:
+        ClientScopeServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, ClientScopeRepo>,
+    pub(crate) protocol_mapper_service: ProtocolMapperServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        ClientScopeRepo,
+        ProtocolMapperRepo,
+    >,
+    pub(crate) scope_mapping_service: ScopeMappingServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        ClientScopeRepo,
+        ScopeMappingRepo,
     >,
 }
 
