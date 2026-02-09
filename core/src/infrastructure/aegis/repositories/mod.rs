@@ -1,0 +1,4 @@
+pub mod client_scope_attribute_postgres_repository;
+pub mod client_scope_postgres_repository;
+pub mod protocol_mapper_postgres_repository;
+pub mod scope_mapping_postgres_repository;
