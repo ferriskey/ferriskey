@@ -3,5 +3,5 @@ CREATE TABLE client_scope_attributes (
     client_scope_id UUID NOT NULL REFERENCES client_scopes(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     value VARCHAR(2048),
-    CONSTRAINT unique_attribute_per_scope UNIQUE (scope_id, name)
+    CONSTRAINT unique_attribute_per_scope UNIQUE (client_scope_id, name)
 );
