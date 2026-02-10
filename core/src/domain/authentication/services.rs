@@ -195,6 +195,7 @@ where
             claims.iss.clone(),
             claims.aud.clone(),
             claims.azp,
+            claims.scope.clone(),
         );
 
         let refresh_token = self
@@ -507,7 +508,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: None,
+                scope: claims.scope.clone(),
             })
             .await?;
 
@@ -1144,7 +1145,7 @@ where
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
 
         let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
+            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp, None);
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), realm.id)

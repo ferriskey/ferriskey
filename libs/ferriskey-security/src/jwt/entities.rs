@@ -97,7 +97,13 @@ impl JwtClaim {
         }
     }
 
-    pub fn new_refresh_token(sub: Uuid, iss: String, aud: Vec<String>, azp: String) -> Self {
+    pub fn new_refresh_token(
+        sub: Uuid,
+        iss: String,
+        aud: Vec<String>,
+        azp: String,
+        scope: Option<String>,
+    ) -> Self {
         Self {
             sub,
             iat: chrono::Utc::now().timestamp(),
@@ -106,7 +112,7 @@ impl JwtClaim {
             aud,
             typ: ClaimsTyp::Refresh,
             azp,
-            scope: None,
+            scope,
             preferred_username: None,
             email: None,
             exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
@@ -257,5 +263,26 @@ impl JwtKeyPair {
 
     pub fn to_jwt_key(&self) -> Result<JwkKey, SecurityError> {
         self.to_jwk_key()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ClaimsTyp, JwtClaim};
+    use uuid::Uuid;
+
+    #[test]
+    fn refresh_claims_keep_scope() {
+        let scope = Some("openid profile email".to_string());
+        let claims = JwtClaim::new_refresh_token(
+            Uuid::new_v4(),
+            "https://issuer".to_string(),
+            vec!["test-realm".to_string()],
+            "client-id".to_string(),
+            scope.clone(),
+        );
+
+        assert_eq!(claims.typ, ClaimsTyp::Refresh);
+        assert_eq!(claims.scope, scope);
     }
 }
