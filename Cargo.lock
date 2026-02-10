@@ -1550,6 +1550,7 @@ dependencies = [
  "rsa",
  "serde",
  "serde_json",
+ "sha1",
  "thiserror 2.0.18",
  "utoipa",
  "uuid",

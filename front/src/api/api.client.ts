@@ -214,7 +214,8 @@ export namespace Schemas {
     kty: string
     n: string
     use_: string
-    x5c: string
+    x5c: Array<string>
+    x5t: string
   }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
@@ -232,6 +233,7 @@ export namespace Schemas {
   export type GetClientRolesResponse = { data: Array<Role> }
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string
+    end_session_endpoint: string
     grant_types_supported: Array<string>
     introspection_endpoint: string
     issuer: string
@@ -347,6 +349,9 @@ export namespace Schemas {
     | 'manage_webhooks'
     | 'query_webhooks'
     | 'view_webhooks'
+    | 'manage_client_scopes'
+    | 'query_client_scopes'
+    | 'view_client_scopes'
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
