@@ -2,7 +2,6 @@ use axum::{
     Form,
     extract::{Path, State},
     http::HeaderMap,
-    response::IntoResponse,
 };
 use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::{
@@ -11,7 +10,10 @@ use ferriskey_core::domain::authentication::{
 use validator::Validate;
 
 use crate::application::http::authentication::validators::IntrospectRequestValidator;
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 
 fn try_parse_basic_client_credentials(headers: &HeaderMap) -> Option<(String, String)> {
     let value = headers
@@ -46,7 +48,7 @@ pub async fn introspect_token(
     State(state): State<AppState>,
     headers: HeaderMap,
     Form(payload): Form<IntrospectRequestValidator>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<Response<TokenIntrospectionResponse>, ApiError> {
     payload.validate()?;
 
     let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
@@ -74,7 +76,7 @@ pub async fn introspect_token(
         })
         .await?;
 
-    Ok(axum::Json(response))
+    Ok(Response::OK(response))
 }
 
 #[cfg(test)]
