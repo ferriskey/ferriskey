@@ -13,4 +13,3 @@ CREATE TABLE access_tokens (
 CREATE INDEX idx_access_tokens_user_id ON access_tokens(user_id);
 CREATE INDEX idx_access_tokens_realm_id ON access_tokens(realm_id);
 CREATE INDEX idx_access_tokens_revoked ON access_tokens(revoked);
-

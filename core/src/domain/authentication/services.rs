@@ -1369,10 +1369,6 @@ where
                 return Ok(inactive);
             }
 
-            if self.verify_token(token.clone(), realm.id).await.is_err() {
-                return Ok(inactive);
-            }
-
             let claims: JwtClaim = serde_json::from_value(stored.claims)
                 .map_err(|_| CoreError::InternalServerError)?;
 

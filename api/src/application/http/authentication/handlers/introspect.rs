@@ -20,7 +20,11 @@ fn try_parse_basic_client_credentials(headers: &HeaderMap) -> Option<(String, St
         .get(axum::http::header::AUTHORIZATION)?
         .to_str()
         .ok()?;
-    let value = value.strip_prefix("Basic ")?;
+    let prefix = "Basic ";
+    if value.len() < prefix.len() || !value[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        return None;
+    }
+    let value = &value[prefix.len()..];
 
     let decoded = general_purpose::STANDARD.decode(value).ok()?;
     let decoded = String::from_utf8(decoded).ok()?;
