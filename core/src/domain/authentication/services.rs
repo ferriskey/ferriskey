@@ -935,6 +935,31 @@ This is a server error that should be investigated. Do not forward back this mes
             auth_session.redirect_uri, authorization_code, state
         ))
     }
+
+    fn claims_to_introspection_response(
+        claims: JwtClaim,
+        realm_name: String,
+    ) -> TokenIntrospectionResponse {
+        TokenIntrospectionResponse {
+            active: true,
+            scope: claims.scope,
+            client_id: Some(claims.azp),
+            username: claims.preferred_username,
+            sub: Some(claims.sub.to_string()),
+            token_type: Some(match claims.typ {
+                ClaimsTyp::Bearer => "Bearer".to_string(),
+                ClaimsTyp::Refresh => "Refresh".to_string(),
+                ClaimsTyp::Temporary => "Temporary".to_string(),
+            }),
+            exp: claims.exp,
+            iat: Some(claims.iat),
+            nbf: Some(claims.iat),
+            aud: Some(claims.aud.join(" ")),
+            iss: Some(claims.iss),
+            jti: Some(claims.jti.to_string()),
+            realm: Some(realm_name),
+        }
+    }
 }
 
 impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F> AuthService
@@ -1334,25 +1359,7 @@ where
             let claims: JwtClaim = serde_json::from_value(stored.claims)
                 .map_err(|_| CoreError::InternalServerError)?;
 
-            return Ok(TokenIntrospectionResponse {
-                active: true,
-                scope: claims.scope,
-                client_id: Some(claims.azp),
-                username: claims.preferred_username,
-                sub: Some(claims.sub.to_string()),
-                token_type: Some(match claims.typ {
-                    ClaimsTyp::Bearer => "Bearer".to_string(),
-                    ClaimsTyp::Refresh => "Refresh".to_string(),
-                    ClaimsTyp::Temporary => "Temporary".to_string(),
-                }),
-                exp: claims.exp,
-                iat: Some(claims.iat),
-                nbf: Some(claims.iat),
-                aud: Some(claims.aud.join(" ")),
-                iss: Some(claims.iss),
-                jti: Some(claims.jti.to_string()),
-                realm: Some(realm.name),
-            });
+            return Ok(Self::claims_to_introspection_response(claims, realm.name));
         }
 
         // Backward-compatible JWT introspection: validate signature + expiry even if not persisted.
@@ -1376,24 +1383,6 @@ where
             };
         }
 
-        Ok(TokenIntrospectionResponse {
-            active: true,
-            scope: claims.scope,
-            client_id: Some(claims.azp),
-            username: claims.preferred_username,
-            sub: Some(claims.sub.to_string()),
-            token_type: Some(match claims.typ {
-                ClaimsTyp::Bearer => "Bearer".to_string(),
-                ClaimsTyp::Refresh => "Refresh".to_string(),
-                ClaimsTyp::Temporary => "Temporary".to_string(),
-            }),
-            exp: claims.exp,
-            iat: Some(claims.iat),
-            nbf: Some(claims.iat),
-            aud: Some(claims.aud.join(" ")),
-            iss: Some(claims.iss),
-            jti: Some(claims.jti.to_string()),
-            realm: Some(realm.name),
-        })
+        Ok(Self::claims_to_introspection_response(claims, realm.name))
     }
 }
