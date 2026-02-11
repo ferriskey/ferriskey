@@ -33,6 +33,7 @@ use crate::{
         },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
+            access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
@@ -101,6 +102,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
     let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
+    let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
@@ -123,11 +125,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client.clone(),
             redirect_uri.clone(),
             user.clone(),
+            user_role.clone(),
+            role.clone(),
             credential.clone(),
             hasher.clone(),
             auth_session.clone(),
             keystore.clone(),
             refresh_token.clone(),
+            access_token.clone(),
             federation.clone(),
         ),
         client_service: ClientServiceImpl::new(

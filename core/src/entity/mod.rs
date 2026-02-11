@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod access_tokens;
 pub mod auth_sessions;
 pub mod broker_auth_sessions;
 pub mod client_scope_attributes;

@@ -1507,6 +1507,7 @@ dependencies = [
  "chrono",
  "rand 0.8.5",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "utoipa",
  "uuid",

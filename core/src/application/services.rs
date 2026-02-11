@@ -30,6 +30,7 @@ use crate::{
         },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
+            access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
@@ -66,6 +67,7 @@ type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
+type AccessTokenRepo = PostgresAccessTokenRepository;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
 type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
@@ -134,11 +136,14 @@ pub struct ApplicationService {
         ClientRepo,
         RedirectUriRepo,
         UserRepo,
+        UserRoleRepo,
+        RoleRepo,
         CredentialRepo,
         HasherRepo,
         AuthSessionRepo,
         KeystoreRepo,
         RefreshTokenRepo,
+        AccessTokenRepo,
         FederationRepo,
     >,
     pub(crate) core_service: CoreServiceImpl<

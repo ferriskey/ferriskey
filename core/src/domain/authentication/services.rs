@@ -3,6 +3,7 @@ use std::sync::Arc;
 use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
+use sha2::{Digest, Sha256};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -14,11 +15,12 @@ use crate::domain::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            TokenIntrospectionResponse,
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
             AuthenticationResult, GenerateTokenInput, GetUserInfoInput, GrantTypeParams, Identity,
-            RegisterUserInput, UserInfoResponse,
+            IntrospectTokenInput, RegisterUserInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, RedirectUriRepository},
@@ -27,51 +29,66 @@ use crate::domain::{
     crypto::HasherRepository,
     jwt::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
-        ports::RefreshTokenRepository,
+        ports::{AccessTokenRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
-    user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
+    role::ports::RoleRepository,
+    user::{
+        entities::RequiredAction,
+        ports::{UserRepository, UserRoleRepository},
+        value_objects::CreateUserRequest,
+    },
 };
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+pub struct AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
+    URR: UserRoleRepository,
+    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) redirect_uri_repository: Arc<RU>,
     pub(crate) user_repository: Arc<U>,
+    pub(crate) user_role_repository: Arc<URR>,
+    pub(crate) role_repository: Arc<RR>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) keystore_repository: Arc<KS>,
     pub(crate) refresh_token_repository: Arc<RT>,
+    pub(crate) access_token_repository: Arc<AT>,
     pub(crate) federation_repository: Arc<F>,
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
+    URR: UserRoleRepository,
+    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     #[allow(clippy::too_many_arguments)]
@@ -80,11 +97,14 @@ where
         client_repository: Arc<C>,
         redirect_uri_repository: Arc<RU>,
         user_repository: Arc<U>,
+        user_role_repository: Arc<URR>,
+        role_repository: Arc<RR>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
         auth_session_repository: Arc<AS>,
         keystore_repository: Arc<KS>,
         refresh_token_repository: Arc<RT>,
+        access_token_repository: Arc<AT>,
         federation_repository: Arc<F>,
     ) -> Self {
         Self {
@@ -92,28 +112,35 @@ where
             client_repository,
             redirect_uri_repository,
             user_repository,
+            user_role_repository,
+            role_repository,
             credential_repository,
             hasher_repository,
             auth_session_repository,
             keystore_repository,
             refresh_token_repository,
+            access_token_repository,
             federation_repository,
             ldap_client: LdapClientImpl,
         }
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
+    URR: UserRoleRepository,
+    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
@@ -189,6 +216,26 @@ where
         );
 
         let jwt = self.generate_token(claims.clone(), input.realm_id).await?;
+
+        // Persist access tokens so backend services can introspect/revoke them immediately.
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+
+        self.access_token_repository
+            .create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                input.realm_id,
+                access_token_expires_at,
+                access_token_claims,
+            )
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         let refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
@@ -890,18 +937,21 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthService
-    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F> AuthService
+    for AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
+    URR: UserRoleRepository,
+    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
@@ -1197,5 +1247,153 @@ where
         }
 
         Ok(response)
+    }
+
+    async fn introspect_token(
+        &self,
+        input: IntrospectTokenInput,
+    ) -> Result<TokenIntrospectionResponse, CoreError> {
+        let inactive = TokenIntrospectionResponse {
+            active: false,
+            ..Default::default()
+        };
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let client = self
+            .client_repository
+            .get_by_client_id(input.client_id.clone(), realm.id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        if !client.enabled || client.public_client {
+            return Err(CoreError::InvalidClient);
+        }
+
+        if client.secret.as_deref() != Some(&input.client_secret) {
+            return Err(CoreError::InvalidClientSecret);
+        }
+
+        // Authorization: require service account to have the "introspect" role.
+        if !client.service_account_enabled {
+            return Err(CoreError::Forbidden(
+                "Client service account is not enabled".to_string(),
+            ));
+        }
+
+        let required_role = self
+            .role_repository
+            .find_by_name("introspect".to_string(), realm.id.into())
+            .await?
+            .ok_or(CoreError::Forbidden(
+                "Missing required scope: introspect".to_string(),
+            ))?;
+
+        let service_account_user = self
+            .user_repository
+            .get_by_client_id(client.id)
+            .await
+            .map_err(|_| CoreError::ServiceAccountNotFound)?;
+
+        let roles = self
+            .user_role_repository
+            .get_user_roles(service_account_user.id)
+            .await?;
+
+        let has_introspect = roles.iter().any(|r| r.id == required_role.id);
+        if !has_introspect {
+            return Err(CoreError::Forbidden(
+                "Missing required scope: introspect".to_string(),
+            ));
+        }
+
+        let token = input.token;
+        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+
+        // Opaque token support: prefer DB lookup by hash. This also enables immediate revocation.
+        if let Some(stored) = self
+            .access_token_repository
+            .get_by_token_hash(token_hash.clone())
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+        {
+            if stored.revoked {
+                return Ok(inactive);
+            }
+
+            if let Some(expires_at) = stored.expires_at
+                && expires_at < Utc::now()
+            {
+                return Ok(inactive);
+            }
+
+            let claims: JwtClaim = serde_json::from_value(stored.claims)
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            return Ok(TokenIntrospectionResponse {
+                active: true,
+                scope: claims.scope,
+                client_id: Some(claims.azp),
+                username: claims.preferred_username,
+                sub: Some(claims.sub.to_string()),
+                token_type: Some(match claims.typ {
+                    ClaimsTyp::Bearer => "Bearer".to_string(),
+                    ClaimsTyp::Refresh => "Refresh".to_string(),
+                    ClaimsTyp::Temporary => "Temporary".to_string(),
+                }),
+                exp: claims.exp,
+                iat: Some(claims.iat),
+                nbf: Some(claims.iat),
+                aud: Some(claims.aud.join(" ")),
+                iss: Some(claims.iss),
+                jti: Some(claims.jti.to_string()),
+                realm: Some(realm.name),
+            });
+        }
+
+        // Backward-compatible JWT introspection: validate signature + expiry even if not persisted.
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
+            return Ok(inactive);
+        }
+
+        let mut claims = match self.verify_token(token.clone(), realm.id).await {
+            Ok(c) => c,
+            Err(_) => return Ok(inactive),
+        };
+
+        // If the token is a refresh token (or hinted as such), enforce refresh token repository checks.
+        if input.token_type_hint.as_deref() == Some("refresh_token")
+            || claims.typ == ClaimsTyp::Refresh
+        {
+            claims = match self.verify_refresh_token(token, realm.id).await {
+                Ok(c) => c,
+                Err(_) => return Ok(inactive),
+            };
+        }
+
+        Ok(TokenIntrospectionResponse {
+            active: true,
+            scope: claims.scope,
+            client_id: Some(claims.azp),
+            username: claims.preferred_username,
+            sub: Some(claims.sub.to_string()),
+            token_type: Some(match claims.typ {
+                ClaimsTyp::Bearer => "Bearer".to_string(),
+                ClaimsTyp::Refresh => "Refresh".to_string(),
+                ClaimsTyp::Temporary => "Temporary".to_string(),
+            }),
+            exp: claims.exp,
+            iat: Some(claims.iat),
+            nbf: Some(claims.iat),
+            aud: Some(claims.aud.join(" ")),
+            iss: Some(claims.iss),
+            jti: Some(claims.jti.to_string()),
+            realm: Some(realm.name),
+        })
     }
 }

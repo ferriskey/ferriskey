@@ -13,7 +13,7 @@ use crate::domain::{
 };
 
 pub use ferriskey_domain::authentication::entities::{
-    AuthenticationError, JwtToken, RefreshClaims,
+    AuthenticationError, JwtToken, RefreshClaims, TokenIntrospectionResponse,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
