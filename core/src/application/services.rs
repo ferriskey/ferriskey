@@ -74,6 +74,22 @@ type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
 type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
 type OAuthClientImpl = ReqwestOAuthClient;
 
+type ApplicationAuthService = AuthServiceImpl<
+    RealmRepo,
+    ClientRepo,
+    RedirectUriRepo,
+    UserRepo,
+    UserRoleRepo,
+    RoleRepo,
+    CredentialRepo,
+    HasherRepo,
+    AuthSessionRepo,
+    KeystoreRepo,
+    RefreshTokenRepo,
+    AccessTokenRepo,
+    FederationRepo,
+>;
+
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
@@ -131,21 +147,7 @@ pub struct ApplicationService {
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
 
-    pub(crate) auth_service: AuthServiceImpl<
-        RealmRepo,
-        ClientRepo,
-        RedirectUriRepo,
-        UserRepo,
-        UserRoleRepo,
-        RoleRepo,
-        CredentialRepo,
-        HasherRepo,
-        AuthSessionRepo,
-        KeystoreRepo,
-        RefreshTokenRepo,
-        AccessTokenRepo,
-        FederationRepo,
-    >,
+    pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
