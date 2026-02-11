@@ -1490,6 +1490,7 @@ dependencies = [
  "sha2",
  "signature",
  "sqlx",
+ "subtle",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

@@ -4,6 +4,7 @@ use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -416,7 +417,7 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if client.secret != params.client_secret {
+        if !Self::verify_client_secret(client.secret.as_deref(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -473,8 +474,8 @@ where
                 return Err(CoreError::InvalidClientSecret);
             }
 
-            if let Some(provided_secret) = params.client_secret
-                && client.secret != Some(provided_secret)
+            if let Some(provided_secret) = &params.client_secret
+                && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
             {
                 return Err(CoreError::InvalidClientSecret);
             }
@@ -960,6 +961,18 @@ This is a server error that should be investigated. Do not forward back this mes
             realm: Some(realm_name),
         }
     }
+
+    fn verify_client_secret(stored: Option<&str>, provided: Option<&str>) -> bool {
+        match (stored, provided) {
+            (Some(s), Some(p)) => {
+                let s_hash = Sha256::digest(s.as_bytes());
+                let p_hash = Sha256::digest(p.as_bytes());
+                s_hash.ct_eq(&p_hash).into()
+            }
+            (None, None) => true,
+            _ => false,
+        }
+    }
 }
 
 impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F> AuthService
@@ -1299,7 +1312,7 @@ where
             return Err(CoreError::InvalidClient);
         }
 
-        if client.secret.as_deref() != Some(&input.client_secret) {
+        if !Self::verify_client_secret(client.secret.as_deref(), Some(&input.client_secret)) {
             return Err(CoreError::InvalidClientSecret);
         }
 
