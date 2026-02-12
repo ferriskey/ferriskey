@@ -79,8 +79,6 @@ type ApplicationAuthService = AuthServiceImpl<
     ClientRepo,
     RedirectUriRepo,
     UserRepo,
-    UserRoleRepo,
-    RoleRepo,
     CredentialRepo,
     HasherRepo,
     AuthSessionRepo,

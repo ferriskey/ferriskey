@@ -125,8 +125,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client.clone(),
             redirect_uri.clone(),
             user.clone(),
-            user_role.clone(),
-            role.clone(),
             credential.clone(),
             hasher.clone(),
             auth_session.clone(),

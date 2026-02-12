@@ -33,24 +33,17 @@ use crate::domain::{
         ports::{AccessTokenRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
-    role::ports::RoleRepository,
-    user::{
-        entities::RequiredAction,
-        ports::{UserRepository, UserRoleRepository},
-        value_objects::CreateUserRequest,
-    },
+    user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
 };
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
-    URR: UserRoleRepository,
-    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -63,8 +56,6 @@ where
     pub(crate) client_repository: Arc<C>,
     pub(crate) redirect_uri_repository: Arc<RU>,
     pub(crate) user_repository: Arc<U>,
-    pub(crate) user_role_repository: Arc<URR>,
-    pub(crate) role_repository: Arc<RR>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) auth_session_repository: Arc<AS>,
@@ -75,15 +66,12 @@ where
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
-    AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
-    URR: UserRoleRepository,
-    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -98,8 +86,6 @@ where
         client_repository: Arc<C>,
         redirect_uri_repository: Arc<RU>,
         user_repository: Arc<U>,
-        user_role_repository: Arc<URR>,
-        role_repository: Arc<RR>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
         auth_session_repository: Arc<AS>,
@@ -113,8 +99,6 @@ where
             client_repository,
             redirect_uri_repository,
             user_repository,
-            user_role_repository,
-            role_repository,
             credential_repository,
             hasher_repository,
             auth_session_repository,
@@ -127,15 +111,12 @@ where
     }
 }
 
-impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
-    AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
-    URR: UserRoleRepository,
-    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -975,15 +956,13 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F> AuthService
-    for AuthServiceImpl<R, C, RU, U, URR, RR, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthService
+    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     U: UserRepository,
-    URR: UserRoleRepository,
-    RR: RoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -1314,39 +1293,6 @@ where
 
         if !Self::verify_client_secret(client.secret.as_deref(), Some(&input.client_secret)) {
             return Err(CoreError::InvalidClientSecret);
-        }
-
-        // Authorization: require service account to have the "introspect" role.
-        if !client.service_account_enabled {
-            return Err(CoreError::Forbidden(
-                "Client service account is not enabled".to_string(),
-            ));
-        }
-
-        let required_role = self
-            .role_repository
-            .find_by_name("introspect".to_string(), realm.id.into())
-            .await?
-            .ok_or(CoreError::Forbidden(
-                "Missing required scope: introspect".to_string(),
-            ))?;
-
-        let service_account_user = self
-            .user_repository
-            .get_by_client_id(client.id)
-            .await
-            .map_err(|_| CoreError::ServiceAccountNotFound)?;
-
-        let roles = self
-            .user_role_repository
-            .get_user_roles(service_account_user.id)
-            .await?;
-
-        let has_introspect = roles.iter().any(|r| r.id == required_role.id);
-        if !has_introspect {
-            return Err(CoreError::Forbidden(
-                "Missing required scope: introspect".to_string(),
-            ));
         }
 
         let token = input.token;
