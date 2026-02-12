@@ -46,6 +46,7 @@ regex = "1.11.2"
 futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation"] }
 ldap3 = "0.12.1"
+subtle = "2.6.1"
 
 [dev-dependencies]
 mockall = "0.13.1"

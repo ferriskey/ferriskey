@@ -116,6 +116,14 @@ pub struct GetUserInfoInput {
     pub claims: DecodedToken,
 }
 
+pub struct IntrospectTokenInput {
+    pub realm_name: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub token: String,
+    pub token_type_hint: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]
 pub struct UserInfoResponse {
     pub sub: String,

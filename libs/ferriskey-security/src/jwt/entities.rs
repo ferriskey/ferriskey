@@ -198,6 +198,45 @@ impl RefreshToken {
     }
 }
 
+pub struct AccessToken {
+    pub id: Uuid,
+    pub token_hash: String,
+    pub jti: Option<Uuid>,
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub revoked: bool,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub claims: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+impl AccessToken {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        id: Uuid,
+        token_hash: String,
+        jti: Option<Uuid>,
+        user_id: Uuid,
+        realm_id: Uuid,
+        revoked: bool,
+        expires_at: Option<DateTime<Utc>>,
+        claims: serde_json::Value,
+        created_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            token_hash,
+            jti,
+            user_id,
+            realm_id,
+            revoked,
+            expires_at,
+            claims,
+            created_at,
+        }
+    }
+}
+
 impl JwtKeyPair {
     pub fn from_pem(
         private_pem: &str,

@@ -212,4 +212,5 @@ dev-test-down: _ensure-docker-running
 
 web: _ensure-pnpm
   @# Run the frontend server inside container.
+  @{{compose}} down -v webapp-build || true
   @{{compose}} up webapp-build

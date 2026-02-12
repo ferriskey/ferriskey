@@ -30,6 +30,7 @@ use crate::{
         },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
+            access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
@@ -66,11 +67,26 @@ type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
+type AccessTokenRepo = PostgresAccessTokenRepository;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
 type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
 type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
 type OAuthClientImpl = ReqwestOAuthClient;
+
+type ApplicationAuthService = AuthServiceImpl<
+    RealmRepo,
+    ClientRepo,
+    RedirectUriRepo,
+    UserRepo,
+    CredentialRepo,
+    HasherRepo,
+    AuthSessionRepo,
+    KeystoreRepo,
+    RefreshTokenRepo,
+    AccessTokenRepo,
+    FederationRepo,
+>;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -129,18 +145,7 @@ pub struct ApplicationService {
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
 
-    pub(crate) auth_service: AuthServiceImpl<
-        RealmRepo,
-        ClientRepo,
-        RedirectUriRepo,
-        UserRepo,
-        CredentialRepo,
-        HasherRepo,
-        AuthSessionRepo,
-        KeystoreRepo,
-        RefreshTokenRepo,
-        FederationRepo,
-    >,
+    pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,

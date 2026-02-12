@@ -32,3 +32,21 @@ pub struct TokenRequestValidator {
     #[serde(default)]
     pub scope: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct IntrospectRequestValidator {
+    #[validate(length(min = 1, message = "token is required"))]
+    #[serde(default)]
+    pub token: String,
+
+    #[serde(default)]
+    pub token_type_hint: Option<String>,
+
+    // Used by `client_secret_post`
+    #[serde(default)]
+    pub client_id: Option<String>,
+
+    // Used by `client_secret_post`
+    #[serde(default)]
+    pub client_secret: Option<String>,
+}
