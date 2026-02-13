@@ -197,7 +197,13 @@ where
             input.scope.clone(),
         );
 
-        let jwt = self.generate_token(claims.clone(), input.realm_id).await?;
+        let jwt = self
+            .generate_token(claims.clone(), input.realm_id)
+            .await
+            .map_err(|e| {
+                warn!("Failed to generate JWT: {:?}", e);
+                e
+            })?;
 
         // Persist access tokens so backend services can introspect/revoke them immediately.
         let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
@@ -356,9 +362,13 @@ where
 
         let auth_session = self
             .auth_session_repository
-            .get_by_code(code)
+            .get_by_code(code.clone())
             .await
-            .map_err(|_| CoreError::InternalServerError)?
+            .map_err(|e| {
+                warn!("Auth session not found for code {}: {:?}", code, e);
+
+                CoreError::MissingAuthorizationCode
+            })?
             .ok_or(CoreError::NotFound)?;
 
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
@@ -367,20 +377,32 @@ where
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.allowed_scopes();
 
+        info!("Final scope for authorization code grant: {}", final_scope);
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
-                client_id: params.client_id,
+                client_id: params.client_id.clone(),
                 email: user.email,
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: Some(final_scope),
+                scope: Some(final_scope.clone()),
             })
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("Failed to create JWT for authorization code grant: {:?}", e);
+
+                e
+            })?;
 
         let id_token_value = id_token.map(|t| t.token);
+
+        info!(
+            "Generated JWT for authorization code grant, user_id: {}, client_id: {}, scope: {}",
+            user.id, params.client_id, final_scope
+        );
 
         Ok(JwtToken::new(
             jwt.token,
@@ -1067,7 +1089,14 @@ where
 
         self.client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!(
+                    "Client not found for client_id {}: {:?}",
+                    input.client_id, e
+                );
+                e
+            })?;
 
         let params = GrantTypeParams {
             realm_id: realm.id,

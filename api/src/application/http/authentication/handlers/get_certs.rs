@@ -11,6 +11,19 @@ pub struct GetCertsResponse {
     pub keys: Vec<JwkKey>,
 }
 
+async fn fetch_realm_jwks(
+    realm_name: String,
+    state: AppState,
+) -> Result<Response<GetCertsResponse>, ApiError> {
+    let jwk_keys = state
+        .service
+        .get_certs(realm_name)
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Response::OK(GetCertsResponse { keys: jwk_keys }))
+}
+
 #[utoipa::path(
     get,
     path = "/protocol/openid-connect/certs",
@@ -28,11 +41,25 @@ pub async fn get_certs(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response<GetCertsResponse>, ApiError> {
-    let jwk_keys = state
-        .service
-        .get_certs(realm_name)
-        .await
-        .map_err(ApiError::from)?;
+    fetch_realm_jwks(realm_name, state).await
+}
 
-    Ok(Response::OK(GetCertsResponse { keys: jwk_keys }))
+#[utoipa::path(
+    get,
+    path = "/protocol/openid-connect/jwks.json",
+    tag = "auth",
+    summary = "Get JWKS for a realm",
+    description = "Retrieves the JSON Web Key Set (JWKS) for a specific realm, used by resource servers to validate JWT signatures.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+    ),
+    responses(
+        (status = 200, body = GetCertsResponse)
+    )
+)]
+pub async fn get_jwks_json(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Response<GetCertsResponse>, ApiError> {
+    fetch_realm_jwks(realm_name, state).await
 }
