@@ -5,6 +5,7 @@ WORKDIR /usr/local/src/ferriskey
 ENV CARGO_HOME=/usr/local/cargo
 
 RUN set -eux ;\
+  apk update --no-cache && apk upgrade --no-cache ;\
   apk add --no-cache rust build-base pkgconf openssl-dev curl ;\
   cargo install --root /usr/local/cargo sqlx-cli --no-default-features --features postgres
 
@@ -55,6 +56,7 @@ RUN \
 FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
 
 RUN set -eux ;\
+  apk update --no-cache && apk upgrade --no-cache ;\
   addgroup -S -g 1000 ferriskey && \
   adduser -S -D -H -u 1000 -G ferriskey ferriskey
 
@@ -86,9 +88,10 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 RUN set -eux ;\
-  apk add --no-cache nodejs-20 corepack ;\
+  apk update --no-cache && apk upgrade --no-cache ;\
+  apk add --no-cache nodejs-24 corepack ;\
   corepack enable ;\
-  corepack prepare pnpm@9.15.0 --activate
+  corepack prepare pnpm@latest --activate
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -98,7 +101,7 @@ COPY front/ .
 
 RUN pnpm run build
 
-FROM docker.angie.software/angie AS webapp
+FROM docker.angie.software/angie:minimal AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/angie/http.d/default.conf

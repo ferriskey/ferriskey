@@ -209,6 +209,9 @@ db-down: _ensure-docker-running
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.
   @{{compose}} --profile build down -v
+dev-test-rm: _ensure-docker-running
+  @# Tear down docker compose build profile containers and volumes and remove images.
+  @{{compose}} --profile build down -v --rmi local
 
 web: _ensure-pnpm
   @# Run the frontend server inside container.
