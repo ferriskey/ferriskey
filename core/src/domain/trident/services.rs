@@ -814,14 +814,16 @@ where
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::MagicLinkNotEnabled)?;
 
-        if !settings.magic_link_enabled.unwrap_or(false) {
+        if !settings.magic_link_enabled {
             return Err(CoreError::MagicLinkNotEnabled);
         }
+
         let user = self
             .user_repository
-            .find_by_email_in_realm(input.email, realm.id)
+            .get_by_email(&input.email, realm.id)
             .await
-            .map_err(|_| CoreError::InvalidUser)?;
+            .map_err(|_| CoreError::InvalidUser)?
+            .ok_or(CoreError::InvalidUser)?;
 
         self.magic_link_repository
             .cleanup_expired(realm.id.into())
@@ -834,7 +836,7 @@ where
             .hash_magic_token(&magic_token)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
-        let ttl_minutes = settings.magic_link_ttl_minutes.unwrap_or(15);
+        let ttl_minutes = settings.magic_link_ttl_minutes;
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
 
         self.magic_link_repository
@@ -887,7 +889,8 @@ where
                 CoreError::InvalidMagicLink
             })?;
 
-        if Utc::now() > magic_link.expires_at {
+        if magic_link.is_expired() {
+            // TODO check if still work
             warn!("Magic link has expired");
             self.magic_link_repository
                 .delete_by_token_id(magic_link.token_id.clone())

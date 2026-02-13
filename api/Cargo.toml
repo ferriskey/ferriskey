@@ -17,7 +17,7 @@ base64 = "0.22.1"
 chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive", "env"] }
 dotenv = "0.15.0"
-regex = "1.11.1"
+regex = "1.11.2"
 rustls = { version = "0.23.35" }
 serde = "1.0.228"
 serde_json = "1.0.148"
@@ -45,4 +45,4 @@ opentelemetry = "0.31.0"
 [dev-dependencies]
 test-context = "*"
 axum-test = "*"
-sea-orm = { version = "1.1.14", features = ["sqlx-postgres"] }
+sea-orm = { version = "1.1.19", features = ["sqlx-postgres"] }

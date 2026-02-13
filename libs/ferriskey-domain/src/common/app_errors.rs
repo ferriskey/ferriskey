@@ -166,6 +166,18 @@ pub enum CoreError {
     #[error("Webauthn challenge failed")]
     WebAuthnChallengeFailed,
 
+    #[error("Magic link not enabled for this realm")]
+    MagicLinkNotEnabled,
+
+    #[error("Invalid magic link token")]
+    InvalidMagicLink,
+
+    #[error("Magic link has expired")]
+    MagicLinkExpired,
+
+    #[error("Magic link has already been used")]
+    MagicLinkAlreadyUsed,
+
     // Provider (Abyss) errors
     #[error("Provider not found")]
     ProviderNotFound,

@@ -17,7 +17,6 @@ use crate::domain::{
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
-            MagicLinkAuthParams,
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{

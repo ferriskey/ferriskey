@@ -31,7 +31,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
     ) -> Result<ClientScopeMapping, CoreError> {
         let active_model = client_scope_mappings::ActiveModel {
             client_id: Set(client_id),
-            scope_id: Set(scope_id),
+            client_scope_id: Set(scope_id),
             is_default: Set(is_default),
             is_optional: Set(is_optional),
         };
@@ -51,7 +51,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
     ) -> Result<(), CoreError> {
         let result = client_scope_mappings::Entity::delete_many()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))
-            .filter(client_scope_mappings::Column::ScopeId.eq(scope_id))
+            .filter(client_scope_mappings::Column::ClientScopeId.eq(scope_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -93,7 +93,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
                 CoreError::InternalServerError
             })?;
 
-        let scope_ids: Vec<Uuid> = mappings.iter().map(|m| m.scope_id).collect();
+        let scope_ids: Vec<Uuid> = mappings.iter().map(|m| m.client_scope_id).collect();
 
         if scope_ids.is_empty() {
             return Ok(vec![]);
@@ -122,7 +122,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
                 CoreError::InternalServerError
             })?;
 
-        let scope_ids: Vec<Uuid> = mappings.iter().map(|m| m.scope_id).collect();
+        let scope_ids: Vec<Uuid> = mappings.iter().map(|m| m.client_scope_id).collect();
 
         if scope_ids.is_empty() {
             return Ok(vec![]);

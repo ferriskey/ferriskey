@@ -1471,6 +1471,7 @@ dependencies = [
  "ferriskey-security",
  "ferriskey-trident",
  "futures",
+ "hex",
  "hmac",
  "jsonwebtoken",
  "ldap3",
@@ -1562,8 +1563,10 @@ name = "ferriskey-trident"
 version = "0.1.0"
 dependencies = [
  "base32",
+ "chrono",
  "ferriskey-domain",
  "serde",
+ "uuid",
 ]
 
 [[package]]

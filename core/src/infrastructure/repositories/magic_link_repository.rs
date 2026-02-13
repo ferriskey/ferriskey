@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     domain::{
         common::{entities::app_errors::CoreError, generate_uuid_v7},
-        crypto::entities::HashResult,
+        crypto::HashResult,
         trident::{entities::MagicLink, ports::MagicLinkRepository},
     },
     entity::magic_links::{

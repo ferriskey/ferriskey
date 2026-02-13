@@ -77,7 +77,7 @@ impl HasherRepository for Argon2HasherRepository {
         Ok(result.is_ok())
     }
 
-    async fn hash_magic_token(&self, token: &str) -> Result<HashResult, anyhow::Error> {
+    async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
         self.hash_password(token).await
     }
 
@@ -88,7 +88,7 @@ impl HasherRepository for Argon2HasherRepository {
         _hash_iterations: u32,
         _algorithm: &str,
         _salt: &str,
-    ) -> Result<bool, anyhow::Error> {
+    ) -> Result<bool, SecurityError> {
         let result = self
             .verify_password(token, secret_data, 3, "argon2d", "")
             .await?;

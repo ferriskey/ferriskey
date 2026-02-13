@@ -21,7 +21,7 @@ hmac = "0.12.1"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.8.0"
 rsa = { version = "0.9.9", features = ["pem"] }
-sea-orm = { version = "1.1.14", features = [
+sea-orm = { version = "1.1.19", features = [
     "sqlx-postgres",
     "macros",
     "with-uuid",
@@ -48,7 +48,6 @@ webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "d
 ldap3 = "0.12.1"
 subtle = "2.6.1"
 hex = "0.4.3"
-sha2 = "0.10.9"
 
 [dev-dependencies]
 mockall = "0.13.1"
