@@ -151,12 +151,6 @@ pub trait MagicLinkRepository: Send + Sync {
 
     fn cleanup_expired(&self, realm_id: Uuid)
     -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    fn get_user_active_links(
-        &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<MagicLink>, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

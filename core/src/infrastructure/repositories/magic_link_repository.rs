@@ -1,7 +1,6 @@
 use chrono::{DateTime, TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -56,10 +55,10 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         expires_at: DateTime<Utc>,
     ) -> Result<(), CoreError> {
         // Extract token
-        if magic_token_hash.hash.is_empty() {
+        let magic_token_hash = &magic_token_hash.hash;
+        if magic_token_hash.is_empty() {
             return Err(CoreError::InvalidMagicLink);
         }
-        let magic_token_hash = &magic_token_hash.hash;
 
         let active_model: MagicLinkActiveModel = MagicLinkActiveModel {
             id: Set(generate_uuid_v7()),
@@ -125,25 +124,5 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         })?;
 
         Ok(())
-    }
-
-    async fn get_user_active_links(
-        &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-    ) -> Result<Vec<MagicLink>, CoreError> {
-        let magic_links = MagicLinkEntity::find()
-            .filter(MagicLinkColumn::UserId.eq(user_id))
-            .filter(MagicLinkColumn::RealmId.eq(realm_id))
-            .filter(MagicLinkColumn::ExpiresAt.gt(Utc::now().naive_utc()))
-            .order_by_desc(MagicLinkColumn::CreatedAt)
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to get user active magic links: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        Ok(magic_links.into_iter().map(|ml| ml.into()).collect())
     }
 }

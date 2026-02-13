@@ -848,7 +848,7 @@ where
             .await?;
 
         debug!(
-            "------------ Magic link generated with token_id: {}, plain_token: {} (email: {}, ttl: {}min) ------------",
+            "------------ Magic link generated with token_id: {}, token: {} (email: {}, ttl: {}min) ------------",
             magic_token_id, magic_token, user.email, ttl_minutes
         );
 
@@ -889,10 +889,13 @@ where
 
         if Utc::now() > magic_link.expires_at {
             warn!("Magic link has expired");
-            let _ = self
-                .magic_link_repository
+            self.magic_link_repository
                 .delete_by_token_id(magic_link.token_id.clone())
-                .await;
+                .await
+                .map_err(|e| {
+                    error!("Failed to delete magic link : {}", e);
+                    CoreError::InternalServerError
+                })?;
             return Err(CoreError::MagicLinkExpired);
         }
 
@@ -910,7 +913,7 @@ where
             return Err(CoreError::InvalidMagicLink);
         }
 
-        // Generate authorization code and login URL (same as WebAuthn flow)
+        // Generate authorization code and login URL
         let login_url = store_auth_code_and_generate_login_url::<AS>(
             &self.auth_session_repository,
             &auth_session,
@@ -922,7 +925,13 @@ where
             e
         })?;
 
-        // Delete the used magic link (single use)
+        // TODO: here an email should be sent to the userinstead of logging it
+        debug!(
+            "Magic link verified for user_id: {}, redirect: {}",
+            magic_link.user_id, login_url
+        );
+
+        // Delete the used magic link
         self.magic_link_repository
             .delete_by_token_id(magic_link.token_id)
             .await
@@ -930,11 +939,6 @@ where
                 error!("Failed to delete used magic link: {}", e);
                 e
             })?;
-
-        debug!(
-            "✓ Magic link verified for user_id: {}, redirect: {}",
-            magic_link.user_id, login_url
-        );
 
         Ok(login_url)
     }

@@ -134,7 +134,7 @@ pub async fn verify_magic_link(
         })
         .await?;
 
-    debug!("Magic link verified, redirecting to: {}", login_url);
+    debug!("Magic link verified");
 
     // Return success with redirect URL
     let response = AuthenticateResponse {

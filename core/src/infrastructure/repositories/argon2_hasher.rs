@@ -89,12 +89,10 @@ impl HasherRepository for Argon2HasherRepository {
         _algorithm: &str,
         _salt: &str,
     ) -> Result<bool, anyhow::Error> {
-        let parsed_hash = PasswordHash::new(secret_data)
-            .map_err(|e| anyhow::anyhow!("Error parsing hash: {}", e))?;
-
-        // For magic tokens, use Argon2::default() which extracts all params from the hash
-        let result = Argon2::default().verify_password(token.as_bytes(), &parsed_hash);
-        Ok(result.is_ok())
+        let result = self
+            .verify_password(token, secret_data, 3, "argon2d", "")
+            .await?;
+        Ok(result)
     }
 }
 
