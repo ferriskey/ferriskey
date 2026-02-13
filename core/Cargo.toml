@@ -41,11 +41,11 @@ urlencoding = "2.1.3"
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros"] }
-reqwest = { version = "0.12.23", features = ["json"] }
+reqwest = { version = "0.12.23", default-features = false, features = ["json", "rustls-tls-native-roots"] }
 regex = "1.11.2"
 futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation"] }
-ldap3 = "0.12.1"
+ldap3 = { version = "0.12.1", default-features = false, features = ["sync", "tls-rustls-ring"] }
 subtle = "2.6.1"
 
 [dev-dependencies]
