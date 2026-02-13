@@ -1,8 +1,12 @@
-FROM rust:1.91.1-bookworm AS rust-build
+FROM cgr.dev/chainguard/wolfi-base:latest AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
-RUN cargo install sqlx-cli --no-default-features --features postgres
+ENV CARGO_HOME=/usr/local/cargo
+
+RUN set -eux ;\
+  apk add --no-cache rust build-base pkgconf openssl-dev curl ;\
+  cargo install --root /usr/local/cargo sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/maskass/Cargo.toml ./libs/maskass/
@@ -50,7 +54,7 @@ RUN \
 
 FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
 
-RUN \
+RUN set -eux ;\
   addgroup -S -g 1000 ferriskey && \
   adduser -S -D -H -u 1000 -G ferriskey ferriskey
 
@@ -74,17 +78,17 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM node:20.14.0-alpine AS webapp-build
+FROM cgr.dev/chainguard/wolfi-base:latest AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN \
-  corepack enable && \
-  corepack prepare pnpm@9.15.0 --activate && \
-  apk --no-cache add dumb-init=1.2.5-r3
+RUN set -eux ;\
+  apk add --no-cache nodejs-20 corepack ;\
+  corepack enable ;\
+  corepack prepare pnpm@9.15.0 --activate
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -94,7 +98,7 @@ COPY front/ .
 
 RUN pnpm run build
 
-FROM nginx:1.28.0-alpine3.21-slim AS webapp
+FROM docker.angie.software/angie AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
