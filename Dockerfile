@@ -101,7 +101,10 @@ RUN pnpm run build
 FROM docker.angie.software/angie AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
-COPY front/nginx.conf /etc/nginx/conf.d/default.conf
-COPY front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
+COPY front/nginx.conf /etc/angie/http.d/default.conf
+COPY front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod +x /docker-entrypoint.d/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["angie", "-g", "daemon off;"]
