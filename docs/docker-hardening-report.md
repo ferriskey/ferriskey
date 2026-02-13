@@ -62,11 +62,12 @@ Trivy scan mode: `trivy image --scanners vuln`
    - Angie-native paths (`/etc/angie/http.d`, `/usr/share/angie/html`) match the actual runtime image behavior and prevent falling back to the default welcome page.
 
 References:
-- freenginx announcement (Maxim Dounin): https://freenginx.org/pipermail/nginx-devel/2024-February/000000.html
-- Ingress NGINX retirement notice (Kubernetes): https://www.kubernetes.dev/blog/2025/11/12/ingress-nginx-retirement/
-- nginx release stream (mainline/stable): https://nginx.org/en/download.html
-- nginx change log with recent security fixes: https://nginx.org/en/CHANGES
-- Angie docs/about (fork and release model): https://en.angie.software/angie/docs/
+
+- freenginx announcement (Maxim Dounin): <https://freenginx.org/pipermail/nginx-devel/2024-February/000000.html>
+- Ingress NGINX retirement notice (Kubernetes): <https://www.kubernetes.dev/blog/2025/11/12/ingress-nginx-retirement/>
+- nginx release stream (mainline/stable): <https://nginx.org/en/download.html>
+- nginx change log with recent security fixes: <https://nginx.org/en/CHANGES>
+- Angie docs/about (fork and release model): <https://en.angie.software/angie/docs/>
 
 ## Why Node 24 and Latest pnpm
 
