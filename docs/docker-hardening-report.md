@@ -52,11 +52,21 @@ Trivy scan mode: `trivy image --scanners vuln`
 
 ## Why We Changed from Nginx to Angie
 
-1. Project runtime target is Angie, so image/config should match Angie defaults and official docs.
-2. Angie official image uses:
-   - config include directory: `/etc/angie/http.d/*.conf`
-   - static root conventions under `/usr/share/angie/html`
-3. Using Angie-native paths avoids fallback to the default welcome page and ensures intended site config is loaded.
+1. There is a documented governance controversy around NGINX OSS development:
+   - In February 2024, long-time core developer Maxim Dounin announced he would stop participating in nginx development run by F5 and start `freenginx`, citing management interference with security policy and loss of developer control.
+2. The "life support mode" statement is only partially true and is often confused:
+   - It is true for **Ingress NGINX** (the Kubernetes `ingress-nginx` project), where Kubernetes announced best-effort maintenance until March 2026, then retirement with no further releases or security fixes.
+   - It is **not** an official status for the core nginx web server itself. nginx.org still shows active mainline/stable releases and recent security fixes.
+3. Angie gives a practical path for this project:
+   - Angie is a free nginx fork built by former nginx developers and positioned as a drop-in replacement.
+   - Angie-native paths (`/etc/angie/http.d`, `/usr/share/angie/html`) match the actual runtime image behavior and prevent falling back to the default welcome page.
+
+References:
+- freenginx announcement (Maxim Dounin): https://freenginx.org/pipermail/nginx-devel/2024-February/000000.html
+- Ingress NGINX retirement notice (Kubernetes): https://www.kubernetes.dev/blog/2025/11/12/ingress-nginx-retirement/
+- nginx release stream (mainline/stable): https://nginx.org/en/download.html
+- nginx change log with recent security fixes: https://nginx.org/en/CHANGES
+- Angie docs/about (fork and release model): https://en.angie.software/angie/docs/
 
 ## Why Node 24 and Latest pnpm
 
