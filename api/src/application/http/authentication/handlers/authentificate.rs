@@ -100,7 +100,11 @@ impl From<AuthenticateOutput> for AuthenticateResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = AuthenticateResponse)
+        (status = 200, description = "Authenticated", body = AuthenticateResponse),
+        (status = 400, description = "Invalid input", body = ApiError),
+        (status = 401, description = "Missing session cookie", body = ApiError),
+        (status = 401, description = "Invalid realm", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError)
     )
 )]
 pub async fn authenticate(
