@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 
@@ -28,7 +31,10 @@ pub struct GetSecurityEventsResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = GetSecurityEventsResponse)
+        (status = 200, description = "Security events retrieved successfully", body = GetSecurityEventsResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_security_events(
