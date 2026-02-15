@@ -25,7 +25,7 @@ use crate::domain::{
             RevokeTokenInput, UserInfoResponse,
         },
     },
-    client::ports::{ClientRepository, RedirectUriRepository},
+    client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
@@ -39,11 +39,12 @@ use crate::domain::{
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -56,6 +57,7 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) user_repository: Arc<U>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
@@ -67,11 +69,13 @@ where
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -86,6 +90,7 @@ where
         realm_repository: Arc<R>,
         client_repository: Arc<C>,
         redirect_uri_repository: Arc<RU>,
+        post_logout_redirect_uri_repository: Arc<PLRU>,
         user_repository: Arc<U>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
@@ -99,6 +104,7 @@ where
             realm_repository,
             client_repository,
             redirect_uri_repository,
+            post_logout_redirect_uri_repository,
             user_repository,
             credential_repository,
             hasher_repository,
@@ -112,11 +118,13 @@ where
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -1018,12 +1026,13 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthService
-    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -1518,13 +1527,13 @@ where
                 .await?;
 
             let enabled_redirect_uris = self
-                .redirect_uri_repository
+                .post_logout_redirect_uri_repository
                 .get_enabled_by_client_id(client.id)
                 .await?;
 
             if !enabled_redirect_uris
                 .iter()
-                .any(|uri| uri.value == post_logout_redirect_uri)
+                .any(|uri| uri == &post_logout_redirect_uri)
             {
                 return Err(CoreError::InvalidRedirectUri);
             }

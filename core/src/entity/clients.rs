@@ -60,6 +60,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     AuthSessions,
+    PostLogoutRedirectUris,
     Realms,
     RedirectUris,
     Roles,
@@ -91,6 +92,9 @@ impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
+            Self::PostLogoutRedirectUris => {
+                Entity::has_many(super::post_logout_redirect_uris::Entity).into()
+            }
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
@@ -111,6 +115,12 @@ impl Related<super::auth_sessions::Entity> for Entity {
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
+    }
+}
+
+impl Related<super::post_logout_redirect_uris::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PostLogoutRedirectUris.def()
     }
 }
 

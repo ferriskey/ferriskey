@@ -1,9 +1,14 @@
 pub use ferriskey_domain::client::ports::{
     ClientPolicy, ClientRepository, ClientService, RedirectUriRepository, RedirectUriService,
 };
+use uuid::Uuid;
+
+use crate::domain::common::entities::app_errors::CoreError;
 
 #[cfg(test)]
-pub use mocks::{MockClientRepository, MockRedirectUriRepository};
+pub use mocks::{
+    MockClientRepository, MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
+};
 
 #[cfg(test)]
 mod mocks {
@@ -76,4 +81,21 @@ mod mocks {
             fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
         }
     }
+
+    mock! {
+        pub PostLogoutRedirectUriRepository {}
+        impl super::PostLogoutRedirectUriRepository for PostLogoutRedirectUriRepository {
+            fn get_enabled_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<String>, CoreError>> + Send;
+        }
+    }
+}
+
+pub trait PostLogoutRedirectUriRepository: Send + Sync {
+    fn get_enabled_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<String>, CoreError>> + Send;
 }
