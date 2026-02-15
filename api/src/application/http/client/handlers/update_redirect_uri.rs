@@ -2,7 +2,7 @@ use crate::application::http::{
     client::validators::UpdateRedirectUriValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -32,6 +32,10 @@ use uuid::Uuid;
     request_body = UpdateRedirectUriValidator,
     responses(
         (status = 200, body = RedirectUri),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Redirect not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn update_redirect_uri(
