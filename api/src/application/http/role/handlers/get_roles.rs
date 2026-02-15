@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{
@@ -26,7 +29,9 @@ pub struct GetRolesResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = GetRolesResponse)
+        (status = 200, description = "Roles retrieved successfully", body = GetRolesResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_roles(

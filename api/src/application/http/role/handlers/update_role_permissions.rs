@@ -2,7 +2,7 @@ use crate::application::http::{
     role::validators::UpdateRolePermissionsValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -35,9 +35,11 @@ pub struct UpdateRolePermissionsResponse {
       ("role_id" = Uuid, Path, description = "Role ID"),
   ),
   responses(
-      (status = 200, body = UpdateRolePermissionsResponse),
-      (status = 404, description = "Role not found"),
-      (status = 400, description = "Invalid request data")
+        (status = 200, description = "Role permissions updated successfully", body = UpdateRolePermissionsResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Role not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
   ),
 )]
 pub async fn update_role_permissions(
