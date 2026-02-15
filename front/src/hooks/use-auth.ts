@@ -7,10 +7,44 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser } from '@/contracts/states.interface'
 
-function decodeJwt(token: string): Record<string, unknown> | null {
+type JwtPayload = {
+  exp?: number
+  azp?: string
+  avatar?: string
+  preferred_username?: string
+  email?: string
+  name?: string
+}
+
+function decodeJwt(token: string): JwtPayload | null {
   try {
     const payload = token.split('.')[1]
-    return JSON.parse(atob(payload))
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      Math.ceil(normalizedPayload.length / 4) * 4,
+      '='
+    )
+    const decodedPayload = JSON.parse(atob(paddedPayload))
+
+    if (typeof decodedPayload !== 'object' || !decodedPayload) {
+      return null
+    }
+
+    const claims = decodedPayload as Record<string, unknown>
+
+    return {
+      exp: typeof claims.exp === 'number' ? claims.exp : undefined,
+      azp: typeof claims.azp === 'string' ? claims.azp : undefined,
+      avatar: typeof claims.avatar === 'string' ? claims.avatar : undefined,
+      preferred_username:
+        typeof claims.preferred_username === 'string'
+          ? claims.preferred_username
+          : undefined,
+      email: typeof claims.email === 'string' ? claims.email : undefined,
+      name: typeof claims.name === 'string' ? claims.name : undefined,
+    }
   } catch {
     return null
   }
@@ -184,6 +218,10 @@ export function useAuth() {
       }
 
       const exp = payload.exp
+      if (typeof exp !== 'number') {
+        console.error('Missing exp claim in token')
+        return
+      }
       const currentTime = Math.floor(Date.now() / 1000)
       const timeToExpiry = exp - currentTime
 
@@ -205,17 +243,17 @@ export function useAuth() {
     }
 
     const decoded = decodeJwt(accessToken)
-    if (!decoded || !decoded.exp) {
+    if (!decoded || typeof decoded.exp !== 'number') {
       setAuthenticated(false)
       setLoading(false)
       return
     }
 
     const user: IUser = {
-      avatar: decoded.avatar,
-      preferred_username: decoded.preferred_username,
-      email: decoded.email,
-      name: decoded.name,
+      avatar: decoded.avatar ?? '',
+      preferred_username: decoded.preferred_username ?? '',
+      email: decoded.email ?? '',
+      name: decoded.name ?? '',
     }
 
     setUser(user)
