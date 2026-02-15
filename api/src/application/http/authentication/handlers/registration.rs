@@ -10,7 +10,7 @@ use validator::Validate;
 use crate::application::{
     http::server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -40,7 +40,10 @@ pub struct RegistrationRequest {
     request_body = RegistrationRequest,
     responses(
         (status = 201, body = JwtToken),
-        (status = 403, description = "User registration is disabled for this realm")
+        (status = 400, description = "Email already exists", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "User registration is disabled for this realm", body = ApiErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "The realm name" )

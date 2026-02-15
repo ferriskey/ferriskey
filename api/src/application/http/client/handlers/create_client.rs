@@ -2,7 +2,7 @@ use crate::application::http::{
     client::validators::CreateClientValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -23,9 +23,9 @@ use ferriskey_core::domain::client::{entities::CreateClientInput, ports::ClientS
     description = "Creates a new client within the specified realm. This endpoint allows you to register a new client application that can interact with the realm's resources.",
     responses(
         (status = 201, body = Client, description = "Client created successfully"),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
+        (status = 400, description = "Bad request", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Forbidden", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),

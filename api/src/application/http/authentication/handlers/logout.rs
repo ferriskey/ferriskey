@@ -8,7 +8,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::EndSessionInput};
 use validator::Validate;
 
-use crate::application::http::authentication::handlers::auth::root_scoped_base_url;
+use crate::application::http::{authentication::handlers::auth::root_scoped_base_url, server::api_entities::api_error::ApiErrorResponse};
 use crate::application::http::authentication::validators::LogoutRequestValidator;
 use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 use crate::application::url::FullUrl;
@@ -16,6 +16,17 @@ use crate::application::url::FullUrl;
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
+#[utoipa::path(
+    post,
+    path = "/protocol/openid-connect/logout",
+    tag = "auth",
+    summary = "Clear user session",
+    description = "Clears Ferriskey browser session cookies used for SSO.",
+    responses(
+        (status = 204, description = "Session cookies cleared"),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
+    )
+)]
 fn clear_session_cookies_headers(base_url: &str) -> Result<HeaderMap, ApiError> {
     let is_secure = base_url.starts_with("https://");
     let mut clear_session_cookie = Cookie::build((AUTH_SESSION_COOKIE, ""))

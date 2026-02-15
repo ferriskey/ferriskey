@@ -9,10 +9,13 @@ use ferriskey_core::domain::authentication::{
 };
 use validator::Validate;
 
-use crate::application::http::authentication::validators::IntrospectRequestValidator;
 use crate::application::http::server::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
+};
+use crate::application::http::{
+    authentication::validators::IntrospectRequestValidator,
+    server::api_entities::api_error::ApiErrorResponse,
 };
 
 fn try_parse_basic_client_credentials(headers: &HeaderMap) -> Option<(String, String)> {
@@ -44,7 +47,10 @@ fn try_parse_basic_client_credentials(headers: &HeaderMap) -> Option<(String, St
       ("realm_name" = String, Path, description = "Realm name")
     ),
     responses(
-        (status = 200, body = TokenIntrospectionResponse)
+        (status = 200, body = TokenIntrospectionResponse),
+        (status = 401, description = "Missing or invalid client credentials", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
 pub async fn introspect_token(

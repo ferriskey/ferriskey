@@ -6,7 +6,10 @@ use axum::{
 
 use ferriskey_core::domain::abyss::identity_provider::broker::{BrokerLoginInput, BrokerService};
 
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
+use crate::application::http::server::{
+    api_entities::api_error::{ApiError, ApiErrorResponse},
+    app_state::AppState,
+};
 use crate::application::url::FullUrl;
 
 use super::super::validators::BrokerLoginRequest;
@@ -28,8 +31,9 @@ use super::super::validators::BrokerLoginRequest;
     ),
     responses(
         (status = 302, description = "Redirect to identity provider authorization URL"),
-        (status = 400, description = "Bad request - invalid parameters"),
-        (status = 404, description = "Identity provider not found"),
+        (status = 400, description = "Bad request - invalid parameters", body = ApiErrorResponse),
+        (status = 404, description = "Identity provider not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn broker_login(
