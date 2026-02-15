@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{
@@ -28,9 +31,10 @@ pub struct AssignRoleResponse {
     summary = "Assign a role to a user in a realm",
     description = "Assigns a specified role to a user within a given realm. This endpoint is used to manage user roles in the system.",
     responses(
-        (status = 200, body = AssignRoleResponse, description = "Role assigned successfully"),
-        (status = 404, description = "User or role not found"),
-        (status = 403, description = "Forbidden - insufficient permissions"),
+        (status = 200, description = "Role assigned successfully", body = AssignRoleResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
