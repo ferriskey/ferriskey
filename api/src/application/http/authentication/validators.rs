@@ -50,3 +50,17 @@ pub struct IntrospectRequestValidator {
     #[serde(default)]
     pub client_secret: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct RevokeTokenRequestValidator {
+    #[validate(length(min = 1, message = "token is required"))]
+    #[serde(default)]
+    pub token: String,
+
+    #[validate(length(min = 1, message = "client_id is required"))]
+    #[serde(default)]
+    pub client_id: String,
+
+    #[serde(default)]
+    pub token_type_hint: Option<String>,
+}

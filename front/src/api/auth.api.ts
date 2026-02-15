@@ -112,6 +112,35 @@ export const useRegistrationMutation = () => {
   })
 }
 
+export interface RevokeTokenPayload {
+  realm: string
+  data: {
+    token: string
+    client_id: string
+    token_type_hint?: string
+  }
+}
+
+export const useRevokeTokenMutation = () => {
+  return useMutation({
+    mutationFn: async (params: RevokeTokenPayload): Promise<void> => {
+      const formData = new URLSearchParams()
+      formData.append('token', params.data.token)
+      formData.append('client_id', params.data.client_id)
+
+      if (params.data.token_type_hint) {
+        formData.append('token_type_hint', params.data.token_type_hint)
+      }
+
+      await window.axios.post(`/realms/${params.realm}/protocol/openid-connect/revoke`, formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      })
+    },
+  })
+}
+
 export const useLogoutMutation = () => {
   return useMutation({
     mutationFn: async (realm: string): Promise<void> => {

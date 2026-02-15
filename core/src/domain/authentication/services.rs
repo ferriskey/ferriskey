@@ -21,7 +21,7 @@ use crate::domain::{
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
             AuthenticationResult, GenerateTokenInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, UserInfoResponse,
+            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, RedirectUriRepository},
@@ -288,6 +288,20 @@ where
             && exp < current_time
         {
             return Err(CoreError::ExpiredToken);
+        }
+
+        // Enforce immediate access token revocation when a persisted token has been marked revoked.
+        if token_data.claims.typ == ClaimsTyp::Bearer {
+            let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+            if let Some(stored) = self
+                .access_token_repository
+                .get_by_token_hash(token_hash)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                && stored.revoked
+            {
+                return Err(CoreError::InvalidToken);
+            }
         }
 
         Ok(token_data.claims)
@@ -1343,5 +1357,58 @@ where
         }
 
         Ok(Self::claims_to_introspection_response(claims, realm.name))
+    }
+
+    async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
+        let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
+
+        let claims = match self.verify_token(input.token.clone(), realm.id).await {
+            Ok(claims) => claims,
+            // RFC 7009 behavior: revocation is idempotent and should not reveal token validity.
+            Err(CoreError::InvalidToken)
+            | Err(CoreError::ExpiredToken)
+            | Err(CoreError::TokenValidationError(_))
+            | Err(CoreError::TokenParsingError(_)) => return Ok(()),
+            Err(e) => return Err(e),
+        };
+
+        // Avoid cross-client revocation: only allow a client to revoke its own tokens.
+        if claims.azp != input.client_id {
+            return Ok(());
+        }
+
+        match claims.typ {
+            ClaimsTyp::Refresh => {
+                if hinted_access {
+                    return Ok(());
+                }
+
+                self.refresh_token_repository
+                    .revoke_by_jti(claims.jti)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Bearer => {
+                if hinted_refresh {
+                    return Ok(());
+                }
+
+                let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                self.access_token_repository
+                    .revoke_by_token_hash(token_hash)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Temporary => {}
+        }
+
+        Ok(())
     }
 }

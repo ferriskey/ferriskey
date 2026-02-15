@@ -1,5 +1,5 @@
 import { GrantType } from '@/api/core.interface'
-import { useLogoutMutation, useTokenMutation } from '@/api/auth.api'
+import { useLogoutMutation, useRevokeTokenMutation, useTokenMutation } from '@/api/auth.api'
 import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
@@ -32,6 +32,7 @@ export function useAuth() {
     setExpiration,
   } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
+  const { mutateAsync: revokeToken } = useRevokeTokenMutation()
   const { mutateAsync: remoteLogout } = useLogoutMutation()
   const [hasHydrated, setHasHydrated] = useState<boolean>(
     authStore.persist?.hasHydrated?.() ?? true
@@ -59,6 +60,44 @@ export function useAuth() {
 
   async function logout() {
     try {
+      const revokeRequests: Promise<unknown>[] = []
+      const accessTokenClaims = accessToken ? decodeJwt(accessToken) : null
+      const refreshTokenClaims = refreshToken ? decodeJwt(refreshToken) : null
+      const clientIdFromToken =
+        (accessTokenClaims?.azp as string | undefined) ||
+        (refreshTokenClaims?.azp as string | undefined) ||
+        'security-admin-console'
+
+      if (accessToken) {
+        revokeRequests.push(
+          revokeToken({
+            realm: realm_name,
+            data: {
+              token: accessToken,
+              client_id: clientIdFromToken,
+              token_type_hint: 'access_token',
+            },
+          })
+        )
+      }
+
+      if (refreshToken) {
+        revokeRequests.push(
+          revokeToken({
+            realm: realm_name,
+            data: {
+              token: refreshToken,
+              client_id: clientIdFromToken,
+              token_type_hint: 'refresh_token',
+            },
+          })
+        )
+      }
+
+      if (revokeRequests.length > 0) {
+        await Promise.allSettled(revokeRequests)
+      }
+
       await remoteLogout(realm_name)
     } catch (error) {
       console.error('Failed to clear server-side session cookies during logout:', error)

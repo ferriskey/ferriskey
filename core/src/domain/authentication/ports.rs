@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::domain::authentication::value_objects::{
-    GetUserInfoInput, Identity, IntrospectTokenInput, UserInfoResponse,
+    GetUserInfoInput, Identity, IntrospectTokenInput, RevokeTokenInput, UserInfoResponse,
 };
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
@@ -133,6 +133,10 @@ pub trait AuthService: Send + Sync {
         &self,
         input: IntrospectTokenInput,
     ) -> impl Future<Output = Result<TokenIntrospectionResponse, CoreError>> + Send;
+    fn revoke_token(
+        &self,
+        input: RevokeTokenInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.

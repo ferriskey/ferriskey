@@ -10,7 +10,7 @@ use crate::{
             ports::AuthService,
             value_objects::{
                 GetUserInfoInput, Identity, IntrospectTokenInput, RegisterUserInput,
-                UserInfoResponse,
+                RevokeTokenInput, UserInfoResponse,
             },
         },
         common::entities::app_errors::CoreError,
@@ -66,5 +66,9 @@ impl AuthService for ApplicationService {
         input: IntrospectTokenInput,
     ) -> Result<TokenIntrospectionResponse, CoreError> {
         self.auth_service.introspect_token(input).await
+    }
+
+    async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
+        self.auth_service.revoke_token(input).await
     }
 }

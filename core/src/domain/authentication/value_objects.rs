@@ -124,6 +124,13 @@ pub struct IntrospectTokenInput {
     pub token_type_hint: Option<String>,
 }
 
+pub struct RevokeTokenInput {
+    pub realm_name: String,
+    pub client_id: String,
+    pub token: String,
+    pub token_type_hint: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]
 pub struct UserInfoResponse {
     pub sub: String,
