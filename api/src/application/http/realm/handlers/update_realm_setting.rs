@@ -24,6 +24,7 @@ use ferriskey_core::domain::realm::entities::Realm;
     ),
     responses(
         (status = 200, description = "Realm settings updated successfully", body = Realm),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),

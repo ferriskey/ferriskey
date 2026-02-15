@@ -16,6 +16,7 @@ use ferriskey_core::domain::{authentication::value_objects::Identity, realm::ent
     request_body = CreateRealmValidator,
     responses(
         (status = 201, description = "Realm created successfully", body = Realm),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm Master not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
