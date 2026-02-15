@@ -32,7 +32,7 @@ export function useAuth() {
     setExpiration,
   } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
-  const { mutate: remoteLogout } = useLogoutMutation()
+  const { mutateAsync: remoteLogout } = useLogoutMutation()
   const [hasHydrated, setHasHydrated] = useState<boolean>(
     authStore.persist?.hasHydrated?.() ?? true
   )
@@ -57,11 +57,20 @@ export function useAuth() {
     return Date.now() > expiration - 60000
   }
 
-  function logout() {
-    remoteLogout({ path: { realm_name } } as never)
-    localStorage.removeItem('auth')
-    setAuthenticated(false)
-    setLoading(true)
+  async function logout() {
+    try {
+      await remoteLogout(realm_name)
+    } catch (error) {
+      console.error('Failed to clear server-side session cookies during logout:', error)
+    } finally {
+      authStore.persist?.clearStorage?.()
+      setTokens(null, null)
+      setUser(null)
+      setExpiration(null)
+      setAuthenticated(false)
+      setLoading(false)
+      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
+    }
   }
 
   const refreshAccessToken = useCallback(() => {

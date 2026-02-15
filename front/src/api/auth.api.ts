@@ -114,7 +114,10 @@ export const useRegistrationMutation = () => {
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/logout')
-      .mutationOptions,
+    mutationFn: async (realm: string): Promise<void> => {
+      await window.axios.post(`/realms/${realm}/protocol/openid-connect/logout`, null, {
+        withCredentials: true,
+      })
+    },
   })
 }
