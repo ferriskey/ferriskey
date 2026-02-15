@@ -4,12 +4,16 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
+            Client, CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
+            CreateRoleInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
             DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
-            GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
-            redirect_uri::RedirectUri,
+            GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
+            UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput, redirect_uri::RedirectUri,
         },
-        ports::{ClientPolicy, ClientRepository, ClientService, RedirectUriRepository},
+        ports::{
+            ClientPolicy, ClientRepository, ClientService, PostLogoutRedirectUriRepository,
+            RedirectUriRepository,
+        },
         value_objects::CreateClientRequest,
     },
     common::{
@@ -35,7 +39,7 @@ use crate::domain::{
 };
 
 #[derive(Clone, Debug)]
-pub struct ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -43,6 +47,7 @@ where
     UR: UserRoleRepository,
     W: WebhookRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
 {
@@ -51,13 +56,14 @@ where
     pub(crate) client_repository: Arc<C>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) role_repository: Arc<RO>,
     pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, W, RU, RO, SE> ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+impl<R, U, C, UR, W, RU, PLRU, RO, SE> ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -65,6 +71,7 @@ where
     UR: UserRoleRepository,
     W: WebhookRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
 {
@@ -75,6 +82,7 @@ where
         client_repository: Arc<C>,
         webhook_repository: Arc<W>,
         redirect_uri_repository: Arc<RU>,
+        post_logout_redirect_uri_repository: Arc<PLRU>,
         role_repository: Arc<RO>,
         security_event_repository: Arc<SE>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
@@ -85,6 +93,7 @@ where
             client_repository,
             webhook_repository,
             redirect_uri_repository,
+            post_logout_redirect_uri_repository,
             role_repository,
             security_event_repository,
             policy,
@@ -92,7 +101,8 @@ where
     }
 }
 
-impl<R, U, C, UR, W, RU, RO, SE> ClientService for ClientServiceImpl<R, U, C, UR, W, RU, RO, SE>
+impl<R, U, C, UR, W, RU, PLRU, RO, SE> ClientService
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -100,6 +110,7 @@ where
     UR: UserRoleRepository,
     W: WebhookRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
 {
@@ -203,6 +214,44 @@ where
 
         let redirect_uri = self
             .redirect_uri_repository
+            .create_redirect_uri(input.client_id, input.payload.value, input.payload.enabled)
+            .await
+            .map_err(|_| CoreError::InvalidRedirectUri)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriCreated,
+                    realm_id.into(),
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(redirect_uri)
+    }
+
+    async fn create_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreatePostLogoutRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_create_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .post_logout_redirect_uri_repository
             .create_redirect_uri(input.client_id, input.payload.value, input.payload.enabled)
             .await
             .map_err(|_| CoreError::InvalidRedirectUri)?;
@@ -361,6 +410,43 @@ where
         Ok(())
     }
 
+    async fn delete_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeletePostLogoutRedirectUriInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.post_logout_redirect_uri_repository
+            .delete(input.uri_id)
+            .await
+            .map_err(|_| CoreError::RedirectUriNotFound)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriDeleted,
+                    realm_id.into(),
+                    Some(input.uri_id),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
     async fn get_client_by_id(
         &self,
         identity: Identity,
@@ -454,6 +540,29 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
+    async fn get_post_logout_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetPostLogoutRedirectUrisInput,
+    ) -> Result<Vec<RedirectUri>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.post_logout_redirect_uri_repository
+            .get_by_client_id(input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
+    }
+
     async fn update_client(
         &self,
         identity: Identity,
@@ -512,6 +621,44 @@ where
 
         let redirect_uri = self
             .redirect_uri_repository
+            .update_enabled(input.redirect_uri_id, input.enabled)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::RedirectUriUpdated,
+                    realm_id.into(),
+                    Some(redirect_uri.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(redirect_uri)
+    }
+
+    async fn update_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdatePostLogoutRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let redirect_uri = self
+            .post_logout_redirect_uri_repository
             .update_enabled(input.redirect_uri_id, input.enabled)
             .await
             .map_err(|_| CoreError::NotFound)?;

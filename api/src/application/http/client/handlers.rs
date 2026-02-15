@@ -1,11 +1,15 @@
 pub mod create_client;
+pub mod create_post_logout_redirect_uri;
 pub mod create_redirect_uri;
 pub mod create_role;
 pub mod delete_client;
+pub mod delete_post_logout_redirect_uri;
 pub mod delete_redirect_uri;
 pub mod get_client;
 pub mod get_client_roles;
 pub mod get_clients;
+pub mod get_post_logout_redirect_uris;
 pub mod get_redirect_uris;
 pub mod update_client;
+pub mod update_post_logout_redirect_uri;
 pub mod update_redirect_uri;

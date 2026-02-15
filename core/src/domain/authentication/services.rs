@@ -1537,7 +1537,7 @@ where
 
             if !enabled_redirect_uris
                 .iter()
-                .any(|uri| uri == &post_logout_redirect_uri)
+                .any(|uri| uri.value == post_logout_redirect_uri)
             {
                 warn!(
                     "Logout rejected: post_logout_redirect_uri is not registered for client (client_id={}, uri={}, registered_enabled_count={})",

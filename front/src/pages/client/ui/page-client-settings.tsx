@@ -1,6 +1,7 @@
 import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import ManageRedirectUris from '../components/manage-redirect-uris'
+import ManagePostLogoutRedirectUris from '../components/manage-post-logout-redirect-uris'
 import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { UseFormReturn } from 'react-hook-form'
@@ -79,7 +80,13 @@ export default function PageClientSettings({
 
         <BlockContent title='Access Settings' className='w-full md:w-2/3 2xl:w-1/3'>
           <div>
-            <ManageRedirectUris redirectUris={client.redirect_uris ?? []} refetch={refetch}/>
+            <ManageRedirectUris redirectUris={client.redirect_uris ?? []} refetch={refetch} />
+          </div>
+        </BlockContent>
+
+        <BlockContent title='Logout Settings' className='w-full md:w-2/3 2xl:w-1/3'>
+          <div>
+            <ManagePostLogoutRedirectUris />
           </div>
         </BlockContent>
       </div>

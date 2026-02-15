@@ -104,6 +104,7 @@ pub struct ApplicationService {
         UserRoleRepo,
         WebhookRepo,
         RedirectUriRepo,
+        PostLogoutRedirectUriRepo,
         RoleRepo,
         SecurityEventRepo,
     >,
