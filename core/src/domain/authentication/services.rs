@@ -1072,7 +1072,7 @@ where
 
             false
         }) {
-            return Err(CoreError::InvalidClient);
+            return Err(CoreError::InvalidRedirectUri);
         }
 
         if !client.enabled {
@@ -1512,6 +1512,10 @@ where
         if let (Some(client_id), Some(token_client_id)) = (&input.client_id, &token_client_id)
             && client_id != token_client_id
         {
+            warn!(
+                "Logout rejected: client_id does not match id_token_hint (client_id={}, token_client_id={})",
+                client_id, token_client_id
+            );
             return Err(CoreError::InvalidRequest);
         }
 
@@ -1535,6 +1539,12 @@ where
                 .iter()
                 .any(|uri| uri == &post_logout_redirect_uri)
             {
+                warn!(
+                    "Logout rejected: post_logout_redirect_uri is not registered for client (client_id={}, uri={}, registered_enabled_count={})",
+                    client.client_id,
+                    post_logout_redirect_uri,
+                    enabled_redirect_uris.len()
+                );
                 return Err(CoreError::InvalidRedirectUri);
             }
 
