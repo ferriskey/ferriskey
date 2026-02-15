@@ -1,4 +1,6 @@
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_error::{
+    ApiError, ApiErrorResponse, ValidateJson,
+};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::webhook::validators::CreateWebhookValidator;
@@ -23,13 +25,17 @@ pub struct CreateWebhookResponse {
     tag = "webhook",
     summary = "Create webhook",
     description = "Creates a new webhook in the system related to the current realm.",
-    responses(
-        (status = 200, body = CreateWebhookResponse)
-    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
-    request_body = CreateWebhookValidator
+    request_body = CreateWebhookValidator,
+    responses(
+        (status = 200, description = "Webhook created successfully", body = CreateWebhookResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    ),
 )]
 pub async fn create_webhook(
     Path(realm_name): Path<String>,

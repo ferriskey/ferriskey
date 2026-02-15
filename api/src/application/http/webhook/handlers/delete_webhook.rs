@@ -1,3 +1,4 @@
+use crate::application::http::server::api_entities::api_error::ApiErrorResponse;
 use crate::application::http::server::api_entities::{api_error::ApiError, response::Response};
 use crate::application::http::server::app_state::AppState;
 use axum::{
@@ -22,13 +23,16 @@ pub struct DeleteWebhookResponse {
     tag = "webhook",
     summary = "Delete webhook",
     description = "Deletes a webhook in the system related to the current realm.",
-    responses(
-        (status = 200, body = DeleteWebhookResponse)
-    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
-    )
+    ),
+    responses(
+        (status = 200, description = "Webhook deleted successfully", body = DeleteWebhookResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    ),
 )]
 pub async fn delete_webhook(
     Path((realm_name, webhook_id)): Path<(String, Uuid)>,

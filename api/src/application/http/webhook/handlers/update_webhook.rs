@@ -1,4 +1,6 @@
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_error::{
+    ApiError, ApiErrorResponse, ValidateJson,
+};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::webhook::validators::UpdateWebhookValidator;
@@ -25,7 +27,11 @@ pub struct UpdateWebhookResponse {
     summary = "Update webhook",
     description = "Updates a webhook in the system related to the current realm.",
     responses(
-        (status = 200, body = Webhook)
+        (status = 200, description = "Webhook updated successfully", body = UpdateWebhookResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 
