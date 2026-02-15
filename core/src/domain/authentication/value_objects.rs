@@ -131,6 +131,19 @@ pub struct RevokeTokenInput {
     pub token_type_hint: Option<String>,
 }
 
+pub struct EndSessionInput {
+    pub realm_name: String,
+    pub expected_issuer: String,
+    pub id_token_hint: Option<String>,
+    pub post_logout_redirect_uri: Option<String>,
+    pub state: Option<String>,
+    pub client_id: Option<String>,
+}
+
+pub struct EndSessionOutput {
+    pub redirect_uri: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]
 pub struct UserInfoResponse {
     pub sub: String,

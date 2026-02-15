@@ -64,7 +64,7 @@ export default function PageRegisterFeature() {
 
   useEffect(() => {
     if (data) {
-      setAuthTokens(data.access_token, data.refresh_token)
+      setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
       navigate(`/realms/${realm_name}/overview`, { replace: true })
     }
   }, [data, setAuthTokens, navigate, realm_name])

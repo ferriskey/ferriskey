@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser } from '@/contracts/states.interface'
 
-function decodeJwt(token: string): Record<string, never> | null {
+function decodeJwt(token: string): Record<string, unknown> | null {
   try {
     const payload = token.split('.')[1]
     return JSON.parse(atob(payload))
@@ -20,7 +20,7 @@ export function useAuth() {
   const navigate = useNavigate()
   const { realm_name = 'master' } = useParams<RouterParams>()
   //const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
-  const { accessToken, refreshToken, setTokens } = authStore()
+  const { accessToken, refreshToken, idToken, setTokens } = authStore()
   const {
     expiration,
     isAuthenticated,
@@ -39,11 +39,16 @@ export function useAuth() {
   )
 
   const setAuthTokensWrapper = useCallback(
-    (access_token: string, refresh_token: string, authenticated: boolean = true) => {
+    (
+      access_token: string,
+      refresh_token: string,
+      id_token: string | null = null,
+      authenticated: boolean = true
+    ) => {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-      setTokens(access_token, refresh_token)
+      setTokens(access_token, refresh_token, id_token)
       setExpiration(expiration)
 
       if (authenticated) {
@@ -98,12 +103,18 @@ export function useAuth() {
         await Promise.allSettled(revokeRequests)
       }
 
-      await remoteLogout(realm_name)
+      await remoteLogout({
+        realm: realm_name,
+        data: {
+          id_token_hint: idToken ?? undefined,
+          client_id: clientIdFromToken,
+        },
+      })
     } catch (error) {
       console.error('Failed to clear server-side session cookies during logout:', error)
     } finally {
       authStore.persist?.clearStorage?.()
-      setTokens(null, null)
+      setTokens(null, null, null)
       setUser(null)
       setExpiration(null)
       setAuthenticated(false)
@@ -154,9 +165,13 @@ export function useAuth() {
 
   useEffect(() => {
     if (responseExchangeToken?.access_token) {
-      setAuthTokensWrapper(responseExchangeToken.access_token, responseExchangeToken.refresh_token)
+      setAuthTokensWrapper(
+        responseExchangeToken.access_token,
+        responseExchangeToken.refresh_token,
+        responseExchangeToken.id_token ?? idToken
+      )
     }
-  }, [responseExchangeToken, setAuthTokensWrapper])
+  }, [idToken, responseExchangeToken, setAuthTokensWrapper])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -213,7 +228,7 @@ export function useAuth() {
   }, [accessToken, hasHydrated, setAuthenticated, setLoading, setUser])
 
   return {
-    setAuthToken: (value: string) => setAuthTokensWrapper(value, '', false),
+    setAuthToken: (value: string) => setAuthTokensWrapper(value, '', null, false),
     setAuthTokens: setAuthTokensWrapper,
     isTokenExpired,
     isAuthenticated,

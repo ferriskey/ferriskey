@@ -141,12 +141,46 @@ export const useRevokeTokenMutation = () => {
   })
 }
 
+export interface LogoutPayload {
+  realm: string
+  data?: {
+    id_token_hint?: string
+    post_logout_redirect_uri?: string
+    state?: string
+    client_id?: string
+  }
+}
+
 export const useLogoutMutation = () => {
   return useMutation({
-    mutationFn: async (realm: string): Promise<void> => {
-      await window.axios.post(`/realms/${realm}/protocol/openid-connect/logout`, null, {
-        withCredentials: true,
-      })
+    mutationFn: async (params: LogoutPayload): Promise<void> => {
+      const formData = new URLSearchParams()
+
+      if (params.data?.id_token_hint) {
+        formData.append('id_token_hint', params.data.id_token_hint)
+      }
+      if (params.data?.post_logout_redirect_uri) {
+        formData.append('post_logout_redirect_uri', params.data.post_logout_redirect_uri)
+      }
+      if (params.data?.state) {
+        formData.append('state', params.data.state)
+      }
+      if (params.data?.client_id) {
+        formData.append('client_id', params.data.client_id)
+      }
+
+      const hasPayload = formData.toString().length > 0
+
+      await window.axios.post(
+        `/realms/${params.realm}/protocol/openid-connect/logout`,
+        hasPayload ? formData : null,
+        {
+          headers: {
+            ...(hasPayload ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+          },
+          withCredentials: true,
+        }
+      )
     },
   })
 }

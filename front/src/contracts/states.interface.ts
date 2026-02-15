@@ -19,5 +19,10 @@ export interface UserState {
 export interface AuthState {
   accessToken: string | null
   refreshToken: string | null
-  setTokens: (accessToken: string | null, refreshToken: string | null) => void
+  idToken: string | null
+  setTokens: (
+    accessToken: string | null,
+    refreshToken: string | null,
+    idToken: string | null
+  ) => void
 }

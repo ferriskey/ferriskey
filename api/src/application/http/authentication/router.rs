@@ -10,7 +10,7 @@ use super::handlers::{
     authentificate::{__path_authenticate, authenticate},
     get_certs::{__path_get_certs, get_certs},
     introspect::{__path_introspect_token, introspect_token},
-    logout::{__path_logout, logout},
+    logout::{__path_logout_get, __path_logout_post, logout_get, logout_post},
     openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
     registration::{__path_registration_handler, registration_handler},
     revoke::{__path_revoke_token, revoke_token},
@@ -26,7 +26,8 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
     authenticate,
     get_certs,
     auth_handler,
-    logout,
+    logout_get,
+    logout_post,
     revoke_token,
     get_openid_configuration,
     registration_handler,
@@ -59,11 +60,11 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
-            get(logout),
+            get(logout_get),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
-            post(logout),
+            post(logout_post),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
