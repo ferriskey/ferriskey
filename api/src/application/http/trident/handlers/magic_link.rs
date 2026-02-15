@@ -73,7 +73,7 @@ pub async fn send_magic_link(
         })
         .await?;
 
-    debug!("Magic link sent successfully to email: {}", payload.email);
+    debug!("Magic link created for email: {}", payload.email);
 
     Ok(Response::OK(SendMagicLinkResponse {
         message: "Magic link sent successfully. Check your email.".to_string(),
@@ -85,7 +85,7 @@ pub async fn send_magic_link(
     path = "/login-actions/verify-magic-link",
     tag = "auth",
     summary = "Verify magic link and complete authentication",
-    description = "Verifies the magic link token and completes the authentication flow. Returns authentication status and optional redirect URL with authorization code.",
+    description = "Verifies the magic link token and completes the authentication flow. Returns authentication status and redirect URL with authorization code.",
     params(
         ("realm_name" = String, Path, description = "The realm name"),
         ("token_id" = String, Query, description = "The unique token identifier from the magic link"),

@@ -144,6 +144,6 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 
-    // Merge both router sets
+    // Merge both router
     public_routes.merge(protected_routes)
 }
