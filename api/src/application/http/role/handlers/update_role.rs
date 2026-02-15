@@ -39,9 +39,9 @@ pub struct UpdateRoleResponse {
   responses(
       (status = 200, description = "Role updated successfully", body = UpdateRoleResponse),
       (status = 400, description = "Invalid request data", body = ApiErrorResponse),
-        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "Role not found", body = ApiErrorResponse),
-        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+      (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+      (status = 404, description = "Role not found", body = ApiErrorResponse),
+      (status = 500, description = "Internal server error", body = ApiErrorResponse),
   ),
 )]
 pub async fn update_role(
