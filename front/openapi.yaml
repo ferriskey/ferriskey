@@ -1997,7 +1997,6 @@ components:
         - token_type
         - refresh_token
         - expires_in
-        - id_token
       properties:
         access_token:
           type: string
@@ -2007,6 +2006,7 @@ components:
           minimum: 0
         id_token:
           type: string
+          nullable: true
         refresh_token:
           type: string
         token_type:

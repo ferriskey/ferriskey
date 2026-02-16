@@ -54,14 +54,19 @@ export default function ManagePostLogoutRedirectUris() {
       title: 'Delete post-logout redirect URI?',
       description: 'Are you sure you want to delete this post-logout redirect URI?',
       onConfirm: async () => {
-        await deletePostLogoutRedirectUri({
-          realmName: realm_name,
-          clientId: client_id,
-          redirectUriId: uriId,
-        })
+        try {
+          await deletePostLogoutRedirectUri({
+            realmName: realm_name,
+            clientId: client_id,
+            redirectUriId: uriId,
+          })
 
-        await refetch()
-        close()
+          await refetch()
+          close()
+        } catch (error) {
+          console.error('Failed to delete post-logout redirect URI:', error)
+          toast.error('Failed to delete post-logout redirect URI')
+        }
       },
     })
   }
@@ -69,14 +74,19 @@ export default function ManagePostLogoutRedirectUris() {
   const onSubmit = async (values: CreatePostLogoutRedirectUriSchema) => {
     if (!realm_name || !client_id) return
 
-    await createPostLogoutRedirectUri({
-      realmName: realm_name,
-      clientId: client_id,
-      payload: { value: values.newPostLogoutRedirectUri },
-    })
+    try {
+      await createPostLogoutRedirectUri({
+        realmName: realm_name,
+        clientId: client_id,
+        payload: { value: values.newPostLogoutRedirectUri },
+      })
 
-    await refetch()
-    form.reset()
+      await refetch()
+      form.reset()
+    } catch (error) {
+      console.error('Failed to create post-logout redirect URI:', error)
+      toast.error('Failed to create post-logout redirect URI')
+    }
   }
 
   useEffect(() => {

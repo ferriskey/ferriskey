@@ -59,7 +59,7 @@ export interface JwtToken {
   token_type: string
   refresh_token: string
   expires_in: number
-  id_token?: string | null
+  id_token?: string
 }
 
 export interface Realm {
