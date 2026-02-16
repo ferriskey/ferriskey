@@ -2005,8 +2005,9 @@ components:
           format: int32
           minimum: 0
         id_token:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         refresh_token:
           type: string
         token_type:

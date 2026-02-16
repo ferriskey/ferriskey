@@ -11,7 +11,6 @@ import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { RouterParams } from '@/routes/router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -31,14 +30,8 @@ export default function ManagePostLogoutRedirectUris() {
     realmName: realm_name,
     clientId: client_id,
   })
-  const {
-    mutateAsync: deletePostLogoutRedirectUri,
-    isSuccess: deletePostLogoutRedirectUriSuccess,
-  } = useDeletePostLogoutRedirectUri()
-  const {
-    mutateAsync: createPostLogoutRedirectUri,
-    isSuccess: createPostLogoutRedirectUriSuccess,
-  } = useCreatePostLogoutRedirectUri()
+  const { mutateAsync: deletePostLogoutRedirectUri } = useDeletePostLogoutRedirectUri()
+  const { mutateAsync: createPostLogoutRedirectUri } = useCreatePostLogoutRedirectUri()
 
   const form = useForm<CreatePostLogoutRedirectUriSchema>({
     resolver: zodResolver(createPostLogoutRedirectUriSchema),
@@ -62,6 +55,7 @@ export default function ManagePostLogoutRedirectUris() {
           })
 
           await refetch()
+          toast.success('Post-logout redirect URI deleted successfully')
           close()
         } catch (error) {
           console.error('Failed to delete post-logout redirect URI:', error)
@@ -82,24 +76,13 @@ export default function ManagePostLogoutRedirectUris() {
       })
 
       await refetch()
+      toast.success('Post-logout redirect URI added successfully')
       form.reset()
     } catch (error) {
       console.error('Failed to create post-logout redirect URI:', error)
       toast.error('Failed to create post-logout redirect URI')
     }
   }
-
-  useEffect(() => {
-    if (createPostLogoutRedirectUriSuccess) {
-      toast.success('Post-logout redirect URI added successfully')
-    }
-  }, [createPostLogoutRedirectUriSuccess])
-
-  useEffect(() => {
-    if (deletePostLogoutRedirectUriSuccess) {
-      toast.success('Post-logout redirect URI deleted successfully')
-    }
-  }, [deletePostLogoutRedirectUriSuccess])
 
   return (
     <>
