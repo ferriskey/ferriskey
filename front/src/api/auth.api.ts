@@ -1,15 +1,19 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  AuthenticateRequest,
-  AuthenticateResponse,
-  AuthResponse,
-  TokenRequestValidator,
-} from './api.interface'
+import type { PostEndpoints, Schemas } from './api.client'
 
-import { JwtToken } from './core.interface'
+const REVOKE_TOKEN_PATH =
+  '/realms/{realm_name}/protocol/openid-connect/revoke' as unknown as keyof PostEndpoints
+
+type AuthQueryParams = {
+  response_type?: string
+  client_id?: string
+  redirect_uri?: string
+  scope?: string
+  state?: string
+}
 
 export interface AuthenticatePayload {
-  data: AuthenticateRequest
+  data: Schemas.AuthenticateRequest
   realm: string
   clientId: string
   sessionCode: string
@@ -22,49 +26,65 @@ export interface AuthQuery {
   realm: string
 }
 
-export const useAuthQuery = (params: AuthQuery) => {
-  return useQuery({
-    queryKey: ['auth'],
-    queryFn: async (): Promise<AuthResponse> => {
-      const response = await window.axios.get<AuthResponse>(
-        `/realms/${params.realm}/protocol/openid-connect/auth?${params.query}`
-      )
+const parseAuthQuery = (query: string): AuthQueryParams => {
+  const params = new URLSearchParams(query)
 
-      return response.data
-    },
+  return {
+    response_type: params.get('response_type') ?? undefined,
+    client_id: params.get('client_id') ?? undefined,
+    redirect_uri: params.get('redirect_uri') ?? undefined,
+    scope: params.get('scope') ?? undefined,
+    state: params.get('state') ?? undefined,
+  }
+}
+
+export const useAuthQuery = (params: AuthQuery) => {
+  const query = parseAuthQuery(params.query)
+
+  return useQuery<Schemas.AuthResponse>({
+    queryKey: ['auth', params.realm, params.query],
+    queryFn: async (): Promise<Schemas.AuthResponse> =>
+      (await window.tanstackApi.client.get('/realms/{realm_name}/protocol/openid-connect/auth', {
+        path: { realm_name: params.realm },
+        query,
+      })) as Schemas.AuthResponse,
   })
 }
 
 export const useAuthenticateMutation = () => {
   return useMutation({
-    mutationFn: async (params: AuthenticatePayload): Promise<AuthenticateResponse> => {
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/authenticate')
+      .mutationOptions,
+    mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
       const headers: Record<string, string> = {}
 
       if (params.token !== undefined) {
         headers.Authorization = `Bearer ${params.token}`
       }
 
-      const response = await window.axios.post<AuthenticateResponse>(
-        `/realms/${params.realm}/login-actions/authenticate?client_id=${params.clientId}&session_code=${params.sessionCode}`,
-        params.data,
-        {
-          headers,
-        }
-      )
-
-      return response.data
+      return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/authenticate', {
+        path: { realm_name: params.realm },
+        query: {
+          client_id: params.clientId,
+          session_code: params.sessionCode,
+        },
+        body: params.data,
+        ...(Object.keys(headers).length > 0 ? { header: headers } : {}),
+      } as never)
     },
   })
 }
 
 export interface TokenPayload {
-  data: TokenRequestValidator
+  data: Schemas.TokenRequestValidator
   realm: string
 }
 
 export const useTokenMutation = () => {
   return useMutation({
-    mutationFn: async (params: TokenPayload): Promise<JwtToken> => {
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/token')
+      .mutationOptions,
+    mutationFn: async (params: TokenPayload): Promise<Schemas.JwtToken> => {
       const formData = new URLSearchParams()
 
       formData.append('grant_type', params.data.grant_type!)
@@ -86,18 +106,16 @@ export const useTokenMutation = () => {
         formData.append('refresh_token', params.data.refresh_token)
       }
 
-      const response = await window.axios.post<JwtToken>(
-        `/realms/${params.realm}/protocol/openid-connect/token`,
-        formData,
+      return (await window.tanstackApi.client.post(
+        '/realms/{realm_name}/protocol/openid-connect/token',
         {
-          headers: {
+          path: { realm_name: params.realm },
+          body: formData,
+          header: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          withCredentials: true,
-        }
-      )
-
-      return response.data
+        } as never
+      )) as Schemas.JwtToken
     },
   })
 }
@@ -123,6 +141,7 @@ export interface RevokeTokenPayload {
 
 export const useRevokeTokenMutation = () => {
   return useMutation({
+    ...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
     mutationFn: async (params: RevokeTokenPayload): Promise<void> => {
       const formData = new URLSearchParams()
       formData.append('token', params.data.token)
@@ -132,11 +151,13 @@ export const useRevokeTokenMutation = () => {
         formData.append('token_type_hint', params.data.token_type_hint)
       }
 
-      await window.axios.post(`/realms/${params.realm}/protocol/openid-connect/revoke`, formData, {
-        headers: {
+      await window.tanstackApi.client.post(REVOKE_TOKEN_PATH, {
+        path: { realm_name: params.realm },
+        body: formData,
+        header: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-      })
+      } as never)
     },
   })
 }
@@ -153,6 +174,8 @@ export interface LogoutPayload {
 
 export const useLogoutMutation = () => {
   return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/logout')
+      .mutationOptions,
     mutationFn: async (params: LogoutPayload): Promise<void> => {
       const formData = new URLSearchParams()
 
@@ -171,16 +194,17 @@ export const useLogoutMutation = () => {
 
       const hasPayload = formData.toString().length > 0
 
-      await window.axios.post(
-        `/realms/${params.realm}/protocol/openid-connect/logout`,
-        hasPayload ? formData : null,
-        {
-          headers: {
-            ...(hasPayload ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-          },
-          withCredentials: true,
-        }
-      )
+      await window.tanstackApi.client.post('/realms/{realm_name}/protocol/openid-connect/logout', {
+        path: { realm_name: params.realm },
+        ...(hasPayload
+          ? {
+              body: formData,
+              header: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+            }
+          : {}),
+      } as never)
     },
   })
 }

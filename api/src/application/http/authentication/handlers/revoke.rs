@@ -1,14 +1,15 @@
 use axum::{
     Form,
     extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
 };
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::RevokeTokenInput};
 use validator::Validate;
 
 use crate::application::http::authentication::validators::RevokeTokenRequestValidator;
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
+use crate::application::http::server::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+};
 
 #[utoipa::path(
     post,
@@ -28,7 +29,7 @@ pub async fn revoke_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Form(payload): Form<RevokeTokenRequestValidator>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<Response<()>, ApiError> {
     payload.validate()?;
 
     state
@@ -41,5 +42,5 @@ pub async fn revoke_token(
         })
         .await?;
 
-    Ok(StatusCode::OK)
+    Ok(Response::OK(()))
 }

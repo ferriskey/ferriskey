@@ -31,12 +31,20 @@ export const fetcher: Fetcher = async (method, apiUrl, params) => {
   }
 
   // Handle request body for mutation methods
-  const body = ['post', 'put', 'patch', 'delete'].includes(method.toLowerCase())
-    ? JSON.stringify(params?.body)
-    : undefined
-
-  if (body) {
-    headers.set('Content-Type', 'application/json')
+  let body: BodyInit | undefined
+  if (['post', 'put', 'patch', 'delete'].includes(method.toLowerCase()) && params?.body !== undefined) {
+    if (
+      params.body instanceof URLSearchParams ||
+      params.body instanceof FormData ||
+      typeof params.body === 'string' ||
+      params.body instanceof Blob ||
+      params.body instanceof ArrayBuffer
+    ) {
+      body = params.body as BodyInit
+    } else {
+      body = JSON.stringify(params.body)
+      headers.set('Content-Type', 'application/json')
+    }
   }
 
   if (accessToken) {
@@ -56,6 +64,7 @@ export const fetcher: Fetcher = async (method, apiUrl, params) => {
     method: method.toUpperCase(),
     ...(body && { body }),
     headers,
+    credentials: 'include',
   })
 
   if (!response.ok) {
