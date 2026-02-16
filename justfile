@@ -23,6 +23,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 # docker compose wrapper (always uses repo docker-compose.yaml)
 compose := "docker compose -f docker-compose.yaml"
+compose_ssl := "docker compose -f docker-compose.yaml -f docker-compose.ssl.yaml"
 
 default: help
 
@@ -133,6 +134,13 @@ _ensure-sqlx-cli:
   esac; \
   cargo install sqlx-cli --no-default-features --features postgres
 
+_ensure-openssl:
+  @if command -v openssl >/dev/null 2>&1; then \
+    exit 0; \
+  fi; \
+  echo "Missing 'openssl'. Install it, then re-run." >&2; \
+  exit 1
+
 _wait-db: _ensure-docker-running
   @# Wait for the Postgres container to accept connections.
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
@@ -200,6 +208,20 @@ dev-test: _ensure-docker-running
   @# Bring up the full stack using docker compose "build" profile (build + run containers).
   @# "Full" build profile run (build + run containers)
   @{{compose}} --profile build up -d --build
+
+dev-test-ssl: _ensure-docker-running _ensure-openssl
+  @# Bring up the full stack over HTTPS on localhost.
+  @# Generates a local self-signed cert (if missing), then starts compose "build" profile with SSL override.
+  @mkdir -p .certs/dev-test-ssl
+  @if [ ! -f .certs/dev-test-ssl/localhost.crt ] || [ ! -f .certs/dev-test-ssl/localhost.key ]; then \
+    openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 365 \
+      -subj "/CN=localhost" \
+      -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+      -keyout .certs/dev-test-ssl/localhost.key \
+      -out .certs/dev-test-ssl/localhost.crt; \
+    chmod 600 .certs/dev-test-ssl/localhost.key; \
+  fi
+  @{{compose_ssl}} --profile build up -d --build
 
 db-down: _ensure-docker-running
   @# Stop and remove the compose stack + its volumes.
