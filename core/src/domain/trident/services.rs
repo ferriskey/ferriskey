@@ -818,12 +818,15 @@ where
             return Err(CoreError::MagicLinkNotEnabled);
         }
 
-        let user = self
+        let user = match self
             .user_repository
             .get_by_email(&input.email, realm.id)
             .await
-            .map_err(|_| CoreError::InvalidUser)?
-            .ok_or(CoreError::InvalidUser)?;
+        {
+            Ok(Some(user)) => user,
+            Ok(None) => return Ok(()),
+            Err(_) => return Ok(()), // Valid on purpose to avoid leaking email existence
+        };
 
         self.magic_link_repository
             .cleanup_expired(realm.id.into())
@@ -890,7 +893,6 @@ where
             })?;
 
         if magic_link.is_expired() {
-            // TODO check if still work
             warn!("Magic link has expired");
             self.magic_link_repository
                 .delete_by_token_id(magic_link.token_id.clone())
@@ -935,13 +937,13 @@ where
         );
 
         // Delete the used magic link
-        self.magic_link_repository
+        let _ = self
+            .magic_link_repository
             .delete_by_token_id(magic_link.token_id)
             .await
             .map_err(|e| {
-                error!("Failed to delete used magic link: {}", e);
-                e
-            })?;
+                warn!("Failed to delete used magic link: {}", e);
+            });
 
         Ok(login_url)
     }

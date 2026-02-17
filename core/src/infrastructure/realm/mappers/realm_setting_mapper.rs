@@ -14,7 +14,7 @@ impl From<Model> for RealmSetting {
             remember_me_enabled: value.remember_me_enabled,
             user_registration_enabled: value.user_registration_enabled,
             magic_link_enabled: value.magic_link_enabled,
-            magic_link_ttl_minutes: value.magic_link_ttl_minutes as u32,
+            magic_link_ttl_minutes: value.magic_link_ttl_minutes.try_into().unwrap_or(15),
             updated_at,
         }
     }
