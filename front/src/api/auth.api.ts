@@ -41,20 +41,23 @@ const parseAuthQuery = (query: string): AuthQueryParams => {
 export const useAuthQuery = (params: AuthQuery) => {
   const query = parseAuthQuery(params.query)
 
-  return useQuery<Schemas.AuthResponse>({
-    queryKey: ['auth', params.realm, params.query],
-    queryFn: async (): Promise<Schemas.AuthResponse> =>
-      (await window.tanstackApi.client.get('/realms/{realm_name}/protocol/openid-connect/auth', {
-        path: { realm_name: params.realm },
-        query,
-      })) as Schemas.AuthResponse,
-  })
+  return useQuery(
+    window.tanstackApi.get('/realms/{realm_name}/protocol/openid-connect/auth', {
+      path: { realm_name: params.realm },
+      query,
+    }).queryOptions
+  )
 }
 
 export const useAuthenticateMutation = () => {
+  const authenticateMutation = window.tanstackApi.mutation(
+    'post',
+    '/realms/{realm_name}/login-actions/authenticate',
+    async (res) => res.json()
+  )
+
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/authenticate')
-      .mutationOptions,
+    ...authenticateMutation.mutationOptions,
     mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
       const headers: Record<string, string> = {}
 
@@ -62,7 +65,7 @@ export const useAuthenticateMutation = () => {
         headers.Authorization = `Bearer ${params.token}`
       }
 
-      return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/authenticate', {
+      return authenticateMutation.mutationOptions.mutationFn({
         path: { realm_name: params.realm },
         query: {
           client_id: params.clientId,
