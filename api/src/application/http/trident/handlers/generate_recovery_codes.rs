@@ -9,7 +9,7 @@ use validator::Validate;
 
 use crate::application::http::server::{
     api_entities::{
-        api_error::{ApiError, ValidateJson},
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
@@ -34,8 +34,10 @@ pub struct GenerateRecoveryCodesResponse {
     description = "Generates recovery codes that allows the user to bypass a MFA challenge",
     request_body = GenerateRecoveryCodesRequest,
     responses(
-        (status = 200, body = GenerateRecoveryCodesResponse),
-        (status = 400, body = String)
+        (status = 200, description = "Successfully generated recovery codes", body = GenerateRecoveryCodesResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 404, description = "Session not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn generate_recovery_codes(

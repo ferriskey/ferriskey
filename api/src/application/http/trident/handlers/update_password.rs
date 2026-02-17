@@ -12,7 +12,7 @@ use validator::Validate;
 
 use crate::application::http::server::{
     api_entities::{
-        api_error::{ApiError, ValidateJson},
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
@@ -37,6 +37,9 @@ pub struct UpdatePasswordResponse {
     request_body = UpdatePasswordRequest,
     responses(
         (status = 200, description = "Password updated successfully", body = UpdatePasswordResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 403, description = "Identity not authorized", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn update_password(

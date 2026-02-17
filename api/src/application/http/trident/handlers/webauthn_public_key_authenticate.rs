@@ -14,7 +14,7 @@ use utoipa::{
 
 use crate::application::http::server::{
     api_entities::{
-        api_error::{ApiError, ValidateJson},
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
@@ -59,7 +59,11 @@ pub struct AuthenticationAttemptResponse {
     description = "Attempt authentication using a WebAuthnAssertionResponse payload for webauthn authentication. See https://w3c.github.io/webauthn/#dictdef-authenticationresponsejson and https://w3c.github.io/webauthn/#authenticatorassertionresponse",
     request_body = AuthenticationAttemptRequest,
     responses(
-        (status = 200, body = AuthenticationAttemptResponse),
+        (status = 200, description = "Authentication attempt successful", body = AuthenticationAttemptResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
+        (status = 403, description = "Identity not authorized", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn webauthn_public_key_authenticate(

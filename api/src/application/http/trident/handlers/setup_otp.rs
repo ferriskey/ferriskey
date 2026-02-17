@@ -1,6 +1,9 @@
 use crate::application::{
     http::server::{
-        api_entities::{api_error::ApiError, response::Response},
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
         app_state::AppState,
     },
     url::FullUrl,
@@ -33,9 +36,8 @@ pub struct SetupOtpResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = SetupOtpResponse, description = "OTP setup successful"),
-        (status = 403, description = "Forbidden - Only users can set up OTP"),
-        (status = 500, description = "Internal Server Error - Failed to generate OTP secret")
+        (status = 200, description = "OTP setup successful", body = SetupOtpResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn setup_otp(
