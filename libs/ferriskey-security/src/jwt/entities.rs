@@ -161,7 +161,7 @@ pub struct JwtKeyPair {
 pub struct JwkKey {
     pub kid: String,
     pub kty: String,
-    pub use_: String,
+    pub r#use: String,
     pub alg: String,
     pub x5c: Vec<String>,
     pub x5t: String,
@@ -291,7 +291,7 @@ impl JwtKeyPair {
         Ok(JwkKey {
             kid: self.id.to_string(),
             kty: "RSA".to_string(),
-            use_: "sig".to_string(),
+            r#use: "sig".to_string(),
             alg: "RS256".to_string(),
             x5c: vec![x5c_value],
             x5t,

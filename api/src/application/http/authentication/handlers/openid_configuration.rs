@@ -66,7 +66,7 @@ pub async fn get_openid_configuration(
         end_session_endpoint: format!("{issuer}/protocol/openid-connect/logout"),
         introspection_endpoint: format!("{issuer}/protocol/openid-connect/token/introspect"),
         userinfo_endpoint: format!("{issuer}/protocol/openid-connect/userinfo"),
-        jwks_uri: format!("{issuer}/protocol/openid-connect/certs"),
+        jwks_uri: format!("{issuer}/protocol/openid-connect/jwks.json"),
         grant_types_supported: vec![
             "authorization_code".to_string(),
             "refresh_token".to_string(),
