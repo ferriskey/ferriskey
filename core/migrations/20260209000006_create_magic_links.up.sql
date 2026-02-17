@@ -12,5 +12,4 @@ CREATE TABLE magic_links (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS magic_links_token_id_unique ON magic_links(token_id);
-CREATE UNIQUE INDEX idx_magic_links_token ON magic_links(token);
 CREATE INDEX idx_magic_links_user_realm ON magic_links(user_id, realm_id);

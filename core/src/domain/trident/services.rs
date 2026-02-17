@@ -825,7 +825,10 @@ where
         {
             Ok(Some(user)) => user,
             Ok(None) => return Ok(()),
-            Err(_) => return Ok(()), // Valid on purpose to avoid leaking email existence
+            Err(e) => {
+                error!("Failed to look up user during magic link generation: {}", e);
+                return Ok(()); // Valid on purpose to avoid leaking email existence
+            }
         };
 
         self.magic_link_repository
@@ -930,11 +933,8 @@ where
             e
         })?;
 
-        // TODO: here an email should be sent to the userinstead of logging it
-        debug!(
-            "Magic link verified for user_id: {}, redirect: {}",
-            magic_link.user_id, login_url
-        );
+        // TODO: here an email should be sent to the user instead of logging it
+        debug!("Magic link verified for user_id: {}", magic_link.user_id);
 
         // Delete the used magic link
         let _ = self
