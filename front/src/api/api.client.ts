@@ -94,8 +94,8 @@ export namespace Schemas {
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
-    magic_link_enabled?: (boolean | null) | undefined
-    magic_link_ttl_minutes?: (number | null) | undefined
+    magic_link_enabled: boolean
+    magic_link_ttl_minutes: number
     realm_id: RealmId
     remember_me_enabled: boolean
     updated_at: string
@@ -303,6 +303,12 @@ export namespace Schemas {
     trust_email: boolean
   }
   export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> }
+  export type IntrospectRequestValidator = Partial<{
+    client_id: string | null
+    client_secret: string | null
+    token: string
+    token_type_hint: string | null
+  }>
   export type JwtToken = {
     access_token: string
     expires_in: number
@@ -403,6 +409,21 @@ export namespace Schemas {
     details?: unknown | undefined
     message: string
     success: boolean
+  }
+  export type TokenIntrospectionResponse = {
+    active: boolean
+    aud?: (string | null) | undefined
+    client_id?: (string | null) | undefined
+    exp?: (number | null) | undefined
+    iat?: (number | null) | undefined
+    iss?: (string | null) | undefined
+    jti?: (string | null) | undefined
+    nbf?: (number | null) | undefined
+    realm?: (string | null) | undefined
+    scope?: (string | null) | undefined
+    sub?: (string | null) | undefined
+    token_type?: (string | null) | undefined
+    username?: (string | null) | undefined
   }
   export type TokenRequestValidator = Partial<{
     client_id: string
@@ -884,7 +905,7 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/verify-magic-link'
     requestFormat: 'json'
     parameters: {
-      query: { token_id: string; magic_token: string; client_id: string }
+      query: { token_id: string; magic_token: string }
       path: { realm_name: string }
     }
     response: Schemas.AuthenticateResponse
@@ -989,6 +1010,17 @@ export namespace Endpoints {
       body: Schemas.TokenRequestValidator
     }
     response: Schemas.JwtToken
+  }
+  export type post_Introspect_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/token/introspect'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.IntrospectRequestValidator
+    }
+    response: Schemas.TokenIntrospectionResponse
   }
   export type get_Get_userinfo = {
     method: 'GET'
@@ -1266,6 +1298,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
+    '/realms/{realm_name}/protocol/openid-connect/token/introspect': Endpoints.post_Introspect_token
     '/realms/{realm_name}/users': Endpoints.post_Create_user
     '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
     '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook
