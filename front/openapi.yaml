@@ -773,6 +773,13 @@ paths:
         exchange various types of tokens (like authorization codes, refresh
         tokens, etc.) for a JWT token.
       operationId: exchange_token
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
@@ -786,6 +793,82 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtToken"
+  /realms/{realm_name}/protocol/openid-connect/logout:
+    post:
+      tags:
+        - auth
+      summary: OIDC RP-Initiated Logout
+      description: Ends the user's OP session. Supports id_token_hint, post_logout_redirect_uri, state, and client_id.
+      operationId: logout
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/LogoutRequestValidator"
+      responses:
+        "204":
+          description: Session cookies cleared
+        "307":
+          description: Redirect to post_logout_redirect_uri
+  /realms/{realm_name}/protocol/openid-connect/revoke:
+    post:
+      tags:
+        - auth
+      summary: Token revocation
+      description: OAuth2 token revocation endpoint (RFC 7009). Revokes access or refresh tokens for the requesting client.
+      operationId: revoke_token
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/RevokeTokenRequestValidator"
+        required: true
+      responses:
+        "200":
+          description: Token revocation processed
+  /realms/{realm_name}/protocol/openid-connect/registrations:
+    post:
+      tags:
+        - auth
+      summary: Register a new user
+      description: Register a new user in the specified realm.
+      operationId: registration_handler
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtToken"
+        "403":
+          description: User registration is disabled for this realm
   /realms/{realm_name}/roles:
     get:
       tags:
@@ -2186,6 +2269,60 @@ components:
         updated_at:
           type: string
           format: date-time
+    LogoutRequestValidator:
+      type: object
+      properties:
+        client_id:
+          type:
+            - string
+            - "null"
+        id_token_hint:
+          type:
+            - string
+            - "null"
+        post_logout_redirect_uri:
+          type:
+            - string
+            - "null"
+        state:
+          type:
+            - string
+            - "null"
+    RegistrationRequest:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+        first_name:
+          type:
+            - string
+            - "null"
+        last_name:
+          type:
+            - string
+            - "null"
+        password:
+          type: string
+        username:
+          type: string
+    RevokeTokenRequestValidator:
+      type: object
+      required:
+        - client_id
+        - token
+      properties:
+        client_id:
+          type: string
+        token:
+          type: string
+        token_type_hint:
+          type:
+            - string
+            - "null"
     SetupOtpResponse:
       type: object
       required:
@@ -2219,6 +2356,10 @@ components:
             - string
             - "null"
         refresh_token:
+          type:
+            - string
+            - "null"
+        scope:
           type:
             - string
             - "null"

@@ -376,6 +376,17 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type LogoutRequestValidator = Partial<{
+    client_id: string | null
+    id_token_hint: string | null
+    post_logout_redirect_uri: string | null
+    state: string | null
+  }>
+  export type RevokeTokenRequestValidator = {
+    client_id: string
+    token: string
+    token_type_hint?: (string | null) | undefined
+  }
   export type RequestOptionsRequest = Record<string, unknown>
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
@@ -935,8 +946,23 @@ export namespace Endpoints {
   export type post_Logout = {
     method: 'POST'
     path: '/realms/{realm_name}/protocol/openid-connect/logout'
-    requestFormat: 'json'
-    parameters: never
+    requestFormat: 'form-url'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.LogoutRequestValidator
+    }
+    response: unknown
+  }
+  export type post_Revoke_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/revoke'
+    requestFormat: 'form-url'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.RevokeTokenRequestValidator
+    }
     response: unknown
   }
   export type post_Registration_handler = {
@@ -1234,6 +1260,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/webauthn-public-key-create-options': Endpoints.post_Webauthn_public_key_create_options
     '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout
+    '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
     '/realms/{realm_name}/users': Endpoints.post_Create_user

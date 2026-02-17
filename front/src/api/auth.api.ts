@@ -1,8 +1,36 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { PostEndpoints, Schemas } from './api.client'
 
-const REVOKE_TOKEN_PATH =
-  '/realms/{realm_name}/protocol/openid-connect/revoke' as unknown as keyof PostEndpoints
+const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/token'
+const LOGOUT_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/logout'
+const REVOKE_TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/revoke'
+
+type PostParameters<Path extends keyof PostEndpoints> =
+  PostEndpoints[Path] extends { parameters: infer Parameters } ? Parameters : never
+
+type PostResponse<Path extends keyof PostEndpoints> =
+  PostEndpoints[Path] extends { response: infer Response } ? Response : never
+
+const postUrlEncoded = async <Path extends keyof PostEndpoints>(
+  path: Path,
+  params: Omit<PostParameters<Path>, 'body'> & { body: Record<string, unknown> }
+): Promise<PostResponse<Path>> => {
+  const formData = new URLSearchParams()
+
+  Object.entries(params.body).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value))
+    }
+  })
+
+  return window.tanstackApi.client.post(path, {
+    ...params,
+    body: formData,
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  } as never) as Promise<PostResponse<Path>>
+}
 
 type AuthQueryParams = {
   response_type?: string
@@ -85,40 +113,25 @@ export interface TokenPayload {
 
 export const useTokenMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/token')
-      .mutationOptions,
+    ...window.tanstackApi.mutation('post', TOKEN_PATH).mutationOptions,
     mutationFn: async (params: TokenPayload): Promise<Schemas.JwtToken> => {
-      const formData = new URLSearchParams()
-
-      formData.append('grant_type', params.data.grant_type!)
-      formData.append('client_id', params.data.client_id!)
-
-      if (params.data.client_secret) {
-        formData.append('client_secret', params.data.client_secret)
-      }
-      if (params.data.code) {
-        formData.append('code', params.data.code)
-      }
-      if (params.data.username) {
-        formData.append('username', params.data.username)
-      }
-      if (params.data.password) {
-        formData.append('password', params.data.password)
-      }
-      if (params.data.refresh_token) {
-        formData.append('refresh_token', params.data.refresh_token)
+      if (!params.data.grant_type || !params.data.client_id) {
+        throw new Error('grant_type and client_id are required')
       }
 
-      return (await window.tanstackApi.client.post(
-        '/realms/{realm_name}/protocol/openid-connect/token',
-        {
-          path: { realm_name: params.realm },
-          body: formData,
-          header: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        } as never
-      )) as Schemas.JwtToken
+      return (await postUrlEncoded(TOKEN_PATH, {
+        path: { realm_name: params.realm },
+        body: {
+          grant_type: params.data.grant_type,
+          client_id: params.data.client_id,
+          client_secret: params.data.client_secret,
+          code: params.data.code,
+          username: params.data.username,
+          password: params.data.password,
+          refresh_token: params.data.refresh_token,
+          scope: params.data.scope,
+        },
+      })) as Schemas.JwtToken
     },
   })
 }
@@ -146,21 +159,14 @@ export const useRevokeTokenMutation = () => {
   return useMutation({
     ...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
     mutationFn: async (params: RevokeTokenPayload): Promise<void> => {
-      const formData = new URLSearchParams()
-      formData.append('token', params.data.token)
-      formData.append('client_id', params.data.client_id)
-
-      if (params.data.token_type_hint) {
-        formData.append('token_type_hint', params.data.token_type_hint)
-      }
-
-      await window.tanstackApi.client.post(REVOKE_TOKEN_PATH, {
+      await postUrlEncoded(REVOKE_TOKEN_PATH, {
         path: { realm_name: params.realm },
-        body: formData,
-        header: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+        body: {
+          token: params.data.token,
+          client_id: params.data.client_id,
+          token_type_hint: params.data.token_type_hint,
         },
-      } as never)
+      })
     },
   })
 }
@@ -177,37 +183,17 @@ export interface LogoutPayload {
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/protocol/openid-connect/logout')
-      .mutationOptions,
+    ...window.tanstackApi.mutation('post', LOGOUT_PATH).mutationOptions,
     mutationFn: async (params: LogoutPayload): Promise<void> => {
-      const formData = new URLSearchParams()
-
-      if (params.data?.id_token_hint) {
-        formData.append('id_token_hint', params.data.id_token_hint)
-      }
-      if (params.data?.post_logout_redirect_uri) {
-        formData.append('post_logout_redirect_uri', params.data.post_logout_redirect_uri)
-      }
-      if (params.data?.state) {
-        formData.append('state', params.data.state)
-      }
-      if (params.data?.client_id) {
-        formData.append('client_id', params.data.client_id)
-      }
-
-      const hasPayload = formData.toString().length > 0
-
-      await window.tanstackApi.client.post('/realms/{realm_name}/protocol/openid-connect/logout', {
+      await postUrlEncoded(LOGOUT_PATH, {
         path: { realm_name: params.realm },
-        ...(hasPayload
-          ? {
-              body: formData,
-              header: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-            }
-          : {}),
-      } as never)
+        body: {
+          id_token_hint: params.data?.id_token_hint,
+          post_logout_redirect_uri: params.data?.post_logout_redirect_uri,
+          state: params.data?.state,
+          client_id: params.data?.client_id,
+        },
+      })
     },
   })
 }
