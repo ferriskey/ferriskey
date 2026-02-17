@@ -832,7 +832,7 @@ where
             .cleanup_expired(realm.id.into())
             .await?;
 
-        let magic_token_id: String = generate_uuid_v7().into();
+        let magic_token_id = generate_uuid_v7();
         let magic_token = generate_secure_token();
         let magic_token_hash = self
             .hasher_repository
@@ -846,7 +846,7 @@ where
             .create_magic_link(
                 user.id,
                 realm.id.into(),
-                magic_token_id.clone(),
+                magic_token_id,
                 &magic_token_hash,
                 expires_at,
             )
@@ -878,7 +878,7 @@ where
 
         let magic_link = self
             .magic_link_repository
-            .get_by_token_id(input.magic_token_id.clone())
+            .get_by_token_id(input.magic_token_id)
             .await
             .map_err(|e| {
                 error!("Failed to retrieve magic link: {}", e);
@@ -895,7 +895,7 @@ where
         if magic_link.is_expired() {
             warn!("Magic link has expired");
             self.magic_link_repository
-                .delete_by_token_id(magic_link.token_id.clone())
+                .delete_by_token_id(magic_link.token_id)
                 .await
                 .map_err(|e| {
                     error!("Failed to delete magic link : {}", e);

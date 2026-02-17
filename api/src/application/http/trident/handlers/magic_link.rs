@@ -38,7 +38,7 @@ pub struct SendMagicLinkResponse {
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct VerifyMagicLinkQuery {
-    pub token_id: String,
+    pub token_id: Uuid,
     pub magic_token: String,
 }
 

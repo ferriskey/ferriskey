@@ -50,7 +50,7 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         &self,
         user_id: Uuid,
         realm_id: Uuid,
-        token_id: String,
+        token_id: Uuid,
         magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
     ) -> Result<(), CoreError> {
@@ -78,8 +78,8 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         Ok(())
     }
 
-    async fn get_by_token_id(&self, token_id: String) -> Result<Option<MagicLink>, CoreError> {
-        if token_id.is_empty() {
+    async fn get_by_token_id(&self, token_id: Uuid) -> Result<Option<MagicLink>, CoreError> {
+        if token_id.is_nil() {
             return Err(CoreError::InvalidMagicLink);
         }
 
@@ -95,8 +95,8 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         Ok(magic_link.map(|ml| ml.into()))
     }
 
-    async fn delete_by_token_id(&self, token_id: String) -> Result<(), CoreError> {
-        if token_id.is_empty() {
+    async fn delete_by_token_id(&self, token_id: Uuid) -> Result<(), CoreError> {
+        if token_id.is_nil() {
             return Err(CoreError::InvalidMagicLink);
         }
 
