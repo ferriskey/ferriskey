@@ -650,9 +650,29 @@ export namespace Endpoints {
     }
     response: Array<Schemas.RedirectUri>
   }
+  export type get_ListPostLogoutRedirects = {
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+    }
+    response: Array<Schemas.RedirectUri>
+  }
   export type post_Create_redirect_uri = {
     method: 'POST'
     path: '/realms/{realm_name}/clients/{client_id}/redirects'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+
+      body: Schemas.CreateRedirectUriValidator
+    }
+    response: Schemas.RedirectUri
+  }
+  export type post_CreatePostLogoutRedirect = {
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string; client_id: string }
@@ -672,9 +692,29 @@ export namespace Endpoints {
     }
     response: Schemas.RedirectUri
   }
+  export type put_UpdatePostLogoutRedirect = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; uri_id: string }
+
+      body: Schemas.UpdateRedirectUriValidator
+    }
+    response: Schemas.RedirectUri
+  }
   export type delete_Delete_redirect_uri = {
     method: 'DELETE'
     path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; uri_id: string }
+    }
+    response: unknown
+  }
+  export type delete_DeletePostLogoutRedirect = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string }
@@ -823,6 +863,10 @@ export namespace Endpoints {
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string }
+      query: {
+        client_id: string
+        session_code: string
+      }
 
       body: Schemas.AuthenticateRequest
     }
@@ -942,6 +986,21 @@ export namespace Endpoints {
       path: { realm_name: string }
     }
     response: Schemas.GetCertsResponse
+  }
+  export type get_Logout_get = {
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/logout'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+      query: Partial<{
+        id_token_hint: string
+        post_logout_redirect_uri: string
+        state: string
+        client_id: string
+      }>
+    }
+    response: unknown
   }
   export type post_Logout = {
     method: 'POST'
@@ -1244,6 +1303,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/broker/{alias}/endpoint': Endpoints.post_Broker_callback
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_CreatePostLogoutRedirect
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
     '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
@@ -1275,6 +1335,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients': Endpoints.get_Get_clients
     '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_ListPostLogoutRedirects
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
     '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
@@ -1282,6 +1343,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.get_Get_identity_provider
     '/realms/{realm_name}/login-actions/setup-otp': Endpoints.get_Setup_otp
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
@@ -1300,6 +1362,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.put_Update_realm
     '/realms/{name}/settings': Endpoints.put_Update_realm_setting
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.put_UpdatePostLogoutRedirect
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.put_Update_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
@@ -1311,6 +1374,7 @@ export type EndpointByMethod = {
     '/realms/{name}': Endpoints.delete_Delete_realm
     '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.delete_DeletePostLogoutRedirect
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.delete_Delete_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role

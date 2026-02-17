@@ -29,6 +29,9 @@ const postUrlEncoded = async <Path extends keyof PostEndpoints>(
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    // typed-openapi models request bodies as JSON here, but these endpoints require
+    // URLSearchParams (application/x-www-form-urlencoded) at runtime.
+    // Keep this localized cast unless client body typings are updated for form-url.
   } as never) as Promise<PostResponse<Path>>
 }
 
@@ -101,7 +104,7 @@ export const useAuthenticateMutation = () => {
         },
         body: params.data,
         ...(Object.keys(headers).length > 0 ? { header: headers } : {}),
-      } as never)
+      })
     },
   })
 }
