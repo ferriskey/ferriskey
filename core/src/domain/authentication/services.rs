@@ -20,11 +20,12 @@ use crate::domain::{
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, GenerateTokenInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, UserInfoResponse,
+            AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
+            GetUserInfoInput, GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput,
+            RevokeTokenInput, UserInfoResponse,
         },
     },
-    client::ports::{ClientRepository, RedirectUriRepository},
+    client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
@@ -38,11 +39,12 @@ use crate::domain::{
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -55,6 +57,7 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) user_repository: Arc<U>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
@@ -66,11 +69,13 @@ where
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -85,6 +90,7 @@ where
         realm_repository: Arc<R>,
         client_repository: Arc<C>,
         redirect_uri_repository: Arc<RU>,
+        post_logout_redirect_uri_repository: Arc<PLRU>,
         user_repository: Arc<U>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
@@ -98,6 +104,7 @@ where
             realm_repository,
             client_repository,
             redirect_uri_repository,
+            post_logout_redirect_uri_repository,
             user_repository,
             credential_repository,
             hasher_repository,
@@ -111,11 +118,13 @@ where
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -229,7 +238,7 @@ where
             claims.sub,
             claims.iss.clone(),
             claims.aud.clone(),
-            claims.azp,
+            claims.azp.clone(),
             claims.scope.clone(),
         );
 
@@ -243,10 +252,11 @@ where
         let preferred_username: String = claims.preferred_username.clone().unwrap_or_default();
 
         let id_token: Option<Jwt> = if contains_openid_scope {
-            let aud = claims.aud.join(" ");
+            let aud = claims.azp.clone();
             let id_claims = IdTokenClaims {
                 iss: claims.iss,
                 aud,
+                azp: Some(claims.azp.clone()),
                 auth_time: None,
                 email: claims.email.clone(),
                 email_verified: None,
@@ -294,6 +304,20 @@ where
             && exp < current_time
         {
             return Err(CoreError::ExpiredToken);
+        }
+
+        // Enforce immediate access token revocation when a persisted token has been marked revoked.
+        if token_data.claims.typ == ClaimsTyp::Bearer {
+            let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+            if let Some(stored) = self
+                .access_token_repository
+                .get_by_token_hash(token_hash)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                && stored.revoked
+            {
+                return Err(CoreError::InvalidToken);
+            }
         }
 
         Ok(token_data.claims)
@@ -976,14 +1000,61 @@ This is a server error that should be investigated. Do not forward back this mes
             _ => false,
         }
     }
+
+    async fn verify_id_token_hint(
+        &self,
+        id_token_hint: &str,
+        realm_id: RealmId,
+        expected_issuer: &str,
+    ) -> Result<IdTokenClaims, CoreError> {
+        let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
+        validation.validate_aud = false;
+
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let token_data = jsonwebtoken::decode::<IdTokenClaims>(
+            id_token_hint,
+            &jwt_key_pair.decoding_key,
+            &validation,
+        )
+        .map_err(|_| CoreError::InvalidToken)?;
+
+        if token_data.claims.exp < Utc::now().timestamp() {
+            return Err(CoreError::ExpiredToken);
+        }
+
+        if token_data.claims.iss != expected_issuer {
+            return Err(CoreError::InvalidToken);
+        }
+
+        Ok(token_data.claims)
+    }
+
+    fn append_state_to_redirect_uri(redirect_uri: &str, state: Option<&str>) -> String {
+        match state {
+            Some(state) if !state.is_empty() => {
+                let separator = if redirect_uri.contains('?') { '&' } else { '?' };
+                format!(
+                    "{redirect_uri}{separator}state={}",
+                    urlencoding::encode(state)
+                )
+            }
+            _ => redirect_uri.to_string(),
+        }
+    }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, AT, F> AuthService
-    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
@@ -1023,7 +1094,7 @@ where
 
             false
         }) {
-            return Err(CoreError::InvalidClient);
+            return Err(CoreError::InvalidRedirectUri);
         }
 
         if !client.enabled {
@@ -1372,5 +1443,148 @@ where
         }
 
         Ok(Self::claims_to_introspection_response(claims, realm.name))
+    }
+
+    async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
+        let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
+
+        let claims = match self.verify_token(input.token.clone(), realm.id).await {
+            Ok(claims) => claims,
+            // RFC 7009 behavior: revocation is idempotent and should not reveal token validity.
+            Err(CoreError::InvalidToken)
+            | Err(CoreError::ExpiredToken)
+            | Err(CoreError::TokenValidationError(_))
+            | Err(CoreError::TokenParsingError(_)) => return Ok(()),
+            Err(e) => return Err(e),
+        };
+
+        // Avoid cross-client revocation: only allow a client to revoke its own tokens.
+        if claims.azp != input.client_id {
+            return Ok(());
+        }
+
+        match claims.typ {
+            ClaimsTyp::Refresh => {
+                if hinted_access {
+                    return Ok(());
+                }
+
+                self.refresh_token_repository
+                    .revoke_by_jti(claims.jti)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Bearer => {
+                if hinted_refresh {
+                    return Ok(());
+                }
+
+                let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                self.access_token_repository
+                    .revoke_by_token_hash(token_hash)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Temporary => {}
+        }
+
+        Ok(())
+    }
+
+    async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let id_token_claims = if let Some(id_token_hint) = input.id_token_hint.as_deref() {
+            match self
+                .verify_id_token_hint(id_token_hint, realm.id, &input.expected_issuer)
+                .await
+            {
+                Ok(claims) => Some(claims),
+                Err(e) if input.post_logout_redirect_uri.is_none() => {
+                    // Keep logout robust for local-session logout when a stale/invalid id_token_hint is sent.
+                    tracing::warn!(
+                        "Ignoring invalid id_token_hint for non-redirect logout: {:?}",
+                        e
+                    );
+                    None
+                }
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+
+        let token_client_id = id_token_claims
+            .as_ref()
+            .and_then(|claims| claims.azp.clone())
+            .or_else(|| {
+                id_token_claims.as_ref().and_then(|claims| {
+                    if claims.aud.contains(' ') {
+                        None
+                    } else {
+                        Some(claims.aud.clone())
+                    }
+                })
+            });
+
+        if let (Some(client_id), Some(token_client_id)) = (&input.client_id, &token_client_id)
+            && client_id != token_client_id
+        {
+            warn!(
+                "Logout rejected: client_id does not match id_token_hint (client_id={}, token_client_id={})",
+                client_id, token_client_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {
+            let resolved_client_id = input
+                .client_id
+                .or(token_client_id)
+                .ok_or(CoreError::InvalidRequest)?;
+
+            let client = self
+                .client_repository
+                .get_by_client_id(resolved_client_id, realm.id)
+                .await?;
+
+            let enabled_redirect_uris = self
+                .post_logout_redirect_uri_repository
+                .get_enabled_by_client_id(client.id)
+                .await?;
+
+            if !enabled_redirect_uris
+                .iter()
+                .any(|uri| uri.value == post_logout_redirect_uri)
+            {
+                warn!(
+                    "Logout rejected: post_logout_redirect_uri is not registered for client (client_id={}, uri={}, registered_enabled_count={})",
+                    client.client_id,
+                    post_logout_redirect_uri,
+                    enabled_redirect_uris.len()
+                );
+                return Err(CoreError::InvalidRedirectUri);
+            }
+
+            return Ok(EndSessionOutput {
+                redirect_uri: Some(Self::append_state_to_redirect_uri(
+                    &post_logout_redirect_uri,
+                    input.state.as_deref(),
+                )),
+            });
+        }
+
+        Ok(EndSessionOutput { redirect_uri: None })
     }
 }

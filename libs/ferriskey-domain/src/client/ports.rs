@@ -3,9 +3,11 @@ use uuid::Uuid;
 use crate::auth::Identity;
 use crate::client::{
     commands::{
-        CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
+        CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
+        CreateRoleInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
         DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
-        GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
+        GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
+        UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
     entities::{Client, redirect_uri::RedirectUri},
     value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
@@ -25,6 +27,11 @@ pub trait ClientService: Send + Sync {
         identity: Identity,
         input: CreateRedirectUriInput,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn create_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreatePostLogoutRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
     fn create_role(
         &self,
         identity: Identity,
@@ -39,6 +46,11 @@ pub trait ClientService: Send + Sync {
         &self,
         identity: Identity,
         input: DeleteRedirectUriInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeletePostLogoutRedirectUriInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_client_roles(
         &self,
@@ -61,6 +73,11 @@ pub trait ClientService: Send + Sync {
         identity: Identity,
         input: GetRedirectUrisInput,
     ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+    fn get_post_logout_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetPostLogoutRedirectUrisInput,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
     fn update_client(
         &self,
         identity: Identity,
@@ -70,6 +87,11 @@ pub trait ClientService: Send + Sync {
         &self,
         identity: Identity,
         input: UpdateRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn update_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdatePostLogoutRedirectUriInput,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 }
 

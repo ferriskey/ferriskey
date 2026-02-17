@@ -14,6 +14,7 @@ pub mod credentials;
 pub mod identity_provider_links;
 pub mod identity_providers;
 pub mod jwt_keys;
+pub mod post_logout_redirect_uris;
 pub mod realm_settings;
 pub mod realms;
 pub mod redirect_uris;

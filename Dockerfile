@@ -89,7 +89,7 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM node:20.14.0-alpine AS webapp-build
+FROM node:24.13.1-alpine AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 

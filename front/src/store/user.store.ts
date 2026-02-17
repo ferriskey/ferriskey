@@ -8,7 +8,7 @@ const userStore = create<UserState>((set) => ({
   user: null,
   setAuthenticated: (value: boolean) => set({ isAuthenticated: value }),
   setLoading: (value: boolean) => set({ isLoading: value }),
-  setUser: (user: IUser) => set({ user }),
+  setUser: (user: IUser | null) => set({ user }),
   setExpiration: (expiration: number | null) => set({ expiration }),
 }))
 

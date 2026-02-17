@@ -1,6 +1,6 @@
 use ferriskey_core::domain::authentication::entities::GrantType;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -49,4 +49,34 @@ pub struct IntrospectRequestValidator {
     // Used by `client_secret_post`
     #[serde(default)]
     pub client_secret: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct RevokeTokenRequestValidator {
+    #[validate(length(min = 1, message = "token is required"))]
+    #[serde(default)]
+    pub token: String,
+
+    #[validate(length(min = 1, message = "client_id is required"))]
+    #[serde(default)]
+    pub client_id: String,
+
+    #[serde(default)]
+    pub token_type_hint: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct LogoutRequestValidator {
+    #[serde(default)]
+    pub id_token_hint: Option<String>,
+
+    #[serde(default)]
+    pub post_logout_redirect_uri: Option<String>,
+
+    #[serde(default)]
+    pub state: Option<String>,
+
+    #[serde(default)]
+    pub client_id: Option<String>,
 }

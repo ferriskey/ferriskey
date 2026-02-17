@@ -44,7 +44,7 @@ export default function PageCallbackFeature() {
     if (data && !hasProcessedToken.current) {
       hasProcessedToken.current = true
 
-      setAuthTokens(data.access_token, data.refresh_token)
+      setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
 
       navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
     }

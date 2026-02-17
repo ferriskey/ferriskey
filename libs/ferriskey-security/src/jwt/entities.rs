@@ -48,6 +48,8 @@ pub struct IdTokenClaims {
     pub iss: String,
     pub sub: Uuid,
     pub aud: String,
+    #[serde(default)]
+    pub azp: Option<String>,
     pub exp: i64,
     pub iat: i64,
     pub auth_time: Option<i64>,

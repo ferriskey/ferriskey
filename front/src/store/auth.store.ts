@@ -8,7 +8,9 @@ export const authStore = create<AuthState>()(
       (set) => ({
         accessToken: null,
         refreshToken: null,
-        setTokens: (accessToken: string, refreshToken: string) => set({ accessToken, refreshToken }),
+        idToken: null,
+        setTokens: (accessToken: string | null, refreshToken: string | null, idToken: string | null) =>
+          set({ accessToken, refreshToken, idToken }),
       }),
       {
         name: 'auth',

@@ -20,6 +20,12 @@ pub struct CreateRedirectUriInput {
     pub payload: crate::client::value_objects::CreateRedirectUriRequest,
 }
 
+pub struct CreatePostLogoutRedirectUriInput {
+    pub client_id: Uuid,
+    pub realm_name: String,
+    pub payload: crate::client::value_objects::CreateRedirectUriRequest,
+}
+
 pub struct CreateRoleInput {
     pub realm_name: String,
     pub client_id: Uuid,
@@ -34,6 +40,12 @@ pub struct DeleteClientInput {
 }
 
 pub struct DeleteRedirectUriInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub uri_id: Uuid,
+}
+
+pub struct DeletePostLogoutRedirectUriInput {
     pub realm_name: String,
     pub client_id: Uuid,
     pub uri_id: Uuid,
@@ -54,6 +66,11 @@ pub struct GetRedirectUrisInput {
     pub client_id: Uuid,
 }
 
+pub struct GetPostLogoutRedirectUrisInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+}
+
 pub struct GetClientsInput {
     pub realm_name: String,
 }
@@ -65,6 +82,13 @@ pub struct UpdateClientInput {
 }
 
 pub struct UpdateRedirectUriInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub redirect_uri_id: Uuid,
+    pub enabled: bool,
+}
+
+pub struct UpdatePostLogoutRedirectUriInput {
     pub realm_name: String,
     pub client_id: Uuid,
     pub redirect_uri_id: Uuid,

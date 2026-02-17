@@ -23,6 +23,7 @@ use crate::{
         abyss::federation::repository::FederationRepositoryImpl,
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         db::postgres::{Postgres, PostgresConfig},
@@ -94,6 +95,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let hasher = Arc::new(Argon2HasherRepository::new());
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
     let redirect_uri = Arc::new(PostgresRedirectUriRepository::new(postgres.get_db()));
+    let post_logout_redirect_uri = Arc::new(PostgresPostLogoutRedirectUriRepository::new(
+        postgres.get_db(),
+    ));
     let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
     let keystore = Arc::new(PostgresKeyStoreRepository::new(postgres.get_db()));
     let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
@@ -124,6 +128,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             client.clone(),
             redirect_uri.clone(),
+            post_logout_redirect_uri.clone(),
             user.clone(),
             credential.clone(),
             hasher.clone(),
@@ -139,6 +144,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client.clone(),
             webhook.clone(),
             redirect_uri.clone(),
+            post_logout_redirect_uri.clone(),
             role.clone(),
             security_event.clone(),
             policy.clone(),

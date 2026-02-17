@@ -458,6 +458,140 @@ paths:
       responses:
         "200":
           description: Redirect URI deleted successfully
+  /realms/{realm_name}/clients/{client_id}/post-logout-redirects:
+    get:
+      tags:
+        - client
+      summary: Get post-logout redirect URIs for a client
+      description: Retrieves all post-logout redirect URIs associated with a client in a specific realm.
+      operationId: listPostLogoutRedirects
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RedirectUri"
+    post:
+      tags:
+        - client
+      summary: Create a new post-logout redirect URI for a client
+      description: Creates a new post-logout redirect URI for the specified client.
+      operationId: createPostLogoutRedirect
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRedirectUriValidator"
+        required: true
+      responses:
+        "201":
+          description: Post-logout redirect URI created successfully for the client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedirectUri"
+  /realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}:
+    put:
+      tags:
+        - client
+      summary: Update a post-logout redirect URI for a client
+      description: Updates an existing post-logout redirect URI for a client in a specific realm.
+      operationId: updatePostLogoutRedirect
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: uri_id
+          in: path
+          description: Redirect URI ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRedirectUriValidator"
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedirectUri"
+    delete:
+      tags:
+        - client
+      summary: Delete a post-logout redirect URI for a client
+      description: Deletes a specific post-logout redirect URI for a client in a realm.
+      operationId: deletePostLogoutRedirect
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: uri_id
+          in: path
+          description: Redirect URI ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Redirect URI deleted successfully
   /realms/{realm_name}/clients/{client_id}/roles:
     get:
       tags:
@@ -533,6 +667,18 @@ paths:
         - name: realm_name
           in: path
           description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          description: Client ID
+          required: true
+          schema:
+            type: string
+        - name: session_code
+          in: query
+          description: Authentication session code
           required: true
           schema:
             type: string
@@ -773,6 +919,13 @@ paths:
         exchange various types of tokens (like authorization codes, refresh
         tokens, etc.) for a JWT token.
       operationId: exchange_token
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
@@ -786,6 +939,144 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtToken"
+  /realms/{realm_name}/protocol/openid-connect/logout:
+    get:
+      tags:
+        - auth
+      summary: OIDC RP-Initiated Logout
+      description: Ends the user's OP session. Supports id_token_hint, post_logout_redirect_uri, state, and client_id.
+      operationId: logout_get
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+        - name: id_token_hint
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: post_logout_redirect_uri
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Session cookies cleared
+        "307":
+          description: Redirect to post_logout_redirect_uri
+        "400":
+          description: Invalid or missing logout parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - auth
+      summary: OIDC RP-Initiated Logout
+      description: Ends the user's OP session. Supports id_token_hint, post_logout_redirect_uri, state, and client_id.
+      operationId: logout
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/LogoutRequestValidator"
+      responses:
+        "204":
+          description: Session cookies cleared
+        "307":
+          description: Redirect to post_logout_redirect_uri
+        "400":
+          description: Invalid or missing logout parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /realms/{realm_name}/protocol/openid-connect/revoke:
+    post:
+      tags:
+        - auth
+      summary: Token revocation
+      description: OAuth2 token revocation endpoint (RFC 7009). Revokes access or refresh tokens for the requesting client.
+      operationId: revoke_token
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/RevokeTokenRequestValidator"
+        required: true
+      responses:
+        "200":
+          description: Token revocation processed
+        "400":
+          description: Invalid, missing, or unsupported token revocation parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Token revocation temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /realms/{realm_name}/protocol/openid-connect/registrations:
+    post:
+      tags:
+        - auth
+      summary: Register a new user
+      description: Register a new user in the specified realm.
+      operationId: registration_handler
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwtToken"
+        "403":
+          description: User registration is disabled for this realm
   /realms/{realm_name}/roles:
     get:
       tags:
@@ -1837,6 +2128,20 @@ components:
           type: string
         realm_name:
           type: string
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - status
+        - message
+      properties:
+        code:
+          type: string
+        status:
+          type: integer
+          format: int32
+        message:
+          type: string
     GenerateRecoveryCodesRequest:
       type: object
       required:
@@ -1997,7 +2302,6 @@ components:
         - token_type
         - refresh_token
         - expires_in
-        - id_token
       properties:
         access_token:
           type: string
@@ -2006,7 +2310,9 @@ components:
           format: int32
           minimum: 0
         id_token:
-          type: string
+          type:
+            - string
+            - "null"
         refresh_token:
           type: string
         token_type:
@@ -2185,6 +2491,60 @@ components:
         updated_at:
           type: string
           format: date-time
+    LogoutRequestValidator:
+      type: object
+      properties:
+        client_id:
+          type:
+            - string
+            - "null"
+        id_token_hint:
+          type:
+            - string
+            - "null"
+        post_logout_redirect_uri:
+          type:
+            - string
+            - "null"
+        state:
+          type:
+            - string
+            - "null"
+    RegistrationRequest:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+        first_name:
+          type:
+            - string
+            - "null"
+        last_name:
+          type:
+            - string
+            - "null"
+        password:
+          type: string
+        username:
+          type: string
+    RevokeTokenRequestValidator:
+      type: object
+      required:
+        - client_id
+        - token
+      properties:
+        client_id:
+          type: string
+        token:
+          type: string
+        token_type_hint:
+          type:
+            - string
+            - "null"
     SetupOtpResponse:
       type: object
       required:
@@ -2218,6 +2578,10 @@ components:
             - string
             - "null"
         refresh_token:
+          type:
+            - string
+            - "null"
+        scope:
           type:
             - string
             - "null"
