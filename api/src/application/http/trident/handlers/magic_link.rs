@@ -2,7 +2,10 @@ use crate::application::http::{
     authentication::handlers::authentificate::AuthenticationStatus,
     server::api_entities::response::Response,
 };
-use axum::extract::{Path, Query, State};
+use axum::{
+    extract::{Path, Query, State},
+    http::{StatusCode, header},
+};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::trident::ports::{
     MagicLinkInput, TridentService, VerifyMagicLinkInput,
@@ -20,6 +23,7 @@ use crate::application::http::{
         app_state::AppState,
     },
 };
+use axum::response::IntoResponse;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct SendMagicLinkRequest {
@@ -104,7 +108,7 @@ pub async fn verify_magic_link(
     State(state): State<AppState>,
     Query(query): Query<VerifyMagicLinkQuery>,
     cookie: CookieManager,
-) -> Result<Response<AuthenticateResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let session_code = match cookie.get("FERRISKEY_SESSION") {
         Some(cookie) => cookie,
         None => {
@@ -145,5 +149,10 @@ pub async fn verify_magic_link(
         message: Some("Magic link authentication successful".to_string()),
     };
 
-    Ok(Response::OK(response))
+    Ok((
+        StatusCode::OK,
+        [(header::REFERRER_POLICY, "no-referrer")],
+        axum::Json(response),
+    )
+        .into_response())
 }

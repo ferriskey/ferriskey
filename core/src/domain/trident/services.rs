@@ -904,7 +904,7 @@ where
 
         let is_valid = self
             .hasher_repository
-            .verify_magic_token(&input.magic_token, &magic_link.token_hash, 0, "", "")
+            .verify_magic_token(&input.magic_token, &magic_link.token_hash)
             .await
             .map_err(|e| {
                 error!("Token verification failed: {}", e);

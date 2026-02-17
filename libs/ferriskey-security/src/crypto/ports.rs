@@ -37,8 +37,5 @@ pub trait HasherRepository: Send + Sync {
         &self,
         token: &str,
         secret_data: &str,
-        hash_iterations: u32,
-        algorithm: &str,
-        salt: &str,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 }
