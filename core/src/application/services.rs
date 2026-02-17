@@ -35,6 +35,7 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -87,6 +88,7 @@ type ApplicationAuthService = AuthServiceImpl<
     AccessTokenRepo,
     FederationRepo,
 >;
+type MagicLinkRepo = PostgresMagicLinkRepository;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -128,6 +130,9 @@ pub struct ApplicationService {
         AuthSessionRepo,
         HasherRepo,
         UserRequiredActionRepo,
+        MagicLinkRepo,
+        RealmRepo,
+        UserRepo,
     >,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,

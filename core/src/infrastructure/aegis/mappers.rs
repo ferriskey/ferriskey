@@ -28,7 +28,7 @@ impl From<client_scope_attributes::Model> for ClientScopeAttribute {
     fn from(model: client_scope_attributes::Model) -> Self {
         ClientScopeAttribute {
             id: model.id,
-            scope_id: model.scope_id,
+            scope_id: model.client_scope_id,
             name: model.name,
             value: model.value,
         }
@@ -52,7 +52,7 @@ impl From<client_scope_mappings::Model> for ClientScopeMapping {
     fn from(model: client_scope_mappings::Model) -> Self {
         ClientScopeMapping {
             client_id: model.client_id,
-            scope_id: model.scope_id,
+            scope_id: model.client_scope_id,
             is_default: model.is_default,
             is_optional: model.is_optional,
         }

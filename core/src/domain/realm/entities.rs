@@ -10,6 +10,8 @@ pub struct RealmLoginSetting {
     pub forgot_password_enabled: bool,
     pub remember_me_enabled: bool,
     pub identity_providers: Vec<IdentityProviderPresentation>,
+    pub magic_link_enabled: bool,
+    pub magic_link_ttl_minutes: u32,
 }
 
 impl From<RealmSetting> for RealmLoginSetting {
@@ -19,6 +21,8 @@ impl From<RealmSetting> for RealmLoginSetting {
             remember_me_enabled: value.remember_me_enabled,
             user_registration_enabled: value.user_registration_enabled,
             identity_providers: Vec::new(),
+            magic_link_enabled: value.magic_link_enabled,
+            magic_link_ttl_minutes: value.magic_link_ttl_minutes,
         }
     }
 }

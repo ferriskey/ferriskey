@@ -30,7 +30,7 @@ impl ClientScopeAttributeRepository for PostgresClientScopeAttributeRepository {
         value: Option<String>,
     ) -> Result<ClientScopeAttribute, CoreError> {
         let existing = client_scope_attributes::Entity::find()
-            .filter(client_scope_attributes::Column::ScopeId.eq(scope_id))
+            .filter(client_scope_attributes::Column::ClientScopeId.eq(scope_id))
             .filter(client_scope_attributes::Column::Name.eq(&name))
             .one(&self.db)
             .await
@@ -49,7 +49,7 @@ impl ClientScopeAttributeRepository for PostgresClientScopeAttributeRepository {
         } else {
             let active = client_scope_attributes::ActiveModel {
                 id: Set(generate_uuid_v7()),
-                scope_id: Set(scope_id),
+                client_scope_id: Set(scope_id),
                 name: Set(name),
                 value: Set(value),
             };
@@ -64,7 +64,7 @@ impl ClientScopeAttributeRepository for PostgresClientScopeAttributeRepository {
 
     async fn get_attributes(&self, scope_id: Uuid) -> Result<Vec<ClientScopeAttribute>, CoreError> {
         let models = client_scope_attributes::Entity::find()
-            .filter(client_scope_attributes::Column::ScopeId.eq(scope_id))
+            .filter(client_scope_attributes::Column::ClientScopeId.eq(scope_id))
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -77,7 +77,7 @@ impl ClientScopeAttributeRepository for PostgresClientScopeAttributeRepository {
 
     async fn remove_attribute(&self, scope_id: Uuid, name: String) -> Result<(), CoreError> {
         let result = client_scope_attributes::Entity::delete_many()
-            .filter(client_scope_attributes::Column::ScopeId.eq(scope_id))
+            .filter(client_scope_attributes::Column::ClientScopeId.eq(scope_id))
             .filter(client_scope_attributes::Column::Name.eq(name))
             .exec(&self.db)
             .await
