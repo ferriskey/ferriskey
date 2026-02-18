@@ -211,6 +211,7 @@ dev-test: _ensure-docker-running
 
 dev-test-ssl: _ensure-docker-running _ensure-openssl
   @# Bring up the full stack over HTTPS on localhost.
+  @# API is available through the same HTTPS origin at /api.
   @# Generates a local self-signed cert (if missing), then starts compose "build" profile with SSL override.
   @mkdir -p .certs/dev-test-ssl
   @if [ ! -f .certs/dev-test-ssl/localhost.crt ] || [ ! -f .certs/dev-test-ssl/localhost.key ]; then \

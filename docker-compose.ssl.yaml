@@ -2,15 +2,15 @@ services:
   api-build:
     environment:
       ALLOWED_ORIGINS: https://localhost:5443,https://127.0.0.1:5443
-      SERVER_TLS_CERT: /etc/ferriskey/tls/localhost.crt
-      SERVER_TLS_KEY: /etc/ferriskey/tls/localhost.key
+      SERVER_ROOT_PATH: /api
       WEBAPP_URL: https://localhost:5443
-    volumes:
-      - ./.certs/dev-test-ssl:/etc/ferriskey/tls:ro
 
   webapp-build:
+    depends_on:
+      api-build:
+        condition: service_started
     environment:
-      API_URL: https://localhost:3333
+      API_URL: /api
     ports:
       - 5443:443
     volumes:

@@ -79,7 +79,7 @@ Bring up the full stack with Docker Compose (build + run containers):
 just dev-test
 ```
 
-Bring up the same stack with HTTPS for both frontend and API on localhost:
+Bring up the same stack with HTTPS on localhost:
 
 ```bash
 just dev-test-ssl
@@ -88,7 +88,7 @@ just dev-test-ssl
 URLs:
 
 - Frontend: `https://localhost:5443`
-- API: `https://localhost:3333`
+- API (proxied through frontend): `https://localhost:5443/api`
 
 Tear it down (including volumes):
 
