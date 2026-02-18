@@ -42,6 +42,7 @@ pub trait RefreshTokenRepository: Send + Sync {
         &self,
         jti: Uuid,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
+    fn revoke_by_jti(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
     fn delete(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
 }
 

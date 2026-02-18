@@ -21,6 +21,7 @@ use crate::{
         abyss::federation::repository::FederationRepositoryImpl,
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         health::repositories::PostgresHealthCheckRepository,
@@ -59,6 +60,7 @@ type SecurityEventRepo = PostgresSecurityEventRepository;
 type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
+type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
 type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
@@ -78,6 +80,7 @@ type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
     ClientRepo,
     RedirectUriRepo,
+    PostLogoutRedirectUriRepo,
     UserRepo,
     CredentialRepo,
     HasherRepo,
@@ -101,6 +104,7 @@ pub struct ApplicationService {
         UserRoleRepo,
         WebhookRepo,
         RedirectUriRepo,
+        PostLogoutRedirectUriRepo,
         RoleRepo,
         SecurityEventRepo,
     >,

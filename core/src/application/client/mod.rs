@@ -4,10 +4,12 @@ use crate::{
         authentication::value_objects::Identity,
         client::{
             entities::{
-                Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput,
-                DeleteClientInput, DeleteRedirectUriInput, GetClientInput, GetClientRolesInput,
-                GetClientsInput, GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
-                redirect_uri::RedirectUri,
+                Client, CreateClientInput, CreatePostLogoutRedirectUriInput,
+                CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
+                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, GetClientInput,
+                GetClientRolesInput, GetClientsInput, GetPostLogoutRedirectUrisInput,
+                GetRedirectUrisInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
+                UpdateRedirectUriInput, redirect_uri::RedirectUri,
             },
             ports::ClientService,
         },
@@ -35,6 +37,16 @@ impl ClientService for ApplicationService {
             .await
     }
 
+    async fn create_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreatePostLogoutRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        self.client_service
+            .create_post_logout_redirect_uri(identity, input)
+            .await
+    }
+
     async fn create_role(
         &self,
         identity: Identity,
@@ -58,6 +70,16 @@ impl ClientService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.client_service
             .delete_redirect_uri(identity, input)
+            .await
+    }
+
+    async fn delete_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeletePostLogoutRedirectUriInput,
+    ) -> Result<(), CoreError> {
+        self.client_service
+            .delete_post_logout_redirect_uri(identity, input)
             .await
     }
 
@@ -93,6 +115,16 @@ impl ClientService for ApplicationService {
         self.client_service.get_redirect_uris(identity, input).await
     }
 
+    async fn get_post_logout_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetPostLogoutRedirectUrisInput,
+    ) -> Result<Vec<RedirectUri>, CoreError> {
+        self.client_service
+            .get_post_logout_redirect_uris(identity, input)
+            .await
+    }
+
     async fn update_client(
         &self,
         identity: Identity,
@@ -108,6 +140,16 @@ impl ClientService for ApplicationService {
     ) -> Result<RedirectUri, CoreError> {
         self.client_service
             .update_redirect_uri(identity, input)
+            .await
+    }
+
+    async fn update_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdatePostLogoutRedirectUriInput,
+    ) -> Result<RedirectUri, CoreError> {
+        self.client_service
+            .update_post_logout_redirect_uri(identity, input)
             .await
     }
 }

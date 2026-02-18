@@ -19,8 +19,10 @@ export interface AuthResponse {
 
 export interface AuthenticateQueryParams {
   client_id: string
+  session_code: string
 }
 
+/** @deprecated Use `Schemas.AuthenticateRequest` from `@/api/api.client.ts`. */
 export interface AuthenticateRequest {
   username?: string
   password?: string
@@ -33,6 +35,7 @@ export enum AuthenticationStatus {
   Failed = 'Failed',
 }
 
+/** @deprecated Use `Schemas.AuthenticateResponse` from `@/api/api.client.ts`. */
 export interface AuthenticateResponse {
   status: AuthenticationStatus
   url?: string
@@ -130,6 +133,7 @@ export interface SetupOtpResponse {
   issuer: string
 }
 
+/** @deprecated Use `Schemas.TokenRequestValidator` from `@/api/api.client.ts`. */
 export interface TokenRequestValidator {
   grant_type?: GrantType
   client_id?: string

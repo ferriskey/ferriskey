@@ -1,9 +1,15 @@
 pub use ferriskey_domain::client::ports::{
     ClientPolicy, ClientRepository, ClientService, RedirectUriRepository, RedirectUriService,
 };
+use uuid::Uuid;
+
+use crate::domain::common::entities::app_errors::CoreError;
+use ferriskey_domain::client::entities::redirect_uri::RedirectUri;
 
 #[cfg(test)]
-pub use mocks::{MockClientRepository, MockRedirectUriRepository};
+pub use mocks::{
+    MockClientRepository, MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
+};
 
 #[cfg(test)]
 mod mocks {
@@ -76,4 +82,61 @@ mod mocks {
             fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
         }
     }
+
+    mock! {
+        pub PostLogoutRedirectUriRepository {}
+        impl super::PostLogoutRedirectUriRepository for PostLogoutRedirectUriRepository {
+            fn create_redirect_uri(
+                &self,
+                client_id: Uuid,
+                value: String,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn get_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn get_enabled_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn update_enabled(
+                &self,
+                id: Uuid,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+        }
+    }
+}
+
+pub trait PostLogoutRedirectUriRepository: Send + Sync {
+    fn create_redirect_uri(
+        &self,
+        client_id: Uuid,
+        value: String,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn get_enabled_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn update_enabled(
+        &self,
+        id: Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }

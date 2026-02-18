@@ -8,11 +8,12 @@ use utoipa::OpenApi;
 use super::handlers::{
     auth::{__path_auth_handler, auth_handler},
     authentificate::{__path_authenticate, authenticate},
-    get_certs::{__path_get_certs, get_certs},
+    get_certs::{__path_get_certs, __path_get_jwks_json, get_certs, get_jwks_json},
     introspect::{__path_introspect_token, introspect_token},
-    logout::{__path_logout, logout},
+    logout::{__path_logout_get, __path_logout_post, logout_get, logout_post},
     openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
     registration::{__path_registration_handler, registration_handler},
+    revoke::{__path_revoke_token, revoke_token},
     token::{__path_exchange_token, exchange_token},
     userinfo::{__path_get_userinfo, get_userinfo},
 };
@@ -24,8 +25,11 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
     introspect_token,
     authenticate,
     get_certs,
+    get_jwks_json,
     auth_handler,
-    logout,
+    logout_get,
+    logout_post,
+    revoke_token,
     get_openid_configuration,
     registration_handler,
     get_userinfo,
@@ -52,12 +56,16 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             post(introspect_token),
         )
         .route(
-            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
-            get(logout),
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/revoke"),
+            post(revoke_token),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
-            post(logout),
+            get(logout_get),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
+            post(logout_post),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
@@ -74,6 +82,14 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),
             get(get_certs),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/jwks.json"),
+            get(get_jwks_json),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/jwks"),
+            get(get_jwks_json),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/.well-known/openid-configuration"),

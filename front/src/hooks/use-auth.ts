@@ -1,5 +1,5 @@
 import { GrantType } from '@/api/core.interface'
-import { useLogoutMutation, useTokenMutation } from '@/api/auth.api'
+import { useLogoutMutation, useRevokeTokenMutation, useTokenMutation } from '@/api/auth.api'
 import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
@@ -7,10 +7,44 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser } from '@/contracts/states.interface'
 
-function decodeJwt(token: string): Record<string, never> | null {
+type JwtPayload = {
+  exp?: number
+  azp?: string
+  avatar?: string
+  preferred_username?: string
+  email?: string
+  name?: string
+}
+
+function decodeJwt(token: string): JwtPayload | null {
   try {
     const payload = token.split('.')[1]
-    return JSON.parse(atob(payload))
+    if (!payload) return null
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      Math.ceil(normalizedPayload.length / 4) * 4,
+      '='
+    )
+    const decodedPayload = JSON.parse(atob(paddedPayload))
+
+    if (typeof decodedPayload !== 'object' || !decodedPayload) {
+      return null
+    }
+
+    const claims = decodedPayload as Record<string, unknown>
+
+    return {
+      exp: typeof claims.exp === 'number' ? claims.exp : undefined,
+      azp: typeof claims.azp === 'string' ? claims.azp : undefined,
+      avatar: typeof claims.avatar === 'string' ? claims.avatar : undefined,
+      preferred_username:
+        typeof claims.preferred_username === 'string'
+          ? claims.preferred_username
+          : undefined,
+      email: typeof claims.email === 'string' ? claims.email : undefined,
+      name: typeof claims.name === 'string' ? claims.name : undefined,
+    }
   } catch {
     return null
   }
@@ -20,7 +54,7 @@ export function useAuth() {
   const navigate = useNavigate()
   const { realm_name = 'master' } = useParams<RouterParams>()
   //const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
-  const { accessToken, refreshToken, setTokens } = authStore()
+  const { accessToken, refreshToken, idToken, setTokens } = authStore()
   const {
     expiration,
     isAuthenticated,
@@ -32,17 +66,23 @@ export function useAuth() {
     setExpiration,
   } = userStore()
   const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
-  const { mutate: remoteLogout } = useLogoutMutation()
+  const { mutateAsync: revokeToken } = useRevokeTokenMutation()
+  const { mutateAsync: remoteLogout } = useLogoutMutation()
   const [hasHydrated, setHasHydrated] = useState<boolean>(
     authStore.persist?.hasHydrated?.() ?? true
   )
 
   const setAuthTokensWrapper = useCallback(
-    (access_token: string, refresh_token: string, authenticated: boolean = true) => {
+    (
+      access_token: string,
+      refresh_token: string,
+      id_token: string | null = null,
+      authenticated: boolean = true
+    ) => {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-      setTokens(access_token, refresh_token)
+      setTokens(access_token, refresh_token, id_token)
       setExpiration(expiration)
 
       if (authenticated) {
@@ -57,11 +97,64 @@ export function useAuth() {
     return Date.now() > expiration - 60000
   }
 
-  function logout() {
-    remoteLogout({ path: { realm_name } } as never)
-    localStorage.removeItem('auth')
-    setAuthenticated(false)
-    setLoading(true)
+  async function logout() {
+    try {
+      const revokeRequests: Promise<unknown>[] = []
+      const accessTokenClaims = accessToken ? decodeJwt(accessToken) : null
+      const refreshTokenClaims = refreshToken ? decodeJwt(refreshToken) : null
+      const clientIdFromToken =
+        (accessTokenClaims?.azp as string | undefined) ||
+        (refreshTokenClaims?.azp as string | undefined) ||
+        'security-admin-console'
+
+      if (accessToken) {
+        revokeRequests.push(
+          revokeToken({
+            realm: realm_name,
+            data: {
+              token: accessToken,
+              client_id: clientIdFromToken,
+              token_type_hint: 'access_token',
+            },
+          })
+        )
+      }
+
+      if (refreshToken) {
+        revokeRequests.push(
+          revokeToken({
+            realm: realm_name,
+            data: {
+              token: refreshToken,
+              client_id: clientIdFromToken,
+              token_type_hint: 'refresh_token',
+            },
+          })
+        )
+      }
+
+      if (revokeRequests.length > 0) {
+        await Promise.allSettled(revokeRequests)
+      }
+
+      await remoteLogout({
+        realm: realm_name,
+        data: {
+          id_token_hint: idToken ?? undefined,
+          client_id: clientIdFromToken,
+        },
+      })
+    } catch (error) {
+      console.error('Failed to clear server-side session cookies during logout:', error)
+    } finally {
+      authStore.persist?.clearStorage?.()
+      setTokens(null, null, null)
+      setUser(null)
+      setExpiration(null)
+      setAuthenticated(false)
+      setLoading(false)
+      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
+    }
   }
 
   const refreshAccessToken = useCallback(() => {
@@ -106,9 +199,13 @@ export function useAuth() {
 
   useEffect(() => {
     if (responseExchangeToken?.access_token) {
-      setAuthTokensWrapper(responseExchangeToken.access_token, responseExchangeToken.refresh_token)
+      setAuthTokensWrapper(
+        responseExchangeToken.access_token,
+        responseExchangeToken.refresh_token,
+        responseExchangeToken.id_token ?? idToken
+      )
     }
-  }, [responseExchangeToken, setAuthTokensWrapper])
+  }, [idToken, responseExchangeToken, setAuthTokensWrapper])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -121,6 +218,10 @@ export function useAuth() {
       }
 
       const exp = payload.exp
+      if (typeof exp !== 'number') {
+        console.error('Missing exp claim in token')
+        return
+      }
       const currentTime = Math.floor(Date.now() / 1000)
       const timeToExpiry = exp - currentTime
 
@@ -142,17 +243,17 @@ export function useAuth() {
     }
 
     const decoded = decodeJwt(accessToken)
-    if (!decoded || !decoded.exp) {
+    if (!decoded || typeof decoded.exp !== 'number') {
       setAuthenticated(false)
       setLoading(false)
       return
     }
 
     const user: IUser = {
-      avatar: decoded.avatar,
-      preferred_username: decoded.preferred_username,
-      email: decoded.email,
-      name: decoded.name,
+      avatar: decoded.avatar ?? '',
+      preferred_username: decoded.preferred_username ?? '',
+      email: decoded.email ?? '',
+      name: decoded.name ?? '',
     }
 
     setUser(user)
@@ -165,7 +266,7 @@ export function useAuth() {
   }, [accessToken, hasHydrated, setAuthenticated, setLoading, setUser])
 
   return {
-    setAuthToken: (value: string) => setAuthTokensWrapper(value, '', false),
+    setAuthToken: (value: string) => setAuthTokensWrapper(value, '', null, false),
     setAuthTokens: setAuthTokensWrapper,
     isTokenExpired,
     isAuthenticated,

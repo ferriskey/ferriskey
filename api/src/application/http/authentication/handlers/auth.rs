@@ -91,7 +91,7 @@ pub async fn auth_handler(
             state: params.state.clone(),
         })
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(ApiError::from)?;
 
     if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE) {
         let auth_result = state
