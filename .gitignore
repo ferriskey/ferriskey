@@ -4,6 +4,5 @@
 **/target
 .env
 *.key*
-.certs/
 .DS_Store
 **/.DS_Store
