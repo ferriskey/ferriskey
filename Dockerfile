@@ -103,7 +103,7 @@ COPY front/ .
 
 RUN pnpm run build
 
-FROM docker.angie.software/angie:minimal AS webapp
+FROM docker.angie.software/angie:1.11.3-minimal AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/angie/http.d/default.conf
