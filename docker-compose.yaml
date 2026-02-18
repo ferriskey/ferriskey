@@ -58,6 +58,7 @@ services:
         condition: service_healthy
     profiles:
       - build
+      - build-ssl
 
   webapp-build:
     build:
@@ -69,6 +70,43 @@ services:
       - 5555:80
     profiles:
       - build
+
+  api-build-ssl:
+    build:
+      context: .
+      target: api
+    environment:
+      ALLOWED_ORIGINS: https://localhost:5443,https://127.0.0.1:5443
+      DATABASE_HOST: db
+      DATABASE_NAME: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_USER: ferriskey
+      SERVER_ROOT_PATH: /api
+      WEBAPP_URL: https://localhost:5443
+    ports:
+      - 3333:3333
+    depends_on:
+      db-migrations-build:
+        condition: service_completed_successfully
+    profiles:
+      - build-ssl
+
+  webapp-build-ssl:
+    build:
+      context: .
+      target: webapp
+    depends_on:
+      api-build-ssl:
+        condition: service_started
+    environment:
+      API_URL: /api
+    ports:
+      - 5443:443
+    volumes:
+      - ./.certs/dev-test-ssl:/etc/ssl/ferriskey:ro
+      - ./front/nginx.ssl.conf:/etc/angie/http.d/default.conf:ro
+    profiles:
+      - build-ssl
 
   api-registry:
     image: ghcr.io/ferriskey/ferriskey-api

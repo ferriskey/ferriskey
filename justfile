@@ -23,7 +23,6 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 # docker compose wrapper (always uses repo docker-compose.yaml)
 compose := "docker compose -f docker-compose.yaml"
-compose_ssl := "docker compose -f docker-compose.yaml -f docker-compose.ssl.yaml"
 
 default: help
 
@@ -212,7 +211,7 @@ dev-test: _ensure-docker-running
 dev-test-ssl: _ensure-docker-running _ensure-openssl
   @# Bring up the full stack over HTTPS on localhost.
   @# API is available through the same HTTPS origin at /api.
-  @# Generates a local self-signed cert (if missing), then starts compose "build" profile with SSL override.
+  @# Generates a local self-signed cert (if missing), then starts compose "build-ssl" profile.
   @mkdir -p .certs/dev-test-ssl
   @if [ ! -f .certs/dev-test-ssl/localhost.crt ] || [ ! -f .certs/dev-test-ssl/localhost.key ]; then \
     openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 365 \
@@ -222,7 +221,7 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
       -out .certs/dev-test-ssl/localhost.crt; \
     chmod 600 .certs/dev-test-ssl/localhost.key; \
   fi
-  @{{compose_ssl}} --profile build up -d --build
+  @{{compose}} --profile build-ssl up -d --build api-build-ssl webapp-build-ssl
 
 db-down: _ensure-docker-running
   @# Stop and remove the compose stack + its volumes.
@@ -231,10 +230,10 @@ db-down: _ensure-docker-running
 
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.
-  @{{compose}} --profile build down -v
+  @{{compose}} --profile build --profile build-ssl down -v
 dev-test-rm: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes and remove images.
-  @{{compose}} --profile build down -v --rmi local
+  @{{compose}} --profile build --profile build-ssl down -v --rmi local
 
 web: _ensure-pnpm
   @# Run the frontend server inside container.
