@@ -212,7 +212,7 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
   @# Bring up the full stack over HTTPS on localhost.
   @# API is available through the same HTTPS origin at /api.
   @# Generates a local self-signed cert (if missing), starts compose "build-ssl" profile,
-  @# avoids baking front/.env VITE_API_URL into bundle, and forces runtime config.json to /api.
+  @# and forces runtime config.json to /api.
   @mkdir -p .certs/dev-test-ssl
   @if [ ! -f .certs/dev-test-ssl/localhost.crt ] || [ ! -f .certs/dev-test-ssl/localhost.key ]; then \
     openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 365 \
@@ -222,29 +222,6 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
       -out .certs/dev-test-ssl/localhost.crt; \
     chmod 600 .certs/dev-test-ssl/localhost.key; \
   fi
-  @front_env_tmp_dir=""; \
-  for env_file in front/.env*; do \
-    [ "$env_file" = "front/.env*" ] && break; \
-    [ "$env_file" = "front/.env.example" ] && continue; \
-    [ -f "$env_file" ] || continue; \
-    if [ -z "$front_env_tmp_dir" ]; then \
-      front_env_tmp_dir="front/.env.dev-test-ssl.bak.$$"; \
-      mkdir -p "$front_env_tmp_dir"; \
-    fi; \
-    mv "$env_file" "$front_env_tmp_dir/"; \
-    echo "Temporarily moved $env_file to avoid baking VITE_API_URL into SSL bundle."; \
-  done; \
-  cleanup() { \
-    if [ -n "${front_env_tmp_dir:-}" ] && [ -d "$front_env_tmp_dir" ]; then \
-      for backup_file in "$front_env_tmp_dir"/.* "$front_env_tmp_dir"/*; do \
-        [ -e "$backup_file" ] || continue; \
-        case "$(basename "$backup_file")" in .|..) continue ;; esac; \
-        mv "$backup_file" "front/"; \
-      done; \
-      rmdir "$front_env_tmp_dir" || true; \
-    fi; \
-  }; \
-  trap cleanup EXIT; \
   {{compose}} --profile build-ssl up -d --build api-build-ssl webapp-build-ssl; \
   {{compose}} exec -T webapp-build-ssl sh -lc "printf '{\"api_url\":\"/api\"}\n' > /usr/share/angie/html/config.json"
   @echo "Forced runtime config to /api:"

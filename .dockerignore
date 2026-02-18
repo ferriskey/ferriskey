@@ -29,3 +29,5 @@ target
 front/.editorconfig
 front/.gitignore
 front/.prettierrc
+front/.env*
+!front/.env.example
