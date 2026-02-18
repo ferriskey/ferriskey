@@ -87,7 +87,7 @@ Then visit [http://localhost:5556](http://localhost:5556) to access the console.
 docker compose --profile build up -d
 ```
 
-> **Important migration note (Postgres data volume path):** recent compose updates now mount the explicit PGDATA directory (`/var/lib/postgresql/data`) instead of its parent. If you have an existing local `pgdata` volume from older config, remove or migrate it before using this version. Quick reset (destructive): `docker compose down -v`.
+> **Important migration note (Postgres 18+ volume path):** local compose mounts `pgdata` at `/var/lib/postgresql` (the Postgres 18+ recommended mount point). If you are migrating from an older local setup that used a different mount path, remove or migrate the old volume first. Quick reset (destructive): `docker compose down -v`.
 
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 

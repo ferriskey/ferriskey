@@ -9,8 +9,8 @@ services:
     ports:
       - 5432:5432
     volumes:
-      # Keep PGDATA mount explicit to avoid accidental re-initialization on parent-dir mounts.
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ images are designed to mount /var/lib/postgresql (major-version subdirs inside).
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL
