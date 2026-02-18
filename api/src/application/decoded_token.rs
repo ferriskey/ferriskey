@@ -1,6 +1,6 @@
 use axum::extract::FromRequestParts;
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::domain::{jwt::JwtError, jwt::entities::JwtClaim};
+use ferriskey_core::domain::jwt::{JwtError, entities::JwtClaim};
 
 #[derive(Debug, Clone)]
 pub struct ResultToken {
