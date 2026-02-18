@@ -1,4 +1,6 @@
-FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS rust-build
+ARG WOLFI_BASE=cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083
+
+FROM ${WOLFI_BASE} AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -54,7 +56,7 @@ RUN \
   touch operator/src/main.rs && \
   cargo build --release
 
-FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS runtime
+FROM ${WOLFI_BASE} AS runtime
 
 RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
@@ -81,7 +83,7 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS webapp-build
+FROM ${WOLFI_BASE} AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -106,7 +108,7 @@ RUN pnpm run build
 FROM docker.angie.software/angie:1.11.3-minimal AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
-COPY front/nginx.conf /etc/angie/http.d/default.conf
+COPY front/default.conf /etc/angie/http.d/default.conf
 COPY --chmod=0755 front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
