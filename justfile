@@ -211,7 +211,8 @@ dev-test: _ensure-docker-running
 dev-test-ssl: _ensure-docker-running _ensure-openssl
   @# Bring up the full stack over HTTPS on localhost.
   @# API is available through the same HTTPS origin at /api.
-  @# Generates a local self-signed cert (if missing), then starts compose "build-ssl" profile.
+  @# Generates a local self-signed cert (if missing), starts compose "build-ssl" profile,
+  @# and forces runtime config.json to use /api (avoids stale absolute localhost:3333 config).
   @mkdir -p .certs/dev-test-ssl
   @if [ ! -f .certs/dev-test-ssl/localhost.crt ] || [ ! -f .certs/dev-test-ssl/localhost.key ]; then \
     openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 365 \
@@ -222,11 +223,6 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
     chmod 600 .certs/dev-test-ssl/localhost.key; \
   fi
   @{{compose}} --profile build-ssl up -d --build api-build-ssl webapp-build-ssl
-
-dev-test-ssl-force-api: _ensure-docker-running
-  @# Force web runtime config to use same-origin API path (/api) in SSL stack.
-  @# This updates only the running container's config.json (no source file changes).
-  @{{compose}} --profile build-ssl up -d api-build-ssl webapp-build-ssl
   @{{compose}} exec -T webapp-build-ssl sh -lc "printf '{\"api_url\":\"/api\"}\n' > /usr/share/angie/html/config.json"
   @echo "Forced runtime config to /api:"
   @{{compose}} exec -T webapp-build-ssl cat /usr/share/angie/html/config.json
