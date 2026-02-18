@@ -1,7 +1,4 @@
-# Docker Hardening and Vulnerability Report
-
-Date: 2026-02-13
-Branch: `vk/18f7-improve-the-dock`
+# Docker Hardening and Vulnerability Fix Report
 
 ## Executive Summary
 
@@ -69,13 +66,10 @@ References:
 - nginx change log with recent security fixes: <https://nginx.org/en/CHANGES>
 - Angie docs/about (fork and release model): <https://en.angie.software/angie/docs/>
 
-## Why Node 24 and Latest pnpm
+## Why Node 24
 
 1. Node 24 brings newer upstream security fixes in the JS toolchain.
-2. `pnpm@latest` ensures the build uses the newest pnpm patch line with security and resolver fixes.
-3. Node/pnpm are used only in the **build stage**, so runtime attack surface remains small.
-
-Note: If strict reproducibility is preferred over always-latest tooling, pinning pnpm major/minor can be considered later.
+2. Node/pnpm are used only in the **build stage**, so runtime attack surface remains small.
 
 ## Vulnerability Report Details
 
