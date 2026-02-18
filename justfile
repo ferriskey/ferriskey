@@ -153,7 +153,7 @@ dev-setup: _ensure-docker-running
   @# - Start the Postgres container
   @# - Optionally run SQL migrations
   @if [ ! -f api/.env ]; then cp api/env.example api/.env; fi
-  @POSTGRES_IMAGE=postgres:18.1 POSTGRES_DATA_PATH=/var/lib/postgresql {{compose}} up -d db
+  @POSTGRES_IMAGE=postgres:18.2 {{compose}} up -d db
   @just _wait-db
   @read -r -p "Run DB migrations now? [Y/n] " ans; \
     case "${ans:-Y}" in \
@@ -209,6 +209,9 @@ db-down: _ensure-docker-running
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.
   @{{compose}} --profile build down -v
+dev-test-rm: _ensure-docker-running
+  @# Tear down docker compose build profile containers and volumes and remove images.
+  @{{compose}} --profile build down -v --rmi local
 
 web: _ensure-pnpm
   @# Run the frontend server inside container.
