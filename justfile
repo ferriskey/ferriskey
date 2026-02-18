@@ -223,6 +223,14 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
   fi
   @{{compose}} --profile build-ssl up -d --build api-build-ssl webapp-build-ssl
 
+dev-test-ssl-force-api: _ensure-docker-running
+  @# Force web runtime config to use same-origin API path (/api) in SSL stack.
+  @# This updates only the running container's config.json (no source file changes).
+  @{{compose}} --profile build-ssl up -d api-build-ssl webapp-build-ssl
+  @{{compose}} exec -T webapp-build-ssl sh -lc "printf '{\"api_url\":\"/api\"}\n' > /usr/share/angie/html/config.json"
+  @echo "Forced runtime config to /api:"
+  @{{compose}} exec -T webapp-build-ssl cat /usr/share/angie/html/config.json
+
 db-down: _ensure-docker-running
   @# Stop and remove the compose stack + its volumes.
   @# This is destructive for local data (drops your local DB state).

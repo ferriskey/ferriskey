@@ -43,19 +43,9 @@ function App() {
     if (viteUrl) {
       uri = viteUrl
     } else {
-      const data = await fetch('/config.json', { cache: 'no-store' })
+      const data = await fetch('/config.json')
       const result = await data.json()
       uri = result.api_url
-    }
-
-    // Keep local HTTPS dev on same-origin /api even with stale absolute localhost:3333 config.
-    if (
-      typeof uri === 'string' &&
-      window.location.protocol === 'https:' &&
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-      /^https?:\/\/(localhost|127\.0\.0\.1):3333\/?$/.test(uri)
-    ) {
-      uri = '/api'
     }
 
     const api = createApiClient(fetcher, uri)
