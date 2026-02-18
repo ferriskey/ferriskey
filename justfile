@@ -222,15 +222,26 @@ dev-test-ssl: _ensure-docker-running _ensure-openssl
       -out .certs/dev-test-ssl/localhost.crt; \
     chmod 600 .certs/dev-test-ssl/localhost.key; \
   fi
-  @front_env_tmp=""; \
-  if [ -f front/.env ]; then \
-    front_env_tmp="front/.env.dev-test-ssl.bak.$$"; \
-    mv front/.env "$front_env_tmp"; \
-    echo "Temporarily moved front/.env to avoid baking VITE_API_URL into SSL bundle."; \
-  fi; \
+  @front_env_tmp_dir=""; \
+  for env_file in front/.env*; do \
+    [ "$env_file" = "front/.env*" ] && break; \
+    [ "$env_file" = "front/.env.example" ] && continue; \
+    [ -f "$env_file" ] || continue; \
+    if [ -z "$front_env_tmp_dir" ]; then \
+      front_env_tmp_dir="front/.env.dev-test-ssl.bak.$$"; \
+      mkdir -p "$front_env_tmp_dir"; \
+    fi; \
+    mv "$env_file" "$front_env_tmp_dir/"; \
+    echo "Temporarily moved $env_file to avoid baking VITE_API_URL into SSL bundle."; \
+  done; \
   cleanup() { \
-    if [ -n "${front_env_tmp:-}" ] && [ -f "$front_env_tmp" ]; then \
-      mv "$front_env_tmp" front/.env; \
+    if [ -n "${front_env_tmp_dir:-}" ] && [ -d "$front_env_tmp_dir" ]; then \
+      for backup_file in "$front_env_tmp_dir"/.* "$front_env_tmp_dir"/*; do \
+        [ -e "$backup_file" ] || continue; \
+        case "$(basename "$backup_file")" in .|..) continue ;; esac; \
+        mv "$backup_file" "front/"; \
+      done; \
+      rmdir "$front_env_tmp_dir" || true; \
     fi; \
   }; \
   trap cleanup EXIT; \
