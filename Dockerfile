@@ -91,7 +91,7 @@ RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
   apk add --no-cache nodejs-24 corepack ;\
   corepack enable ;\
-  corepack prepare pnpm@latest --activate
+  corepack prepare pnpm@10.30 --activate
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
