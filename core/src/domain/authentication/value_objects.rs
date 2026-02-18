@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::authentication::entities::DecodedToken;
+use crate::domain::jwt::entities::JwtClaim;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::user::entities::User;
 use crate::domain::{authentication::entities::GrantType, user::entities::RequiredAction};
@@ -113,7 +113,7 @@ pub struct GenerateTokenInput {
 pub struct GetUserInfoInput {
     pub realm_name: String,
     pub token: String,
-    pub claims: DecodedToken,
+    pub claims: JwtClaim,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, PartialEq, Default)]
