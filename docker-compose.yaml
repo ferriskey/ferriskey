@@ -1,6 +1,6 @@
 services:
   db:
-    image: ${POSTGRES_IMAGE:-postgres:18.1}
+    image: ${POSTGRES_IMAGE:-postgres:18.2}
     environment:
       PGUSER: ferriskey
       POSTGRES_DB: ferriskey
@@ -9,7 +9,8 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - pgdata:${POSTGRES_DATA_PATH:-/var/lib/postgresql}
+      # Keep PGDATA mount explicit to avoid accidental re-initialization on parent-dir mounts.
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL

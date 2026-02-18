@@ -12,7 +12,8 @@ cp -r "$SRC_DIR"/* "$HTML_DIR"
 if [ -f "$CONFIG_FILE" ]; then
   api_url="${API_URL:-}"
   escaped_api_url=$(printf '%s' "$api_url" | sed -e 's/[\/&]/\\&/g')
-  placeholder="\${API_URL}"
+  # shellcheck disable=SC2016
+  placeholder='${API_URL}'
   sed -i "s|$placeholder|$escaped_api_url|g" "$CONFIG_FILE"
 fi
 

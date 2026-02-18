@@ -1,9 +1,10 @@
-FROM cgr.dev/chainguard/wolfi-base:latest AS rust-build
+FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV CARGO_HOME=/usr/local/cargo
 
+# hadolint ignore=DL3018
 RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
   apk add --no-cache rust build-base pkgconf openssl-dev curl ;\
@@ -53,7 +54,7 @@ RUN \
   touch operator/src/main.rs && \
   cargo build --release
 
-FROM cgr.dev/chainguard/wolfi-base:latest AS runtime
+FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS runtime
 
 RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
@@ -80,18 +81,19 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM cgr.dev/chainguard/wolfi-base:latest AS webapp-build
+FROM cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083 AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
+# hadolint ignore=DL3018
 RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
   apk add --no-cache nodejs-24 corepack ;\
   corepack enable ;\
-  corepack prepare pnpm@10.30 --activate
+  corepack prepare pnpm@10.30.0 --activate
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -105,9 +107,7 @@ FROM docker.angie.software/angie:minimal AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/angie/http.d/default.conf
-COPY front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY --chmod=0755 front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["angie", "-g", "daemon off;"]
