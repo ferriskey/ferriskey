@@ -58,8 +58,10 @@ RUN \
 
 FROM ${WOLFI_BASE} AS runtime
 
+# hadolint ignore=DL3018
 RUN set -eux ;\
   apk update --no-cache && apk upgrade --no-cache ;\
+  apk add --no-cache ca-certificates libssl3 ;\
   addgroup -S -g 1000 ferriskey && \
   adduser -S -D -H -u 1000 -G ferriskey ferriskey
 
