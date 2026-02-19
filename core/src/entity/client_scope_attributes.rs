@@ -9,7 +9,6 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub client_scope_id: Uuid,
-    pub client_scope_id: Uuid,
     pub name: String,
     pub value: Option<String>,
 }

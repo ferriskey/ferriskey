@@ -105,13 +105,4 @@ impl Related<super::client_scopes::Entity> for Entity {
     }
 }
 
-impl Related<super::client_scopes::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::client_scope_mappings::Relation::ClientScopes.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::client_scope_mappings::Relation::Clients.def().rev())
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}

@@ -53,18 +53,6 @@ impl Related<super::identity_provider_links::Entity> for Entity {
     }
 }
 
-impl Related<super::broker_auth_sessions::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::BrokerAuthSessions.def()
-    }
-}
-
-impl Related<super::identity_provider_links::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::IdentityProviderLinks.def()
-    }
-}
-
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()

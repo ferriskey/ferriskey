@@ -72,27 +72,9 @@ impl Related<super::client_scopes::Entity> for Entity {
     }
 }
 
-impl Related<super::broker_auth_sessions::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::BrokerAuthSessions.def()
-    }
-}
-
-impl Related<super::client_scopes::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::ClientScopes.def()
-    }
-}
-
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
-    }
-}
-
-impl Related<super::identity_providers::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::IdentityProviders.def()
     }
 }
 
