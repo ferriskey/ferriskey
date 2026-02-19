@@ -23,5 +23,6 @@ pub struct UpdateRealmSettingValidator {
     pub forgot_password_enabled: Option<bool>,
     pub remember_me_enabled: Option<bool>,
     pub magic_link_enabled: Option<bool>,
+    #[validate(range(min = 1, message = "magic_link_ttl must be greater than 0"))]
     pub magic_link_ttl: Option<u32>,
 }
