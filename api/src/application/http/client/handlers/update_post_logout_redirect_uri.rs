@@ -17,8 +17,15 @@ use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
 use ferriskey_core::domain::client::{
     entities::UpdatePostLogoutRedirectUriInput, ports::ClientService,
 };
+use serde::{Deserialize, Serialize};
 use tracing::info;
+use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdatePostLogoutRedirectUriResponse {
+    pub data: RedirectUri,
+}
 
 #[utoipa::path(
     put,
@@ -33,7 +40,7 @@ use uuid::Uuid;
     tag = "client",
     request_body = UpdateRedirectUriValidator,
     responses(
-        (status = 200, body = RedirectUri),
+        (status = 200, body = UpdatePostLogoutRedirectUriResponse),
     ),
 )]
 pub async fn update_post_logout_redirect_uri(
@@ -41,12 +48,12 @@ pub async fn update_post_logout_redirect_uri(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,
-) -> Result<Response<RedirectUri>, ApiError> {
+) -> Result<Response<UpdatePostLogoutRedirectUriResponse>, ApiError> {
     info!(
         "Updating post-logout redirect URI: realm_name={}, client_id={}, uri_id={}",
         realm_name, client_id, uri_id
     );
-    state
+    let redirect_uri = state
         .service
         .update_post_logout_redirect_uri(
             identity,
@@ -58,6 +65,9 @@ pub async fn update_post_logout_redirect_uri(
             },
         )
         .await
-        .map_err(ApiError::from)
-        .map(Response::Updated)
+        .map_err(ApiError::from)?;
+
+    Ok(Response::Updated(UpdatePostLogoutRedirectUriResponse {
+        data: redirect_uri,
+    }))
 }

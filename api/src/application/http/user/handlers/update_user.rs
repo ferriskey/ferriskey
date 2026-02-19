@@ -15,7 +15,14 @@ use axum::{
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
 use ferriskey_core::domain::user::{entities::UpdateUserInput, ports::UserService};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateUserResponse {
+    pub data: User,
+}
 
 #[utoipa::path(
     put,
@@ -33,7 +40,7 @@ use uuid::Uuid;
         content_type = "application/json",
     ),
     responses(
-        (status = 200, description = "User updated successfully", body = User),
+        (status = 200, description = "User updated successfully", body = UpdateUserResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "User not found", body = ApiErrorResponse),
@@ -45,7 +52,7 @@ pub async fn update_user(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateUserValidator>,
-) -> Result<Response<User>, ApiError> {
+) -> Result<Response<UpdateUserResponse>, ApiError> {
     let user = state
         .service
         .update_user(
@@ -63,5 +70,5 @@ pub async fn update_user(
         )
         .await?;
 
-    Ok(Response::Updated(user))
+    Ok(Response::Updated(UpdateUserResponse { data: user }))
 }

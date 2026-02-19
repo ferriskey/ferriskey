@@ -10,7 +10,9 @@ use ferriskey_core::domain::{
     },
     authentication::value_objects::Identity,
 };
+use serde::Serialize;
 use std::str::FromStr;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::{
@@ -24,13 +26,18 @@ use crate::application::http::{
     },
 };
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UpdateProviderResponse {
+    pub data: ProviderResponse,
+}
+
 #[utoipa::path(
     put,
     path = "/federation/providers/{id}",
     summary = "Update a federation provider",
     request_body = UpdateProviderRequest,
     responses(
-        (status = 200, description = "Provider updated", body = ProviderResponse),
+        (status = 200, description = "Provider updated", body = UpdateProviderResponse),
         (status = 400, description = "Invalid input", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Forbidden", body = ApiErrorResponse),
@@ -48,7 +55,7 @@ pub async fn update_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Json(payload): Json<UpdateProviderRequest>,
-) -> Result<Response<ProviderResponse>, ApiError> {
+) -> Result<Response<UpdateProviderResponse>, ApiError> {
     let provider_type = payload.provider_type.map(|pt| match pt.as_str() {
         "Ldap" => FederationType::Ldap,
         "Kerberos" => FederationType::Kerberos,
@@ -93,5 +100,7 @@ pub async fn update_provider(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::Updated(provider.into()))
+    Ok(Response::Updated(UpdateProviderResponse {
+        data: provider.into(),
+    }))
 }

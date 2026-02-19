@@ -455,13 +455,20 @@ export namespace Schemas {
     remember_me_enabled: boolean | null
     user_registration_enabled: boolean | null
   }>
+  export type UpdateRealmResponse = { data: Realm }
+  export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmValidator = { name: string }
+  export type UpdateRedirectUriResponse = { data: RedirectUri }
   export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
-  export type UpdateRolePermissionsResponse = Role
+  export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri }
+  export type UpdateClientResponse = { data: Client }
+  export type UpdateProviderResponse = { data: ProviderResponse }
+  export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse }
+  export type UpdateRolePermissionsResponse = { data: Role }
   export type UpdateRolePermissionsValidator = { permissions: Array<string> }
-  export type UpdateRoleResponse = Role
+  export type UpdateRoleResponse = { data: Role }
   export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
-  export type UpdateUserResponse = User
+  export type UpdateUserResponse = { data: User }
   export type UpdateUserValidator = Partial<{
     email: string
     email_verified: boolean | null
@@ -519,7 +526,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRealmValidator
     }
-    response: Schemas.Realm
+    response: Schemas.UpdateRealmResponse
   }
   export type delete_Delete_realm = {
     method: 'DELETE'
@@ -548,7 +555,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRealmSettingValidator
     }
-    response: Schemas.Realm
+    response: Schemas.UpdateRealmSettingResponse
   }
   export type get_Get_openid_configuration = {
     method: 'GET'
@@ -639,7 +646,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateClientValidator
     }
-    response: Schemas.Client
+    response: Schemas.UpdateClientResponse
   }
   export type get_Get_redirect_uris = {
     method: 'GET'
@@ -690,7 +697,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRedirectUriValidator
     }
-    response: Schemas.RedirectUri
+    response: Schemas.UpdateRedirectUriResponse
   }
   export type put_UpdatePostLogoutRedirect = {
     method: 'PUT'
@@ -701,7 +708,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRedirectUriValidator
     }
-    response: Schemas.RedirectUri
+    response: Schemas.UpdatePostLogoutRedirectUriResponse
   }
   export type delete_Delete_redirect_uri = {
     method: 'DELETE'
@@ -779,7 +786,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateProviderRequest
     }
-    response: Schemas.ProviderResponse
+    response: Schemas.UpdateProviderResponse
   }
   export type delete_Delete_provider = {
     method: 'DELETE'
@@ -846,7 +853,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateIdentityProviderValidator
     }
-    response: Schemas.IdentityProviderResponse
+    response: Schemas.UpdateIdentityProviderResponse
   }
   export type delete_Delete_identity_provider = {
     method: 'DELETE'

@@ -56,9 +56,9 @@ export const useUpdateRole = () => {
       res.json()
     ).mutationOptions,
     onSuccess(res) {
-      queryClient.invalidateQueries({ queryKey: ['role', res.id] })
+      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role updated successfully', {
-        description: `Role ${res.name} has been updated successfully.`,
+        description: `Role ${res.data.name} has been updated successfully.`,
       })
     },
     onError(error) {
@@ -79,9 +79,9 @@ export const useUpdateRolePermissions = () => {
       async (res) => res.json()
     ).mutationOptions,
     onSuccess(res) {
-      queryClient.invalidateQueries({ queryKey: ['role', res.id] })
+      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role permissions updated successfully', {
-        description: `Role ${res.name} permissions has been updated successfully.`,
+        description: `Role ${res.data.name} permissions has been updated successfully.`,
       })
     },
     onError(error) {

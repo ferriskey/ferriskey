@@ -16,6 +16,13 @@ use ferriskey_core::domain::abyss::identity_provider::{
     entities::UpdateIdentityProviderInput, ports::IdentityProviderService,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use serde::Serialize;
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UpdateIdentityProviderResponse {
+    pub data: IdentityProviderResponse,
+}
 
 #[utoipa::path(
     put,
@@ -23,7 +30,7 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
     summary = "Update an identity provider",
     description = "Updates an existing identity provider configuration. Only the fields provided in the request body will be updated. The alias cannot be changed after creation.",
     responses(
-        (status = 200, body = IdentityProviderResponse, description = "Identity provider updated successfully"),
+        (status = 200, body = UpdateIdentityProviderResponse, description = "Identity provider updated successfully"),
         (status = 400, description = "Invalid configuration"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
@@ -41,7 +48,7 @@ pub async fn update_identity_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateIdentityProviderValidator>,
-) -> Result<Response<IdentityProviderResponse>, ApiError> {
+) -> Result<Response<UpdateIdentityProviderResponse>, ApiError> {
     let provider = state
         .service
         .update_identity_provider(
@@ -62,5 +69,7 @@ pub async fn update_identity_provider(
         )
         .await?;
 
-    Ok(Response::Updated(provider.into()))
+    Ok(Response::Updated(UpdateIdentityProviderResponse {
+        data: provider.into(),
+    }))
 }

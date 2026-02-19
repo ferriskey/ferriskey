@@ -11,7 +11,14 @@ use axum::{
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
 use ferriskey_core::domain::webhook::ports::{UpdateWebhookInput, WebhookService};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateWebhookResponse {
+    pub data: Webhook,
+}
 
 #[utoipa::path(
     put,
@@ -20,7 +27,7 @@ use uuid::Uuid;
     summary = "Update webhook",
     description = "Updates a webhook in the system related to the current realm.",
     responses(
-        (status = 200, description = "Webhook updated successfully", body = Webhook),
+        (status = 200, description = "Webhook updated successfully", body = UpdateWebhookResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
@@ -34,7 +41,7 @@ pub async fn update_webhook(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateWebhookValidator>,
-) -> Result<Response<Webhook>, ApiError> {
+) -> Result<Response<UpdateWebhookResponse>, ApiError> {
     let webhook = state
         .service
         .update_webhook(
@@ -52,5 +59,5 @@ pub async fn update_webhook(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::Updated(webhook))
+    Ok(Response::Updated(UpdateWebhookResponse { data: webhook }))
 }

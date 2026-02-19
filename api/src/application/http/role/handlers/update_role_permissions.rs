@@ -15,7 +15,14 @@ use axum::{
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::role::entities::Role;
 use ferriskey_core::domain::role::ports::RoleService;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateRolePermissionsResponse {
+    pub data: Role,
+}
 
 #[utoipa::path(
   patch,
@@ -28,7 +35,7 @@ use uuid::Uuid;
       ("role_id" = Uuid, Path, description = "Role ID"),
   ),
   responses(
-        (status = 200, description = "Role permissions updated successfully", body = Role),
+        (status = 200, description = "Role permissions updated successfully", body = UpdateRolePermissionsResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Role not found", body = ApiErrorResponse),
@@ -40,11 +47,13 @@ pub async fn update_role_permissions(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRolePermissionsValidator>,
-) -> Result<Response<Role>, ApiError> {
+) -> Result<Response<UpdateRolePermissionsResponse>, ApiError> {
     let role = state
         .service
         .update_role_permissions(identity, realm_name, role_id, payload.permissions)
         .await?;
 
-    Ok(Response::Updated(role))
+    Ok(Response::Updated(UpdateRolePermissionsResponse {
+        data: role,
+    }))
 }

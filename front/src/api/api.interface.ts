@@ -148,20 +148,26 @@ export interface UnassignRoleResponse {
   message: string
 }
 
-export type UpdateRolePermissionsResponse = Role
+export interface UpdateRolePermissionsResponse {
+  data: Role
+}
 
 export interface UpdateRolePermissionsValidator {
   permissions: string[]
 }
 
-export type UpdateRoleResponse = Role
+export interface UpdateRoleResponse {
+  data: Role
+}
 
 export interface UpdateRoleValidator {
   name?: string
   description?: string
 }
 
-export type UpdateUserResponse = User
+export interface UpdateUserResponse {
+  data: User
+}
 
 export interface UserRealmsResponse {
   data: Realm[]
