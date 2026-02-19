@@ -96,6 +96,7 @@ impl RelationTrait for Relation {
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::PostLogoutRedirectUris => {
                 Entity::has_many(super::post_logout_redirect_uris::Entity).into()
+            }
             Self::BrokerAuthSessions => {
                 Entity::has_many(super::broker_auth_sessions::Entity).into()
             }
