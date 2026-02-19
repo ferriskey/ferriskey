@@ -49,9 +49,10 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Realms,
     ClientScopeAttributes,
+    ClientScopeMappings,
     ClientScopeProtocolMappers,
+    Realms,
 }
 
 impl ColumnTrait for Column {
@@ -73,23 +74,20 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Realms => Entity::belongs_to(super::realms::Entity)
-                .from(Column::RealmId)
-                .to(super::realms::Column::Id)
-                .into(),
             Self::ClientScopeAttributes => {
                 Entity::has_many(super::client_scope_attributes::Entity).into()
+            }
+            Self::ClientScopeMappings => {
+                Entity::has_many(super::client_scope_mappings::Entity).into()
             }
             Self::ClientScopeProtocolMappers => {
                 Entity::has_many(super::client_scope_protocol_mappers::Entity).into()
             }
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
         }
-    }
-}
-
-impl Related<super::realms::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Realms.def()
     }
 }
 
@@ -99,9 +97,34 @@ impl Related<super::client_scope_attributes::Entity> for Entity {
     }
 }
 
+impl Related<super::client_scope_mappings::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientScopeMappings.def()
+    }
+}
+
 impl Related<super::client_scope_protocol_mappers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ClientScopeProtocolMappers.def()
+    }
+}
+
+impl Related<super::realms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Realms.def()
+    }
+}
+
+impl Related<super::clients::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::client_scope_mappings::Relation::Clients.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::client_scope_mappings::Relation::ClientScopes
+                .def()
+                .rev(),
+        )
     }
 }
 

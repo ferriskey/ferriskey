@@ -14,7 +14,7 @@ impl EntityName for Entity {
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub id: Uuid,
-    pub scope_id: Uuid,
+    pub client_scope_id: Uuid,
     pub name: String,
     pub value: Option<String>,
 }
@@ -22,7 +22,7 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    ScopeId,
+    ClientScopeId,
     Name,
     Value,
 }
@@ -49,7 +49,7 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::ScopeId => ColumnType::Uuid.def(),
+            Self::ClientScopeId => ColumnType::Uuid.def(),
             Self::Name => ColumnType::String(StringLen::N(255u32)).def(),
             Self::Value => ColumnType::String(StringLen::N(2048u32)).def().null(),
         }
@@ -60,7 +60,7 @@ impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
             Self::ClientScopes => Entity::belongs_to(super::client_scopes::Entity)
-                .from(Column::ScopeId)
+                .from(Column::ClientScopeId)
                 .to(super::client_scopes::Column::Id)
                 .into(),
         }

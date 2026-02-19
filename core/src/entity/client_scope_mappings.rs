@@ -14,7 +14,7 @@ impl EntityName for Entity {
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub client_id: Uuid,
-    pub scope_id: Uuid,
+    pub client_scope_id: Uuid,
     pub is_default: bool,
     pub is_optional: bool,
 }
@@ -22,7 +22,7 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     ClientId,
-    ScopeId,
+    ClientScopeId,
     IsDefault,
     IsOptional,
 }
@@ -30,7 +30,7 @@ pub enum Column {
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
 pub enum PrimaryKey {
     ClientId,
-    ScopeId,
+    ClientScopeId,
 }
 
 impl PrimaryKeyTrait for PrimaryKey {
@@ -42,8 +42,8 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Clients,
     ClientScopes,
+    Clients,
 }
 
 impl ColumnTrait for Column {
@@ -51,7 +51,7 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::ClientId => ColumnType::Uuid.def(),
-            Self::ScopeId => ColumnType::Uuid.def(),
+            Self::ClientScopeId => ColumnType::Uuid.def(),
             Self::IsDefault => ColumnType::Boolean.def(),
             Self::IsOptional => ColumnType::Boolean.def(),
         }
@@ -61,27 +61,27 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::ClientScopes => Entity::belongs_to(super::client_scopes::Entity)
+                .from(Column::ClientScopeId)
+                .to(super::client_scopes::Column::Id)
+                .into(),
             Self::Clients => Entity::belongs_to(super::clients::Entity)
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
                 .into(),
-            Self::ClientScopes => Entity::belongs_to(super::client_scopes::Entity)
-                .from(Column::ScopeId)
-                .to(super::client_scopes::Column::Id)
-                .into(),
         }
-    }
-}
-
-impl Related<super::clients::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Clients.def()
     }
 }
 
 impl Related<super::client_scopes::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ClientScopes.def()
+    }
+}
+
+impl Related<super::clients::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Clients.def()
     }
 }
 

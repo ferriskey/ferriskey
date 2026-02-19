@@ -1,0 +1,12 @@
+pub mod assign_default_scope;
+pub mod assign_optional_scope;
+pub mod create_client_scope;
+pub mod create_protocol_mapper;
+pub mod delete_client_scope;
+pub mod delete_protocol_mapper;
+pub mod get_client_scope;
+pub mod get_client_scopes;
+pub mod unassign_default_scope;
+pub mod unassign_optional_scope;
+pub mod update_client_scope;
+pub mod update_protocol_mapper;
