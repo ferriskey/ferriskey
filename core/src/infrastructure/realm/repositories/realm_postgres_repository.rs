@@ -161,6 +161,8 @@ impl RealmRepository for PostgresRealmRepository {
         user_registration_enabled: Option<bool>,
         forgot_password_enabled: Option<bool>,
         remember_me_enabled: Option<bool>,
+        magic_link_enabled: Option<bool>,
+        magic_link_ttl: Option<u32>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -185,6 +187,14 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(remember_me_enabled) = remember_me_enabled {
             realm_setting.remember_me_enabled = Set(remember_me_enabled);
+        }
+
+        if let Some(magic_link_enabled) = magic_link_enabled {
+            realm_setting.magic_link_enabled = Set(magic_link_enabled);
+        }
+
+        if let Some(magic_link_ttl) = magic_link_ttl {
+            realm_setting.magic_link_ttl_minutes = Set(magic_link_ttl as i32);
         }
 
         let realm_setting = realm_setting

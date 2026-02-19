@@ -1,5 +1,7 @@
+use chrono::{DateTime, Utc};
 use ferriskey_domain::common::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TotpCredentialData {
@@ -51,5 +53,21 @@ pub struct MfaRecoveryCode(pub Vec<u8>);
 impl MfaRecoveryCode {
     pub fn from_bytes(bytes: &[u8]) -> MfaRecoveryCode {
         MfaRecoveryCode(bytes.to_vec())
+    }
+}
+
+pub struct MagicLink {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub magic_token_id: Uuid,
+    pub magic_token_hash: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+impl MagicLink {
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expires_at
     }
 }
