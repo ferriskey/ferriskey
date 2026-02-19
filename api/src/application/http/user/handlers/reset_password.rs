@@ -1,4 +1,6 @@
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_error::{
+    ApiError, ApiErrorResponse, ValidateJson,
+};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::user::validators::ResetPasswordValidator;
@@ -37,7 +39,11 @@ pub struct ResetPasswordResponse {
         content_type = "application/json",
     ),
     responses(
-        (status = 200, body = ResetPasswordResponse, description = "Password reset successfully"),
+        (status = 200, description = "Password reset successfully", body = ResetPasswordResponse),
+        (status = 400, description = "Invalid request body", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn reset_password(

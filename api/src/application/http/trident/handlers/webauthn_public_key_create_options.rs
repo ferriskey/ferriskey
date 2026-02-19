@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{Extension, extract::State};
@@ -9,15 +12,11 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{CreationChallengeResponse, WebAuthnRpInfo},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use utoipa::{
     PartialSchema, ToSchema,
     openapi::{ObjectBuilder, RefOr, Schema},
 };
-use validator::Validate;
-
-#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-pub struct CreatePublicKeyRequest {}
 
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 #[derive(Debug, Serialize)]
@@ -46,9 +45,11 @@ impl PartialSchema for CreatePublicKeyResponse {
     tag = "auth",
     summary = "Create a webauthn public key",
     description = "Provides a full PublicKeyCredentialCreationOption payload for WebAuthn credential creation/authentication. The payload contains the challenge to resolve in B64Url form as described in the specs. The content is described here: https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.",
-    request_body = CreatePublicKeyRequest,
     responses(
-        (status = 200, body = CreatePublicKeyResponse)
+        (status = 200, description = "WebAuthn public key creation options generated successfully", body = CreatePublicKeyResponse),
+        (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
+        (status = 403, description = "Identity not authorized", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn webauthn_public_key_create_options(

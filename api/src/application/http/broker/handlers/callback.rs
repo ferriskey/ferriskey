@@ -13,7 +13,10 @@ use ferriskey_core::domain::authentication::{
     ports::AuthService,
 };
 
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
+use crate::application::http::server::{
+    api_entities::api_error::{ApiError, ApiErrorResponse},
+    app_state::AppState,
+};
 use crate::application::url::FullUrl;
 
 use super::super::validators::BrokerCallbackQuery;
@@ -36,9 +39,9 @@ use super::super::validators::BrokerCallbackQuery;
     ),
     responses(
         (status = 302, description = "Redirect to client with authorization code"),
-        (status = 400, description = "Bad request - invalid state or expired session"),
-        (status = 401, description = "Authentication failed at identity provider"),
-        (status = 502, description = "Error communicating with identity provider"),
+        (status = 400, description = "Bad request - invalid state or expired session", body = ApiErrorResponse),
+        (status = 401, description = "Authentication failed at identity provider", body = ApiErrorResponse),
+        (status = 502, description = "Error communicating with identity provider", body = ApiErrorResponse),
     )
 )]
 pub async fn broker_callback(

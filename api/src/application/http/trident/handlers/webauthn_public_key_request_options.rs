@@ -14,12 +14,12 @@ use utoipa::{
 };
 
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
-
-#[derive(Debug, ToSchema, PartialEq, Eq)]
-pub struct RequestOptionsRequest {}
 
 #[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
@@ -47,9 +47,11 @@ impl PartialSchema for RequestOptionsResponse {
     tag = "auth",
     summary = "Request webauthn challenge",
     description = "Provides a full PublicKeyCredentialRequestOption payload for webauthn authentication. See https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptions and https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptionsjson",
-    request_body = RequestOptionsRequest,
     responses(
-        (status = 200, body = RequestOptionsResponse),
+        (status = 200, description = "WebAuthn public key request options generated successfully", body = RequestOptionsResponse),
+        (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
+        (status = 403, description = "Identity not authorized", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn webauthn_public_key_request_options(

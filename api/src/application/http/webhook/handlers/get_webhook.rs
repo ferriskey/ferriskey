@@ -1,4 +1,4 @@
-use crate::application::http::server::api_entities::api_error::ApiError;
+use crate::application::http::server::api_entities::api_error::{ApiError, ApiErrorResponse};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::{
@@ -22,7 +22,10 @@ use uuid::Uuid;
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
     ),
     responses(
-        (status = 200, body = Webhook)
+        (status = 200, description = "Webhook retrieved successfully", body = Webhook),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 

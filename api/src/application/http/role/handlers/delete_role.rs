@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{
@@ -29,9 +32,9 @@ pub struct DeleteRoleResponse {
         ("role_id" = Uuid, Path, description = "Role ID"),
     ),
     responses(
-        (status = 200, body = DeleteRoleResponse, description = "Role deleted successfully"),
-        (status = 404, description = "Role not found"),
-        (status = 400, description = "Invalid request data")
+        (status = 200, description = "Role deleted successfully", body = DeleteRoleResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn delete_role(

@@ -2,7 +2,10 @@ use axum::extract::{Path, State};
 use ferriskey_core::domain::realm::{entities::RealmLoginSetting, ports::RealmService};
 
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 
@@ -16,7 +19,10 @@ use crate::application::http::server::{
         ("name" = String, Path, description = "The name of the realm"),
     ),
     responses(
-        (status = 200, body = RealmLoginSetting)
+        (status = 200, description = "Login settings retrieved successfully", body = RealmLoginSetting),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_login_realm_settings_handler(

@@ -2,7 +2,7 @@ use crate::application::http::{
     client::validators::UpdateClientValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -25,15 +25,19 @@ use uuid::Uuid;
     path = "/{client_id}",
     summary = "Update a client",
     description = "Updates an existing client in the specified realm. This endpoint allows you to modify client details such as name, client ID, and enabled status.",
-    responses(
-        (status = 200, description = "Client updated successfully", body = Client),
-    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),
     ),
     tag = "client",
     request_body = UpdateClientValidator,
+    responses(
+        (status = 200, description = "Client updated successfully", body = Client),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Client not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    ),
 )]
 pub async fn update_client(
     Path((realm_name, client_id)): Path<(String, Uuid)>,

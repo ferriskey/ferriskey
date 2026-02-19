@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ferriskey_domain::user::commands::BulkDeleteUsersInput;
 use uuid::Uuid;
 
 use crate::domain::{
@@ -371,7 +372,7 @@ where
     async fn bulk_delete_users(
         &self,
         identity: Identity,
-        input: crate::domain::user::entities::BulkDeleteUsersInput,
+        input: BulkDeleteUsersInput,
     ) -> Result<u64, CoreError> {
         let realm = self
             .realm_repository

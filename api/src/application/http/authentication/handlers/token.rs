@@ -1,6 +1,9 @@
-use crate::application::http::authentication::validators::TokenRequestValidator;
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::app_state::AppState;
+use crate::application::http::{
+    authentication::validators::TokenRequestValidator,
+    server::api_entities::api_error::ApiErrorResponse,
+};
 use crate::application::url::FullUrl;
 use axum::{
     Form,
@@ -25,7 +28,10 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
       ("realm_name" = String, Path, description = "Realm name")
     ),
     responses(
-        (status = 200, body = JwtToken)
+        (status = 200, body = JwtToken),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 404, description = "Client not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
 pub async fn exchange_token(

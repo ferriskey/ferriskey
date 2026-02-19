@@ -2,7 +2,7 @@ use crate::application::http::{
     role::validators::CreateRoleValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -31,7 +31,10 @@ use uuid::Uuid;
     ),
     request_body = CreateRoleValidator,
     responses(
-        (status = 201, body = Role)
+        (status = 201, body = Role, description = "Role created successfully"),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn create_role(

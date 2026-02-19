@@ -12,7 +12,10 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 
@@ -32,9 +35,11 @@ pub struct UserPermissionsResponse {
         ("user_id" = String, Path, description = "User ID"),
     ),
     responses(
-        (status = 200, body = UserPermissionsResponse, description = "User permissions retrieved successfully"),
-        (status = 404, description = "User not found"),
-        (status = 403, description = "Forbidden: User does not have permission to access this user's permissions")
+        (status = 200, description = "User permissions retrieved successfully", body = UserPermissionsResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "User not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_user_permissions(

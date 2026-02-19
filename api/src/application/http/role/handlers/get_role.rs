@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{
@@ -29,8 +32,10 @@ pub struct GetRoleResponse {
         ("role_id" = Uuid, Path, description = "Role ID")
     ),
     responses(
-        (status = 200, body = GetRoleResponse),
-        (status = 404, description = "Role not found")
+        (status = 200, description = "Role retrieved successfully", body = GetRoleResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Role not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_role(
