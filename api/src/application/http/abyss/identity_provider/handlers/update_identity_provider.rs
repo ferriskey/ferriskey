@@ -62,5 +62,5 @@ pub async fn update_identity_provider(
         )
         .await?;
 
-    Ok(Response::OK(provider.into()))
+    Ok(Response::Updated(provider.into()))
 }

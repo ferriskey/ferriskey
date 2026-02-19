@@ -93,5 +93,5 @@ pub async fn update_provider(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(provider.into()))
+    Ok(Response::Updated(provider.into()))
 }

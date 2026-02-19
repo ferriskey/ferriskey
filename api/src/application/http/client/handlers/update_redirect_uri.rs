@@ -61,5 +61,5 @@ pub async fn update_redirect_uri(
         )
         .await
         .map_err(ApiError::from)
-        .map(Response::OK)
+        .map(Response::Updated)
 }

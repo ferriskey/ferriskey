@@ -457,11 +457,11 @@ export namespace Schemas {
   }>
   export type UpdateRealmValidator = { name: string }
   export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
-  export type UpdateRolePermissionsResponse = { data: Role }
+  export type UpdateRolePermissionsResponse = Role
   export type UpdateRolePermissionsValidator = { permissions: Array<string> }
-  export type UpdateRoleResponse = { data: Role }
+  export type UpdateRoleResponse = Role
   export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
-  export type UpdateUserResponse = { data: User }
+  export type UpdateUserResponse = User
   export type UpdateUserValidator = Partial<{
     email: string
     email_verified: boolean | null

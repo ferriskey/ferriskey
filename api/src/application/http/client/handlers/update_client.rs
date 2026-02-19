@@ -62,5 +62,5 @@ pub async fn update_client(
         )
         .await
         .map_err(ApiError::from)
-        .map(Response::OK)
+        .map(Response::Updated)
 }

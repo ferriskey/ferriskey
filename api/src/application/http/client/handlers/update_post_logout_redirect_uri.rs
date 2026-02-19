@@ -59,5 +59,5 @@ pub async fn update_post_logout_redirect_uri(
         )
         .await
         .map_err(ApiError::from)
-        .map(Response::OK)
+        .map(Response::Updated)
 }

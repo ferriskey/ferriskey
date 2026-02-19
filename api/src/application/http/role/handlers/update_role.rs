@@ -17,14 +17,7 @@ use ferriskey_core::domain::role::ports::RoleService;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, role::entities::UpdateRoleInput,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use uuid::Uuid;
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct UpdateRoleResponse {
-    pub data: Role,
-}
 
 #[utoipa::path(
   put,
@@ -37,7 +30,7 @@ pub struct UpdateRoleResponse {
       ("role_id" = Uuid, Path, description = "Role ID"),
   ),
   responses(
-      (status = 200, description = "Role updated successfully", body = UpdateRoleResponse),
+      (status = 200, description = "Role updated successfully", body = Role),
       (status = 400, description = "Invalid request data", body = ApiErrorResponse),
       (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
       (status = 404, description = "Role not found", body = ApiErrorResponse),
@@ -49,7 +42,7 @@ pub async fn update_role(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRoleValidator>,
-) -> Result<Response<UpdateRoleResponse>, ApiError> {
+) -> Result<Response<Role>, ApiError> {
     let role = state
         .service
         .update_role(
@@ -63,5 +56,5 @@ pub async fn update_role(
         )
         .await?;
 
-    Ok(Response::OK(UpdateRoleResponse { data: role }))
+    Ok(Response::Updated(role))
 }
