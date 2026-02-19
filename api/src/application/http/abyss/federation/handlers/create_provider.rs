@@ -32,7 +32,6 @@ use crate::application::http::{
     responses(
         (status = 201, description = "Provider created", body = ProviderResponse),
         (status = 400, description = "Invalid input", body = ApiErrorResponse),
-        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 401, description = "Invalid realm", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
