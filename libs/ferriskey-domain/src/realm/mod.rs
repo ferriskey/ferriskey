@@ -55,6 +55,8 @@ pub struct RealmSetting {
     pub user_registration_enabled: bool,
     pub forgot_password_enabled: bool,
     pub remember_me_enabled: bool,
+    pub magic_link_enabled: bool,
+    pub magic_link_ttl: u32,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -69,6 +71,8 @@ impl RealmSetting {
             forgot_password_enabled: false,
             remember_me_enabled: false,
             user_registration_enabled: false,
+            magic_link_enabled: false,
+            magic_link_ttl: 15,
             updated_at: now,
         }
     }

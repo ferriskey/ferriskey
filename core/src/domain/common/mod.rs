@@ -46,3 +46,11 @@ pub fn generate_random_string() -> String {
         .map(char::from)
         .collect()
 }
+
+pub fn generate_random_token() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect()
+}

@@ -123,6 +123,18 @@ impl From<CoreError> for ApiError {
             CoreError::WebAuthnChallengeFailed => {
                 Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".to_string())
             }
+            CoreError::MagicLinkNotEnabled => {
+                Self::BadRequest("Magic link authentication is not enabled for this realm".to_string())
+            }
+            CoreError::InvalidMagicLink => {
+                Self::Unauthorized("Invalid magic link token".to_string())
+            }
+            CoreError::MagicLinkExpired => {
+                Self::Unauthorized("Magic link has expired".to_string())
+            }
+            CoreError::MagicLinkAlreadyUsed => {
+                Self::BadRequest("Magic link has already been used".to_string())
+            }
             CoreError::ProviderNotFound => {
                 Self::NotFound("Provider not found".to_string())
             }
