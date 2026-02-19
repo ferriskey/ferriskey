@@ -52,5 +52,5 @@ pub async fn update_realm_setting(
         )
         .await
         .map_err(ApiError::from)
-        .map(Response::Created)
+        .map(Response::Updated)
 }

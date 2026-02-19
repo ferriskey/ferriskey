@@ -9,6 +9,7 @@ pub enum Response<T: Serialize> {
     OK(T),
     Created(T),
     Accepted(T),
+    Updated(T),
 }
 
 impl<T: Serialize> IntoResponse for Response<T> {
@@ -17,6 +18,7 @@ impl<T: Serialize> IntoResponse for Response<T> {
             Response::OK(data) => (StatusCode::OK, Json(data)).into_response(),
             Response::Created(data) => (StatusCode::CREATED, Json(data)).into_response(),
             Response::Accepted(data) => (StatusCode::ACCEPTED, Json(data)).into_response(),
+            Response::Updated(data) => (StatusCode::OK, Json(data)).into_response(),
         }
     }
 }
@@ -27,6 +29,7 @@ impl<T: Serialize + PartialEq> Response<T> {
             Response::OK(data) => ApiSuccess::new(StatusCode::OK, data),
             Response::Created(data) => ApiSuccess::new(StatusCode::CREATED, data),
             Response::Accepted(data) => ApiSuccess::new(StatusCode::ACCEPTED, data),
+            Response::Updated(data) => ApiSuccess::new(StatusCode::OK, data),
         }
     }
 }
