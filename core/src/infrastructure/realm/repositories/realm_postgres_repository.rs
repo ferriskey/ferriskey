@@ -194,7 +194,8 @@ impl RealmRepository for PostgresRealmRepository {
         }
 
         if let Some(magic_link_ttl) = magic_link_ttl {
-            realm_setting.magic_link_ttl_minutes = Set(magic_link_ttl as i32);
+            let ttl_minutes = i32::try_from(magic_link_ttl).map_err(|_| CoreError::Invalid)?;
+            realm_setting.magic_link_ttl_minutes = Set(ttl_minutes);
         }
 
         let realm_setting = realm_setting
