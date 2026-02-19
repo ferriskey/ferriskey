@@ -13,6 +13,7 @@ use ferriskey_core::domain::authentication::entities::{
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
@@ -93,7 +94,16 @@ pub async fn auth_handler(
         .await
         .map_err(ApiError::from)?;
 
-    if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE) {
+    if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
+        && !identity_cookie.value().trim().is_empty()
+    {
+        warn!(
+            realm = %realm_name,
+            client_id = %params.client_id,
+            session_code = %result.session.id,
+            "Attempting automatic SSO with identity cookie"
+        );
+
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_existing_token(
@@ -105,11 +115,25 @@ pub async fn auth_handler(
             ))
             .await;
 
-        if let Ok(auth_result) = auth_result
-            && auth_result.status == AuthenticationStepStatus::Success
-            && let Some(redirect_url) = auth_result.redirect_url
-        {
-            return Ok((StatusCode::FOUND, [(LOCATION, redirect_url)]).into_response());
+        match auth_result {
+            Ok(auth_result)
+                if auth_result.status == AuthenticationStepStatus::Success
+                    && auth_result.redirect_url.is_some() =>
+            {
+                if let Some(redirect_url) = auth_result.redirect_url {
+                    return Ok((StatusCode::FOUND, [(LOCATION, redirect_url)]).into_response());
+                }
+            }
+            Ok(_) => {}
+            Err(e) => {
+                warn!(
+                    realm = %realm_name,
+                    client_id = %params.client_id,
+                    session_code = %result.session.id,
+                    error = ?e,
+                    "Automatic SSO with identity cookie failed, redirecting to login page"
+                );
+            }
         }
     }
 
@@ -140,7 +164,8 @@ pub async fn auth_handler(
         let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
             .path("/")
             .http_only(true)
-            .same_site(SameSite::Lax);
+            .same_site(SameSite::Lax)
+            .removal();
 
         if full_url.starts_with("https") {
             clear_identity_cookie = clear_identity_cookie.secure(true);
