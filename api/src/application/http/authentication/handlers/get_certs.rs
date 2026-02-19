@@ -57,7 +57,10 @@ pub async fn get_certs(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = GetCertsResponse)
+        (status = 200, description = "JWKS retrieved successfully", body = GetCertsResponse),
+        (status = 400, description = "Invalid key", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
 pub async fn get_jwks_json(
