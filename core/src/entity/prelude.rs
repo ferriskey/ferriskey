@@ -13,6 +13,7 @@ pub use super::identity_provider_links::Entity as IdentityProviderLinks;
 pub use super::identity_providers::Entity as IdentityProviders;
 pub use super::jwt_keys::Entity as JwtKeys;
 pub use super::magic_links::Entity as MagicLinks;
+pub use super::post_logout_redirect_uris::Entity as PostLogoutRedirectUris;
 pub use super::realm_settings::Entity as RealmSettings;
 pub use super::realms::Entity as Realms;
 pub use super::redirect_uris::Entity as RedirectUris;

@@ -30,6 +30,8 @@ pub enum Relation {
     BrokerAuthSessions,
     #[sea_orm(has_many = "super::client_scope_mappings::Entity")]
     ClientScopeMappings,
+    #[sea_orm(has_many = "super::post_logout_redirect_uris::Entity")]
+    PostLogoutRedirectUris,
     #[sea_orm(
         belongs_to = "super::realms::Entity",
         from = "Column::RealmId",
@@ -64,27 +66,15 @@ impl Related<super::client_scope_mappings::Entity> for Entity {
     }
 }
 
-impl Related<super::broker_auth_sessions::Entity> for Entity {
+impl Related<super::post_logout_redirect_uris::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::BrokerAuthSessions.def()
-    }
-}
-
-impl Related<super::client_scope_mappings::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::ClientScopeMappings.def()
+        Relation::PostLogoutRedirectUris.def()
     }
 }
 
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
-    }
-}
-
-impl Related<super::post_logout_redirect_uris::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PostLogoutRedirectUris.def()
     }
 }
 
