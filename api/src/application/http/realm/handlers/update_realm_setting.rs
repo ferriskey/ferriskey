@@ -12,6 +12,13 @@ use axum::extract::{Path, State};
 
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateRealmSettingResponse {
+    pub data: Realm,
+}
 
 #[utoipa::path(
     put,
@@ -23,7 +30,7 @@ use ferriskey_core::domain::realm::entities::Realm;
         ("name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, description = "Realm settings updated successfully", body = Realm),
+        (status = 200, description = "Realm settings updated successfully", body = UpdateRealmSettingResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
@@ -36,8 +43,8 @@ pub async fn update_realm_setting(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
-) -> Result<Response<Realm>, ApiError> {
-    state
+) -> Result<Response<UpdateRealmSettingResponse>, ApiError> {
+    let realm = state
         .service
         .update_realm_setting(
             identity,
@@ -51,6 +58,9 @@ pub async fn update_realm_setting(
             },
         )
         .await
-        .map_err(ApiError::from)
-        .map(Response::Updated)
+        .map_err(ApiError::from)?;
+
+    Ok(Response::Updated(UpdateRealmSettingResponse {
+        data: realm,
+    }))
 }

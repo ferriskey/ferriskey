@@ -59,5 +59,5 @@ pub async fn update_webhook(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(UpdateWebhookResponse { data: webhook }))
+    Ok(Response::Updated(UpdateWebhookResponse { data: webhook }))
 }

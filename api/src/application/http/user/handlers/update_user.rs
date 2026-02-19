@@ -70,5 +70,5 @@ pub async fn update_user(
         )
         .await?;
 
-    Ok(Response::OK(UpdateUserResponse { data: user }))
+    Ok(Response::Updated(UpdateUserResponse { data: user }))
 }

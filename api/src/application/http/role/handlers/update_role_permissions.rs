@@ -53,5 +53,7 @@ pub async fn update_role_permissions(
         .update_role_permissions(identity, realm_name, role_id, payload.permissions)
         .await?;
 
-    Ok(Response::OK(UpdateRolePermissionsResponse { data: role }))
+    Ok(Response::Updated(UpdateRolePermissionsResponse {
+        data: role,
+    }))
 }

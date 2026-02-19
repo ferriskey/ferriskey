@@ -1,5 +1,5 @@
-import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { BaseQuery } from '.'
 
 export interface UserRealmsQuery {
@@ -94,7 +94,7 @@ export const useUpdateRealmSettings = () => {
     onSuccess: async (res) => {
       const queryKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
         path: {
-          name: res.name,
+          name: res.data.name,
         },
       }).queryKey
 

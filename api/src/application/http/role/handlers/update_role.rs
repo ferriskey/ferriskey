@@ -63,5 +63,5 @@ pub async fn update_role(
         )
         .await?;
 
-    Ok(Response::OK(UpdateRoleResponse { data: role }))
+    Ok(Response::Updated(UpdateRoleResponse { data: role }))
 }

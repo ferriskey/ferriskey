@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BaseQuery } from '.'
 import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { BaseQuery } from '.'
 
 export const useGetClients = ({ realm }: BaseQuery) => {
   return useQuery(
@@ -58,7 +58,7 @@ export const useUpdateClient = () => {
         },
       }).queryKey
 
-      toast.success(`Client ${client.name} was updated successfully`)
+      toast.success(`Client ${client.data.name} was updated successfully`)
       queryClient.invalidateQueries({
         queryKey: keys,
       })
