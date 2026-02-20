@@ -296,7 +296,7 @@ where
         validation.validate_aud = false;
         let token_data =
             jsonwebtoken::decode::<JwtClaim>(&token, &jwt_key_pair.decoding_key, &validation)
-                .map_err(|e| CoreError::TokenValidationError(e.to_string()))?;
+                .map_err(|e| CoreError::TokenValidationError(format!("{:?}: {}", e.kind(), e)))?;
 
         let current_time = Utc::now().timestamp();
 
@@ -916,11 +916,31 @@ This is a server error that should be investigated. Do not forward back this mes
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+        let token_fingerprint = token_hash.chars().take(12).collect::<String>();
+        let token_segments = token.split('.').count();
+
         let claims = self
             .verify_token(token.clone(), realm_id)
             .await
             .map_err(|e| {
-                error!("Failed to verify token: {:?}", e);
+                match &e {
+                    CoreError::InvalidToken
+                    | CoreError::ExpiredToken
+                    | CoreError::TokenValidationError(_) => {
+                        warn!(
+                            token_fingerprint = %token_fingerprint,
+                            token_segments = token_segments,
+                            realm_id = %Uuid::from(realm_id),
+                            session_code = %session_code,
+                            error = ?e,
+                            "Identity token cookie rejected, falling back to interactive login"
+                        );
+                    }
+                    _ => {
+                        error!("Failed to verify token: {:?}", e);
+                    }
+                }
                 e
             })?;
 

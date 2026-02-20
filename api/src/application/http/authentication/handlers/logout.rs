@@ -35,12 +35,14 @@ fn clear_session_cookies_headers(base_url: &str) -> Result<HeaderMap, ApiError> 
     let mut clear_session_cookie = Cookie::build((AUTH_SESSION_COOKIE, ""))
         .path("/")
         .http_only(true)
-        .same_site(SameSite::Lax);
+        .same_site(SameSite::Lax)
+        .removal();
 
     let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
         .path("/")
         .http_only(true)
-        .same_site(SameSite::Lax);
+        .same_site(SameSite::Lax)
+        .removal();
 
     if is_secure {
         clear_session_cookie = clear_session_cookie.secure(true);

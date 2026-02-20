@@ -47,7 +47,6 @@ export interface AuthenticatePayload {
   data: Schemas.AuthenticateRequest
   realm: string
   clientId: string
-  sessionCode: string
   useToken?: boolean
   token?: string
 }
@@ -95,16 +94,34 @@ export const useAuthenticateMutation = () => {
       if (params.token !== undefined) {
         headers.Authorization = `Bearer ${params.token}`
       }
+      headers['Content-Type'] = 'application/json'
 
-      return authenticateMutation.mutationOptions.mutationFn({
-        path: { realm_name: params.realm },
-        query: {
-          client_id: params.clientId,
-          session_code: params.sessionCode,
-        },
-        body: params.data,
-        ...(Object.keys(headers).length > 0 ? { header: headers } : {}),
+      const url = new URL(
+        `${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`
+      )
+      url.searchParams.set('client_id', params.clientId)
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(params.data),
       })
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorBody = await response.json()
+          if (errorBody.message) {
+            errorMessage = errorBody.message
+          }
+        } catch {
+          // Keep default error message when body is not JSON.
+        }
+        throw new Error(errorMessage)
+      }
+
+      return (await response.json()) as Schemas.AuthenticateResponse
     },
   })
 }

@@ -93,22 +93,11 @@ export default function PageLoginFeature() {
   }, [authenticateData, form, navigate, realm_name])
 
   function onSubmit(data: AuthenticateSchema) {
-    const cookies = document.cookie.split(';').reduce(
-      (acc, cookie) => {
-        const [key, value] = cookie.trim().split('=')
-        acc[key] = value
-        return acc
-      },
-      {} as Record<string, string>
-    )
-
-    const sessionCode = cookies['FERRISKEY_SESSION'] || '123456' // Fallback to default if not found
     const { clientId } = getAuthParamsFromUrl()
     authenticate({
       data,
       realm: realm_name ?? 'master',
       clientId,
-      sessionCode,
     })
   }
 

@@ -1,3 +1,4 @@
+import LoaderSpinner from '@/components/ui/loader-spinner'
 import { XCircle } from 'lucide-react'
 
 export interface PageCallbackProps {
@@ -12,8 +13,7 @@ export default function PageCallback({ code, setup }: PageCallbackProps) {
 
   return (
     <div>
-      <h1>Page callback</h1>
-      <p>{code}</p>
+      <LoaderSpinner />
     </div>
   )
 }
