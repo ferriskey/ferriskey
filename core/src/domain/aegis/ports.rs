@@ -9,9 +9,9 @@ use super::entities::{ClientScope, ClientScopeAttribute, ClientScopeMapping, Pro
 use super::value_objects::{
     AssignClientScopeInput, CreateClientScopeInput, CreateClientScopeRequest,
     CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteClientScopeInput,
-    DeleteProtocolMapperInput, GetClientScopeInput, GetClientScopesInput, UnassignClientScopeInput,
-    UpdateClientScopeInput, UpdateClientScopeRequest, UpdateProtocolMapperInput,
-    UpdateProtocolMapperRequest,
+    DeleteProtocolMapperInput, GetClientClientScopesInput, GetClientScopeInput,
+    GetClientScopesInput, UnassignClientScopeInput, UpdateClientScopeInput,
+    UpdateClientScopeRequest, UpdateProtocolMapperInput, UpdateProtocolMapperRequest,
 };
 
 #[cfg_attr(test, mockall::automock)]
@@ -215,4 +215,10 @@ pub trait ScopeMappingService: Send + Sync {
         identity: Identity,
         input: UnassignClientScopeInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_client_scopes(
+        &self,
+        identity: Identity,
+        input: GetClientClientScopesInput,
+    ) -> impl Future<Output = Result<Vec<ClientScope>, CoreError>> + Send;
 }

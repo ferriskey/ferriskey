@@ -81,6 +81,11 @@ pub struct UnassignClientScopeInput {
     pub scope_id: Uuid,
 }
 
+pub struct GetClientClientScopesInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+}
+
 pub struct CreateProtocolMapperInput {
     pub realm_name: String,
     pub scope_id: Uuid,
