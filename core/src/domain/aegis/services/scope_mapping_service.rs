@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use crate::domain::{
     aegis::{
-        entities::ClientScopeMapping,
+        entities::{ClientScope, ClientScopeMapping},
         ports::{
             ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository,
             ScopeMappingService,
         },
-        value_objects::{AssignClientScopeInput, UnassignClientScopeInput},
+        value_objects::{
+            AssignClientScopeInput, GetClientClientScopesInput, UnassignClientScopeInput,
+        },
     },
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
@@ -125,5 +127,37 @@ where
             .await?;
 
         Ok(())
+    }
+
+    async fn get_client_scopes(
+        &self,
+        identity: Identity,
+        input: GetClientClientScopesInput,
+    ) -> Result<Vec<ClientScope>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_scope(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let mut scopes = self
+            .scope_mapping_repository
+            .get_default_scopes(input.client_id)
+            .await?;
+
+        let optional_scopes = self
+            .scope_mapping_repository
+            .get_optional_scopes(input.client_id)
+            .await?;
+
+        scopes.extend(optional_scopes);
+
+        Ok(scopes)
     }
 }

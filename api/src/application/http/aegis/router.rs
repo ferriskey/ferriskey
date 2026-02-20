@@ -11,6 +11,7 @@ use super::handlers::{
     create_protocol_mapper::{__path_create_protocol_mapper, create_protocol_mapper},
     delete_client_scope::{__path_delete_client_scope, delete_client_scope},
     delete_protocol_mapper::{__path_delete_protocol_mapper, delete_protocol_mapper},
+    get_client_client_scopes::{__path_get_client_client_scopes, get_client_client_scopes},
     get_client_scope::{__path_get_client_scope, get_client_scope},
     get_client_scopes::{__path_get_client_scopes, get_client_scopes},
     unassign_default_scope::{__path_unassign_default_scope, unassign_default_scope},
@@ -35,6 +36,7 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
         unassign_default_scope,
         assign_optional_scope,
         unassign_optional_scope,
+        get_client_client_scopes,
     ),
     tags(
         (name = "client-scope", description = "Client scope management")
@@ -99,6 +101,13 @@ pub fn aegis_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             delete(delete_protocol_mapper),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/client-scopes",
+                state.args.server.root_path
+            ),
+            get(get_client_client_scopes),
         )
         .route(
             &format!(

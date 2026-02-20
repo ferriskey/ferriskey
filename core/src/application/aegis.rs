@@ -6,9 +6,9 @@ use crate::{
             ports::{ClientScopeService, ProtocolMapperService, ScopeMappingService},
             value_objects::{
                 AssignClientScopeInput, CreateClientScopeInput, CreateProtocolMapperInput,
-                DeleteClientScopeInput, DeleteProtocolMapperInput, GetClientScopeInput,
-                GetClientScopesInput, UnassignClientScopeInput, UpdateClientScopeInput,
-                UpdateProtocolMapperInput,
+                DeleteClientScopeInput, DeleteProtocolMapperInput, GetClientClientScopesInput,
+                GetClientScopeInput, GetClientScopesInput, UnassignClientScopeInput,
+                UpdateClientScopeInput, UpdateProtocolMapperInput,
             },
         },
         authentication::value_objects::Identity,
@@ -118,6 +118,16 @@ impl ScopeMappingService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.scope_mapping_service
             .unassign_scope_from_client(identity, input)
+            .await
+    }
+
+    async fn get_client_scopes(
+        &self,
+        identity: Identity,
+        input: GetClientClientScopesInput,
+    ) -> Result<Vec<ClientScope>, CoreError> {
+        self.scope_mapping_service
+            .get_client_scopes(identity, input)
             .await
     }
 }
