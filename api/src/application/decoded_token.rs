@@ -1,11 +1,11 @@
 use axum::extract::FromRequestParts;
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::domain::{authentication::entities::DecodedToken, jwt::JwtError};
+use ferriskey_core::domain::jwt::{JwtError, entities::JwtClaim};
 
 #[derive(Debug, Clone)]
 pub struct ResultToken {
     pub token: String,
-    pub decoded_token: DecodedToken,
+    pub claims: JwtClaim,
 }
 
 /// Wrapper type for optional JWT token extraction
@@ -26,7 +26,7 @@ where
     /// format, decode errors), it returns Ok(None) rather than an error.
     ///
     /// # Returns
-    /// - `Ok(OptionalToken(Some(DecodedToken)))` if a valid token is found and decoded
+    /// - `Ok(OptionalToken(Some(ResultToken)))` if a valid token is found and decoded
     /// - `Ok(OptionalToken(None))` if no token is present or token is invalid
     /// - `Err(Response)` only in exceptional cases (currently never)
     async fn from_request_parts(
@@ -45,16 +45,16 @@ where
         };
 
         match parse_jwt_payload(token) {
-            Ok(decoded_token) => Ok(OptionalToken(Some(ResultToken {
+            Ok(claims) => Ok(OptionalToken(Some(ResultToken {
                 token: token.to_string(),
-                decoded_token,
+                claims,
             }))),
             Err(_) => Ok(OptionalToken(None)),
         }
     }
 }
 
-fn parse_jwt_payload(token: &str) -> Result<DecodedToken, JwtError> {
+fn parse_jwt_payload(token: &str) -> Result<JwtClaim, JwtError> {
     let parts: Vec<&str> = token.split('.').collect();
 
     if parts.len() != 3 {
@@ -70,6 +70,5 @@ fn parse_jwt_payload(token: &str) -> Result<DecodedToken, JwtError> {
     let payload_str =
         std::str::from_utf8(&decoded_bytes).map_err(|e| JwtError::ParsingError(e.to_string()))?;
 
-    serde_json::from_str::<DecodedToken>(payload_str)
-        .map_err(|e| JwtError::ParsingError(e.to_string()))
+    serde_json::from_str::<JwtClaim>(payload_str).map_err(|e| JwtError::ParsingError(e.to_string()))
 }

@@ -279,13 +279,3 @@ pub enum AuthenticationMethod {
     UserCredentials { username: String, password: String },
     ExistingToken { token: String },
 }
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DecodedToken {
-    pub sub: String,
-    pub preferred_username: String,
-    pub iss: String,
-    pub azp: Option<String>,
-    pub aud: Option<Vec<String>>,
-    pub scope: Option<String>,
-}
