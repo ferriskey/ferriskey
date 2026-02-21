@@ -868,19 +868,14 @@ where
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| {
-                error!("Session not found for code: {}", session_code);
-                CoreError::SessionNotFound
-            })?;
+            .inspect_err(|_| error!("Session not found for code: {}", session_code))
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         let magic_link = self
             .magic_link_repository
             .get_by_token_id(input.magic_token_id)
             .await
-            .map_err(|e| {
-                error!("Failed to retrieve magic link: {}", e);
-                e
-            })?
+            .inspect_err(|e| error!("Failed to retrieve magic link: {}", e))?
             .ok_or_else(|| {
                 warn!(
                     "Magic link not found for token_id: {}",
@@ -893,10 +888,8 @@ where
             self.magic_link_repository
                 .delete_by_token_id(magic_link.magic_token_id)
                 .await
-                .map_err(|e| {
-                    error!("Failed to delete magic link : {}", e);
-                    CoreError::InternalServerError
-                })?;
+                .inspect_err(|e| error!("Failed to delete magic link : {}", e))
+                .map_err(|_| CoreError::InternalServerError)?;
             return Err(CoreError::MagicLinkExpired);
         }
         let is_valid = self
@@ -919,10 +912,7 @@ where
             magic_link.user_id,
         )
         .await
-        .map_err(|e| {
-            error!("Failed to generate login URL: {}", e);
-            e
-        })?;
+        .inspect_err(|e| error!("Failed to generate login URL: {}", e))?;
 
         // TODO: here an email should be sent to the user instead of logging it
         debug!("Magic link verified for user_id: {}", magic_link.user_id);
@@ -931,9 +921,7 @@ where
             .magic_link_repository
             .delete_by_token_id(magic_link.magic_token_id)
             .await
-            .map_err(|e| {
-                warn!("Failed to delete used magic link: {}", e);
-            });
+            .inspect_err(|e| warn!("Failed to delete used magic link: {}", e));
 
         Ok(login_url)
     }
