@@ -123,7 +123,7 @@ pub struct MagicLinkInput {
     pub email: String,
 }
 
-pub struct MagicLinkOutput {
+pub struct VerifyMagicLinkInput {
     pub magic_token_id: Uuid,
     pub magic_token: String,
     pub session_code: String,
@@ -221,6 +221,14 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: VerifyOtpInput,
     ) -> impl Future<Output = Result<VerifyOtpOutput, CoreError>> + Send;
+    fn generate_magic_link(
+        &self,
+        input: MagicLinkInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
