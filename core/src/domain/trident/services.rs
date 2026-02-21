@@ -3,11 +3,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::{Duration, Utc};
+use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha1::Sha1;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
@@ -18,26 +20,31 @@ use crate::{
             ports::AuthSessionRepository,
             value_objects::Identity,
         },
-        common::{entities::app_errors::CoreError, generate_random_string},
+        common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
         credential::{
             entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
+        realm::ports::RealmRepository,
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                RecoveryCodeFormatter, RecoveryCodeRepository, SetupOtpInput, SetupOtpOutput,
-                TridentService, UpdatePasswordInput, VerifyOtpInput, VerifyOtpOutput,
+                MagicLinkInput, MagicLinkRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
+                SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
+                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
                 WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
-        user::{entities::RequiredAction, ports::UserRequiredActionRepository},
+        user::{
+            entities::RequiredAction,
+            ports::{UserRepository, UserRequiredActionRepository},
+        },
     },
     infrastructure::recovery_code::formatters::{
         B32Split4RecoveryCodeFormatter, RecoveryCodeFormat,
@@ -178,35 +185,48 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    UR: UserRepository,
+    RR: RealmRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) user_required_action_repository: Arc<URA>,
+    pub(crate) magic_link_repository: Arc<ML>,
+    pub(crate) user_repository: Arc<UR>,
+    pub(crate) realm_repository: Arc<RR>,
 }
 
-impl<CR, RC, AS, H, URA> TridentServiceImpl<CR, RC, AS, H, URA>
+impl<CR, RC, AS, H, URA, ML, UR, RR> TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    UR: UserRepository,
+    RR: RealmRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         credential_repository: Arc<CR>,
         recovery_code_repository: Arc<RC>,
         auth_session_repository: Arc<AS>,
         hasher_repository: Arc<H>,
         user_required_action_repository: Arc<URA>,
+        magic_link_repository: Arc<ML>,
+        user_repository: Arc<UR>,
+        realm_repository: Arc<RR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -214,17 +234,24 @@ where
             auth_session_repository,
             hasher_repository,
             user_required_action_repository,
+            magic_link_repository,
+            user_repository,
+            realm_repository,
         }
     }
 }
 
-impl<CR, RC, AS, H, URA> TridentService for TridentServiceImpl<CR, RC, AS, H, URA>
+impl<CR, RC, AS, H, URA, ML, UR, RR> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
     AS: AuthSessionRepository,
     H: HasherRepository,
     URA: UserRequiredActionRepository,
+    ML: MagicLinkRepository,
+    UR: UserRepository,
+    RR: RealmRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -768,5 +795,154 @@ where
             message: "OTP verified successfully".to_string(),
             user_id: user.id,
         })
+    }
+
+    async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let settings = self
+            .realm_repository
+            .get_realm_settings(realm.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::MagicLinkNotEnabled)?;
+
+        if !settings.magic_link_enabled {
+            return Err(CoreError::MagicLinkNotEnabled);
+        }
+
+        let user = match self
+            .user_repository
+            .get_by_email(&input.email, realm.id)
+            .await
+        {
+            Ok(Some(user)) => user,
+            Ok(None) => return Ok(()),
+            Err(e) => {
+                error!("Failed to look up user during magic link generation: {}", e);
+                return Ok(()); // Valid on purpose to avoid leaking email existence
+            }
+        };
+        self.magic_link_repository
+            .cleanup_expired(realm.id.into())
+            .await?;
+        let magic_token_id = generate_uuid_v7();
+        let magic_token = generate_random_token();
+        let magic_token_hash = self
+            .hasher_repository
+            .hash_magic_token(&magic_token)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+        let ttl_minutes = settings.magic_link_ttl;
+        let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
+        self.magic_link_repository
+            .create_magic_link(
+                user.id,
+                realm.id.into(),
+                magic_token_id,
+                &magic_token_hash,
+                expires_at,
+            )
+            .await?;
+
+        debug!(
+            "------------ Magic link generated with token_id: {}, token: {} (email: {}, ttl: {}min) ------------",
+            magic_token_id, magic_token, user.email, ttl_minutes
+        );
+        Ok(())
+    }
+
+    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
+        let session_code = Uuid::parse_str(&input.session_code).map_err(|_| {
+            error!("Failed to parse session code");
+            CoreError::SessionCreateError
+        })?;
+
+        // Fetch the auth session first
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .inspect_err(|_| error!("Session not found for code: {}", session_code))
+            .map_err(|_| CoreError::SessionNotFound)?;
+
+        let magic_link = self
+            .magic_link_repository
+            .get_by_token_id(input.magic_token_id)
+            .await
+            .inspect_err(|e| error!("Failed to retrieve magic link: {}", e))?
+            .ok_or_else(|| {
+                warn!(
+                    "Magic link not found for token_id: {}",
+                    input.magic_token_id
+                );
+                CoreError::InvalidMagicLink
+            })?;
+
+        if magic_link.realm_id != Uuid::from(auth_session.realm_id) {
+            warn!(
+                "Magic link realm_id {} does not match auth session realm_id {}",
+                magic_link.realm_id,
+                Uuid::from(auth_session.realm_id)
+            );
+            return Err(CoreError::InvalidMagicLink);
+        }
+
+        if magic_link.is_expired() {
+            warn!("Magic link has expired");
+            self.magic_link_repository
+                .delete_by_token_id(magic_link.magic_token_id)
+                .await
+                .inspect_err(|e| error!("Failed to delete magic link : {}", e))
+                .map_err(|_| CoreError::InternalServerError)?;
+            return Err(CoreError::MagicLinkExpired);
+        }
+        let is_valid = self
+            .hasher_repository
+            .verify_magic_token(&input.magic_token, &magic_link.magic_token_hash)
+            .await
+            .map_err(|e| {
+                error!("Token verification failed: {}", e);
+                CoreError::InternalServerError
+            })?;
+        if !is_valid {
+            warn!("Magic token verification failed");
+            let _ = self
+                .magic_link_repository
+                .delete_by_token_id(magic_link.magic_token_id)
+                .await
+                .inspect_err(|e| {
+                    warn!(
+                        "Failed to delete magic link after failed verification: {}",
+                        e
+                    )
+                });
+            return Err(CoreError::InvalidMagicLink);
+        }
+
+        // Generate authorization code and login URL
+        let login_url = store_auth_code_and_generate_login_url::<AS>(
+            &self.auth_session_repository,
+            &auth_session,
+            magic_link.user_id,
+        )
+        .await
+        .inspect_err(|e| error!("Failed to generate login URL: {}", e))?;
+
+        // TODO: here an email should be sent to the user instead of logging it
+        debug!("Magic link verified for user_id: {}", magic_link.user_id);
+        // Delete the used magic link
+        let _ = self
+            .magic_link_repository
+            .delete_by_token_id(magic_link.magic_token_id)
+            .await
+            .inspect_err(|e| warn!("Failed to delete used magic link: {}", e));
+
+        Ok(login_url)
     }
 }

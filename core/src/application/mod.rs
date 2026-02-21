@@ -128,7 +128,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new());
-    let _magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
+    let magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
     let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
     let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
     let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
@@ -200,6 +200,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             auth_session.clone(),
             hasher.clone(),
             user_required_action.clone(),
+            magic_link.clone(),
+            user.clone(),
+            realm.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
