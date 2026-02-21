@@ -44,6 +44,7 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -86,6 +87,7 @@ type OAuthClientImpl = ReqwestOAuthClient;
 type ClientScopeRepo = PostgresClientScopeRepository;
 type ProtocolMapperRepo = PostgresProtocolMapperRepository;
 type ScopeMappingRepo = PostgresScopeMappingRepository;
+type MagicLinkRepo = PostgresMagicLinkRepository;
 
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
@@ -143,6 +145,9 @@ pub struct ApplicationService {
         AuthSessionRepo,
         HasherRepo,
         UserRequiredActionRepo,
+        MagicLinkRepo,
+        UserRepo,
+        RealmRepo,
     >,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,
