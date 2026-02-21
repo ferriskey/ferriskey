@@ -22,33 +22,33 @@ import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { useSidebar } from './ui/sidebar-hooks'
 import { NavSecurity } from './nav-security'
 
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { realm_name } = useParams<RouterParams>()
   const { config } = useConfig()
 
   return (
-    <Sidebar variant='floating' collapsible='icon' {...props}>
-      <SidebarHeader>
+    <Sidebar variant='sidebar' collapsible='icon' {...props}>
+      <SidebarHeader className='border-b border-sidebar-border px-4 py-3'>
         <Link
-          className={cn(
-            'flex items-center gap-3 cursor-pointer py-2',
-            state === 'expanded' && 'hover:bg-sidebar-accent/50 rounded-md transition-colors'
-          )}
+          className='flex items-center gap-2 cursor-pointer'
           to={`${REALM_URL(realm_name)}${REALM_OVERVIEW_URL}`}
         >
-          <div className='flex items-center gap-2'>
-            <div className='size-8'>
-              <img src='/logo_ferriskey.png' className='object-contain' />
-            </div>
-            <div className={cn(state === 'collapsed' ? 'hidden' : 'flex')}>
-              <span className='text-lg font-bold text-primary tracking-tight'>FerrisKey</span>
-            </div>
+          <div className='size-8 shrink-0'>
+            <img src='/logo_ferriskey.png' className='object-contain' />
           </div>
-          <ConsoleBadge className={cn(state === 'collapsed' ? 'hidden' : 'flex')} />
+          {state === 'expanded' && (
+            <>
+              <span className='text-base font-bold text-sidebar-foreground tracking-tight'>FerrisKey</span>
+              <ConsoleBadge />
+            </>
+          )}
         </Link>
-        <RealmSwitcher />
       </SidebarHeader>
+      <div className='border-b border-sidebar-border'>
+        <RealmSwitcher />
+      </div>
       <SidebarContent>
         <NavMain />
         <NavConfiguration />
@@ -56,22 +56,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         {config && (
-          <div className='flex flex-col gap-2'>
+          <div className='flex flex-col gap-2 pb-1'>
             <div>
               <BadgeColor color={BadgeColorScheme.PRIMARY}>{config.app_version}</BadgeColor>
             </div>
 
             {config.environment === 'development' && (
-              <div className='rounded-md bg-primary/10 p-4'>
+              <div className='rounded-sm bg-primary/10 p-3'>
                 <div className='flex'>
                   <div className='shrink-0'>
-                    <TriangleAlert aria-hidden='true' className='size-5 text-primary' />
+                    <TriangleAlert aria-hidden='true' className='size-4 text-primary' />
                   </div>
-                  <div className='ml-3'>
-                    <h3 className='text-sm font-medium text-primary'>Development mode</h3>
-                    <div className='mt-2 text-sm text-primary/75'>
-                      <p>You are currently in development mode.</p>
-                    </div>
+                  <div className='ml-2'>
+                    <h3 className='text-xs font-medium text-primary'>Development mode</h3>
                   </div>
                 </div>
               </div>
@@ -93,7 +90,7 @@ function ConsoleBadge({ className }: ConsoleBadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-[2px] bg-zinc-900 dark:bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground tracking-wide uppercase',
+        'inline-flex items-center rounded-none bg-sidebar-foreground/10 border border-sidebar-foreground/20 px-1.5 py-0.5 text-[9px] font-bold text-sidebar-foreground/60 tracking-widest uppercase',
         className
       )}
     >
