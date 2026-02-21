@@ -230,7 +230,7 @@ pub trait MagicLinkRepository: Send + Sync {
         user_id: Uuid,
         realm_id: Uuid,
         magic_token_id: Uuid,
-        magic_token_hash: String,
+        magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 

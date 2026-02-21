@@ -29,4 +29,13 @@ pub trait HasherRepository: Send + Sync {
         algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
+    fn hash_magic_token(
+        &self,
+        token: &str,
+    ) -> impl Future<Output = Result<HashResult, SecurityError>> + Send;
+    fn verify_magic_token(
+        &self,
+        token: &str,
+        secret_data: &str,
+    ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 }

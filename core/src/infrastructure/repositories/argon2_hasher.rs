@@ -76,6 +76,21 @@ impl HasherRepository for Argon2HasherRepository {
 
         Ok(result.is_ok())
     }
+
+    async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
+        self.hash_password(token).await
+    }
+
+    async fn verify_magic_token(
+        &self,
+        token: &str,
+        secret_data: &str,
+    ) -> Result<bool, SecurityError> {
+        let result = self
+            .verify_password(token, secret_data, 3, "argon2d", "")
+            .await?;
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
