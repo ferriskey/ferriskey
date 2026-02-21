@@ -50,7 +50,7 @@ pub fn generate_random_string() -> String {
 pub fn generate_random_token() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(16)
+        .take(43)
         .map(char::from)
         .collect()
 }
