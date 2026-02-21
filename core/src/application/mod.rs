@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use crate::{
     domain::{
-        abyss::federation::services::FederationServiceImpl,
-        abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
+        abyss::{
+            BrokerServiceImpl, IdentityProviderServiceImpl,
+            federation::services::FederationServiceImpl,
+        },
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
@@ -47,6 +49,7 @@ use crate::{
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -125,6 +128,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new());
+    let _magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
     let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
     let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
     let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
