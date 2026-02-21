@@ -6,6 +6,7 @@ import { RouterParams } from '@/routes/router'
 import useRealmStore from '@/store/realm.store'
 import { useEffect } from 'react'
 import GithubStarModal from '../github-star-modal'
+import { TopBar } from '../top-bar'
 
 export default function Layout() {
   const { realm_name } = useParams<RouterParams>()
@@ -22,6 +23,7 @@ export default function Layout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
+        <TopBar />
         <Outlet />
       </SidebarInset>
 

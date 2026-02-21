@@ -3,7 +3,6 @@ import * as React from 'react'
 
 import { NavMain } from '@/components/nav-main'
 import { NavConfiguration } from '@/components/nav-configuration'
-import { NavUser } from '@/components/nav-user'
 
 import {
   Sidebar,
@@ -75,7 +74,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             )}
           </div>
         )}
-        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
