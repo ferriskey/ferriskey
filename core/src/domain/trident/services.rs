@@ -883,6 +883,16 @@ where
                 );
                 CoreError::InvalidMagicLink
             })?;
+
+        if magic_link.realm_id != Uuid::from(auth_session.realm_id) {
+            warn!(
+                "Magic link realm_id {} does not match auth session realm_id {}",
+                magic_link.realm_id,
+                Uuid::from(auth_session.realm_id)
+            );
+            return Err(CoreError::InvalidMagicLink);
+        }
+
         if magic_link.is_expired() {
             warn!("Magic link has expired");
             self.magic_link_repository
@@ -902,6 +912,16 @@ where
             })?;
         if !is_valid {
             warn!("Magic token verification failed");
+            let _ = self
+                .magic_link_repository
+                .delete_by_token_id(magic_link.magic_token_id)
+                .await
+                .inspect_err(|e| {
+                    warn!(
+                        "Failed to delete magic link after failed verification: {}",
+                        e
+                    )
+                });
             return Err(CoreError::InvalidMagicLink);
         }
 
