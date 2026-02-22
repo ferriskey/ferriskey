@@ -53,8 +53,7 @@ pub struct VerifyMagicLinkQuery {
     request_body = SendMagicLinkRequest,
     responses(
         (status = 200, body = SendMagicLinkResponse, description = "Magic link sent successfully"),
-        (status = 400, description = "Bad Request - Invalid email format"),
-        (status = 404, description = "Not Found - User not found in realm"),
+        (status = 400, description = "Bad Request"),
         (status = 500, description = "Internal Server Error")
     )
 )]
@@ -96,9 +95,9 @@ pub async fn send_magic_link(
     ),
     responses(
         (status = 200, body = AuthenticateResponse, description = "Magic link verified successfully"),
-        (status = 400, description = "Bad Request - Invalid session code or parameters"),
-        (status = 401, description = "Unauthorized - Missing or invalid session cookie"),
-        (status = 404, description = "Not Found - Magic link not found or expired"),
+        (status = 400, description = "Bad Request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Not Found"),
         (status = 500, description = "Internal Server Error")
     )
 )]
