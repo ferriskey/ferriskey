@@ -822,7 +822,10 @@ where
             .await
         {
             Ok(Some(user)) => user,
-            Ok(None) => return Ok(()),
+            Ok(None) => {
+                warn!("User not found for magic link generation");
+                return Ok(());
+            }
             Err(e) => {
                 error!("Failed to look up user during magic link generation: {}", e);
                 return Ok(()); // Valid on purpose to avoid leaking email existence
