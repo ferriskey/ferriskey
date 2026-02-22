@@ -10,6 +10,7 @@ export namespace Schemas {
     | { Forbidden: string }
     | { BadRequest: string }
     | { ServiceUnavailable: string }
+  export type ApiErrorResponse = { code: string; message: string; status: number }
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>
@@ -30,6 +31,7 @@ export namespace Schemas {
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
   export type BurnRecoveryCodeResponse = { login_url: string }
+  export type ChallengeOtpRequest = Partial<{ code: string }>
   export type ChallengeOtpResponse = { url: string }
   export type RealmId = string
   export type Client = {
@@ -48,7 +50,38 @@ export namespace Schemas {
     service_account_enabled: boolean
     updated_at: string
   }
+  export type ClientScope = {
+    attributes?: (Array<ClientScopeAttribute> | null) | undefined
+    created_at: string
+    description?: (string | null) | undefined
+    id: string
+    is_default: boolean
+    name: string
+    protocol: string
+    protocol_mappers?: (Array<ProtocolMapper> | null) | undefined
+    realm_id: RealmId
+    updated_at: string
+  }
+  export type ClientScopeAttribute = {
+    id: string
+    name: string
+    scope_id: string
+    value?: (string | null) | undefined
+  }
+  export type ClientScopeMapping = {
+    client_id: string
+    is_default: boolean
+    is_optional: boolean
+    scope_id: string
+  }
+  export type ClientScopesResponse = { data: Array<ClientScope> }
   export type ClientsResponse = { data: Array<Client> }
+  export type CreateClientScopeValidator = Partial<{
+    description: string | null
+    is_default: boolean
+    name: string
+    protocol: string
+  }>
   export type CreateClientValidator = Partial<{
     client_id: string
     client_type: string
@@ -72,6 +105,11 @@ export namespace Schemas {
     store_token: boolean
     trust_email: boolean
   }>
+  export type CreateProtocolMapperValidator = Partial<{
+    config: unknown
+    mapper_type: string
+    name: string
+  }>
   export type CreateProviderRequest = {
     config: unknown
     enabled: boolean
@@ -82,7 +120,6 @@ export namespace Schemas {
     sync_interval_minutes?: (number | null) | undefined
     sync_mode: string
   }
-  export type CreatePublicKeyRequest = Record<string, unknown>
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
   export type CreateRoleValidator = {
@@ -94,6 +131,8 @@ export namespace Schemas {
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
+    magic_link_enabled: boolean
+    magic_link_ttl: number
     realm_id: RealmId
     remember_me_enabled: boolean
     updated_at: string
@@ -193,7 +232,9 @@ export namespace Schemas {
     user_label?: (string | null) | undefined
   }
   export type DeleteClientResponse = { message: string; realm_name: string }
+  export type DeleteClientScopeResponse = { message: string }
   export type DeleteIdentityProviderResponse = { count: number }
+  export type DeleteProtocolMapperResponse = { message: string }
   export type DeleteProviderResponse = { message: string }
   export type DeleteRealmResponse = string
   export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
@@ -213,7 +254,7 @@ export namespace Schemas {
     kid: string
     kty: string
     n: string
-    use_: string
+    use: string
     x5c: Array<string>
     x5t: string
   }
@@ -238,6 +279,7 @@ export namespace Schemas {
     introspection_endpoint: string
     issuer: string
     jwks_uri: string
+    revocation_endpoint: string
     token_endpoint: string
     userinfo_endpoint: string
   }
@@ -301,6 +343,12 @@ export namespace Schemas {
     trust_email: boolean
   }
   export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> }
+  export type IntrospectRequestValidator = Partial<{
+    client_id: string | null
+    client_secret: string | null
+    token: string
+    token_type_hint: string | null
+  }>
   export type JwtToken = {
     access_token: string
     expires_in: number
@@ -325,6 +373,12 @@ export namespace Schemas {
     updated_at: string
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
+  export type LogoutRequestValidator = Partial<{
+    client_id: string | null
+    id_token_hint: string | null
+    post_logout_redirect_uri: string | null
+    state: string | null
+  }>
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
   export type Permissions =
     | 'create_client'
@@ -352,12 +406,22 @@ export namespace Schemas {
     | 'manage_client_scopes'
     | 'query_client_scopes'
     | 'view_client_scopes'
+  export type ProtocolMapper = {
+    client_scope_id: string
+    config: unknown
+    created_at: string
+    id: string
+    mapper_type: string
+    name: string
+  }
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
     forgot_password_enabled: boolean
     identity_providers: Array<IdentityProviderPresentation>
+    magic_link_enabled: boolean
+    magic_link_ttl: number
     remember_me_enabled: boolean
     user_registration_enabled: boolean
   }
@@ -376,24 +440,19 @@ export namespace Schemas {
     password: string
     username: string
   }>
-  export type LogoutRequestValidator = Partial<{
-    client_id: string | null
-    id_token_hint: string | null
-    post_logout_redirect_uri: string | null
-    state: string | null
-  }>
-  export type RevokeTokenRequestValidator = {
-    client_id: string
-    token: string
-    token_type_hint?: (string | null) | undefined
-  }
-  export type RequestOptionsRequest = Record<string, unknown>
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
     credential_type: string
     temporary: boolean
     value: string
   }>
+  export type RevokeTokenRequestValidator = Partial<{
+    client_id: string
+    token: string
+    token_type_hint: string | null
+  }>
+  export type SendMagicLinkRequest = { email: string }
+  export type SendMagicLinkResponse = { message: string }
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string }
   export type SyncUsersResponse = {
     completed_at?: (string | null) | undefined
@@ -409,6 +468,21 @@ export namespace Schemas {
     message: string
     success: boolean
   }
+  export type TokenIntrospectionResponse = {
+    active: boolean
+    aud?: (string | null) | undefined
+    client_id?: (string | null) | undefined
+    exp?: (number | null) | undefined
+    iat?: (number | null) | undefined
+    iss?: (string | null) | undefined
+    jti?: (string | null) | undefined
+    nbf?: (number | null) | undefined
+    realm?: (string | null) | undefined
+    scope?: (string | null) | undefined
+    sub?: (string | null) | undefined
+    token_type?: (string | null) | undefined
+    username?: (string | null) | undefined
+  }
   export type TokenRequestValidator = Partial<{
     client_id: string
     client_secret: string | null
@@ -420,12 +494,20 @@ export namespace Schemas {
     username: string | null
   }>
   export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string }
+  export type UpdateClientResponse = { data: Client }
+  export type UpdateClientScopeValidator = Partial<{
+    description: string | null
+    is_default: boolean | null
+    name: string | null
+    protocol: string | null
+  }>
   export type UpdateClientValidator = Partial<{
     client_id: string | null
     direct_access_grants_enabled: boolean | null
     enabled: boolean | null
     name: string | null
   }>
+  export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse }
   export type UpdateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean | null
     config: unknown
@@ -439,6 +521,12 @@ export namespace Schemas {
   }>
   export type UpdatePasswordRequest = Partial<{ value: string }>
   export type UpdatePasswordResponse = { message: string }
+  export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri }
+  export type UpdateProtocolMapperValidator = Partial<{
+    config: unknown
+    mapper_type: string | null
+    name: string | null
+  }>
   export type UpdateProviderRequest = Partial<{
     config: unknown
     enabled: boolean | null
@@ -449,21 +537,20 @@ export namespace Schemas {
     sync_interval_minutes: number | null
     sync_mode: string | null
   }>
+  export type UpdateProviderResponse = { data: ProviderResponse }
+  export type UpdateRealmResponse = { data: Realm }
+  export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmSettingValidator = Partial<{
     default_signing_algorithm: string | null
     forgot_password_enabled: boolean | null
+    magic_link_enabled: boolean | null
+    magic_link_ttl: number | null
     remember_me_enabled: boolean | null
     user_registration_enabled: boolean | null
   }>
-  export type UpdateRealmResponse = { data: Realm }
-  export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmValidator = { name: string }
   export type UpdateRedirectUriResponse = { data: RedirectUri }
   export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
-  export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri }
-  export type UpdateClientResponse = { data: Client }
-  export type UpdateProviderResponse = { data: ProviderResponse }
-  export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse }
   export type UpdateRolePermissionsResponse = { data: Role }
   export type UpdateRolePermissionsValidator = { permissions: Array<string> }
   export type UpdateRoleResponse = { data: Role }
@@ -477,6 +564,7 @@ export namespace Schemas {
     lastname: string
     required_actions: Array<string> | null
   }>
+  export type UpdateWebhookResponse = { data: Webhook }
   export type UserInfoResponse = {
     email?: (string | null) | undefined
     email_verified?: (boolean | null) | undefined
@@ -599,6 +687,131 @@ export namespace Endpoints {
     }
     response: unknown
   }
+  export type get_Get_client_scopes = {
+    method: 'GET'
+    path: '/realms/{realm_name}/client-scopes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.ClientScopesResponse
+  }
+  export type post_Create_client_scope = {
+    method: 'POST'
+    path: '/realms/{realm_name}/client-scopes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.CreateClientScopeValidator
+    }
+    response: Schemas.ClientScope
+  }
+  export type get_Get_client_client_scopes = {
+    method: 'GET'
+    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/client-scopes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+    }
+    response: Array<Schemas.ClientScope>
+  }
+  export type put_Assign_default_scope = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: Schemas.ClientScopeMapping
+  }
+  export type delete_Unassign_default_scope = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: unknown
+  }
+  export type put_Assign_optional_scope = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: Schemas.ClientScopeMapping
+  }
+  export type delete_Unassign_optional_scope = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: unknown
+  }
+  export type get_Get_client_scope = {
+    method: 'GET'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string }
+    }
+    response: Schemas.ClientScope
+  }
+  export type delete_Delete_client_scope = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string }
+    }
+    response: Schemas.DeleteClientScopeResponse
+  }
+  export type patch_Update_client_scope = {
+    method: 'PATCH'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string }
+
+      body: Schemas.UpdateClientScopeValidator
+    }
+    response: Schemas.ClientScope
+  }
+  export type post_Create_protocol_mapper = {
+    method: 'POST'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string }
+
+      body: Schemas.CreateProtocolMapperValidator
+    }
+    response: Schemas.ProtocolMapper
+  }
+  export type delete_Delete_protocol_mapper = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string; mapper_id: string }
+    }
+    response: Schemas.DeleteProtocolMapperResponse
+  }
+  export type patch_Update_protocol_mapper = {
+    method: 'PATCH'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; scope_id: string; mapper_id: string }
+
+      body: Schemas.UpdateProtocolMapperValidator
+    }
+    response: Schemas.ProtocolMapper
+  }
   export type get_Get_clients = {
     method: 'GET'
     path: '/realms/{realm_name}/clients'
@@ -648,6 +861,46 @@ export namespace Endpoints {
     }
     response: Schemas.UpdateClientResponse
   }
+  export type get_Get_post_logout_redirect_uris = {
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+    }
+    response: Array<Schemas.RedirectUri>
+  }
+  export type post_Create_post_logout_redirect_uri = {
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+
+      body: Schemas.CreateRedirectUriValidator
+    }
+    response: Schemas.RedirectUri
+  }
+  export type put_Update_post_logout_redirect_uri = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; uri_id: string }
+
+      body: Schemas.UpdateRedirectUriValidator
+    }
+    response: Schemas.UpdatePostLogoutRedirectUriResponse
+  }
+  export type delete_Delete_post_logout_redirect_uri = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; uri_id: string }
+    }
+    response: unknown
+  }
   export type get_Get_redirect_uris = {
     method: 'GET'
     path: '/realms/{realm_name}/clients/{client_id}/redirects'
@@ -657,29 +910,9 @@ export namespace Endpoints {
     }
     response: Array<Schemas.RedirectUri>
   }
-  export type get_ListPostLogoutRedirects = {
-    method: 'GET'
-    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string }
-    }
-    response: Array<Schemas.RedirectUri>
-  }
   export type post_Create_redirect_uri = {
     method: 'POST'
     path: '/realms/{realm_name}/clients/{client_id}/redirects'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string }
-
-      body: Schemas.CreateRedirectUriValidator
-    }
-    response: Schemas.RedirectUri
-  }
-  export type post_CreatePostLogoutRedirect = {
-    method: 'POST'
-    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string; client_id: string }
@@ -699,29 +932,9 @@ export namespace Endpoints {
     }
     response: Schemas.UpdateRedirectUriResponse
   }
-  export type put_UpdatePostLogoutRedirect = {
-    method: 'PUT'
-    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string }
-
-      body: Schemas.UpdateRedirectUriValidator
-    }
-    response: Schemas.UpdatePostLogoutRedirectUriResponse
-  }
   export type delete_Delete_redirect_uri = {
     method: 'DELETE'
     path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string }
-    }
-    response: unknown
-  }
-  export type delete_DeletePostLogoutRedirect = {
-    method: 'DELETE'
-    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string }
@@ -870,10 +1083,6 @@ export namespace Endpoints {
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string }
-      query: {
-        client_id: string
-        session_code: string
-      }
 
       body: Schemas.AuthenticateRequest
     }
@@ -892,7 +1101,9 @@ export namespace Endpoints {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/challenge-otp'
     requestFormat: 'json'
-    parameters: never
+    parameters: {
+      body: Schemas.ChallengeOtpRequest
+    }
     response: Schemas.ChallengeOtpResponse
   }
   export type post_Generate_recovery_codes = {
@@ -903,6 +1114,17 @@ export namespace Endpoints {
       body: Schemas.GenerateRecoveryCodesRequest
     }
     response: Schemas.GenerateRecoveryCodesResponse
+  }
+  export type post_Send_magic_link = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/send-magic-link'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.SendMagicLinkRequest
+    }
+    response: Schemas.SendMagicLinkResponse
   }
   export type get_Setup_otp = {
     method: 'GET'
@@ -921,6 +1143,15 @@ export namespace Endpoints {
       body: Schemas.UpdatePasswordRequest
     }
     response: Schemas.UpdatePasswordResponse
+  }
+  export type get_Verify_magic_link = {
+    method: 'GET'
+    path: '/realms/{realm_name}/login-actions/verify-magic-link'
+    requestFormat: 'json'
+    parameters: {
+      query: { token_id: string; magic_token: string }
+    }
+    response: Schemas.AuthenticateResponse
   }
   export type post_Verify_otp = {
     method: 'POST'
@@ -955,18 +1186,14 @@ export namespace Endpoints {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-create-options'
     requestFormat: 'json'
-    parameters: {
-      body: Schemas.CreatePublicKeyRequest
-    }
+    parameters: never
     response: Schemas.PublicKeyCredentialCreationOptionsJSON
   }
   export type post_Webauthn_public_key_request_options = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-request-options'
     requestFormat: 'json'
-    parameters: {
-      body: Schemas.RequestOptionsRequest
-    }
+    parameters: never
     response: Schemas.PublicKeyCredentialRequestOptionsJSON
   }
   export type get_Auth_handler = {
@@ -994,40 +1221,38 @@ export namespace Endpoints {
     }
     response: Schemas.GetCertsResponse
   }
+  export type get_Get_jwks_json = {
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/jwks.json'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.GetCertsResponse
+  }
   export type get_Logout_get = {
     method: 'GET'
     path: '/realms/{realm_name}/protocol/openid-connect/logout'
     requestFormat: 'json'
     parameters: {
-      path: { realm_name: string }
       query: Partial<{
         id_token_hint: string
         post_logout_redirect_uri: string
         state: string
         client_id: string
       }>
+      path: { realm_name: string }
     }
     response: unknown
   }
-  export type post_Logout = {
+  export type post_Logout_post = {
     method: 'POST'
     path: '/realms/{realm_name}/protocol/openid-connect/logout'
-    requestFormat: 'form-url'
+    requestFormat: 'json'
     parameters: {
       path: { realm_name: string }
 
       body: Schemas.LogoutRequestValidator
-    }
-    response: unknown
-  }
-  export type post_Revoke_token = {
-    method: 'POST'
-    path: '/realms/{realm_name}/protocol/openid-connect/revoke'
-    requestFormat: 'form-url'
-    parameters: {
-      path: { realm_name: string }
-
-      body: Schemas.RevokeTokenRequestValidator
     }
     response: unknown
   }
@@ -1042,6 +1267,17 @@ export namespace Endpoints {
     }
     response: Schemas.JwtToken
   }
+  export type post_Revoke_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/revoke'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.RevokeTokenRequestValidator
+    }
+    response: unknown
+  }
   export type post_Exchange_token = {
     method: 'POST'
     path: '/realms/{realm_name}/protocol/openid-connect/token'
@@ -1052,6 +1288,17 @@ export namespace Endpoints {
       body: Schemas.TokenRequestValidator
     }
     response: Schemas.JwtToken
+  }
+  export type post_Introspect_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/token/introspect'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.IntrospectRequestValidator
+    }
+    response: Schemas.TokenIntrospectionResponse
   }
   export type get_Get_userinfo = {
     method: 'GET'
@@ -1268,7 +1515,7 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/webhooks'
     requestFormat: 'json'
     parameters: never
-    response: Schemas.Webhook
+    response: Schemas.UpdateWebhookResponse
   }
   export type post_Create_webhook = {
     method: 'POST'
@@ -1308,9 +1555,11 @@ export type EndpointByMethod = {
   post: {
     '/realms': Endpoints.post_Create_realm
     '/realms/{realm_name}/broker/{alias}/endpoint': Endpoints.post_Broker_callback
+    '/realms/{realm_name}/client-scopes': Endpoints.post_Create_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers': Endpoints.post_Create_protocol_mapper
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_Create_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
-    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_CreatePostLogoutRedirect
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
     '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
@@ -1320,16 +1569,18 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
     '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate
     '/realms/{realm_name}/login-actions/webauthn-public-key-create': Endpoints.post_Webauthn_public_key_create
     '/realms/{realm_name}/login-actions/webauthn-public-key-create-options': Endpoints.post_Webauthn_public_key_create_options
     '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
-    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout
-    '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout_post
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
+    '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
+    '/realms/{realm_name}/protocol/openid-connect/token/introspect': Endpoints.post_Introspect_token
     '/realms/{realm_name}/users': Endpoints.post_Create_user
     '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
     '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook
@@ -1339,19 +1590,24 @@ export type EndpointByMethod = {
     '/realms/{name}/login-settings': Endpoints.get_Get_login_realm_settings_handler
     '/realms/{realm_name}/.well-known/openid-configuration': Endpoints.get_Get_openid_configuration
     '/realms/{realm_name}/broker/{alias}/login': Endpoints.get_Broker_login
+    '/realms/{realm_name}/client-scopes': Endpoints.get_Get_client_scopes
+    '/realms/{realm_name}/client-scopes/clients/{client_id}/client-scopes': Endpoints.get_Get_client_client_scopes
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.get_Get_client_scope
     '/realms/{realm_name}/clients': Endpoints.get_Get_clients
     '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
-    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_ListPostLogoutRedirects
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
     '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
     '/realms/{realm_name}/identity-providers': Endpoints.get_List_identity_providers
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.get_Get_identity_provider
     '/realms/{realm_name}/login-actions/setup-otp': Endpoints.get_Setup_otp
+    '/realms/{realm_name}/login-actions/verify-magic-link': Endpoints.get_Verify_magic_link
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
-    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
+    '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
@@ -1368,8 +1624,10 @@ export type EndpointByMethod = {
   put: {
     '/realms/{name}': Endpoints.put_Update_realm
     '/realms/{name}/settings': Endpoints.put_Update_realm_setting
+    '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.put_Assign_default_scope
+    '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.put_Assign_optional_scope
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.put_Update_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri
-    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.put_UpdatePostLogoutRedirect
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.put_Update_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
@@ -1379,9 +1637,13 @@ export type EndpointByMethod = {
   }
   delete: {
     '/realms/{name}': Endpoints.delete_Delete_realm
+    '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.delete_Unassign_default_scope
+    '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.delete_Unassign_optional_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.delete_Delete_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}': Endpoints.delete_Delete_protocol_mapper
     '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.delete_Delete_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
-    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.delete_DeletePostLogoutRedirect
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.delete_Delete_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
@@ -1392,6 +1654,8 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.delete_Delete_webhook
   }
   patch: {
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.patch_Update_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}': Endpoints.patch_Update_protocol_mapper
     '/realms/{realm_name}/clients/{client_id}': Endpoints.patch_Update_client
     '/realms/{realm_name}/roles/{role_id}/permissions': Endpoints.patch_Update_role_permissions
   }
