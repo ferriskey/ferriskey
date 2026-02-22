@@ -89,7 +89,6 @@ pub async fn send_magic_link(
     summary = "Verify magic link and complete authentication",
     description = "Verifies the magic link token and completes the authentication flow. Returns authentication status and redirect URL with authorization code.",
     params(
-        ("realm_name" = String, Path, description = "The realm name"),
         ("token_id" = String, Query, description = "The unique token identifier from the magic link"),
         ("magic_token" = String, Query, description = "The secret verification token from the magic link"),
     ),
@@ -102,7 +101,6 @@ pub async fn send_magic_link(
     )
 )]
 pub async fn verify_magic_link(
-    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Query(query): Query<VerifyMagicLinkQuery>,
     cookie: CookieManager,
@@ -122,10 +120,7 @@ pub async fn verify_magic_link(
         ApiError::BadRequest("Invalid session code in cookie".to_string())
     })?;
 
-    debug!(
-        "Verifying magic link for token_id: {} in realm: {}",
-        query.token_id, realm_name
-    );
+    debug!("Verifying magic link for token_id: {}", query.token_id);
 
     let login_url = state
         .service
