@@ -8,7 +8,7 @@ use ferriskey_core::domain::trident::ports::{
     MagicLinkInput, TridentService, VerifyMagicLinkInput,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
@@ -75,7 +75,7 @@ pub async fn send_magic_link(
         })
         .await?;
 
-    info!("Magic link created for email: {}", payload.email);
+    debug!("Magic link created for email: {}", payload.email);
 
     Ok(Response::OK(SendMagicLinkResponse {
         message: "Magic link sent successfully. Check your email.".to_string(),

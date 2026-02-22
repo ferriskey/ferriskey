@@ -12,7 +12,10 @@ use crate::application::{
             burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
             challenge_otp::{__path_challenge_otp, challenge_otp},
             generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
-            magic_link::{send_magic_link, verify_magic_link},
+            magic_link::{
+                __path_send_magic_link, __path_verify_magic_link, send_magic_link,
+                verify_magic_link,
+            },
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
@@ -44,6 +47,8 @@ use crate::application::{
     webauthn_public_key_create_options,
     webauthn_public_key_authenticate,
     webauthn_public_key_request_options,
+    send_magic_link,
+    verify_magic_link,
 ))]
 pub struct TridentApiDoc;
 

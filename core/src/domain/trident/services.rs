@@ -823,10 +823,7 @@ where
         {
             Ok(Some(user)) => user,
             Ok(None) => {
-                warn!(
-                    "No user found with email: {} in realm: {}",
-                    input.email, realm.name
-                );
+                warn!("User not found for magic link generation");
                 return Ok(());
             }
             Err(e) => {
