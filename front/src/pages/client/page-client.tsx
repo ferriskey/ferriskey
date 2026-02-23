@@ -12,8 +12,8 @@ export default function PageClient() {
     <Routes>
       <Route element={<Container />}>
         <Route path='/overview' element={<PageClientsOverviewFeature />} />
+        <Route path='/create' element={<PageCreateClientFeature />} />
       </Route>
-      <Route path='/create' element={<PageCreateClientFeature />} />
 
       <Route element={<ClientLayout />}>
         <Route path='/:client_id/settings' element={<PageClientSettingsFeature />} />

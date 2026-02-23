@@ -12,8 +12,8 @@ export default function PageRole() {
     <Routes>
       <Route element={<RolesLayout />}>
         <Route path='/overview' element={<PageRolesOverviewFeature />} />
+        <Route path='/create' element={<PageCreateRoleFeature />} />
       </Route>
-      <Route path='/create' element={<PageCreateRoleFeature />} />
       <Route element={<RoleLayout />}>
         <Route path='/:role_id/settings' element={<PageRoleSettingsFeature />} />
         <Route path='/:role_id/permissions' element={<PageRolePermissionsFeature />} />

@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
-import { Form } from '@/components/ui/form'
 import { useCreateIdentityProvider, type CreateProviderInput } from '@/api/identity-providers.api'
+import { Form } from '@/components/ui/form'
+import type { ProviderTemplate } from '@/constants/identity-provider-templates'
 import {
   IDENTITY_PROVIDERS_URL,
   IDENTITY_PROVIDER_OVERVIEW_URL,
 } from '@/routes/sub-router/identity-provider.router'
-import type { ProviderTemplate } from '@/constants/identity-provider-templates'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { useNavigate, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { z } from 'zod'
 import type { ProviderFormData } from '../components/provider-config-form'
 import PageCreate from '../ui/page-create'
 
@@ -32,7 +32,11 @@ export default function PageCreateFeature() {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedTemplate, setSelectedTemplate] = useState<ProviderTemplate | null>(null)
 
-  const { mutate: createProvider, isPending, data: responseCreateProvider } = useCreateIdentityProvider()
+  const {
+    mutate: createProvider,
+    isPending,
+    data: responseCreateProvider,
+  } = useCreateIdentityProvider()
 
   const form = useForm<ProviderFormData>({
     resolver: zodResolver(formSchema),
@@ -49,7 +53,7 @@ export default function PageCreateFeature() {
   })
 
   const callbackUrl = useMemo(() => {
-    const baseUrl = window.location.origin
+    const baseUrl = window.apiUrl
     const alias = selectedTemplate?.name || 'provider'
     return `${baseUrl}/realms/${realm}/broker/${alias}/endpoint`
   }, [realm, selectedTemplate])

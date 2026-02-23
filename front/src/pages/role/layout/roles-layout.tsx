@@ -1,25 +1,55 @@
-import { useState } from 'react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import PageHeader from '@/components/ui/page-header'
-import PageContainer from '@/components/ui/page-container'
-import { Shield } from 'lucide-react'
+import { OverviewHeader } from '@/components/ui/overview-header'
+import { useNavigate, useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import { USERS_URL } from '@/routes/sub-router/user.router'
+import { CLIENTS_URL } from '@/routes/sub-router/client.router'
+import { ROLES_URL, ROLE_CREATE_URL } from '@/routes/sub-router/role.router'
+import { useLocation, Outlet } from 'react-router'
 
 export default function RolesLayout() {
-  const [tab, setTab] = useState('list')
+  const { realm_name } = useParams<RouterParams>()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const tabs = [
+    {
+      key: 'clients',
+      label: 'Clients',
+      onClick: () => navigate(`${CLIENTS_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(CLIENTS_URL(realm_name)),
+    },
+    {
+      key: 'users',
+      label: 'Users',
+      onClick: () => navigate(`${USERS_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(USERS_URL(realm_name)),
+    },
+    {
+      key: 'roles',
+      label: 'Roles',
+      onClick: () => navigate(`${ROLES_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(ROLES_URL(realm_name)),
+    },
+    {
+      key: 'client-scopes',
+      label: 'Client Scopes',
+      onClick: () => {},
+      active: false,
+    },
+  ]
 
   return (
-    <PageContainer>
-      <PageHeader
-        icon={Shield}
-        title='Roles'
-        description='Manage and configure roles and permissions for your realm'
-      >
-        <Tabs defaultValue={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value={'list'}>Roles list</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </PageHeader>
-    </PageContainer>
+    <div className='flex flex-col gap-6 p-8'>
+      <OverviewHeader
+        title='Client and Access Administration'
+        description='Manage realm settings, users, and policy workflows'
+        primaryAction={{
+          label: 'New Role',
+          onClick: () => navigate(`${ROLES_URL(realm_name)}${ROLE_CREATE_URL}`),
+        }}
+        tabs={tabs}
+      />
+      <Outlet />
+    </div>
   )
 }

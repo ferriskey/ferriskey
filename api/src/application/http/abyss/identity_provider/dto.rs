@@ -1,4 +1,4 @@
-use ferriskey_core::domain::identity_provider::IdentityProvider;
+use ferriskey_core::domain::abyss::identity_provider::IdentityProvider;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;

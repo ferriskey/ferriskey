@@ -1,0 +1,200 @@
+use uuid::Uuid;
+
+use crate::auth::Identity;
+use crate::client::{
+    commands::{
+        CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
+        CreateRoleInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
+        DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
+        GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
+        UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+    },
+    entities::{Client, redirect_uri::RedirectUri},
+    value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
+};
+use crate::common::app_errors::CoreError;
+use crate::realm::{Realm, RealmId};
+use crate::role::entities::Role;
+
+pub trait ClientService: Send + Sync {
+    fn create_client(
+        &self,
+        identity: Identity,
+        input: CreateClientInput,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn create_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreateRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn create_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: CreatePostLogoutRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
+    fn delete_client(
+        &self,
+        identity: Identity,
+        input: DeleteClientInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeleteRedirectUriInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: DeletePostLogoutRedirectUriInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_client_roles(
+        &self,
+        identity: Identity,
+        input: GetClientRolesInput,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    fn get_client_by_id(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn get_clients(
+        &self,
+        identity: Identity,
+        input: GetClientsInput,
+    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+
+    fn get_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetRedirectUrisInput,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+    fn get_post_logout_redirect_uris(
+        &self,
+        identity: Identity,
+        input: GetPostLogoutRedirectUrisInput,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+    fn update_client(
+        &self,
+        identity: Identity,
+        input: UpdateClientInput,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn update_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdateRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn update_post_logout_redirect_uri(
+        &self,
+        identity: Identity,
+        input: UpdatePostLogoutRedirectUriInput,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+}
+
+pub trait ClientPolicy: Send + Sync {
+    fn can_create_client(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_client(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_client(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_client(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+pub trait ClientRepository: Send + Sync {
+    fn create_client(
+        &self,
+        data: CreateClientRequest,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn get_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+
+    fn update_client(
+        &self,
+        client_id: Uuid,
+        data: UpdateClientRequest,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait RedirectUriService: Send + Sync {
+    fn add_redirect_uri(
+        &self,
+        payload: CreateRedirectUriRequest,
+        realm_name: String,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn get_enabled_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn update_enabled(
+        &self,
+        id: Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub trait RedirectUriRepository: Send + Sync {
+    fn create_redirect_uri(
+        &self,
+        client_id: Uuid,
+        value: String,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn get_enabled_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn update_enabled(
+        &self,
+        id: Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}

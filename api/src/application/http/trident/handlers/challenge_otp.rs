@@ -1,6 +1,6 @@
 use crate::application::http::server::{
     api_entities::{
-        api_error::{ApiError, ValidateJson},
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
@@ -31,8 +31,12 @@ pub struct ChallengeOtpResponse {
     tag = "auth",
     summary = "Challenge OTP for user authentication",
     description = "Challenges the user to provide a One-Time Password (OTP) for authentication. This is typically used in multi-factor authentication scenarios.",
+    request_body = ChallengeOtpRequest,
     responses(
-        (status = 200, body = ChallengeOtpResponse)
+        (status = 200, description = "Successfully challenged OTP", body = ChallengeOtpResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn challenge_otp(

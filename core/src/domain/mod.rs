@@ -1,12 +1,12 @@
 pub mod abyss;
 pub mod account;
+pub mod aegis;
 pub mod authentication;
 pub mod client;
 pub mod common;
 pub mod credential;
 pub mod crypto;
 pub mod health;
-pub mod identity_provider;
 pub mod jwt;
 pub mod realm;
 pub mod role;

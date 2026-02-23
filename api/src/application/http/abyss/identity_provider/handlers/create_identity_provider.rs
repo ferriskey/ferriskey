@@ -12,10 +12,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::identity_provider::{
+use ferriskey_core::domain::abyss::identity_provider::{
     entities::CreateIdentityProviderInput, ports::IdentityProviderService,
 };
+use ferriskey_core::domain::authentication::value_objects::Identity;
 
 #[utoipa::path(
     post,

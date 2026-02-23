@@ -7,7 +7,7 @@ use crate::domain::{
     credential::entities::{
         Credential, CredentialError, CredentialOverview, DeleteCredentialInput, GetCredentialsInput,
     },
-    crypto::entities::HashResult,
+    crypto::HashResult,
 };
 
 pub trait CredentialService: Send + Sync {

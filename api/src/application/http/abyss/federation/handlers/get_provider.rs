@@ -10,7 +10,10 @@ use uuid::Uuid;
 use crate::application::http::{
     abyss::federation::dto::ProviderResponse,
     server::{
-        api_entities::{api_error::ApiError, response::Response},
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
         app_state::AppState,
     },
 };
@@ -18,12 +21,13 @@ use crate::application::http::{
 #[utoipa::path(
     get,
     path = "/federation/providers/{id}",
-    summary = "Get Federation Provider Details",
+    summary = "Get a federation provider details by ID",
     responses(
         (status = 200, description = "Provider details", body = ProviderResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Realm or Provider not found"),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm or Provider not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),

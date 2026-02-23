@@ -1,5 +1,9 @@
 use crate::{
     domain::{
+        abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
+        aegis::services::{
+            ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+        },
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -9,8 +13,6 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        identity_provider::broker::services::BrokerServiceImpl,
-        identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -20,8 +22,14 @@ use crate::{
     },
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
+        aegis::repositories::{
+            client_scope_postgres_repository::PostgresClientScopeRepository,
+            protocol_mapper_postgres_repository::PostgresProtocolMapperRepository,
+            scope_mapping_postgres_repository::PostgresScopeMappingRepository,
+        },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         health::repositories::PostgresHealthCheckRepository,
@@ -31,10 +39,12 @@ use crate::{
         },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
+            access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -59,6 +69,7 @@ type SecurityEventRepo = PostgresSecurityEventRepository;
 type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
+type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
 type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
@@ -67,11 +78,31 @@ type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
+type AccessTokenRepo = PostgresAccessTokenRepository;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
 type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
 type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
 type OAuthClientImpl = ReqwestOAuthClient;
+type ClientScopeRepo = PostgresClientScopeRepository;
+type ProtocolMapperRepo = PostgresProtocolMapperRepository;
+type ScopeMappingRepo = PostgresScopeMappingRepository;
+type MagicLinkRepo = PostgresMagicLinkRepository;
+
+type ApplicationAuthService = AuthServiceImpl<
+    RealmRepo,
+    ClientRepo,
+    RedirectUriRepo,
+    PostLogoutRedirectUriRepo,
+    UserRepo,
+    CredentialRepo,
+    HasherRepo,
+    AuthSessionRepo,
+    KeystoreRepo,
+    RefreshTokenRepo,
+    AccessTokenRepo,
+    FederationRepo,
+>;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
@@ -86,6 +117,7 @@ pub struct ApplicationService {
         UserRoleRepo,
         WebhookRepo,
         RedirectUriRepo,
+        PostLogoutRedirectUriRepo,
         RoleRepo,
         SecurityEventRepo,
     >,
@@ -113,6 +145,9 @@ pub struct ApplicationService {
         AuthSessionRepo,
         HasherRepo,
         UserRequiredActionRepo,
+        MagicLinkRepo,
+        UserRepo,
+        RealmRepo,
     >,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,
@@ -130,18 +165,7 @@ pub struct ApplicationService {
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
 
-    pub(crate) auth_service: AuthServiceImpl<
-        RealmRepo,
-        ClientRepo,
-        RedirectUriRepo,
-        UserRepo,
-        CredentialRepo,
-        HasherRepo,
-        AuthSessionRepo,
-        KeystoreRepo,
-        RefreshTokenRepo,
-        FederationRepo,
-    >,
+    pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -176,6 +200,24 @@ pub struct ApplicationService {
         UserRepo,
         AuthSessionRepo,
         OAuthClientImpl,
+    >,
+    pub(crate) client_scope_service:
+        ClientScopeServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, ClientScopeRepo>,
+    pub(crate) protocol_mapper_service: ProtocolMapperServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        ClientScopeRepo,
+        ProtocolMapperRepo,
+    >,
+    pub(crate) scope_mapping_service: ScopeMappingServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        ClientScopeRepo,
+        ScopeMappingRepo,
     >,
 }
 

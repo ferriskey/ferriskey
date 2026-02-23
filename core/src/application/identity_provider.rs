@@ -1,13 +1,13 @@
 use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    identity_provider::{
+    abyss::identity_provider::{
         entities::{
             CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
             IdentityProvider, ListIdentityProvidersInput, UpdateIdentityProviderInput,
         },
         ports::IdentityProviderService,
     },
+    authentication::value_objects::Identity,
+    common::entities::app_errors::CoreError,
 };
 
 use super::ApplicationService;

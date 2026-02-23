@@ -17,7 +17,7 @@ impl From<crate::entity::users::Model> for User {
             email_verified: value.email_verified,
             enabled: value.enabled,
             client_id: value.client_id,
-            roles: Vec::new(),
+            roles: None,
             realm: None,
             required_actions: Vec::new(),
             created_at,

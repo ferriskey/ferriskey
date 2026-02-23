@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use ferriskey_core::domain::jwt::entities::JwtError;
+use ferriskey_core::domain::jwt::JwtError;
 use ferriskey_core::domain::{
     authentication::entities::AuthenticationError, webhook::entities::errors::WebhookError,
 };
@@ -145,6 +145,7 @@ impl From<JwtError> for ApiError {
             JwtError::ValidationError(e) => Self::InternalServerError(e),
             JwtError::ExpirationError(e) => Self::InternalServerError(e),
             JwtError::GenerationError(e) => Self::InternalServerError(e),
+            JwtError::HashingError(e) => Self::InternalServerError(e),
             JwtError::ExpiredToken => Self::InternalServerError("Token expired".to_string()),
             JwtError::InvalidKey(e) => Self::InternalServerError(e),
             JwtError::ParsingError(e) => Self::InternalServerError(e),
@@ -168,7 +169,7 @@ impl From<WebhookError> for ApiError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct ApiErrorResponse {
     pub code: String,
     pub status: u16,

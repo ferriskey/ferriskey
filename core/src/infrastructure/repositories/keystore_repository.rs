@@ -1,3 +1,4 @@
+use ferriskey_security::jwt::ports::KeyStoreRepository;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -6,10 +7,7 @@ use uuid::Uuid;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::generate_uuid_v7,
-    jwt::{
-        entities::{JwtError, JwtKeyPair},
-        ports::KeyStoreRepository,
-    },
+    jwt::{JwtError, entities::JwtKeyPair},
 };
 
 impl TryFrom<crate::entity::jwt_keys::Model> for JwtKeyPair {

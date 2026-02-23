@@ -1,7 +1,7 @@
 use crate::application::http::{
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -40,11 +40,11 @@ pub struct UpdateUserResponse {
         content_type = "application/json",
     ),
     responses(
-        (status = 200, body = UpdateUserResponse, description = "User updated successfully"),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "User not found"),
+        (status = 200, description = "User updated successfully", body = UpdateUserResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "User not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn update_user(
@@ -70,5 +70,5 @@ pub async fn update_user(
         )
         .await?;
 
-    Ok(Response::OK(UpdateUserResponse { data: user }))
+    Ok(Response::Updated(UpdateUserResponse { data: user }))
 }

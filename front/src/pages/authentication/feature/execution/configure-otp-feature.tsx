@@ -50,24 +50,11 @@ export default function ConfigureOtpFeature() {
     },
   })
 
-
   const handle = useCallback(() => {
-    const cookies = document.cookie.split(';').reduce(
-      (acc, cookie) => {
-        const [key, value] = cookie.trim().split('=')
-        acc[key] = value
-        return acc
-      },
-      {} as Record<string, string>
-    )
-
-    const sessionCode = cookies['FERRISKEY_SESSION'] || ''
-
     authenticate({
       clientId: 'security-admin-console',
       realm: realm_name ?? 'master',
       data: {},
-      sessionCode,
       useToken: true,
       token: token ?? undefined,
     })

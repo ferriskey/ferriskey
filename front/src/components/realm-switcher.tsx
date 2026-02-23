@@ -12,7 +12,7 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import useRealmStore from '@/store/realm.store'
-import { ChevronsUpDown, Command, Map, Plus } from 'lucide-react'
+import { ChevronsUpDown, Globe, Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -64,28 +64,24 @@ export default function RealmSwitcher() {
 
   return (
     <>
-      <SidebarMenu>
+      <SidebarMenu className='p-0'>
         <SidebarMenuItem>
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 size='lg'
-                className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-sidebar-accent/50 border shadow-sm'
+                className='data-[state=open]:bg-sidebar-accent bg-transparent hover:bg-sidebar-accent/50 rounded-none h-auto py-3 px-4'
               >
-                <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg'>
-                  <Command className='size-4' />
-                </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>{activeRealm?.name}</span>
-                  {activeRealm.name === 'master' && (
-                    <span className='text-xs text-muted-foreground'>master</span>
-                  )}
+                  <span className='truncate text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wider'>
+                    {activeRealm.name}
+                  </span>
                 </div>
-                <ChevronsUpDown className='ml-auto' />
+                <ChevronsUpDown className='ml-auto size-4 shrink-0 text-sidebar-foreground/50' />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+              className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-none'
               align='start'
               side={isMobile ? 'bottom' : 'right'}
               sideOffset={4}
@@ -97,10 +93,10 @@ export default function RealmSwitcher() {
                 <DropdownMenuItem
                   key={realm.name}
                   onClick={() => handleClick(realm)}
-                  className='gap-2 p-2'
+                  className='gap-2 p-2 rounded-none'
                 >
-                  <div className='flex size-6 items-center justify-center rounded-md border'>
-                    <Map className='size-3.5 shrink-0' />
+                  <div className='flex size-6 items-center justify-center rounded-none border'>
+                    <Globe className='size-3.5 shrink-0' />
                   </div>
                   {realm.name}
                   <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
@@ -108,14 +104,14 @@ export default function RealmSwitcher() {
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className='gap-2 p-2'
+                className='gap-2 p-2 rounded-none'
                 onSelect={(e) => {
                   e.preventDefault()
                   setOpen(true)
                   setDropdownOpen(false)
                 }}
               >
-                <div className='flex size-6 items-center justify-center rounded-md border bg-transparent'>
+                <div className='flex size-6 items-center justify-center rounded-none border bg-transparent'>
                   <Plus className='size-4' />
                 </div>
                 <div className='text-muted-foreground font-medium'>Create Realm</div>

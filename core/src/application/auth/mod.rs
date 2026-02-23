@@ -5,9 +5,13 @@ use crate::{
             entities::{
                 AuthInput, AuthOutput, AuthenticateInput, AuthenticateOutput,
                 AuthorizeRequestInput, AuthorizeRequestOutput, ExchangeTokenInput, JwtToken,
+                TokenIntrospectionResponse,
             },
             ports::AuthService,
-            value_objects::{GetUserInfoInput, Identity, RegisterUserInput, UserInfoResponse},
+            value_objects::{
+                EndSessionInput, EndSessionOutput, GetUserInfoInput, Identity,
+                IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+            },
         },
         common::entities::app_errors::CoreError,
         jwt::entities::JwkKey,
@@ -55,5 +59,20 @@ impl AuthService for ApplicationService {
         input: GetUserInfoInput,
     ) -> Result<UserInfoResponse, CoreError> {
         self.auth_service.get_userinfo(identity, input).await
+    }
+
+    async fn introspect_token(
+        &self,
+        input: IntrospectTokenInput,
+    ) -> Result<TokenIntrospectionResponse, CoreError> {
+        self.auth_service.introspect_token(input).await
+    }
+
+    async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
+        self.auth_service.revoke_token(input).await
+    }
+
+    async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
+        self.auth_service.end_session(input).await
     }
 }

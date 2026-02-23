@@ -2,7 +2,7 @@ import { RouterParams } from '@/routes/router'
 import { useNavigate, useParams } from 'react-router'
 import { useDeleteRole, useGetRoles } from '../../../api/role.api'
 import PageRolesOverview from '../ui/page-roles-overview'
-import { ROLE_CREATE_URL, ROLE_SETTINGS_URL, ROLE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
+import { ROLE_SETTINGS_URL, ROLE_URL } from '@/routes/sub-router/role.router'
 import { Schemas } from '@/api/api.client'
 import { useMemo, useState } from 'react'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
@@ -20,22 +20,15 @@ export default function PageRolesOverviewFeature() {
 
   const roles = useMemo(() => rolesResponse?.data || [], [rolesResponse])
 
-  // Calculate statistics
   const statistics = useMemo(() => {
     const totalRoles = roles.length
     const realmRoles = roles.filter(role => !role.client_id).length
     const clientRoles = roles.filter(role => role.client_id).length
     const rolesWithPermissions = roles.filter(role => role.permissions && role.permissions.length > 0).length
 
-    return {
-      totalRoles,
-      realmRoles,
-      clientRoles,
-      rolesWithPermissions,
-    }
+    return { totalRoles, realmRoles, clientRoles, rolesWithPermissions }
   }, [roles])
 
-  // Filter configuration
   const filterFields: FilterFieldsConfig = []
 
   const handleDeleteSelected = (items: Role[]) => {
@@ -52,10 +45,6 @@ export default function PageRolesOverviewFeature() {
 
   const handleClickRow = (roleId: string) => {
     navigate(`${ROLE_URL(realm_name, roleId)}${ROLE_SETTINGS_URL}`)
-  }
-
-  const handleCreateRole = () => {
-    navigate(`${ROLES_URL(realm_name)}${ROLE_CREATE_URL}`)
   }
 
   const onRowDelete = (role: Role) => {
@@ -75,10 +64,6 @@ export default function PageRolesOverviewFeature() {
     })
   }
 
-  const handleFiltersChange = (newFilters: Filter[]) => {
-    setFilters(newFilters)
-  }
-
   return (
     <PageRolesOverview
       data={roles}
@@ -87,12 +72,11 @@ export default function PageRolesOverviewFeature() {
       statistics={statistics}
       filters={filters}
       filterFields={filterFields}
-      onFiltersChange={handleFiltersChange}
+      onFiltersChange={setFilters}
       confirm={confirm}
       onConfirmClose={close}
       handleDeleteSelected={handleDeleteSelected}
       handleClickRow={handleClickRow}
-      handleCreateRole={handleCreateRole}
       onRowDelete={onRowDelete}
     />
   )

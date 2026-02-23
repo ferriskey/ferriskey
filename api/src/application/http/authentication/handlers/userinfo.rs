@@ -45,7 +45,7 @@ pub async fn get_userinfo(
             GetUserInfoInput {
                 realm_name,
                 token: jwt.token,
-                claims: jwt.decoded_token,
+                claims: jwt.claims,
             },
         )
         .await?;

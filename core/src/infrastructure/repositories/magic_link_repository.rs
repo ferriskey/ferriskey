@@ -1,0 +1,128 @@
+use chrono::{DateTime, TimeZone, Utc};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
+use tracing::error;
+use uuid::Uuid;
+
+use crate::{
+    domain::{
+        common::{entities::app_errors::CoreError, generate_uuid_v7},
+        crypto::HashResult,
+        trident::{entities::MagicLink, ports::MagicLinkRepository},
+    },
+    entity::magic_links::{
+        ActiveModel as MagicLinkActiveModel, Column as MagicLinkColumn, Entity as MagicLinkEntity,
+        Model as MagicLinkModel,
+    },
+};
+
+#[derive(Debug, Clone)]
+pub struct PostgresMagicLinkRepository {
+    pub db: DatabaseConnection,
+}
+
+impl PostgresMagicLinkRepository {
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
+    }
+}
+
+impl From<MagicLinkModel> for MagicLink {
+    fn from(model: MagicLinkModel) -> Self {
+        let created_at = Utc.from_utc_datetime(&model.created_at);
+        let expires_at = Utc.from_utc_datetime(&model.expires_at);
+
+        MagicLink {
+            id: model.id,
+            user_id: model.user_id,
+            realm_id: model.realm_id,
+            magic_token_id: model.token_id,
+            magic_token_hash: model.token,
+            created_at,
+            expires_at,
+        }
+    }
+}
+
+impl MagicLinkRepository for PostgresMagicLinkRepository {
+    async fn create_magic_link(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+        token_id: Uuid,
+        magic_token_hash: &HashResult,
+        expires_at: DateTime<Utc>,
+    ) -> Result<(), CoreError> {
+        // Extract token
+        let magic_token_hash = &magic_token_hash.hash;
+        if magic_token_hash.is_empty() {
+            return Err(CoreError::InvalidMagicLink);
+        }
+
+        let active_model: MagicLinkActiveModel = MagicLinkActiveModel {
+            id: Set(generate_uuid_v7()),
+            user_id: Set(user_id),
+            realm_id: Set(realm_id),
+            token_id: Set(token_id),
+            token: Set(magic_token_hash.to_string()),
+            created_at: Set(Utc::now().naive_utc()),
+            expires_at: Set(expires_at.naive_utc()),
+        };
+
+        active_model.insert(&self.db).await.map_err(|e| {
+            error!("Failed to create magic link: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(())
+    }
+
+    async fn get_by_token_id(&self, token_id: Uuid) -> Result<Option<MagicLink>, CoreError> {
+        if token_id.is_nil() {
+            return Err(CoreError::InvalidMagicLink);
+        }
+
+        let magic_link = MagicLinkEntity::find()
+            .filter(MagicLinkColumn::TokenId.eq(token_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to get magic link by token_id: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(magic_link.map(|ml| ml.into()))
+    }
+
+    async fn delete_by_token_id(&self, token_id: Uuid) -> Result<(), CoreError> {
+        if token_id.is_nil() {
+            return Err(CoreError::InvalidMagicLink);
+        }
+
+        MagicLinkEntity::delete_many()
+            .filter(MagicLinkColumn::TokenId.eq(token_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to delete magic link by token_id: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(())
+    }
+
+    async fn cleanup_expired(&self, realm_id: Uuid) -> Result<(), CoreError> {
+        let mut query = MagicLinkEntity::delete_many()
+            .filter(MagicLinkColumn::ExpiresAt.lt(Utc::now().naive_utc()));
+
+        query = query.filter(MagicLinkColumn::RealmId.eq(realm_id));
+
+        query.exec(&self.db).await.map_err(|e| {
+            error!("Failed to cleanup expired magic links: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(())
+    }
+}

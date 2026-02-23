@@ -1,4 +1,4 @@
-use crate::domain::identity_provider::{
+use crate::domain::abyss::identity_provider::{
     IdentityProvider, IdentityProviderConfig, IdentityProviderId,
 };
 use crate::domain::realm::entities::RealmId;

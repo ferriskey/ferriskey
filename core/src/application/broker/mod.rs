@@ -1,11 +1,11 @@
 use crate::{
     ApplicationService,
     domain::{
-        common::entities::app_errors::CoreError,
-        identity_provider::broker::{
+        abyss::identity_provider::broker::{
             self, BrokerCallbackInput, BrokerCallbackOutput, BrokerLoginOutput, BrokerService,
             BrokeredUserInfo, OAuthProviderConfig, OAuthTokenResponse,
         },
+        common::entities::app_errors::CoreError,
     },
 };
 

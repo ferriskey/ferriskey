@@ -1,0 +1,268 @@
+use thiserror::Error;
+
+use crate::authentication::entities::AuthenticationError;
+
+#[derive(Error, Debug, Clone)]
+pub enum CoreError {
+    #[error("Not found")]
+    NotFound,
+
+    #[error("Already exists")]
+    AlreadyExists,
+
+    #[error("Email already exists in this realm")]
+    EmailAlreadyExists,
+
+    #[error("Invalid resource")]
+    Invalid,
+
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
+
+    #[error("Internal server error")]
+    InternalServerError,
+
+    #[error("Redirect URI not found")]
+    RedirectUriNotFound,
+
+    #[error("Invalid redirect URI")]
+    InvalidRedirectUri,
+
+    #[error("Invalid client")]
+    InvalidClient,
+
+    #[error("Invalid realm")]
+    InvalidRealm,
+
+    #[error("Invalid user")]
+    InvalidUser,
+
+    #[error("Invalid password")]
+    InvalidPassword,
+
+    #[error("Invalid state")]
+    InvalidState,
+
+    #[error("Invalid refresh token")]
+    InvalidRefreshToken,
+
+    #[error("Invalid client secret")]
+    InvalidClientSecret,
+
+    #[error("Invalid authorization request")]
+    InvalidRequest,
+
+    #[error("Service account not found")]
+    ServiceAccountNotFound,
+
+    #[error("Hash password error: {0}")]
+    HashPasswordError(String),
+
+    #[error("Verify password error: {0}")]
+    VerifyPasswordError(String),
+
+    #[error("Failed to delete password credential")]
+    DeletePasswordCredentialError,
+
+    #[error("Failed to create credential")]
+    CreateCredentialError,
+
+    #[error("Failed to get password credential")]
+    GetPasswordCredentialError,
+
+    #[error("Failed to get user credentials")]
+    GetUserCredentialsError,
+
+    #[error("Failed to delete credential")]
+    DeleteCredentialError,
+
+    #[error("Token generation error: {0}")]
+    TokenGenerationError(String),
+
+    #[error("Token validation error: {0}")]
+    TokenValidationError(String),
+
+    #[error("Token parsing error: {0}")]
+    TokenParsingError(String),
+
+    #[error("Token expiration error: {0}")]
+    TokenExpirationError(String),
+
+    #[error("Realm key not found")]
+    RealmKeyNotFound,
+
+    #[error("Invalid token")]
+    InvalidToken,
+
+    #[error("Expired token")]
+    ExpiredToken,
+
+    #[error("Invalid key: {0}")]
+    InvalidKey(String),
+
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Session expired")]
+    SessionExpired,
+
+    #[error("Invalid session")]
+    InvalidSession,
+
+    #[error("Failed to create session")]
+    SessionCreateError,
+
+    #[error("Failed to delete session")]
+    SessionDeleteError,
+
+    #[error("Invalid TOTP secret format")]
+    InvalidTotpSecretFormat,
+
+    #[error("TOTP generation failed: {0}")]
+    TotpGenerationFailed(String),
+
+    #[error("TOTP verification failed: {0}")]
+    TotpVerificationFailed(String),
+
+    #[error("Recovery code generation failed: {0}")]
+    RecoveryCodeGenError(String),
+
+    #[error("Recovery code burning failed: {0}")]
+    RecoveryCodeBurnError(String),
+
+    #[error("Cannot delete master realm")]
+    CannotDeleteMasterRealm,
+
+    #[error("Webhook not found")]
+    WebhookNotFound,
+
+    #[error("Webhook forbidden")]
+    WebhookForbidden,
+
+    #[error("Failed to notify webhook: {0}")]
+    FailedWebhookNotification(String),
+
+    #[error("Realm not found for webhook")]
+    WebhookRealmNotFound,
+
+    #[error("Failed to create client")]
+    CreateClientError,
+
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
+
+    #[error("Authorization code storage failed")]
+    AuthorizationCodeStorageFailed,
+
+    #[error("Expected an auth session state")]
+    AuthSessionExpectedState,
+
+    #[error("Missing webauthn challenge")]
+    WebAuthnMissingChallenge,
+
+    #[error("Webauthn credential not found")]
+    WebAuthnCredentialNotFound,
+
+    #[error("Webauthn challenge failed")]
+    WebAuthnChallengeFailed,
+
+    #[error("Magic link not enabled for this realm")]
+    MagicLinkNotEnabled,
+
+    #[error("Invalid magic link token")]
+    InvalidMagicLink,
+
+    #[error("Magic link has expired")]
+    MagicLinkExpired,
+
+    #[error("Magic link has already been used")]
+    MagicLinkAlreadyUsed,
+
+    // Provider (Abyss) errors
+    #[error("Provider not found")]
+    ProviderNotFound,
+
+    #[error("Provider name already exists")]
+    ProviderNameAlreadyExists,
+
+    #[error("Invalid provider configuration: {0}")]
+    InvalidProviderConfiguration(String),
+
+    #[error("Provider is disabled")]
+    ProviderDisabled,
+
+    #[error("Invalid provider URL")]
+    InvalidProviderUrl,
+
+    // Infrastructure errors
+    #[error("External error: {0}")]
+    External(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    #[error("Federation authentication error: {0}")]
+    FederationAuthenticationFailed(String),
+
+    // Broker (SSO) errors
+    #[error("Broker session not found")]
+    BrokerSessionNotFound,
+
+    #[error("Broker session expired")]
+    BrokerSessionExpired,
+
+    #[error("Invalid broker state")]
+    InvalidBrokerState,
+
+    #[error("Identity provider token exchange failed: {0}")]
+    IdpTokenExchangeFailed(String),
+
+    #[error("Identity provider userinfo failed: {0}")]
+    IdpUserInfoFailed(String),
+
+    #[error("Identity provider authentication failed: {0}")]
+    IdpAuthenticationFailed(String),
+
+    #[error("User linking failed: {0}")]
+    UserLinkingFailed(String),
+
+    #[error("Link only mode - user not found")]
+    LinkOnlyUserNotFound,
+
+    #[error("Identity provider link not found")]
+    LinkNotFound,
+
+    #[error("Invalid ID token")]
+    InvalidIdToken,
+
+    #[error("Missing authorization code")]
+    MissingAuthorizationCode,
+
+    #[error("User not found")]
+    UserNotFound,
+
+    #[error("Client not found")]
+    ClientNotFound,
+}
+
+impl From<AuthenticationError> for CoreError {
+    fn from(err: AuthenticationError) -> Self {
+        match err {
+            AuthenticationError::NotFound => CoreError::SessionNotFound,
+            AuthenticationError::ServiceAccountNotFound => CoreError::ServiceAccountNotFound,
+            AuthenticationError::Invalid => CoreError::InvalidClient,
+            AuthenticationError::InvalidRealm => CoreError::InvalidRealm,
+            AuthenticationError::InvalidClient => CoreError::InvalidClient,
+            AuthenticationError::InvalidUser => CoreError::InvalidUser,
+            AuthenticationError::InvalidPassword => CoreError::InvalidPassword,
+            AuthenticationError::InvalidState => CoreError::InvalidState,
+            AuthenticationError::InvalidRefreshToken => CoreError::InvalidRefreshToken,
+            AuthenticationError::InternalServerError => CoreError::InternalServerError,
+            AuthenticationError::InvalidClientSecret => CoreError::InvalidClientSecret,
+            AuthenticationError::InvalidRequest => CoreError::InvalidRequest,
+        }
+    }
+}

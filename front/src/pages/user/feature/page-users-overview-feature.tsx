@@ -15,41 +15,29 @@ export default function PageUsersOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { data: responseGetUsers, isLoading } = useGetUsers({ realm: realm_name ?? 'master' })
   const { mutate: bulkDeleteUser } = useBulkDeleteUser()
-  const [openCreateUserModal, setOpenCreateUserModal] = useState(false)
   const { confirm, ask, close } = useConfirmDeleteAlert()
   const [filters, setFilters] = useState<Filter[]>([])
   const navigate = useNavigate()
 
   const users = useMemo(() => responseGetUsers?.data || [], [responseGetUsers])
 
-  // Calculate statistics
   const statistics = useMemo(() => {
     const totalUsers = users.length
     const enabledUsers = users.filter(user => user.enabled).length
     const disabledUsers = users.filter(user => !user.enabled).length
     const verifiedUsers = users.filter(user => user.email_verified).length
 
-    return {
-      totalUsers,
-      enabledUsers,
-      disabledUsers,
-      verifiedUsers,
-    }
+    return { totalUsers, enabledUsers, disabledUsers, verifiedUsers }
   }, [users])
 
-  // Filter configuration
   const filterFields: FilterFieldsConfig = []
 
   const handleDeleteSelected = (items: User[]) => {
     if (!realm_name) return
     bulkDeleteUser(
       {
-        path: {
-          realm_name
-        },
-        body: {
-          ids: items.map(i => i.id)
-        }
+        path: { realm_name },
+        body: { ids: items.map(i => i.id) },
       },
       {
         onSuccess: (data) => toast.success(`${data.count} users deleted`),
@@ -73,10 +61,6 @@ export default function PageUsersOverviewFeature() {
     })
   }
 
-  const handleFiltersChange = (newFilters: Filter[]) => {
-    setFilters(newFilters)
-  }
-
   return (
     <PageUsersOverview
       data={users}
@@ -85,13 +69,11 @@ export default function PageUsersOverviewFeature() {
       statistics={statistics}
       filters={filters}
       filterFields={filterFields}
-      onFiltersChange={handleFiltersChange}
+      onFiltersChange={setFilters}
       confirm={confirm}
       onConfirmClose={close}
       handleDeleteSelected={handleDeleteSelected}
       handleClickRow={handleClickRow}
-      openCreateUserModal={openCreateUserModal}
-      setOpenCreateUserModal={setOpenCreateUserModal}
       onRowDelete={onRowDelete}
     />
   )

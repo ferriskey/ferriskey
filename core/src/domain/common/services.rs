@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use ferriskey_security::jwt::ports::KeyStoreRepository;
+
 use crate::domain::{
     client::{
         ports::{ClientRepository, RedirectUriRepository},
@@ -11,8 +13,7 @@ use crate::domain::{
         ports::CoreService,
     },
     credential::ports::CredentialRepository,
-    crypto::ports::HasherRepository,
-    jwt::ports::KeyStoreRepository,
+    crypto::HasherRepository,
     realm::ports::RealmRepository,
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
@@ -402,7 +403,7 @@ pub mod tests {
             client_id: None,
             enabled: true,
             required_actions: Vec::new(),
-            roles: Vec::new(),
+            roles: Some(Vec::new()),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -423,7 +424,7 @@ pub mod tests {
             firstname: "John".to_string(),
             lastname: "Doe".to_string(),
             required_actions: Vec::new(),
-            roles: Vec::new(),
+            roles: Some(Vec::new()),
         }
     }
 
@@ -447,7 +448,7 @@ pub mod tests {
             firstname: "John".to_string(),
             lastname: "Doe".to_string(),
             required_actions: Vec::new(),
-            roles: Vec::new(),
+            roles: Some(Vec::new()),
         }
     }
 
@@ -477,7 +478,7 @@ pub mod tests {
             enabled,
             email_verified: true,
             required_actions: Vec::new(),
-            roles: Vec::new(),
+            roles: Some(Vec::new()),
         }
     }
 

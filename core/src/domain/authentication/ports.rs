@@ -1,13 +1,17 @@
 use uuid::Uuid;
 
-use crate::domain::authentication::value_objects::{GetUserInfoInput, Identity, UserInfoResponse};
+use crate::domain::authentication::value_objects::{
+    EndSessionInput, EndSessionOutput, GetUserInfoInput, Identity, IntrospectTokenInput,
+    RevokeTokenInput, UserInfoResponse,
+};
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthenticateInput, AuthenticateOutput,
             AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken, WebAuthnChallenge,
+            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            TokenIntrospectionResponse, WebAuthnChallenge,
         },
         value_objects::{
             AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
@@ -125,6 +129,19 @@ pub trait AuthService: Send + Sync {
         identity: Identity,
         input: GetUserInfoInput,
     ) -> impl Future<Output = Result<UserInfoResponse, CoreError>> + Send;
+
+    fn introspect_token(
+        &self,
+        input: IntrospectTokenInput,
+    ) -> impl Future<Output = Result<TokenIntrospectionResponse, CoreError>> + Send;
+    fn revoke_token(
+        &self,
+        input: RevokeTokenInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn end_session(
+        &self,
+        input: EndSessionInput,
+    ) -> impl Future<Output = Result<EndSessionOutput, CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.

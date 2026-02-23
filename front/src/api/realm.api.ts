@@ -1,5 +1,5 @@
-import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { BaseQuery } from '.'
 
 export interface UserRealmsQuery {
@@ -64,6 +64,26 @@ export const useGetRealm = ({ realm }: BaseQuery) => {
   })
 }
 
+export const useDeleteRealm = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation('delete', '/realms/{name}').mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
+        path: {
+          realm_name: variables.path.name,
+        },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+}
+
 export const useUpdateRealmSettings = () => {
   const queryClient = useQueryClient()
 
@@ -74,7 +94,7 @@ export const useUpdateRealmSettings = () => {
     onSuccess: async (res) => {
       const queryKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
         path: {
-          name: res.name,
+          name: res.data.name,
         },
       }).queryKey
 

@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
+use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
-use tracing::{error, info};
+use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -13,20 +16,22 @@ use crate::domain::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            TokenIntrospectionResponse,
         },
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, GenerateTokenInput, GetUserInfoInput, GrantTypeParams, Identity,
-            RegisterUserInput, UserInfoResponse,
+            AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
+            GetUserInfoInput, GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput,
+            RevokeTokenInput, UserInfoResponse,
         },
     },
-    client::ports::{ClientRepository, RedirectUriRepository},
+    client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
-    crypto::ports::HasherRepository,
+    crypto::HasherRepository,
     jwt::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
-        ports::{KeyStoreRepository, RefreshTokenRepository},
+        ports::{AccessTokenRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
     user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
@@ -34,43 +39,50 @@ use crate::domain::{
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
     pub(crate) redirect_uri_repository: Arc<RU>,
+    pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) user_repository: Arc<U>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) auth_session_repository: Arc<AS>,
     pub(crate) keystore_repository: Arc<KS>,
     pub(crate) refresh_token_repository: Arc<RT>,
+    pub(crate) access_token_repository: Arc<AT>,
     pub(crate) federation_repository: Arc<F>,
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     #[allow(clippy::too_many_arguments)]
@@ -78,43 +90,55 @@ where
         realm_repository: Arc<R>,
         client_repository: Arc<C>,
         redirect_uri_repository: Arc<RU>,
+        post_logout_redirect_uri_repository: Arc<PLRU>,
         user_repository: Arc<U>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
         auth_session_repository: Arc<AS>,
         keystore_repository: Arc<KS>,
         refresh_token_repository: Arc<RT>,
+        access_token_repository: Arc<AT>,
         federation_repository: Arc<F>,
     ) -> Self {
         Self {
             realm_repository,
             client_repository,
             redirect_uri_repository,
+            post_logout_redirect_uri_repository,
             user_repository,
             credential_repository,
             hasher_repository,
             auth_session_repository,
             keystore_repository,
             refresh_token_repository,
+            access_token_repository,
             federation_repository,
             ldap_client: LdapClientImpl,
         }
     }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
+    fn expires_in_from(exp: i64) -> u32 {
+        let now = Utc::now().timestamp();
+        if exp <= now { 0 } else { (exp - now) as u32 }
+    }
+
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -122,7 +146,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);
@@ -148,7 +173,8 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let header = Header::new(jsonwebtoken::Algorithm::RS256);
+        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(jwt_key_pair.id.to_string());
         let token =
             jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
                 tracing::error!("JWT generation error: {}", e);
@@ -180,13 +206,40 @@ where
             input.scope.clone(),
         );
 
-        let jwt = self.generate_token(claims.clone(), input.realm_id).await?;
+        let jwt = self
+            .generate_token(claims.clone(), input.realm_id)
+            .await
+            .map_err(|e| {
+                warn!("Failed to generate JWT: {:?}", e);
+                e
+            })?;
+
+        // Persist access tokens so backend services can introspect/revoke them immediately.
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+
+        self.access_token_repository
+            .create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                input.realm_id,
+                access_token_expires_at,
+                access_token_claims,
+            )
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         let refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
             claims.iss.clone(),
             claims.aud.clone(),
-            claims.azp,
+            claims.azp.clone(),
+            claims.scope.clone(),
         );
 
         let refresh_token = self
@@ -199,10 +252,11 @@ where
         let preferred_username: String = claims.preferred_username.clone().unwrap_or_default();
 
         let id_token: Option<Jwt> = if contains_openid_scope {
-            let aud = claims.aud.join(" ");
+            let aud = claims.azp.clone();
             let id_claims = IdTokenClaims {
                 iss: claims.iss,
                 aud,
+                azp: Some(claims.azp.clone()),
                 auth_time: None,
                 email: claims.email.clone(),
                 email_verified: None,
@@ -242,7 +296,7 @@ where
         validation.validate_aud = false;
         let token_data =
             jsonwebtoken::decode::<JwtClaim>(&token, &jwt_key_pair.decoding_key, &validation)
-                .map_err(|e| CoreError::TokenValidationError(e.to_string()))?;
+                .map_err(|e| CoreError::TokenValidationError(format!("{:?}: {}", e.kind(), e)))?;
 
         let current_time = Utc::now().timestamp();
 
@@ -250,6 +304,20 @@ where
             && exp < current_time
         {
             return Err(CoreError::ExpiredToken);
+        }
+
+        // Enforce immediate access token revocation when a persisted token has been marked revoked.
+        if token_data.claims.typ == ClaimsTyp::Bearer {
+            let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+            if let Some(stored) = self
+                .access_token_repository
+                .get_by_token_hash(token_hash)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                && stored.revoked
+            {
+                return Err(CoreError::InvalidToken);
+            }
         }
 
         Ok(token_data.claims)
@@ -318,9 +386,13 @@ where
 
         let auth_session = self
             .auth_session_repository
-            .get_by_code(code)
+            .get_by_code(code.clone())
             .await
-            .map_err(|_| CoreError::InternalServerError)?
+            .map_err(|e| {
+                warn!("Auth session not found for code {}: {:?}", code, e);
+
+                CoreError::MissingAuthorizationCode
+            })?
             .ok_or(CoreError::NotFound)?;
 
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
@@ -329,26 +401,38 @@ where
         let scope_manager = ScopeManager::new();
         let final_scope = scope_manager.allowed_scopes();
 
+        info!("Final scope for authorization code grant: {}", final_scope);
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
-                client_id: params.client_id,
+                client_id: params.client_id.clone(),
                 email: user.email,
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: Some(final_scope),
+                scope: Some(final_scope.clone()),
             })
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("Failed to create JWT for authorization code grant: {:?}", e);
+
+                e
+            })?;
 
         let id_token_value = id_token.map(|t| t.token);
+
+        info!(
+            "Generated JWT for authorization code grant, user_id: {}, client_id: {}, scope: {}",
+            user.id, params.client_id, final_scope
+        );
 
         Ok(JwtToken::new(
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -360,7 +444,7 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if client.secret != params.client_secret {
+        if !Self::verify_client_secret(client.secret.as_deref(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -397,7 +481,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -417,8 +501,8 @@ where
                 return Err(CoreError::InvalidClientSecret);
             }
 
-            if let Some(provided_secret) = params.client_secret
-                && client.secret != Some(provided_secret)
+            if let Some(provided_secret) = &params.client_secret
+                && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
             {
                 return Err(CoreError::InvalidClientSecret);
             }
@@ -463,7 +547,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -499,7 +583,7 @@ where
                 realm_name: params.realm_name,
                 user_id: user.id,
                 username: user.username,
-                scope: None,
+                scope: claims.scope.clone(),
             })
             .await?;
 
@@ -514,7 +598,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            3600,
+            Self::expires_in_from(jwt.expires_at),
             id_token_value,
         ))
     }
@@ -546,7 +630,11 @@ where
                 params.password,
                 params.base_url,
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("authentication using session code error: {:?}", e);
+                e
+            })?;
 
         self.determine_next_step(auth_result, params.session_code, auth_session)
             .await
@@ -594,7 +682,13 @@ where
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|e| {
+                warn!(
+                    "failed to update auth session with code and user id: {:?}",
+                    e
+                );
+                CoreError::InternalServerError
+            })?;
 
         let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
 
@@ -622,12 +716,22 @@ where
 
         self.client_repository
             .get_by_client_id(client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!("Client not found for client_id {}: {:?}", client_id, e);
+
+                CoreError::InvalidClient
+            })?;
 
         let user = self
             .user_repository
-            .get_by_username(username, realm.id)
-            .await?;
+            .get_by_username(username.clone(), realm.id)
+            .await
+            .map_err(|e| {
+                warn!("User not found for username {}: {:?}", username, e);
+
+                CoreError::UserNotFound
+            })?;
 
         // Check if user has federation mapping (LDAP authentication) FIRST
         let federation_mapping = self
@@ -812,11 +916,31 @@ This is a server error that should be investigated. Do not forward back this mes
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+        let token_fingerprint = token_hash.chars().take(12).collect::<String>();
+        let token_segments = token.split('.').count();
+
         let claims = self
             .verify_token(token.clone(), realm_id)
             .await
             .map_err(|e| {
-                error!("Failed to verify token: {:?}", e);
+                match &e {
+                    CoreError::InvalidToken
+                    | CoreError::ExpiredToken
+                    | CoreError::TokenValidationError(_) => {
+                        warn!(
+                            token_fingerprint = %token_fingerprint,
+                            token_segments = token_segments,
+                            realm_id = %Uuid::from(realm_id),
+                            session_code = %session_code,
+                            error = ?e,
+                            "Identity token cookie rejected, falling back to interactive login"
+                        );
+                    }
+                    _ => {
+                        error!("Failed to verify token: {:?}", e);
+                    }
+                }
                 e
             })?;
 
@@ -859,20 +983,105 @@ This is a server error that should be investigated. Do not forward back this mes
             auth_session.redirect_uri, authorization_code, state
         ))
     }
+
+    fn claims_to_introspection_response(
+        claims: JwtClaim,
+        realm_name: String,
+    ) -> TokenIntrospectionResponse {
+        TokenIntrospectionResponse {
+            active: true,
+            scope: claims.scope,
+            client_id: Some(claims.azp),
+            username: claims.preferred_username,
+            sub: Some(claims.sub.to_string()),
+            token_type: Some(match claims.typ {
+                ClaimsTyp::Bearer => "Bearer".to_string(),
+                ClaimsTyp::Refresh => "Refresh".to_string(),
+                ClaimsTyp::Temporary => "Temporary".to_string(),
+            }),
+            exp: claims.exp,
+            iat: Some(claims.iat),
+            nbf: Some(claims.iat),
+            aud: Some(claims.aud.join(" ")),
+            iss: Some(claims.iss),
+            jti: Some(claims.jti.to_string()),
+            realm: Some(realm_name),
+        }
+    }
+
+    fn verify_client_secret(stored: Option<&str>, provided: Option<&str>) -> bool {
+        match (stored, provided) {
+            (Some(s), Some(p)) => {
+                let s_hash = Sha256::digest(s.as_bytes());
+                let p_hash = Sha256::digest(p.as_bytes());
+                s_hash.ct_eq(&p_hash).into()
+            }
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    async fn verify_id_token_hint(
+        &self,
+        id_token_hint: &str,
+        realm_id: RealmId,
+        expected_issuer: &str,
+    ) -> Result<IdTokenClaims, CoreError> {
+        let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
+        validation.validate_aud = false;
+
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let token_data = jsonwebtoken::decode::<IdTokenClaims>(
+            id_token_hint,
+            &jwt_key_pair.decoding_key,
+            &validation,
+        )
+        .map_err(|_| CoreError::InvalidToken)?;
+
+        if token_data.claims.exp < Utc::now().timestamp() {
+            return Err(CoreError::ExpiredToken);
+        }
+
+        if token_data.claims.iss != expected_issuer {
+            return Err(CoreError::InvalidToken);
+        }
+
+        Ok(token_data.claims)
+    }
+
+    fn append_state_to_redirect_uri(redirect_uri: &str, state: Option<&str>) -> String {
+        match state {
+            Some(state) if !state.is_empty() => {
+                let separator = if redirect_uri.contains('?') { '&' } else { '?' };
+                format!(
+                    "{redirect_uri}{separator}state={}",
+                    urlencoding::encode(state)
+                )
+            }
+            _ => redirect_uri.to_string(),
+        }
+    }
 }
 
-impl<R, C, RU, U, CR, H, AS, KS, RT, F> AuthService
-    for AuthServiceImpl<R, C, RU, U, CR, H, AS, KS, RT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
     KS: KeyStoreRepository,
     RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
     F: FederationRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
@@ -905,7 +1114,7 @@ where
 
             false
         }) {
-            return Err(CoreError::InvalidClient);
+            return Err(CoreError::InvalidRedirectUri);
         }
 
         if !client.enabled {
@@ -971,7 +1180,14 @@ where
 
         self.client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                warn!(
+                    "Client not found for client_id {}: {:?}",
+                    input.client_id, e
+                );
+                e
+            })?;
 
         let params = GrantTypeParams {
             realm_id: realm.id,
@@ -1030,7 +1246,7 @@ where
             .get_by_session_code(input.session_code)
             .await
             .map_err(|e| {
-                error!("Failed to get auth session by session code: {:?}", e);
+                warn!("Failed to get auth session by session code: {:?}", e);
                 CoreError::InternalServerError
             })?;
 
@@ -1116,7 +1332,7 @@ where
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
 
         let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp);
+            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp, None);
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), realm.id)
@@ -1126,7 +1342,7 @@ where
             jwt.token,
             "Bearer".to_string(),
             refresh_token.token,
-            jwt.expires_at as u32,
+            Self::expires_in_from(jwt.expires_at),
             None,
         ))
     }
@@ -1168,5 +1384,227 @@ where
         }
 
         Ok(response)
+    }
+
+    async fn introspect_token(
+        &self,
+        input: IntrospectTokenInput,
+    ) -> Result<TokenIntrospectionResponse, CoreError> {
+        let inactive = TokenIntrospectionResponse {
+            active: false,
+            ..Default::default()
+        };
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let client = self
+            .client_repository
+            .get_by_client_id(input.client_id.clone(), realm.id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        if !client.enabled || client.public_client {
+            return Err(CoreError::InvalidClient);
+        }
+
+        if !Self::verify_client_secret(client.secret.as_deref(), Some(&input.client_secret)) {
+            return Err(CoreError::InvalidClientSecret);
+        }
+
+        let token = input.token;
+        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+
+        // Opaque token support: prefer DB lookup by hash. This also enables immediate revocation.
+        if let Some(stored) = self
+            .access_token_repository
+            .get_by_token_hash(token_hash.clone())
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+        {
+            if stored.revoked {
+                return Ok(inactive);
+            }
+
+            if let Some(expires_at) = stored.expires_at
+                && expires_at < Utc::now()
+            {
+                return Ok(inactive);
+            }
+
+            let claims: JwtClaim = serde_json::from_value(stored.claims)
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            return Ok(Self::claims_to_introspection_response(claims, realm.name));
+        }
+
+        // Backward-compatible JWT introspection: validate signature + expiry even if not persisted.
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
+            return Ok(inactive);
+        }
+
+        let mut claims = match self.verify_token(token.clone(), realm.id).await {
+            Ok(c) => c,
+            Err(_) => return Ok(inactive),
+        };
+
+        // If the token is a refresh token (or hinted as such), enforce refresh token repository checks.
+        if input.token_type_hint.as_deref() == Some("refresh_token")
+            || claims.typ == ClaimsTyp::Refresh
+        {
+            claims = match self.verify_refresh_token(token, realm.id).await {
+                Ok(c) => c,
+                Err(_) => return Ok(inactive),
+            };
+        }
+
+        Ok(Self::claims_to_introspection_response(claims, realm.name))
+    }
+
+    async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
+        let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
+
+        let claims = match self.verify_token(input.token.clone(), realm.id).await {
+            Ok(claims) => claims,
+            // RFC 7009 behavior: revocation is idempotent and should not reveal token validity.
+            Err(CoreError::InvalidToken)
+            | Err(CoreError::ExpiredToken)
+            | Err(CoreError::TokenValidationError(_))
+            | Err(CoreError::TokenParsingError(_)) => return Ok(()),
+            Err(e) => return Err(e),
+        };
+
+        // Avoid cross-client revocation: only allow a client to revoke its own tokens.
+        if claims.azp != input.client_id {
+            return Ok(());
+        }
+
+        match claims.typ {
+            ClaimsTyp::Refresh => {
+                if hinted_access {
+                    return Ok(());
+                }
+
+                self.refresh_token_repository
+                    .revoke_by_jti(claims.jti)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Bearer => {
+                if hinted_refresh {
+                    return Ok(());
+                }
+
+                let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                self.access_token_repository
+                    .revoke_by_token_hash(token_hash)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+            }
+            ClaimsTyp::Temporary => {}
+        }
+
+        Ok(())
+    }
+
+    async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let id_token_claims = if let Some(id_token_hint) = input.id_token_hint.as_deref() {
+            match self
+                .verify_id_token_hint(id_token_hint, realm.id, &input.expected_issuer)
+                .await
+            {
+                Ok(claims) => Some(claims),
+                Err(e) if input.post_logout_redirect_uri.is_none() => {
+                    // Keep logout robust for local-session logout when a stale/invalid id_token_hint is sent.
+                    tracing::warn!(
+                        "Ignoring invalid id_token_hint for non-redirect logout: {:?}",
+                        e
+                    );
+                    None
+                }
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+
+        let token_client_id = id_token_claims
+            .as_ref()
+            .and_then(|claims| claims.azp.clone())
+            .or_else(|| {
+                id_token_claims.as_ref().and_then(|claims| {
+                    if claims.aud.contains(' ') {
+                        None
+                    } else {
+                        Some(claims.aud.clone())
+                    }
+                })
+            });
+
+        if let (Some(client_id), Some(token_client_id)) = (&input.client_id, &token_client_id)
+            && client_id != token_client_id
+        {
+            warn!(
+                "Logout rejected: client_id does not match id_token_hint (client_id={}, token_client_id={})",
+                client_id, token_client_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {
+            let resolved_client_id = input
+                .client_id
+                .or(token_client_id)
+                .ok_or(CoreError::InvalidRequest)?;
+
+            let client = self
+                .client_repository
+                .get_by_client_id(resolved_client_id, realm.id)
+                .await?;
+
+            let enabled_redirect_uris = self
+                .post_logout_redirect_uri_repository
+                .get_enabled_by_client_id(client.id)
+                .await?;
+
+            if !enabled_redirect_uris
+                .iter()
+                .any(|uri| uri.value == post_logout_redirect_uri)
+            {
+                warn!(
+                    "Logout rejected: post_logout_redirect_uri is not registered for client (client_id={}, uri={}, registered_enabled_count={})",
+                    client.client_id,
+                    post_logout_redirect_uri,
+                    enabled_redirect_uris.len()
+                );
+                return Err(CoreError::InvalidRedirectUri);
+            }
+
+            return Ok(EndSessionOutput {
+                redirect_uri: Some(Self::append_state_to_redirect_uri(
+                    &post_logout_redirect_uri,
+                    input.state.as_deref(),
+                )),
+            });
+        }
+
+        Ok(EndSessionOutput { redirect_uri: None })
     }
 }

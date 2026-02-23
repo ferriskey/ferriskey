@@ -1,6 +1,9 @@
 use std::{collections::HashSet, sync::Arc};
 
 use crate::domain::{
+    abyss::identity_provider::{
+        IdentityProviderRepository, entities::IdentityProviderPresentation,
+    },
     authentication::value_objects::Identity,
     client::{ports::ClientRepository, value_objects::CreateClientRequest},
     common::{
@@ -8,7 +11,6 @@ use crate::domain::{
         generate_random_string,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    identity_provider::{IdentityProviderRepository, entities::IdentityProviderPresentation},
     realm::{
         entities::{Realm, RealmLoginSetting, RealmSetting},
         ports::{
@@ -495,6 +497,8 @@ where
                 input.user_registration_enabled,
                 input.forgot_password_enabled,
                 input.remember_me_enabled,
+                input.magic_link_enabled,
+                input.magic_link_ttl,
             )
             .await?;
 
@@ -552,11 +556,11 @@ where
 mod tests {
     use super::*;
     use crate::domain::{
+        abyss::identity_provider::ports::MockIdentityProviderRepository,
         client::ports::MockClientRepository,
         common::services::tests::{
             create_test_realm_with_name, create_test_user_identity_with_realm,
         },
-        identity_provider::ports::MockIdentityProviderRepository,
         realm::{entities::RealmId, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
         user::ports::{MockUserRepository, MockUserRoleRepository},

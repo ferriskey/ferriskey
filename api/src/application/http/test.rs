@@ -89,7 +89,7 @@ impl UserBuilder {
                 .unwrap_or_else(|| format!("test-{id}@example.com")),
             email_verified: self.email_verified.unwrap_or(true),
             enabled: self.enabled.unwrap_or(true),
-            roles: self.roles,
+            roles: Some(self.roles),
             realm: None,
             required_actions: Vec::new(),
             created_at: Utc::now(),

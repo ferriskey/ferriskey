@@ -7,6 +7,7 @@ pub const SCOPE_EMAIL: &str = "email";
 pub const SCOPE_ADDRESS: &str = "address";
 pub const SCOPE_PHONE: &str = "phone";
 pub const SCOPE_OFFLINE_ACCESS: &str = "offline_access";
+pub const SCOPE_INTROSPECT: &str = "introspect";
 
 pub const DEFAULT_SCOPES: &[&str] = &[SCOPE_PROFILE, SCOPE_EMAIL];
 
@@ -25,6 +26,7 @@ impl ScopeManager {
         allowed_scopes.insert(SCOPE_ADDRESS.to_string());
         allowed_scopes.insert(SCOPE_PHONE.to_string());
         allowed_scopes.insert(SCOPE_OFFLINE_ACCESS.to_string());
+        allowed_scopes.insert(SCOPE_INTROSPECT.to_string());
 
         Self { allowed_scopes }
     }
@@ -156,6 +158,13 @@ mod tests {
         let manager = ScopeManager::new();
         let result = manager.validate_and_filter(Some("profile invalid_scope".to_string()));
         assert_eq!(result, "profile");
+    }
+
+    #[test]
+    fn test_merge_with_defaults_allows_introspect_scope() {
+        let manager = ScopeManager::new();
+        let result = manager.merge_with_defaults(Some("introspect".to_string()));
+        assert!(result.contains("introspect"));
     }
 
     #[test]

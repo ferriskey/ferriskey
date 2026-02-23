@@ -1,4 +1,5 @@
 use chrono::{DateTime, TimeZone, Utc};
+use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -6,10 +7,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     common::generate_uuid_v7,
-    jwt::{
-        entities::{JwtError, RefreshToken},
-        ports::RefreshTokenRepository,
-    },
+    jwt::{JwtError, entities::RefreshToken, ports::RefreshTokenRepository},
 };
 
 impl From<crate::entity::refresh_tokens::Model> for RefreshToken {
@@ -72,6 +70,20 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             .ok_or_else(|| JwtError::GenerationError("Refresh token not found".to_string()))?;
 
         Ok(refresh_token.into())
+    }
+
+    async fn revoke_by_jti(&self, jti: Uuid) -> Result<(), JwtError> {
+        crate::entity::refresh_tokens::Entity::update_many()
+            .col_expr(
+                crate::entity::refresh_tokens::Column::Revoked,
+                Expr::value(true),
+            )
+            .filter(crate::entity::refresh_tokens::Column::Jti.eq(jti))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(())
     }
 
     async fn delete(&self, jti: Uuid) -> Result<(), JwtError> {

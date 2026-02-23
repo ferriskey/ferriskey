@@ -1,4 +1,4 @@
-use crate::application::http::server::api_entities::api_error::ApiError;
+use crate::application::http::server::api_entities::api_error::{ApiError, ApiErrorResponse};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 use axum::{
@@ -21,7 +21,10 @@ use ferriskey_core::domain::{
         ("name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = Realm)
+        (status = 200, description = "Realm retrieved successfully", body = Realm),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn get_realm(

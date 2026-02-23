@@ -2,7 +2,9 @@ use crate::application::http::realm::validators::UpdateRealmSettingValidator;
 use axum::Extension;
 use ferriskey_core::domain::realm::ports::{RealmService, UpdateRealmSettingInput};
 
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
+use crate::application::http::server::api_entities::api_error::{
+    ApiError, ApiErrorResponse, ValidateJson,
+};
 use crate::application::http::server::api_entities::response::Response;
 use crate::application::http::server::app_state::AppState;
 
@@ -10,6 +12,13 @@ use axum::extract::{Path, State};
 
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateRealmSettingResponse {
+    pub data: Realm,
+}
 
 #[utoipa::path(
     put,
@@ -21,7 +30,11 @@ use ferriskey_core::domain::realm::entities::Realm;
         ("name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = Realm)
+        (status = 200, description = "Realm settings updated successfully", body = UpdateRealmSettingResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     request_body = UpdateRealmSettingValidator
 )]
@@ -30,8 +43,8 @@ pub async fn update_realm_setting(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
-) -> Result<Response<Realm>, ApiError> {
-    state
+) -> Result<Response<UpdateRealmSettingResponse>, ApiError> {
+    let realm = state
         .service
         .update_realm_setting(
             identity,
@@ -42,9 +55,14 @@ pub async fn update_realm_setting(
                 forgot_password_enabled: payload.forgot_password_enabled,
                 remember_me_enabled: payload.remember_me_enabled,
                 user_registration_enabled: payload.user_registration_enabled,
+                magic_link_enabled: payload.magic_link_enabled,
+                magic_link_ttl: payload.magic_link_ttl,
             },
         )
         .await
-        .map_err(ApiError::from)
-        .map(Response::Created)
+        .map_err(ApiError::from)?;
+
+    Ok(Response::Updated(UpdateRealmSettingResponse {
+        data: realm,
+    }))
 }

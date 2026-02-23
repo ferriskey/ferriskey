@@ -10,16 +10,26 @@ use ferriskey_core::domain::{
     },
     authentication::value_objects::Identity,
 };
+use serde::Serialize;
 use std::str::FromStr;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::{
     abyss::federation::dto::{ProviderResponse, UpdateProviderRequest},
     server::{
-        api_entities::{api_error::ApiError, response::Response},
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
         app_state::AppState,
     },
 };
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UpdateProviderResponse {
+    pub data: ProviderResponse,
+}
 
 #[utoipa::path(
     put,
@@ -27,11 +37,12 @@ use crate::application::http::{
     summary = "Update a federation provider",
     request_body = UpdateProviderRequest,
     responses(
-        (status = 200, description = "Provider updated", body = ProviderResponse),
-        (status = 400, description = "Invalid input"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Realm or Provider not found"),
+        (status = 200, description = "Provider updated", body = UpdateProviderResponse),
+        (status = 400, description = "Invalid input", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Forbidden", body = ApiErrorResponse),
+        (status = 404, description = "Realm or Provider not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
@@ -44,7 +55,7 @@ pub async fn update_provider(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Json(payload): Json<UpdateProviderRequest>,
-) -> Result<Response<ProviderResponse>, ApiError> {
+) -> Result<Response<UpdateProviderResponse>, ApiError> {
     let provider_type = payload.provider_type.map(|pt| match pt.as_str() {
         "Ldap" => FederationType::Ldap,
         "Kerberos" => FederationType::Kerberos,
@@ -89,5 +100,7 @@ pub async fn update_provider(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(provider.into()))
+    Ok(Response::Updated(UpdateProviderResponse {
+        data: provider.into(),
+    }))
 }

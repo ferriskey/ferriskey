@@ -38,7 +38,7 @@ export const useCreateRole = () => {
     ).mutationOptions,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] })
-       toast.success('Role created successfully')
+      toast.success('Role created successfully')
     },
     onError(error) {
       toast.error('Failed to create role', {
@@ -96,10 +96,8 @@ export const useDeleteRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/roles/{role_id}',
-      async (res) => res.json()
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/roles/{role_id}', async (res) =>
+      res.json()
     ).mutationOptions,
     // FIXME: there is no bulk delete endpoint, and this one may be inefficient, and the
     // stacked toast messages will look bad.

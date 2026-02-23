@@ -23,6 +23,7 @@ pub struct DatabaseConfig {
     pub username: String,
     pub password: String,
     pub name: String,
+    pub schema: String,
 }
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {
@@ -42,6 +43,14 @@ pub fn generate_random_string() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(16)
+        .map(char::from)
+        .collect()
+}
+
+pub fn generate_random_token() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(43)
         .map(char::from)
         .collect()
 }

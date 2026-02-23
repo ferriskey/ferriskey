@@ -1,7 +1,7 @@
 use crate::application::http::{
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -28,12 +28,6 @@ pub struct CreateUserResponse {
     path = "",
     tag = "user",
     summary = "Create a new user in a realm",
-    responses(
-        (status = 201, body = CreateUserResponse, description = "User created successfully"),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-    ),
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
@@ -41,6 +35,13 @@ pub struct CreateUserResponse {
         content = CreateUserValidator,
         description = "User to create",
         content_type = "application/json",
+    ),
+    responses(
+        (status = 201, description = "User created successfully", body = CreateUserResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn create_user(

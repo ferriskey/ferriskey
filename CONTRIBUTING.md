@@ -8,7 +8,7 @@ FerrisKey is an open-source Identity and Access Management (IAM) system written 
 
 ## 🧭 Where to Start
 
-- 📖 Read the [FerrisKey Docs](https://ferriskey.rs/docs/welcome/introduction)
+- 📖 Read the [FerrisKey Docs](https://docs.ferriskey.rs/getting-started/introduction)
 - 🐞 Look at the [open issues](https://github.com/ferriskey/ferriskey/issues)
 - 💬 Join discussions on [Discord](https://discord.gg/WVV5rq8ANb)
 - 📝 Check our [GOVERNANCE.md](./GOVERNANCE.md)
@@ -53,6 +53,96 @@ VITE_FEATURES="realm-settings"
 ```
 
 To look for the features in the code, please refer to the `lib/features.ts` file.
+
+---
+
+## 🔀 Pull Request Guidelines
+
+### Philosophy
+FerrisKey is built with a clean architecture mindset.
+
+Each layer has a clear responsibility:
+- `core` -> domain & business logic
+- `api` -> transport & HTTP concerns
+- `front` -> user interface
+- `operator` -> deployment & infrastructure
+
+We expect pull requests to respect this separation.
+
+### 🧩 1. One Responsibility per Pull Request
+A Pull Request must:
+- Address one concern
+- Modify one architectural layer whenever possible
+- Be small enough to review in < 20 minutes
+
+✅ Good Examples
+- Add PKCE validation in `core`
+- Add `/introspect` route in `api`
+- Add TOTP setup UI in `front`
+- Fix SQL constraint in `core` repository
+
+❌ Bad Examples
+- Add PKCE support + modify DB schema + update frontend + refactor token logic
+- "Refactor OAuth + improve performance + fix tests"
+
+If your change touches multiples layers:
+➡️ Split it into multiple PRs
+
+
+### 🏗 2. Split by Layer
+
+Prefer:
+```code
+PR 1 → Core: Add domain support
+PR 2 → API: Expose route using new domain feature
+PR 3 → Frontend: UI integration
+```
+
+
+Instead of:
+```code
+❌ One massive PR touching core + api + frontend
+```
+
+### 📦 3. Size Matters
+
+A PR will likely be refused if:
+- It changes too many files
+- It mixes refactor + feature
+- It introduces unrelated formatting changes
+- It includes multiple features
+
+Rule of thumb:
+> If your PR title needs “and”, it should probably be split.
+
+
+### 🧠 4. Reviewability First
+
+Before opening a PR, ask yourself:
+- Can someone understand this in 10–20 minutes?
+- Does it introduce hidden side effects?
+- Is it scoped clearly?
+
+If not → split.
+
+
+### 🚫 5. PRs That Will Be Rejected
+
+We reserve the right to reject PRs that:
+- Break architectural boundaries
+- Mix domain and transport logic
+- Introduce large unscoped refactors
+- Bundle multiple responsibilities
+
+Even if the code works.
+
+
+### 🪵 6. Commit Hygiene
+
+We encourage:
+- Small commits
+- Clear commit messages
+- Conventional commit style (recommended)
 
 ---
 

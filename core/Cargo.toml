@@ -6,6 +6,10 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+ferriskey-abyss = { path = "../libs/ferriskey-abyss", features = ["mock"] }
+ferriskey-domain = { path = "../libs/ferriskey-domain" }
+ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
+ferriskey-trident = { path = "../libs/ferriskey-trident" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"
@@ -14,10 +18,10 @@ base64 = "0.22.1"
 chrono = { version = "0.4.41", features = ["serde"] }
 enum-display = "0.2.1"
 hmac = "0.12.1"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.8.0"
 rsa = { version = "0.9.9", features = ["pem"] }
-sea-orm = { version = "1.1.14", features = [
+sea-orm = { version = "1.1.19", features = [
     "sqlx-postgres",
     "macros",
     "with-uuid",
@@ -42,6 +46,7 @@ regex = "1.11.2"
 futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation"] }
 ldap3 = "0.12.1"
+subtle = "2.6.1"
 
 [dev-dependencies]
 mockall = "0.13.1"

@@ -3,10 +3,11 @@ use crate::{
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
+        role::entities::permission::Permissions,
         user::{
             entities::{
-                AssignRoleInput, CreateUserInput, GetUserInput, ResetPasswordInput,
-                UnassignRoleInput, UpdateUserInput, User,
+                AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
+                ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
             },
             ports::UserService,
         },
@@ -83,5 +84,15 @@ impl UserService for ApplicationService {
         input: UpdateUserInput,
     ) -> Result<User, CoreError> {
         self.user_service.update_user(identity, input).await
+    }
+
+    async fn get_user_permissions(
+        &self,
+        identity: Identity,
+        input: GetUserPermissionsInput,
+    ) -> Result<Vec<Permissions>, CoreError> {
+        self.user_service
+            .get_user_permissions(identity, input)
+            .await
     }
 }

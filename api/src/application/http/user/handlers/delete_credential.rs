@@ -1,5 +1,8 @@
 use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
     app_state::AppState,
 };
 use axum::{
@@ -33,7 +36,10 @@ pub struct DeleteUserCredentialResponse {
         ("credential_id" = Uuid, Path, description = "Credential ID"),
     ),
     responses(
-        (status = 200, body = DeleteUserCredentialResponse)
+        (status = 200, description = "Credential deleted successfully", body = DeleteUserCredentialResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn delete_user_credential(

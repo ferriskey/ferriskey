@@ -3,10 +3,9 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 
-use crate::domain::{
-    credential::entities::CredentialData,
-    crypto::{entities::HashResult, ports::HasherRepository},
-};
+use ferriskey_security::SecurityError;
+
+use crate::domain::crypto::{HashResult, HasherRepository};
 
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {}
@@ -24,7 +23,7 @@ impl Default for Argon2HasherRepository {
 }
 
 impl HasherRepository for Argon2HasherRepository {
-    async fn hash_password(&self, password: &str) -> Result<HashResult, anyhow::Error> {
+    async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
         let salt = SaltString::generate(&mut OsRng);
         let params = argon2::Params::new(
             32 * 1024, // Memory cost (32MB)
@@ -32,18 +31,20 @@ impl HasherRepository for Argon2HasherRepository {
             1,         // Parallelism degree
             Some(32),  // Output length
         )
-        .map_err(|e| anyhow::anyhow!("Error during Argon2 configuration: {}", e))?;
+        .map_err(|e| SecurityError::HashingError(e.to_string()))?;
         let argon2 = Argon2::new(argon2::Algorithm::Argon2d, Version::V0x13, params.clone());
-
-        let credential_data =
-            CredentialData::new_hash(params.t_cost(), argon2::Algorithm::Argon2d.to_string());
 
         let password_hash = argon2
             .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| anyhow::anyhow!("Error during password hashing: {}", e))?
+            .map_err(|e| SecurityError::HashingError(e.to_string()))?
             .to_string();
 
-        let hash_result = HashResult::new(password_hash, salt.to_string(), credential_data);
+        let hash_result = HashResult::new(
+            password_hash,
+            salt.to_string(),
+            params.t_cost(),
+            argon2::Algorithm::Argon2d.to_string(),
+        );
         Ok(hash_result)
     }
 
@@ -54,7 +55,7 @@ impl HasherRepository for Argon2HasherRepository {
         hash_iterations: u32,
         algorithm: &str,
         _salt: &str,
-    ) -> Result<bool, anyhow::Error> {
+    ) -> Result<bool, SecurityError> {
         let algorithm = match algorithm {
             "argon2i" => Algorithm::Argon2i,
             "argon2d" => Algorithm::Argon2d,
@@ -65,15 +66,30 @@ impl HasherRepository for Argon2HasherRepository {
             algorithm,
             Version::V0x13,
             Params::new(65536, hash_iterations, 4, None)
-                .map_err(|e| anyhow::anyhow!("Erreur de configuration des paramètres: {}", e))?,
+                .map_err(|e| SecurityError::HashingError(e.to_string()))?,
         );
 
         let parsed_hash = PasswordHash::new(secret_data)
-            .map_err(|e| anyhow::anyhow!("Error parsing hash: {}", e))?;
+            .map_err(|e| SecurityError::HashingError(e.to_string()))?;
 
         let result = argon2.verify_password(password.as_bytes(), &parsed_hash);
 
         Ok(result.is_ok())
+    }
+
+    async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
+        self.hash_password(token).await
+    }
+
+    async fn verify_magic_token(
+        &self,
+        token: &str,
+        secret_data: &str,
+    ) -> Result<bool, SecurityError> {
+        let result = self
+            .verify_password(token, secret_data, 3, "argon2d", "")
+            .await?;
+        Ok(result)
     }
 }
 
@@ -90,12 +106,16 @@ mod tests {
         assert!(result.is_ok(), "Password hashing should succeed");
 
         let hash_result = result.unwrap();
-        let CredentialData::Hash { algorithm, .. } = hash_result.credential_data else {
-            panic!("Expected credential_data to be Hash")
-        };
         assert!(!hash_result.hash.is_empty(), "Hash should not be empty");
         assert!(!hash_result.salt.is_empty(), "Salt should not be empty");
-        assert!(!algorithm.is_empty(), "Credential data should not be empty");
+        assert!(
+            !hash_result.algorithm.is_empty(),
+            "Algorithm should not be empty"
+        );
+        assert!(
+            hash_result.hash_iterations > 0,
+            "Hash iterations should be set"
+        );
 
         assert!(
             hash_result.hash.starts_with("$argon2"),
@@ -110,20 +130,12 @@ mod tests {
 
         let hash_result = hasher.hash_password(password).await.unwrap();
 
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = hash_result.credential_data
-        else {
-            panic!("Expected credential_data to be Hash")
-        };
-
         let result = hasher
             .verify_password(
                 password,
                 &hash_result.hash,
-                hash_iterations,
-                &algorithm,
+                hash_result.hash_iterations,
+                &hash_result.algorithm,
                 &hash_result.salt,
             )
             .await;
@@ -139,20 +151,12 @@ mod tests {
         let wrong_password = "bad_password";
 
         let hash_result = hasher.hash_password(password).await.unwrap();
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = hash_result.credential_data
-        else {
-            panic!("Expected credential_data to be Hash")
-        };
-
         let result = hasher
             .verify_password(
                 wrong_password,
                 &hash_result.hash,
-                hash_iterations,
-                &algorithm,
+                hash_result.hash_iterations,
+                &hash_result.algorithm,
                 &hash_result.salt,
             )
             .await;

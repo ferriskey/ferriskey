@@ -17,7 +17,7 @@ use crate::domain::{
         entities::{Credential, CredentialData, CredentialError},
         ports::CredentialRepository,
     },
-    crypto::entities::HashResult,
+    crypto::HashResult,
 };
 
 impl From<crate::entity::credentials::Model> for Credential {
@@ -79,8 +79,11 @@ impl CredentialRepository for PostgresCredentialRepository {
             user_id: Set(user_id),
             user_label: Set(Some(label)),
             secret_data: Set(hash_result.hash),
-            credential_data: Set(serde_json::to_value(&hash_result.credential_data)
-                .map_err(|_| CredentialError::CreateCredentialError)?),
+            credential_data: Set(serde_json::to_value(CredentialData::new_hash(
+                hash_result.hash_iterations,
+                hash_result.algorithm.clone(),
+            ))
+            .map_err(|_| CredentialError::CreateCredentialError)?),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
@@ -209,8 +212,11 @@ impl CredentialRepository for PostgresCredentialRepository {
         let credential_data = hashes
             .iter()
             .map(|h| {
-                serde_json::to_value(&h.credential_data)
-                    .map_err(|_| CredentialError::CreateCredentialError)
+                serde_json::to_value(CredentialData::new_hash(
+                    h.hash_iterations,
+                    h.algorithm.clone(),
+                ))
+                .map_err(|_| CredentialError::CreateCredentialError)
             })
             .collect::<Result<Vec<Value>, CredentialError>>()?;
 

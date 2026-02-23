@@ -5,6 +5,7 @@ pub mod delete_credential;
 pub mod delete_user;
 pub mod get_credentials;
 pub mod get_user;
+pub mod get_user_permissions;
 pub mod get_user_roles;
 pub mod get_users;
 pub mod reset_password;

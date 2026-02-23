@@ -2,7 +2,7 @@ use crate::application::http::{
     client::validators::UpdateRedirectUriValidator,
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -15,8 +15,15 @@ use axum::{
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::redirect_uri::RedirectUri;
 use ferriskey_core::domain::client::{entities::UpdateRedirectUriInput, ports::ClientService};
+use serde::{Deserialize, Serialize};
 use tracing::info;
+use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateRedirectUriResponse {
+    pub data: RedirectUri,
+}
 
 #[utoipa::path(
     put,
@@ -31,7 +38,11 @@ use uuid::Uuid;
     tag = "client",
     request_body = UpdateRedirectUriValidator,
     responses(
-        (status = 200, body = RedirectUri),
+        (status = 200, body = UpdateRedirectUriResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Redirect not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn update_redirect_uri(
@@ -39,12 +50,12 @@ pub async fn update_redirect_uri(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRedirectUriValidator>,
-) -> Result<Response<RedirectUri>, ApiError> {
+) -> Result<Response<UpdateRedirectUriResponse>, ApiError> {
     info!(
         "Updating redirect URI: realm_name={}, client_id={}, uri_id={}",
         realm_name, client_id, uri_id
     );
-    state
+    let redirect_uri = state
         .service
         .update_redirect_uri(
             identity,
@@ -56,6 +67,9 @@ pub async fn update_redirect_uri(
             },
         )
         .await
-        .map_err(ApiError::from)
-        .map(Response::OK)
+        .map_err(ApiError::from)?;
+
+    Ok(Response::Updated(UpdateRedirectUriResponse {
+        data: redirect_uri,
+    }))
 }

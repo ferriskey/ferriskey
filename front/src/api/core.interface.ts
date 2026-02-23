@@ -48,7 +48,8 @@ export interface JwkKey {
   kty: string
   use_: string
   alg: string
-  x5c: string
+  x5c: string[]
+  x5t: string
   n: string
   e: string
 }
@@ -58,7 +59,7 @@ export interface JwtToken {
   token_type: string
   refresh_token: string
   expires_in: number
-  id_token: string
+  id_token?: string
 }
 
 export interface Realm {

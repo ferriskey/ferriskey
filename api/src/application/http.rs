@@ -1,4 +1,5 @@
 pub mod abyss;
+pub mod aegis;
 pub mod authentication;
 pub mod broker;
 pub mod client;

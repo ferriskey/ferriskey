@@ -15,6 +15,7 @@ use super::handlers::{
     delete_user::{__path_delete_user, delete_user},
     get_credentials::{__path_get_user_credentials, get_user_credentials},
     get_user::{__path_get_user, get_user},
+    get_user_permissions::{__path_get_user_permissions, get_user_permissions},
     get_user_roles::{__path_get_user_roles, get_user_roles},
     get_users::{__path_get_users, get_users},
     reset_password::{__path_reset_password, reset_password},
@@ -36,6 +37,7 @@ use super::handlers::{
     get_user_credentials,
     delete_user_credential,
     unassign_role,
+    get_user_permissions,
 ))]
 pub struct UserApiDoc;
 
@@ -61,6 +63,13 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_user_roles),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/permissions",
+                state.args.server.root_path,
+            ),
+            get(get_user_permissions),
         )
         .route(
             &format!(

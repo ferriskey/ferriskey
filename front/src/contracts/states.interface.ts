@@ -12,12 +12,17 @@ export interface UserState {
   user: IUser | null
   setLoading: (value: boolean) => void
   setAuthenticated: (value: boolean) => void
-  setUser: (user: IUser) => void
+  setUser: (user: IUser | null) => void
   setExpiration: (expiration: number | null) => void
 }
 
 export interface AuthState {
   accessToken: string | null
   refreshToken: string | null
-  setTokens: (accessToken: string, refreshToken: string) => void
+  idToken: string | null
+  setTokens: (
+    accessToken: string | null,
+    refreshToken: string | null,
+    idToken: string | null
+  ) => void
 }

@@ -1,161 +1,120 @@
+pub use ferriskey_domain::client::ports::{
+    ClientPolicy, ClientRepository, ClientService, RedirectUriRepository, RedirectUriService,
+};
 use uuid::Uuid;
 
-use crate::domain::realm::entities::RealmId;
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::{
-        entities::{
-            Client, CreateClientInput, CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
-            DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
-            GetRedirectUrisInput, UpdateClientInput, UpdateRedirectUriInput,
-            redirect_uri::RedirectUri,
-        },
-        value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
-    },
-    common::entities::app_errors::CoreError,
-    realm::entities::Realm,
-    role::entities::Role,
+use crate::domain::common::entities::app_errors::CoreError;
+use ferriskey_domain::client::entities::redirect_uri::RedirectUri;
+
+#[cfg(test)]
+pub use mocks::{
+    MockClientRepository, MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
 };
 
-pub trait ClientService: Send + Sync {
-    fn create_client(
-        &self,
-        identity: Identity,
-        input: CreateClientInput,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn create_redirect_uri(
-        &self,
-        identity: Identity,
-        input: CreateRedirectUriInput,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-    fn create_role(
-        &self,
-        identity: Identity,
-        input: CreateRoleInput,
-    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
-    fn delete_client(
-        &self,
-        identity: Identity,
-        input: DeleteClientInput,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn delete_redirect_uri(
-        &self,
-        identity: Identity,
-        input: DeleteRedirectUriInput,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn get_client_roles(
-        &self,
-        identity: Identity,
-        input: GetClientRolesInput,
-    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
-    fn get_client_by_id(
-        &self,
-        identity: Identity,
-        input: GetClientInput,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn get_clients(
-        &self,
-        identity: Identity,
-        input: GetClientsInput,
-    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+#[cfg(test)]
+mod mocks {
+    use mockall::mock;
+    use uuid::Uuid;
 
-    fn get_redirect_uris(
-        &self,
-        identity: Identity,
-        input: GetRedirectUrisInput,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-    fn update_client(
-        &self,
-        identity: Identity,
-        input: UpdateClientInput,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn update_redirect_uri(
-        &self,
-        identity: Identity,
-        input: UpdateRedirectUriInput,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    use crate::domain::common::entities::app_errors::CoreError;
+    use ferriskey_domain::client::{
+        entities::{Client, redirect_uri::RedirectUri},
+        value_objects::{CreateClientRequest, UpdateClientRequest},
+    };
+    use ferriskey_domain::realm::RealmId;
+
+    mock! {
+        pub ClientRepository {}
+        impl ferriskey_domain::client::ports::ClientRepository for ClientRepository {
+            fn create_client(
+                &self,
+                data: CreateClientRequest,
+            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+            fn get_by_client_id(
+                &self,
+                client_id: String,
+                realm_id: RealmId,
+            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+            fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
+            fn get_by_realm_id(
+                &self,
+                realm_id: RealmId,
+            ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+
+            fn update_client(
+                &self,
+                client_id: Uuid,
+                data: UpdateClientRequest,
+            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+            fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+        }
+    }
+
+    mock! {
+        pub RedirectUriRepository {}
+        impl ferriskey_domain::client::ports::RedirectUriRepository for RedirectUriRepository {
+            fn create_redirect_uri(
+                &self,
+                client_id: Uuid,
+                value: String,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn get_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn get_enabled_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn update_enabled(
+                &self,
+                id: Uuid,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+        }
+    }
+
+    mock! {
+        pub PostLogoutRedirectUriRepository {}
+        impl super::PostLogoutRedirectUriRepository for PostLogoutRedirectUriRepository {
+            fn create_redirect_uri(
+                &self,
+                client_id: Uuid,
+                value: String,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn get_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn get_enabled_by_client_id(
+                &self,
+                client_id: Uuid,
+            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+            fn update_enabled(
+                &self,
+                id: Uuid,
+                enabled: bool,
+            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+        }
+    }
 }
 
-pub trait ClientPolicy: Send + Sync {
-    fn can_create_client(
-        &self,
-        identity: &Identity,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-    fn can_update_client(
-        &self,
-        identity: &Identity,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-    fn can_delete_client(
-        &self,
-        identity: &Identity,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-    fn can_view_client(
-        &self,
-        identity: &Identity,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-}
-
-#[cfg_attr(test, mockall::automock)]
-pub trait ClientRepository: Send + Sync {
-    fn create_client(
-        &self,
-        data: CreateClientRequest,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-    fn get_by_client_id(
-        &self,
-        client_id: String,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn get_by_realm_id(
-        &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
-
-    fn update_client(
-        &self,
-        client_id: Uuid,
-        data: UpdateClientRequest,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-}
-
-pub trait RedirectUriService: Send + Sync {
-    fn add_redirect_uri(
-        &self,
-        payload: CreateRedirectUriRequest,
-        realm_name: String,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn get_enabled_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn update_enabled(
-        &self,
-        id: Uuid,
-        enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-}
-
-#[cfg_attr(test, mockall::automock)]
-pub trait RedirectUriRepository: Send + Sync {
+pub trait PostLogoutRedirectUriRepository: Send + Sync {
     fn create_redirect_uri(
         &self,
         client_id: Uuid,

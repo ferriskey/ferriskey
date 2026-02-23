@@ -1,7 +1,7 @@
 use crate::application::http::{
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -29,13 +29,17 @@ pub struct BulkDeleteUserResponse {
     tag = "user",
     summary = "Bulk delete users in a realm",
     description = "Deletes multiple users in a realm by their IDs. This action is irreversible and will remove all associated data.",
-    responses(
-        (status = 200, body = BulkDeleteUserResponse, description = "Users deleted successfully"),
-    ),
     request_body = BulkDeleteUserValidator,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         //("ids" = Vec<Uuid>, Path, description = "User IDs"),
+    ),
+    responses(
+        (status = 200, description = "Users deleted successfully", body = BulkDeleteUserResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
 pub async fn bulk_delete_user(

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: ${POSTGRES_IMAGE:-postgres:18.2}
     environment:
       PGUSER: ferriskey
       POSTGRES_DB: ferriskey
@@ -9,7 +9,8 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ images are designed to mount /var/lib/postgresql (major-version subdirs inside).
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL

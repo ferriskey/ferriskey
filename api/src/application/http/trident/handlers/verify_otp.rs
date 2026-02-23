@@ -1,7 +1,7 @@
 use crate::application::http::{
     server::{
         api_entities::{
-            api_error::{ApiError, ValidateJson},
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
             response::Response,
         },
         app_state::AppState,
@@ -32,7 +32,9 @@ pub struct VerifyOtpResponse {
         ("realm_name" = String, Path, description = "Realm name"),
     ),
     responses(
-        (status = 200, body = VerifyOtpResponse)
+        (status = 200, description = "OTP verified successfully", body = VerifyOtpResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),        
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
 pub async fn verify_otp(

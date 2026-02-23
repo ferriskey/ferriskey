@@ -2,7 +2,13 @@ use std::sync::Arc;
 
 use crate::{
     domain::{
-        abyss::federation::services::FederationServiceImpl,
+        abyss::{
+            BrokerServiceImpl, IdentityProviderServiceImpl,
+            federation::services::FederationServiceImpl,
+        },
+        aegis::services::{
+            ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+        },
         authentication::services::AuthServiceImpl,
         client::services::ClientServiceImpl,
         common::{
@@ -11,8 +17,6 @@ use crate::{
         },
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        identity_provider::broker::services::BrokerServiceImpl,
-        identity_provider::services::IdentityProviderServiceImpl,
         realm::services::RealmServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -22,8 +26,14 @@ use crate::{
     },
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
+        aegis::repositories::{
+            client_scope_postgres_repository::PostgresClientScopeRepository,
+            protocol_mapper_postgres_repository::PostgresProtocolMapperRepository,
+            scope_mapping_postgres_repository::PostgresScopeMappingRepository,
+        },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         db::postgres::{Postgres, PostgresConfig},
@@ -34,10 +44,12 @@ use crate::{
         },
         realm::repositories::realm_postgres_repository::PostgresRealmRepository,
         repositories::{
+            access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            magic_link_repository::PostgresMagicLinkRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -57,6 +69,7 @@ use crate::{
 pub mod services;
 
 pub mod abyss;
+pub mod aegis;
 pub mod auth;
 pub mod broker;
 pub mod client;
@@ -74,12 +87,13 @@ pub use services::ApplicationService;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
+        "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
         config.database.username,
         config.database.password,
         config.database.host,
         config.database.port,
-        config.database.name
+        config.database.name,
+        urlencoding::encode(&config.database.schema)
     );
 
     let postgres = Postgres::new(PostgresConfig { database_url })
@@ -93,6 +107,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let hasher = Arc::new(Argon2HasherRepository::new());
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
     let redirect_uri = Arc::new(PostgresRedirectUriRepository::new(postgres.get_db()));
+    let post_logout_redirect_uri = Arc::new(PostgresPostLogoutRedirectUriRepository::new(
+        postgres.get_db(),
+    ));
     let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
     let keystore = Arc::new(PostgresKeyStoreRepository::new(postgres.get_db()));
     let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
@@ -101,6 +118,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
     let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
+    let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
@@ -110,6 +128,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new());
+    let magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
+    let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
+    let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
+    let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -122,12 +144,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             client.clone(),
             redirect_uri.clone(),
+            post_logout_redirect_uri.clone(),
             user.clone(),
             credential.clone(),
             hasher.clone(),
             auth_session.clone(),
             keystore.clone(),
             refresh_token.clone(),
+            access_token.clone(),
             federation.clone(),
         ),
         client_service: ClientServiceImpl::new(
@@ -136,6 +160,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client.clone(),
             webhook.clone(),
             redirect_uri.clone(),
+            post_logout_redirect_uri.clone(),
             role.clone(),
             security_event.clone(),
             policy.clone(),
@@ -175,6 +200,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             auth_session.clone(),
             hasher.clone(),
             user_required_action.clone(),
+            magic_link.clone(),
+            user.clone(),
+            realm.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
@@ -222,6 +250,23 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user.clone(),
             auth_session.clone(),
             oauth_client.clone(),
+        ),
+        client_scope_service: ClientScopeServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            policy.clone(),
+        ),
+        protocol_mapper_service: ProtocolMapperServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            protocol_mapper.clone(),
+            policy.clone(),
+        ),
+        scope_mapping_service: ScopeMappingServiceImpl::new(
+            realm.clone(),
+            client_scope.clone(),
+            scope_mapping.clone(),
+            policy.clone(),
         ),
     };
 

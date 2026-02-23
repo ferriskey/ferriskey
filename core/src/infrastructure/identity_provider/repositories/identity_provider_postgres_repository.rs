@@ -5,12 +5,12 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::common::generate_uuid_v7;
-use crate::domain::identity_provider::{
+use crate::domain::abyss::identity_provider::{
     CreateIdentityProviderRequest, IdentityProvider, IdentityProviderRepository,
     UpdateIdentityProviderRequest,
 };
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::generate_uuid_v7;
 use crate::domain::realm::entities::RealmId;
 use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
 

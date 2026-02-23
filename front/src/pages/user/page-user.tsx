@@ -5,12 +5,14 @@ import UsersLayout from './layouts/users-layout'
 import PageUserOverviewFeature from './feature/page-user-overview-feature.tsx'
 import PageCredentialFeature from './feature/page-credential-feature'
 import PageUserRoleMappingFeature from './feature/page-user-role-mapping-feature.tsx'
+import PageCreateUserFeature from './feature/page-create-user-feature'
 
 export default function PageUser() {
   return (
     <Routes>
       <Route element={<UsersLayout />}>
         <Route path='/overview' element={<PageUsersOverviewFeature />} />
+        <Route path='/create' element={<PageCreateUserFeature />} />
       </Route>
 
       <Route element={<UserLayout />}>
