@@ -5,6 +5,7 @@ import { ColumnDef } from '@/components/ui/data-table'
 
 import Client = Schemas.Client
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
+import { AlertTriangle } from 'lucide-react'
 
 export const columns: ColumnDef<Client>[] = [
   {
@@ -27,20 +28,27 @@ export const columns: ColumnDef<Client>[] = [
     header: 'Type',
     cell: (client) => (
       <BadgeColor color={client.public_client ? BadgeColorScheme.BLUE : BadgeColorScheme.PURPLE}>
-        {client.public_client ? 'Public' : 'Confidential'}
+        {client.public_client ? 'public' : 'confidential'}
       </BadgeColor>
     ),
   },
   {
     id: 'status',
     header: 'Status',
-    cell: (client) => (
-      <div className='flex items-center gap-2'>
-        <span
-          className={`h-2 w-2 rounded-full ${client.enabled ? 'bg-emerald-500' : 'bg-red-500'}`}
-        ></span>
-        <span className='text-sm'>{client.enabled ? 'Active' : 'Inactive'}</span>
-      </div>
-    ),
+    cell: (client) => {
+      if (!client.enabled) {
+        return (
+          <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-orange-500/40 text-orange-500 bg-orange-500/10'>
+            <AlertTriangle className='h-3 w-3' />
+            RISK
+          </span>
+        )
+      }
+      return (
+        <span className='inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border border-emerald-500/40 text-emerald-600 bg-emerald-500/10'>
+          ACTIVE
+        </span>
+      )
+    },
   },
 ]
