@@ -1,12 +1,11 @@
 import { Fragment } from 'react/jsx-runtime'
-import { Dispatch, SetStateAction, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Schemas } from '@/api/api.client.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
 import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
-import CreateUserModalFeature from '../feature/create-user-modal-feature.tsx'
 import { AlertTriangle } from 'lucide-react'
 import { isServiceAccount } from '@/utils'
 
@@ -38,8 +37,6 @@ export interface PageUsersOverviewOverviewProps {
   onConfirmClose: () => void
   handleDeleteSelected: (items: User[]) => void
   handleClickRow: (userId: string) => void
-  openCreateUserModal: boolean
-  setOpenCreateUserModal: Dispatch<SetStateAction<boolean>>
   onRowDelete: (user: User) => void
 }
 
@@ -82,13 +79,10 @@ const typeFilters: { key: TypeFilter; label: string }[] = [
 export default function PageUsersOverview({
   isLoading,
   data,
-  realmName,
   statistics,
   confirm,
   onConfirmClose,
   handleClickRow,
-  openCreateUserModal,
-  setOpenCreateUserModal,
 }: PageUsersOverviewOverviewProps) {
   const { totalUsers, enabledUsers, disabledUsers, verifiedUsers } = statistics
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
@@ -198,11 +192,6 @@ export default function PageUsersOverview({
         />
       </div>
 
-      <CreateUserModalFeature
-        realm={realmName}
-        open={openCreateUserModal}
-        setOpen={setOpenCreateUserModal}
-      />
       <ConfirmDeleteAlert
         title={confirm.title}
         description={confirm.description}
