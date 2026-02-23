@@ -76,6 +76,7 @@
 }
 
 @theme inline {
+  --font-sans: 'IBM Plex Sans', sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -120,6 +121,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans', sans-serif;
   }
 
 }

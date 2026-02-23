@@ -4,10 +4,12 @@ import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUsers } from '../../../api/user.api'
 import PageUsersOverview from '../ui/page-users-overview'
 import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Schemas } from '@/api/api.client.ts'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
+import { useOutletContext } from 'react-router'
+import { UsersLayoutContext } from '../layouts/users-layout'
 
 import User = Schemas.User
 
@@ -17,6 +19,12 @@ export default function PageUsersOverviewFeature() {
   const { mutate: bulkDeleteUser } = useBulkDeleteUser()
   const [openCreateUserModal, setOpenCreateUserModal] = useState(false)
   const { confirm, ask, close } = useConfirmDeleteAlert()
+  const { setPrimaryAction } = useOutletContext<UsersLayoutContext>()
+
+  useEffect(() => {
+    setPrimaryAction({ label: 'New User', onClick: () => setOpenCreateUserModal(true) })
+    return () => setPrimaryAction(undefined)
+  }, [])
   const [filters, setFilters] = useState<Filter[]>([])
   const navigate = useNavigate()
 

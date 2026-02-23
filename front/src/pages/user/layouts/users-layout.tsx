@@ -1,25 +1,58 @@
+import { OverviewHeader } from '@/components/ui/overview-header'
+import { useNavigate, useParams } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import { USERS_URL } from '@/routes/sub-router/user.router'
+import { CLIENTS_URL } from '@/routes/sub-router/client.router'
+import { ROLES_URL } from '@/routes/sub-router/role.router'
+import { useLocation, Outlet } from 'react-router'
 import { useState } from 'react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import PageHeader from '@/components/ui/page-header'
-import PageContainer from '@/components/ui/page-container'
-import { Users } from 'lucide-react'
+
+export type UsersLayoutContext = {
+  setPrimaryAction: (action: { label: string; onClick: () => void } | undefined) => void
+}
 
 export default function UsersLayout() {
-  const [tab, setTab] = useState('list')
+  const { realm_name } = useParams<RouterParams>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [primaryAction, setPrimaryAction] = useState<{ label: string; onClick: () => void } | undefined>()
+
+  const tabs = [
+    {
+      key: 'clients',
+      label: 'Clients',
+      onClick: () => navigate(`${CLIENTS_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(CLIENTS_URL(realm_name)),
+    },
+    {
+      key: 'users',
+      label: 'Users',
+      onClick: () => navigate(`${USERS_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(USERS_URL(realm_name)),
+    },
+    {
+      key: 'roles',
+      label: 'Roles',
+      onClick: () => navigate(`${ROLES_URL(realm_name)}/overview`),
+      active: location.pathname.startsWith(ROLES_URL(realm_name)),
+    },
+    {
+      key: 'client-scopes',
+      label: 'Client Scopes',
+      onClick: () => {},
+      active: false,
+    },
+  ]
 
   return (
-    <PageContainer>
-      <PageHeader
-        icon={Users}
-        title='Users'
-        description='Manage and configure users for your realm'
-      >
-        <Tabs defaultValue={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value={'list'}>Users list</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </PageHeader>
-    </PageContainer>
+    <div className='flex flex-col gap-6 p-8'>
+      <OverviewHeader
+        title='Client and Access Administration'
+        description='Manage realm settings, users, and policy workflows'
+        primaryAction={primaryAction}
+        tabs={tabs}
+      />
+      <Outlet context={{ setPrimaryAction } satisfies UsersLayoutContext} />
+    </div>
   )
 }
