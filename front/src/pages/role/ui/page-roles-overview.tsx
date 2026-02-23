@@ -33,7 +33,6 @@ export interface PageRolesOverviewProps {
   onConfirmClose: () => void
   handleDeleteSelected: (items: Role[]) => void
   handleClickRow: (roleId: string) => void
-  handleCreateRole: () => void
   onRowDelete: (role: Role) => void
 }
 

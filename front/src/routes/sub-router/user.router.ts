@@ -5,6 +5,7 @@ export const USER_URL = (realmName = ':realmName', userId = ':userId') =>
   `${USERS_URL(realmName)}/${userId}`
 
 export const USER_OVERVIEW_URL = '/overview'
+export const USER_CREATE_URL = '/create'
 
 export type UserRouterParams = {
   realm_name: string

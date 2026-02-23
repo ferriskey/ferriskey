@@ -1,21 +1,15 @@
 import { OverviewHeader } from '@/components/ui/overview-header'
 import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { USERS_URL } from '@/routes/sub-router/user.router'
+import { USERS_URL, USER_CREATE_URL } from '@/routes/sub-router/user.router'
 import { CLIENTS_URL } from '@/routes/sub-router/client.router'
 import { ROLES_URL } from '@/routes/sub-router/role.router'
 import { useLocation, Outlet } from 'react-router'
-import { useState } from 'react'
-
-export type UsersLayoutContext = {
-  setPrimaryAction: (action: { label: string; onClick: () => void } | undefined) => void
-}
 
 export default function UsersLayout() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const location = useLocation()
-  const [primaryAction, setPrimaryAction] = useState<{ label: string; onClick: () => void } | undefined>()
 
   const tabs = [
     {
@@ -49,10 +43,13 @@ export default function UsersLayout() {
       <OverviewHeader
         title='Client and Access Administration'
         description='Manage realm settings, users, and policy workflows'
-        primaryAction={primaryAction}
+        primaryAction={{
+          label: 'New User',
+          onClick: () => navigate(`${USERS_URL(realm_name)}${USER_CREATE_URL}`),
+        }}
         tabs={tabs}
       />
-      <Outlet context={{ setPrimaryAction } satisfies UsersLayoutContext} />
+      <Outlet />
     </div>
   )
 }

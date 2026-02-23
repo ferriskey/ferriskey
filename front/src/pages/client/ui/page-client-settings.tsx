@@ -1,8 +1,7 @@
-import BlockContent from '@/components/ui/block-content'
 import { InputText } from '@/components/ui/input-text'
 import ManageRedirectUris from '../components/manage-redirect-uris'
 import ManagePostLogoutRedirectUris from '../components/manage-post-logout-redirect-uris'
-import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientSchema } from '../schemas/update-client.schema'
@@ -26,69 +25,123 @@ export default function PageClientSettings({
   refetch,
 }: PageClientSettingsProps) {
   return (
-    <div>
-      <div className='flex flex-col gap-4'>
-        <BlockContent title='General Settings' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='flex flex-col gap-4'>
-            <FormField
-              control={form.control}
-              name='name'
-              render={({ field }) => (
+    <div className='flex flex-col gap-8'>
+      {/* General Settings section */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Client configuration</p>
+          <h2 className='text-base font-semibold'>General Settings</h2>
+        </div>
+
+        {/* Client Name */}
+        <FormField
+          control={form.control}
+          name='name'
+          render={({ field }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Client Name</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Display name shown in the UI.</p>
+              </div>
+              <div className='w-1/2'>
                 <InputText
                   label='Client Name'
                   value={field.value}
                   name='client_name'
                   onChange={field.onChange}
                 />
-              )}
-            />
+              </div>
+            </div>
+          )}
+        />
 
-            <FormField
-              control={form.control}
-              name='clientId'
-              render={({ field }) => (
+        {/* Client ID */}
+        <FormField
+          control={form.control}
+          name='clientId'
+          render={({ field }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Client ID</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Unique identifier for this client.</p>
+              </div>
+              <div className='w-1/2'>
                 <InputText
                   label='Client ID'
                   value={field.value}
                   name='client_id'
                   onChange={field.onChange}
                 />
-              )}
-            />
+              </div>
+            </div>
+          )}
+        />
 
-            <FormField
-              name='enabled'
-              control={form.control}
-              render={({ field }) => (
-                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg  border p-3 shadow-sm'>
-                  <div className='space-y-0.5'>
-                    <FormLabel>Client Enabled</FormLabel>
-                    <FormDescription>
-                      Toggle to enable or disable the client. Disabled clients cannot authenticate
-                      users.
-                    </FormDescription>
-                  </div>
-
+        {/* Enabled */}
+        <FormField
+          name='enabled'
+          control={form.control}
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Client Enabled</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Disabled clients cannot authenticate users.
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem className='flex flex-row items-center gap-3'>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
+                  <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                    {field.value ? 'Enabled' : 'Disabled'}
+                  </FormLabel>
                 </FormItem>
-              )}
-            />
-          </div>
-        </BlockContent>
+              </div>
+            </div>
+          )}
+        />
+      </div>
 
-        <BlockContent title='Access Settings' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div>
+      {/* Access Settings section */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Access configuration</p>
+          <h2 className='text-base font-semibold'>Access Settings</h2>
+        </div>
+
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Redirect URIs</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>
+              Allowed redirect URIs after authentication.
+            </p>
+          </div>
+          <div className='w-1/2'>
             <ManageRedirectUris redirectUris={client.redirect_uris ?? []} refetch={refetch} />
           </div>
-        </BlockContent>
+        </div>
+      </div>
 
-        <BlockContent title='Logout Settings' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div>
+      {/* Logout Settings section */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Logout configuration</p>
+          <h2 className='text-base font-semibold'>Logout Settings</h2>
+        </div>
+
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Post-Logout Redirect URIs</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>
+              Allowed redirect URIs after logout.
+            </p>
+          </div>
+          <div className='w-1/2'>
             <ManagePostLogoutRedirectUris />
           </div>
-        </BlockContent>
+        </div>
       </div>
 
       <FloatingActionBar

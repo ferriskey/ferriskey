@@ -1,20 +1,12 @@
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { useGetUser } from '../../../api/user.api'
-import { Heading } from '../../../components/ui/heading'
-import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 import { UserRouterParams, USERS_URL } from '../../../routes/sub-router/user.router'
-import { useCallback, useEffect, useState } from 'react'
-import { REALM_OVERVIEW_URL } from '@/routes/router'
-import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
-import BadgeColor from '@/components/ui/badge-color'
-import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 
 export default function UserLayout() {
   const navigate = useNavigate()
   const { realm_name, user_id } = useParams<UserRouterParams>()
-  const [defaultValue, setDefaultValue] = useState<string>('')
   const { pathname } = useLocation()
 
   const { data: userResponse } = useGetUser({
@@ -22,59 +14,69 @@ export default function UserLayout() {
     userId: user_id,
   })
 
-  const isRoleMappingTab = useCallback(() => {
-    return pathname.includes('role-mapping')
-  }, [pathname])
+  const baseUrl = `/realms/${realm_name}/users/${user_id}`
+  const isRoleMappingTab = pathname.includes('role-mapping')
 
-  const handleBack = () => {
-    navigate(`${USERS_URL(realm_name)}${REALM_OVERVIEW_URL}`)
-  }
-
-  useEffect(() => {
-    const pathParts = pathname.split('/')
-    const lastPart = pathParts[pathParts.length - 1]
-
-    const validTabs = ['overview', 'credentials', 'role-mapping']
-    setDefaultValue(validTabs.includes(lastPart) ? lastPart : 'overview')
-  }, [pathname])
+  const tabs = [
+    { key: 'overview', label: 'Overview', path: `${baseUrl}/overview` },
+    { key: 'credentials', label: 'Credentials', path: `${baseUrl}/credentials` },
+    { key: 'role-mapping', label: 'Role Mapping', path: `${baseUrl}/role-mapping` },
+  ]
 
   return (
-    <div className='p-8'>
-      <div className='pb-4 mb-4'>
-        <div className='flex flex-col gap-2 mb-4'>
-          <div className='flex items-center'>
-            <Button variant='ghost' size='icon' onClick={handleBack}>
-              <ArrowLeft className='h-3 w-3' />
-            </Button>
-
-            <span className='text-gray-500 text-sm font-medium'>Back to users</span>
-          </div>
-
-          <div className='flex flex-col gap-2'>
-            <Heading size={3}>{userResponse?.data.username}</Heading>
-
-            <div className='flex items-center gap-2'>
-              <span>User ID</span>
-              <BadgeColor color={BadgeColorScheme.GRAY}>{userResponse?.data.id}</BadgeColor>
-            </div>
-          </div>
+    <div className='flex flex-col gap-6 p-8'>
+      {/* Header */}
+      <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b flex items-start justify-between gap-4'>
+        <div>
+          <button
+            onClick={() => navigate(`${USERS_URL(realm_name)}/overview`)}
+            className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2'
+          >
+            <ArrowLeft className='h-3.5 w-3.5' />
+            Users
+          </button>
+          <h1 className='text-2xl font-bold tracking-tight'>{userResponse?.data.username}</h1>
+          <p className='text-sm text-muted-foreground mt-1'>
+            {userResponse?.data.firstname} {userResponse?.data.lastname}
+            {userResponse?.data.email && (
+              <span className='ml-2 text-muted-foreground'>· {userResponse?.data.email}</span>
+            )}
+          </p>
         </div>
+        <div className='flex items-center gap-2 shrink-0'>
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${
+              userResponse?.data.email_verified
+                ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
+                : 'border-amber-300 text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-400/40'
+            }`}
+          >
+            {userResponse?.data.email_verified ? 'verified' : 'unverified'}
+          </span>
+        </div>
+      </div>
 
-        <Tabs
-          onValueChange={(value) => navigate(`/realms/${realm_name}/users/${user_id}/${value}`)}
-          defaultValue={defaultValue}
-          value={defaultValue}
-        >
-          <div className='flex justify-between items-center w-full border-b pb-4'>
-            <TabsList>
-              <TabsTrigger value='overview'>Overview</TabsTrigger>
-              <TabsTrigger value='credentials'>Credentials</TabsTrigger>
-              <TabsTrigger value='role-mapping'>Role Mapping</TabsTrigger>
-            </TabsList>
-
-            {isRoleMappingTab() && <RoleMappingModalFeature />}
-          </div>
-        </Tabs>
+      {/* Tabs */}
+      <div className='-mx-8 px-8 pb-4 border-b flex items-center justify-between -mt-2'>
+        <div className='flex items-center gap-2'>
+          {tabs.map((tab) => {
+            const isActive = pathname.startsWith(tab.path)
+            return (
+              <button
+                key={tab.key}
+                onClick={() => navigate(tab.path)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-transparent text-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+        {isRoleMappingTab && <RoleMappingModalFeature />}
       </div>
 
       <Outlet />
