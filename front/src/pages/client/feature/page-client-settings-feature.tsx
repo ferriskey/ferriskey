@@ -23,6 +23,7 @@ export default function PageClientSettingsFeature() {
       clientId: clientResponse?.data.client_id ?? '',
       name: clientResponse?.data.name ?? '',
       enabled: clientResponse?.data.enabled ?? false,
+      directAccessGrantsEnabled: clientResponse?.data.direct_access_grants_enabled ?? false,
     },
   })
 
@@ -32,6 +33,7 @@ export default function PageClientSettingsFeature() {
       clientId: clientResponse.data.client_id ?? '',
       name: clientResponse.data.name ?? '',
       enabled: clientResponse.data.enabled ?? false,
+      directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled ?? false,
     }
   )
 
@@ -39,7 +41,12 @@ export default function PageClientSettingsFeature() {
     if (!clientResponse) return
 
     updateClient({
-      body: values,
+      body: {
+        client_id: values.clientId,
+        name: values.name,
+        enabled: values.enabled,
+        direct_access_grants_enabled: values.directAccessGrantsEnabled,
+      },
       path: {
         client_id: clientResponse.data.id,
         realm_name: realm_name ?? 'master'
@@ -53,6 +60,7 @@ export default function PageClientSettingsFeature() {
         clientId: clientResponse.data.client_id,
         name: clientResponse.data.name,
         enabled: clientResponse.data.enabled,
+        directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled,
       })
     }
   }, [clientResponse, form])

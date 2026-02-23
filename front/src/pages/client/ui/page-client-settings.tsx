@@ -104,6 +104,61 @@ export default function PageClientSettings({
         />
       </div>
 
+      {/* Capability Config section */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Authentication flows</p>
+          <h2 className='text-base font-semibold'>Capability Config</h2>
+        </div>
+
+        {/* Client Authentication */}
+        <div className='flex items-center justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Client Authentication</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>
+              If enabled, clients must authenticate with a secret. Sets the client as confidential.
+            </p>
+          </div>
+          <div className='w-1/2'>
+            <div className='flex flex-row items-center gap-3'>
+              <Switch
+                checked={!client.public_client}
+                disabled
+              />
+              <span className='text-sm font-normal text-muted-foreground'>
+                {client.public_client ? 'Public' : 'Confidential'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Direct Access Grants */}
+        <FormField
+          name='directAccessGrantsEnabled'
+          control={form.control}
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Direct Access Grants</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Allows exchanging user credentials directly for tokens. Use only for trusted clients.
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem className='flex flex-row items-center gap-3'>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                    {field.value ? 'Enabled' : 'Disabled'}
+                  </FormLabel>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
+      </div>
+
       {/* Access Settings section */}
       <div className='flex flex-col gap-1'>
         <div className='mb-4'>
