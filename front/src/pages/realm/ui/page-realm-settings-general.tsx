@@ -106,9 +106,9 @@ export default function PageRealmSettingsGeneral({ hasChanges, realmName, isMast
       <FloatingActionBar
         show={hasChanges}
         title='Save Changes'
-        actions={[{ label: 'Save', variant: 'default', onClick: () => {} }]}
+        actions={[{ label: 'Save', variant: 'default', onClick: () => { } }]}
         description="You have unsaved changes. Click 'Save' to apply them."
-        onCancel={() => form.reset()}
+        onCancel={form.reset}
       />
     </div>
   )

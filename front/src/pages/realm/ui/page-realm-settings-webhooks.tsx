@@ -8,6 +8,7 @@ import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { Button } from '@/components/ui/button'
 
 import WebhookType = Schemas.Webhook
+import { cn } from '@/lib/utils'
 
 export interface PageRealmSettingsWebhooksProps {
   webhooks: WebhookType[]
@@ -49,11 +50,11 @@ export default function PageRealmSettingsWebhooks({
                 <div className='flex items-center gap-2'>
                   <span className='text-base font-medium'>{webhook.name}</span>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border ${
+                    className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border',
                       webhook.enabled
                         ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
                         : 'border-border text-muted-foreground bg-muted/50'
-                    }`}
+                    )}
                   >
                     {webhook.enabled ? 'enabled' : 'disabled'}
                   </span>

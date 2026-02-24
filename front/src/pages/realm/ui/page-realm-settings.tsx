@@ -1,4 +1,5 @@
 import { Realm } from '@/api/core.interface'
+import { cn } from '@/lib/utils'
 import { REALM_SETTINGS_URL } from '@/routes/router'
 import { Outlet, useNavigate } from 'react-router'
 
@@ -45,13 +46,13 @@ export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSetti
             key={t.key}
             onClick={() => !t.disabled && handleTabChange(t.key)}
             disabled={t.disabled}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+            className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors border',
               t.disabled
                 ? 'bg-transparent text-muted-foreground border-border opacity-50 cursor-not-allowed'
                 : tab === t.key
                   ? 'bg-primary/10 text-primary border-primary/40'
                   : 'bg-transparent text-foreground border-border hover:bg-muted'
-            }`}
+            )}
           >
             {t.label}
           </button>

@@ -95,7 +95,7 @@ export default function PageRealmSettingsLogin({ form, hasChanges, handleSubmit 
           title='Save Changes'
           actions={[{ label: 'Save', variant: 'default', onClick: () => form.handleSubmit(handleSubmit)() }]}
           description='You have unsaved changes in your login settings.'
-          onCancel={() => form.reset()}
+          onCancel={form.reset}
         />
       </div>
     </Form>

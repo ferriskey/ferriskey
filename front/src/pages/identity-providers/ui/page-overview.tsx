@@ -6,6 +6,7 @@ import ProvidersEmptyState from '../components/providers-empty-state'
 import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface Statistics {
   totalProviders: number
@@ -135,11 +136,12 @@ export default function PageOverview({
                     {provider.provider_id}
                   </span>
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border ${
+                    className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border',
                       provider.enabled
                         ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
                         : 'border-border text-muted-foreground bg-muted/50'
-                    }`}
+                    )}
                   >
                     {provider.enabled ? 'enabled' : 'disabled'}
                   </span>
