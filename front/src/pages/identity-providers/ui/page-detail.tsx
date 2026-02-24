@@ -1,14 +1,11 @@
-import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { UseFormReturn } from 'react-hook-form'
-import { Heading } from '@/components/ui/heading'
-import BlockContent from '@/components/ui/block-content'
-import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import { Switch } from '@/components/ui/switch'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import type { Schemas } from '@/api/api.client'
 
 interface UpdateProviderSchema {
@@ -33,24 +30,6 @@ const providerTypeLabels: Record<string, string> = {
   ldap: 'LDAP',
 }
 
-function ProviderTypeBadge({ type }: { type: string }) {
-  const label = providerTypeLabels[type.toLowerCase()] ?? type
-  return <Badge variant='outline'>{label}</Badge>
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className='flex flex-col p-4 gap-4'>
-      <div className='flex items-center gap-3'>
-        <Skeleton className='h-8 w-8' />
-        <Skeleton className='h-4 w-32' />
-      </div>
-      <Skeleton className='h-8 w-64' />
-      <Skeleton className='h-64 w-full lg:w-1/2' />
-    </div>
-  )
-}
-
 export default function PageDetail({
   provider,
   isLoading,
@@ -61,167 +40,225 @@ export default function PageDetail({
   hasChanges,
 }: PageDetailProps) {
   if (isLoading) {
-    return <LoadingSkeleton />
+    return (
+      <div className='flex flex-col gap-6 p-8'>
+        <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b'>
+          <Skeleton className='h-3.5 w-24 mb-2' />
+          <Skeleton className='h-8 w-64 mb-2' />
+          <Skeleton className='h-4 w-48' />
+        </div>
+        <Skeleton className='h-48 w-full' />
+      </div>
+    )
   }
 
   if (!provider) {
     return (
-      <div className='flex flex-col p-4 gap-4'>
-        <div className='flex items-center gap-3'>
-          <Button variant='ghost' size='icon' onClick={handleBack}>
-            <ArrowLeft className='h-3 w-3' />
-          </Button>
-          <span className='text-gray-500 text-sm font-medium'>Back to providers</span>
+      <div className='flex flex-col gap-6 p-8'>
+        <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b'>
+          <button
+            onClick={handleBack}
+            className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2'
+          >
+            <ArrowLeft className='h-3.5 w-3.5' />
+            Providers
+          </button>
         </div>
-        <div className='text-center py-12'>
-          <p className='text-muted-foreground'>Provider not found</p>
+        <div className='flex items-center justify-center h-24 text-sm text-muted-foreground'>
+          Provider not found.
         </div>
       </div>
     )
   }
 
+  const providerTypeLabel = providerTypeLabels[provider.provider_id?.toLowerCase()] ?? provider.provider_id
+  const config = provider.config && typeof provider.config === 'object'
+    ? (provider.config as Record<string, unknown>)
+    : {}
+
   return (
-    <div className='flex flex-col p-4 gap-4'>
-      <div className='flex items-center gap-3'>
-        <Button variant='ghost' size='icon' onClick={handleBack}>
-          <ArrowLeft className='h-3 w-3' />
-        </Button>
-        <span className='text-gray-500 text-sm font-medium'>Back to providers</span>
-      </div>
-
-      <div className='flex flex-col mb-4'>
-        <div className='flex items-center gap-3'>
-          <Heading size={3}>
+    <div className='flex flex-col gap-6 p-8'>
+      {/* Header */}
+      <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b flex items-start justify-between gap-4'>
+        <div>
+          <button
+            onClick={handleBack}
+            className='flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2'
+          >
+            <ArrowLeft className='h-3.5 w-3.5' />
+            Providers
+          </button>
+          <h1 className='text-2xl font-bold tracking-tight'>
             {provider.display_name ?? provider.alias}
-          </Heading>
-          <ProviderTypeBadge type={provider.provider_id} />
-          <Badge variant={provider.enabled ? 'default' : 'secondary'}>
-            {provider.enabled ? 'Enabled' : 'Disabled'}
-          </Badge>
+          </h1>
+          <p className='text-sm text-muted-foreground mt-1'>
+            Alias: {provider.alias}
+          </p>
         </div>
-        <p className='text-sm text-gray-500 mt-1'>
-          Alias: {provider.alias}
-        </p>
+        <div className='flex items-center gap-2 shrink-0'>
+          <span className='inline-flex items-center px-2.5 py-0.5 rounded-md border border-primary/40 text-primary text-xs font-mono bg-primary/10'>
+            {providerTypeLabel}
+          </span>
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${
+              provider.enabled
+                ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
+                : 'border-border text-muted-foreground bg-muted/50'
+            }`}
+          >
+            {provider.enabled ? 'enabled' : 'disabled'}
+          </span>
+        </div>
       </div>
 
-      <div className='flex flex-col gap-4'>
-        <BlockContent title='General Settings' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='flex flex-col gap-4'>
-            <InputText
-              label='Alias'
-              value={provider.alias}
-              name='alias'
-              disabled
-            />
+      {/* General Settings */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Provider configuration</p>
+          <h2 className='text-base font-semibold'>General Settings</h2>
+        </div>
 
-            <FormField
-              control={form.control}
-              name='displayName'
-              render={({ field }) => (
-                <InputText
-                  label='Display Name'
-                  value={field.value}
-                  name='displayName'
-                  onChange={field.onChange}
-                />
-              )}
-            />
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Alias</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>Unique identifier for this provider.</p>
+          </div>
+          <div className='w-1/2'>
+            <InputText label='Alias' value={provider.alias} name='alias' disabled />
+          </div>
+        </div>
 
-            <FormField
-              name='enabled'
-              control={form.control}
-              render={({ field }) => (
-                <FormItem className='flex flex-row items-center justify-between gap-5 rounded-lg border p-3 shadow-sm'>
-                  <div className='space-y-0.5'>
-                    <FormLabel>Enabled</FormLabel>
-                    <FormDescription>
-                      Allow users to authenticate using this provider.
-                    </FormDescription>
-                  </div>
+        <FormField
+          control={form.control}
+          name='displayName'
+          render={({ field }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Display Name</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Name shown on the login page.</p>
+              </div>
+              <div className='w-1/2'>
+                <InputText label='Display Name' value={field.value} name='displayName' onChange={field.onChange} />
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          name='enabled'
+          control={form.control}
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Enabled</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Allow users to authenticate using this provider.</p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem className='flex flex-row items-center gap-3'>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
+                  <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                    {field.value ? 'Enabled' : 'Disabled'}
+                  </FormLabel>
                 </FormItem>
-              )}
-            />
-          </div>
-        </BlockContent>
+              </div>
+            </div>
+          )}
+        />
+      </div>
 
-        <BlockContent title='Configuration' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='flex flex-col gap-4'>
-            {(() => {
-              const config =
-                provider.config && typeof provider.config === 'object'
-                  ? (provider.config as Record<string, unknown>)
-                  : {}
-              return Object.entries(config).map(([key, value]) => (
+      {/* Configuration */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>OAuth / OIDC settings</p>
+          <h2 className='text-base font-semibold'>Configuration</h2>
+        </div>
+
+        {Object.keys(config).length === 0 ? (
+          <p className='text-sm text-muted-foreground py-4 border-t'>No configuration settings.</p>
+        ) : (
+          Object.entries(config).map(([key, value]) => (
+            <div key={key} className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>
+                  {key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </p>
+              </div>
+              <div className='w-1/2'>
                 <InputText
-                  key={key}
                   label={key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                  value={
-                    key.includes('secret') || key.includes('credential')
-                      ? '********'
-                      : String(value ?? '')
-                  }
+                  value={key.includes('secret') || key.includes('credential') ? '••••••••' : String(value ?? '')}
                   name={key}
                   disabled
                 />
-              ))
-            })()}
-            {(!provider.config ||
-              typeof provider.config !== 'object' ||
-              Object.keys(provider.config as Record<string, unknown>).length === 0) && (
-                <p className='text-sm text-muted-foreground'>No configuration settings</p>
-              )}
-          </div>
-        </BlockContent>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
-        <BlockContent title='Metadata' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='grid grid-cols-2 gap-4 text-sm'>
-            <div>
-              <p className='text-muted-foreground'>Internal ID</p>
-              <p className='font-mono text-xs'>{provider.internal_id}</p>
+      {/* Metadata */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>System information</p>
+          <h2 className='text-base font-semibold'>Metadata</h2>
+        </div>
+
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Internal ID</p>
+          </div>
+          <div className='w-1/2'>
+            <p className='text-sm font-mono text-muted-foreground'>{provider.internal_id}</p>
+          </div>
+        </div>
+
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Provider ID</p>
+          </div>
+          <div className='w-1/2'>
+            <p className='text-sm font-mono text-muted-foreground'>{provider.provider_id}</p>
+          </div>
+        </div>
+
+        {provider.first_broker_login_flow_alias && (
+          <div className='flex items-start justify-between py-4 border-t'>
+            <div className='w-1/3'>
+              <p className='text-sm font-medium'>First Broker Flow</p>
             </div>
-            <div>
-              <p className='text-muted-foreground'>Provider ID</p>
-              <p className='font-mono text-xs'>{provider.provider_id}</p>
-            </div>
-            <div>
-              <p className='text-muted-foreground'>First Broker Flow</p>
-              <p>{provider.first_broker_login_flow_alias ?? '—'}</p>
-            </div>
-            <div>
-              <p className='text-muted-foreground'>Post Broker Flow</p>
-              <p>{provider.post_broker_login_flow_alias ?? '—'}</p>
+            <div className='w-1/2'>
+              <p className='text-sm text-muted-foreground'>{provider.first_broker_login_flow_alias}</p>
             </div>
           </div>
-        </BlockContent>
+        )}
+      </div>
 
-        <BlockContent title='Delete Identity Provider' className='w-full md:w-2/3 2xl:w-1/3'>
-          <div className='flex flex-col gap-4'>
-            <div className='text-sm dark:text-gray-300 text-gray-500'>
-              All your data are going to be deleted. Use it carefully this action is irreversible. The operation might take a few minutes to complete.
-            </div>
-            <div className='flex justify-end'>
-              <Button variant='destructive' onClick={handleDelete}>
-                Delete identity provider
-              </Button>
-            </div>
+      {/* Danger zone */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
+          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
+        </div>
 
+        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
+          <div className='w-2/3'>
+            <p className='text-sm font-medium'>Delete this identity provider</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>
+              All associated data will be permanently removed. This action is irreversible.
+            </p>
           </div>
-        </BlockContent>
+          <Button variant='destructive' onClick={handleDelete}>
+            Delete provider
+          </Button>
+        </div>
       </div>
 
       <FloatingActionBar
         show={hasChanges}
         title='Save Changes'
-        actions={[
-          {
-            label: 'Save',
-            variant: 'default',
-            onClick: form.handleSubmit(handleSubmit),
-          },
-        ]}
+        actions={[{ label: 'Save', variant: 'default', onClick: form.handleSubmit(handleSubmit) }]}
         description='Save changes to the provider settings.'
         onCancel={() => form.reset()}
       />

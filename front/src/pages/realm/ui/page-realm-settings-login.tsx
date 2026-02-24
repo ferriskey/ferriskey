@@ -1,8 +1,7 @@
 import { UseFormReturn } from 'react-hook-form'
 import { RealmLoginSettingsSchema } from '../feature/page-realm-settings-login-feature'
-import { Form, FormField } from '@/components/ui/form'
-import BlockContent from '@/components/ui/block-content'
-import { FormSwitch } from '@/components/ui/switch'
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 
 export interface PageRealmSettingsLoginProps {
@@ -12,71 +11,93 @@ export interface PageRealmSettingsLoginProps {
 }
 
 export default function PageRealmSettingsLogin({ form, hasChanges, handleSubmit }: PageRealmSettingsLoginProps) {
-
   return (
-    <div className='flex flex-col gap-6'>
-      <Form {...form}>
-        <BlockContent title='Login Settings' className='w-full md:w-2/3 2xl:w-1/2'>
-          <div className='flex flex-col gap-4'>
-            <FormField
-              control={form.control}
-              name='userRegistration'
-              render={({ field }) => (
-                <FormSwitch
-                  label='User Registration'
-                  description='Allow users to register themselves through the login page'
-                  checked={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='forgotPassword'
-              render={({ field }) => (
-                <FormSwitch
-                  label='Forgot Password'
-                  description='Show forgot password link on login page'
-                  checked={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='rememberMe'
-              render={({ field }) => (
-                <FormSwitch
-                  label='Remember Me'
-                  description='Show remember me checkbox on login page'
-                  checked={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-
+    <Form {...form}>
+      <div className='flex flex-col gap-8'>
+        <div className='flex flex-col gap-1'>
+          <div className='mb-4'>
+            <p className='text-xs text-muted-foreground mb-0.5'>Login page configuration</p>
+            <h2 className='text-base font-semibold'>Login Settings</h2>
           </div>
-        </BlockContent>
-      </Form>
 
-      <FloatingActionBar
-        show={hasChanges}
-        title='Save Changes'
-        actions={[
-          {
-            label: 'Save',
-            variant: 'default',
-            onClick: () => form.handleSubmit(handleSubmit)(),
-          }
-        ]}
-        description='You have unsaved changes in your login settings.'
-        onCancel={() => form.reset()}
+          <FormField
+            control={form.control}
+            name='userRegistration'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>User Registration</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Allow users to register themselves through the login page.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
 
-      />
+          <FormField
+            control={form.control}
+            name='forgotPassword'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Forgot Password</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Show a forgot password link on the login page.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
 
-    </div>
+          <FormField
+            control={form.control}
+            name='rememberMe'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Remember Me</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Show a remember me checkbox on the login page.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
+        </div>
+
+        <FloatingActionBar
+          show={hasChanges}
+          title='Save Changes'
+          actions={[{ label: 'Save', variant: 'default', onClick: () => form.handleSubmit(handleSubmit)() }]}
+          description='You have unsaved changes in your login settings.'
+          onCancel={form.reset}
+        />
+      </div>
+    </Form>
   )
-
 }

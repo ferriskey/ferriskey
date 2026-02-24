@@ -1,8 +1,5 @@
 import { Realm } from '@/api/core.interface'
-import BadgeColor from '@/components/ui/badge-color'
-import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
-import { Heading } from '@/components/ui/heading'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { REALM_SETTINGS_URL } from '@/routes/router'
 import { Outlet, useNavigate } from 'react-router'
 
@@ -14,30 +11,54 @@ interface PageRealmSettingsProps {
 
 export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSettingsProps) {
   const navigate = useNavigate()
+
+  const tabs = [
+    { key: 'general', label: 'General' },
+    { key: 'login', label: 'Login' },
+    { key: 'webhooks', label: 'Webhooks' },
+    { key: 'security', label: 'Security', disabled: true },
+  ]
+
+  const handleTabChange = (key: string) => {
+    navigate(`${REALM_SETTINGS_URL(realm.name)}/${key}`)
+    setTab?.(key)
+  }
+
   return (
-    <div className='flex flex-col gap-4 p-8'>
-      <div className='flex flex-col gap-2 border-b pb-4'>
-        <div className='flex flex-col gap-2'>
-          <Heading>{realm.name}</Heading>
-          <BadgeColor className='w-fit' color={BadgeColorScheme.GRAY}>{realm.id}</BadgeColor>
-          <p>Realm settings are settings that control the options for users, applications, roles, and groups in the current realm.</p>
-        </div>
+    <div className='flex flex-col gap-6 p-8'>
+      {/* Header */}
+      <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b flex items-start justify-between gap-4'>
         <div>
-          <Tabs defaultValue={tab} value={tab} onValueChange={(value) => {
-            navigate(`${REALM_SETTINGS_URL(realm.name)}/${value}`)
-            if (setTab) {
-              setTab(value || 'general')
-            }
-          }}>
-            <TabsList className='flex items-center gap-4'>
-              <TabsTrigger value={'general'}>General</TabsTrigger>
-              <TabsTrigger value={'webhooks'}>Webhooks</TabsTrigger>
-              <TabsTrigger value={'login'}>Login</TabsTrigger>
-              <TabsTrigger className={'cursor-not-allowed'} disabled={true} value={'security'}>Security</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <h1 className='text-2xl font-bold tracking-tight'>{realm.name}</h1>
+          <p className='text-sm text-muted-foreground mt-1'>
+            Manage realm settings — users, applications, roles, and groups.
+          </p>
         </div>
+        <span className='inline-flex items-center px-2.5 py-0.5 rounded-md border border-border text-muted-foreground text-xs font-mono bg-muted/50'>
+          {realm.id}
+        </span>
       </div>
+
+      {/* Tabs */}
+      <div className='-mx-8 px-8 pb-4 border-b flex items-center gap-2 -mt-2'>
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => !t.disabled && handleTabChange(t.key)}
+            disabled={t.disabled}
+            className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors border',
+              t.disabled
+                ? 'bg-transparent text-muted-foreground border-border opacity-50 cursor-not-allowed'
+                : tab === t.key
+                  ? 'bg-primary/10 text-primary border-primary/40'
+                  : 'bg-transparent text-foreground border-border hover:bg-muted'
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <Outlet />
     </div>
   )
