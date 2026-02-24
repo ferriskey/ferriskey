@@ -8,7 +8,6 @@ import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { Button } from '@/components/ui/button'
 
 import WebhookType = Schemas.Webhook
-import { cn } from '@/lib/utils'
 
 export interface PageRealmSettingsWebhooksProps {
   webhooks: WebhookType[]
@@ -45,18 +44,14 @@ export default function PageRealmSettingsWebhooks({
         renderRow={(webhook) => (
           <div className='flex items-center justify-between px-8 py-4 hover:bg-muted/40 transition-colors'>
             <div className='flex items-center gap-4'>
-              <EntityAvatar label={webhook.name} color='#8B5CF6' />
+              <EntityAvatar label={webhook.name ?? ''} color='#8B5CF6' />
               <div>
                 <div className='flex items-center gap-2'>
                   <span className='text-base font-medium'>{webhook.name}</span>
                   <span
-                    className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border',
-                      webhook.enabled
-                        ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
-                        : 'border-border text-muted-foreground bg-muted/50'
-                    )}
+                    className='inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border border-green-300 text-green-600 bg-green-50 dark:bg-green-500/10 dark:border-green-400/40'
                   >
-                    {webhook.enabled ? 'enabled' : 'disabled'}
+                    Enabled
                   </span>
                 </div>
                 <div className='text-sm text-muted-foreground mt-0.5 font-mono'>{webhook.endpoint}</div>
@@ -71,16 +66,17 @@ export default function PageRealmSettingsWebhooks({
               <Trash2 className='h-4 w-4' />
             </Button>
           </div>
-        )}
+        )
+        }
       />
 
-      <ConfirmDeleteAlert
+      < ConfirmDeleteAlert
         title={confirm.title}
         description={confirm.description}
         open={confirm.open}
         onConfirm={confirm.onConfirm}
         onCancel={close}
       />
-    </div>
+    </div >
   )
 }
