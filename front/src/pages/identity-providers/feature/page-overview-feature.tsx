@@ -1,9 +1,8 @@
 import { useParams, useNavigate } from 'react-router'
 import { useDeleteIdentityProvider, useGetIdentityProviders } from '@/api/identity-providers.api'
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { toast } from 'sonner'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
-import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import {
   IDENTITY_PROVIDERS_URL,
   IDENTITY_PROVIDER_CREATE_URL,
@@ -20,7 +19,6 @@ export default function PageOverviewFeature() {
   const { data: providersData, isLoading } = useGetIdentityProviders({ realm })
   const { mutate: deleteProvider } = useDeleteIdentityProvider()
   const { confirm, ask, close } = useConfirmDeleteAlert()
-  const [filters, setFilters] = useState<Filter[]>([])
 
   const providers = useMemo<IdentityProviderListItem[]>(() => {
     return (providersData?.data ?? []).map((provider: Schemas.IdentityProviderResponse) => ({
@@ -32,61 +30,6 @@ export default function PageOverviewFeature() {
       updated_at: null,
     }))
   }, [providersData])
-
-  const filterFields: FilterFieldsConfig = [
-    {
-      key: 'display_name',
-      label: 'Name',
-      type: 'text',
-    },
-    {
-      key: 'alias',
-      label: 'Alias',
-      type: 'text',
-    },
-    {
-      key: 'provider_id',
-      label: 'Type',
-      type: 'text',
-    },
-    {
-      key: 'enabled',
-      label: 'Status',
-      type: 'boolean',
-    },
-  ]
-
-  const filteredData = useMemo(() => {
-    if (filters.length === 0) return providers
-
-    return providers.filter((provider) => {
-      return filters.every((filter) => {
-        const fieldValue = provider[filter.field as keyof IdentityProviderListItem]
-        const filterValues = filter.values
-
-        switch (filter.operator) {
-          case 'is':
-            return fieldValue === filterValues[0]
-          case 'isNot':
-            return fieldValue !== filterValues[0]
-          case 'contains':
-            return String(fieldValue).toLowerCase().includes(String(filterValues[0]).toLowerCase())
-          case 'notContains':
-            return !String(fieldValue).toLowerCase().includes(String(filterValues[0]).toLowerCase())
-          case 'startsWith':
-            return String(fieldValue).toLowerCase().startsWith(String(filterValues[0]).toLowerCase())
-          case 'endsWith':
-            return String(fieldValue).toLowerCase().endsWith(String(filterValues[0]).toLowerCase())
-          case 'empty':
-            return !fieldValue || fieldValue === ''
-          case 'notEmpty':
-            return fieldValue && fieldValue !== ''
-          default:
-            return true
-        }
-      })
-    })
-  }, [providers, filters])
 
   const statistics = useMemo(() => {
     const uniqueTypes = new Set(providers.map((p) => p.provider_id))
@@ -159,13 +102,10 @@ export default function PageOverviewFeature() {
 
   return (
     <PageOverview
-      data={filteredData}
+      data={providers}
       isLoading={isLoading}
       realmName={realm}
       statistics={statistics}
-      filters={filters}
-      filterFields={filterFields}
-      onFiltersChange={setFilters}
       confirm={confirm}
       onConfirmClose={close}
       handleDeleteSelected={handleDeleteSelected}

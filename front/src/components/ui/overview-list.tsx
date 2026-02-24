@@ -86,7 +86,7 @@ export function OverviewList<T extends { id: string }>({
       <div className='-mx-8 border-t border-b overflow-hidden'>
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className='flex items-center justify-between px-8 py-4 border-b last:border-b-0'>
+            <div key={i} className={`flex items-center justify-between px-8 py-4${i < 5 ? ' border-b' : ''}`}>
               <div className='flex items-center gap-3'>
                 <Skeleton className='h-10 w-10 rounded-md' />
                 <div className='space-y-2'>
@@ -102,8 +102,8 @@ export function OverviewList<T extends { id: string }>({
             {emptyLabel}
           </div>
         ) : (
-          paginatedData.map((item) => (
-            <div key={item.id}>{renderRow(item)}</div>
+          paginatedData.map((item, index) => (
+            <div key={item.id} className={index < paginatedData.length - 1 ? 'border-b' : ''}>{renderRow(item)}</div>
           ))
         )}
       </div>
