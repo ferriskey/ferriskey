@@ -54,6 +54,7 @@ export default function PageCreateClientScopeFeature() {
   })
 
   const handleBack = () => {
+    if (!url) return
     navigate(url)
   }
 
