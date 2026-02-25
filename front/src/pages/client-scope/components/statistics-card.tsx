@@ -36,7 +36,7 @@ export default function StatisticsCard({
           <h3 className='text-sm font-medium text-muted-foreground'>{title}</h3>
           <span className='text-4xl font-bold tracking-tight'>{value}</span>
           {description && (
-            <p className='text-xs text-muted-foreground'>{description}</p>
+            <div className='text-xs text-muted-foreground'>{description}</div>
           )}
         </div>
       </CardContent>

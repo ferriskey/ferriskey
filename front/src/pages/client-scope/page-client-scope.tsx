@@ -9,11 +9,11 @@ export default function PageClientScope() {
   return (
     <Routes>
       <Route element={<ClientScopesLayout />}>
-        <Route path='/overview' element={<PageClientScopesOverviewFeature />} />
-        <Route path='/create' element={<PageCreateClientScopeFeature />} />
+        <Route path='overview' element={<PageClientScopesOverviewFeature />} />
+        <Route path='create' element={<PageCreateClientScopeFeature />} />
       </Route>
       <Route element={<ClientScopeLayout />}>
-        <Route path='/:scope_id/details' element={<PageClientScopeDetailFeature />} />
+        <Route path=':scope_id/details' element={<PageClientScopeDetailFeature />} />
       </Route>
     </Routes>
   )

@@ -36,22 +36,22 @@ export default function PageCreateClientScopeFeature() {
     return `${CLIENT_SCOPES_URL(realm_name)}${CLIENT_SCOPES_OVERVIEW_URL}`
   }, [realm_name])
 
-  const handleSubmit = () => {
+  const handleSubmit = form.handleSubmit((values) => {
     if (!realm_name) return
 
-    const values = form.getValues()
+    const trimmedDescription = values.description?.trim() || null
     createClientScope({
       path: {
         realm_name,
       },
       body: {
         name: values.name,
-        description: values.description?.trim() ? values.description.trim() : null,
+        description: trimmedDescription,
         protocol: values.protocol,
         is_default: values.scopeType === 'default',
       },
     })
-  }
+  })
 
   const handleBack = () => {
     navigate(url)

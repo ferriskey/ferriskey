@@ -29,16 +29,15 @@ export default function ClientScopeLayout() {
           </button>
           <h1 className='text-2xl font-bold tracking-tight'>{responseScope?.name || 'Client Scope'}</h1>
           <p className='text-sm text-muted-foreground mt-1'>
-            {responseScope?.description || `scope_id: ${responseScope?.id ?? scope_id}`}
+            {responseScope?.description || 'No description provided'}
           </p>
         </div>
         <div className='flex items-center gap-2 shrink-0'>
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${
-              responseScope?.is_default
-                ? 'border-blue-300 text-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400/40'
-                : 'border-purple-300 text-purple-500 bg-purple-50 dark:bg-purple-500/10 dark:border-purple-400/40'
-            }`}
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${responseScope?.is_default
+              ? 'border-blue-300 text-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400/40'
+              : 'border-purple-300 text-purple-500 bg-purple-50 dark:bg-purple-500/10 dark:border-purple-400/40'
+              }`}
           >
             {responseScope?.is_default ? 'default' : 'optional'}
           </span>

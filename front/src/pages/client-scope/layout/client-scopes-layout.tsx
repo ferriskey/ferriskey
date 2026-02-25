@@ -46,7 +46,7 @@ export default function ClientScopesLayout() {
     <div className='flex flex-col gap-6 p-8'>
       <OverviewHeader
         title='Client and Access Administration'
-        description='Manage realm settings, users, and policy workflows'
+        description='Manage protocol mappers, scope mappings, and token attributes for client scopes.'
         primaryAction={{
           label: 'New Client Scope',
           onClick: () => navigate(`${CLIENT_SCOPES_URL(realm_name)}${CLIENT_SCOPES_CREATE_URL}`),

@@ -94,7 +94,7 @@ export default function PageCreateClientScope({
                 <p className='text-sm text-muted-foreground mt-0.5'>Only OpenID Connect is currently supported.</p>
               </div>
               <div className='w-1/2'>
-                <InputText label='Protocol' value={field.value} disabled />
+                <InputText label='Protocol' name='protocol' value={field.value} disabled />
               </div>
             </div>
           )}
