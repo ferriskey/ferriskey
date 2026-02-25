@@ -1,3 +1,4 @@
+use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -29,11 +30,18 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
         is_default: bool,
         is_optional: bool,
     ) -> Result<ClientScopeMapping, CoreError> {
+        let scope: ScopeType = if is_default {
+            ScopeType::Default
+        } else if is_optional {
+            ScopeType::Optional
+        } else {
+            ScopeType::None
+        };
+
         let active_model = client_scope_mappings::ActiveModel {
             client_id: Set(client_id),
             client_scope_id: Set(scope_id),
-            is_default: Set(is_default),
-            is_optional: Set(is_optional),
+            default_scope_type: Set(scope.to_string()),
         };
 
         let model = active_model.insert(&self.db).await.map_err(|e| {
@@ -85,7 +93,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
     async fn get_default_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
         let mappings = client_scope_mappings::Entity::find()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))
-            .filter(client_scope_mappings::Column::IsDefault.eq(true))
+            .filter(client_scope_mappings::Column::DefaultScopeType.eq(ScopeType::Default.as_str()))
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -114,7 +122,9 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
     async fn get_optional_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
         let mappings = client_scope_mappings::Entity::find()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))
-            .filter(client_scope_mappings::Column::IsOptional.eq(true))
+            .filter(
+                client_scope_mappings::Column::DefaultScopeType.eq(ScopeType::Optional.as_str()),
+            )
             .all(&self.db)
             .await
             .map_err(|e| {

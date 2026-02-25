@@ -15,9 +15,9 @@ impl From<client_scopes::Model> for ClientScope {
             name: model.name,
             description: model.description,
             protocol: model.protocol,
-            is_default: model.is_default,
             attributes: None,
             protocol_mappers: None,
+            default_scope_type: model.default_scope_type.into(),
             created_at: Utc.from_utc_datetime(&model.created_at),
             updated_at: Utc.from_utc_datetime(&model.updated_at),
         }
@@ -53,8 +53,7 @@ impl From<client_scope_mappings::Model> for ClientScopeMapping {
         ClientScopeMapping {
             client_id: model.client_id,
             scope_id: model.client_scope_id,
-            is_default: model.is_default,
-            is_optional: model.is_optional,
+            default_scope_type: model.default_scope_type.into(),
         }
     }
 }
