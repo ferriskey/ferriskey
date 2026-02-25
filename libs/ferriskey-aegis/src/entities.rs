@@ -1,9 +1,56 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, Utc};
 use ferriskey_domain::{generate_timestamp, generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ScopeType {
+    #[default]
+    None,
+    Optional,
+    Default,
+}
+
+impl From<String> for ScopeType {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "OPTIONAL" => ScopeType::Optional,
+            "DEFAULT" => ScopeType::Default,
+            _ => ScopeType::None,
+        }
+    }
+}
+
+impl From<ScopeType> for String {
+    fn from(value: ScopeType) -> Self {
+        match value {
+            ScopeType::None => "NONE".to_string(),
+            ScopeType::Optional => "OPTIONAL".to_string(),
+            ScopeType::Default => "DEFAULT".to_string(),
+        }
+    }
+}
+
+impl Display for ScopeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl ScopeType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            ScopeType::None => "NONE",
+            ScopeType::Optional => "OPTIONAL",
+            ScopeType::Default => "DEFAULT",
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ClientScope {
@@ -12,7 +59,7 @@ pub struct ClientScope {
     pub name: String,
     pub description: Option<String>,
     pub protocol: String,
-    pub is_default: bool,
+    pub default_scope_type: ScopeType,
     pub attributes: Option<Vec<ClientScopeAttribute>>,
     pub protocol_mappers: Option<Vec<ProtocolMapper>>,
     pub created_at: DateTime<Utc>,
@@ -33,7 +80,7 @@ impl ClientScope {
             name,
             description,
             protocol,
-            is_default: false,
+            default_scope_type: ScopeType::None,
             attributes: None,
             protocol_mappers: None,
             created_at: now,
@@ -94,6 +141,5 @@ impl ProtocolMapper {
 pub struct ClientScopeMapping {
     pub client_id: Uuid,
     pub scope_id: Uuid,
-    pub is_default: bool,
-    pub is_optional: bool,
+    pub default_scope_type: ScopeType,
 }
