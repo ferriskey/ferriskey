@@ -1,5 +1,6 @@
-pub mod entities;
 pub mod policies;
-pub mod ports;
 pub mod services;
-pub mod value_objects;
+
+pub use ferriskey_aegis::entities;
+pub use ferriskey_aegis::ports;
+pub use ferriskey_aegis::value_objects;

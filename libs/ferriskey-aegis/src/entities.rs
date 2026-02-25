@@ -5,6 +5,7 @@ use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ClientScope {
     pub id: Uuid,
     pub realm_id: RealmId,

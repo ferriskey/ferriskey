@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use ferriskey_domain::{
     auth::Identity,
     common::app_errors::CoreError,
