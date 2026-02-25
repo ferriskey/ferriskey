@@ -10,6 +10,7 @@ ferriskey-abyss = { path = "../libs/ferriskey-abyss", features = ["mock"] }
 ferriskey-domain = { path = "../libs/ferriskey-domain" }
 ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
 ferriskey-trident = { path = "../libs/ferriskey-trident" }
+ferriskey-aegis = { path = "../libs/ferriskey-aegis" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"

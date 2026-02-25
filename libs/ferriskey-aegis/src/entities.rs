@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
+use ferriskey_domain::{generate_timestamp, generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-use crate::domain::common::{generate_timestamp, generate_uuid_v7};
-use crate::domain::realm::entities::RealmId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ClientScope {
@@ -68,7 +67,7 @@ pub struct ProtocolMapper {
     pub client_scope_id: Uuid,
     pub name: String,
     pub mapper_type: String,
-    pub config: serde_json::Value,
+    pub config: Value,
     pub created_at: DateTime<Utc>,
 }
 

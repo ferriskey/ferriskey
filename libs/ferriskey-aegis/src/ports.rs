@@ -1,17 +1,21 @@
 use std::future::Future;
+
+use ferriskey_domain::{
+    auth::Identity,
+    common::app_errors::CoreError,
+    realm::{Realm, RealmId},
+};
 use uuid::Uuid;
 
-use crate::domain::authentication::value_objects::Identity;
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{Realm, RealmId};
-
-use super::entities::{ClientScope, ClientScopeAttribute, ClientScopeMapping, ProtocolMapper};
-use super::value_objects::{
-    AssignClientScopeInput, CreateClientScopeInput, CreateClientScopeRequest,
-    CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteClientScopeInput,
-    DeleteProtocolMapperInput, GetClientClientScopesInput, GetClientScopeInput,
-    GetClientScopesInput, UnassignClientScopeInput, UpdateClientScopeInput,
-    UpdateClientScopeRequest, UpdateProtocolMapperInput, UpdateProtocolMapperRequest,
+use crate::{
+    entities::{ClientScope, ClientScopeAttribute, ClientScopeMapping, ProtocolMapper},
+    value_objects::{
+        AssignClientScopeInput, CreateClientScopeInput, CreateClientScopeRequest,
+        CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteClientScopeInput,
+        DeleteProtocolMapperInput, GetClientClientScopesInput, GetClientScopeInput,
+        GetClientScopesInput, UnassignClientScopeInput, UpdateClientScopeInput,
+        UpdateClientScopeRequest, UpdateProtocolMapperInput, UpdateProtocolMapperRequest,
+    },
 };
 
 #[cfg_attr(test, mockall::automock)]
