@@ -22,10 +22,14 @@ pub struct UpdateWebhookResponse {
 
 #[utoipa::path(
     put,
-    path = "",
+    path = "/{webhook_id}",
     tag = "webhook",
     summary = "Update webhook",
     description = "Updates a webhook in the system related to the current realm.",
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+        ("webhook_id" = Uuid, Path, description = "Webhook ID"),
+    ),
     responses(
         (status = 200, description = "Webhook updated successfully", body = UpdateWebhookResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),

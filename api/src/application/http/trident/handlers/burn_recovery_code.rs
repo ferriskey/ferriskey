@@ -34,6 +34,9 @@ pub struct BurnRecoveryCodeResponse {
     summary = "Burn a recovery code to authenticate",
     description = "Using a recovery code allows a user to bypass a MFA challenge",
     request_body = BurnRecoveryCodeRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "Successfully burned recovery code", body = BurnRecoveryCodeResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
