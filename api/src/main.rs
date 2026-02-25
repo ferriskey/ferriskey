@@ -20,7 +20,6 @@ use clap::Parser;
 use crate::application::http::server::http_server::{router, state};
 use crate::application::http::server::openapi::ApiDoc;
 use crate::args::{Args, Command, LogArgs, ObservabilityArgs};
-use utoipa::OpenApi;
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
@@ -34,6 +33,7 @@ use tracing_opentelemetry::MetricsLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
+use utoipa::OpenApi;
 
 pub mod application;
 pub mod args;
@@ -138,7 +138,6 @@ async fn main() -> Result<(), anyhow::Error> {
         }
         return Ok(());
     }
-
 
     let app_state = state(args.clone()).await?;
 
