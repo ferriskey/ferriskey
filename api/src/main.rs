@@ -20,6 +20,7 @@ use clap::Parser;
 use crate::application::http::server::http_server::{router, state};
 use crate::application::http::server::openapi::ApiDoc;
 use crate::args::{Args, Command, LogArgs, ObservabilityArgs};
+use utoipa::OpenApi;
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
