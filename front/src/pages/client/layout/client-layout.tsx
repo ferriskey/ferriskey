@@ -1,8 +1,8 @@
 import { useGetClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
 import { CLIENT_URL, CLIENTS_URL } from '@/routes/sub-router/client.router'
-import { useLocation, useNavigate, useParams } from 'react-router'
-import { Outlet } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 export default function ClientLayout() {

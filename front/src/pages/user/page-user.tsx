@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router-dom'
 import PageUsersOverviewFeature from './feature/page-users-overview-feature'
 import UserLayout from './layouts/user-layout'
 import UsersLayout from './layouts/users-layout'

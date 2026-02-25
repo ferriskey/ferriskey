@@ -1,6 +1,6 @@
 import { useDeleteWebhook, useGetWebhooks } from '@/api/webhook.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import PageRealmSettingsWebhooks from '../ui/page-realm-settings-webhooks'
 import { useEffect } from 'react'
 import { toast } from 'sonner'

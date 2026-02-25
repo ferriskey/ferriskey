@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router-dom'
 import PageClientsOverviewFeature from './feature/page-clients-overview-feature'
 import Container from './container'
 import ClientLayout from './layout/client-layout'

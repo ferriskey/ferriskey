@@ -1,4 +1,4 @@
-import { Outlet, useParams } from 'react-router'
+import { Outlet, useParams } from 'react-router-dom'
 import { AppSidebar } from '../app-sidebar'
 import { SidebarInset, SidebarProvider } from '../ui/sidebar'
 import { useGetUserRealmsQuery } from '@/api/realm.api'

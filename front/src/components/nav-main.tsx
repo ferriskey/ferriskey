@@ -9,7 +9,7 @@ import {
 import { RouterParams } from '@/routes/router'
 import { CLIENTS_URL, OVERVIEW_URL } from '@/routes/sub-router/client.router'
 import { Key, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ROLE_OVERVIEW_URL, ROLES_URL } from '../routes/sub-router/role.router'
 import { USER_OVERVIEW_URL, USERS_URL } from '../routes/sub-router/user.router'
 import { useGetClients } from '@/api/client.api'

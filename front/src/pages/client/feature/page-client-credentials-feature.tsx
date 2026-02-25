@@ -1,6 +1,6 @@
 import { useGetClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import PageClientCredentials from '../ui/page-client-credentials'
 
 export default function PageClientCredentialsFeature() {

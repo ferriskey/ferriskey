@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet } from 'react-router-dom'
 
 interface PageContainerProps {
   children?: ReactNode

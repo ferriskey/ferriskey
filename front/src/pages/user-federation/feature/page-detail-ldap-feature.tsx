@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { USER_FEDERATION_OVERVIEW_URL, USER_FEDERATION_URL } from '@/routes/sub-router/user-federation.router'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'

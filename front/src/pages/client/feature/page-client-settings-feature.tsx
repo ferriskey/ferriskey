@@ -1,6 +1,6 @@
 import { useGetClient, useUpdateClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import PageClientSettings from '../ui/page-client-settings'
 import { useForm } from 'react-hook-form'
 import { updateClientSchema, UpdateClientSchema } from '../schemas/update-client.schema'

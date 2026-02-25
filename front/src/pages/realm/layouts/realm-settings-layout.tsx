@@ -1,6 +1,6 @@
 import { RouterParams } from '@/routes/router'
 import { useEffect, useState } from 'react'
-import { useLocation, useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router-dom'
 import PageRealmSettings from '../ui/page-realm-settings'
 import { mapRealms } from '@/api/core.mapper'
 import useRealmStore from '@/store/realm.store'

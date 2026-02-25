@@ -1,7 +1,7 @@
 import { Realm } from '@/api/core.interface'
 import { cn } from '@/lib/utils'
 import { REALM_SETTINGS_URL } from '@/routes/router'
-import { Outlet, useNavigate } from 'react-router'
+import { Outlet, useNavigate } from 'react-router-dom'
 
 interface PageRealmSettingsProps {
   realm: Realm

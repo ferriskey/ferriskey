@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import RoleMappingModal from '../../ui/modals/role-mapping-modal'
 import { useGetRoles } from '@/api/role.api'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 import { useAssignUserRole, useGetUser, useGetUserRoles } from '@/api/user.api'
 import { useForm } from 'react-hook-form'

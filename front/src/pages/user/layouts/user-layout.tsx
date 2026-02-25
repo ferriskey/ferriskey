@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useGetUser } from '../../../api/user.api'
 import { UserRouterParams, USERS_URL } from '../../../routes/sub-router/user.router'
 import { ArrowLeft } from 'lucide-react'

@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react'
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './ui/sidebar'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { REALM_URL, RouterParams } from '@/routes/router'
 import { SEAWATCH_OVERVIEW_URL } from '@/routes/sub-router/seawatch.router'
 import { cn } from '@/lib/utils'

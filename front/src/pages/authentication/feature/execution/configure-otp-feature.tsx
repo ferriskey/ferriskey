@@ -1,6 +1,6 @@
 import { useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import ConfigureOtp from '../../ui/execution/configure-otp'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { useCallback, useEffect } from 'react'

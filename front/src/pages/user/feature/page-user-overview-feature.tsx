@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useGetUser, useUpdateUser } from '@/api/user.api.ts'
 import { Form } from '@/components/ui/form.tsx'

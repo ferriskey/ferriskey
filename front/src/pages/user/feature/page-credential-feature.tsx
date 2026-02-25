@@ -1,6 +1,6 @@
 import { useGetUserCredentials } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import PageCredentials from '../ui/page-credentials'
 import { useDeleteUserCredential } from '@/api/credential.api.ts'
 import { toast } from 'sonner'

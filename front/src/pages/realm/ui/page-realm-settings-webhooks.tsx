@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 import { Schemas } from '@/api/api.client'
 import { Trash2 } from 'lucide-react'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'

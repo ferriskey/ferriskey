@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router.ts'
 import UpdatePassword from '@/pages/authentication/ui/execution/update-password.tsx'
 import { useUpdatePassword } from '@/api/trident.api'

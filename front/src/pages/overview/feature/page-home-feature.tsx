@@ -1,4 +1,4 @@
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { useGetClients } from '@/api/client.api'
 import { useGetUsers } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'

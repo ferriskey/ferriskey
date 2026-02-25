@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { useState } from 'react'
 import { useResetUserPassword } from '@/api/user.api'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'
 

@@ -5,7 +5,7 @@ import PageRealmSettingsLogin from '../ui/page-realm-settings-login'
 import { useGetLoginSettings, useUpdateRealmSettings } from '@/api/realm.api'
 import { useEffect } from 'react'
 import { useFormChanges } from '@/hooks/use-form-changes'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 
 const realmLoginSettingsSchema = z.object({

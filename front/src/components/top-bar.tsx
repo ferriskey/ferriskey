@@ -1,5 +1,5 @@
 import { Bell, Search } from 'lucide-react'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'

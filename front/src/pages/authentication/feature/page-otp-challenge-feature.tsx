@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageOtpChallenge from '../ui/page-otp-challenge'
 import { RouterParams } from '@/routes/router'
 import { useChallengeOtp } from '@/api/trident.api'

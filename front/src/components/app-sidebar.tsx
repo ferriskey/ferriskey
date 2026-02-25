@@ -12,7 +12,7 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
-import { Link, useParams } from 'react-router'
+import { Link, useParams } from 'react-router-dom'
 import RealmSwitcher from './realm-switcher'
 import { REALM_OVERVIEW_URL, REALM_URL, RouterParams } from '@/routes/router'
 import { useConfig } from '@/hooks/use-config'
