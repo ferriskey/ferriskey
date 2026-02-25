@@ -21,6 +21,7 @@ import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
 import { useTheme } from './components/theme-provider'
 import PageUserFederation from './pages/user-federation/page-user-federation'
+import PageClientScope from './pages/client-scope/page-client-scope'
 
 declare global {
   interface Window {
@@ -127,6 +128,7 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
             <Route path='overview/*' element={<PageOverview />} />
 
             <Route path='clients/*' element={<PageClient />} />
+            <Route path='client-scopes/*' element={<PageClientScope />} />
             <Route path='users/*' element={<PageUser />} />
             <Route path='roles/*' element={<PageRole />} />
             <Route path='realm-settings/*' element={<PageRealm />} />

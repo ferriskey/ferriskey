@@ -1,17 +1,16 @@
-import PageContainer from '@/components/ui/page-container'
 import { OverviewHeader } from '@/components/ui/overview-header'
-import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { CLIENTS_URL, CLIENT_CREATE_URL } from '@/routes/sub-router/client.router'
-import { USERS_URL } from '@/routes/sub-router/user.router'
-import { ROLES_URL } from '@/routes/sub-router/role.router'
+import { CLIENTS_URL } from '@/routes/sub-router/client.router'
 import {
+  CLIENT_SCOPES_CREATE_URL,
   CLIENT_SCOPES_OVERVIEW_URL,
   CLIENT_SCOPES_URL,
 } from '@/routes/sub-router/client-scope.router'
-import { useLocation } from 'react-router'
+import { ROLES_URL } from '@/routes/sub-router/role.router'
+import { USERS_URL } from '@/routes/sub-router/user.router'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
 
-export default function Container() {
+export default function ClientScopesLayout() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const location = useLocation()
@@ -44,20 +43,17 @@ export default function Container() {
   ]
 
   return (
-    <PageContainer>
+    <div className='flex flex-col gap-6 p-8'>
       <OverviewHeader
         title='Client and Access Administration'
-        description='Manage realm settings, users, and policy workflows'
+        description='Manage protocol mappers, scope mappings, and token attributes for client scopes.'
         primaryAction={{
-          label: 'New Client',
-          onClick: () => navigate(`${CLIENTS_URL(realm_name)}${CLIENT_CREATE_URL}`),
-        }}
-        secondaryAction={{
-          label: 'Import',
-          onClick: () => {},
+          label: 'New Client Scope',
+          onClick: () => navigate(`${CLIENT_SCOPES_URL(realm_name)}${CLIENT_SCOPES_CREATE_URL}`),
         }}
         tabs={tabs}
       />
-    </PageContainer>
+      <Outlet />
+    </div>
   )
 }

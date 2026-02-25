@@ -8,4 +8,5 @@ export type RouterParams = {
   client_id?: string
   user_id?: string
   role_id?: string
+  scope_id?: string
 }
