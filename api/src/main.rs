@@ -18,7 +18,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 
 use crate::application::http::server::http_server::{router, state};
-use crate::args::{Args, LogArgs, ObservabilityArgs};
+use crate::args::{Args, Command, LogArgs, ObservabilityArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
@@ -127,6 +127,16 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let args = Arc::new(Args::parse());
     init_tracing_and_logging(&args.log, "ferriskey_server", &args.observability)?;
+    if let Some(Command::GenApi { output }) = &args.command {
+        let spec = ApiDoc::openapi();
+        let json = serde_json::to_string_pretty(&spec)?;
+        match output {
+            Some(path) => std::fs::write(path, &json)?,
+            None => print!("{json}"),
+        }
+        return Ok(());
+    }
+
 
     let app_state = state(args.clone()).await?;
 
