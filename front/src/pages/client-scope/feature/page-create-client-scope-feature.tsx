@@ -18,7 +18,7 @@ import {
 export default function PageCreateClientScopeFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
-  const { mutate: createClientScope, data: responseCreateClientScope } = useCreateClientScope()
+  const { mutate: createClientScope, data: responseCreateClientScope, isPending } = useCreateClientScope()
 
   const form = useForm<CreateClientScopeSchema>({
     resolver: zodResolver(createClientScopeSchema),
@@ -64,7 +64,7 @@ export default function PageCreateClientScopeFeature() {
     }
   }, [navigate, responseCreateClientScope, url])
 
-  const formIsValid = form.formState.isValid && form.formState.isDirty
+  const formIsValid = form.formState.isValid && form.formState.isDirty && !isPending
 
   return (
     <Form {...form}>
