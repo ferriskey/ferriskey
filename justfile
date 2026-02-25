@@ -232,5 +232,5 @@ gen-client: _ensure-docker-running gen-api
       -i /local/openapi.json \
       -g rust \
       -o /local/client \
-      --additional-properties packageName=leshy-client,packageVersion=0.1.0,library=reqwest,supportAsync=true
+      --additional-properties packageName=ferriskey-client,packageVersion=0.1.0,library=reqwest,supportAsync=true
   @echo "Rust client generated in client/" >&2
