@@ -16,12 +16,14 @@ repos:
         entry: cargo fmt --all
         language: system
         files: ^(.*)\.rs$
+        exclude: ^client/
         pass_filenames: false
       - id: rust-clippy
         name: rust-clippy
-        entry: cargo clippy --all -- -D warnings
+        entry: cargo clippy --all --exclude ferriskey-client -- -D warnings
         language: system
         files: ^(.*)\.rs|Cargo\.(toml|lock)$
+        exclude: ^client/
         pass_filenames: false
       - id: esint
         name: eslint
