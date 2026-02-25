@@ -15,7 +15,7 @@ import {
   Clock,
   TrendingUp,
 } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, CartesianGrid, Legend } from 'recharts'

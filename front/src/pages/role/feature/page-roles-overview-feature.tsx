@@ -1,5 +1,5 @@
 import { RouterParams } from '@/routes/router'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useDeleteRole, useGetRoles } from '../../../api/role.api'
 import PageRolesOverview from '../ui/page-roles-overview'
 import { ROLE_SETTINGS_URL, ROLE_URL } from '@/routes/sub-router/role.router'

@@ -4,7 +4,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { RegisterSchema } from '../feature/page-register-feature'
 import { InputText } from '@/components/ui/input-text'
 import { Button } from '@/components/ui/button'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import './page-login.css'
 
 export interface PageRegisterProps {

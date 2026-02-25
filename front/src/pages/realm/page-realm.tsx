@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import RealmsSettingsLayout from './layouts/realm-settings-layout'
 import { REALM_SETTINGS_URL, RouterParams } from '@/routes/router'
 import PageRealmSettingsGeneralFeature from './feature/page-realm-settings-general-feature'

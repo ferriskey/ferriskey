@@ -4,7 +4,7 @@ import { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { IUser } from '@/contracts/states.interface'
 
 type JwtPayload = {

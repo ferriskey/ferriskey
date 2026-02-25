@@ -1,4 +1,4 @@
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { useGetUserRoles } from '@/api/user.api'
 import { UserRouterParams } from '@/routes/sub-router/user.router'
 import PageUserRoleMapping from '../ui/page-user-role-mapping'

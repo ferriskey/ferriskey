@@ -12,7 +12,7 @@ import { RouterParams } from '@/routes/router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
 

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import PageOverviewFeature from './feature/page-overview-feature'
 import UserFederationLayout from './layout/user-federation-layout'
 import PageCreateLdapFeature from './feature/page-create-ldap-feature'

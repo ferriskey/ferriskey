@@ -1,5 +1,5 @@
 import { RouterParams } from '@/routes/router'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUsers } from '../../../api/user.api'
 import PageUsersOverview from '../ui/page-users-overview'

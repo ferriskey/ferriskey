@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router-dom'
 import PageRequiredAction from '../ui/page-required-action'
 import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'

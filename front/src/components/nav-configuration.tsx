@@ -6,7 +6,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { REALM_SETTINGS_URL, REALM_URL, RouterParams } from '@/routes/router'
 import { IDENTITY_PROVIDERS_OVERVIEW_URL } from '@/routes/sub-router/identity-providers.router'
 import { USER_FEDERATION_URL } from '@/routes/sub-router/user-federation.router'

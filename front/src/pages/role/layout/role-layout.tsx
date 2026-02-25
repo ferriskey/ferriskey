@@ -2,7 +2,7 @@ import { useGetRole } from '@/api/role.api'
 import { RouterParams } from '@/routes/router'
 import { ROLE_OVERVIEW_URL, ROLE_URL, ROLES_URL } from '@/routes/sub-router/role.router'
 import { ArrowLeft } from 'lucide-react'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 export default function RoleLayout() {
   const { realm_name, role_id } = useParams<RouterParams>()

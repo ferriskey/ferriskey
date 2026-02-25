@@ -5,7 +5,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { AuthenticateSchema } from '@/pages/authentication/feature/page-login-feature'
 import { cn } from '@/lib/utils'
 import { InputText } from '@/components/ui/input-text'
-import { Link, useParams } from 'react-router'
+import { Link, useParams } from 'react-router-dom'
 import { Schemas } from '@/api/api.client'
 import RealmLoginSetting = Schemas.RealmLoginSetting
 import { LoginProviders } from './login-providers'

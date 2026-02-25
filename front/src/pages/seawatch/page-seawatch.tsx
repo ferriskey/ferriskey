@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router-dom'
 import PageOverviewFeature from './feature/page-overview-feature'
 
 export default function PageSeawatch() {

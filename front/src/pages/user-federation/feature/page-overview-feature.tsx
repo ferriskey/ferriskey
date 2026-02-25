@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import PageOverview from '../ui/page-overview'
 import { RouterParams } from '@/routes/router'
 import { USER_FEDERATION_URL, USER_FEDERATION_CREATE_URL, USER_FEDERATION_LDAP_DETAIL_URL, USER_FEDERATION_KERBEROS_DETAIL_URL } from '@/routes/sub-router/user-federation.router'

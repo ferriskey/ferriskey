@@ -3,7 +3,7 @@ import PageRolePermissions from '@/pages/role/ui/page-role-permissions.tsx'
 import { RouterParams } from '@/routes/router.ts'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import { Form } from '../../../components/ui/form'
 import { updateRolePermissionsSchema, UpdateRolePermissionsSchema } from '../schemas/update-role.schema'
 

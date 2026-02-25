@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { Schemas } from '@/api/api.client'
 import WebhookTrigger = Schemas.WebhookTrigger
 import { getWebhookCategoriesForUI } from '@/utils/webhook-utils'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'
 

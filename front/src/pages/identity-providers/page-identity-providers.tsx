@@ -1,4 +1,4 @@
-import { Route, Routes, Navigate } from 'react-router'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import PageOverviewFeature from './feature/page-overview-feature'
 import PageCreateFeature from './feature/page-create-feature'
 import PageDetailFeature from './feature/page-detail-feature'

@@ -1,6 +1,6 @@
 import { useDeleteClient, useGetClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import PageClientsOverview from '../ui/page-clients-overview'
 import {
   CLIENT_CREATE_URL,

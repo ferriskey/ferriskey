@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router-dom'
 import PageRolesOverviewFeature from './feature/page-roles-overview-feature'
 import PageRoleSettingsFeature from './feature/page-role-settings-feature'
 import RoleLayout from './layout/role-layout'

@@ -1,10 +1,10 @@
 import { OverviewHeader } from '@/components/ui/overview-header'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router-dom'
 import { RouterParams } from '@/routes/router'
 import { USERS_URL, USER_CREATE_URL } from '@/routes/sub-router/user.router'
 import { CLIENTS_URL } from '@/routes/sub-router/client.router'
 import { ROLES_URL } from '@/routes/sub-router/role.router'
-import { useLocation, Outlet } from 'react-router'
+import { useLocation, Outlet } from 'react-router-dom'
 
 export default function UsersLayout() {
   const { realm_name } = useParams<RouterParams>()

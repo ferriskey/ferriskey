@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useDeleteIdentityProvider, useGetIdentityProviders } from '@/api/identity-providers.api'
 import { useMemo } from 'react'
 import { toast } from 'sonner'

@@ -1,7 +1,7 @@
 import { Schemas } from '@/api/api.client'
 import { useGetSecurityEvents } from '@/api/sea-watch.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useParams } from 'react-router-dom'
 import PageOverview from '../ui/page-overview'
 
 import SecurityEvent = Schemas.SecurityEvent
