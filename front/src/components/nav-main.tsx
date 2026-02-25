@@ -8,6 +8,10 @@ import {
 } from '@/components/ui/sidebar'
 import { RouterParams } from '@/routes/router'
 import { CLIENTS_URL, OVERVIEW_URL } from '@/routes/sub-router/client.router'
+import {
+  CLIENT_SCOPES_OVERVIEW_URL,
+  CLIENT_SCOPES_URL,
+} from '@/routes/sub-router/client-scope.router'
 import { Key, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { ROLE_OVERVIEW_URL, ROLES_URL } from '../routes/sub-router/role.router'
@@ -16,6 +20,7 @@ import { useGetClients } from '@/api/client.api'
 import { useGetUsers } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'
 import { cn } from '@/lib/utils'
+import { useGetClientScopes } from '@/api/client-scope.api'
 
 const navItem = (active: boolean) => cn(
   'relative',
@@ -39,6 +44,7 @@ export function NavMain() {
   const { data: clientsData } = useGetClients({ realm: realm_name ?? 'master' })
   const { data: usersData } = useGetUsers({ realm: realm_name ?? 'master' })
   const { data: rolesData } = useGetRoles({ realm: realm_name ?? 'master' })
+  const { data: clientScopesData } = useGetClientScopes({ realm: realm_name ?? 'master' })
 
   const handleClick = (url: string) => {
     navigate(url)
@@ -98,11 +104,22 @@ export function NavMain() {
           )}
         </SidebarMenuItem>
 
-        <SidebarMenuItem>
-          <SidebarMenuButton className='cursor-not-allowed rounded-none opacity-40 pl-[calc(0.5rem+2px)] hover:bg-transparent hover:text-sidebar-foreground'>
+        <SidebarMenuItem
+          onClick={() =>
+            handleClick(`${CLIENT_SCOPES_URL(realm_name)}${CLIENT_SCOPES_OVERVIEW_URL}`)
+          }
+          className={navItem(isActive(CLIENT_SCOPES_URL(realm_name)))}
+        >
+          <SidebarMenuButton
+            isActive={isActive(CLIENT_SCOPES_URL(realm_name))}
+            className={btnClass(isActive(CLIENT_SCOPES_URL(realm_name)))}
+          >
             <Key />
             <span>Client Scopes</span>
           </SidebarMenuButton>
+          {clientScopesData?.data && (
+            <SidebarMenuBadge>{clientScopesData.data.length}</SidebarMenuBadge>
+          )}
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>

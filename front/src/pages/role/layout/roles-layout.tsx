@@ -4,6 +4,10 @@ import { RouterParams } from '@/routes/router'
 import { USERS_URL } from '@/routes/sub-router/user.router'
 import { CLIENTS_URL } from '@/routes/sub-router/client.router'
 import { ROLES_URL, ROLE_CREATE_URL } from '@/routes/sub-router/role.router'
+import {
+  CLIENT_SCOPES_OVERVIEW_URL,
+  CLIENT_SCOPES_URL,
+} from '@/routes/sub-router/client-scope.router'
 import { useLocation, Outlet } from 'react-router'
 
 export default function RolesLayout() {
@@ -33,8 +37,8 @@ export default function RolesLayout() {
     {
       key: 'client-scopes',
       label: 'Client Scopes',
-      onClick: () => {},
-      active: false,
+      onClick: () => navigate(`${CLIENT_SCOPES_URL(realm_name)}${CLIENT_SCOPES_OVERVIEW_URL}`),
+      active: location.pathname.startsWith(CLIENT_SCOPES_URL(realm_name)),
     },
   ]
 
