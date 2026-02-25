@@ -217,3 +217,20 @@ web: _ensure-pnpm
   @# Run the frontend server inside container.
   @{{compose}} down -v webapp-build || true
   @{{compose}} up webapp-build
+
+gen-api:
+  @# Generate OpenAPI spec by running the API binary with a special command.
+  @cd api && cargo run --bin ferriskey-api -- gen-api --output ../openapi.json
+  @echo "OpenAPI spec written to openapi.json" >&2
+
+gen-client: _ensure-docker-running gen-api
+  @# Use OpenAPI Generator CLI Docker image to generate Rust client code from openapi.json.
+  @docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -v "${PWD}:/local" \
+    openapitools/openapi-generator-cli generate \
+      -i /local/openapi.json \
+      -g rust \
+      -o /local/client \
+      --additional-properties packageName=leshy-client,packageVersion=0.1.0,library=reqwest,supportAsync=true
+  @echo "Rust client generated in client/" >&2

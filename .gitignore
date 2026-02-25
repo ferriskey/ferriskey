@@ -6,3 +6,5 @@
 *.key*
 .DS_Store
 **/.DS_Store
+
+openapi.json
