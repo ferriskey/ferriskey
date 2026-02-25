@@ -4,6 +4,7 @@ import { OverviewList } from '@/components/ui/overview-list'
 import StatisticsCard from '../components/statistics-card'
 
 import ClientScope = Schemas.ClientScope
+import { Button } from '@/components/ui/button'
 
 interface Statistics {
   totalScopes: number
@@ -87,9 +88,11 @@ export default function PageClientScopesOverview({
         title={(n) => `Client Scopes (${n})`}
         emptyLabel='No client scopes found.'
         renderRow={(scope) => (
-          <div
+          <Button
+            type='button'
+            variant='ghost'
             onClick={() => handleClickRow(scope.id)}
-            className='flex items-center justify-between px-8 py-4 hover:bg-muted/40 transition-colors cursor-pointer'
+            className='flex items-center justify-between px-8 py-4 hover:bg-muted/40 transition-colors cursor-pointer w-full h-full'
           >
             <div className='flex items-center gap-4'>
               <EntityAvatar label={scope.name} color='#0EA5E9' />
@@ -104,7 +107,7 @@ export default function PageClientScopesOverview({
               </div>
             </div>
             <ProtocolBadge protocol={scope.protocol} />
-          </div>
+          </Button>
         )}
       />
     </div>

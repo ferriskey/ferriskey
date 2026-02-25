@@ -4,7 +4,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
 } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
@@ -119,15 +118,11 @@ export default function PageCreateClientScope({
                         <SelectValue placeholder='Select type' />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='none'>None</SelectItem>
                         <SelectItem value='optional'>Optional</SelectItem>
                         <SelectItem value='default'>Default</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
-                  <FormLabel className='mt-2 font-normal text-muted-foreground text-xs'>
-                    `None` and `Optional` are currently created as non-default scopes.
-                  </FormLabel>
                 </FormItem>
               </div>
             </div>
