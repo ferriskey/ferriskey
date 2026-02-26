@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use uuid::Uuid;
+
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -31,6 +33,12 @@ pub trait RealmService: Send + Sync {
         identity: Identity,
         input: CreateRealmInput,
     ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
+
+    fn seed_default_scopes(
+        &self,
+        realm_id: RealmId,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn create_realm_with_user(
         &self,

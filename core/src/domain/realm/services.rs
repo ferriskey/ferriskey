@@ -12,7 +12,7 @@ use crate::domain::{
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
-        entities::{Realm, RealmLoginSetting, RealmSetting},
+        entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
             GetRealmSettingInput, RealmPolicy, RealmRepository, RealmService, UpdateRealmInput,
@@ -28,10 +28,15 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
+use ferriskey_aegis::ports::{
+    ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
+};
+use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMapperRequest};
+use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -40,6 +45,9 @@ where
     RO: RoleRepository,
     W: WebhookRepository,
     I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    SM: ClientScopeMappingRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -48,11 +56,14 @@ where
     pub(crate) client_repository: Arc<C>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) identity_provider_repository: Arc<I>,
+    pub(crate) client_scope_repository: Arc<CS>,
+    pub(crate) protocol_mapper_repository: Arc<PM>,
+    pub(crate) client_scope_mapping_repository: Arc<SM>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I> RealmServiceImpl<R, U, C, UR, RO, W, I>
+impl<R, U, C, UR, RO, W, I, CS, PM, SM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -61,6 +72,9 @@ where
     RO: RoleRepository,
     W: WebhookRepository,
     I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    SM: ClientScopeMappingRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -71,6 +85,9 @@ where
         client_repository: Arc<C>,
         webhook_repository: Arc<W>,
         identity_provider_repository: Arc<I>,
+        client_scope_repository: Arc<CS>,
+        protocol_mapper_repository: Arc<PM>,
+        client_scope_mapping_repository: Arc<SM>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -81,12 +98,16 @@ where
             client_repository,
             webhook_repository,
             identity_provider_repository,
+            client_scope_repository,
+            protocol_mapper_repository,
+            client_scope_mapping_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, RO, W, I> RealmService for RealmServiceImpl<R, U, C, UR, RO, W, I>
+impl<R, U, C, UR, RO, W, I, CS, PM, SM> RealmService
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -95,6 +116,9 @@ where
     UR: UserRoleRepository,
     W: WebhookRepository,
     I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    SM: ClientScopeMappingRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -172,7 +196,131 @@ where
             })
             .await?;
 
+        let ferriskey_account_client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                client_id: "ferriskey-account".to_string(),
+                client_type: "public".to_string(),
+                direct_access_grants_enabled: false,
+                enabled: true,
+                name: "ferriskey-account".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                realm_id: realm.id,
+                secret: None,
+                service_account_enabled: false,
+            })
+            .await?;
+
+        self.seed_default_scopes(realm.id, ferriskey_account_client.id)
+            .await?;
+
         Ok(realm)
+    }
+
+    async fn seed_default_scopes(
+        &self,
+        realm_id: RealmId,
+        client_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        let scopes = vec![
+            ("openid", true, vec![]),
+            (
+                "profile",
+                true,
+                vec![
+                    (
+                        "given_name",
+                        "user-attribute",
+                        json!({"attribute": "given_name", "claim": "given_name"}),
+                    ),
+                    (
+                        "family_name",
+                        "user-attribute",
+                        json!({"attribute": "family_name", "claim": "family_name"}),
+                    ),
+                    (
+                        "preferred_username",
+                        "user-attribute",
+                        json!({"attribute": "preferred_username", "claim": "preferred_username"}),
+                    ),
+                ],
+            ),
+            (
+                "email",
+                true,
+                vec![
+                    (
+                        "email",
+                        "user-attribute",
+                        json!({"attribute": "email", "claim": "email"}),
+                    ),
+                    (
+                        "email_verified",
+                        "user-attribute",
+                        json!({"attribute": "email_verified", "claim": "email_verified"}),
+                    ),
+                ],
+            ),
+            (
+                "roles",
+                true,
+                vec![(
+                    "realm_access",
+                    "user-realm-role",
+                    json!({"claim": "realm_access.roles"}),
+                )],
+            ),
+            ("offline_access", false, vec![]),
+            (
+                "phone",
+                false,
+                vec![(
+                    "phone_number",
+                    "user-attribute",
+                    json!({"attribute": "phone_number", "claim": "phone_number"}),
+                )],
+            ),
+            (
+                "address",
+                false,
+                vec![(
+                    "address",
+                    "user-attribute",
+                    json!({"attribute": "address", "claim": "address"}),
+                )],
+            ),
+        ];
+
+        for (name, is_default, mappers) in scopes {
+            let scope = self
+                .client_scope_repository
+                .create(CreateClientScopeRequest {
+                    realm_id,
+                    name: name.to_string(),
+                    description: None,
+                    protocol: "openid-connect".to_string(),
+                    is_default,
+                })
+                .await?;
+
+            for (mapper_name, mapper_type, config) in mappers {
+                self.protocol_mapper_repository
+                    .create(CreateProtocolMapperRequest {
+                        client_scope_id: scope.id,
+                        name: mapper_name.to_string(),
+                        mapper_type: mapper_type.to_string(),
+                        config,
+                    })
+                    .await?;
+            }
+
+            self.client_scope_mapping_repository
+                .assign_scope_to_client(client_id, scope.id, is_default, !is_default)
+                .await?;
+        }
+
+        Ok(())
     }
 
     #[instrument(
@@ -555,6 +703,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::aegis::mocks::{
+        MockClientScopeMappingRepository, MockClientScopeRepository, MockProtocolMapperRepository,
+    };
     use crate::domain::{
         abyss::identity_provider::ports::MockIdentityProviderRepository,
         client::ports::MockClientRepository,
@@ -566,6 +717,7 @@ mod tests {
         user::ports::{MockUserRepository, MockUserRoleRepository},
         webhook::ports::MockWebhookRepository,
     };
+    use ferriskey_aegis::entities::{ClientScope, ClientScopeMapping, ProtocolMapper};
 
     struct RealmServiceTestBuilder {
         realm_repo: Arc<MockRealmRepository>,
@@ -575,6 +727,9 @@ mod tests {
         client_repo: Arc<MockClientRepository>,
         user_repo: Arc<MockUserRepository>,
         identity_provider: Arc<MockIdentityProviderRepository>,
+        client_scope_repo: Arc<MockClientScopeRepository>,
+        protocol_mapper_repo: Arc<MockProtocolMapperRepository>,
+        client_scope_mapping_repo: Arc<MockClientScopeMappingRepository>,
     }
 
     impl RealmServiceTestBuilder {
@@ -586,6 +741,9 @@ mod tests {
             let client_repo = Arc::new(MockClientRepository::new());
             let user_repo = Arc::new(MockUserRepository::new());
             let identity_provider = Arc::new(MockIdentityProviderRepository::new());
+            let client_scope_repo = Arc::new(MockClientScopeRepository::new());
+            let protocol_mapper_repo = Arc::new(MockProtocolMapperRepository::new());
+            let client_scope_mapping_repo = Arc::new(MockClientScopeMappingRepository::new());
 
             Self {
                 realm_repo,
@@ -595,6 +753,9 @@ mod tests {
                 client_repo,
                 user_repo,
                 identity_provider,
+                client_scope_repo,
+                protocol_mapper_repo,
+                client_scope_mapping_repo,
             }
         }
 
@@ -720,6 +881,35 @@ mod tests {
             self
         }
 
+        fn with_ferriskey_account_client(mut self, new_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_create_client()
+                .withf(move |req| {
+                    req.client_id == "ferriskey-account" && req.realm_id == new_realm_id
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id: req.realm_id,
+                                name: req.name.clone(),
+                                client_id: req.client_id.clone(),
+                                secret: None,
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: true,
+                                service_account_enabled: false,
+                                client_type: req.client_type.clone(),
+                                direct_access_grants_enabled: Some(false),
+                            },
+                        ))
+                    })
+                });
+            self
+        }
+
         fn with_role_creation(mut self, master_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.role_repo)
                 .unwrap()
@@ -756,6 +946,60 @@ mod tests {
                 .withf(|_, _| true)
                 .times(1)
                 .return_once(|_, _| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn with_seed_default_scopes(mut self, new_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_scope_repo)
+                .unwrap()
+                .expect_create()
+                .withf(move |req| req.realm_id == new_realm_id)
+                .times(7)
+                .returning(move |req| {
+                    let req = req.clone();
+                    Box::pin(async move {
+                        Ok(ClientScope::new(
+                            req.realm_id,
+                            req.name,
+                            req.description,
+                            req.protocol,
+                        ))
+                    })
+                });
+
+            Arc::get_mut(&mut self.protocol_mapper_repo)
+                .unwrap()
+                .expect_create()
+                .withf(|_| true)
+                .times(8)
+                .returning(|req| {
+                    let req = req.clone();
+                    Box::pin(async move {
+                        Ok(ProtocolMapper::new(
+                            req.client_scope_id,
+                            req.name,
+                            req.mapper_type,
+                            req.config,
+                        ))
+                    })
+                });
+
+            Arc::get_mut(&mut self.client_scope_mapping_repo)
+                .unwrap()
+                .expect_assign_scope_to_client()
+                .withf(|_, _, is_default, is_optional| *is_optional == !is_default)
+                .times(7)
+                .returning(|client_id, scope_id, is_default, is_optional| {
+                    Box::pin(async move {
+                        Ok(ClientScopeMapping {
+                            client_id,
+                            scope_id,
+                            is_default,
+                            is_optional,
+                        })
+                    })
+                });
+
             self
         }
 
@@ -800,6 +1044,9 @@ mod tests {
             MockRoleRepository,
             MockWebhookRepository,
             MockIdentityProviderRepository,
+            MockClientScopeRepository,
+            MockProtocolMapperRepository,
+            MockClientScopeMappingRepository,
         > {
             let policy = FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -814,6 +1061,9 @@ mod tests {
                 self.client_repo,
                 self.webhook_repo,
                 self.identity_provider,
+                self.client_scope_repo,
+                self.protocol_mapper_repo,
+                self.client_scope_mapping_repo,
                 Arc::new(policy),
             )
         }
@@ -862,6 +1112,8 @@ mod tests {
             .with_role_creation(master_realm.id)
             .with_assign_role()
             .with_admin_cli_client(new_realm.id)
+            .with_ferriskey_account_client(new_realm.id)
+            .with_seed_default_scopes(new_realm.id)
             .build();
 
         let created_realm = service.create_realm(identity, input).await?;
@@ -915,6 +1167,8 @@ mod tests {
             .with_role_creation(master_realm.id)
             .with_assign_role()
             .with_admin_cli_client(new_realm.id)
+            .with_ferriskey_account_client(new_realm.id)
+            .with_seed_default_scopes(new_realm.id)
             .with_system_client(master_realm.id)
             .with_admin_role_creation(master_realm.id)
             .with_assign_role()

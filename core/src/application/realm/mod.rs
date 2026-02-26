@@ -1,10 +1,12 @@
+use uuid::Uuid;
+
 use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         realm::{
-            entities::{Realm, RealmLoginSetting, RealmSetting},
+            entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
                 GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
@@ -81,6 +83,16 @@ impl RealmService for ApplicationService {
     ) -> Result<Realm, CoreError> {
         self.realm_service
             .update_realm_setting(identity, input)
+            .await
+    }
+
+    async fn seed_default_scopes(
+        &self,
+        realm_id: RealmId,
+        client_id: Uuid,
+    ) -> Result<(), CoreError> {
+        self.realm_service
+            .seed_default_scopes(realm_id, client_id)
             .await
     }
 }
