@@ -129,6 +129,8 @@ pub struct ApplicationService {
         RoleRepo,
         WebhookRepo,
         IdentityProviderRepo,
+        ClientScopeRepo,
+        ProtocolMapperRepo,
     >,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,

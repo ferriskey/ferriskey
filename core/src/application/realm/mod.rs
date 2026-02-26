@@ -4,7 +4,7 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         realm::{
-            entities::{Realm, RealmLoginSetting, RealmSetting},
+            entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
                 GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
@@ -82,5 +82,9 @@ impl RealmService for ApplicationService {
         self.realm_service
             .update_realm_setting(identity, input)
             .await
+    }
+
+    async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
+        self.realm_service.seed_default_scopes(realm_id).await
     }
 }
