@@ -41,6 +41,7 @@ repos:
         entry: koalaman/shellcheck:stable
         language: docker_image
         files: ^(.*)\.sh$
+        exclude: ^client/
       - id: helm-lint
         name: helm-lint
         entry: helm lint charts/ferriskey

@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**active** | **bool** |  | 
+**active** | **bool** |  |
 **aud** | Option<**String**> |  | [optional]
 **client_id** | Option<**String**> |  | [optional]
 **exp** | Option<**i64**> |  | [optional]
@@ -19,5 +19,3 @@ Name | Type | Description | Notes
 **username** | Option<**String**> |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

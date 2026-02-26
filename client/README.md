@@ -274,4 +274,3 @@ cargo doc --open
 ## Author
 
 pro.nathaelbonnal@gmail.com
-
