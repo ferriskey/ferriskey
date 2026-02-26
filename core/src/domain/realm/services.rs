@@ -28,15 +28,13 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
-use ferriskey_aegis::ports::{
-    ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
-};
+use ferriskey_aegis::ports::{ClientScopeRepository, ProtocolMapperRepository};
 use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMapperRequest};
 use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -47,7 +45,6 @@ where
     I: IdentityProviderRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
-    SM: ClientScopeMappingRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -58,12 +55,11 @@ where
     pub(crate) identity_provider_repository: Arc<I>,
     pub(crate) client_scope_repository: Arc<CS>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
-    pub(crate) client_scope_mapping_repository: Arc<SM>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, SM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
+impl<R, U, C, UR, RO, W, I, CS, PM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -74,7 +70,6 @@ where
     I: IdentityProviderRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
-    SM: ClientScopeMappingRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -87,7 +82,6 @@ where
         identity_provider_repository: Arc<I>,
         client_scope_repository: Arc<CS>,
         protocol_mapper_repository: Arc<PM>,
-        client_scope_mapping_repository: Arc<SM>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -100,14 +94,12 @@ where
             identity_provider_repository,
             client_scope_repository,
             protocol_mapper_repository,
-            client_scope_mapping_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, SM> RealmService
-    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, SM>
+impl<R, U, C, UR, RO, W, I, CS, PM> RealmService for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -118,7 +110,6 @@ where
     I: IdentityProviderRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
-    SM: ClientScopeMappingRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -196,33 +187,12 @@ where
             })
             .await?;
 
-        let ferriskey_account_client = self
-            .client_repository
-            .create_client(CreateClientRequest {
-                client_id: "ferriskey-account".to_string(),
-                client_type: "public".to_string(),
-                direct_access_grants_enabled: false,
-                enabled: true,
-                name: "ferriskey-account".to_string(),
-                protocol: "openid-connect".to_string(),
-                public_client: true,
-                realm_id: realm.id,
-                secret: None,
-                service_account_enabled: false,
-            })
-            .await?;
-
-        self.seed_default_scopes(realm.id, ferriskey_account_client.id)
-            .await?;
+        self.seed_default_scopes(realm.id).await?;
 
         Ok(realm)
     }
 
-    async fn seed_default_scopes(
-        &self,
-        realm_id: RealmId,
-        client_id: uuid::Uuid,
-    ) -> Result<(), CoreError> {
+    async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
         let scopes = vec![
             ("openid", true, vec![]),
             (
@@ -314,10 +284,6 @@ where
                     })
                     .await?;
             }
-
-            self.client_scope_mapping_repository
-                .assign_scope_to_client(client_id, scope.id, is_default, !is_default)
-                .await?;
         }
 
         Ok(())
@@ -1046,7 +1012,6 @@ mod tests {
             MockIdentityProviderRepository,
             MockClientScopeRepository,
             MockProtocolMapperRepository,
-            MockClientScopeMappingRepository,
         > {
             let policy = FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -1063,7 +1028,6 @@ mod tests {
                 self.identity_provider,
                 self.client_scope_repo,
                 self.protocol_mapper_repo,
-                self.client_scope_mapping_repo,
                 Arc::new(policy),
             )
         }

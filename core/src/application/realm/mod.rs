@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::{
     ApplicationService,
     domain::{
@@ -86,13 +84,7 @@ impl RealmService for ApplicationService {
             .await
     }
 
-    async fn seed_default_scopes(
-        &self,
-        realm_id: RealmId,
-        client_id: Uuid,
-    ) -> Result<(), CoreError> {
-        self.realm_service
-            .seed_default_scopes(realm_id, client_id)
-            .await
+    async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
+        self.realm_service.seed_default_scopes(realm_id).await
     }
 }

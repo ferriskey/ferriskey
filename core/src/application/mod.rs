@@ -181,7 +181,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             identity_provider.clone(),
             client_scope.clone(),
             protocol_mapper.clone(),
-            scope_mapping.clone(),
             policy.clone(),
         ),
         role_service: RoleServiceImpl::new(

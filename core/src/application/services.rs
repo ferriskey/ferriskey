@@ -131,7 +131,6 @@ pub struct ApplicationService {
         IdentityProviderRepo,
         ClientScopeRepo,
         ProtocolMapperRepo,
-        ScopeMappingRepo,
     >,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,
