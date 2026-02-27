@@ -165,8 +165,6 @@ pub struct JwkKey {
     pub kty: String,
     pub r#use: String,
     pub alg: String,
-    pub x5c: Vec<String>,
-    pub x5t: String,
     pub n: String,
     pub e: String,
 }
@@ -287,16 +285,12 @@ impl JwtKeyPair {
 
         let n = BASE64_URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
         let e = BASE64_URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
-        let x5c_value = BASE64_URL_SAFE_NO_PAD.encode(self.public_key.as_bytes());
-        let x5t = BASE64_URL_SAFE_NO_PAD.encode(Sha1::digest(x5c_value.as_bytes()));
 
         Ok(JwkKey {
             kid: self.id.to_string(),
             kty: "RSA".to_string(),
             r#use: "sig".to_string(),
             alg: "RS256".to_string(),
-            x5c: vec![x5c_value],
-            x5t,
             n,
             e,
         })
