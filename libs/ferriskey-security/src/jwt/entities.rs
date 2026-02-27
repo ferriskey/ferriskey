@@ -7,7 +7,6 @@ use rsa::{
     traits::PublicKeyParts,
 };
 use serde::{Deserialize, Serialize};
-use sha1::{Digest, Sha1};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
