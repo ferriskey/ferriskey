@@ -1,4 +1,5 @@
 use chrono::Utc;
+use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -35,7 +36,11 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
             name: Set(payload.name),
             description: Set(payload.description),
             protocol: Set(payload.protocol),
-            is_default: Set(payload.is_default),
+            default_scope_type: Set(if payload.is_default {
+                ScopeType::Default.to_string()
+            } else {
+                ScopeType::Optional.to_string()
+            }),
             created_at: Set(now),
             updated_at: Set(now),
         };
@@ -121,9 +126,13 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
             Some(v) => Set(v),
             None => active.protocol,
         };
-        active.is_default = match payload.is_default {
-            Some(v) => Set(v),
-            None => active.is_default,
+        active.default_scope_type = match payload.is_default {
+            Some(v) => Set(if v {
+                ScopeType::Default.to_string()
+            } else {
+                ScopeType::Optional.to_string()
+            }),
+            None => active.default_scope_type,
         };
         active.updated_at = Set(Utc::now().naive_utc());
 
