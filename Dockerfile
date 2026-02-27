@@ -24,9 +24,10 @@ COPY core/Cargo.toml ./core/
 
 COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
+COPY client/Cargo.toml ./client/
 
 RUN \
-  mkdir -p api/src core/src entity/src operator/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src && \
+  mkdir -p api/src core/src entity/src operator/src client/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src && \
   touch libs/maskass/src/lib.rs && \
   touch libs/ferriskey-domain/src/lib.rs && \
   touch libs/ferriskey-security/src/lib.rs && \
@@ -34,6 +35,7 @@ RUN \
   touch libs/ferriskey-abyss/src/lib.rs && \
   touch libs/ferriskey-aegis/src/lib.rs && \
   touch core/src/lib.rs && \
+  touch client/src/lib.rs && \
   echo "fn main() {}" > operator/src/main.rs && \
   echo "fn main() {}" > api/src/main.rs && \
   cargo build --release
@@ -48,6 +50,7 @@ COPY libs/ferriskey-aegis libs/ferriskey-aegis
 COPY core core
 COPY api api
 COPY operator operator
+COPY client client
 
 RUN \
   touch libs/maskass/src/lib.rs && \

@@ -89,6 +89,7 @@ pub async fn send_magic_link(
     summary = "Verify magic link and complete authentication",
     description = "Verifies the magic link token and completes the authentication flow. Returns authentication status and redirect URL with authorization code.",
     params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
         ("token_id" = String, Query, description = "The unique token identifier from the magic link"),
         ("magic_token" = String, Query, description = "The secret verification token from the magic link"),
     ),
