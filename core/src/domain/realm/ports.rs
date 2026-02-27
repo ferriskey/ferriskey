@@ -32,6 +32,11 @@ pub trait RealmService: Send + Sync {
         input: CreateRealmInput,
     ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
 
+    fn seed_default_scopes(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
     fn create_realm_with_user(
         &self,
         identity: Identity,
