@@ -228,6 +228,36 @@ where
             }
         };
 
+        match self
+            .client_repository
+            .get_by_client_id("admin-cli".to_string(), realm.id)
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("client admin-cli already exists");
+            }
+            Err(_) => {
+                tracing::info!("creating client admin-cli");
+                self.client_repository
+                    .create_client(CreateClientRequest {
+                        realm_id: realm.id,
+                        name: "admin-cli".to_string(),
+                        client_id: "admin-cli".to_string(),
+                        enabled: true,
+                        protocol: "openid-connect".to_string(),
+                        public_client: true,
+                        service_account_enabled: false,
+                        direct_access_grants_enabled: true,
+                        client_type: "".to_string(),
+                        secret: None,
+                    })
+                    .await
+                    .map_err(|_| CoreError::CreateClientError)?;
+
+                tracing::info!("client admin-cli created");
+            }
+        };
+
         let user = match self
             .user_repository
             .get_by_username(config.admin_username.clone(), realm.id)
