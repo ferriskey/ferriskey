@@ -255,8 +255,6 @@ export namespace Schemas {
     kty: string
     n: string
     use: string
-    x5c: Array<string>
-    x5t: string
   }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
