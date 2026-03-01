@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Schemas } from '@/api/api.client.ts'
+import { Schemas } from '@/api/api.client'
 import Realm = Schemas.Realm
 
 interface State {

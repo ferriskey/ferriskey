@@ -14,7 +14,7 @@ import { z } from 'zod'
 import type { ProviderFormData } from '../components/provider-config-form'
 import PageCreate from '../ui/page-create'
 
-const formSchema: z.ZodType<ProviderFormData> = z.object({
+const formSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(50),
   clientId: z.string().min(1, 'Client ID is required'),
   clientSecret: z.string().min(1, 'Client Secret is required'),
@@ -38,8 +38,8 @@ export default function PageCreateFeature() {
     data: responseCreateProvider,
   } = useCreateIdentityProvider()
 
-  const form = useForm<ProviderFormData>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<ProviderFormData, any, any>({
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       displayName: '',
       clientId: '',

@@ -102,7 +102,7 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
     useTls: config?.connection?.use_tls || false,
   }
 
-  const form = useForm<CreateLdapProviderSchema>({
+  const form = useForm<CreateLdapProviderSchema, any, any>({
     resolver: zodResolver(createLdapProviderSchema),
     mode: 'onChange',
     defaultValues,
@@ -237,7 +237,7 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <LdapFormUi
+        <LdapFormUi<CreateLdapProviderSchema>
           form={form}
           handleBack={handleBack}
           handleSubmit={form.handleSubmit(handleSubmit)}

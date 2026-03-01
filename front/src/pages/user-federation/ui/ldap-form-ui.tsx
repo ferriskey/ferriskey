@@ -1,4 +1,4 @@
-import { UseFormReturn } from 'react-hook-form'
+import { UseFormReturn, FieldValues, Path } from 'react-hook-form'
 import { CreateLdapProviderSchema } from '../schemas/ldap-provider.schema'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, CheckCircle, Server, Key, Plug, RefreshCw } from 'lucide-react'
@@ -20,10 +20,12 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-interface LdapFormUiProps {
-  form: UseFormReturn<CreateLdapProviderSchema>
+interface LdapFormUiProps<
+  TFieldValues extends FieldValues = CreateLdapProviderSchema,
+> {
+  form: UseFormReturn<TFieldValues, any, any>
   handleBack: () => void
-  handleSubmit: () => void
+  handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
   onTestConnection?: () => void
   isTestingConnection?: boolean
@@ -33,7 +35,9 @@ interface LdapFormUiProps {
   hasChanges?: boolean
 }
 
-export default function LdapFormUi({
+export default function LdapFormUi<
+  TFieldValues extends FieldValues = CreateLdapProviderSchema,
+>({
   form,
   handleBack,
   handleSubmit,
@@ -44,7 +48,7 @@ export default function LdapFormUi({
   isSyncingUsers = false,
   isEditMode = false,
   hasChanges = false,
-}: LdapFormUiProps) {
+}: LdapFormUiProps<TFieldValues>) {
   const providerTypes = [
     {
       value: 'LDAP' as const,
@@ -157,11 +161,11 @@ export default function LdapFormUi({
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name='name'
+            name={'name' as Path<TFieldValues>}
             render={({ field }) => (
               <InputText
                 label='Provider Name'
-                error={form.formState.errors.name?.message}
+                error={form.formState.errors.name?.message as string}
                 {...field}
               />
             )}
@@ -169,7 +173,7 @@ export default function LdapFormUi({
 
           <FormField
             control={form.control}
-            name='priority'
+            name={'priority' as Path<TFieldValues>}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priority</FormLabel>
@@ -192,7 +196,7 @@ export default function LdapFormUi({
 
           <FormField
             control={form.control}
-            name='enabled'
+            name={'enabled' as Path<TFieldValues>}
             render={({ field }) => (
               <FormItem className='flex flex-row items-center justify-between gap-5 rounded-md border p-3  bg-white'>
                 <div className='space-y-0.5'>
@@ -218,11 +222,11 @@ export default function LdapFormUi({
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name='connectionUrl'
+            name={'connectionUrl' as Path<TFieldValues>}
             render={({ field }) => (
               <InputText
                 label='Connection URL'
-                error={form.formState.errors.connectionUrl?.message}
+                error={form.formState.errors.connectionUrl?.message as string}
                 {...field}
               />
             )}
@@ -230,11 +234,11 @@ export default function LdapFormUi({
 
           <FormField
             control={form.control}
-            name='baseDn'
+            name={'baseDn' as Path<TFieldValues>}
             render={({ field }) => (
               <InputText
                 label='Base DN'
-                error={form.formState.errors.baseDn?.message}
+                error={form.formState.errors.baseDn?.message as string}
                 {...field}
               />
             )}
@@ -243,11 +247,11 @@ export default function LdapFormUi({
           <div className='grid grid-cols-2 gap-4'>
             <FormField
               control={form.control}
-              name='bindDn'
+              name={'bindDn' as Path<TFieldValues>}
               render={({ field }) => (
                 <InputText
                   label='Bind DN'
-                  error={form.formState.errors.bindDn?.message}
+                  error={form.formState.errors.bindDn?.message as string}
                   {...field}
                 />
               )}
@@ -255,13 +259,13 @@ export default function LdapFormUi({
 
             <FormField
               control={form.control}
-              name='bindPassword'
+              name={'bindPassword' as Path<TFieldValues>}
               render={({ field }) => (
                 <div className='space-y-2'>
                   <InputText
                     label='Bind Password'
                     type='password'
-                    error={form.formState.errors.bindPassword?.message}
+                    error={form.formState.errors.bindPassword?.message as string}
                     {...field}
                   />
                   {isEditMode && (
@@ -276,7 +280,7 @@ export default function LdapFormUi({
 
           <FormField
             control={form.control}
-            name='useTls'
+            name={'useTls' as Path<TFieldValues>}
             render={({ field }) => (
               <FormItem className='flex flex-row items-center justify-between gap-5 rounded-md border p-3 bg-white'>
                 <div className='space-y-0.5'>
@@ -329,11 +333,11 @@ export default function LdapFormUi({
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name='userSearchFilter'
+            name={'userSearchFilter' as Path<TFieldValues>}
             render={({ field }) => (
               <InputText
                 label='User Search Filter'
-                error={form.formState.errors.userSearchFilter?.message}
+                error={form.formState.errors.userSearchFilter?.message as string}
                 {...field}
               />
             )}
@@ -346,13 +350,14 @@ export default function LdapFormUi({
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name='syncInterval'
+            name={'syncInterval' as Path<TFieldValues>}
             render={({ field }) => (
               <InputText
                 label='Sync Interval (seconds)'
                 type='number'
-                error={form.formState.errors.syncInterval?.message}
+                error={form.formState.errors.syncInterval?.message as string}
                 {...field}
+                onChange={((e: React.ChangeEvent<HTMLInputElement>) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))) as any}
               />
             )}
           />
