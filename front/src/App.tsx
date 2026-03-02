@@ -37,7 +37,11 @@ function inferApiUrlFromWindowOrigin() {
   const { hostname, origin, protocol } = window.location
 
   if (hostname.startsWith('accounts.')) {
-    return `${protocol}//auth.${hostname.slice('accounts.'.length)}`
+    return `${protocol}//auth.${hostname.slice('accounts.'.length)}/api`
+  }
+
+  if (hostname.startsWith('auth.')) {
+    return `${origin}/api`
   }
 
   return origin
