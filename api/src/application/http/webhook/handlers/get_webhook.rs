@@ -19,6 +19,7 @@ use uuid::Uuid;
     summary = "Get webhook",
     description = "Retrieves one webhook in the system related to the current realm.",
     params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
     ),
     responses(

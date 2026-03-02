@@ -58,6 +58,9 @@ pub struct AuthenticationAttemptResponse {
     summary = "Authenticate using webauthn",
     description = "Attempt authentication using a WebAuthnAssertionResponse payload for webauthn authentication. See https://w3c.github.io/webauthn/#dictdef-authenticationresponsejson and https://w3c.github.io/webauthn/#authenticatorassertionresponse",
     request_body = AuthenticationAttemptRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "Authentication attempt successful", body = AuthenticationAttemptResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),

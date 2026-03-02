@@ -32,6 +32,9 @@ pub struct ChallengeOtpResponse {
     summary = "Challenge OTP for user authentication",
     description = "Challenges the user to provide a One-Time Password (OTP) for authentication. This is typically used in multi-factor authentication scenarios.",
     request_body = ChallengeOtpRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "Successfully challenged OTP", body = ChallengeOtpResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),

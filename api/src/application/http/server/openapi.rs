@@ -9,7 +9,8 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "FerrisKey API"
+        title = "FerrisKey API",
+        license(name = "Apache-2.0", identifier = "Apache-2.0")
     ),
     nest(
         (path = "/realms", api = RealmApiDoc),

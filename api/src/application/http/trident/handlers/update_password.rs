@@ -35,6 +35,9 @@ pub struct UpdatePasswordResponse {
     tag = "auth",
     summary = "Update Password",
     request_body = UpdatePasswordRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "Password updated successfully", body = UpdatePasswordResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
