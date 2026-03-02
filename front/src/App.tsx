@@ -33,21 +33,45 @@ declare global {
   }
 }
 
+function inferApiUrlFromWindowOrigin() {
+  const { hostname, origin, protocol } = window.location
+
+  if (hostname.startsWith('accounts.')) {
+    return `${protocol}//auth.${hostname.slice('accounts.'.length)}`
+  }
+
+  return origin
+}
+
+function isUnresolvedApiUrl(value: unknown) {
+  if (typeof value !== 'string') {
+    return true
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length === 0 || trimmed.includes('${')
+}
+
 function App() {
   const { realm_name } = useParams()
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
   const defaultRealm = realm_name ?? 'master'
 
   const apiCallback = useCallback(async () => {
-    const viteUrl = import.meta.env.VITE_API_URL
-    let uri
+    let uri = import.meta.env.VITE_API_URL?.trim()
 
-    if (viteUrl) {
-      uri = viteUrl
-    } else {
-      const data = await fetch('/config.json')
-      const result = await data.json()
-      uri = result.api_url
+    if (isUnresolvedApiUrl(uri)) {
+      try {
+        const data = await fetch('/config.json')
+        const result = await data.json()
+        uri = typeof result?.api_url === 'string' ? result.api_url.trim() : ''
+      } catch {
+        uri = ''
+      }
+    }
+
+    if (isUnresolvedApiUrl(uri)) {
+      uri = inferApiUrlFromWindowOrigin()
     }
 
     const api = createApiClient(fetcher, uri)
