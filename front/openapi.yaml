@@ -2272,8 +2272,6 @@ components:
         - kty
         - use
         - alg
-        - x5c
-        - x5t
         - n
         - e
       properties:
@@ -2288,12 +2286,6 @@ components:
         n:
           type: string
         use:
-          type: string
-        x5c:
-          type: array
-          items:
-            type: string
-        x5t:
           type: string
     JwtToken:
       type: object
