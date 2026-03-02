@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use ferriskey_domain::{generate_timestamp, generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::warn;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -21,7 +22,10 @@ impl From<String> for ScopeType {
         match value.as_str() {
             "OPTIONAL" => ScopeType::Optional,
             "DEFAULT" => ScopeType::Default,
-            _ => ScopeType::None,
+            other => {
+                warn!("Unknown ScopeType value: '{}', defaulting to None", other);
+                ScopeType::None
+            }
         }
     }
 }
