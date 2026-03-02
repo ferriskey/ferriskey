@@ -48,8 +48,6 @@ export interface JwkKey {
   kty: string
   use_: string
   alg: string
-  x5c: string[]
-  x5t: string
   n: string
   e: string
 }
