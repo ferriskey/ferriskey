@@ -33,18 +33,92 @@ declare global {
   }
 }
 
-function inferApiUrlFromWindowOrigin() {
+function normalizeApiUrl(value: string) {
+  return value.trim().replace(/\/+$/, '')
+}
+
+function inferApiUrlCandidatesFromWindowOrigin() {
   const { hostname, origin, protocol } = window.location
 
   if (hostname.startsWith('accounts.')) {
-    return `${protocol}//auth.${hostname.slice('accounts.'.length)}/api`
+    const authOrigin = `${protocol}//auth.${hostname.slice('accounts.'.length)}`
+    return [`${authOrigin}/api`, authOrigin]
   }
 
   if (hostname.startsWith('auth.')) {
-    return `${origin}/api`
+    return [`${origin}/api`, origin]
   }
 
-  return origin
+  return [origin]
+}
+
+function withApiPathVariant(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin)
+    const currentPath = parsed.pathname.replace(/\/+$/, '')
+
+    if (!currentPath) {
+      parsed.pathname = '/api'
+      return normalizeApiUrl(parsed.toString())
+    }
+
+    if (currentPath === '/api') {
+      parsed.pathname = ''
+      return normalizeApiUrl(parsed.toString())
+    }
+  } catch {
+    // Fallback to base url if URL parsing fails.
+  }
+
+  return null
+}
+
+async function isReachableApiBase(url: string) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 1500)
+
+  try {
+    const response = await fetch(`${normalizeApiUrl(url)}/health/live`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: controller.signal,
+    })
+
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+async function resolveApiUrl(baseUrl: string) {
+  const primary = normalizeApiUrl(baseUrl)
+  const fallback = withApiPathVariant(primary)
+  const candidates = [primary, fallback].filter((value, index, self): value is string => {
+    return typeof value === 'string' && value.length > 0 && self.indexOf(value) === index
+  })
+
+  for (const candidate of candidates) {
+    if (await isReachableApiBase(candidate)) {
+      return candidate
+    }
+  }
+
+  return primary
+}
+
+async function resolveApiUrlFromWindowOrigin() {
+  const candidates = inferApiUrlCandidatesFromWindowOrigin()
+
+  for (const candidate of candidates) {
+    const resolved = await resolveApiUrl(candidate)
+    if (await isReachableApiBase(resolved)) {
+      return resolved
+    }
+  }
+
+  return normalizeApiUrl(candidates[0] ?? window.location.origin)
 }
 
 function isUnresolvedApiUrl(value: unknown) {
@@ -75,7 +149,9 @@ function App() {
     }
 
     if (isUnresolvedApiUrl(uri)) {
-      uri = inferApiUrlFromWindowOrigin()
+      uri = await resolveApiUrlFromWindowOrigin()
+    } else {
+      uri = await resolveApiUrl(uri)
     }
 
     const api = createApiClient(fetcher, uri)
