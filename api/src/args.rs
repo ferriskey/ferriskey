@@ -2,7 +2,7 @@
 
 use std::{fmt::Display, path::PathBuf};
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
 use url::Url;
 
@@ -33,6 +33,17 @@ impl Display for Environment {
     }
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum Command {
+    /// Generate the OpenAPI specification and print it to stdout (or a file).
+    /// Does not require a running database.
+    GenApi {
+        /// Write the spec to this file instead of stdout
+        #[arg(short, long, value_name = "FILE")]
+        output: Option<PathBuf>,
+    },
+}
+
 #[derive(Debug, Clone, Parser)]
 #[command(about, version)]
 pub struct Args {
@@ -61,6 +72,8 @@ pub struct Args {
     pub webapp_url: String,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
+    #[command(subcommand)]
+    pub command: Option<Command>,
 }
 
 impl Default for Args {
@@ -73,6 +86,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
+            command: None,
         }
     }
 }

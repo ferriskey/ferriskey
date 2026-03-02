@@ -33,6 +33,9 @@ pub struct GenerateRecoveryCodesResponse {
     summary = "Generate recovery codes",
     description = "Generates recovery codes that allows the user to bypass a MFA challenge",
     request_body = GenerateRecoveryCodesRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "Successfully generated recovery codes", body = GenerateRecoveryCodesResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),

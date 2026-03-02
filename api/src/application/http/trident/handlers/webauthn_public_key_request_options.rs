@@ -47,6 +47,9 @@ impl PartialSchema for RequestOptionsResponse {
     tag = "auth",
     summary = "Request webauthn challenge",
     description = "Provides a full PublicKeyCredentialRequestOption payload for webauthn authentication. See https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptions and https://w3c.github.io/webauthn/#dictdef-publickeycredentialrequestoptionsjson",
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "WebAuthn public key request options generated successfully", body = RequestOptionsResponse),
         (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),

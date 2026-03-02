@@ -55,6 +55,9 @@ pub struct ValidatePublicKeyResponse {}
     summary = "Validate and save a webauthn public key",
     description = "Saving a webauthn public key to use it for authentication attempts or MFA later.",
     request_body = ValidatePublicKeyRequest,
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "WebAuthn public key created successfully", body = ValidatePublicKeyResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),

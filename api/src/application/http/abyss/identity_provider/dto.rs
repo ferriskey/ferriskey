@@ -118,6 +118,7 @@ pub struct DeleteIdentityProviderResponse {
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct ListIdentityProvidersQuery {
     #[serde(default)]
     pub brief_representation: Option<bool>,

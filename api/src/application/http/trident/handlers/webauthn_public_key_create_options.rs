@@ -45,6 +45,9 @@ impl PartialSchema for CreatePublicKeyResponse {
     tag = "auth",
     summary = "Create a webauthn public key",
     description = "Provides a full PublicKeyCredentialCreationOption payload for WebAuthn credential creation/authentication. The payload contains the challenge to resolve in B64Url form as described in the specs. The content is described here: https://w3c.github.io/webauthn/#dictdef-publickeycredentialcreationoptions.",
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+    ),
     responses(
         (status = 200, description = "WebAuthn public key creation options generated successfully", body = CreatePublicKeyResponse),
         (status = 401, description = "Missing or invalid session cookie", body = ApiErrorResponse),
