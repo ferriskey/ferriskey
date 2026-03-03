@@ -1596,6 +1596,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-notify"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "ferriskey-mail",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-operator"
 version = "0.1.0"
 dependencies = [

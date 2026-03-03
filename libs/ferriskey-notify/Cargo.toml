@@ -1,0 +1,12 @@
+[package]
+name = "ferriskey-notify"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-domain = { path = "../ferriskey-domain" }
+ferriskey-mail   = { path = "../ferriskey-mail" }
+chrono           = { version = "0.4.43", features = ["serde"] }
+thiserror        = "2.0.18"
+uuid             = { version = "1.20.0", features = ["serde", "v7"] }
