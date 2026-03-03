@@ -3,9 +3,10 @@ use std::sync::Arc;
 use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
-use tracing::{error, info, warn};
+use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -30,7 +31,7 @@ use crate::domain::{
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
     jwt::{
-        entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, TokenClaims},
+        entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
         ports::{AccessTokenRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
@@ -163,35 +164,31 @@ where
         })
     }
 
-    async fn try_generate_token<T>(&self, claims: &T, realm_id: RealmId) -> Result<Jwt, CoreError>
-    where
-        T: TokenClaims,
-    {
-        let jwt_key_pair = self
-            .keystore_repository
-            .get_or_generate_key(realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
+    fn encode_token_with_key<T: Serialize>(
+        claims: &T,
+        expires_at: i64,
+        key_pair: &JwtKeyPair,
+    ) -> Result<Jwt, CoreError> {
         let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
-        header.kid = Some(jwt_key_pair.id.to_string());
-        let token =
-            jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
-                tracing::error!("JWT generation error: {}", e);
+        header.kid = Some(key_pair.id.to_string());
+        let token = jsonwebtoken::encode(&header, claims, &key_pair.encoding_key).map_err(|e| {
+            tracing::error!("JWT generation error: {}", e);
+            CoreError::TokenGenerationError(e.to_string())
+        })?;
 
-                CoreError::TokenGenerationError(e.to_string())
-            })?;
-
-        Ok(Jwt {
-            token,
-            expires_at: claims.get_exp(),
-        })
+        Ok(Jwt { token, expires_at })
     }
 
     async fn create_jwt(
         &self,
         input: GenerateTokenInput,
     ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(input.realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
         let realm_audit = format!("{}-realm", input.realm_name);
 
@@ -206,9 +203,7 @@ where
             input.scope.clone(),
         );
 
-        let jwt = self
-            .generate_token(claims.clone(), input.realm_id)
-            .await
+        let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
             .map_err(|e| {
                 warn!("Failed to generate JWT: {:?}", e);
                 e
@@ -222,18 +217,6 @@ where
             .exp
             .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
 
-        self.access_token_repository
-            .create(
-                access_token_hash,
-                Some(claims.jti),
-                claims.sub,
-                input.realm_id,
-                access_token_expires_at,
-                access_token_claims,
-            )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
         let refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
             claims.iss.clone(),
@@ -242,9 +225,11 @@ where
             claims.scope.clone(),
         );
 
-        let refresh_token = self
-            .generate_token(refresh_claims.clone(), input.realm_id)
-            .await?;
+        let refresh_token = Self::encode_token_with_key(
+            &refresh_claims,
+            refresh_claims.exp.unwrap_or(0),
+            &jwt_key_pair,
+        )?;
 
         let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
         let exp = claims.exp.unwrap_or(0);
@@ -265,21 +250,34 @@ where
                 preferred_username,
                 sub: claims.sub,
             };
-            let t = self.try_generate_token(&id_claims, input.realm_id).await?;
+            let t = Self::encode_token_with_key(&id_claims, id_claims.exp, &jwt_key_pair)?;
 
             Some(t)
         } else {
             None
         };
 
-        self.refresh_token_repository
-            .create(
+        let refresh_token_expires_at = Utc
+            .timestamp_opt(refresh_token.expires_at, 0)
+            .single()
+            .ok_or(CoreError::InternalServerError)?;
+
+        tokio::try_join!(
+            self.access_token_repository.create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                input.realm_id,
+                access_token_expires_at,
+                access_token_claims,
+            ),
+            self.refresh_token_repository.create(
                 refresh_claims.jti,
                 input.user_id,
-                Some(Utc.timestamp_opt(refresh_token.expires_at, 0).unwrap()),
+                Some(refresh_token_expires_at),
             )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        )
+        .map_err(|_| CoreError::InternalServerError)?;
 
         Ok((jwt, refresh_token, id_token))
     }
@@ -327,6 +325,7 @@ where
         let credential = self
             .credential_repository
             .get_password_credential(user_id)
+            .instrument(info_span!("auth.verify_password.credential_fetch"))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -349,6 +348,11 @@ where
                 &algorithm,
                 &salt,
             )
+            .instrument(info_span!(
+                "auth.verify_password.hasher_verify",
+                hash_algorithm = %algorithm,
+                hash_iterations
+            ))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -493,14 +497,26 @@ where
         let client = self
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .instrument(info_span!("auth.password.client_lookup"))
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if !client.public_client {
-            if !client.direct_access_grants_enabled && params.client_secret.is_none() {
-                return Err(CoreError::InvalidClientSecret);
+        if !client.direct_access_grants_enabled {
+            // Public clients must have direct access grants enabled for password flow.
+            if client.public_client {
+                return Err(CoreError::InvalidClient);
             }
 
+            // Confidential clients are still allowed when authenticating with a valid secret.
+            if !Self::verify_client_secret(
+                client.secret.as_deref(),
+                params.client_secret.as_deref(),
+            ) {
+                return Err(CoreError::InvalidClientSecret);
+            }
+        } else if !client.public_client {
+            // When direct access grants are enabled, confidential clients may call
+            // password flow without a secret; if one is provided, it must be valid.
             if let Some(provided_secret) = &params.client_secret
                 && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
             {
@@ -511,10 +527,14 @@ where
         let user = self
             .user_repository
             .get_by_username(username, params.realm_id)
+            .instrument(info_span!("auth.password.user_lookup"))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let credential = self.verify_password(user.id, password).await;
+        let credential = self
+            .verify_password(user.id, password)
+            .instrument(info_span!("auth.password.verify_password"))
+            .await;
 
         let is_valid = match credential {
             Ok(is_valid) => is_valid,
@@ -539,6 +559,7 @@ where
                 username: user.username,
                 scope: Some(final_scope),
             })
+            .instrument(info_span!("auth.password.create_jwt"))
             .await?;
 
         let id_token_value = id_token.map(|t| t.token);
@@ -1171,15 +1192,30 @@ where
         Ok(vec![jwk_key])
     }
 
+    #[instrument(
+        skip(self, input),
+        fields(
+            realm_name = %input.realm_name,
+            client_id = %input.client_id,
+            grant_type = ?input.grant_type,
+            has_client_secret = input.client_secret.is_some(),
+            has_username = input.username.is_some(),
+            has_password = input.password.is_some(),
+            has_code = input.code.is_some(),
+            has_refresh_token = input.refresh_token.is_some()
+        )
+    )]
     async fn exchange_token(&self, input: ExchangeTokenInput) -> Result<JwtToken, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
+            .instrument(info_span!("auth.exchange_token.realm_lookup"))
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
         self.client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
+            .instrument(info_span!("auth.exchange_token.client_lookup"))
             .await
             .map_err(|e| {
                 warn!(
@@ -1203,8 +1239,21 @@ where
             scope: input.scope,
         };
 
-        self.authenticate_with_grant_type(input.grant_type, params)
-            .await
+        let result = self
+            .authenticate_with_grant_type(input.grant_type, params)
+            .instrument(info_span!(
+                "auth.exchange_token.authenticate_with_grant_type"
+            ))
+            .await;
+
+        if let Err(error) = &result {
+            warn!(
+                error = ?error,
+                "Token exchange failed"
+            )
+        }
+
+        result
     }
 
     async fn authorize_request(
