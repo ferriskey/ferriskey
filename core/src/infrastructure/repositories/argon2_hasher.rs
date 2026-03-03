@@ -2,6 +2,8 @@ use argon2::{
     Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
+use tokio::task;
+use tracing::instrument;
 
 use ferriskey_security::SecurityError;
 
@@ -26,13 +28,13 @@ impl HasherRepository for Argon2HasherRepository {
     async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
         let salt = SaltString::generate(&mut OsRng);
         let params = argon2::Params::new(
-            32 * 1024, // Memory cost (32MB)
-            3,         // Number of iterations
-            1,         // Parallelism degree
-            Some(32),  // Output length
+            7168,     // Memory cost (KiB) aligned with Keycloak profile
+            5,        // Number of iterations aligned with Keycloak profile
+            1,        // Parallelism degree
+            Some(32), // Output length
         )
         .map_err(|e| SecurityError::HashingError(e.to_string()))?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2d, Version::V0x13, params.clone());
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params.clone());
 
         let password_hash = argon2
             .hash_password(password.as_bytes(), &salt)
@@ -43,16 +45,23 @@ impl HasherRepository for Argon2HasherRepository {
             password_hash,
             salt.to_string(),
             params.t_cost(),
-            argon2::Algorithm::Argon2d.to_string(),
+            argon2::Algorithm::Argon2id.to_string(),
         );
         Ok(hash_result)
     }
 
+    #[instrument(
+        skip(self, password, secret_data, _salt),
+        fields(
+            algorithm = %algorithm,
+            hash_len = secret_data.len()
+        )
+    )]
     async fn verify_password(
         &self,
         password: &str,
         secret_data: &str,
-        hash_iterations: u32,
+        _hash_iterations: u32,
         algorithm: &str,
         _salt: &str,
     ) -> Result<bool, SecurityError> {
@@ -62,19 +71,23 @@ impl HasherRepository for Argon2HasherRepository {
             _ => Algorithm::Argon2id, // Par défaut, utiliser Argon2id
         };
 
-        let argon2 = Argon2::new(
-            algorithm,
-            Version::V0x13,
-            Params::new(65536, hash_iterations, 4, None)
-                .map_err(|e| SecurityError::HashingError(e.to_string()))?,
-        );
+        let password = password.to_string();
+        let secret_data = secret_data.to_string();
+        let is_valid = task::spawn_blocking(move || {
+            let argon2 = Argon2::new(algorithm, Version::V0x13, Params::default());
+            let parsed_hash = PasswordHash::new(&secret_data)
+                .map_err(|e| SecurityError::HashingError(e.to_string()))?;
+            let is_valid = argon2
+                .verify_password(password.as_bytes(), &parsed_hash)
+                .is_ok();
+            Ok::<bool, SecurityError>(is_valid)
+        })
+        .await
+        .map_err(|e| {
+            SecurityError::HashingError(format!("argon2 verify task join error: {e}"))
+        })??;
 
-        let parsed_hash = PasswordHash::new(secret_data)
-            .map_err(|e| SecurityError::HashingError(e.to_string()))?;
-
-        let result = argon2.verify_password(password.as_bytes(), &parsed_hash);
-
-        Ok(result.is_ok())
+        Ok(is_valid)
     }
 
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
