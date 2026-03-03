@@ -171,7 +171,10 @@ where
             .find_by_realm_id(realm_id)
             .await?;
 
-        for scope in realm_scopes.into_iter().filter(|s| s.is_default) {
+        for scope in realm_scopes
+            .into_iter()
+            .filter(|s| matches!(s.name.as_str(), "openid" | "profile" | "email" | "roles"))
+        {
             self.scope_mapping_repository
                 .assign_scope_to_client(client.id, scope.id, true, false)
                 .await?;
