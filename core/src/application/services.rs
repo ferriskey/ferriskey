@@ -120,6 +120,8 @@ pub struct ApplicationService {
         PostLogoutRedirectUriRepo,
         RoleRepo,
         SecurityEventRepo,
+        ClientScopeRepo,
+        ScopeMappingRepo,
     >,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,
@@ -131,6 +133,7 @@ pub struct ApplicationService {
         IdentityProviderRepo,
         ClientScopeRepo,
         ProtocolMapperRepo,
+        ScopeMappingRepo,
     >,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,
