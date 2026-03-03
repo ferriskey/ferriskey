@@ -14,6 +14,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::entities::JwtToken;
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
+use tracing::{instrument, warn};
 
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
@@ -34,14 +35,35 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
+#[instrument(
+    skip(state, payload),
+    fields(
+        realm_name = %realm_name,
+        client_id = %payload.client_id,
+        grant_type = ?payload.grant_type,
+        has_client_secret = payload.client_secret.is_some(),
+        has_username = payload.username.is_some(),
+        has_password = payload.password.is_some(),
+        has_code = payload.code.is_some(),
+        has_refresh_token = payload.refresh_token.is_some()
+    )
+)]
 pub async fn exchange_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let grant_type = payload.grant_type.clone();
+    let client_id = payload.client_id.clone();
+    let has_client_secret = payload.client_secret.is_some();
+    let has_username = payload.username.is_some();
+    let has_password = payload.password.is_some();
+    let has_code = payload.code.is_some();
+    let has_refresh_token = payload.refresh_token.is_some();
+
     let is_secure = base_url.starts_with("https://");
-    let token = state
+    let token = match state
         .service
         .exchange_token(ExchangeTokenInput {
             realm_name,
@@ -55,7 +77,24 @@ pub async fn exchange_token(
             grant_type: payload.grant_type,
             scope: payload.scope,
         })
-        .await?;
+        .await
+    {
+        Ok(token) => token,
+        Err(error) => {
+            warn!(
+                client_id = %client_id,
+                grant_type = ?grant_type,
+                has_client_secret,
+                has_username,
+                has_password,
+                has_code,
+                has_refresh_token,
+                error = ?error,
+                "Token exchange failed"
+            );
+            return Err(error.into());
+        }
+    };
 
     let mut identity_cookie = Cookie::build((IDENTITY_COOKIE, token.access_token().to_string()))
         .path("/")
