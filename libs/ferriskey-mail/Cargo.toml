@@ -1,0 +1,9 @@
+[package]
+name = "ferriskey-mail"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+lettre = { version = "0.11.19", features = ["tokio1-native-tls"] }
+thiserror = "2.0.18"
