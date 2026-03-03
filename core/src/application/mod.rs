@@ -163,6 +163,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             post_logout_redirect_uri.clone(),
             role.clone(),
             security_event.clone(),
+            client_scope.clone(),
+            scope_mapping.clone(),
             policy.clone(),
         ),
         credential_service: CredentialServiceImpl::new(
@@ -181,6 +183,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             identity_provider.clone(),
             client_scope.clone(),
             protocol_mapper.clone(),
+            scope_mapping.clone(),
             policy.clone(),
         ),
         role_service: RoleServiceImpl::new(
@@ -273,4 +276,216 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     };
 
     Ok(app)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use sqlx::Executor;
+    use uuid::Uuid;
+
+    use crate::{
+        application::create_service,
+        domain::{
+            authentication::value_objects::Identity,
+            client::{entities::CreateClientInput, ports::ClientService},
+            common::FerriskeyConfig,
+            realm::entities::Realm,
+            realm::ports::{RealmRepository, RealmService},
+            role::{
+                entities::permission::Permissions, ports::RoleRepository,
+                value_objects::CreateRoleRequest,
+            },
+            user::{
+                entities::User,
+                ports::{UserRepository, UserRoleRepository},
+                value_objects::CreateUserRequest,
+            },
+        },
+    };
+
+    fn env_or(key: &str, default: &str) -> String {
+        env::var(key).unwrap_or_else(|_| default.to_string())
+    }
+
+    fn env_u16_or(key: &str, default: u16) -> u16 {
+        env::var(key)
+            .ok()
+            .and_then(|v| v.parse::<u16>().ok())
+            .unwrap_or(default)
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn creates_client_with_realm_default_scopes_assigned() {
+        let db_host = env_or("DATABASE_HOST", "localhost");
+        let db_port = env_u16_or("DATABASE_PORT", 5432);
+        let db_name = env_or("DATABASE_NAME", "ferriskey");
+        let db_user = env_or("DATABASE_USER", "ferriskey");
+        let db_password = env_or("DATABASE_PASSWORD", "ferriskey");
+
+        let schema = format!("test_schema_{}", Uuid::new_v4().simple());
+
+        let admin_url = format!(
+            "postgres://{}:{}@{}:{}/{}",
+            db_user, db_password, db_host, db_port, db_name
+        );
+
+        let admin_pool = sqlx::PgPool::connect(&admin_url)
+            .await
+            .expect("connect admin pool");
+
+        admin_pool
+            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{}\"", schema).as_str())
+            .await
+            .expect("create schema");
+
+        let schema_url = format!(
+            "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
+            db_user,
+            db_password,
+            db_host,
+            db_port,
+            db_name,
+            urlencoding::encode(&schema)
+        );
+
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let app = create_service(FerriskeyConfig {
+            database: crate::domain::common::DatabaseConfig {
+                host: db_host,
+                port: db_port,
+                username: db_user,
+                password: db_password,
+                name: db_name,
+                schema: schema.clone(),
+            },
+        })
+        .await
+        .expect("create service");
+
+        let realm_name = format!("realm-{}", Uuid::new_v4().simple());
+        let realm = app
+            .realm_service
+            .realm_repository
+            .create_realm(realm_name.clone())
+            .await
+            .expect("create realm");
+
+        app.seed_default_scopes(realm.id)
+            .await
+            .expect("seed default scopes");
+
+        let role = app
+            .realm_service
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: None,
+                description: None,
+                name: "test-manage-clients".to_string(),
+                permissions: vec![Permissions::ManageClients.name()],
+                realm_id: realm.id,
+            })
+            .await
+            .expect("create role");
+
+        let user = app
+            .realm_service
+            .user_repository
+            .create_user(CreateUserRequest {
+                realm_id: realm.id,
+                client_id: None,
+                username: "test-user".to_string(),
+                firstname: "Test".to_string(),
+                lastname: "User".to_string(),
+                email: "test-user@example.com".to_string(),
+                email_verified: true,
+                enabled: true,
+            })
+            .await
+            .expect("create user");
+
+        app.realm_service
+            .user_role_repository
+            .assign_role(user.id, role.id)
+            .await
+            .expect("assign role");
+
+        let identity = Identity::User(User {
+            realm: Some(Realm {
+                id: realm.id,
+                name: realm.name.clone(),
+                settings: None,
+                created_at: realm.created_at,
+                updated_at: realm.updated_at,
+            }),
+            ..user.clone()
+        });
+
+        let client = app
+            .create_client(
+                identity,
+                CreateClientInput {
+                    client_id: format!("client-{}", Uuid::new_v4().simple()),
+                    client_type: "public".to_string(),
+                    public_client: true,
+                    realm_name: realm_name.clone(),
+                    enabled: true,
+                    name: "Test Client".to_string(),
+                    protocol: "openid-connect".to_string(),
+                    service_account_enabled: false,
+                    direct_access_grants_enabled: false,
+                },
+            )
+            .await
+            .expect("create client");
+
+        let default_scopes: Vec<(Uuid,)> = sqlx::query_as(
+            "SELECT id FROM client_scopes WHERE realm_id = $1 AND is_default = true",
+        )
+        .bind::<Uuid>(realm.id.into())
+        .fetch_all(&pool)
+        .await
+        .expect("fetch default scopes");
+
+        assert!(!default_scopes.is_empty());
+
+        for (scope_id,) in default_scopes {
+            let row: (i64,) = sqlx::query_as(
+                "SELECT COUNT(*) FROM client_scope_mappings WHERE client_id = $1 AND client_scope_id = $2 AND is_default = true AND is_optional = false",
+            )
+            .bind(client.id)
+            .bind(scope_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count mapping");
+
+            assert_eq!(row.0, 1);
+        }
+
+        let optional_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM client_scope_mappings m JOIN client_scopes s ON s.id = m.client_scope_id WHERE m.client_id = $1 AND s.realm_id = $2 AND s.is_default = false",
+        )
+        .bind(client.id)
+        .bind::<Uuid>(realm.id.into())
+        .fetch_one(&pool)
+        .await
+        .expect("count optional mappings");
+
+        assert_eq!(optional_count.0, 0);
+
+        admin_pool
+            .execute(format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema).as_str())
+            .await
+            .expect("drop schema");
+    }
 }

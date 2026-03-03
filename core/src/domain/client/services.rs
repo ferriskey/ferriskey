@@ -37,9 +37,10 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
+use ferriskey_aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository};
 
 #[derive(Clone, Debug)]
-pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -50,6 +51,8 @@ where
     PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -59,11 +62,14 @@ where
     pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) role_repository: Arc<RO>,
     pub(crate) security_event_repository: Arc<SE>,
+    pub(crate) client_scope_repository: Arc<CS>,
+    pub(crate) scope_mapping_repository: Arc<CSM>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, W, RU, PLRU, RO, SE> ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
+impl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
+    ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -74,6 +80,8 @@ where
     PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -85,6 +93,8 @@ where
         post_logout_redirect_uri_repository: Arc<PLRU>,
         role_repository: Arc<RO>,
         security_event_repository: Arc<SE>,
+        client_scope_repository: Arc<CS>,
+        scope_mapping_repository: Arc<CSM>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -96,13 +106,15 @@ where
             post_logout_redirect_uri_repository,
             role_repository,
             security_event_repository,
+            client_scope_repository,
+            scope_mapping_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, W, RU, PLRU, RO, SE> ClientService
-    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE>
+impl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM> ClientService
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -113,6 +125,8 @@ where
     PLRU: PostLogoutRedirectUriRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
 {
     async fn create_client(
         &self,
@@ -151,6 +165,20 @@ where
             })
             .await
             .map_err(|_| CoreError::CreateClientError)?;
+
+        let realm_scopes = self
+            .client_scope_repository
+            .find_by_realm_id(realm_id)
+            .await?;
+
+        for scope in realm_scopes
+            .into_iter()
+            .filter(|s| matches!(s.name.as_str(), "openid" | "profile" | "email" | "roles"))
+        {
+            self.scope_mapping_repository
+                .assign_scope_to_client(client.id, scope.id, true, false)
+                .await?;
+        }
 
         if input.service_account_enabled {
             let service_account_username = format!("service-account-{}", input.client_id);

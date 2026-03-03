@@ -28,13 +28,15 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
-use ferriskey_aegis::ports::{ClientScopeRepository, ProtocolMapperRepository};
+use ferriskey_aegis::ports::{
+    ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
+};
 use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMapperRequest};
 use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -45,6 +47,7 @@ where
     I: IdentityProviderRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
+    CSM: ClientScopeMappingRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -55,11 +58,12 @@ where
     pub(crate) identity_provider_repository: Arc<I>,
     pub(crate) client_scope_repository: Arc<CS>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
+    pub(crate) client_scope_mapping_repository: Arc<CSM>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -70,6 +74,7 @@ where
     I: IdentityProviderRepository,
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
+    CSM: ClientScopeMappingRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -82,6 +87,7 @@ where
         identity_provider_repository: Arc<I>,
         client_scope_repository: Arc<CS>,
         protocol_mapper_repository: Arc<PM>,
+        client_scope_mapping_repository: Arc<CSM>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -94,105 +100,16 @@ where
             identity_provider_repository,
             client_scope_repository,
             protocol_mapper_repository,
+            client_scope_mapping_repository,
             policy,
         }
     }
-}
 
-impl<R, U, C, UR, RO, W, I, CS, PM> RealmService for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM>
-where
-    R: RealmRepository,
-    C: ClientRepository,
-    U: UserRepository,
-    RO: RoleRepository,
-    UR: UserRoleRepository,
-    W: WebhookRepository,
-    I: IdentityProviderRepository,
-    CS: ClientScopeRepository,
-    PM: ProtocolMapperRepository,
-{
-    #[instrument(
-        skip(self, identity, input),
-        fields(
-            identity.id = %identity.id(),
-            identity.kind = %identity.kind(),
-            realm.name = %input.realm_name,
-        )
-    )]
-    async fn create_realm(
+    async fn seed_default_scopes_for_client(
         &self,
-        identity: Identity,
-        input: CreateRealmInput,
-    ) -> Result<Realm, CoreError> {
-        let realm_master = self
-            .realm_repository
-            .get_by_name("master".to_string())
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        let realm_master_id = realm_master.id;
-        ensure_policy(
-            self.policy.can_create_realm(&identity, &realm_master).await,
-            "insufficient permissions",
-        )?;
-
-        let realm = self.realm_repository.create_realm(input.realm_name).await?;
-        self.realm_repository
-            .create_realm_settings(realm.id, "RS256".to_string())
-            .await?;
-
-        let name = format!("{}-realm", realm.name);
-
-        let client = self
-            .client_repository
-            .create_client(CreateClientRequest::create_realm_system_client(
-                realm_master_id,
-                name.clone(),
-            ))
-            .await?;
-
-        let role = self
-            .role_repository
-            .create(CreateRoleRequest {
-                client_id: Some(client.id),
-                description: None,
-                name,
-                permissions: vec![Permissions::ManageRealm.name()],
-                realm_id: realm_master_id,
-            })
-            .await?;
-
-        let user = match identity {
-            Identity::User(u) => u,
-            Identity::Client(c) => self.user_repository.get_by_client_id(c.id).await?,
-        };
-
-        self.user_role_repository
-            .assign_role(user.id, role.id)
-            .await?;
-
-        // Clients in the new realm
-        self.client_repository
-            .create_client(CreateClientRequest {
-                client_id: "admin-cli".to_string(),
-                client_type: "".to_string(),
-                direct_access_grants_enabled: true,
-                enabled: true,
-                name: "admin-cli".to_string(),
-                protocol: "openid-connect".to_string(),
-                public_client: true,
-                realm_id: realm.id,
-                secret: None,
-                service_account_enabled: false,
-            })
-            .await?;
-
-        self.seed_default_scopes(realm.id).await?;
-
-        Ok(realm)
-    }
-
-    async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
+        realm_id: RealmId,
+        client_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
         let scopes = vec![
             ("openid", true, vec![]),
             (
@@ -274,6 +191,10 @@ where
                 })
                 .await?;
 
+            self.client_scope_mapping_repository
+                .assign_scope_to_client(client_id, scope.id, is_default, !is_default)
+                .await?;
+
             for (mapper_name, mapper_type, config) in mappers {
                 self.protocol_mapper_repository
                     .create(CreateProtocolMapperRequest {
@@ -287,6 +208,129 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmService
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    U: UserRepository,
+    RO: RoleRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    CSM: ClientScopeMappingRepository,
+{
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
+    async fn create_realm(
+        &self,
+        identity: Identity,
+        input: CreateRealmInput,
+    ) -> Result<Realm, CoreError> {
+        let realm_master = self
+            .realm_repository
+            .get_by_name("master".to_string())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_master_id = realm_master.id;
+        ensure_policy(
+            self.policy.can_create_realm(&identity, &realm_master).await,
+            "insufficient permissions",
+        )?;
+
+        let realm = self.realm_repository.create_realm(input.realm_name).await?;
+        self.realm_repository
+            .create_realm_settings(realm.id, "RS256".to_string())
+            .await?;
+
+        let name = format!("{}-realm", realm.name);
+
+        let client = self
+            .client_repository
+            .create_client(CreateClientRequest::create_realm_system_client(
+                realm_master_id,
+                name.clone(),
+            ))
+            .await?;
+
+        let role = self
+            .role_repository
+            .create(CreateRoleRequest {
+                client_id: Some(client.id),
+                description: None,
+                name,
+                permissions: vec![Permissions::ManageRealm.name()],
+                realm_id: realm_master_id,
+            })
+            .await?;
+
+        let user = match identity {
+            Identity::User(u) => u,
+            Identity::Client(c) => self.user_repository.get_by_client_id(c.id).await?,
+        };
+
+        self.user_role_repository
+            .assign_role(user.id, role.id)
+            .await?;
+
+        // Clients in the new realm
+        self.client_repository
+            .create_client(CreateClientRequest {
+                client_id: "admin-cli".to_string(),
+                client_type: "".to_string(),
+                direct_access_grants_enabled: true,
+                enabled: true,
+                name: "admin-cli".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                realm_id: realm.id,
+                secret: None,
+                service_account_enabled: false,
+            })
+            .await?;
+
+        let account_client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                client_id: "ferriskey-account".to_string(),
+                client_type: "".to_string(),
+                direct_access_grants_enabled: false,
+                enabled: true,
+                name: "ferriskey-account".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: true,
+                realm_id: realm.id,
+                secret: None,
+                service_account_enabled: false,
+            })
+            .await?;
+
+        self.seed_default_scopes_for_client(realm.id, account_client.id)
+            .await?;
+
+        Ok(realm)
+    }
+
+    async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
+        let account_client = self
+            .client_repository
+            .get_by_client_id("ferriskey-account".to_string(), realm_id)
+            .await?;
+
+        self.seed_default_scopes_for_client(realm_id, account_client.id)
+            .await
     }
 
     #[instrument(
@@ -1012,12 +1056,13 @@ mod tests {
             MockIdentityProviderRepository,
             MockClientScopeRepository,
             MockProtocolMapperRepository,
+            MockClientScopeMappingRepository,
         > {
-            let policy = FerriskeyPolicy::new(
+            let policy = Arc::new(FerriskeyPolicy::new(
                 self.user_repo.clone(),
                 self.client_repo.clone(),
                 self.user_role_repo.clone(),
-            );
+            ));
             RealmServiceImpl::new(
                 self.realm_repo,
                 self.user_repo,
@@ -1028,7 +1073,8 @@ mod tests {
                 self.identity_provider,
                 self.client_scope_repo,
                 self.protocol_mapper_repo,
-                Arc::new(policy),
+                self.client_scope_mapping_repo,
+                policy,
             )
         }
     }
