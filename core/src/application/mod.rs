@@ -294,8 +294,7 @@ mod tests {
             realm::entities::Realm,
             realm::ports::{RealmRepository, RealmService},
             role::{
-                entities::permission::Permissions,
-                ports::RoleRepository,
+                entities::permission::Permissions, ports::RoleRepository,
                 value_objects::CreateRoleRequest,
             },
             user::{

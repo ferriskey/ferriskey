@@ -28,7 +28,7 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
-use ferriskey_aegis::ports::{                                                   
+use ferriskey_aegis::ports::{
     ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
 };
 use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMapperRequest};
