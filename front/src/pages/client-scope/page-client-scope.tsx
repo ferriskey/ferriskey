@@ -6,6 +6,7 @@ import ClientScopeLayout from './layout/client-scope-layout'
 import PageClientScopeDetailFeature from './feature/page-client-scope-detail-feature'
 import PageProtocolMappersFeature from './feature/page-protocol-mappers-feature'
 import PageCreateProtocolMapperFeature from './feature/page-create-protocol-mapper-feature'
+import PageProtocolMapperSettingsFeature from './feature/page-protocol-mapper-settings-feature'
 
 export default function PageClientScope() {
   return (
@@ -17,7 +18,9 @@ export default function PageClientScope() {
       <Route element={<ClientScopeLayout />}>
         <Route path=':scope_id/details' element={<PageClientScopeDetailFeature />} />
         <Route path=':scope_id/mappers' element={<PageProtocolMappersFeature />} />
+        {/* Static segment `new` must come before the dynamic `:mapper_id` */}
         <Route path=':scope_id/mappers/new' element={<PageCreateProtocolMapperFeature />} />
+        <Route path=':scope_id/mappers/:mapper_id' element={<PageProtocolMapperSettingsFeature />} />
       </Route>
     </Routes>
   )

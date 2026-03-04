@@ -100,7 +100,7 @@ export default function MapperTemplatePickerModal({
           <DialogTitle>Add Protocol Mapper</DialogTitle>
         </DialogHeader>
 
-        <DialogBody className='overflow-y-auto flex flex-col gap-6 pr-1'>
+        <DialogBody className='overflow-y-auto scrollbar-hide flex flex-col gap-6 pr-1'>
           {/* Quick Start */}
           <section>
             <SectionHeader
