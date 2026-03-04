@@ -208,8 +208,14 @@ pub struct ApplicationService {
         AuthSessionRepo,
         OAuthClientImpl,
     >,
-    pub(crate) client_scope_service:
-        ClientScopeServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, ClientScopeRepo>,
+    pub(crate) client_scope_service: ClientScopeServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        ClientScopeRepo,
+        ProtocolMapperRepo,
+    >,
     pub(crate) protocol_mapper_service: ProtocolMapperServiceImpl<
         RealmRepo,
         UserRepo,

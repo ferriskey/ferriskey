@@ -262,6 +262,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         client_scope_service: ClientScopeServiceImpl::new(
             realm.clone(),
             client_scope.clone(),
+            protocol_mapper.clone(),
             policy.clone(),
         ),
         protocol_mapper_service: ProtocolMapperServiceImpl::new(
