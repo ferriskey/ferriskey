@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
@@ -15,7 +15,6 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperReposit
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
-        ScopeManager,
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
@@ -211,15 +210,34 @@ where
         let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
         let realm_audit = format!("{}-realm", input.realm_name);
 
-        // Resolve protocol mappers from client scopes
-        let default_scopes = self
+        // Resolve protocol mappers from client scopes (default + requested optional)
+        let mut applicable_scopes = self
             .scope_mapping_repository
             .get_default_scopes(input.client_uuid)
             .await
             .unwrap_or_default();
 
+        let optional_scopes = self
+            .scope_mapping_repository
+            .get_optional_scopes(input.client_uuid)
+            .await
+            .unwrap_or_default();
+
+        // Include optional scopes whose names appear in the resolved token scope
+        let token_scope_names: HashSet<&str> = input
+            .scope
+            .as_deref()
+            .map(|s| s.split_whitespace().collect())
+            .unwrap_or_default();
+
+        for scope in optional_scopes {
+            if token_scope_names.contains(scope.name.as_str()) {
+                applicable_scopes.push(scope);
+            }
+        }
+
         let mut all_mappers = Vec::new();
-        for scope in &default_scopes {
+        for scope in &applicable_scopes {
             let mappers = self
                 .protocol_mapper_repository
                 .get_by_scope_id(scope.id)
@@ -456,6 +474,86 @@ where
         Ok(claims)
     }
 
+    /// Resolve the final scope string for a given client and requested scope.
+    ///
+    /// Rules:
+    /// - Client's default scopes are always included.
+    /// - Client's optional scopes are included only when explicitly requested.
+    /// - Standard OIDC scopes (openid, profile, email, etc.) are always permitted.
+    /// - Any requested scope not in the above sets returns `CoreError::InvalidScope`.
+    /// - Falls back to `profile email` defaults when the client has no configured scopes.
+    async fn resolve_scopes_for_client(
+        &self,
+        client_uuid: Uuid,
+        requested_scope: Option<String>,
+    ) -> Result<String, CoreError> {
+        const STANDARD_OIDC_SCOPES: &[&str] = &[
+            "openid",
+            "profile",
+            "email",
+            "address",
+            "phone",
+            "offline_access",
+            "introspect",
+        ];
+
+        let default_scopes = self
+            .scope_mapping_repository
+            .get_default_scopes(client_uuid)
+            .await
+            .unwrap_or_default();
+
+        let optional_scopes = self
+            .scope_mapping_repository
+            .get_optional_scopes(client_uuid)
+            .await
+            .unwrap_or_default();
+
+        let default_scope_names: HashSet<String> =
+            default_scopes.iter().map(|s| s.name.clone()).collect();
+        let optional_scope_names: HashSet<String> =
+            optional_scopes.iter().map(|s| s.name.clone()).collect();
+
+        // Always include the client's default scopes
+        let mut final_scopes: HashSet<String> = default_scope_names.clone();
+
+        // Fall back to OIDC defaults when the client has no configured default scopes
+        if final_scopes.is_empty() {
+            final_scopes.insert("profile".to_string());
+            final_scopes.insert("email".to_string());
+        }
+
+        if let Some(scope_str) = requested_scope {
+            for scope in scope_str.split_whitespace() {
+                if STANDARD_OIDC_SCOPES.contains(&scope) {
+                    // Standard OIDC scopes are always permitted
+                    final_scopes.insert(scope.to_string());
+                } else if optional_scope_names.contains(scope) {
+                    // Optional client scope requested explicitly
+                    final_scopes.insert(scope.to_string());
+                } else if default_scope_names.contains(scope) {
+                    // Already present as a default scope — no-op
+                } else {
+                    // Scope is not assigned to this client
+                    return Err(CoreError::InvalidScope);
+                }
+            }
+        }
+
+        let mut sorted: Vec<String> = final_scopes.into_iter().collect();
+        sorted.sort_by(|a, b| {
+            if a == "openid" {
+                std::cmp::Ordering::Less
+            } else if b == "openid" {
+                std::cmp::Ordering::Greater
+            } else {
+                a.cmp(b)
+            }
+        });
+
+        Ok(sorted.join(" "))
+    }
+
     async fn authorization_code(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let code = params.code.ok_or(CoreError::InternalServerError)?;
 
@@ -473,8 +571,9 @@ where
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
 
-        let scope_manager = ScopeManager::new();
-        let final_scope = scope_manager.allowed_scopes();
+        let final_scope = self
+            .resolve_scopes_for_client(auth_session.client_id, Some(auth_session.scope.clone()))
+            .await?;
 
         info!("Final scope for authorization code grant: {}", final_scope);
 
@@ -538,8 +637,9 @@ where
                 _ => CoreError::InternalServerError,
             })?;
 
-        let scope_manager = ScopeManager::new();
-        let final_scope = scope_manager.merge_with_defaults(params.scope);
+        let final_scope = self
+            .resolve_scopes_for_client(client.id, params.scope)
+            .await?;
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
@@ -624,8 +724,9 @@ where
             return Err(CoreError::Invalid);
         }
 
-        let scope_manager = ScopeManager::new();
-        let final_scope = scope_manager.merge_with_defaults(params.scope);
+        let final_scope = self
+            .resolve_scopes_for_client(client.id, params.scope)
+            .await?;
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
