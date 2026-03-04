@@ -249,6 +249,9 @@ pub enum CoreError {
 
     #[error("Account hints not found")]
     HintsNotFound,
+
+    #[error("Invalid scope")]
+    InvalidScope,
 }
 
 impl From<AuthenticationError> for CoreError {

@@ -198,6 +198,7 @@ impl From<CoreError> for ApiError {
             CoreError::HintsNotFound => {
                 Self::NotFound("Account hints not found".to_string())
             }
+            CoreError::InvalidScope => Self::BadRequest("invalid_scope".to_string()),
         }
     }
 }
