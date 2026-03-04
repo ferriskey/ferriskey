@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt;
 
 /// Standard OpenID Connect scopes
 pub const SCOPE_OPENID: &str = "openid";
@@ -11,6 +12,83 @@ pub const SCOPE_INTROSPECT: &str = "introspect";
 
 pub const DEFAULT_SCOPES: &[&str] = &[SCOPE_PROFILE, SCOPE_EMAIL];
 
+/// Typed representation of all standard OIDC scopes supported by FerrisKey.
+///
+/// Use [`OidcScope::is_standard`] to test whether an arbitrary string is a
+/// standard scope, and [`OidcScope::all`] to iterate over the full set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OidcScope {
+    OpenId,
+    Profile,
+    Email,
+    Address,
+    Phone,
+    OfflineAccess,
+    Introspect,
+}
+
+impl OidcScope {
+    /// The wire-format string value of this scope (e.g. `"openid"`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            OidcScope::OpenId => SCOPE_OPENID,
+            OidcScope::Profile => SCOPE_PROFILE,
+            OidcScope::Email => SCOPE_EMAIL,
+            OidcScope::Address => SCOPE_ADDRESS,
+            OidcScope::Phone => SCOPE_PHONE,
+            OidcScope::OfflineAccess => SCOPE_OFFLINE_ACCESS,
+            OidcScope::Introspect => SCOPE_INTROSPECT,
+        }
+    }
+
+    /// All standard OIDC scopes in a stable order.
+    pub fn all() -> &'static [OidcScope] {
+        &[
+            OidcScope::OpenId,
+            OidcScope::Profile,
+            OidcScope::Email,
+            OidcScope::Address,
+            OidcScope::Phone,
+            OidcScope::OfflineAccess,
+            OidcScope::Introspect,
+        ]
+    }
+
+    /// Returns `true` when `scope` matches any standard OIDC scope string.
+    pub fn is_standard(scope: &str) -> bool {
+        Self::all().iter().any(|s| s.as_str() == scope)
+    }
+}
+
+impl fmt::Display for OidcScope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for OidcScope {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            SCOPE_OPENID => Ok(OidcScope::OpenId),
+            SCOPE_PROFILE => Ok(OidcScope::Profile),
+            SCOPE_EMAIL => Ok(OidcScope::Email),
+            SCOPE_ADDRESS => Ok(OidcScope::Address),
+            SCOPE_PHONE => Ok(OidcScope::Phone),
+            SCOPE_OFFLINE_ACCESS => Ok(OidcScope::OfflineAccess),
+            SCOPE_INTROSPECT => Ok(OidcScope::Introspect),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<OidcScope> for &'static str {
+    fn from(scope: OidcScope) -> Self {
+        scope.as_str()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ScopeManager {
     allowed_scopes: HashSet<String>,
@@ -19,14 +97,10 @@ pub struct ScopeManager {
 impl ScopeManager {
     /// Create a new ScopeManager with standard OIDC scopes
     pub fn new() -> Self {
-        let mut allowed_scopes = HashSet::new();
-        allowed_scopes.insert(SCOPE_OPENID.to_string());
-        allowed_scopes.insert(SCOPE_PROFILE.to_string());
-        allowed_scopes.insert(SCOPE_EMAIL.to_string());
-        allowed_scopes.insert(SCOPE_ADDRESS.to_string());
-        allowed_scopes.insert(SCOPE_PHONE.to_string());
-        allowed_scopes.insert(SCOPE_OFFLINE_ACCESS.to_string());
-        allowed_scopes.insert(SCOPE_INTROSPECT.to_string());
+        let allowed_scopes = OidcScope::all()
+            .iter()
+            .map(|s| s.as_str().to_string())
+            .collect();
 
         Self { allowed_scopes }
     }

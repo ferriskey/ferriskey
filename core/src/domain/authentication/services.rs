@@ -15,6 +15,7 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperReposit
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
+        OidcScope,
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
             AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
@@ -487,16 +488,6 @@ where
         client_uuid: Uuid,
         requested_scope: Option<String>,
     ) -> Result<String, CoreError> {
-        const STANDARD_OIDC_SCOPES: &[&str] = &[
-            "openid",
-            "profile",
-            "email",
-            "address",
-            "phone",
-            "offline_access",
-            "introspect",
-        ];
-
         let default_scopes = self
             .scope_mapping_repository
             .get_default_scopes(client_uuid)
@@ -519,13 +510,13 @@ where
 
         // Fall back to OIDC defaults when the client has no configured default scopes
         if final_scopes.is_empty() {
-            final_scopes.insert("profile".to_string());
-            final_scopes.insert("email".to_string());
+            final_scopes.insert(OidcScope::Profile.to_string());
+            final_scopes.insert(OidcScope::Email.to_string());
         }
 
         if let Some(scope_str) = requested_scope {
             for scope in scope_str.split_whitespace() {
-                if STANDARD_OIDC_SCOPES.contains(&scope) {
+                if OidcScope::is_standard(scope) {
                     // Standard OIDC scopes are always permitted
                     final_scopes.insert(scope.to_string());
                 } else if optional_scope_names.contains(scope) {
@@ -542,9 +533,9 @@ where
 
         let mut sorted: Vec<String> = final_scopes.into_iter().collect();
         sorted.sort_by(|a, b| {
-            if a == "openid" {
+            if a == OidcScope::OpenId.as_str() {
                 std::cmp::Ordering::Less
-            } else if b == "openid" {
+            } else if b == OidcScope::OpenId.as_str() {
                 std::cmp::Ordering::Greater
             } else {
                 a.cmp(b)
