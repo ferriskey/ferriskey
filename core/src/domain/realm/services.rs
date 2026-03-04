@@ -727,7 +727,7 @@ mod tests {
         user::ports::{MockUserRepository, MockUserRoleRepository},
         webhook::ports::MockWebhookRepository,
     };
-    use ferriskey_aegis::entities::{ClientScope, ClientScopeMapping, ProtocolMapper};
+    use ferriskey_aegis::entities::{ClientScope, ClientScopeMapping, ProtocolMapper, ScopeType};
 
     struct RealmServiceTestBuilder {
         realm_repo: Arc<MockRealmRepository>,
@@ -999,13 +999,16 @@ mod tests {
                 .expect_assign_scope_to_client()
                 .withf(|_, _, is_default, is_optional| *is_optional == !is_default)
                 .times(7)
-                .returning(|client_id, scope_id, is_default, is_optional| {
+                .returning(|client_id, scope_id, is_default, _is_optional| {
                     Box::pin(async move {
                         Ok(ClientScopeMapping {
                             client_id,
                             scope_id,
-                            is_default,
-                            is_optional,
+                            default_scope_type: if is_default {
+                                ScopeType::Default
+                            } else {
+                                ScopeType::Optional
+                            },
                         })
                     })
                 });
