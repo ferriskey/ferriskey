@@ -3,8 +3,7 @@ use serde_json::Value;
 use crate::domain::common::entities::app_errors::CoreError;
 
 use super::super::mapper_engine::{
-    MapperContext, MapperOutput, ProtocolMapperExecutor, TokenType, set_claim_at_path,
-    should_apply_to_token,
+    MapperContext, MapperOutput, TokenType, set_claim_at_path, should_apply_to_token,
 };
 
 /// Adds a hardcoded/static value as a claim.
@@ -20,10 +19,11 @@ use super::super::mapper_engine::{
 ///   "id.token.claim": "true"
 /// }
 /// ```
+#[derive(Debug)]
 pub struct HardcodedClaimMapper;
 
-impl ProtocolMapperExecutor for HardcodedClaimMapper {
-    fn execute(
+impl HardcodedClaimMapper {
+    pub fn execute(
         &self,
         config: &Value,
         _context: &MapperContext,

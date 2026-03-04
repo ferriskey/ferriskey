@@ -2,9 +2,7 @@ use serde_json::Value;
 
 use crate::domain::common::entities::app_errors::CoreError;
 
-use super::super::mapper_engine::{
-    MapperContext, MapperOutput, ProtocolMapperExecutor, TokenType, should_apply_to_token,
-};
+use super::super::mapper_engine::{MapperContext, MapperOutput, TokenType, should_apply_to_token};
 
 /// Adds entries to the audience (`aud`) claim.
 /// Similar to Keycloak's `oidc-audience-mapper`.
@@ -17,10 +15,11 @@ use super::super::mapper_engine::{
 ///   "id.token.claim": "false"
 /// }
 /// ```
+#[derive(Debug)]
 pub struct AudienceMapper;
 
-impl ProtocolMapperExecutor for AudienceMapper {
-    fn execute(
+impl AudienceMapper {
+    pub fn execute(
         &self,
         config: &Value,
         _context: &MapperContext,

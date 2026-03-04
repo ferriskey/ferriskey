@@ -44,44 +44,56 @@ pub struct MapperOutput {
     pub additional_audiences: Vec<String>,
 }
 
-/// The core abstraction: takes a mapper config + context, returns claims to merge.
-pub trait ProtocolMapperExecutor: Send + Sync {
+/// Static dispatch enum for protocol mapper executors.
+/// All mapper types are known at compile time, so no dynamic dispatch is needed.
+#[derive(Debug)]
+enum MapperExecutor {
+    UserProperty(UserPropertyMapper),
+    HardcodedClaim(HardcodedClaimMapper),
+    Audience(AudienceMapper),
+    UserAttribute(UserAttributeMapper),
+}
+
+impl MapperExecutor {
     fn execute(
         &self,
         config: &Value,
         context: &MapperContext,
         token_type: TokenType,
-    ) -> Result<MapperOutput, CoreError>;
+    ) -> Result<MapperOutput, CoreError> {
+        match self {
+            Self::UserProperty(m) => m.execute(config, context, token_type),
+            Self::HardcodedClaim(m) => m.execute(config, context, token_type),
+            Self::Audience(m) => m.execute(config, context, token_type),
+            Self::UserAttribute(m) => m.execute(config, context, token_type),
+        }
+    }
 }
 
 /// Registry-based engine that dispatches protocol mappers to their executor.
+#[derive(Debug)]
 pub struct MapperEngine {
-    executors: HashMap<String, Box<dyn ProtocolMapperExecutor>>,
-}
-
-impl std::fmt::Debug for MapperEngine {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MapperEngine")
-            .field("executors", &self.executors.keys().collect::<Vec<_>>())
-            .finish()
-    }
+    executors: HashMap<String, MapperExecutor>,
 }
 
 impl MapperEngine {
     pub fn new() -> Self {
-        let mut executors: HashMap<String, Box<dyn ProtocolMapperExecutor>> = HashMap::new();
+        let mut executors = HashMap::new();
         executors.insert(
             "oidc-usermodel-property-mapper".to_string(),
-            Box::new(UserPropertyMapper),
+            MapperExecutor::UserProperty(UserPropertyMapper),
         );
         executors.insert(
             "oidc-hardcoded-claim-mapper".to_string(),
-            Box::new(HardcodedClaimMapper),
+            MapperExecutor::HardcodedClaim(HardcodedClaimMapper),
         );
-        executors.insert("oidc-audience-mapper".to_string(), Box::new(AudienceMapper));
+        executors.insert(
+            "oidc-audience-mapper".to_string(),
+            MapperExecutor::Audience(AudienceMapper),
+        );
         executors.insert(
             "oidc-usermodel-attribute-mapper".to_string(),
-            Box::new(UserAttributeMapper),
+            MapperExecutor::UserAttribute(UserAttributeMapper),
         );
         Self { executors }
     }

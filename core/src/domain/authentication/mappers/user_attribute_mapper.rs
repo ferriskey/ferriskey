@@ -3,8 +3,7 @@ use serde_json::Value;
 use crate::domain::common::entities::app_errors::CoreError;
 
 use super::super::mapper_engine::{
-    MapperContext, MapperOutput, ProtocolMapperExecutor, TokenType, set_claim_at_path,
-    should_apply_to_token,
+    MapperContext, MapperOutput, TokenType, set_claim_at_path, should_apply_to_token,
 };
 
 /// Maps custom user attributes to token claims.
@@ -20,10 +19,11 @@ use super::super::mapper_engine::{
 ///   "id.token.claim": "true"
 /// }
 /// ```
+#[derive(Debug)]
 pub struct UserAttributeMapper;
 
-impl ProtocolMapperExecutor for UserAttributeMapper {
-    fn execute(
+impl UserAttributeMapper {
+    pub fn execute(
         &self,
         config: &Value,
         context: &MapperContext,
