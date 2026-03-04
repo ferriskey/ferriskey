@@ -58,6 +58,7 @@ export const useCreateIdentityProvider = () => {
         query: {
           brief_representation: undefined,
         },
+        query: {},
       }).queryOptions.queryKey
 
       queryClient.invalidateQueries({ queryKey: keys })
@@ -91,6 +92,7 @@ export const useUpdateIdentityProvider = () => {
         query: {
           brief_representation: undefined,
         },
+        query: {},
       }).queryOptions.queryKey
 
       const detailKeys = window.tanstackApi.get('/realms/{realm_name}/identity-providers/{alias}', {
@@ -120,6 +122,7 @@ export const useDeleteIdentityProvider = () => {
         query: {
           brief_representation: undefined,
         },
+        query: {},
       }).queryOptions.queryKey
 
       await queryClient.invalidateQueries({ queryKey: keys })
