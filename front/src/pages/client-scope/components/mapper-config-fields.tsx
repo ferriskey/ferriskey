@@ -18,6 +18,8 @@ interface MapperConfigFieldProps {
 }
 
 export function MapperConfigField({ fieldDef, value, onChange }: MapperConfigFieldProps) {
+  const fieldId = `mapper-config-${fieldDef.key.replace(/\./g, '-')}`
+
   if (fieldDef.type === 'switch') {
     return (
       <div className='flex items-center justify-between rounded-md border border-border px-3 py-2.5'>
@@ -38,7 +40,7 @@ export function MapperConfigField({ fieldDef, value, onChange }: MapperConfigFie
   if (fieldDef.type === 'select') {
     return (
       <div className='flex flex-col gap-1.5'>
-        <label className='text-sm font-medium'>{fieldDef.label}</label>
+        <label htmlFor={fieldId} className='text-sm font-medium'>{fieldDef.label}</label>
         {fieldDef.description && (
           <p className='text-xs text-muted-foreground -mt-0.5'>{fieldDef.description}</p>
         )}
@@ -61,11 +63,12 @@ export function MapperConfigField({ fieldDef, value, onChange }: MapperConfigFie
   // text
   return (
     <div className='flex flex-col gap-1.5'>
-      <label className='text-sm font-medium'>{fieldDef.label}</label>
+      <label htmlFor={fieldId} className='text-sm font-medium'>{fieldDef.label}</label>
       {fieldDef.description && (
         <p className='text-xs text-muted-foreground -mt-0.5'>{fieldDef.description}</p>
       )}
       <Input
+        id={fieldId}
         placeholder={fieldDef.placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
