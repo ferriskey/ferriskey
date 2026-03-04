@@ -1,4 +1,6 @@
 pub mod entities;
+pub mod mapper_engine;
+pub mod mappers;
 pub mod ports;
 pub mod scope;
 pub mod services;

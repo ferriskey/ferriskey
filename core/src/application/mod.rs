@@ -9,7 +9,7 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::services::AuthServiceImpl,
+        authentication::{mapper_engine::MapperEngine, services::AuthServiceImpl},
         client::services::ClientServiceImpl,
         common::{
             FerriskeyConfig, entities::app_errors::CoreError, policies::FerriskeyPolicy,
@@ -153,6 +153,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             refresh_token.clone(),
             access_token.clone(),
             federation.clone(),
+            scope_mapping.clone(),
+            protocol_mapper.clone(),
+            Arc::new(MapperEngine::new()),
         ),
         client_service: ClientServiceImpl::new(
             realm.clone(),
