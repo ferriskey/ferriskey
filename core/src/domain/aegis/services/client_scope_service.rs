@@ -3,7 +3,9 @@ use std::sync::Arc;
 use crate::domain::{
     aegis::{
         entities::ClientScope,
-        ports::{ClientScopePolicy, ClientScopeRepository, ClientScopeService},
+        ports::{
+            ClientScopePolicy, ClientScopeRepository, ClientScopeService, ProtocolMapperRepository,
+        },
         value_objects::{
             CreateClientScopeInput, CreateClientScopeRequest, DeleteClientScopeInput,
             GetClientScopeInput, GetClientScopesInput, UpdateClientScopeInput,
@@ -20,47 +22,53 @@ use crate::domain::{
 };
 
 #[derive(Clone, Debug)]
-pub struct ClientScopeServiceImpl<R, U, C, UR, CS>
+pub struct ClientScopeServiceImpl<R, U, C, UR, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
 {
     realm_repository: Arc<R>,
     client_scope_repository: Arc<CS>,
+    protocol_mapper_repository: Arc<PM>,
     policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CS> ClientScopeServiceImpl<R, U, C, UR, CS>
+impl<R, U, C, UR, CS, PM> ClientScopeServiceImpl<R, U, C, UR, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
 {
     pub fn new(
         realm_repository: Arc<R>,
         client_scope_repository: Arc<CS>,
+        protocol_mapper_repository: Arc<PM>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
             realm_repository,
             client_scope_repository,
+            protocol_mapper_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, CS> ClientScopeService for ClientScopeServiceImpl<R, U, C, UR, CS>
+impl<R, U, C, UR, CS, PM> ClientScopeService for ClientScopeServiceImpl<R, U, C, UR, CS, PM>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
 {
     async fn create_client_scope(
         &self,
@@ -110,11 +118,17 @@ where
             "insufficient permissions",
         )?;
 
-        let client_scope = self
+        let mut client_scope = self
             .client_scope_repository
             .get_by_id(input.scope_id)
             .await?
             .ok_or(CoreError::NotFound)?;
+
+        let mappers = self
+            .protocol_mapper_repository
+            .get_by_scope_id(client_scope.id)
+            .await?;
+        client_scope.protocol_mappers = Some(mappers);
 
         Ok(client_scope)
     }
@@ -136,10 +150,18 @@ where
             "insufficient permissions",
         )?;
 
-        let client_scopes = self
+        let mut client_scopes = self
             .client_scope_repository
             .find_by_realm_id(realm.id)
             .await?;
+
+        for scope in &mut client_scopes {
+            let mappers = self
+                .protocol_mapper_repository
+                .get_by_scope_id(scope.id)
+                .await?;
+            scope.protocol_mappers = Some(mappers);
+        }
 
         Ok(client_scopes)
     }
