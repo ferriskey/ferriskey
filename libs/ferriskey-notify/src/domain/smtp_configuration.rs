@@ -4,16 +4,12 @@ use uuid::Uuid;
 use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::realm::RealmId;
 
-use crate::error::NotifyError;
+use crate::domain::NotifyError;
 
 /// A realm-scoped SMTP configuration.
 ///
 /// This is a pure domain entity: no database code, no transport logic.
-/// Secrets are stored as opaque references (`password_ref`) so that the
-/// actual credential is only resolved at the application layer via the
-/// [`SecretResolver`] port.
-///
-/// [`SecretResolver`]: crate::ports::secret::SecretResolver
+/// The password is stored directly in Postgres.
 #[derive(Debug, Clone)]
 pub struct SmtpConfiguration {
     pub id: Uuid,
@@ -21,11 +17,7 @@ pub struct SmtpConfiguration {
     pub host: String,
     pub port: u16,
     pub username: Option<String>,
-    /// Opaque reference to the SMTP password (e.g. `"vault://secret/smtp"`).
-    /// Resolved at runtime via [`SecretResolver`].
-    ///
-    /// [`SecretResolver`]: crate::ports::secret::SecretResolver
-    pub password_ref: Option<String>,
+    pub password: Option<String>,
     pub from_email: String,
     pub from_name: Option<String>,
     pub use_tls: bool,
@@ -39,7 +31,7 @@ pub struct SmtpConfigurationConfig {
     pub host: String,
     pub port: u16,
     pub username: Option<String>,
-    pub password_ref: Option<String>,
+    pub password: Option<String>,
     pub from_email: String,
     pub from_name: Option<String>,
     pub use_tls: bool,
@@ -74,7 +66,7 @@ impl SmtpConfiguration {
             host: config.host,
             port: config.port,
             username: config.username,
-            password_ref: config.password_ref,
+            password: config.password,
             from_email: config.from_email,
             from_name: config.from_name,
             use_tls: config.use_tls,
@@ -95,7 +87,7 @@ mod tests {
             host: "smtp.example.com".to_string(),
             port: 587,
             username: Some("user@example.com".to_string()),
-            password_ref: Some("vault://secret/smtp".to_string()),
+            password: Some("vault://secret/smtp".to_string()),
             from_email: "noreply@example.com".to_string(),
             from_name: Some("FerrisKey".to_string()),
             use_tls: true,

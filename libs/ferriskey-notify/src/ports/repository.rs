@@ -1,7 +1,7 @@
 use ferriskey_domain::realm::RealmId;
 
+use crate::domain::NotifyError;
 use crate::domain::smtp_configuration::SmtpConfiguration;
-use crate::error::NotifyError;
 
 /// Storage port for [`SmtpConfiguration`] entities.
 ///

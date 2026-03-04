@@ -1,22 +1,13 @@
-/// Domain entities: [`SmtpConfiguration`] and its construction input.
+/// Domain entities and error type.
 ///
 /// [`SmtpConfiguration`]: domain::smtp_configuration::SmtpConfiguration
+/// [`NotifyError`]: domain::NotifyError
 pub mod domain;
 
 /// Port traits: [`SmtpConfigurationRepository`], [`SecretResolver`],
-/// [`MailSenderFactory`].
+/// [`MailSenderFactory`], [`NotifyService`].
 ///
 /// [`SmtpConfigurationRepository`]: ports::repository::SmtpConfigurationRepository
-/// [`SecretResolver`]: ports::secret::SecretResolver
 /// [`MailSenderFactory`]: ports::mail::MailSenderFactory
+/// [`SmtpConfigurationService`]: ports::smtp_configuration_service::SmtpConfigurationService
 pub mod ports;
-
-/// Application use cases: [`SendRealmEmailUseCase`].
-///
-/// [`SendRealmEmailUseCase`]: application::send_realm_email::SendRealmEmailUseCase
-pub mod application;
-
-/// Error type: [`NotifyError`].
-///
-/// [`NotifyError`]: error::NotifyError
-pub mod error;

@@ -1,3 +1,3 @@
 pub mod mail;
 pub mod repository;
-pub mod secret;
+pub mod smtp_configuration_service;
