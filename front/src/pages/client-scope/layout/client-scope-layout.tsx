@@ -1,20 +1,47 @@
 import { useGetClientScope } from '@/api/client-scope.api'
 import { ArrowLeft } from 'lucide-react'
-import { Outlet, useNavigate, useParams } from 'react-router'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import {
+  CLIENT_SCOPE_DETAILS_URL,
+  CLIENT_SCOPE_MAPPERS_URL,
+  CLIENT_SCOPE_URL,
   CLIENT_SCOPES_OVERVIEW_URL,
   CLIENT_SCOPES_URL,
 } from '@/routes/sub-router/client-scope.router'
+import { cn } from '@/lib/utils'
 
 export default function ClientScopeLayout() {
   const { realm_name, scope_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const { data: responseScope } = useGetClientScope({
     realm: realm_name ?? 'master',
     scopeId: scope_id,
   })
+
+  const scopeType = responseScope?.default_scope_type ?? 'NONE'
+  const isDefault = scopeType === 'DEFAULT'
+  const isOptional = scopeType === 'OPTIONAL'
+
+  const scopeBase = CLIENT_SCOPE_URL(realm_name, scope_id)
+
+  const tabs = [
+    {
+      key: 'details',
+      label: 'Details',
+      path: `${scopeBase}${CLIENT_SCOPE_DETAILS_URL}`,
+      active: location.pathname.endsWith(CLIENT_SCOPE_DETAILS_URL),
+    },
+    {
+      key: 'mappers',
+      label: 'Protocol Mappers',
+      path: `${scopeBase}${CLIENT_SCOPE_MAPPERS_URL}`,
+      // active for both /mappers and /mappers/new
+      active: location.pathname.startsWith(`${scopeBase}${CLIENT_SCOPE_MAPPERS_URL}`),
+    },
+  ]
 
   return (
     <div className='flex flex-col gap-6 p-8'>
@@ -45,6 +72,23 @@ export default function ClientScopeLayout() {
             {responseScope?.protocol || 'openid-connect'}
           </span>
         </div>
+
+        <nav className='flex gap-1'>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => navigate(tab.path)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                tab.active
+                  ? 'border-foreground text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       <Outlet />

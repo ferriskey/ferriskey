@@ -6,3 +6,5 @@ export const CLIENT_SCOPE_URL = (realmName = ':realmName', scopeId = ':scopeId')
 export const CLIENT_SCOPES_OVERVIEW_URL = '/overview'
 export const CLIENT_SCOPES_CREATE_URL = '/create'
 export const CLIENT_SCOPE_DETAILS_URL = '/details'
+export const CLIENT_SCOPE_MAPPERS_URL = '/mappers'
+export const CLIENT_SCOPE_MAPPER_CREATE_URL = '/mappers/new'
