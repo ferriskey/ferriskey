@@ -102,6 +102,8 @@ type ApplicationAuthService = AuthServiceImpl<
     RefreshTokenRepo,
     AccessTokenRepo,
     FederationRepo,
+    ScopeMappingRepo,
+    ProtocolMapperRepo,
 >;
 
 #[derive(Clone, Debug)]

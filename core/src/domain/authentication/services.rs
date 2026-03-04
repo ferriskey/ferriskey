@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{TimeZone, Utc};
@@ -9,6 +10,8 @@ use subtle::ConstantTimeEq;
 use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
+use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
+
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -19,6 +22,7 @@ use crate::domain::{
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
         },
+        mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
             AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
@@ -40,7 +44,7 @@ use crate::domain::{
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -54,6 +58,8 @@ where
     RT: RefreshTokenRepository,
     AT: AccessTokenRepository,
     F: FederationRepository,
+    CSM: ClientScopeMappingRepository,
+    PM: ProtocolMapperRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -67,11 +73,14 @@ where
     pub(crate) refresh_token_repository: Arc<RT>,
     pub(crate) access_token_repository: Arc<AT>,
     pub(crate) federation_repository: Arc<F>,
+    pub(crate) scope_mapping_repository: Arc<CSM>,
+    pub(crate) protocol_mapper_repository: Arc<PM>,
+    pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
-    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -85,6 +94,8 @@ where
     RT: RefreshTokenRepository,
     AT: AccessTokenRepository,
     F: FederationRepository,
+    CSM: ClientScopeMappingRepository,
+    PM: ProtocolMapperRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -100,6 +111,9 @@ where
         refresh_token_repository: Arc<RT>,
         access_token_repository: Arc<AT>,
         federation_repository: Arc<F>,
+        scope_mapping_repository: Arc<CSM>,
+        protocol_mapper_repository: Arc<PM>,
+        mapper_engine: Arc<MapperEngine>,
     ) -> Self {
         Self {
             realm_repository,
@@ -114,13 +128,16 @@ where
             refresh_token_repository,
             access_token_repository,
             federation_repository,
+            scope_mapping_repository,
+            protocol_mapper_repository,
+            mapper_engine,
             ldap_client: LdapClientImpl,
         }
     }
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
-    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -134,6 +151,8 @@ where
     RT: RefreshTokenRepository,
     AT: AccessTokenRepository,
     F: FederationRepository,
+    CSM: ClientScopeMappingRepository,
+    PM: ProtocolMapperRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -192,7 +211,45 @@ where
         let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
         let realm_audit = format!("{}-realm", input.realm_name);
 
-        let claims = JwtClaim::new(
+        // Resolve protocol mappers from client scopes
+        let default_scopes = self
+            .scope_mapping_repository
+            .get_default_scopes(input.client_uuid)
+            .await
+            .unwrap_or_default();
+
+        let mut all_mappers = Vec::new();
+        for scope in &default_scopes {
+            let mappers = self
+                .protocol_mapper_repository
+                .get_by_scope_id(scope.id)
+                .await
+                .unwrap_or_default();
+            all_mappers.extend(mappers);
+        }
+
+        // Build mapper context
+        let context = MapperContext {
+            user_id: input.user_id,
+            username: input.username.clone(),
+            email: input.email.clone(),
+            email_verified: input.email_verified,
+            firstname: input.firstname.clone(),
+            lastname: input.lastname.clone(),
+            realm_roles: vec![],
+            client_id: input.client_id.clone(),
+            client_uuid: input.client_uuid,
+            realm_name: input.realm_name.clone(),
+            realm_id: input.realm_id,
+            user_attributes: HashMap::new(),
+        };
+
+        // Apply mappers for access token
+        let access_mapper_output =
+            self.mapper_engine
+                .apply_mappers(&all_mappers, &context, TokenType::AccessToken)?;
+
+        let mut claims = JwtClaim::new(
             input.user_id,
             input.username,
             iss,
@@ -202,6 +259,14 @@ where
             Some(input.email),
             input.scope.clone(),
         );
+
+        // Apply mapper output to claims
+        for aud in &access_mapper_output.additional_audiences {
+            if !claims.aud.contains(aud) {
+                claims.aud.push(aud.clone());
+            }
+        }
+        claims.additional_claims = access_mapper_output.claims;
 
         let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
             .map_err(|e| {
@@ -237,18 +302,24 @@ where
         let preferred_username: String = claims.preferred_username.clone().unwrap_or_default();
 
         let id_token: Option<Jwt> = if contains_openid_scope {
+            // Apply mappers for ID token
+            let id_mapper_output =
+                self.mapper_engine
+                    .apply_mappers(&all_mappers, &context, TokenType::IdToken)?;
+
             let aud = claims.azp.clone();
             let id_claims = IdTokenClaims {
-                iss: claims.iss,
+                iss: claims.iss.clone(),
                 aud,
                 azp: Some(claims.azp.clone()),
                 auth_time: None,
                 email: claims.email.clone(),
-                email_verified: None,
+                email_verified: Some(input.email_verified),
                 exp,
                 iat,
                 preferred_username,
                 sub: claims.sub,
+                additional_claims: id_mapper_output.claims,
             };
             let t = Self::encode_token_with_key(&id_claims, id_claims.exp, &jwt_key_pair)?;
 
@@ -411,11 +482,15 @@ where
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id.clone(),
-                email: user.email,
+                client_uuid: auth_session.client_id,
+                email: user.email.clone(),
+                email_verified: user.email_verified,
+                firstname: user.firstname.clone(),
+                lastname: user.lastname.clone(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
-                username: user.username,
+                username: user.username.clone(),
                 scope: Some(final_scope.clone()),
             })
             .await
@@ -470,7 +545,11 @@ where
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
-                email: user.email,
+                client_uuid: client.id,
+                email: user.email.clone(),
+                email_verified: user.email_verified,
+                firstname: user.firstname.clone(),
+                lastname: user.lastname.clone(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -552,7 +631,11 @@ where
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
-                email: user.email,
+                client_uuid: client.id,
+                email: user.email.clone(),
+                email_verified: user.email_verified,
+                firstname: user.firstname.clone(),
+                lastname: user.lastname.clone(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -595,11 +678,21 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
                 client_id: params.client_id,
-                email: user.email,
+                client_uuid: client.id,
+                email: user.email.clone(),
+                email_verified: user.email_verified,
+                firstname: user.firstname.clone(),
+                lastname: user.lastname.clone(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -1089,8 +1182,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F>
+impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -1104,6 +1197,8 @@ where
     RT: RefreshTokenRepository,
     AT: AccessTokenRepository,
     F: FederationRepository,
+    CSM: ClientScopeMappingRepository,
+    PM: ProtocolMapperRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self

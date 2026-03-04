@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey};
@@ -18,7 +20,7 @@ pub enum ClaimsTyp {
     Temporary,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct JwtClaim {
     pub sub: Uuid,
     pub iat: i64,
@@ -35,6 +37,10 @@ pub struct JwtClaim {
     pub email: Option<String>,
 
     pub client_id: Option<String>,
+
+    /// Dynamic claims injected by protocol mappers.
+    #[serde(flatten)]
+    pub additional_claims: HashMap<String, serde_json::Value>,
 }
 
 pub trait TokenClaims: Serialize {
@@ -57,6 +63,10 @@ pub struct IdTokenClaims {
     pub preferred_username: String,
     pub email: Option<String>,
     pub email_verified: Option<bool>,
+
+    /// Dynamic claims injected by protocol mappers.
+    #[serde(flatten)]
+    pub additional_claims: HashMap<String, serde_json::Value>,
 }
 
 impl TokenClaims for IdTokenClaims {
@@ -95,6 +105,7 @@ impl JwtClaim {
             email,
             scope,
             client_id: None,
+            additional_claims: HashMap::new(),
         }
     }
 
@@ -118,6 +129,7 @@ impl JwtClaim {
             email: None,
             exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
             client_id: None,
+            additional_claims: HashMap::new(),
         }
     }
 
@@ -135,6 +147,7 @@ impl JwtClaim {
             email: claims.email,
             exp: Some(chrono::Utc::now().timestamp() + 300), // 5 minutes
             client_id: claims.client_id,
+            additional_claims: claims.additional_claims,
         }
     }
 
