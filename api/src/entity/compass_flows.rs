@@ -3,22 +3,28 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "magic_links")]
+#[sea_orm(table_name = "compass_flows")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    pub user_id: Uuid,
     pub realm_id: Uuid,
-    #[sea_orm(unique)]
-    pub token_id: Uuid,
-    #[sea_orm(unique)]
-    pub token: String,
+    pub client_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
+    pub grant_type: String,
+    pub status: String,
+    pub ip_address: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub user_agent: Option<String>,
+    pub started_at: DateTime,
+    pub completed_at: Option<DateTime>,
+    pub duration_ms: Option<i64>,
     pub created_at: DateTime,
-    pub expires_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::compass_flow_steps::Entity")]
+    CompassFlowSteps,
     #[sea_orm(
         belongs_to = "super::realms::Entity",
         from = "Column::RealmId",
@@ -27,25 +33,17 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Realms,
-    #[sea_orm(
-        belongs_to = "super::users::Entity",
-        from = "Column::UserId",
-        to = "super::users::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
-    Users,
+}
+
+impl Related<super::compass_flow_steps::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CompassFlowSteps.def()
+    }
 }
 
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
-    }
-}
-
-impl Related<super::users::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Users.def()
     }
 }
 
