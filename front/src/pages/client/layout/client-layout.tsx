@@ -23,7 +23,7 @@ export default function ClientLayout() {
       ? [{ key: 'credentials', label: 'Credentials', path: `${baseUrl}/credentials` }]
       : []),
     { key: 'roles', label: 'Roles', path: `${baseUrl}/roles` },
-    { key: 'client-scopes', label: 'Client Scopes', path: '', disabled: true },
+    { key: 'client-scopes', label: 'Client Scopes', path: `${baseUrl}/scopes` },
   ]
 
   return (
@@ -62,8 +62,7 @@ export default function ClientLayout() {
       {/* Tabs */}
       <div className='-mx-8 px-8 pb-4 border-b flex items-center gap-2 -mt-2'>
         {tabs.map((tab) => {
-          const isActive = pathname.startsWith(tab.path) && tab.path !== ''
-          const isDisabled = 'disabled' in tab && tab.disabled
+          const isDisabled = 'disabled' in tab && Boolean(tab.disabled)
 
           return (
             <button
@@ -73,7 +72,7 @@ export default function ClientLayout() {
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
                 isDisabled
                   ? 'bg-transparent text-muted-foreground border-border opacity-50 cursor-not-allowed'
-                  : isActive
+                  : pathname.startsWith(tab.path)
                     ? 'bg-primary/10 text-primary border-primary/40'
                     : 'bg-transparent text-foreground border-border hover:bg-muted'
               }`}
