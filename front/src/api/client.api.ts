@@ -98,3 +98,101 @@ export const useGetClientRoles = ({ realm, clientId }: BaseQuery & { clientId?: 
     enabled: !!clientId && !!realm,
   })
 }
+
+export const useGetClientScopes = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/client-scopes', {
+      path: {
+        realm_name: realm!,
+        client_id: clientId!,
+      },
+    }).queryOptions,
+    enabled: !!clientId && !!realm,
+  })
+}
+
+// Unified scope assignment interface
+export interface AssignScopeParams {
+  realm: string
+  clientId: string
+  scopeId: string
+  type: 'default' | 'optional'
+}
+
+export const useAssignScope = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ realm, clientId, scopeId, type }: AssignScopeParams) => {
+      const endpoint =
+        type === 'default'
+          ? '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+          : '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
+
+      return window.tanstackApi.mutation('put', endpoint).mutationOptions.mutationFn({
+        path: {
+          realm_name: realm,
+          client_id: clientId,
+          scope_id: scopeId,
+        },
+      })
+    },
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get(
+        '/realms/{realm_name}/clients/{client_id}/client-scopes',
+        {
+          path: {
+            realm_name: variables.realm,
+            client_id: variables.clientId,
+          },
+        }
+      )
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success(`Scope assigned as ${variables.type} successfully`)
+    },
+    onError: (error) => {
+      toast.error('Failed to assign scope', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+export const useUnassignScope = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ realm, clientId, scopeId, type }: AssignScopeParams) => {
+      const endpoint =
+        type === 'default'
+          ? '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
+          : '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
+
+      return window.tanstackApi.mutation('delete', endpoint).mutationOptions.mutationFn({
+        path: {
+          realm_name: realm,
+          client_id: clientId,
+          scope_id: scopeId,
+        },
+      })
+    },
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get(
+        '/realms/{realm_name}/clients/{client_id}/client-scopes',
+        {
+          path: {
+            realm_name: variables.realm,
+            client_id: variables.clientId,
+          },
+        }
+      )
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success(
+        `${variables.type.charAt(0).toUpperCase() + variables.type.slice(1)} scope unassigned successfully`
+      )
+    },
+    onError: (error) => {
+      toast.error('Failed to unassign scope', {
+        description: error.message,
+      })
+    },
+  })
+}
