@@ -27,19 +27,18 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
   const assignScope = useAssignScope()
   const unassignScope = useUnassignScope()
 
-  const handleChangeType = (scopeId: string, currentType: 'default' | 'optional' | 'none') => {
+  const handleChangeType = async (scopeId: string, currentType: 'default' | 'optional' | 'none') => {
     if (currentType === 'default' || currentType === 'optional') {
       const newType = currentType === 'default' ? 'optional' : 'default'
-
-      // Unassign current type and assign new type
-      unassignScope.mutate({
+      await unassignScope.mutateAsync({
         realm: realm!,
         clientId: clientId!,
         scopeId: scopeId,
         type: currentType
       })
 
-      assignScope.mutate({
+      // Only assign the new type if unassign succeeded
+      await assignScope.mutateAsync({
         realm: realm!,
         clientId: clientId!,
         scopeId: scopeId,
