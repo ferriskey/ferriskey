@@ -20,8 +20,8 @@ export interface PageClientScopesOverviewProps {
   handleClickRow: (scopeId: string) => void
 }
 
-function ScopeTypeBadge({ isDefault }: { isDefault: boolean }) {
-  return isDefault ? (
+function ScopeTypeBadge({ scopeType }: { scopeType: string }) {
+  return scopeType === 'DEFAULT' ? (
     <span className='inline-flex items-center px-2.5 py-0.5 rounded-md border border-blue-300 text-blue-500 text-xs font-mono bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400/40'>
       default
     </span>
@@ -99,7 +99,7 @@ export default function PageClientScopesOverview({
               <div>
                 <div className='flex items-center gap-2.5'>
                   <span className='text-base font-medium'>{scope.name}</span>
-                  <ScopeTypeBadge isDefault={scope.is_default} />
+                  <ScopeTypeBadge scopeType={scope.default_scope_type} />
                 </div>
                 <div className='text-sm text-muted-foreground mt-0.5'>
                   {scope.description || `scope_id: ${scope.id}`}

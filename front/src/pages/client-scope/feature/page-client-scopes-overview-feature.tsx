@@ -17,8 +17,8 @@ export default function PageClientScopesOverviewFeature() {
 
   const statistics = useMemo(() => {
     const totalScopes = scopes.length
-    const defaultScopes = scopes.filter((scope) => scope.is_default).length
-    const optionalScopes = scopes.filter((scope) => !scope.is_default).length
+    const defaultScopes = scopes.filter((scope) => scope.default_scope_type === 'DEFAULT').length
+    const optionalScopes = scopes.filter((scope) => scope.default_scope_type === 'OPTIONAL').length
     const withProtocolMappers = scopes.filter((scope) => (scope.protocol_mappers?.length ?? 0) > 0).length
 
     return { totalScopes, defaultScopes, optionalScopes, withProtocolMappers }

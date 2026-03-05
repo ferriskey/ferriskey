@@ -38,7 +38,8 @@ interface ProviderQuery extends BaseQuery {
 export const useGetIdentityProviders = ({ realm }: BaseQuery) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
-      path: { realm_name: realm ?? 'master', brief_representation: null },
+      path: { realm_name: realm ?? 'master' },
+      query: { brief_representation: undefined },
     }).queryOptions,
   })
 }
@@ -53,7 +54,9 @@ export const useCreateIdentityProvider = () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
         path: {
           realm_name: variables.path.realm_name,
-          brief_representation: null,
+        },
+        query: {
+          brief_representation: undefined,
         },
       }).queryOptions.queryKey
 
@@ -84,7 +87,9 @@ export const useUpdateIdentityProvider = () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
         path: {
           realm_name: variables.path.realm_name,
-          brief_representation: null,
+        },
+        query: {
+          brief_representation: undefined,
         },
       }).queryOptions.queryKey
 
@@ -111,7 +116,9 @@ export const useDeleteIdentityProvider = () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
         path: {
           realm_name: variables.path.realm_name,
-          brief_representation: null,
+        },
+        query: {
+          brief_representation: undefined,
         },
       }).queryOptions.queryKey
 

@@ -41,7 +41,7 @@ export default function PageClientScopeDetail({ scope, isLoading }: PageClientSc
         <ValueRow label='Name' value={scope.name} />
         <ValueRow label='Description' value={scope.description || '-'} />
         <ValueRow label='Protocol' value={scope.protocol} />
-        <ValueRow label='Type' value={scope.is_default ? 'Default' : 'Optional'} />
+        <ValueRow label='Type' value={scope.default_scope_type === 'DEFAULT' ? 'Default' : scope.default_scope_type === 'OPTIONAL' ? 'Optional' : 'None'} />
         <ValueRow label='Created At' value={new Date(scope.created_at).toLocaleString()} />
         <ValueRow label='Updated At' value={new Date(scope.updated_at).toLocaleString()} />
       </div>
