@@ -187,7 +187,7 @@ impl CompassFlow {
 pub struct CompassFlowStep {
     pub id: FlowStepId,
     pub flow_id: FlowId,
-    pub step_name: String,
+    pub step_name: FlowStepName,
     pub status: StepStatus,
     pub duration_ms: Option<i64>,
     pub error_code: Option<String>,
@@ -208,7 +208,7 @@ impl CompassFlowStep {
         Self {
             id: FlowStepId::new(),
             flow_id,
-            step_name: step_name.to_string(),
+            step_name,
             status,
             duration_ms,
             error_code,

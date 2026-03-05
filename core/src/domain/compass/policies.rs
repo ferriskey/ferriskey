@@ -1,3 +1,5 @@
+use ferriskey_compass::ports::CompassPolicy;
+
 use crate::domain::{
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
@@ -5,7 +7,6 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, Policy},
     },
-    compass::ports::CompassPolicy,
     realm::entities::Realm,
     role::entities::permission::Permissions,
     user::ports::{UserRepository, UserRoleRepository},

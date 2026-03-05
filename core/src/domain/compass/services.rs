@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ferriskey_compass::{
     entities::CompassFlow,
-    ports::{CompassFlowRepository, CompassFlowStepRepository},
+    ports::{CompassFlowRepository, CompassFlowStepRepository, CompassPolicy, CompassService},
     value_objects::{FetchFlowsInput, FlowStats},
 };
 use uuid::Uuid;
@@ -14,7 +14,6 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    compass::ports::{CompassPolicy, CompassService},
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
 };

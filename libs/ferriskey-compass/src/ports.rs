@@ -1,13 +1,46 @@
 use std::future::Future;
 
 use chrono::{DateTime, Utc};
-use ferriskey_domain::{common::app_errors::CoreError, realm::RealmId};
+use ferriskey_domain::{
+    auth::Identity,
+    common::app_errors::CoreError,
+    realm::{Realm, RealmId},
+};
 use uuid::Uuid;
 
 use crate::{
     entities::{CompassFlow, CompassFlowStep},
-    value_objects::{FlowFilter, FlowStats},
+    value_objects::{FetchFlowsInput, FlowFilter, FlowStats},
 };
+
+pub trait CompassService: Send + Sync {
+    fn fetch_flows(
+        &self,
+        identity: Identity,
+        input: FetchFlowsInput,
+    ) -> impl Future<Output = Result<Vec<CompassFlow>, CoreError>> + Send;
+
+    fn get_flow(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        flow_id: Uuid,
+    ) -> impl Future<Output = Result<CompassFlow, CoreError>> + Send;
+
+    fn get_stats(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<FlowStats, CoreError>> + Send;
+}
+
+pub trait CompassPolicy: Send + Sync {
+    fn can_view_flows(
+        &self,
+        identity: &Identity,
+        realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
 
 #[cfg_attr(test, mockall::automock)]
 pub trait CompassFlowRepository: Send + Sync {
