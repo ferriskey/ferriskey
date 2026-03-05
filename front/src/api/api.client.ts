@@ -50,12 +50,13 @@ export namespace Schemas {
     service_account_enabled: boolean
     updated_at: string
   }
+  export type ScopeType = 'NONE' | 'OPTIONAL' | 'DEFAULT'
   export type ClientScope = {
     attributes?: (Array<ClientScopeAttribute> | null) | undefined
     created_at: string
+    default_scope_type: ScopeType
     description?: (string | null) | undefined
     id: string
-    is_default: boolean
     name: string
     protocol: string
     protocol_mappers?: (Array<ProtocolMapper> | null) | undefined
@@ -70,8 +71,7 @@ export namespace Schemas {
   }
   export type ClientScopeMapping = {
     client_id: string
-    is_default: boolean
-    is_optional: boolean
+    default_scope_type: ScopeType
     scope_id: string
   }
   export type ClientScopesResponse = { data: Array<ClientScope> }
@@ -248,14 +248,7 @@ export namespace Schemas {
   export type EventStatus = 'success' | 'failure'
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
-  export type JwkKey = {
-    alg: string
-    e: string
-    kid: string
-    kty: string
-    n: string
-    use: string
-  }
+  export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
   export type Role = {
@@ -705,51 +698,6 @@ export namespace Endpoints {
     }
     response: Schemas.ClientScope
   }
-  export type get_Get_client_client_scopes = {
-    method: 'GET'
-    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/client-scopes'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string }
-    }
-    response: Array<Schemas.ClientScope>
-  }
-  export type put_Assign_default_scope = {
-    method: 'PUT'
-    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string }
-    }
-    response: Schemas.ClientScopeMapping
-  }
-  export type delete_Unassign_default_scope = {
-    method: 'DELETE'
-    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string }
-    }
-    response: unknown
-  }
-  export type put_Assign_optional_scope = {
-    method: 'PUT'
-    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string }
-    }
-    response: Schemas.ClientScopeMapping
-  }
-  export type delete_Unassign_optional_scope = {
-    method: 'DELETE'
-    path: '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string }
-    }
-    response: unknown
-  }
   export type get_Get_client_scope = {
     method: 'GET'
     path: '/realms/{realm_name}/client-scopes/{scope_id}'
@@ -858,6 +806,51 @@ export namespace Endpoints {
       body: Schemas.UpdateClientValidator
     }
     response: Schemas.UpdateClientResponse
+  }
+  export type get_Get_client_client_scopes = {
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/client-scopes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+    }
+    response: Array<Schemas.ClientScope>
+  }
+  export type put_Assign_default_scope = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: Schemas.ClientScopeMapping
+  }
+  export type delete_Unassign_default_scope = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: unknown
+  }
+  export type put_Assign_optional_scope = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: Schemas.ClientScopeMapping
+  }
+  export type delete_Unassign_optional_scope = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    response: unknown
   }
   export type get_Get_post_logout_redirect_uris = {
     method: 'GET'
@@ -1031,7 +1024,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/identity-providers'
     requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; brief_representation: boolean | null }
+      query: Partial<{ brief_representation: boolean }>
+      path: { realm_name: string }
     }
     response: Schemas.IdentityProvidersResponse
   }
@@ -1091,6 +1085,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/burn-recovery-code'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.BurnRecoveryCodeRequest
     }
     response: Schemas.BurnRecoveryCodeResponse
@@ -1100,6 +1096,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/challenge-otp'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.ChallengeOtpRequest
     }
     response: Schemas.ChallengeOtpResponse
@@ -1109,6 +1107,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/generate-recovery-codes'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.GenerateRecoveryCodesRequest
     }
     response: Schemas.GenerateRecoveryCodesResponse
@@ -1138,6 +1138,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/update-password'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.UpdatePasswordRequest
     }
     response: Schemas.UpdatePasswordResponse
@@ -1148,6 +1150,7 @@ export namespace Endpoints {
     requestFormat: 'json'
     parameters: {
       query: { token_id: string; magic_token: string }
+      path: { realm_name: string }
     }
     response: Schemas.AuthenticateResponse
   }
@@ -1167,6 +1170,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.PublicKeyCredential
     }
     response: Schemas.AuthenticationAttemptResponse
@@ -1176,6 +1181,8 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-create'
     requestFormat: 'json'
     parameters: {
+      path: { realm_name: string }
+
       body: Schemas.PublicKeyCredential
     }
     response: Schemas.ValidatePublicKeyResponse
@@ -1184,14 +1191,18 @@ export namespace Endpoints {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-create-options'
     requestFormat: 'json'
-    parameters: never
+    parameters: {
+      path: { realm_name: string }
+    }
     response: Schemas.PublicKeyCredentialCreationOptionsJSON
   }
   export type post_Webauthn_public_key_request_options = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/webauthn-public-key-request-options'
     requestFormat: 'json'
-    parameters: never
+    parameters: {
+      path: { realm_name: string }
+    }
     response: Schemas.PublicKeyCredentialRequestOptionsJSON
   }
   export type get_Auth_handler = {
@@ -1508,13 +1519,6 @@ export namespace Endpoints {
     }
     response: Schemas.GetWebhooksResponse
   }
-  export type put_Update_webhook = {
-    method: 'PUT'
-    path: '/realms/{realm_name}/webhooks'
-    requestFormat: 'json'
-    parameters: never
-    response: Schemas.UpdateWebhookResponse
-  }
   export type post_Create_webhook = {
     method: 'POST'
     path: '/realms/{realm_name}/webhooks'
@@ -1531,9 +1535,18 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/webhooks/{webhook_id}'
     requestFormat: 'json'
     parameters: {
-      path: { webhook_id: string }
+      path: { realm_name: string; webhook_id: string }
     }
     response: Schemas.Webhook
+  }
+  export type put_Update_webhook = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/webhooks/{webhook_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; webhook_id: string }
+    }
+    response: Schemas.UpdateWebhookResponse
   }
   export type delete_Delete_webhook = {
     method: 'DELETE'
@@ -1589,10 +1602,10 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/.well-known/openid-configuration': Endpoints.get_Get_openid_configuration
     '/realms/{realm_name}/broker/{alias}/login': Endpoints.get_Broker_login
     '/realms/{realm_name}/client-scopes': Endpoints.get_Get_client_scopes
-    '/realms/{realm_name}/client-scopes/clients/{client_id}/client-scopes': Endpoints.get_Get_client_client_scopes
     '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.get_Get_client_scope
     '/realms/{realm_name}/clients': Endpoints.get_Get_clients
     '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
+    '/realms/{realm_name}/clients/{client_id}/client-scopes': Endpoints.get_Get_client_client_scopes
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
@@ -1622,8 +1635,8 @@ export type EndpointByMethod = {
   put: {
     '/realms/{name}': Endpoints.put_Update_realm
     '/realms/{name}/settings': Endpoints.put_Update_realm_setting
-    '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.put_Assign_default_scope
-    '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.put_Assign_optional_scope
+    '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.put_Assign_default_scope
+    '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.put_Assign_optional_scope
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.put_Update_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
@@ -1631,15 +1644,15 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
     '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
     '/realms/{realm_name}/users/{user_id}/reset-password': Endpoints.put_Reset_password
-    '/realms/{realm_name}/webhooks': Endpoints.put_Update_webhook
+    '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.put_Update_webhook
   }
   delete: {
     '/realms/{name}': Endpoints.delete_Delete_realm
-    '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.delete_Unassign_default_scope
-    '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.delete_Unassign_optional_scope
     '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.delete_Delete_client_scope
     '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}': Endpoints.delete_Delete_protocol_mapper
     '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
+    '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.delete_Unassign_default_scope
+    '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.delete_Unassign_optional_scope
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.delete_Delete_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider

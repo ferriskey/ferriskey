@@ -31,6 +31,9 @@ export default function UpdatePasswordFeature() {
     updatePassword({
       body: {
         value: payload.password,
+      },
+      path: {
+        realm_name: realm_name ?? 'master',
       }
     })
   })

@@ -34,12 +34,12 @@ export default function ClientScopeLayout() {
         </div>
         <div className='flex items-center gap-2 shrink-0'>
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${responseScope?.is_default
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs font-mono ${responseScope?.default_scope_type === 'DEFAULT'
               ? 'border-blue-300 text-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400/40'
               : 'border-purple-300 text-purple-500 bg-purple-50 dark:bg-purple-500/10 dark:border-purple-400/40'
               }`}
           >
-            {responseScope?.is_default ? 'default' : 'optional'}
+            {responseScope?.default_scope_type === 'DEFAULT' ? 'default' : 'optional'}
           </span>
           <span className='inline-flex items-center px-3 py-0.5 rounded-md text-xs font-semibold border border-border text-muted-foreground bg-muted/50'>
             {responseScope?.protocol || 'openid-connect'}
