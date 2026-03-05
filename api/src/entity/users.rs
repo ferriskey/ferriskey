@@ -34,8 +34,6 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Clients,
-    #[sea_orm(has_many = "super::compass_flows::Entity")]
-    CompassFlows,
     #[sea_orm(has_many = "super::credentials::Entity")]
     Credentials,
     #[sea_orm(has_many = "super::identity_provider_links::Entity")]
@@ -77,12 +75,6 @@ impl Related<super::auth_sessions::Entity> for Entity {
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
-    }
-}
-
-impl Related<super::compass_flows::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::CompassFlows.def()
     }
 }
 

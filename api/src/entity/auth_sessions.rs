@@ -41,14 +41,6 @@ pub enum Relation {
     )]
     Clients,
     #[sea_orm(
-        belongs_to = "super::compass_flows::Entity",
-        from = "Column::CompassFlowId",
-        to = "super::compass_flows::Column::Id",
-        on_update = "NoAction",
-        on_delete = "SetNull"
-    )]
-    CompassFlows,
-    #[sea_orm(
         belongs_to = "super::realms::Entity",
         from = "Column::RealmId",
         to = "super::realms::Column::Id",
@@ -75,12 +67,6 @@ impl Related<super::broker_auth_sessions::Entity> for Entity {
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
-    }
-}
-
-impl Related<super::compass_flows::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::CompassFlows.def()
     }
 }
 
