@@ -3,23 +3,28 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "webhooks")]
+#[sea_orm(table_name = "compass_flows")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub realm_id: Uuid,
-    pub endpoint: String,
-    pub triggered_at: Option<DateTime>,
-    pub updated_at: DateTime,
+    pub client_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
+    pub grant_type: String,
+    pub status: String,
+    pub ip_address: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub user_agent: Option<String>,
+    pub started_at: DateTime,
+    pub completed_at: Option<DateTime>,
+    pub duration_ms: Option<i64>,
     pub created_at: DateTime,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    #[sea_orm(column_type = "JsonBinary")]
-    pub headers: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::compass_flow_steps::Entity")]
+    CompassFlowSteps,
     #[sea_orm(
         belongs_to = "super::realms::Entity",
         from = "Column::RealmId",
@@ -28,19 +33,17 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Realms,
-    #[sea_orm(has_many = "super::webhook_subscribers::Entity")]
-    WebhookSubscribers,
+}
+
+impl Related<super::compass_flow_steps::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CompassFlowSteps.def()
+    }
 }
 
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
-    }
-}
-
-impl Related<super::webhook_subscribers::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::WebhookSubscribers.def()
     }
 }
 

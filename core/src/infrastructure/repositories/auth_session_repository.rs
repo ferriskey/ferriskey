@@ -74,6 +74,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             expires_at: Set(session.expires_at.naive_utc()),
             webauthn_challenge: Set(None),
             webauthn_challenge_issued_at: Set(None),
+            compass_flow_id: Set(None),
         };
 
         let t = model
