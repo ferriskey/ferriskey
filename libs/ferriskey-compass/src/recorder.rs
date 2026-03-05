@@ -1,11 +1,9 @@
 use chrono::{DateTime, Utc};
+use ferriskey_domain::realm::RealmId;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::domain::compass::entities::{
-    CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName, StepStatus,
-};
-use crate::domain::realm::entities::RealmId;
+use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName, StepStatus};
 
 pub enum CompassEvent {
     FlowStarted(CompassFlow),

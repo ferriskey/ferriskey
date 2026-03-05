@@ -1529,6 +1529,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-compass"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "serde",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-core"
 version = "0.1.0"
 dependencies = [
@@ -1540,6 +1553,7 @@ dependencies = [
  "enum-display",
  "ferriskey-abyss",
  "ferriskey-aegis",
+ "ferriskey-compass",
  "ferriskey-domain",
  "ferriskey-security",
  "ferriskey-trident",

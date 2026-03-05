@@ -1,12 +1,10 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use ferriskey_domain::{generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::RealmId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct FlowId(pub Uuid);
