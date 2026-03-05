@@ -1,8 +1,11 @@
 import { useGetClientScope } from '@/api/client-scope.api'
 import { ArrowLeft } from 'lucide-react'
-import { Outlet, useNavigate, useParams } from 'react-router'
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import {
+  CLIENT_SCOPE_DETAILS_URL,
+  CLIENT_SCOPE_MAPPERS_URL,
+  CLIENT_SCOPE_URL,
   CLIENT_SCOPES_OVERVIEW_URL,
   CLIENT_SCOPES_URL,
 } from '@/routes/sub-router/client-scope.router'
@@ -10,14 +13,31 @@ import {
 export default function ClientScopeLayout() {
   const { realm_name, scope_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const { data: responseScope } = useGetClientScope({
     realm: realm_name ?? 'master',
     scopeId: scope_id,
   })
 
+  const scopeBase = CLIENT_SCOPE_URL(realm_name, scope_id)
+
+  const tabs = [
+    {
+      key: 'details',
+      label: 'Details',
+      path: `${scopeBase}${CLIENT_SCOPE_DETAILS_URL}`,
+    },
+    {
+      key: 'mappers',
+      label: 'Protocol Mappers',
+      path: `${scopeBase}${CLIENT_SCOPE_MAPPERS_URL}`,
+    },
+  ]
+
   return (
     <div className='flex flex-col gap-6 p-8'>
+      {/* Header */}
       <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b flex items-start justify-between gap-4'>
         <div>
           <button
@@ -45,6 +65,26 @@ export default function ClientScopeLayout() {
             {responseScope?.protocol || 'openid-connect'}
           </span>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className='-mx-8 px-8 pb-4 border-b flex items-center gap-2 -mt-2'>
+        {tabs.map((tab) => {
+          const isActive = location.pathname.startsWith(tab.path)
+          return (
+            <button
+              key={tab.key}
+              onClick={() => navigate(tab.path)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                isActive
+                  ? 'bg-primary/10 text-primary border-primary/40'
+                  : 'bg-transparent text-foreground border-border hover:bg-muted'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
       <Outlet />

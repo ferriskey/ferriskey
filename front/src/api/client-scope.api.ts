@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 import { toast } from 'sonner'
 
+type ProtocolMapperQuery = BaseQuery & { scopeId: string }
+
 export const useGetClientScopes = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
     window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
@@ -47,3 +49,81 @@ export const useCreateClientScope = () => {
     },
   })
 }
+
+export const useCreateProtocolMapper = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
+        path: {
+          realm_name: variables.path.realm_name,
+          scope_id: variables.path.scope_id,
+        },
+      })
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success('Protocol mapper created successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to create protocol mapper', { description: error.message })
+    },
+  })
+}
+
+export const useUpdateProtocolMapper = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'patch',
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
+        path: {
+          realm_name: variables.path.realm_name,
+          scope_id: variables.path.scope_id,
+        },
+      })
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success('Protocol mapper updated successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to update protocol mapper', { description: error.message })
+    },
+  })
+}
+
+export const useDeleteProtocolMapper = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
+        path: {
+          realm_name: variables.path.realm_name,
+          scope_id: variables.path.scope_id,
+        },
+      })
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success('Protocol mapper deleted successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to delete protocol mapper', { description: error.message })
+    },
+  })
+}
+
+// Re-export type for use in feature files
+export type { ProtocolMapperQuery }

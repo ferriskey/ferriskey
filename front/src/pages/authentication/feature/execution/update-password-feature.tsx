@@ -29,12 +29,12 @@ export default function UpdatePasswordFeature() {
 
   const handleClick = form.handleSubmit((payload) => {
     updatePassword({
+      path: {
+        realm_name: realm_name ?? 'master',
+      },
       body: {
         value: payload.password,
       },
-      path: {
-        realm_name: realm_name ?? 'master',
-      }
     })
   })
 
