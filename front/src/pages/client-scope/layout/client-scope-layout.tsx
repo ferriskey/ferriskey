@@ -9,7 +9,6 @@ import {
   CLIENT_SCOPES_OVERVIEW_URL,
   CLIENT_SCOPES_URL,
 } from '@/routes/sub-router/client-scope.router'
-import { cn } from '@/lib/utils'
 
 export default function ClientScopeLayout() {
   const { realm_name, scope_id } = useParams<RouterParams>()
@@ -21,10 +20,6 @@ export default function ClientScopeLayout() {
     scopeId: scope_id,
   })
 
-  const scopeType = responseScope?.default_scope_type ?? 'NONE'
-  const isDefault = scopeType === 'DEFAULT'
-  const isOptional = scopeType === 'OPTIONAL'
-
   const scopeBase = CLIENT_SCOPE_URL(realm_name, scope_id)
 
   const tabs = [
@@ -32,19 +27,17 @@ export default function ClientScopeLayout() {
       key: 'details',
       label: 'Details',
       path: `${scopeBase}${CLIENT_SCOPE_DETAILS_URL}`,
-      active: location.pathname.endsWith(CLIENT_SCOPE_DETAILS_URL),
     },
     {
       key: 'mappers',
       label: 'Protocol Mappers',
       path: `${scopeBase}${CLIENT_SCOPE_MAPPERS_URL}`,
-      // active for both /mappers and /mappers/new
-      active: location.pathname.startsWith(`${scopeBase}${CLIENT_SCOPE_MAPPERS_URL}`),
     },
   ]
 
   return (
     <div className='flex flex-col gap-6 p-8'>
+      {/* Header */}
       <div className='-mx-8 -mt-8 px-8 pt-8 pb-4 border-b flex items-start justify-between gap-4'>
         <div>
           <button
@@ -72,23 +65,26 @@ export default function ClientScopeLayout() {
             {responseScope?.protocol || 'openid-connect'}
           </span>
         </div>
+      </div>
 
-        <nav className='flex gap-1'>
-          {tabs.map((tab) => (
+      {/* Tabs */}
+      <div className='-mx-8 px-8 pb-4 border-b flex items-center gap-2 -mt-2'>
+        {tabs.map((tab) => {
+          const isActive = location.pathname.startsWith(tab.path)
+          return (
             <button
               key={tab.key}
               onClick={() => navigate(tab.path)}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                tab.active
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-              )}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                isActive
+                  ? 'bg-primary/10 text-primary border-primary/40'
+                  : 'bg-transparent text-foreground border-border hover:bg-muted'
+              }`}
             >
               {tab.label}
             </button>
-          ))}
-        </nav>
+          )
+        })}
       </div>
 
       <Outlet />
