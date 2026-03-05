@@ -22,7 +22,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     patch,
-    path = "/{scope_id}/protocol-mappers/{mapper_id}",
+    path = "/client-scopes/{scope_id}/protocol-mappers/{mapper_id}",
     summary = "Update a protocol mapper",
     description = "Updates an existing protocol mapper for the specified client scope.",
     responses(

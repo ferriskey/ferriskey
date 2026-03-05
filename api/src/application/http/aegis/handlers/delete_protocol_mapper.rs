@@ -20,7 +20,7 @@ pub struct DeleteProtocolMapperResponse {
 
 #[utoipa::path(
     delete,
-    path = "/{scope_id}/protocol-mappers/{mapper_id}",
+    path = "/client-scopes/{scope_id}/protocol-mappers/{mapper_id}",
     summary = "Delete a protocol mapper",
     description = "Deletes a protocol mapper from the specified client scope.",
     params(

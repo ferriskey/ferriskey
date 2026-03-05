@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     post,
-    path = "/{scope_id}/protocol-mappers",
+    path = "/client-scopes/{scope_id}/protocol-mappers",
     summary = "Create a protocol mapper",
     description = "Creates a new protocol mapper for the specified client scope.",
     responses(

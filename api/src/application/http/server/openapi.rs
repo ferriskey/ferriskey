@@ -23,7 +23,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = SeawatchApiDoc),
         (path = "/realms/{realm_name}", api = AbyssApiDoc),
         (path = "/realms/{realm_name}", api = BrokerApiDoc),
-        (path = "/realms/{realm_name}/client-scopes", api = AegisApiDoc)
+        (path = "/realms/{realm_name}", api = AegisApiDoc)
     )
 )]
 pub struct ApiDoc;
