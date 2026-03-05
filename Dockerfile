@@ -20,6 +20,7 @@ COPY libs/ferriskey-trident/Cargo.toml ./libs/ferriskey-trident/
 COPY libs/ferriskey-abyss/Cargo.toml ./libs/ferriskey-abyss/
 COPY libs/ferriskey-aegis/Cargo.toml ./libs/ferriskey-aegis/
 COPY libs/ferriskey-mail/Cargo.toml ./libs/ferriskey-mail/
+COPY libs/ferriskey-compass/Cargo.toml ./libs/ferriskey-compass/
 
 COPY core/Cargo.toml ./core/
 
@@ -28,7 +29,7 @@ COPY operator/Cargo.toml ./operator/
 COPY client/Cargo.toml ./client/
 
 RUN \
-  mkdir -p api/src core/src entity/src operator/src client/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src && \
+  mkdir -p api/src core/src entity/src operator/src client/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src && \
   touch libs/maskass/src/lib.rs && \
   touch libs/ferriskey-domain/src/lib.rs && \
   touch libs/ferriskey-security/src/lib.rs && \
@@ -36,6 +37,7 @@ RUN \
   touch libs/ferriskey-abyss/src/lib.rs && \
   touch libs/ferriskey-aegis/src/lib.rs && \
   touch libs/ferriskey-mail/src/lib.rs && \
+  touch libs/ferriskey-compass/src/lib.rs && \
   touch core/src/lib.rs && \
   touch client/src/lib.rs && \
   echo "fn main() {}" > operator/src/main.rs && \
@@ -49,6 +51,7 @@ COPY libs/ferriskey-trident libs/ferriskey-trident
 COPY libs/ferriskey-abyss libs/ferriskey-abyss
 COPY libs/ferriskey-aegis libs/ferriskey-aegis
 COPY libs/ferriskey-mail libs/ferriskey-mail
+COPY libs/ferriskey-compass libs/ferriskey-compass
 
 COPY core core
 COPY api api
@@ -63,6 +66,7 @@ RUN \
   touch libs/ferriskey-abyss/src/lib.rs && \
   touch libs/ferriskey-aegis/src/lib.rs && \
   touch libs/ferriskey-mail/src/lib.rs && \
+  touch libs/ferriskey-compass/src/lib.rs && \
   touch core/src/lib.rs && \
   touch operator/src/main.rs && \
   cargo build --release
