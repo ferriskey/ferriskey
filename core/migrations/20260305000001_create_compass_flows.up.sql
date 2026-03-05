@@ -1,8 +1,8 @@
 CREATE TABLE compass_flows (
     id UUID PRIMARY KEY,
     realm_id UUID NOT NULL REFERENCES realms(id) ON DELETE CASCADE,
-    client_id UUID,
-    user_id UUID,
+    client_id TEXT,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     grant_type VARCHAR(50) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     ip_address VARCHAR(45),
