@@ -163,8 +163,8 @@ export const useUnassignScope = () => {
     mutationFn: async ({ realm, clientId, scopeId, type }: AssignScopeParams) => {
       const endpoint =
         type === 'default'
-          ? '/realms/{realm_name}/client-scopes/clients/{client_id}/default-client-scopes/{scope_id}'
-          : '/realms/{realm_name}/client-scopes/clients/{client_id}/optional-client-scopes/{scope_id}'
+          ? '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+          : '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
 
       return window.tanstackApi.mutation('delete', endpoint).mutationOptions.mutationFn({
         path: {
