@@ -20,7 +20,7 @@ pub struct DeleteClientScopeResponse {
 
 #[utoipa::path(
     delete,
-    path = "/{scope_id}",
+    path = "/client-scopes/{scope_id}",
     summary = "Delete a client scope",
     description = "Deletes a client scope from the specified realm. This action is irreversible.",
     params(

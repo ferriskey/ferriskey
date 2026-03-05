@@ -19,7 +19,7 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 
 #[utoipa::path(
     post,
-    path = "",
+    path = "/client-scopes",
     summary = "Create a new client scope",
     description = "Creates a new client scope within the specified realm.",
     responses(
