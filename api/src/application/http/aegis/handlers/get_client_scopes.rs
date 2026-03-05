@@ -20,7 +20,7 @@ pub struct ClientScopesResponse {
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/client-scopes",
     summary = "Get client scopes in a realm",
     description = "Retrieves all client scopes associated with a specific realm.",
     params(

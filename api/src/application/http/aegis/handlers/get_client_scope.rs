@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     get,
-    path = "/{scope_id}",
+    path = "/client-scopes/{scope_id}",
     summary = "Get a client scope",
     description = "Retrieves a client scope from the specified realm by its ID.",
     params(

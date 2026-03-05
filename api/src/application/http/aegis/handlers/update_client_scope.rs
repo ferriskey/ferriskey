@@ -22,7 +22,7 @@ use uuid::Uuid;
 
 #[utoipa::path(
     patch,
-    path = "/{scope_id}",
+    path = "/client-scopes/{scope_id}",
     summary = "Update a client scope",
     description = "Updates an existing client scope in the specified realm.",
     responses(
