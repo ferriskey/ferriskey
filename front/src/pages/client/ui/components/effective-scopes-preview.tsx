@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useGetClient } from '@/api/client.api'
+import { Schemas } from '@/api/api.client'
 
 interface EffectiveScopesPreviewProps {
   realm: string | undefined
   clientId: string | undefined
-  assignedScopes: any[]
+  assignedScopes: Schemas.ClientScope[]
 }
 
 export default function EffectiveScopesPreview({ realm, clientId, assignedScopes }: EffectiveScopesPreviewProps) {
@@ -15,7 +16,7 @@ export default function EffectiveScopesPreview({ realm, clientId, assignedScopes
     clientId: clientId,
   })
 
-  const [effectiveScopes, setEffectiveScopes] = useState<any[]>([])
+  const [effectiveScopes, setEffectiveScopes] = useState<Schemas.ClientScope[]>([])
 
   useEffect(() => {
     // This is a simplified preview - in a real implementation, you'd need to
@@ -65,7 +66,7 @@ export default function EffectiveScopesPreview({ realm, clientId, assignedScopes
               <div className='text-sm text-muted-foreground'>No claims will be included.</div>
             ) : (
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                {effectiveScopes.map((scope: any) => (
+                {effectiveScopes.map((scope: Schemas.ClientScope) => (
                   <div key={scope.id} className='flex flex-col gap-2'>
                     <div className='flex items-center gap-2'>
                       <span className='font-medium text-sm'>{scope.name}</span>

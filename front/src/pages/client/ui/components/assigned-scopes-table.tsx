@@ -13,11 +13,12 @@ import { Badge } from '@/components/ui/badge'
 import { useAssignScope, useUnassignScope } from '@/api/client.api'
 import { Link } from 'react-router-dom'
 import { CLIENT_SCOPES_URL } from '@/routes/sub-router/client-scope.router'
+import { Schemas } from '@/api/api.client'
 
 interface AssignedScopesTableProps {
   realm: string | undefined
   clientId: string | undefined
-  scopes: any[]
+  scopes: Schemas.ClientScope[]
   isLoading: boolean
   compact?: boolean
 }
@@ -29,7 +30,7 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
   const handleChangeType = (scopeId: string, currentType: 'default' | 'optional' | 'none') => {
     if (currentType === 'default' || currentType === 'optional') {
       const newType = currentType === 'default' ? 'optional' : 'default'
-      
+
       // Unassign current type and assign new type
       unassignScope.mutate({
         realm: realm!,
@@ -37,7 +38,7 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
         scopeId: scopeId,
         type: currentType
       })
-      
+
       assignScope.mutate({
         realm: realm!,
         clientId: clientId!,
@@ -56,10 +57,10 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
     })
   }
 
-  const getScopeType = (scope: any): 'default' | 'optional' => {
+  const getScopeType = (scope: Schemas.ClientScope): 'default' | 'optional' => {
     // This is a simplified approach - in a real implementation, you'd need to check
     // the actual mapping type from the backend
-    if (scope.is_default) {
+    if (scope.default_scope_type === 'DEFAULT') {
       return 'default'
     }
     // For now, assume it's optional if not default
@@ -71,7 +72,7 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
     if (scopes.length !== 1) return null
     const scope = scopes[0]
     const scopeType = getScopeType(scope)
-    
+
     return (
       <div className='flex items-center gap-2'>
         <DropdownMenu>

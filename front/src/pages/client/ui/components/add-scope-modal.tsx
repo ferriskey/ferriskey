@@ -18,6 +18,7 @@ import {
 import { useGetClientScopes as useGetRealmClientScopes } from '@/api/client-scope.api'
 import { useAssignScope } from '@/api/client.api'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Schemas } from '@/api/api.client'
 
 interface AddScopeModalProps {
   realm: string | undefined
@@ -39,11 +40,11 @@ export default function AddScopeModal({ realm, clientId, isOpen, onClose, assign
   const assignScope = useAssignScope()
 
   const availableScopes = realmScopesData?.data?.filter(
-    (scope: any) => !assignedScopeIds.includes(scope.id)
+    (scope: Schemas.ClientScope) => !assignedScopeIds.includes(scope.id)
   ) || []
 
   const filteredScopes = availableScopes.filter(
-    (scope: any) => 
+    (scope: Schemas.ClientScope) =>
       scope.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       scope.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -101,7 +102,7 @@ export default function AddScopeModal({ realm, clientId, isOpen, onClose, assign
               <div className='text-muted-foreground'>No available scopes to assign.</div>
             ) : (
               <div className='space-y-2'>
-                {filteredScopes.map((scope: any) => (
+                {filteredScopes.map((scope: Schemas.ClientScope) => (
                   <div
                     key={scope.id}
                     className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 ${

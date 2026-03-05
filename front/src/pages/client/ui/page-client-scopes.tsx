@@ -10,6 +10,7 @@ import { OverviewList } from '@/components/ui/overview-list'
 import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
 import { CLIENT_SCOPES_URL } from '@/routes/sub-router/client-scope.router'
+import { Schemas } from '@/api/api.client'
 
 export default function PageClientScopes() {
   const { realm_name, client_id } = useParams<RouterParams>()
@@ -24,10 +25,10 @@ export default function PageClientScopes() {
   // Handle case where response might be an empty object
   const assignedScopes = Array.isArray(clientScopesData) ? clientScopesData : []
 
-  const getScopeType = (scope: any): 'default' | 'optional' => {
+  const getScopeType = (scope: Schemas.ClientScope): 'default' | 'optional' => {
     // This is a simplified approach - in a real implementation, you'd need to check
     // the actual mapping type from the backend
-    return scope.is_default ? 'default' : 'optional'
+    return scope.default_scope_type === 'DEFAULT' ? 'default' : 'optional'
   }
 
   return (
