@@ -122,9 +122,6 @@ pub enum FlowStepName {
     #[serde(rename = "token_exchange")]
     TokenExchange,
 
-    #[serde(rename = "token_refresh")]
-    TokenRefresh,
-
     #[serde(rename = "finalize")]
     Finalize,
 }
@@ -136,7 +133,6 @@ impl Display for FlowStepName {
             FlowStepName::CredentialValidation => write!(f, "credential_validation"),
             FlowStepName::MfaChallenge => write!(f, "mfa_challenge"),
             FlowStepName::TokenExchange => write!(f, "token_exchange"),
-            FlowStepName::TokenRefresh => write!(f, "token_refresh"),
             FlowStepName::Finalize => write!(f, "finalize"),
         }
     }
