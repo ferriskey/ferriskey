@@ -25,4 +25,5 @@ pub struct UpdateRealmSettingValidator {
     pub magic_link_enabled: Option<bool>,
     #[validate(range(min = 1, message = "magic_link_ttl must be greater than 0"))]
     pub magic_link_ttl: Option<u32>,
+    pub compass_enabled: Option<bool>,
 }

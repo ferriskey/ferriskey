@@ -15,6 +15,7 @@ pub struct Model {
     pub remember_me_enabled: bool,
     pub magic_link_enabled: bool,
     pub magic_link_ttl_minutes: i32,
+    pub compass_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
