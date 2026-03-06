@@ -72,6 +72,14 @@ pub struct Args {
     pub webapp_url: String,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
+    #[arg(
+        long = "compass-enabled",
+        env = "COMPASS_ENABLED",
+        name = "COMPASS_ENABLED",
+        default_value_t = true,
+        long_help = "Whether to enable the Compass authentication flow tracking"
+    )]
+    pub compass_enabled: bool,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -86,6 +94,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
+            compass_enabled: true,
             command: None,
         }
     }

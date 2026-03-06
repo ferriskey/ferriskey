@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use chrono::{DateTime, Utc};
 use ferriskey_domain::realm::RealmId;
 use tokio::sync::mpsc;
@@ -19,27 +22,35 @@ pub enum CompassEvent {
 
 #[derive(Clone, Debug)]
 pub struct FlowRecorder {
-    enabled: bool,
+    enabled: Arc<AtomicBool>,
     sender: Option<mpsc::Sender<CompassEvent>>,
 }
 
 impl FlowRecorder {
     pub fn new(sender: mpsc::Sender<CompassEvent>) -> Self {
         Self {
-            enabled: true,
+            enabled: Arc::new(AtomicBool::new(true)),
             sender: Some(sender),
         }
     }
 
     pub fn disabled() -> Self {
         Self {
-            enabled: false,
+            enabled: Arc::new(AtomicBool::new(false)),
             sender: None,
         }
     }
 
+    pub fn set_enabled(&self, value: bool) {
+        self.enabled.store(value, Ordering::Relaxed);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
     fn send(&self, event: CompassEvent) {
-        if !self.enabled {
+        if !self.enabled.load(Ordering::Relaxed) {
             return;
         }
         if let Some(tx) = &self.sender
