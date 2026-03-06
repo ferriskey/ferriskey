@@ -40,18 +40,23 @@ use crate::domain::{
         ports::{AccessTokenRepository, RefreshTokenRepository},
     },
     realm::{entities::RealmId, ports::RealmRepository},
-    user::{entities::RequiredAction, ports::UserRepository, value_objects::CreateUserRequest},
+    user::{
+        entities::RequiredAction,
+        ports::{UserRepository, UserRoleRepository},
+        value_objects::CreateUserRequest,
+    },
 };
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -67,6 +72,7 @@ where
     pub(crate) redirect_uri_repository: Arc<RU>,
     pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) user_repository: Arc<U>,
+    pub(crate) user_role_repository: Arc<UR>,
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) hasher_repository: Arc<H>,
     pub(crate) auth_session_repository: Arc<AS>,
@@ -82,14 +88,15 @@ where
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -107,6 +114,7 @@ where
         redirect_uri_repository: Arc<RU>,
         post_logout_redirect_uri_repository: Arc<PLRU>,
         user_repository: Arc<U>,
+        user_role_repository: Arc<UR>,
         credential_repository: Arc<CR>,
         hasher_repository: Arc<H>,
         auth_session_repository: Arc<AS>,
@@ -125,6 +133,7 @@ where
             redirect_uri_repository,
             post_logout_redirect_uri_repository,
             user_repository,
+            user_role_repository,
             credential_repository,
             hasher_repository,
             auth_session_repository,
@@ -141,14 +150,15 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,
@@ -252,6 +262,23 @@ where
             all_mappers.extend(mappers);
         }
 
+        // Fetch user roles and group client-scoped roles by client string id.
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(input.user_id)
+            .await
+            .unwrap_or_default();
+
+        let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
+        for role in &user_roles {
+            if let Some(client) = &role.client {
+                client_roles
+                    .entry(client.client_id.clone())
+                    .or_default()
+                    .push(role.name.clone());
+            }
+        }
+
         // Build mapper context
         let context = MapperContext {
             user_id: input.user_id,
@@ -261,6 +288,7 @@ where
             firstname: input.firstname.clone(),
             lastname: input.lastname.clone(),
             realm_roles: vec![],
+            client_roles,
             client_id: input.client_id.clone(),
             client_uuid: input.client_uuid,
             realm_name: input.realm_name.clone(),
@@ -291,6 +319,13 @@ where
             }
         }
         claims.additional_claims = access_mapper_output.claims;
+
+        // `preferred_username` and `email` are now injected exclusively via protocol
+        // mappers bound to the `profile` / `email` scopes.  Clearing the hard-coded
+        // defaults here ensures they never leak into tokens whose scope set does not
+        // include those scopes.
+        claims.preferred_username = None;
+        claims.email = None;
 
         let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
             .map_err(|e| {
@@ -323,7 +358,6 @@ where
         let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
         let exp = claims.exp.unwrap_or(0);
         let iat = Utc::now().timestamp();
-        let preferred_username: String = claims.preferred_username.clone().unwrap_or_default();
 
         let id_token: Option<Jwt> = if contains_openid_scope {
             // Apply mappers for ID token
@@ -332,16 +366,20 @@ where
                     .apply_mappers(&all_mappers, &context, TokenType::IdToken)?;
 
             let aud = claims.azp.clone();
+            // Identity claims (preferred_username, email, email_verified) are injected
+            // into `additional_claims` by the protocol mappers attached to the `profile`
+            // and `email` scopes.  The dedicated struct fields are intentionally left as
+            // `None` to avoid duplicate keys in the serialised JWT payload.
             let id_claims = IdTokenClaims {
                 iss: claims.iss.clone(),
                 aud,
                 azp: Some(claims.azp.clone()),
                 auth_time: None,
-                email: claims.email.clone(),
-                email_verified: Some(input.email_verified),
+                email: None,
+                email_verified: None,
                 exp,
                 iat,
-                preferred_username,
+                preferred_username: None,
                 sub: claims.sub,
                 additional_claims: id_mapper_output.claims,
             };
@@ -1279,14 +1317,15 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
 where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     U: UserRepository,
+    UR: UserRoleRepository,
     CR: CredentialRepository,
     H: HasherRepository,
     AS: AuthSessionRepository,

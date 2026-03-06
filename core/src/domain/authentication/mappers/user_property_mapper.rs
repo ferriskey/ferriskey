@@ -116,6 +116,7 @@ mod tests {
             firstname: "John".to_string(),
             lastname: "Doe".to_string(),
             realm_roles: vec!["admin".to_string()],
+            client_roles: HashMap::new(),
             client_id: "my-client".to_string(),
             client_uuid: Uuid::new_v4(),
             realm_name: "test-realm".to_string(),

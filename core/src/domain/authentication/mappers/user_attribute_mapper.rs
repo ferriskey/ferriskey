@@ -80,6 +80,7 @@ mod tests {
             firstname: "Test".to_string(),
             lastname: "User".to_string(),
             realm_roles: vec![],
+            client_roles: HashMap::new(),
             client_id: "my-client".to_string(),
             client_uuid: Uuid::new_v4(),
             realm_name: "test-realm".to_string(),

@@ -118,18 +118,33 @@ where
                 vec![
                     (
                         "given_name",
-                        "user-attribute",
-                        json!({"attribute": "given_name", "claim": "given_name"}),
+                        "oidc-usermodel-property-mapper",
+                        json!({
+                            "user.attribute": "firstName",
+                            "claim.name": "given_name",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
                     ),
                     (
                         "family_name",
-                        "user-attribute",
-                        json!({"attribute": "family_name", "claim": "family_name"}),
+                        "oidc-usermodel-property-mapper",
+                        json!({
+                            "user.attribute": "lastName",
+                            "claim.name": "family_name",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
                     ),
                     (
                         "preferred_username",
-                        "user-attribute",
-                        json!({"attribute": "preferred_username", "claim": "preferred_username"}),
+                        "oidc-usermodel-property-mapper",
+                        json!({
+                            "user.attribute": "username",
+                            "claim.name": "preferred_username",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
                     ),
                 ],
             ),
@@ -139,13 +154,24 @@ where
                 vec![
                     (
                         "email",
-                        "user-attribute",
-                        json!({"attribute": "email", "claim": "email"}),
+                        "oidc-usermodel-property-mapper",
+                        json!({
+                            "user.attribute": "email",
+                            "claim.name": "email",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
                     ),
                     (
                         "email_verified",
-                        "user-attribute",
-                        json!({"attribute": "email_verified", "claim": "email_verified"}),
+                        "oidc-usermodel-property-mapper",
+                        json!({
+                            "user.attribute": "emailVerified",
+                            "claim.name": "email_verified",
+                            "jsonType.label": "boolean",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
                     ),
                 ],
             ),
@@ -154,8 +180,12 @@ where
                 true,
                 vec![(
                     "realm_access",
-                    "user-realm-role",
-                    json!({"claim": "realm_access.roles"}),
+                    "oidc-usermodel-realm-role-mapper",
+                    json!({
+                        "claim.name": "realm_access.roles",
+                        "access.token.claim": "true",
+                        "id.token.claim": "true"
+                    }),
                 )],
             ),
             ("offline_access", false, vec![]),
@@ -164,8 +194,13 @@ where
                 false,
                 vec![(
                     "phone_number",
-                    "user-attribute",
-                    json!({"attribute": "phone_number", "claim": "phone_number"}),
+                    "oidc-usermodel-attribute-mapper",
+                    json!({
+                        "user.attribute": "phone_number",
+                        "claim.name": "phone_number",
+                        "access.token.claim": "true",
+                        "id.token.claim": "true"
+                    }),
                 )],
             ),
             (
@@ -173,8 +208,13 @@ where
                 false,
                 vec![(
                     "address",
-                    "user-attribute",
-                    json!({"attribute": "address", "claim": "address"}),
+                    "oidc-usermodel-attribute-mapper",
+                    json!({
+                        "user.attribute": "address",
+                        "claim.name": "address",
+                        "access.token.claim": "true",
+                        "id.token.claim": "true"
+                    }),
                 )],
             ),
         ];

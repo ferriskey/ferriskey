@@ -8,8 +8,8 @@ use crate::domain::{common::entities::app_errors::CoreError, realm::entities::Re
 
 use super::mappers::{
     audience_mapper::AudienceMapper, hardcoded_claim_mapper::HardcodedClaimMapper,
-    user_attribute_mapper::UserAttributeMapper, user_property_mapper::UserPropertyMapper,
-    user_realm_role_mapper::UserRealmRoleMapper,
+    user_attribute_mapper::UserAttributeMapper, user_client_role_mapper::UserClientRoleMapper,
+    user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
 
 /// All user/client/realm data that protocol mappers may need.
@@ -23,6 +23,9 @@ pub struct MapperContext {
     pub firstname: String,
     pub lastname: String,
     pub realm_roles: Vec<String>,
+    /// Client roles keyed by the client's string `client_id` (e.g. `"backend"`).
+    /// Populated from user role assignments that are scoped to a specific client.
+    pub client_roles: HashMap<String, Vec<String>>,
     pub client_id: String,
     pub client_uuid: Uuid,
     pub realm_name: String,
@@ -53,6 +56,7 @@ enum MapperExecutor {
     HardcodedClaim(HardcodedClaimMapper),
     Audience(AudienceMapper),
     UserAttribute(UserAttributeMapper),
+    UserClientRole(UserClientRoleMapper),
     UserRealmRole(UserRealmRoleMapper),
 }
 
@@ -68,6 +72,7 @@ impl MapperExecutor {
             Self::HardcodedClaim(m) => m.execute(config, context, token_type),
             Self::Audience(m) => m.execute(config, context, token_type),
             Self::UserAttribute(m) => m.execute(config, context, token_type),
+            Self::UserClientRole(m) => m.execute(config, context, token_type),
             Self::UserRealmRole(m) => m.execute(config, context, token_type),
         }
     }
@@ -101,6 +106,10 @@ impl MapperEngine {
         executors.insert(
             "oidc-usermodel-realm-role-mapper".to_string(),
             MapperExecutor::UserRealmRole(UserRealmRoleMapper),
+        );
+        executors.insert(
+            "oidc-usermodel-client-role-mapper".to_string(),
+            MapperExecutor::UserClientRole(UserClientRoleMapper),
         );
         Self { executors }
     }
@@ -348,6 +357,7 @@ mod tests {
             firstname: "Test".to_string(),
             lastname: "User".to_string(),
             realm_roles: vec![],
+            client_roles: HashMap::new(),
             client_id: "my-client".to_string(),
             client_uuid: Uuid::new_v4(),
             realm_name: "test-realm".to_string(),
@@ -376,6 +386,7 @@ mod tests {
             firstname: "Test".to_string(),
             lastname: "User".to_string(),
             realm_roles: vec!["admin".to_string(), "user".to_string()],
+            client_roles: HashMap::new(),
             client_id: "my-client".to_string(),
             client_uuid: Uuid::new_v4(),
             realm_name: "test-realm".to_string(),
