@@ -107,7 +107,6 @@ where
 
     async fn seed_default_scopes_for_client(
         &self,
-<<<<<<< HEAD
         identity: Identity,
         input: CreateRealmInput,
     ) -> Result<Realm, CoreError> {
@@ -180,11 +179,9 @@ where
     }
 
     async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
-=======
         realm_id: RealmId,
         client_id: uuid::Uuid,
     ) -> Result<(), CoreError> {
->>>>>>> b16f29e (feat: assign default Realm Client Scope to new Clients (#775))
         let scopes = vec![
             ("openid", true, vec![]),
             (

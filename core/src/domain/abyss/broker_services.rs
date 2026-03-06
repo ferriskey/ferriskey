@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use chrono::Utc;
+use ferriskey_compass::{
+    entities::{FlowStatus, FlowStepName, StepStatus},
+    recorder::FlowRecorder,
+};
 use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
 use tracing::{error, instrument};
@@ -46,6 +51,7 @@ where
     user_repository: Arc<UR>,
     auth_session_repository: Arc<ASR>,
     oauth_client: Arc<OC>,
+    flow_recorder: FlowRecorder,
 }
 
 impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC> BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
@@ -71,6 +77,7 @@ where
         user_repository: Arc<UR>,
         auth_session_repository: Arc<ASR>,
         oauth_client: Arc<OC>,
+        flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
             realm_repository,
@@ -82,6 +89,7 @@ where
             user_repository,
             auth_session_repository,
             oauth_client,
+            flow_recorder,
         }
     }
 
@@ -498,13 +506,51 @@ where
 
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
 
-        // 6. Exchange authorization code for tokens
+        // Start compass flow for broker authentication
+        let flow_id = self
+            .flow_recorder
+            .start_flow(
+                realm.id,
+                Some(client.client_id.clone()),
+                format!("broker_{}", idp.alias),
+                None,
+                None,
+            )
+            .await;
+
+        // Step 1: IdP Redirect (the user was redirected to the external IdP)
+        self.flow_recorder.record_step(
+            flow_id.clone(),
+            FlowStepName::IdpRedirect,
+            StepStatus::Success,
+            None,
+            None,
+            None,
+        );
+
+        // 6. Exchange authorization code for tokens (IdP callback)
         let callback_url = format!(
             "{}/realms/{}/broker/{}/endpoint",
             input.base_url, realm.name, idp.alias
         );
 
-        let token_response = self
+        let idp_params = {
+            let mut parts = Vec::new();
+            if let Some(c) = &input.code {
+                parts.push(format!("code={}", c));
+            }
+            parts.push(format!("state={}", &input.state));
+            if let Some(e) = &input.error {
+                parts.push(format!("error={}", e));
+            }
+            if let Some(ed) = &input.error_description {
+                parts.push(format!("error_description={}", ed));
+            }
+            parts.join("&")
+        };
+
+        let cred_start = Utc::now();
+        let token_response = match self
             .oauth_client
             .exchange_code(
                 &oauth_config.token_url,
@@ -514,7 +560,36 @@ where
                 &oauth_config.client_secret,
                 broker_session.code_verifier.as_deref(),
             )
-            .await?;
+            .await
+        {
+            Ok(response) => {
+                let duration = (Utc::now() - cred_start).num_milliseconds();
+                // Step 2: IdP Callback (received tokens from external IdP)
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::IdpCallback,
+                    StepStatus::Success,
+                    Some(duration),
+                    None,
+                    Some(idp_params.clone()),
+                );
+                response
+            }
+            Err(e) => {
+                let duration = (Utc::now() - cred_start).num_milliseconds();
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::IdpCallback,
+                    StepStatus::Failure,
+                    Some(duration),
+                    Some(format!("{:?}", e)),
+                    Some(idp_params),
+                );
+                self.flow_recorder
+                    .complete_flow(flow_id, FlowStatus::Failure, duration, None);
+                return Err(e);
+            }
+        };
 
         // 7. Extract user info from tokens
         let user_info = self
@@ -532,9 +607,9 @@ where
             .await?;
 
         // 9. Create or update auth session with authorization code
+        // Set compass_flow_id so authorization_code() records TokenExchange + complete_flow
         let authorization_code = Self::generate_random_string(32);
 
-        // If we have an existing auth session, update it
         if let Some(auth_session_id) = broker_session.auth_session_id {
             self.auth_session_repository
                 .update_user_id(auth_session_id, user.id)
@@ -542,8 +617,10 @@ where
             self.auth_session_repository
                 .update_code(auth_session_id, authorization_code.clone())
                 .await?;
+            self.auth_session_repository
+                .update_compass_flow_id(auth_session_id, flow_id.0)
+                .await?;
         } else {
-            // Create a new auth session
             let auth_session = AuthSession::new(AuthSessionParams {
                 realm_id: realm.id,
                 client_id: broker_session.client_id,
@@ -557,7 +634,7 @@ where
                 authenticated: true,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
-                compass_flow_id: None,
+                compass_flow_id: Some(flow_id.0),
             });
             self.auth_session_repository.create(&auth_session).await?;
         }

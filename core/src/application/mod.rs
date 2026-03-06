@@ -277,6 +277,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user.clone(),
             auth_session.clone(),
             oauth_client.clone(),
+            flow_recorder.clone(),
         ),
         client_scope_service: ClientScopeServiceImpl::new(
             realm.clone(),
