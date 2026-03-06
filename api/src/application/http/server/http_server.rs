@@ -5,6 +5,7 @@ use crate::application::http::aegis::router::aegis_routes;
 use crate::application::http::authentication::router::authentication_routes;
 use crate::application::http::broker::router::broker_routes;
 use crate::application::http::client::router::client_routes;
+use crate::application::http::compass::router::compass_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::role::router::role_routes;
 use crate::application::http::seawatch::router::seawatch_router;
@@ -117,6 +118,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(webhook_routes(state.clone()))
         .merge(trident_routes(state.clone()))
         .merge(seawatch_router(state.clone()))
+        .merge(compass_routes(state.clone()))
         .merge(abyss_routes(state.clone()))
         .merge(aegis_routes(state.clone()))
         .merge(broker_routes(state.clone(), &root_path))

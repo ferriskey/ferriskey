@@ -3,6 +3,7 @@ pub mod aegis;
 pub mod authentication;
 pub mod broker;
 pub mod client;
+pub mod compass;
 
 pub mod error;
 pub mod health;
