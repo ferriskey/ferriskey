@@ -248,7 +248,7 @@ where
                         public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
-                        client_type: "".to_string(),
+                        client_type: "system".to_string(),
                         secret: None,
                     })
                     .await

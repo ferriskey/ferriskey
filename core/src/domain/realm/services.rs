@@ -175,7 +175,7 @@ where
         self.client_repository
             .create_client(CreateClientRequest {
                 client_id: "admin-cli".to_string(),
-                client_type: "".to_string(),
+                client_type: "system".to_string(),
                 direct_access_grants_enabled: true,
                 enabled: true,
                 name: "admin-cli".to_string(),
