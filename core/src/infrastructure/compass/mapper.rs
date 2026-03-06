@@ -58,7 +58,6 @@ impl From<compass_flow_steps::Model> for CompassFlowStep {
             "credential_validation" => FlowStepName::CredentialValidation,
             "mfa_challenge" => FlowStepName::MfaChallenge,
             "token_exchange" => FlowStepName::TokenExchange,
-            "token_refresh" => FlowStepName::TokenRefresh,
             "finalize" => FlowStepName::Finalize,
             _ => FlowStepName::Authorize,
         };
