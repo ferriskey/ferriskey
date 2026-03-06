@@ -122,6 +122,12 @@ pub enum FlowStepName {
     #[serde(rename = "token_exchange")]
     TokenExchange,
 
+    #[serde(rename = "idp_redirect")]
+    IdpRedirect,
+
+    #[serde(rename = "idp_callback")]
+    IdpCallback,
+
     #[serde(rename = "finalize")]
     Finalize,
 }
@@ -133,6 +139,8 @@ impl Display for FlowStepName {
             FlowStepName::CredentialValidation => write!(f, "credential_validation"),
             FlowStepName::MfaChallenge => write!(f, "mfa_challenge"),
             FlowStepName::TokenExchange => write!(f, "token_exchange"),
+            FlowStepName::IdpRedirect => write!(f, "idp_redirect"),
+            FlowStepName::IdpCallback => write!(f, "idp_callback"),
             FlowStepName::Finalize => write!(f, "finalize"),
         }
     }
