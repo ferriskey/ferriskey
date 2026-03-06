@@ -117,6 +117,10 @@ where
             .await?
             .ok_or(CoreError::NotFound)?;
 
+        if flow.realm_id != realm.id {
+            return Err(CoreError::NotFound);
+        }
+
         let steps = self.step_repository.get_steps_for_flow(flow_id).await?;
         flow.steps = steps;
 

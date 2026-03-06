@@ -9,7 +9,7 @@ use ferriskey_domain::{
 use uuid::Uuid;
 
 use crate::{
-    entities::{CompassFlow, CompassFlowStep},
+    entities::{CompassFlow, CompassFlowStep, FlowStatus},
     value_objects::{FetchFlowsInput, FlowFilter, FlowStats},
 };
 
@@ -49,7 +49,7 @@ pub trait CompassFlowRepository: Send + Sync {
     fn update_flow_status(
         &self,
         flow_id: Uuid,
-        status: String,
+        status: FlowStatus,
         completed_at: DateTime<Utc>,
         duration_ms: Option<i64>,
         user_id: Option<Uuid>,
