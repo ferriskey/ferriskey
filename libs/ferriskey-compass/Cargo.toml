@@ -1,0 +1,14 @@
+[package]
+name = "ferriskey-compass"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-domain = { path = "../ferriskey-domain" }
+chrono = { version = "0.4.44", features = ["serde"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1", features = ["sync"] }
+tracing = "0.1.44"
+utoipa = { version = "5.4.0", features = ["uuid", "chrono"] }
+uuid = { version = "1.21.0", features = ["serde"] }
