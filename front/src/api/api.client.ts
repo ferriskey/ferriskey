@@ -317,6 +317,8 @@ export namespace Schemas {
     | 'credential_validation'
     | 'mfa_challenge'
     | 'token_exchange'
+    | 'idp_redirect'
+    | 'idp_callback'
     | 'finalize'
   export type CompassFlowStep = {
     id: FlowStepId

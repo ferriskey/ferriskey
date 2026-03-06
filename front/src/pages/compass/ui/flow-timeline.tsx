@@ -44,6 +44,25 @@ type StepNodeData = {
   hasRight: boolean
 }
 
+function ParamsDisplay({ params }: { params: string }) {
+  const entries = params.split('&').map((p) => {
+    const idx = p.indexOf('=')
+    if (idx === -1) return { key: p, value: '' }
+    return { key: p.slice(0, idx), value: p.slice(idx + 1) }
+  })
+
+  return (
+    <div className='mt-2 pt-2 border-t border-border/50 space-y-0.5'>
+      {entries.map(({ key, value }) => (
+        <div key={key} className='text-[10px] break-all'>
+          <span className='font-semibold text-muted-foreground'>{key}=</span>
+          <span className='font-mono text-muted-foreground/70'>{value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
   const { step, hasTop, hasBottom, hasLeft, hasRight } = data
   const config = statusConfig[step.status]
@@ -58,7 +77,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
 
   return (
     <div
-      className='rounded-lg p-4 w-[220px]'
+      className='nodrag nopan rounded-lg p-4 w-[220px]'
       style={{
         backgroundColor: config.bg,
         border: `2px dashed ${config.border}`,
@@ -97,6 +116,9 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
         <div className='mt-2 pt-2 border-t border-border/50 text-[11px] text-red-500 font-mono truncate'>
           {step.error_code}
         </div>
+      )}
+      {step.error_message && !step.error_code && (
+        <ParamsDisplay params={step.error_message} />
       )}
     </div>
   )
