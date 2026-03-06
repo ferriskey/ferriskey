@@ -99,6 +99,12 @@ pub trait AuthSessionRepository: Send + Sync {
         session_code: Uuid,
         code: String,
     ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+
+    fn update_compass_flow_id(
+        &self,
+        session_code: Uuid,
+        compass_flow_id: Uuid,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {
