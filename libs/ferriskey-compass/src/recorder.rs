@@ -3,13 +3,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
 use ferriskey_domain::realm::RealmId;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName, StepStatus};
 
 pub enum CompassEvent {
-    FlowStarted(CompassFlow),
+    FlowStarted {
+        flow: CompassFlow,
+        ack: oneshot::Sender<()>,
+    },
     StepRecorded(CompassFlowStep),
     FlowCompleted {
         flow_id: Uuid,
@@ -60,7 +63,7 @@ impl FlowRecorder {
         }
     }
 
-    pub fn start_flow(
+    pub async fn start_flow(
         &self,
         realm_id: RealmId,
         client_id: Option<String>,
@@ -70,7 +73,18 @@ impl FlowRecorder {
     ) -> FlowId {
         let flow = CompassFlow::new(realm_id, client_id, grant_type, ip_address, user_agent);
         let id = flow.id.clone();
-        self.send(CompassEvent::FlowStarted(flow));
+
+        if !self.enabled.load(Ordering::Relaxed) {
+            return id;
+        }
+
+        let (ack_tx, ack_rx) = oneshot::channel();
+        self.send(CompassEvent::FlowStarted { flow, ack: ack_tx });
+
+        // Wait for the writer to persist the flow before returning,
+        // so that the FK constraint on auth_sessions.compass_flow_id is satisfied.
+        let _ = ack_rx.await;
+
         id
     }
 

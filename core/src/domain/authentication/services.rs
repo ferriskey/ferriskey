@@ -1408,13 +1408,16 @@ where
             return Err(CoreError::InvalidClient);
         }
 
-        let flow_id = self.flow_recorder.start_flow(
-            realm.id,
-            Some(input.client_id.clone()),
-            "authorization_code".to_string(),
-            None,
-            None,
-        );
+        let flow_id = self
+            .flow_recorder
+            .start_flow(
+                realm.id,
+                Some(input.client_id.clone()),
+                "authorization_code".to_string(),
+                None,
+                None,
+            )
+            .await;
 
         let params = AuthSessionParams {
             realm_id: realm.id,
@@ -1514,14 +1517,19 @@ where
             })?;
 
         // For non-code grants, start a new compass flow (code grant uses existing flow from auth session)
-        let standalone_flow_id = if !is_code_grant {
-            Some(self.flow_recorder.start_flow(
-                realm.id,
-                Some(input.client_id.clone()),
-                grant_type.to_string(),
-                None,
-                None,
-            ))
+        let is_refresh_grant = grant_type == GrantType::RefreshToken;
+        let standalone_flow_id = if !is_code_grant && !is_refresh_grant {
+            Some(
+                self.flow_recorder
+                    .start_flow(
+                        realm.id,
+                        Some(input.client_id.clone()),
+                        grant_type.to_string(),
+                        None,
+                        None,
+                    )
+                    .await,
+            )
         } else {
             None
         };

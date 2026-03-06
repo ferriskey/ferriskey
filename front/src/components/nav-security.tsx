@@ -1,7 +1,8 @@
-import { Eye } from 'lucide-react'
+import { Compass, Eye } from 'lucide-react'
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './ui/sidebar'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { REALM_URL, RouterParams } from '@/routes/router'
+import { COMPASS_OVERVIEW_URL } from '@/routes/sub-router/compass.router'
 import { SEAWATCH_OVERVIEW_URL } from '@/routes/sub-router/seawatch.router'
 import { cn } from '@/lib/utils'
 
@@ -21,17 +22,27 @@ export function NavSecurity() {
   const location = useLocation()
 
   const seawatchBasePath = `${REALM_URL(realm_name)}/seawatch`
-  const active = location.pathname.startsWith(seawatchBasePath)
+  const seawatchActive = location.pathname.startsWith(seawatchBasePath)
+
+  const compassBasePath = `${REALM_URL(realm_name)}/compass`
+  const compassActive = location.pathname.startsWith(compassBasePath)
 
   return (
     <SidebarGroup className='pr-2 pl-0 py-2'>
       <SidebarGroupLabel className='px-4'>Security</SidebarGroupLabel>
 
       <SidebarMenu>
-        <SidebarMenuItem onClick={() => navigate(SEAWATCH_OVERVIEW_URL(realm_name))} className={navItem(active)}>
-          <SidebarMenuButton isActive={active} className={btnClass(active)}>
+        <SidebarMenuItem onClick={() => navigate(SEAWATCH_OVERVIEW_URL(realm_name))} className={navItem(seawatchActive)}>
+          <SidebarMenuButton isActive={seawatchActive} className={btnClass(seawatchActive)}>
             <Eye />
             <span>Sea Watch</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem onClick={() => navigate(COMPASS_OVERVIEW_URL(realm_name))} className={navItem(compassActive)}>
+          <SidebarMenuButton isActive={compassActive} className={btnClass(compassActive)}>
+            <Compass />
+            <span>Compass</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

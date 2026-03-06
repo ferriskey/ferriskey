@@ -14,10 +14,13 @@ pub async fn compass_writer_task<F, S>(
 {
     while let Some(event) = receiver.recv().await {
         match event {
-            CompassEvent::FlowStarted(flow) => {
-                if let Err(e) = flow_repo.create_flow(flow).await {
+            CompassEvent::FlowStarted { flow, ack } => {
+                let result = flow_repo.create_flow(flow).await;
+                if let Err(e) = &result {
                     tracing::error!("Compass writer: failed to persist flow: {e}");
                 }
+                // Acknowledge regardless of success/failure so the caller doesn't hang
+                let _ = ack.send(());
             }
             CompassEvent::StepRecorded(step) => {
                 if let Err(e) = step_repo.create_step(step).await {

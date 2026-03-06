@@ -17,6 +17,7 @@ import { TanstackQueryApiClient } from './api/api.tanstack'
 import axios, { AxiosInstance } from 'axios'
 import { BasicSpinner } from './components/ui/spinner'
 import { fetcher } from './api'
+import PageCompass from './pages/compass/page-compass'
 import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
 import { useTheme } from './components/theme-provider'
@@ -133,6 +134,7 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
             <Route path='roles/*' element={<PageRole />} />
             <Route path='realm-settings/*' element={<PageRealm />} />
             <Route path='seawatch/*' element={<PageSeawatch />} />
+            <Route path='compass/*' element={<PageCompass />} />
             <Route path='identity-providers/*' element={<PageIdentityProviders />} />
             <Route path='user-federation/*' element={<PageUserFederation />} />
           </Route>

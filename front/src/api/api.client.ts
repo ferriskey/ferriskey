@@ -308,6 +308,50 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined
   }
   export type GetSecurityEventsResponse = { data: Array<SecurityEvent> }
+  export type FlowId = string
+  export type FlowStepId = string
+  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
+  export type StepStatus = 'success' | 'failure' | 'skipped'
+  export type FlowStepName =
+    | 'authorize'
+    | 'credential_validation'
+    | 'mfa_challenge'
+    | 'token_exchange'
+    | 'finalize'
+  export type CompassFlowStep = {
+    id: FlowStepId
+    flow_id: FlowId
+    step_name: FlowStepName
+    status: StepStatus
+    duration_ms?: (number | null) | undefined
+    error_code?: (string | null) | undefined
+    error_message?: (string | null) | undefined
+    started_at: string
+  }
+  export type CompassFlow = {
+    id: FlowId
+    realm_id: RealmId
+    client_id?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+    grant_type: string
+    status: FlowStatus
+    ip_address?: (string | null) | undefined
+    user_agent?: (string | null) | undefined
+    started_at: string
+    completed_at?: (string | null) | undefined
+    duration_ms?: (number | null) | undefined
+    steps: Array<CompassFlowStep>
+  }
+  export type FlowStats = {
+    total: number
+    success_count: number
+    failure_count: number
+    pending_count: number
+    avg_duration_ms?: (number | null) | undefined
+  }
+  export type GetFlowsResponse = { data: Array<CompassFlow> }
+  export type GetFlowResponse = { data: CompassFlow }
+  export type GetStatsResponse = { data: FlowStats }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
   export type GetWebhooksResponse = { data: Array<Webhook> }
@@ -1367,6 +1411,34 @@ export namespace Endpoints {
     }
     response: Schemas.UpdateRolePermissionsResponse
   }
+  export type get_Get_compass_flows = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+      query?: { client_id?: string; user_id?: string; grant_type?: string; status?: string; limit?: number; offset?: number }
+    }
+    response: Schemas.GetFlowsResponse
+  }
+  export type get_Get_compass_flow = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; flow_id: string }
+    }
+    response: Schemas.GetFlowResponse
+  }
+  export type get_Get_compass_stats = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/stats'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.GetStatsResponse
+  }
   export type get_Get_security_events = {
     method: 'GET'
     path: '/realms/{realm_name}/seawatch/v1/security-events'
@@ -1622,6 +1694,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
+    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_compass_flows
+    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_compass_flow
+    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_compass_stats
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
     '/realms/{realm_name}/users': Endpoints.get_Get_users
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
