@@ -40,6 +40,7 @@ pub struct AuthSession {
     pub expires_at: DateTime<Utc>,
     pub webauthn_challenge: Option<WebAuthnChallenge>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
+    pub compass_flow_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ pub struct AuthSessionParams {
     pub authenticated: bool,
     pub webauthn_challenge: Option<WebAuthnChallenge>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
+    pub compass_flow_id: Option<Uuid>,
 }
 
 impl AuthSession {
@@ -79,6 +81,7 @@ impl AuthSession {
             expires_at: now + Duration::minutes(10),
             webauthn_challenge: params.webauthn_challenge,
             webauthn_challenge_issued_at: params.webauthn_challenge_issued_at,
+            compass_flow_id: params.compass_flow_id,
         }
     }
 }
