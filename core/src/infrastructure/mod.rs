@@ -2,6 +2,7 @@ pub mod abyss;
 pub mod aegis;
 pub mod client;
 pub mod common;
+pub mod compass;
 pub mod db;
 pub mod health;
 pub mod identity_provider;
