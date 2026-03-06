@@ -4,7 +4,6 @@ use ferriskey_compass::{
 };
 use tokio::sync::mpsc;
 
-#[allow(dead_code)]
 pub async fn compass_writer_task<F, S>(
     mut receiver: mpsc::Receiver<CompassEvent>,
     flow_repo: F,
