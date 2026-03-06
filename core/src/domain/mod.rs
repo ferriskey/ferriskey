@@ -4,6 +4,7 @@ pub mod aegis;
 pub mod authentication;
 pub mod client;
 pub mod common;
+pub mod compass;
 pub mod credential;
 pub mod crypto;
 pub mod health;
