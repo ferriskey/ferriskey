@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import RoleMappingModal from '../../ui/modals/role-mapping-modal'
 import { useGetRoles } from '@/api/role.api'
 import { useParams } from 'react-router'
@@ -15,7 +15,6 @@ import Role = Schemas.Role
 export default function RoleMappingModalFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
   const [open, setOpen] = useState(false)
-  const [availableRoles, setAvailableRoles] = useState<Role[]>([])
 
   const { mutate: assignRole, data } = useAssignUserRole()
   const { data: rolesResponse } = useGetRoles({ realm: realm_name })
@@ -36,14 +35,13 @@ export default function RoleMappingModalFeature() {
     },
   })
 
-  useEffect(() => {
-    if (userRoles && rolesResponse) {
-      const allRoles = rolesResponse.data
-      const assignedRoleIds = userRoles.data.map((role) => role.id)
-
-      const unassignedRoles = allRoles.filter((role) => !assignedRoleIds.includes(role.id))
-      setAvailableRoles(unassignedRoles)
+  const availableRoles = useMemo<Role[]>(() => {
+    if (!userRoles || !rolesResponse) {
+      return []
     }
+    const allRoles = rolesResponse.data
+    const assignedRoleIds = userRoles.data.map((role) => role.id)
+    return allRoles.filter((role) => !assignedRoleIds.includes(role.id))
   }, [userRoles, rolesResponse])
 
   const handleSubmit = form.handleSubmit((values) => {

@@ -519,15 +519,9 @@ function FilterInput<T = unknown>({
 
     // Only validate if there's a value and pattern
     if (value && pattern) {
-      let valid = true
-
-      // If there's a custom validation function, use it
-      if (field?.validation) {
-        valid = field.validation(value)
-      } else {
-        // Use pattern validation
-        valid = validateInput(value, pattern)
-      }
+      const valid = field?.validation
+        ? field.validation(value)
+        : validateInput(value, pattern)
 
       setIsValid(valid)
       const hasCustomPattern = !!(field?.pattern || props.pattern)

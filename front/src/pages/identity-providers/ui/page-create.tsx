@@ -10,7 +10,7 @@ import ProviderReview from '../components/provider-review'
 import ProviderHelpPanel from '../components/provider-help-panel'
 
 interface PageCreateProps {
-  form: UseFormReturn<ProviderFormData, any, any>
+  form: UseFormReturn<ProviderFormData>
   currentStep: number
   selectedTemplate: ProviderTemplate | null
   callbackUrl: string

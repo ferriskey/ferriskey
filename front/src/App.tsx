@@ -173,7 +173,9 @@ function App() {
   }, [])
 
   useEffect(() => {
-    apiCallback()
+    // Initialization updates app-level clients and marks setup completion.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void apiCallback()
   }, [apiCallback])
 
   if (!apiUrlSetup) {

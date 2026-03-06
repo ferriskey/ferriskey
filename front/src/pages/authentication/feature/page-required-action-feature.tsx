@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router'
 import PageRequiredAction from '../ui/page-required-action'
 import { useAuth } from '@/hooks/use-auth'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 export default function PageRequiredActionFeature() {
   const [searchParams] = useSearchParams()
@@ -9,15 +9,13 @@ export default function PageRequiredActionFeature() {
   const execution = searchParams.get('execution')
   const token = searchParams.get('client_data')
 
-  const [isTokenSet, setIsTokenSet] = useState(false)
-
   useEffect(() => {
-    if (token && !isTokenSet) {
-      setIsTokenSet(true)
+    if (token) {
+      setAuthToken(token)
     }
-  }, [token, setAuthToken, isTokenSet])
+  }, [token, setAuthToken])
 
-  if (!token && !isTokenSet) {
+  if (!token) {
     return <div>Loading ...</div>
   }
 

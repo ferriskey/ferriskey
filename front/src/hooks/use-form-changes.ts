@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { deepEqual } from '@/utils'
 
 export function useFormChanges<T extends FieldValues>(
-  form: UseFormReturn<T, any, any>,
+  form: UseFormReturn<T>,
   originalData: T | null | undefined
 ): boolean {
   const [hasChanges, setHasChanges] = useState(false)
@@ -20,9 +20,10 @@ export function useFormChanges<T extends FieldValues>(
   useEffect(() => {
     if (!originalRef.current || !formValues) return
     const data = originalRef.current
+    const currentValues = formValues as Partial<T>
 
-    const isDifferent = Object.keys(originalRef.current).some((key) => {
-      const areEqual = deepEqual(data[key], (formValues as any)[key])
+    const isDifferent = (Object.keys(originalRef.current) as Array<keyof T>).some((key) => {
+      const areEqual = deepEqual(data[key], currentValues[key])
 
       return !areEqual
     })

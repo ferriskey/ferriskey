@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 interface LdapFormUiProps<
   TFieldValues extends FieldValues = CreateLdapProviderSchema,
 > {
-  form: UseFormReturn<TFieldValues, any, any>
+  form: UseFormReturn<TFieldValues>
   handleBack: () => void
   handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
@@ -357,7 +357,9 @@ export default function LdapFormUi<
                 type='number'
                 error={form.formState.errors.syncInterval?.message as string}
                 {...field}
-                onChange={((e: React.ChangeEvent<HTMLInputElement>) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))) as any}
+                onChange={(value) =>
+                  field.onChange(value === '' ? undefined : Number(value))
+                }
               />
             )}
           />

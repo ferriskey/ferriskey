@@ -7,7 +7,7 @@ import {
 } from '@/routes/sub-router/identity-provider.router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -38,8 +38,8 @@ export default function PageCreateFeature() {
     data: responseCreateProvider,
   } = useCreateIdentityProvider()
 
-  const form = useForm<ProviderFormData, any, any>({
-    resolver: zodResolver(formSchema) as any,
+  const form = useForm<ProviderFormData>({
+    resolver: zodResolver(formSchema) as Resolver<ProviderFormData>,
     defaultValues: {
       displayName: '',
       clientId: '',

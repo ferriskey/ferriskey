@@ -102,7 +102,7 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
     useTls: config?.connection?.use_tls || false,
   }
 
-  const form = useForm<CreateLdapProviderSchema, any, any>({
+  const form = useForm<CreateLdapProviderSchema>({
     resolver: zodResolver(createLdapProviderSchema),
     mode: 'onChange',
     defaultValues,
