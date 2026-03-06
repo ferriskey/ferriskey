@@ -11,6 +11,7 @@ use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
+use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
 
 use crate::domain::{
@@ -78,7 +79,6 @@ where
     pub(crate) protocol_mapper_repository: Arc<PM>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
-    #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
 }
 
@@ -552,6 +552,7 @@ where
 
     async fn authorization_code(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let code = params.code.ok_or(CoreError::InternalServerError)?;
+        let step_start = Utc::now();
 
         let auth_session = self
             .auth_session_repository
@@ -564,6 +565,7 @@ where
             })?
             .ok_or(CoreError::NotFound)?;
 
+        let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
 
@@ -591,9 +593,43 @@ where
             .await
             .map_err(|e| {
                 warn!("Failed to create JWT for authorization code grant: {:?}", e);
-
+                if let Some(ref fid) = flow_id {
+                    let duration = (Utc::now() - step_start).num_milliseconds();
+                    self.flow_recorder.record_step(
+                        fid.clone(),
+                        FlowStepName::TokenExchange,
+                        StepStatus::Failure,
+                        Some(duration),
+                        Some(format!("{:?}", e)),
+                        None,
+                    );
+                    self.flow_recorder.complete_flow(
+                        fid.clone(),
+                        FlowStatus::Failure,
+                        duration,
+                        Some(user_id),
+                    );
+                }
                 e
             })?;
+
+        if let Some(ref fid) = flow_id {
+            let duration = (Utc::now() - step_start).num_milliseconds();
+            self.flow_recorder.record_step(
+                fid.clone(),
+                FlowStepName::TokenExchange,
+                StepStatus::Success,
+                Some(duration),
+                None,
+                None,
+            );
+            self.flow_recorder.complete_flow(
+                fid.clone(),
+                FlowStatus::Success,
+                duration,
+                Some(user_id),
+            );
+        }
 
         let id_token_value = id_token.map(|t| t.token);
 
@@ -832,6 +868,9 @@ where
         params: CredentialsAuthParams,
         auth_session: AuthSession,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let flow_id = auth_session.compass_flow_id.map(FlowId);
+        let step_start = Utc::now();
+
         let auth_result = self
             .using_session_code(
                 params.realm_name,
@@ -844,8 +883,31 @@ where
             .await
             .map_err(|e| {
                 warn!("authentication using session code error: {:?}", e);
+                if let Some(ref fid) = flow_id {
+                    let duration = (Utc::now() - step_start).num_milliseconds();
+                    self.flow_recorder.record_step(
+                        fid.clone(),
+                        FlowStepName::CredentialValidation,
+                        StepStatus::Failure,
+                        Some(duration),
+                        Some(format!("{:?}", e)),
+                        None,
+                    );
+                }
                 e
             })?;
+
+        if let Some(ref fid) = flow_id {
+            let duration = (Utc::now() - step_start).num_milliseconds();
+            self.flow_recorder.record_step(
+                fid.clone(),
+                FlowStepName::CredentialValidation,
+                StepStatus::Success,
+                Some(duration),
+                None,
+                None,
+            );
+        }
 
         self.determine_next_step(auth_result, params.session_code, auth_session)
             .await
@@ -857,6 +919,8 @@ where
         session_code: Uuid,
         auth_session: AuthSession,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let flow_id = auth_session.compass_flow_id.map(FlowId);
+
         if !auth_result.required_actions.is_empty() {
             return Ok(AuthenticateOutput::requires_actions(
                 auth_result.user_id,
@@ -871,6 +935,16 @@ where
             .contains(&RequiredAction::ConfigureOtp);
 
         if has_otp_credentials && !needs_configure_otp {
+            if let Some(ref fid) = flow_id {
+                self.flow_recorder.record_step(
+                    fid.clone(),
+                    FlowStepName::MfaChallenge,
+                    StepStatus::Success,
+                    None,
+                    None,
+                    None,
+                );
+            }
             let token = auth_result.token.ok_or(CoreError::InternalServerError)?;
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
@@ -1334,6 +1408,14 @@ where
             return Err(CoreError::InvalidClient);
         }
 
+        let flow_id = self.flow_recorder.start_flow(
+            realm.id,
+            Some(input.client_id.clone()),
+            "authorization_code".to_string(),
+            None,
+            None,
+        );
+
         let params = AuthSessionParams {
             realm_id: realm.id,
             client_id: client.id,
@@ -1347,12 +1429,22 @@ where
             authenticated: false,
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
+            compass_flow_id: Some(flow_id.0),
         };
         let session = self
             .auth_session_repository
             .create(&AuthSession::new(params))
             .await
             .map_err(|_| CoreError::SessionCreateError)?;
+
+        self.flow_recorder.record_step(
+            flow_id,
+            FlowStepName::Authorize,
+            StepStatus::Success,
+            None,
+            None,
+            None,
+        );
 
         let login_url = format!(
             "?client_id={}&redirect_uri={}&state={}",
@@ -1398,6 +1490,10 @@ where
         )
     )]
     async fn exchange_token(&self, input: ExchangeTokenInput) -> Result<JwtToken, CoreError> {
+        let exchange_start = Utc::now();
+        let grant_type = input.grant_type.clone();
+        let is_code_grant = grant_type == GrantType::Code;
+
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
@@ -1417,6 +1513,19 @@ where
                 e
             })?;
 
+        // For non-code grants, start a new compass flow (code grant uses existing flow from auth session)
+        let standalone_flow_id = if !is_code_grant {
+            Some(self.flow_recorder.start_flow(
+                realm.id,
+                Some(input.client_id.clone()),
+                grant_type.to_string(),
+                None,
+                None,
+            ))
+        } else {
+            None
+        };
+
         let params = GrantTypeParams {
             realm_id: realm.id,
             base_url: input.base_url,
@@ -1432,11 +1541,49 @@ where
         };
 
         let result = self
-            .authenticate_with_grant_type(input.grant_type, params)
+            .authenticate_with_grant_type(grant_type, params)
             .instrument(info_span!(
                 "auth.exchange_token.authenticate_with_grant_type"
             ))
             .await;
+
+        if let Some(ref fid) = standalone_flow_id {
+            let duration = (Utc::now() - exchange_start).num_milliseconds();
+            match &result {
+                Ok(_) => {
+                    self.flow_recorder.record_step(
+                        fid.clone(),
+                        FlowStepName::TokenExchange,
+                        StepStatus::Success,
+                        Some(duration),
+                        None,
+                        None,
+                    );
+                    self.flow_recorder.complete_flow(
+                        fid.clone(),
+                        FlowStatus::Success,
+                        duration,
+                        None,
+                    );
+                }
+                Err(error) => {
+                    self.flow_recorder.record_step(
+                        fid.clone(),
+                        FlowStepName::TokenExchange,
+                        StepStatus::Failure,
+                        Some(duration),
+                        Some(format!("{:?}", error)),
+                        None,
+                    );
+                    self.flow_recorder.complete_flow(
+                        fid.clone(),
+                        FlowStatus::Failure,
+                        duration,
+                        None,
+                    );
+                }
+            }
+        }
 
         if let Err(error) = &result {
             warn!(

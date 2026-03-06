@@ -41,6 +41,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             expires_at,
             webauthn_challenge,
             webauthn_challenge_issued_at,
+            compass_flow_id: model.compass_flow_id,
         }
     }
 }
@@ -74,7 +75,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             expires_at: Set(session.expires_at.naive_utc()),
             webauthn_challenge: Set(None),
             webauthn_challenge_issued_at: Set(None),
-            compass_flow_id: Set(None),
+            compass_flow_id: Set(session.compass_flow_id),
         };
 
         let t = model
@@ -275,5 +276,26 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into();
 
         Ok(session)
+    }
+
+    async fn update_compass_flow_id(
+        &self,
+        session_code: Uuid,
+        compass_flow_id: Uuid,
+    ) -> Result<(), AuthenticationError> {
+        crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::CompassFlowId,
+                Expr::value(compass_flow_id),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session compass_flow_id: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        Ok(())
     }
 }

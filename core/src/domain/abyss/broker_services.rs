@@ -557,6 +557,7 @@ where
                 authenticated: true,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
+                compass_flow_id: None,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }
