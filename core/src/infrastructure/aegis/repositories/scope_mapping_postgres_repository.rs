@@ -116,7 +116,14 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(scopes.into_iter().map(ClientScope::from).collect())
+        Ok(scopes
+            .into_iter()
+            .map(|model| {
+                let mut scope = ClientScope::from(model);
+                scope.default_scope_type = ScopeType::Default;
+                scope
+            })
+            .collect())
     }
 
     async fn get_optional_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
@@ -147,6 +154,13 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(scopes.into_iter().map(ClientScope::from).collect())
+        Ok(scopes
+            .into_iter()
+            .map(|model| {
+                let mut scope = ClientScope::from(model);
+                scope.default_scope_type = ScopeType::Optional;
+                scope
+            })
+            .collect())
     }
 }
