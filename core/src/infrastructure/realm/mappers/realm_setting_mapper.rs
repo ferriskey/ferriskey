@@ -15,6 +15,7 @@ impl From<Model> for RealmSetting {
             user_registration_enabled: value.user_registration_enabled,
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl_minutes.try_into().unwrap_or(15),
+            compass_enabled: value.compass_enabled,
             updated_at,
         }
     }

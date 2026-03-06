@@ -163,6 +163,7 @@ impl RealmRepository for PostgresRealmRepository {
         remember_me_enabled: Option<bool>,
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
+        compass_enabled: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -196,6 +197,10 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(magic_link_ttl) = magic_link_ttl {
             let ttl_minutes = i32::try_from(magic_link_ttl).map_err(|_| CoreError::Invalid)?;
             realm_setting.magic_link_ttl_minutes = Set(ttl_minutes);
+        }
+
+        if let Some(compass_enabled) = compass_enabled {
+            realm_setting.compass_enabled = Set(compass_enabled);
         }
 
         let realm_setting = realm_setting

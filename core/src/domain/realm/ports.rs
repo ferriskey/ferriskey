@@ -128,6 +128,7 @@ pub trait RealmRepository: Send + Sync {
         remember_me_enabled: Option<bool>,
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
+        compass_enabled: Option<bool>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -168,6 +169,7 @@ pub struct UpdateRealmSettingInput {
     pub remember_me_enabled: Option<bool>,
     pub magic_link_enabled: Option<bool>,
     pub magic_link_ttl: Option<u32>,
+    pub compass_enabled: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

@@ -57,6 +57,7 @@ pub async fn update_realm_setting(
                 user_registration_enabled: payload.user_registration_enabled,
                 magic_link_enabled: payload.magic_link_enabled,
                 magic_link_ttl: payload.magic_link_ttl,
+                compass_enabled: payload.compass_enabled,
             },
         )
         .await
