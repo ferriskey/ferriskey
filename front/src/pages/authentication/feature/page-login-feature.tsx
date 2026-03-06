@@ -2,7 +2,7 @@ import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
@@ -19,25 +19,22 @@ export type AuthenticateSchema = z.infer<typeof authenticateSchema>
 export default function PageLoginFeature() {
   const { realm_name } = useParams()
   const navigate = useNavigate()
-  const queryParams = useMemo(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      clientId: urlParams.get('client_id'),
-      redirectUri: urlParams.get('redirect_uri'),
-    }
-  }, [])
-  const isAuthInitiated = Boolean(queryParams.clientId && queryParams.redirectUri)
+  const location = useLocation()
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const clientId = searchParams.get('client_id')
+  const redirectUri = searchParams.get('redirect_uri')
+  const isAuthInitiated = Boolean(clientId && redirectUri)
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
   const getAuthParamsFromUrl = useCallback(() => {
     return {
-      clientId: queryParams.clientId ?? 'security-admin-console',
+      clientId: clientId ?? 'security-admin-console',
       redirectUri:
-        queryParams.redirectUri ??
+        redirectUri ??
         `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`,
     }
-  }, [queryParams.clientId, queryParams.redirectUri, realm_name])
+  }, [clientId, redirectUri, realm_name])
 
   const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
