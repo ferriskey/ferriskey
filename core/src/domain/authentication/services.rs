@@ -11,6 +11,7 @@ use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
+use ferriskey_compass::recorder::FlowRecorder;
 
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
@@ -77,6 +78,8 @@ where
     pub(crate) protocol_mapper_repository: Arc<PM>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
+    #[allow(dead_code)]
+    pub(crate) flow_recorder: FlowRecorder,
 }
 
 impl<R, C, RU, PLRU, U, CR, H, AS, KS, RT, AT, F, CSM, PM>
@@ -114,6 +117,7 @@ where
         scope_mapping_repository: Arc<CSM>,
         protocol_mapper_repository: Arc<PM>,
         mapper_engine: Arc<MapperEngine>,
+        flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
             realm_repository,
@@ -132,6 +136,7 @@ where
             protocol_mapper_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
+            flow_recorder,
         }
     }
 }

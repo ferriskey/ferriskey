@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use ferriskey_compass::recorder::FlowRecorder;
+
 use crate::{
     domain::{
         abyss::{
@@ -15,6 +17,7 @@ use crate::{
             FerriskeyConfig, entities::app_errors::CoreError, policies::FerriskeyPolicy,
             services::CoreServiceImpl,
         },
+        compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
         realm::services::RealmServiceImpl,
@@ -35,6 +38,10 @@ use crate::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
+        },
+        compass::{
+            repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
+            writer::compass_writer_task,
         },
         db::postgres::{Postgres, PostgresConfig},
         health::repositories::PostgresHealthCheckRepository,
@@ -73,6 +80,7 @@ pub mod aegis;
 pub mod auth;
 pub mod broker;
 pub mod client;
+pub mod compass;
 pub mod credential;
 pub mod health;
 pub mod identity_provider;
@@ -132,6 +140,16 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
     let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
     let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
+    let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
+    let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
+
+    let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
+    tokio::spawn(compass_writer_task(
+        compass_rx,
+        PostgresCompassFlowRepository::new(postgres.get_db()),
+        PostgresCompassFlowStepRepository::new(postgres.get_db()),
+    ));
+    let flow_recorder = FlowRecorder::new(compass_tx);
 
     let policy = Arc::new(FerriskeyPolicy::new(
         user.clone(),
@@ -156,6 +174,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             protocol_mapper.clone(),
             Arc::new(MapperEngine::new()),
+            flow_recorder.clone(),
         ),
         client_service: ClientServiceImpl::new(
             realm.clone(),
@@ -277,6 +296,13 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             policy.clone(),
         ),
+        compass_service: CompassServiceImpl::new(
+            realm.clone(),
+            compass_flow.clone(),
+            compass_flow_step.clone(),
+            policy.clone(),
+        ),
+        flow_recorder,
     };
 
     Ok(app)

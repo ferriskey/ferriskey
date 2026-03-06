@@ -1,3 +1,5 @@
+use ferriskey_compass::recorder::FlowRecorder;
+
 use crate::{
     domain::{
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
@@ -11,6 +13,7 @@ use crate::{
             ports::CoreService,
             services::CoreServiceImpl,
         },
+        compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
         realm::services::RealmServiceImpl,
@@ -32,6 +35,7 @@ use crate::{
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
+        compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
@@ -88,6 +92,8 @@ type ClientScopeRepo = PostgresClientScopeRepository;
 type ProtocolMapperRepo = PostgresProtocolMapperRepository;
 type ScopeMappingRepo = PostgresScopeMappingRepository;
 type MagicLinkRepo = PostgresMagicLinkRepository;
+type CompassFlowRepo = PostgresCompassFlowRepository;
+type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
@@ -232,6 +238,16 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ScopeMappingRepo,
     >,
+    pub(crate) compass_service: CompassServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        CompassFlowRepo,
+        CompassFlowStepRepo,
+    >,
+    #[allow(dead_code)]
+    pub(crate) flow_recorder: FlowRecorder,
 }
 
 impl CoreService for ApplicationService {
