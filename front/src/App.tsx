@@ -113,7 +113,7 @@ async function resolveApiUrlFromWindowOrigin() {
 
   for (const candidate of candidates) {
     const resolved = await resolveApiUrl(candidate)
-    if (await isReachableApiBase(resolved)) {
+    if (resolved) {
       return resolved
     }
   }
