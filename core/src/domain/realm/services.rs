@@ -657,6 +657,7 @@ where
                 input.remember_me_enabled,
                 input.magic_link_enabled,
                 input.magic_link_ttl,
+                input.compass_enabled,
             )
             .await?;
 

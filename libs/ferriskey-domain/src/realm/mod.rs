@@ -57,6 +57,7 @@ pub struct RealmSetting {
     pub remember_me_enabled: bool,
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
+    pub compass_enabled: bool,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -73,6 +74,7 @@ impl RealmSetting {
             user_registration_enabled: false,
             magic_link_enabled: false,
             magic_link_ttl: 15,
+            compass_enabled: true,
             updated_at: now,
         }
     }
