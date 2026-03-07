@@ -72,7 +72,14 @@ export function InputText({
               disabled={disabled}
               value={currentValue}
               onChange={(e) => {
-                if (onChange) onChange(e.currentTarget.value)
+                if (!onChange) return
+
+                if (type === 'number') {
+                  onChange(e.currentTarget.valueAsNumber)
+                  return
+                }
+
+                onChange(e.currentTarget.value)
               }}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}

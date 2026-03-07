@@ -237,7 +237,7 @@ function LdapDetailForm({ providerData, realm_name, id }: LdapDetailFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <LdapFormUi<CreateLdapProviderSchema>
+        <LdapFormUi
           form={form}
           handleBack={handleBack}
           handleSubmit={form.handleSubmit(handleSubmit)}

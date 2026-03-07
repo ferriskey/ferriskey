@@ -1,4 +1,4 @@
-import { UseFormReturn, FieldValues, Path } from 'react-hook-form'
+import { UseFormReturn } from 'react-hook-form'
 import { CreateLdapProviderSchema } from '../schemas/ldap-provider.schema'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, CheckCircle, Server, Key, Plug, RefreshCw } from 'lucide-react'
@@ -20,10 +20,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-interface LdapFormUiProps<
-  TFieldValues extends FieldValues = CreateLdapProviderSchema,
-> {
-  form: UseFormReturn<TFieldValues>
+interface LdapFormUiProps {
+  form: UseFormReturn<CreateLdapProviderSchema>
   handleBack: () => void
   handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
@@ -35,9 +33,7 @@ interface LdapFormUiProps<
   hasChanges?: boolean
 }
 
-export default function LdapFormUi<
-  TFieldValues extends FieldValues = CreateLdapProviderSchema,
->({
+export default function LdapFormUi({
   form,
   handleBack,
   handleSubmit,
@@ -48,7 +44,7 @@ export default function LdapFormUi<
   isSyncingUsers = false,
   isEditMode = false,
   hasChanges = false,
-}: LdapFormUiProps<TFieldValues>) {
+}: LdapFormUiProps) {
   const providerTypes = [
     {
       value: 'LDAP' as const,
@@ -161,7 +157,7 @@ export default function LdapFormUi<
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name={'name' as Path<TFieldValues>}
+            name='name'
             render={({ field }) => (
               <InputText
                 label='Provider Name'
@@ -173,7 +169,7 @@ export default function LdapFormUi<
 
           <FormField
             control={form.control}
-            name={'priority' as Path<TFieldValues>}
+            name='priority'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priority</FormLabel>
@@ -196,7 +192,7 @@ export default function LdapFormUi<
 
           <FormField
             control={form.control}
-            name={'enabled' as Path<TFieldValues>}
+            name='enabled'
             render={({ field }) => (
               <FormItem className='flex flex-row items-center justify-between gap-5 rounded-md border p-3  bg-white'>
                 <div className='space-y-0.5'>
@@ -222,7 +218,7 @@ export default function LdapFormUi<
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name={'connectionUrl' as Path<TFieldValues>}
+            name='connectionUrl'
             render={({ field }) => (
               <InputText
                 label='Connection URL'
@@ -234,7 +230,7 @@ export default function LdapFormUi<
 
           <FormField
             control={form.control}
-            name={'baseDn' as Path<TFieldValues>}
+            name='baseDn'
             render={({ field }) => (
               <InputText
                 label='Base DN'
@@ -247,7 +243,7 @@ export default function LdapFormUi<
           <div className='grid grid-cols-2 gap-4'>
             <FormField
               control={form.control}
-              name={'bindDn' as Path<TFieldValues>}
+              name='bindDn'
               render={({ field }) => (
                 <InputText
                   label='Bind DN'
@@ -259,7 +255,7 @@ export default function LdapFormUi<
 
             <FormField
               control={form.control}
-              name={'bindPassword' as Path<TFieldValues>}
+              name='bindPassword'
               render={({ field }) => (
                 <div className='space-y-2'>
                   <InputText
@@ -280,7 +276,7 @@ export default function LdapFormUi<
 
           <FormField
             control={form.control}
-            name={'useTls' as Path<TFieldValues>}
+            name='useTls'
             render={({ field }) => (
               <FormItem className='flex flex-row items-center justify-between gap-5 rounded-md border p-3 bg-white'>
                 <div className='space-y-0.5'>
@@ -333,7 +329,7 @@ export default function LdapFormUi<
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name={'userSearchFilter' as Path<TFieldValues>}
+            name='userSearchFilter'
             render={({ field }) => (
               <InputText
                 label='User Search Filter'
@@ -350,16 +346,18 @@ export default function LdapFormUi<
         <div className='flex flex-col gap-5'>
           <FormField
             control={form.control}
-            name={'syncInterval' as Path<TFieldValues>}
+            name='syncInterval'
             render={({ field }) => (
               <InputText
                 label='Sync Interval (seconds)'
                 type='number'
                 error={form.formState.errors.syncInterval?.message as string}
                 {...field}
-                onChange={(value) =>
-                  field.onChange(value === '' ? undefined : Number(value))
-                }
+                value={field.value ?? ''}
+                onChange={(value) => {
+                  const numericValue = typeof value === 'number' ? value : Number.NaN
+                  field.onChange(Number.isNaN(numericValue) ? undefined : numericValue)
+                }}
               />
             )}
           />
