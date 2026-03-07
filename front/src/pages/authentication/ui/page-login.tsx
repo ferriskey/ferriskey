@@ -18,9 +18,10 @@ export interface PageLoginProps {
   isError?: boolean
   isLoading?: boolean
   loginSettings?: RealmLoginSetting
+  errorMessage?: string | null
 }
 
-export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings }: PageLoginProps) {
+export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage }: PageLoginProps) {
   const { realm_name } = useParams()
 
   if (isError) return <ErrorMessage />
@@ -54,6 +55,11 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                           {realm_name?.toUpperCase() ?? 'Login'}
                         </h1>
                       </div>
+                      {errorMessage && (
+                        <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
+                          {errorMessage}
+                        </div>
+                      )}
                       <div className='grid gap-3'>
                         <FormField
                           control={form.control}

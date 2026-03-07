@@ -742,6 +742,10 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        if !user.enabled {
+            return Err(CoreError::UserDisabled);
+        }
+
         let credential = self
             .verify_password(user.id, password)
             .instrument(info_span!("auth.password.verify_password"))
@@ -810,6 +814,10 @@ where
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        if !user.enabled {
+            return Err(CoreError::UserDisabled);
+        }
 
         let client = self
             .client_repository
@@ -1017,6 +1025,10 @@ where
 
                 CoreError::UserNotFound
             })?;
+
+        if !user.enabled {
+            return Err(CoreError::UserDisabled);
+        }
 
         // Check if user has federation mapping (LDAP authentication) FIRST
         let federation_mapping = self
