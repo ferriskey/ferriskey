@@ -8,7 +8,7 @@ export interface InputTextProps {
   value?: string | number
   type?: 'text' | 'number' | 'password' | 'email'
   className?: string
-  onChange?: (value: string | number) => void
+  onChange?: (value: string | number | undefined) => void
   error?: string
   disabled?: boolean
   // variable to control the toggle visibility of the password even if it's in disable
@@ -75,7 +75,8 @@ export function InputText({
                 if (!onChange) return
 
                 if (type === 'number') {
-                  onChange(e.currentTarget.valueAsNumber)
+                  const val = e.currentTarget.valueAsNumber
+                  onChange(Number.isNaN(val) ? undefined : val)
                   return
                 }
 
