@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::client::entities::ClientType;
 use crate::realm::RealmId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +14,7 @@ pub struct CreateClientRequest {
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
-    pub client_type: String,
+    pub client_type: ClientType,
 }
 
 impl CreateClientRequest {
@@ -24,7 +25,7 @@ impl CreateClientRequest {
         CreateClientRequest {
             realm_id,
             client_id: client_name.clone(),
-            client_type: "system".to_string(),
+            client_type: ClientType::System,
             direct_access_grants_enabled: false,
             enabled: true,
             name: client_name,

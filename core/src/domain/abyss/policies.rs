@@ -168,7 +168,10 @@ mod tests {
     use super::*;
     use crate::domain::{
         abyss::entities::{ProviderConfig, ProviderType},
-        client::{entities::Client, ports::MockClientRepository},
+        client::{
+            entities::{Client, ClientType},
+            ports::MockClientRepository,
+        },
         realm::entities::Realm,
         role::entities::Role,
         user::{
@@ -435,7 +438,7 @@ mod tests {
             protocol: "openid-connect".to_string(),
             public_client: true,
             service_account_enabled: false,
-            client_type: "system".to_string(),
+            client_type: ClientType::System,
             direct_access_grants_enabled: None,
         });
 

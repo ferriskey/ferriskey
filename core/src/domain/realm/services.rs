@@ -5,7 +5,7 @@ use crate::domain::{
         IdentityProviderRepository, entities::IdentityProviderPresentation,
     },
     authentication::value_objects::Identity,
-    client::{ports::ClientRepository, value_objects::CreateClientRequest},
+    client::{entities::ClientType, ports::ClientRepository, value_objects::CreateClientRequest},
     common::{
         entities::app_errors::CoreError,
         generate_random_string,
@@ -289,7 +289,7 @@ where
         self.client_repository
             .create_client(CreateClientRequest {
                 client_id: "admin-cli".to_string(),
-                client_type: "".to_string(),
+                client_type: ClientType::Public,
                 direct_access_grants_enabled: true,
                 enabled: true,
                 name: "admin-cli".to_string(),
@@ -305,7 +305,7 @@ where
             .client_repository
             .create_client(CreateClientRequest {
                 client_id: "ferriskey-account".to_string(),
-                client_type: "".to_string(),
+                client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
                 enabled: true,
                 name: "ferriskey-account".to_string(),
@@ -379,7 +379,7 @@ where
                 public_client: true,
                 service_account_enabled: false,
                 direct_access_grants_enabled: false,
-                client_type: "public".into(),
+                client_type: ClientType::Public,
             })
             .await?;
 

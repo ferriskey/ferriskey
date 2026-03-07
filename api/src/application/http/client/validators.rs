@@ -1,3 +1,4 @@
+use ferriskey_core::domain::client::entities::ClientType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -10,9 +11,7 @@ pub struct CreateClientValidator {
     #[validate(length(min = 1, message = "client_id is required"))]
     #[serde(default)]
     pub client_id: String,
-    #[validate(length(min = 1, message = "client_type is required"))]
-    #[serde(default)]
-    pub client_type: String,
+    pub client_type: ClientType,
     #[serde(default)]
     pub service_account_enabled: bool,
     #[serde(default)]

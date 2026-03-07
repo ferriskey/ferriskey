@@ -1,3 +1,6 @@
+use std::fmt;
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -6,6 +9,37 @@ use uuid::Uuid;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
 pub mod redirect_uri;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ClientType {
+    Confidential,
+    Public,
+    System,
+}
+
+impl fmt::Display for ClientType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClientType::Confidential => write!(f, "confidential"),
+            ClientType::Public => write!(f, "public"),
+            ClientType::System => write!(f, "system"),
+        }
+    }
+}
+
+impl FromStr for ClientType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "confidential" => Ok(ClientType::Confidential),
+            "public" => Ok(ClientType::Public),
+            "system" => Ok(ClientType::System),
+            _ => Err(format!("unknown client type: {s}")),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
 pub struct Client {
@@ -18,7 +52,7 @@ pub struct Client {
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
-    pub client_type: String,
+    pub client_type: ClientType,
     pub name: String,
     pub redirect_uris: Option<Vec<redirect_uri::RedirectUri>>,
     pub created_at: DateTime<Utc>,
@@ -34,7 +68,7 @@ pub struct ClientConfig {
     pub protocol: String,
     pub public_client: bool,
     pub service_account_enabled: bool,
-    pub client_type: String,
+    pub client_type: ClientType,
     pub direct_access_grants_enabled: Option<bool>,
 }
 
@@ -72,7 +106,7 @@ impl Client {
             public_client: false,
             service_account_enabled: false,
             direct_access_grants_enabled: false,
-            client_type: "confidential".to_string(),
+            client_type: ClientType::Confidential,
             name: format!("{client_id} Client"),
             redirect_uris: None,
             created_at: now,

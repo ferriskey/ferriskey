@@ -1,6 +1,9 @@
 use chrono::{TimeZone, Utc};
 
-use crate::{domain::client::entities::Client, entity::clients::Model};
+use crate::{
+    domain::client::entities::{Client, ClientType},
+    entity::clients::Model,
+};
 
 impl From<Model> for Client {
     fn from(model: crate::entity::clients::Model) -> Self {
@@ -18,7 +21,10 @@ impl From<Model> for Client {
             public_client: model.public_client,
             service_account_enabled: model.service_account_enabled,
             direct_access_grants_enabled: model.direct_access_grants_enabled.unwrap_or(false),
-            client_type: model.client_type,
+            client_type: model
+                .client_type
+                .parse::<ClientType>()
+                .unwrap_or(ClientType::Confidential),
             redirect_uris: None,
             created_at,
             updated_at,
