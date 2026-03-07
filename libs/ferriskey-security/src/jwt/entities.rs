@@ -32,8 +32,10 @@ pub struct JwtClaim {
     pub scope: Option<String>,
     pub exp: Option<i64>,
 
-    // Identity claims
+    // Identity claims — absent when the respective scope is not in the token
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 
     pub client_id: Option<String>,
@@ -59,9 +61,13 @@ pub struct IdTokenClaims {
     pub iat: i64,
     pub auth_time: Option<i64>,
 
-    // Identity claims
-    pub preferred_username: String,
+    // Identity claims — absent when the respective scope is not active
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub preferred_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verified: Option<bool>,
 
     /// Dynamic claims injected by protocol mappers.

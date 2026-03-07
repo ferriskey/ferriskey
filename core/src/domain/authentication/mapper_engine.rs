@@ -8,7 +8,8 @@ use crate::domain::{common::entities::app_errors::CoreError, realm::entities::Re
 
 use super::mappers::{
     audience_mapper::AudienceMapper, hardcoded_claim_mapper::HardcodedClaimMapper,
-    user_attribute_mapper::UserAttributeMapper, user_property_mapper::UserPropertyMapper,
+    user_attribute_mapper::UserAttributeMapper, user_client_role_mapper::UserClientRoleMapper,
+    user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
 
 /// All user/client/realm data that protocol mappers may need.
@@ -22,6 +23,9 @@ pub struct MapperContext {
     pub firstname: String,
     pub lastname: String,
     pub realm_roles: Vec<String>,
+    /// Client roles keyed by the client's string `client_id` (e.g. `"backend"`).
+    /// Populated from user role assignments that are scoped to a specific client.
+    pub client_roles: HashMap<String, Vec<String>>,
     pub client_id: String,
     pub client_uuid: Uuid,
     pub realm_name: String,
@@ -52,6 +56,8 @@ enum MapperExecutor {
     HardcodedClaim(HardcodedClaimMapper),
     Audience(AudienceMapper),
     UserAttribute(UserAttributeMapper),
+    UserClientRole(UserClientRoleMapper),
+    UserRealmRole(UserRealmRoleMapper),
 }
 
 impl MapperExecutor {
@@ -66,6 +72,8 @@ impl MapperExecutor {
             Self::HardcodedClaim(m) => m.execute(config, context, token_type),
             Self::Audience(m) => m.execute(config, context, token_type),
             Self::UserAttribute(m) => m.execute(config, context, token_type),
+            Self::UserClientRole(m) => m.execute(config, context, token_type),
+            Self::UserRealmRole(m) => m.execute(config, context, token_type),
         }
     }
 }
@@ -94,6 +102,14 @@ impl MapperEngine {
         executors.insert(
             "oidc-usermodel-attribute-mapper".to_string(),
             MapperExecutor::UserAttribute(UserAttributeMapper),
+        );
+        executors.insert(
+            "oidc-usermodel-realm-role-mapper".to_string(),
+            MapperExecutor::UserRealmRole(UserRealmRoleMapper),
+        );
+        executors.insert(
+            "oidc-usermodel-client-role-mapper".to_string(),
+            MapperExecutor::UserClientRole(UserClientRoleMapper),
         );
         Self { executors }
     }
@@ -341,6 +357,7 @@ mod tests {
             firstname: "Test".to_string(),
             lastname: "User".to_string(),
             realm_roles: vec![],
+            client_roles: HashMap::new(),
             client_id: "my-client".to_string(),
             client_uuid: Uuid::new_v4(),
             realm_name: "test-realm".to_string(),
@@ -353,6 +370,50 @@ mod tests {
             .apply_mappers(&[], &context, TokenType::AccessToken)
             .unwrap();
         assert!(result.claims.is_empty());
+        assert!(result.additional_audiences.is_empty());
+    }
+
+    #[test]
+    fn test_user_realm_role_mapper_integration() {
+        use ferriskey_aegis::entities::ProtocolMapper;
+
+        let engine = MapperEngine::new();
+        let context = MapperContext {
+            user_id: Uuid::new_v4(),
+            username: "test".to_string(),
+            email: "test@test.com".to_string(),
+            email_verified: true,
+            firstname: "Test".to_string(),
+            lastname: "User".to_string(),
+            realm_roles: vec!["admin".to_string(), "user".to_string()],
+            client_roles: HashMap::new(),
+            client_id: "my-client".to_string(),
+            client_uuid: Uuid::new_v4(),
+            realm_name: "test-realm".to_string(),
+            realm_id: RealmId::new(Uuid::new_v4()),
+            user_attributes: HashMap::new(),
+        };
+
+        let mapper = ProtocolMapper {
+            id: Uuid::new_v4(),
+            client_scope_id: Uuid::new_v4(),
+            name: "realm-roles-mapper".to_string(),
+            mapper_type: "oidc-usermodel-realm-role-mapper".to_string(),
+            config: json!({
+                "claim.name": "realm_access.roles",
+                "access.token.claim": "true",
+            }),
+            created_at: chrono::Utc::now(),
+        };
+
+        let result = engine
+            .apply_mappers(&[mapper], &context, TokenType::AccessToken)
+            .unwrap();
+
+        assert_eq!(
+            result.claims.get("realm_access"),
+            Some(&json!({"roles": ["admin", "user"]}))
+        );
         assert!(result.additional_audiences.is_empty());
     }
 }
