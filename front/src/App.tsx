@@ -33,26 +33,141 @@ declare global {
   }
 }
 
+function normalizeApiUrl(value: string) {
+  return value.trim().replace(/\/+$/, '')
+}
+
+function toAbsoluteApiUrl(value: string) {
+  const normalized = normalizeApiUrl(value)
+
+  try {
+    return normalizeApiUrl(new URL(normalized || '/', window.location.origin).toString())
+  } catch {
+    return normalizeApiUrl(window.location.origin)
+  }
+}
+
+function inferApiUrlCandidatesFromWindowOrigin() {
+  const { hostname, origin } = window.location
+
+  if (hostname.startsWith('accounts.')) {
+    const authOrigin = origin.replace(/\/\/accounts\./, '//auth.')
+    return [`${authOrigin}/api`, authOrigin]
+  }
+
+  if (hostname.startsWith('auth.')) {
+    return [`${origin}/api`, origin]
+  }
+
+  return [origin]
+}
+
+function withApiPathVariant(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin)
+    const currentPath = parsed.pathname.replace(/\/+$/, '')
+
+    if (!currentPath) {
+      parsed.pathname = '/api'
+      return normalizeApiUrl(parsed.toString())
+    }
+
+    if (currentPath === '/api') {
+      parsed.pathname = ''
+      return normalizeApiUrl(parsed.toString())
+    }
+  } catch {
+    // Fallback to base url if URL parsing fails.
+  }
+
+  return null
+}
+
+async function isReachableApiBase(url: string) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 1500)
+
+  try {
+    const response = await fetch(`${normalizeApiUrl(url)}/health/live`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: controller.signal,
+    })
+
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+async function resolveApiUrl(baseUrl: string) {
+  const primary = normalizeApiUrl(baseUrl)
+  const fallback = withApiPathVariant(primary)
+  const candidates = [primary, fallback].filter((value, index, self): value is string => {
+    return typeof value === 'string' && value.length > 0 && self.indexOf(value) === index
+  })
+
+  for (const candidate of candidates) {
+    if (await isReachableApiBase(candidate)) {
+      return candidate
+    }
+  }
+
+  return primary
+}
+
+async function resolveApiUrlFromWindowOrigin() {
+  const candidates = inferApiUrlCandidatesFromWindowOrigin()
+
+  for (const candidate of candidates) {
+    const resolved = await resolveApiUrl(candidate)
+    if (resolved) {
+      return resolved
+    }
+  }
+
+  return normalizeApiUrl(candidates[0] ?? window.location.origin)
+}
+
+function isUnresolvedApiUrl(value: unknown) {
+  if (typeof value !== 'string') {
+    return true
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length === 0 || trimmed.includes('${')
+}
+
 function App() {
   const { realm_name } = useParams()
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
   const defaultRealm = realm_name ?? 'master'
 
   const apiCallback = useCallback(async () => {
-    const viteUrl = import.meta.env.VITE_API_URL
-    let uri
+    let uri = import.meta.env.VITE_API_URL?.trim()
 
-    if (viteUrl) {
-      uri = viteUrl
-    } else {
-      const data = await fetch('/config.json')
-      const result = await data.json()
-      uri = result.api_url
+    if (isUnresolvedApiUrl(uri)) {
+      try {
+        const data = await fetch('/config.json')
+        const result = await data.json()
+        uri = typeof result?.api_url === 'string' ? result.api_url.trim() : ''
+      } catch {
+        uri = ''
+      }
     }
 
-    const api = createApiClient(fetcher, uri)
+    if (isUnresolvedApiUrl(uri)) {
+      uri = await resolveApiUrlFromWindowOrigin()
+    } else {
+      uri = await resolveApiUrl(uri)
+    }
+
+    const apiUrl = toAbsoluteApiUrl(uri)
+    const api = createApiClient(fetcher, apiUrl)
     const axiosClient = axios.create({
-      baseURL: uri,
+      baseURL: apiUrl,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -60,16 +175,18 @@ function App() {
     })
     window.api = api
     window.tanstackApi = new TanstackQueryApiClient(api)
-    window.apiUrl = uri
+    window.apiUrl = apiUrl
     window.axios = axiosClient
 
-    if (typeof uri === 'string' && uri) {
+    if (apiUrl) {
       setApiUrlSetup(true)
     }
   }, [])
 
   useEffect(() => {
-    apiCallback()
+    // Initialization updates app-level clients and marks setup completion.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void apiCallback()
   }, [apiCallback])
 
   if (!apiUrlSetup) {

@@ -1,15 +1,18 @@
 import { GrantType } from '@/api/core.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
 
 export default function PageCallbackFeature() {
   const navigate = useNavigate()
 
-  const [code, setCode] = useState<string | null>(null)
-  const [setup, setSetup] = useState<boolean>(false)
+  const code = useMemo(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('code')
+  }, [])
+  const setup = true
 
   const { realm_name } = useParams()
   const { setAuthTokens } = useAuth()
@@ -18,17 +21,7 @@ export default function PageCallbackFeature() {
   const hasProcessedToken = useRef(false)
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const codeParam = urlParams.get('code')
-
-    if (!setup) {
-      setCode(codeParam)
-      setSetup(true)
-    }
-  }, [setup])
-
-  useEffect(() => {
-    if (code && setup && !hasProcessedToken.current) {
+    if (code && !hasProcessedToken.current) {
       exchangeToken({
         realm: realm_name ?? 'master',
         data: {
@@ -38,7 +31,7 @@ export default function PageCallbackFeature() {
         },
       })
     }
-  }, [code, setup, exchangeToken, realm_name])
+  }, [code, exchangeToken, realm_name])
 
   useEffect(() => {
     if (data && !hasProcessedToken.current) {

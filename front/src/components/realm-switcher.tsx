@@ -40,25 +40,12 @@ export default function RealmSwitcher() {
   const { isMobile } = useSidebar()
   const [open, setOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [activeRealm, setActiveRealm] = useState<Realm | null>(null)
-  const [, setHasRealmMaster] = useState(false)
   const { userRealms } = useRealmStore()
+  const activeRealm = userRealms.find((realm) => realm.name === realm_name) ?? null
 
   const handleClick = (realm: Realm) => {
-    setActiveRealm(realm)
     navigate(`${REALM_URL(realm.name)}${REALM_OVERVIEW_URL}`)
   }
-
-  useEffect(() => {
-    if (userRealms && realm_name) {
-      const hasMaster = userRealms.some((realm) => realm.name === 'master')
-      if (hasMaster) {
-        setHasRealmMaster(true)
-      }
-      const realm = userRealms.find((realm) => realm.name === realm_name)
-      if (realm) setActiveRealm(realm)
-    }
-  }, [userRealms, realm_name])
 
   if (!activeRealm) return null
 

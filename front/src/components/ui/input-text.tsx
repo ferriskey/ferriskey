@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Eye, EyeClosed } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 
 export interface InputTextProps {
   name: string
@@ -8,7 +8,7 @@ export interface InputTextProps {
   value?: string | number
   type?: 'text' | 'number' | 'password' | 'email'
   className?: string
-  onChange?: (value: string | number) => void
+  onChange?: (value: string | number | undefined) => void
   error?: string
   disabled?: boolean
   // variable to control the toggle visibility of the password even if it's in disable
@@ -28,12 +28,8 @@ export function InputText({
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
   const inputRef = useRef<HTMLDivElement>(null)
-  const [currentValue, setCurrentValue] = useState<string | number>(value)
+  const currentValue = value
   const [currentType, setCurrentType] = useState<string>(type)
-
-  useEffect(() => {
-    setCurrentValue(value)
-  }, [value, setCurrentValue])
 
   const hasFocus = focused
   const hasLabelUp =
@@ -76,19 +72,24 @@ export function InputText({
               disabled={disabled}
               value={currentValue}
               onChange={(e) => {
-                if (onChange) onChange(e.currentTarget.value)
-                setCurrentValue(e.currentTarget.value)
+                if (!onChange) return
+
+                if (type === 'number') {
+                  const val = e.currentTarget.valueAsNumber
+                  onChange(Number.isNaN(val) ? undefined : val)
+                  return
+                }
+
+                onChange(e.currentTarget.value)
               }}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
             />
 
-            {(currentValue as string)?.length > 0 && type === 'password' && (
+            {String(currentValue).length > 0 && type === 'password' && (
               <div
                 className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-muted-foreground'
                 onClick={() => {
-                  console.log('Toggle password visibility')
-
                   setCurrentType(
                     currentType === 'password' ? 'text' : 'password'
                   )

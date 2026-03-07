@@ -11,10 +11,9 @@ import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import type { ProviderFormData } from '../components/provider-config-form'
 import PageCreate from '../ui/page-create'
 
-const formSchema: z.ZodType<ProviderFormData> = z.object({
+const formSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(50),
   clientId: z.string().min(1, 'Client ID is required'),
   clientSecret: z.string().min(1, 'Client Secret is required'),
@@ -23,6 +22,8 @@ const formSchema: z.ZodType<ProviderFormData> = z.object({
   userinfoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   scopes: z.string().optional(),
 })
+
+type ProviderFormValues = z.infer<typeof formSchema>
 
 export default function PageCreateFeature() {
   const { realm_name } = useParams<{ realm_name: string }>()
@@ -38,7 +39,7 @@ export default function PageCreateFeature() {
     data: responseCreateProvider,
   } = useCreateIdentityProvider()
 
-  const form = useForm<ProviderFormData>({
+  const form = useForm<ProviderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       displayName: '',

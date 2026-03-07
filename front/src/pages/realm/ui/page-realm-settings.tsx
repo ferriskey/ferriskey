@@ -6,10 +6,9 @@ import { Outlet, useNavigate } from 'react-router'
 interface PageRealmSettingsProps {
   realm: Realm
   tab?: string
-  setTab?: (value: string) => void
 }
 
-export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSettingsProps) {
+export default function PageRealmSettings({ realm, tab }: PageRealmSettingsProps) {
   const navigate = useNavigate()
 
   const tabs = [
@@ -21,7 +20,6 @@ export default function PageRealmSettings({ realm, tab, setTab }: PageRealmSetti
 
   const handleTabChange = (key: string) => {
     navigate(`${REALM_SETTINGS_URL(realm.name)}/${key}`)
-    setTab?.(key)
   }
 
   return (

@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 interface LdapFormUiProps {
   form: UseFormReturn<CreateLdapProviderSchema>
   handleBack: () => void
-  handleSubmit: () => void
+  handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>
   onTypeChange: (type: 'LDAP' | 'Kerberos') => void
   onTestConnection?: () => void
   isTestingConnection?: boolean
@@ -161,7 +161,7 @@ export default function LdapFormUi({
             render={({ field }) => (
               <InputText
                 label='Provider Name'
-                error={form.formState.errors.name?.message}
+                error={form.formState.errors.name?.message as string}
                 {...field}
               />
             )}
@@ -222,7 +222,7 @@ export default function LdapFormUi({
             render={({ field }) => (
               <InputText
                 label='Connection URL'
-                error={form.formState.errors.connectionUrl?.message}
+                error={form.formState.errors.connectionUrl?.message as string}
                 {...field}
               />
             )}
@@ -234,7 +234,7 @@ export default function LdapFormUi({
             render={({ field }) => (
               <InputText
                 label='Base DN'
-                error={form.formState.errors.baseDn?.message}
+                error={form.formState.errors.baseDn?.message as string}
                 {...field}
               />
             )}
@@ -247,7 +247,7 @@ export default function LdapFormUi({
               render={({ field }) => (
                 <InputText
                   label='Bind DN'
-                  error={form.formState.errors.bindDn?.message}
+                  error={form.formState.errors.bindDn?.message as string}
                   {...field}
                 />
               )}
@@ -261,7 +261,7 @@ export default function LdapFormUi({
                   <InputText
                     label='Bind Password'
                     type='password'
-                    error={form.formState.errors.bindPassword?.message}
+                    error={form.formState.errors.bindPassword?.message as string}
                     {...field}
                   />
                   {isEditMode && (
@@ -333,7 +333,7 @@ export default function LdapFormUi({
             render={({ field }) => (
               <InputText
                 label='User Search Filter'
-                error={form.formState.errors.userSearchFilter?.message}
+                error={form.formState.errors.userSearchFilter?.message as string}
                 {...field}
               />
             )}
@@ -351,8 +351,13 @@ export default function LdapFormUi({
               <InputText
                 label='Sync Interval (seconds)'
                 type='number'
-                error={form.formState.errors.syncInterval?.message}
+                error={form.formState.errors.syncInterval?.message as string}
                 {...field}
+                value={field.value ?? ''}
+                onChange={(value) => {
+                  const numericValue = typeof value === 'number' ? value : Number.NaN
+                  field.onChange(Number.isNaN(numericValue) ? undefined : numericValue)
+                }}
               />
             )}
           />

@@ -10,7 +10,7 @@ export const createLdapProviderSchema = z.object({
   bindDn: z.string().optional(),
   bindPassword: z.string().optional(),
   userSearchFilter: z.string(),
-  syncInterval: z.coerce.number().min(60),
+  syncInterval: z.number().min(60),
   useTls: z.boolean(),
 })
 

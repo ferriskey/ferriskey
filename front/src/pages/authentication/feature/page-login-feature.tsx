@@ -1,8 +1,8 @@
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
 import { toast } from 'sonner'
@@ -18,24 +18,23 @@ export type AuthenticateSchema = z.infer<typeof authenticateSchema>
 
 export default function PageLoginFeature() {
   const { realm_name } = useParams()
-  const [isAuthInitiated, setIsAuthInitiated] = useState<boolean>(false)
-  const [isSetup, setIsSetup] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const clientId = searchParams.get('client_id')
+  const redirectUri = searchParams.get('redirect_uri')
+  const isAuthInitiated = Boolean(clientId && redirectUri)
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
   const getAuthParamsFromUrl = useCallback(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const clientId = urlParams.get('client_id')
-    const redirectUri = urlParams.get('redirect_uri')
-
     return {
       clientId: clientId ?? 'security-admin-console',
       redirectUri:
         redirectUri ??
         `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`,
     }
-  }, [realm_name])
+  }, [clientId, redirectUri, realm_name])
 
   const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
@@ -102,23 +101,11 @@ export default function PageLoginFeature() {
   }
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const clientId = urlParams.get('client_id')
-    const redirectUri = urlParams.get('redirect_uri')
-
-    if (clientId && redirectUri) {
-      setIsAuthInitiated(true)
-    }
-
-    setIsSetup(true)
-  }, [])
-
-  useEffect(() => {
-    if (isSetup && !isAuthInitiated) {
+    if (!isAuthInitiated) {
       const { query, realm } = getOAuthParams()
       window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
     }
-  }, [isSetup, isAuthInitiated, getOAuthParams])
+  }, [isAuthInitiated, getOAuthParams])
 
   useEffect(() => {
     if (authenticateStatus === 'error') {
@@ -126,7 +113,7 @@ export default function PageLoginFeature() {
     }
   }, [authenticateStatus, form])
 
-  const isRedirecting = isSetup && !isAuthInitiated
+  const isRedirecting = !isAuthInitiated
 
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
