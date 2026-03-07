@@ -115,7 +115,7 @@
 }
 
 /* time input styling */
-input[type="time"], input[type="date"], input[type="datetime"] {
+input[type="time"], input[type="date"], input[type="datetime-local"] {
   &::-webkit-calendar-picker-indicator {
     background: none;
     display: none;

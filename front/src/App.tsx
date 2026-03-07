@@ -37,11 +37,21 @@ function normalizeApiUrl(value: string) {
   return value.trim().replace(/\/+$/, '')
 }
 
+function toAbsoluteApiUrl(value: string) {
+  const normalized = normalizeApiUrl(value)
+
+  try {
+    return normalizeApiUrl(new URL(normalized || '/', window.location.origin).toString())
+  } catch {
+    return normalizeApiUrl(window.location.origin)
+  }
+}
+
 function inferApiUrlCandidatesFromWindowOrigin() {
-  const { hostname, origin, protocol } = window.location
+  const { hostname, origin } = window.location
 
   if (hostname.startsWith('accounts.')) {
-    const authOrigin = `${protocol}//auth.${hostname.slice('accounts.'.length)}`
+    const authOrigin = origin.replace(/\/\/accounts\./, '//auth.')
     return [`${authOrigin}/api`, authOrigin]
   }
 
@@ -154,9 +164,10 @@ function App() {
       uri = await resolveApiUrl(uri)
     }
 
-    const api = createApiClient(fetcher, uri)
+    const apiUrl = toAbsoluteApiUrl(uri)
+    const api = createApiClient(fetcher, apiUrl)
     const axiosClient = axios.create({
-      baseURL: uri,
+      baseURL: apiUrl,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -164,10 +175,10 @@ function App() {
     })
     window.api = api
     window.tanstackApi = new TanstackQueryApiClient(api)
-    window.apiUrl = uri
+    window.apiUrl = apiUrl
     window.axios = axiosClient
 
-    if (typeof uri === 'string' && uri) {
+    if (apiUrl) {
       setApiUrlSetup(true)
     }
   }, [])
