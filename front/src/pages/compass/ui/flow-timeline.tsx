@@ -24,10 +24,25 @@ interface FlowTimelineProps {
   steps: CompassFlowStep[]
 }
 
-const statusConfig: Record<StepStatus, { bg: string; border: string; text: string; edge: string; iconColor: string }> = {
-  success: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', edge: '#86efac', iconColor: 'text-emerald-500' },
-  failure: { bg: '#fef2f2', border: '#fca5a5', text: '#dc2626', edge: '#fca5a5', iconColor: 'text-red-500' },
-  skipped: { bg: '#f9fafb', border: '#d1d5db', text: '#6b7280', edge: '#d1d5db', iconColor: 'text-gray-400' },
+const statusConfig: Record<StepStatus, { cardClass: string; badgeClass: string; edge: string; iconColor: string }> = {
+  success: {
+    cardClass: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40',
+    badgeClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-200/50 dark:bg-emerald-500/20',
+    edge: '#34d399',
+    iconColor: 'text-emerald-500',
+  },
+  failure: {
+    cardClass: 'bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-500/40',
+    badgeClass: 'text-red-700 dark:text-red-400 bg-red-200/50 dark:bg-red-500/20',
+    edge: '#f87171',
+    iconColor: 'text-red-500',
+  },
+  skipped: {
+    cardClass: 'bg-gray-50 dark:bg-gray-500/10 border-gray-300 dark:border-gray-500/40',
+    badgeClass: 'text-gray-700 dark:text-gray-400 bg-gray-200/50 dark:bg-gray-500/20',
+    edge: '#9ca3af',
+    iconColor: 'text-gray-400',
+  },
 }
 
 const formatTime = (timestamp: string) => {
@@ -77,11 +92,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
 
   return (
     <div
-      className='nodrag nopan rounded-lg p-4 w-[220px]'
-      style={{
-        backgroundColor: config.bg,
-        border: `2px dashed ${config.border}`,
-      }}
+      className={`nodrag nopan rounded-lg p-4 w-[220px] border-2 border-dashed ${config.cardClass}`}
     >
       {hasTop && <Handle id='top' type='target' position={Position.Top} className={handleClass} />}
       {hasBottom && <Handle id='bottom' type='source' position={Position.Bottom} className={handleClass} />}
@@ -97,8 +108,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
 
       <div className='flex items-center gap-2 mb-1.5'>
         <span
-          className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide'
-          style={{ color: config.text, backgroundColor: `${config.border}33` }}
+          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${config.badgeClass}`}
         >
           {step.status}
         </span>
