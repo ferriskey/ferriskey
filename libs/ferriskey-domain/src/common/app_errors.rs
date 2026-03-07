@@ -252,6 +252,9 @@ pub enum CoreError {
 
     #[error("Invalid scope")]
     InvalidScope,
+
+    #[error("User account is disabled")]
+    UserDisabled,
 }
 
 impl From<AuthenticationError> for CoreError {

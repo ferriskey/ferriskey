@@ -606,6 +606,10 @@ where
             )
             .await?;
 
+        if !user.enabled {
+            return Err(CoreError::UserDisabled);
+        }
+
         // 9. Create or update auth session with authorization code
         // Set compass_flow_id so authorization_code() records TokenExchange + complete_flow
         let authorization_code = Self::generate_random_string(32);

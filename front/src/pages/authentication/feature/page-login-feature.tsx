@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import PageLogin from '../ui/page-login'
-import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 
@@ -26,6 +25,8 @@ export default function PageLoginFeature() {
   const isAuthInitiated = Boolean(clientId && redirectUri)
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
+
+  const loginError = searchParams.get('login_error')
 
   const getAuthParamsFromUrl = useCallback(() => {
     return {
@@ -57,6 +58,7 @@ export default function PageLoginFeature() {
     mutate: authenticate,
     data: authenticateData,
     status: authenticateStatus,
+    error: authenticateError,
   } = useAuthenticateMutation()
 
   const form = useForm<AuthenticateSchema>({
@@ -101,19 +103,19 @@ export default function PageLoginFeature() {
   }
 
   useEffect(() => {
-    if (!isAuthInitiated) {
+    if (!isAuthInitiated && !loginError) {
       const { query, realm } = getOAuthParams()
       window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
     }
-  }, [isAuthInitiated, getOAuthParams])
+  }, [isAuthInitiated, getOAuthParams, loginError])
 
-  useEffect(() => {
-    if (authenticateStatus === 'error') {
-      toast.error('Authentication failed. Please check your credentials and try again.')
-    }
-  }, [authenticateStatus, form])
+  const authErrorMessage = authenticateStatus === 'error'
+    ? (authenticateError?.message ?? 'Authentication failed. Please check your credentials and try again.')
+    : null
 
-  const isRedirecting = !isAuthInitiated
+  const errorMessage = loginError ?? authErrorMessage
+
+  const isRedirecting = !isAuthInitiated && !loginError
 
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
@@ -127,6 +129,7 @@ export default function PageLoginFeature() {
       onSubmit={onSubmit}
       isError={undefined}
       loginSettings={loginSettings}
+      errorMessage={errorMessage}
     />
   )
 }
