@@ -72,6 +72,14 @@ pub struct Args {
     pub webapp_url: String,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
+    /// Directory containing .wasm extension modules
+    #[arg(
+        long = "extensions-dir",
+        env = "EXTENSIONS_DIR",
+        name = "EXTENSIONS_DIR",
+        long_help = "Directory containing .wasm extension modules to load at startup"
+    )]
+    pub extensions_dir: Option<String>,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -86,6 +94,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
+            extensions_dir: None,
             command: None,
         }
     }
@@ -381,6 +390,7 @@ impl From<Args> for FerriskeyConfig {
                 username: value.db.user,
                 schema: value.db.schema,
             },
+            extensions_dir: value.extensions_dir,
         }
     }
 }

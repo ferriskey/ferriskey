@@ -115,7 +115,7 @@ fn init_tracing_and_logging(
 
         subscriber.init();
     } else {
-        let subscriber = Registry::default().with(fmt_layer);
+        let subscriber = Registry::default().with(fmt_layer).with(filter);
 
         subscriber.init();
     }

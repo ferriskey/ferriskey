@@ -14,6 +14,7 @@ pub struct AppConfig {
 #[derive(Clone, Debug)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
+    pub extensions_dir: Option<String>,
 }
 
 #[derive(Clone, Debug)]

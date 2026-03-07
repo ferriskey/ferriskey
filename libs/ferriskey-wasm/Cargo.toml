@@ -1,0 +1,13 @@
+[package]
+name = "ferriskey-wasm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-wasm-guest = { path = "guest" }
+wasmtime = "29"
+wasmtime-wasi = "29"
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tokio = { version = "1", features = ["sync"] }

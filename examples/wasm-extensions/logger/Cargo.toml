@@ -1,0 +1,11 @@
+[package]
+name = "ferriskey-ext-logger"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ferriskey-wasm-guest = { path = "../../../libs/ferriskey-wasm/guest" }
+serde_json = "1.0"

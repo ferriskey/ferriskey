@@ -9,6 +9,8 @@ use serde::Serialize;
 use serde_json::to_value;
 use uuid::Uuid;
 
+use ferriskey_wasm::{ExtensionDispatcher, ExtensionEvent};
+
 use crate::domain::{
     common::entities::app_errors::CoreError,
     webhook::{
@@ -43,13 +45,15 @@ use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 pub struct PostgresWebhookRepository {
     pub db: DatabaseConnection,
     pub http_client: Client,
+    pub extension_dispatcher: ExtensionDispatcher,
 }
 
 impl PostgresWebhookRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(db: DatabaseConnection, extension_dispatcher: ExtensionDispatcher) -> Self {
         Self {
             db,
             http_client: Client::new(),
+            extension_dispatcher,
         }
     }
 }
@@ -237,6 +241,14 @@ impl WebhookRepository for PostgresWebhookRepository {
         let webhooks = self
             .fetch_webhooks_by_subscriber(realm_id, payload.event.clone())
             .await;
+
+        // Dispatch to WASM extensions
+        self.extension_dispatcher.dispatch(ExtensionEvent {
+            event_type: payload.event.to_string(),
+            realm_id: Uuid::from(realm_id).to_string(),
+            resource_id: payload.resource_id.to_string(),
+            data: serde_json::to_value(&payload.data).ok(),
+        });
 
         tokio::spawn(async move {
             match webhooks {

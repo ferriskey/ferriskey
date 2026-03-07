@@ -1,6 +1,8 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_wasm::{ExtensionDispatcher, ExtensionRuntime};
 
 use crate::{
     domain::{
@@ -124,7 +126,30 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let user_required_action =
         Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
-    let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
+    let extension_dispatcher = if let Some(ref extensions_dir) = config.extensions_dir {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let runtime =
+            ExtensionRuntime::load_from_directory(Path::new(extensions_dir)).map_err(|e| {
+                tracing::error!("Failed to load WASM extensions: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        std::thread::spawn(move || {
+            while let Some(event) = rx.blocking_recv() {
+                runtime.dispatch(event);
+            }
+        });
+
+        ExtensionDispatcher::new(tx)
+    } else {
+        ExtensionDispatcher::disabled()
+    };
+
+    let webhook = Arc::new(PostgresWebhookRepository::new(
+        postgres.get_db(),
+        extension_dispatcher,
+    ));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
@@ -400,6 +425,7 @@ mod tests {
                 name: db_name,
                 schema: schema.clone(),
             },
+            extensions_dir: None,
         })
         .await
         .expect("create service");
