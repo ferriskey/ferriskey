@@ -320,7 +320,10 @@ mod tests {
         application::create_service,
         domain::{
             authentication::value_objects::Identity,
-            client::{entities::CreateClientInput, ports::ClientService},
+            client::{
+                entities::{ClientType, CreateClientInput},
+                ports::ClientService,
+            },
             common::FerriskeyConfig,
             realm::entities::Realm,
             realm::ports::{RealmRepository, RealmService},
@@ -467,7 +470,7 @@ mod tests {
                 identity,
                 CreateClientInput {
                     client_id: format!("client-{}", Uuid::new_v4().simple()),
-                    client_type: "public".to_string(),
+                    client_type: ClientType::Public,
                     public_client: true,
                     realm_name: realm_name.clone(),
                     enabled: true,

@@ -4,6 +4,7 @@ use ferriskey_security::jwt::ports::KeyStoreRepository;
 
 use crate::domain::{
     client::{
+        entities::ClientType,
         ports::{ClientRepository, RedirectUriRepository},
         value_objects::CreateClientRequest,
     },
@@ -179,7 +180,7 @@ where
                         public_client: false,
                         service_account_enabled: false,
                         direct_access_grants_enabled: false,
-                        client_type: "confidential".to_string(),
+                        client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
                     })
                     .await
@@ -216,7 +217,7 @@ where
                         public_client: false,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
-                        client_type: "confidential".to_string(),
+                        client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
                     })
                     .await
@@ -248,7 +249,7 @@ where
                         public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
-                        client_type: "system".to_string(),
+                        client_type: ClientType::System,
                         secret: None,
                     })
                     .await
@@ -415,8 +416,11 @@ pub mod tests {
 
     use crate::domain::realm::entities::RealmId;
     use crate::domain::{
-        authentication::value_objects::Identity, client::entities::Client,
-        common::entities::app_errors::CoreError, realm::entities::Realm, role::entities::Role,
+        authentication::value_objects::Identity,
+        client::entities::{Client, ClientType},
+        common::entities::app_errors::CoreError,
+        realm::entities::Realm,
+        role::entities::Role,
         user::entities::User,
     };
 
@@ -583,7 +587,7 @@ pub mod tests {
             public_client: false,
             direct_access_grants_enabled: true,
             service_account_enabled: true,
-            client_type: "confidential".to_string(),
+            client_type: ClientType::Confidential,
             protocol: "openid-connect".to_string(),
             redirect_uris: None,
             created_at: Utc::now(),
