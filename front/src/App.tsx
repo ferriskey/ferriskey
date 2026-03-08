@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { fetcher } from './api'
 import { createApiClient } from './api/api.client'
@@ -145,47 +145,47 @@ function App() {
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
   const defaultRealm = realm_name ?? 'master'
 
-  const apiCallback = useCallback(async () => {
-    let uri = import.meta.env.VITE_API_URL?.trim()
+  useEffect(() => {
+    const init = async () => {
+      let uri = import.meta.env.VITE_API_URL?.trim()
 
-    if (isUnresolvedApiUrl(uri)) {
-      try {
-        const data = await fetch('/config.json')
-        const result = await data.json()
-        uri = typeof result?.api_url === 'string' ? result.api_url.trim() : ''
-      } catch {
-        uri = ''
+      if (isUnresolvedApiUrl(uri)) {
+        try {
+          const data = await fetch('/config.json')
+          const result = await data.json()
+          uri = typeof result?.api_url === 'string' ? result.api_url.trim() : ''
+        } catch {
+          uri = ''
+        }
+      }
+
+      if (isUnresolvedApiUrl(uri)) {
+        uri = await resolveApiUrlFromWindowOrigin()
+      } else {
+        uri = await resolveApiUrl(uri)
+      }
+
+      const apiUrl = toAbsoluteApiUrl(uri)
+      const api = createApiClient(fetcher, apiUrl)
+      const axiosClient = axios.create({
+        baseURL: apiUrl,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true,
+      })
+      window.api = api
+      window.tanstackApi = new TanstackQueryApiClient(api)
+      window.apiUrl = apiUrl
+      window.axios = axiosClient
+
+      if (apiUrl) {
+        setApiUrlSetup(true)
       }
     }
 
-    if (isUnresolvedApiUrl(uri)) {
-      uri = await resolveApiUrlFromWindowOrigin()
-    } else {
-      uri = await resolveApiUrl(uri)
-    }
-
-    const apiUrl = toAbsoluteApiUrl(uri)
-    const api = createApiClient(fetcher, apiUrl)
-    const axiosClient = axios.create({
-      baseURL: apiUrl,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      withCredentials: true,
-    })
-    window.api = api
-    window.tanstackApi = new TanstackQueryApiClient(api)
-    window.apiUrl = apiUrl
-    window.axios = axiosClient
-
-    if (apiUrl) {
-      setApiUrlSetup(true)
-    }
+    void init()
   }, [])
-
-  useEffect(() => {
-    void apiCallback()
-  }, [apiCallback])
 
   if (!apiUrlSetup) {
     return (
