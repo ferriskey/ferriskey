@@ -125,5 +125,61 @@ export const useDeleteProtocolMapper = () => {
   })
 }
 
+export const useUpdateClientScope = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'patch',
+      '/realms/{realm_name}/client-scopes/{scope_id}',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { queryKey: scopeKey } = window.tanstackApi.get(
+        '/realms/{realm_name}/client-scopes/{scope_id}',
+        {
+          path: {
+            realm_name: variables.path.realm_name,
+            scope_id: variables.path.scope_id,
+          },
+        }
+      )
+      const { queryKey: listKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
+        path: { realm_name: variables.path.realm_name },
+      })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: scopeKey }),
+        queryClient.invalidateQueries({ queryKey: listKey }),
+      ])
+      toast.success('Client scope updated successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to update client scope', { description: error.message })
+    },
+  })
+}
+
+export const useDeleteClientScope = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/client-scopes/{scope_id}',
+      async (res) => res.json()
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
+        path: { realm_name: variables.path.realm_name },
+      })
+      await queryClient.invalidateQueries({ queryKey })
+      toast.success('Client scope deleted successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to delete client scope', { description: error.message })
+    },
+  })
+}
+
 // Re-export type for use in feature files
 export type { ProtocolMapperQuery }
