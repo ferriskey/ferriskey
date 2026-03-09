@@ -1,4 +1,4 @@
-import { useGetClientScopes } from '@/api/client-scope.api'
+import { useDeleteClientScope, useGetClientScopes } from '@/api/client-scope.api'
 import { RouterParams } from '@/routes/router'
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -12,6 +12,7 @@ export default function PageClientScopesOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const { data: response, isLoading } = useGetClientScopes({ realm: realm_name ?? 'master' })
+  const { mutate: deleteClientScope, isPending: isDeleting } = useDeleteClientScope()
 
   const scopes = useMemo(() => response?.data ?? [], [response])
 
@@ -28,12 +29,19 @@ export default function PageClientScopesOverviewFeature() {
     navigate(`${CLIENT_SCOPE_URL(realm_name, scopeId)}${CLIENT_SCOPE_DETAILS_URL}`)
   }
 
+  const handleDeleteScope = (scopeId: string) => {
+    if (!realm_name) return
+    deleteClientScope({ path: { realm_name, scope_id: scopeId } })
+  }
+
   return (
     <PageClientScopesOverview
       data={scopes}
       isLoading={isLoading}
       statistics={statistics}
       handleClickRow={handleClickRow}
+      handleDeleteScope={handleDeleteScope}
+      isDeleting={isDeleting}
     />
   )
 }
