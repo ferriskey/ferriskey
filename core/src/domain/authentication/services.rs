@@ -569,7 +569,10 @@ where
                     // Already present as a default scope — no-op
                 } else {
                     // Scope is not assigned to this client
-                    return Err(CoreError::InvalidScope);
+                    return Err(CoreError::InvalidScope(format!(
+                        "Scope '{}' is not assigned to this client",
+                        scope
+                    )));
                 }
             }
         }
@@ -694,6 +697,17 @@ where
 
         if !Self::verify_client_secret(client.secret.as_deref(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
+        }
+
+        if let Some(ref scope_str) = params.scope {
+            for scope in scope_str.split_whitespace() {
+                if scope == OidcScope::OfflineAccess.as_str() {
+                    return Err(CoreError::InvalidScope(
+                        "Scope 'offline_access' is not allowed for client credentials grant"
+                            .to_string(),
+                    ));
+                }
+            }
         }
 
         info!("try to fetch user client, client id: {}", client.id);

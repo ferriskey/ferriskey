@@ -32,6 +32,11 @@ pub enum ApiError {
     Forbidden(String),
     BadRequest(String),
     ServiceUnavailable(String),
+    /// RFC 6749 §5.2 OAuth2 error response
+    OAuthError {
+        error: String,
+        error_description: String,
+    },
 }
 
 impl ApiError {
@@ -176,6 +181,13 @@ pub struct ApiErrorResponse {
     pub message: String,
 }
 
+/// RFC 6749 §5.2 OAuth2 error response body
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct OAuth2ErrorResponse {
+    pub error: String,
+    pub error_description: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ValidationErrorResponse {
     pub errors: Vec<ValidationError>,
@@ -240,6 +252,17 @@ impl IntoResponse for ApiError {
                     code: "E_SERVICE_UNAVAILABLE".to_string(),
                     status: 503,
                     message,
+                }),
+            )
+                .into_response(),
+            ApiError::OAuthError {
+                error,
+                error_description,
+            } => (
+                StatusCode::BAD_REQUEST,
+                Json(OAuth2ErrorResponse {
+                    error,
+                    error_description,
                 }),
             )
                 .into_response(),

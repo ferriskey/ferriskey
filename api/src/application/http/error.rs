@@ -198,7 +198,10 @@ impl From<CoreError> for ApiError {
             CoreError::HintsNotFound => {
                 Self::NotFound("Account hints not found".to_string())
             }
-            CoreError::InvalidScope => Self::BadRequest("invalid_scope".to_string()),
+            CoreError::InvalidScope(description) => Self::OAuthError {
+                error: "invalid_scope".to_string(),
+                error_description: description,
+            },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".to_string()),
         }
     }
