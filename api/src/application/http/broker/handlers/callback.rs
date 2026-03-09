@@ -12,6 +12,7 @@ use ferriskey_core::domain::authentication::{
     entities::{ExchangeTokenInput, GrantType},
     ports::AuthService,
 };
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
 use crate::application::http::server::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
@@ -51,7 +52,7 @@ pub async fn broker_callback(
     Query(params): Query<BrokerCallbackQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     let root_scoped_base_url = format!("{base_url}{}", state.args.server.root_path);
-    let result = state
+    let result = match state
         .service
         .handle_callback(BrokerCallbackInput {
             realm_name: realm_name.clone(),
@@ -62,7 +63,25 @@ pub async fn broker_callback(
             error_description: params.error_description,
             base_url: root_scoped_base_url.clone(),
         })
-        .await?;
+        .await
+    {
+        Ok(result) => result,
+        Err(CoreError::UserDisabled) => {
+            let frontend_origin = state
+                .args
+                .server
+                .allowed_origins
+                .first()
+                .map(|s| s.trim_end_matches('/').to_string())
+                .unwrap_or_else(|| base_url.clone());
+
+            let login_url = format!(
+                "{frontend_origin}/realms/{realm_name}/authentication/login?login_error=User+account+is+disabled"
+            );
+            return Ok((StatusCode::FOUND, [(LOCATION, login_url)]).into_response());
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     if let Ok(jwt_token) = state
         .service
