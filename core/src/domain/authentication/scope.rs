@@ -352,4 +352,62 @@ mod tests {
         let scopes = ScopeManager::parse_scopes("openid profile email");
         assert_eq!(scopes, vec!["openid", "profile", "email"]);
     }
+
+    // --- Scope validation (RFC 6749 §3.3) ---
+
+    #[test]
+    fn test_is_standard_recognizes_all_oidc_scopes() {
+        use super::OidcScope;
+        for scope in OidcScope::all() {
+            assert!(
+                OidcScope::is_standard(scope.as_str()),
+                "Expected '{}' to be a standard scope",
+                scope.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_standard_rejects_unknown_scope() {
+        use super::OidcScope;
+        assert!(!OidcScope::is_standard("custom_scope"));
+        assert!(!OidcScope::is_standard("read:data"));
+        assert!(!OidcScope::is_standard(""));
+        assert!(!OidcScope::is_standard("PROFILE")); // case-sensitive
+    }
+
+    #[test]
+    fn test_offline_access_is_standard_scope() {
+        // offline_access is a standard OIDC scope — the client_credentials guard
+        // must be enforced explicitly in the grant handler, not here.
+        use super::OidcScope;
+        assert!(OidcScope::is_standard(super::SCOPE_OFFLINE_ACCESS));
+    }
+
+    #[test]
+    fn test_validate_and_filter_drops_unknown_scope() {
+        let manager = ScopeManager::new();
+        // Unknown scope is silently dropped by validate_and_filter (used for
+        // authorize endpoint); the token endpoint uses resolve_scopes_for_client
+        // which errors instead.
+        let result = manager.validate_and_filter(Some("profile unknown_custom_scope".to_string()));
+        assert!(result.contains("profile"));
+        assert!(!result.contains("unknown_custom_scope"));
+    }
+
+    #[test]
+    fn test_with_custom_scopes_allows_registered_custom_scope() {
+        let manager = ScopeManager::new().with_custom_scopes(vec!["my_api".to_string()]);
+        let result = manager.validate_and_filter(Some("profile my_api".to_string()));
+        assert!(result.contains("profile"));
+        assert!(result.contains("my_api"));
+    }
+
+    #[test]
+    fn test_with_custom_scopes_still_rejects_unregistered_scope() {
+        let manager = ScopeManager::new().with_custom_scopes(vec!["my_api".to_string()]);
+        let result = manager.validate_and_filter(Some("profile other_scope".to_string()));
+        assert!(result.contains("profile"));
+        assert!(!result.contains("other_scope"));
+    }
 }
