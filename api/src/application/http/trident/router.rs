@@ -11,11 +11,13 @@ use crate::application::{
         trident::handlers::{
             burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
             challenge_otp::{__path_challenge_otp, challenge_otp},
+            forgot_password::{__path_forgot_password, forgot_password},
             generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
             magic_link::{
                 __path_send_magic_link, __path_verify_magic_link, send_magic_link,
                 verify_magic_link,
             },
+            reset_password::{__path_reset_password_with_token, reset_password_with_token},
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
@@ -49,6 +51,8 @@ use crate::application::{
     webauthn_public_key_request_options,
     send_magic_link,
     verify_magic_link,
+    forgot_password,
+    reset_password_with_token,
 ))]
 pub struct TridentApiDoc;
 
@@ -68,6 +72,20 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(verify_magic_link),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/forgot-password",
+                state.args.server.root_path
+            ),
+            post(forgot_password),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/reset-password",
+                state.args.server.root_path
+            ),
+            post(reset_password_with_token),
         );
 
     // Authenticated routes

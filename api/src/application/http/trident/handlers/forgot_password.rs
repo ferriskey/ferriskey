@@ -1,0 +1,48 @@
+use axum::extract::{Path, State};
+use ferriskey_core::domain::trident::ports::{RequestPasswordResetInput, TridentService};
+use serde::Deserialize;
+use utoipa::ToSchema;
+use validator::Validate;
+
+use crate::application::http::server::{
+    api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    app_state::AppState,
+};
+
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct ForgotPasswordRequest {
+    #[validate(email)]
+    pub email: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/login-actions/forgot-password",
+    tag = "auth",
+    summary = "Request a password reset",
+    description = "Sends a password reset email to the user if the email exists in the realm. Always returns 204 to prevent email enumeration.",
+    params(
+        ("realm_name" = String, Path, description = "The realm name"),
+    ),
+    request_body = ForgotPasswordRequest,
+    responses(
+        (status = 204, description = "Request processed (email sent if user exists)"),
+        (status = 400, description = "Bad Request", body = ApiErrorResponse),
+        (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
+    )
+)]
+pub async fn forgot_password(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+    ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
+) -> Result<axum::http::StatusCode, ApiError> {
+    state
+        .service
+        .request_password_reset(RequestPasswordResetInput {
+            realm_name,
+            email: payload.email,
+        })
+        .await?;
+
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
