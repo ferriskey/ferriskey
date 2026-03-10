@@ -1,13 +1,19 @@
 use axum::extract::{Path, State};
 use ferriskey_core::domain::trident::ports::{RequestPasswordResetInput, TridentService};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::application::http::server::{
-    api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
+    },
     app_state::AppState,
 };
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ForgotPasswordResponse;
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct ForgotPasswordRequest {
@@ -26,7 +32,7 @@ pub struct ForgotPasswordRequest {
     ),
     request_body = ForgotPasswordRequest,
     responses(
-        (status = 204, description = "Request processed (email sent if user exists)"),
+        (status = 200, description = "Request processed (email sent if user exists)", body = ForgotPasswordResponse),
         (status = 400, description = "Bad Request", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
@@ -35,7 +41,7 @@ pub async fn forgot_password(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
-) -> Result<axum::http::StatusCode, ApiError> {
+) -> Result<Response<ForgotPasswordResponse>, ApiError> {
     state
         .service
         .request_password_reset(RequestPasswordResetInput {
@@ -44,5 +50,5 @@ pub async fn forgot_password(
         })
         .await?;
 
-    Ok(axum::http::StatusCode::NO_CONTENT)
+    Ok(Response::OK(ForgotPasswordResponse))
 }

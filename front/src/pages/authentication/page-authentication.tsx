@@ -4,6 +4,8 @@ import PageCallbackFeature from './feature/page-callback-feature'
 import PageRequiredActionFeature from './feature/page-required-action-feature'
 import PageOtpChallengeFeature from './feature/page-otp-challenge-feature'
 import PageRegisterFeature from './feature/page-register-feature'
+import PageForgotPasswordFeature from './feature/page-forgot-password-feature'
+import PageResetPasswordFeature from './feature/page-reset-password-feature'
 
 export default function PageAuthentication() {
   return (
@@ -13,6 +15,8 @@ export default function PageAuthentication() {
       <Route path='/callback' element={<PageCallbackFeature />} />
       <Route path='/required-action' element={<PageRequiredActionFeature />} />
       <Route path='/otp' element={<PageOtpChallengeFeature />} />
+      <Route path='/forgot-password' element={<PageForgotPasswordFeature />} />
+      <Route path='/reset-password' element={<PageResetPasswordFeature />} />
     </Routes>
   )
 }

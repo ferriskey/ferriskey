@@ -24,6 +24,7 @@ pub struct GetFlowsResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetFlowsQuery {
     pub client_id: Option<String>,
     pub user_id: Option<Uuid>,

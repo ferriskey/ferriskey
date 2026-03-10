@@ -10,6 +10,7 @@ export namespace Schemas {
     | { Forbidden: string }
     | { BadRequest: string }
     | { ServiceUnavailable: string }
+    | { OAuthError: { error: string; error_description: string } }
   export type ApiErrorResponse = { code: string; message: string; status: number }
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
@@ -33,10 +34,11 @@ export namespace Schemas {
   export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpRequest = Partial<{ code: string }>
   export type ChallengeOtpResponse = { url: string }
+  export type ClientType = 'confidential' | 'public' | 'system'
   export type RealmId = string
   export type Client = {
     client_id: string
-    client_type: string
+    client_type: ClientType
     created_at: string
     direct_access_grants_enabled: boolean
     enabled: boolean
@@ -76,22 +78,58 @@ export namespace Schemas {
   }
   export type ClientScopesResponse = { data: Array<ClientScope> }
   export type ClientsResponse = { data: Array<Client> }
+  export type FlowId = string
+  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
+  export type FlowStepId = string
+  export type StepStatus = 'success' | 'failure' | 'skipped'
+  export type FlowStepName =
+    | 'authorize'
+    | 'credential_validation'
+    | 'mfa_challenge'
+    | 'token_exchange'
+    | 'idp_redirect'
+    | 'idp_callback'
+    | 'finalize'
+  export type CompassFlowStep = {
+    duration_ms?: (number | null) | undefined
+    error_code?: (string | null) | undefined
+    error_message?: (string | null) | undefined
+    flow_id: FlowId
+    id: FlowStepId
+    started_at: string
+    status: StepStatus
+    step_name: FlowStepName
+  }
+  export type CompassFlow = {
+    client_id?: (string | null) | undefined
+    completed_at?: (string | null) | undefined
+    duration_ms?: (number | null) | undefined
+    grant_type: string
+    id: FlowId
+    ip_address?: (string | null) | undefined
+    realm_id: RealmId
+    started_at: string
+    status: FlowStatus
+    steps: Array<CompassFlowStep>
+    user_agent?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+  }
   export type CreateClientScopeValidator = Partial<{
     description: string | null
     is_default: boolean
     name: string
     protocol: string
   }>
-  export type CreateClientValidator = Partial<{
-    client_id: string
-    client_type: string
-    direct_access_grants_enabled: boolean
-    enabled: boolean
-    name: string
-    protocol: string
-    public_client: boolean
-    service_account_enabled: boolean
-  }>
+  export type CreateClientValidator = {
+    client_id?: string | undefined
+    client_type: ClientType
+    direct_access_grants_enabled?: boolean | undefined
+    enabled?: boolean | undefined
+    name?: string | undefined
+    protocol?: string | undefined
+    public_client?: boolean | undefined
+    service_account_enabled?: boolean | undefined
+  }
   export type CreateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean
     alias: string
@@ -122,13 +160,25 @@ export namespace Schemas {
   }
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
+  export type Role = {
+    client?: (null | Client) | undefined
+    client_id?: (string | null) | undefined
+    created_at: string
+    description?: (string | null) | undefined
+    id: string
+    name: string
+    permissions: Array<string>
+    realm_id: RealmId
+    updated_at: string
+  }
+  export type CreateRoleResponse = { data: Role }
   export type CreateRoleValidator = {
     description?: (string | null) | undefined
     name: string
     permissions: Array<string>
   }
-  export type CreateRoleResponse = { data: Role }
   export type RealmSetting = {
+    compass_enabled: boolean
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
@@ -247,23 +297,23 @@ export namespace Schemas {
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
   export type EventStatus = 'success' | 'failure'
+  export type FlowStats = {
+    avg_duration_ms?: (number | null) | undefined
+    failure_count: number
+    pending_count: number
+    success_count: number
+    total: number
+  }
+  export type ForgotPasswordRequest = { email: string }
+  export type ForgotPasswordResponse = unknown
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
-  export type Role = {
-    client?: (null | Client) | undefined
-    client_id?: (string | null) | undefined
-    created_at: string
-    description?: (string | null) | undefined
-    id: string
-    name: string
-    permissions: Array<string>
-    realm_id: RealmId
-    updated_at: string
-  }
   export type GetClientRolesResponse = { data: Array<Role> }
+  export type GetFlowResponse = { data: CompassFlow }
+  export type GetFlowsResponse = { data: Array<CompassFlow> }
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string
     end_session_endpoint: string
@@ -281,6 +331,8 @@ export namespace Schemas {
     | 'login_success'
     | 'login_failure'
     | 'password_reset'
+    | 'password_reset_requested'
+    | 'password_reset_completed'
     | 'user_created'
     | 'user_deleted'
     | 'role_assigned'
@@ -309,51 +361,6 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined
   }
   export type GetSecurityEventsResponse = { data: Array<SecurityEvent> }
-  export type FlowId = string
-  export type FlowStepId = string
-  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
-  export type StepStatus = 'success' | 'failure' | 'skipped'
-  export type FlowStepName =
-    | 'authorize'
-    | 'credential_validation'
-    | 'mfa_challenge'
-    | 'token_exchange'
-    | 'idp_redirect'
-    | 'idp_callback'
-    | 'finalize'
-  export type CompassFlowStep = {
-    id: FlowStepId
-    flow_id: FlowId
-    step_name: FlowStepName
-    status: StepStatus
-    duration_ms?: (number | null) | undefined
-    error_code?: (string | null) | undefined
-    error_message?: (string | null) | undefined
-    started_at: string
-  }
-  export type CompassFlow = {
-    id: FlowId
-    realm_id: RealmId
-    client_id?: (string | null) | undefined
-    user_id?: (string | null) | undefined
-    grant_type: string
-    status: FlowStatus
-    ip_address?: (string | null) | undefined
-    user_agent?: (string | null) | undefined
-    started_at: string
-    completed_at?: (string | null) | undefined
-    duration_ms?: (number | null) | undefined
-    steps: Array<CompassFlowStep>
-  }
-  export type FlowStats = {
-    total: number
-    success_count: number
-    failure_count: number
-    pending_count: number
-    avg_duration_ms?: (number | null) | undefined
-  }
-  export type GetFlowsResponse = { data: Array<CompassFlow> }
-  export type GetFlowResponse = { data: CompassFlow }
   export type GetStatsResponse = { data: FlowStats }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
@@ -478,6 +485,7 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
     credential_type: string
@@ -579,6 +587,7 @@ export namespace Schemas {
   export type UpdateRealmResponse = { data: Realm }
   export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmSettingValidator = Partial<{
+    compass_enabled: boolean | null
     default_signing_algorithm: string | null
     forgot_password_enabled: boolean | null
     magic_link_enabled: boolean | null
@@ -999,6 +1008,41 @@ export namespace Endpoints {
     }
     response: Schemas.Role
   }
+  export type get_Get_flows = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows'
+    requestFormat: 'json'
+    parameters: {
+      query: Partial<{
+        client_id: string
+        user_id: string
+        grant_type: string
+        status: string
+        limit: number
+        offset: number
+      }>
+      path: { realm_name: string }
+    }
+    response: Schemas.GetFlowsResponse
+  }
+  export type get_Get_flow = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; flow_id: string }
+    }
+    response: Schemas.GetFlowResponse
+  }
+  export type get_Get_stats = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/stats'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.GetStatsResponse
+  }
   export type get_List_providers = {
     method: 'GET'
     path: '/realms/{realm_name}/federation/providers'
@@ -1149,6 +1193,17 @@ export namespace Endpoints {
     }
     response: Schemas.ChallengeOtpResponse
   }
+  export type post_Forgot_password = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/forgot-password'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.ForgotPasswordRequest
+    }
+    response: Schemas.ForgotPasswordResponse
+  }
   export type post_Generate_recovery_codes = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/generate-recovery-codes'
@@ -1159,6 +1214,17 @@ export namespace Endpoints {
       body: Schemas.GenerateRecoveryCodesRequest
     }
     response: Schemas.GenerateRecoveryCodesResponse
+  }
+  export type post_Reset_password_with_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/reset-password'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.ResetPasswordRequest
+    }
+    response: Schemas.ResetPasswordResponse
   }
   export type post_Send_magic_link = {
     method: 'POST'
@@ -1425,34 +1491,6 @@ export namespace Endpoints {
     }
     response: Schemas.UpdateRolePermissionsResponse
   }
-  export type get_Get_compass_flows = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-      query?: { client_id?: string; user_id?: string; grant_type?: string; status?: string; limit?: number; offset?: number }
-    }
-    response: Schemas.GetFlowsResponse
-  }
-  export type get_Get_compass_flow = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; flow_id: string }
-    }
-    response: Schemas.GetFlowResponse
-  }
-  export type get_Get_compass_stats = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/stats'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-    }
-    response: Schemas.GetStatsResponse
-  }
   export type get_Get_security_events = {
     method: 'GET'
     path: '/realms/{realm_name}/seawatch/v1/security-events'
@@ -1665,7 +1703,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
+    '/realms/{realm_name}/login-actions/forgot-password': Endpoints.post_Forgot_password
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
     '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
@@ -1696,6 +1736,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
+    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_flows
+    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_flow
+    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_stats
     '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
     '/realms/{realm_name}/identity-providers': Endpoints.get_List_identity_providers
@@ -1709,9 +1752,6 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
-    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_compass_flows
-    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_compass_flow
-    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_compass_stats
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
     '/realms/{realm_name}/users': Endpoints.get_Get_users
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms

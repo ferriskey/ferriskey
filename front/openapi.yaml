@@ -808,6 +808,64 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UpdatePasswordResponse"
+  /realms/{realm_name}/login-actions/forgot-password:
+    post:
+      tags:
+        - auth
+      summary: Request a password reset
+      description: Sends a password reset email to the user if the email exists in the realm. Always returns 204 to prevent email enumeration.
+      operationId: forgot_password
+      parameters:
+        - name: realm_name
+          in: path
+          description: The realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+        required: true
+      responses:
+        "204":
+          description: Request processed (email sent if user exists)
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /realms/{realm_name}/login-actions/reset-password:
+    post:
+      tags:
+        - auth
+      summary: Reset password with token
+      description: Completes the password reset flow by verifying the token and setting a new password.
+      operationId: reset_password_with_token
+      parameters:
+        - name: realm_name
+          in: path
+          description: The realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordWithTokenRequest"
+        required: true
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetPasswordWithTokenResponse"
+        "400":
+          description: Invalid or expired token
+        "500":
+          description: Internal Server Error
   /realms/{realm_name}/login-actions/verify-otp:
     post:
       tags:
@@ -1807,6 +1865,13 @@ paths:
                 $ref: "#/components/schemas/DeleteWebhookResponse"
 components:
   schemas:
+    ApiErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
     AssignRoleResponse:
       type: object
       required:
@@ -2665,6 +2730,34 @@ components:
           type:
             - string
             - "null"
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+    ResetPasswordWithTokenRequest:
+      type: object
+      required:
+        - token_id
+        - token
+        - new_password
+      properties:
+        token_id:
+          type: string
+          format: uuid
+        token:
+          type: string
+        new_password:
+          type: string
+    ResetPasswordWithTokenResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
     UpdatePasswordRequest:
       type: object
       properties:
