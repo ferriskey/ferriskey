@@ -2,14 +2,23 @@ use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
+use crate::application::http::realm::handlers::delete_smtp_config::{
+    __path_delete_smtp_config, delete_smtp_config,
+};
 use crate::application::http::realm::handlers::get_login_realm_settings::{
     __path_get_login_realm_settings_handler, get_login_realm_settings_handler,
 };
 use crate::application::http::realm::handlers::get_realm::{__path_get_realm, get_realm};
+use crate::application::http::realm::handlers::get_smtp_config::{
+    __path_get_smtp_config, get_smtp_config,
+};
 use crate::application::http::realm::handlers::get_user_realm_settings::get_user_realm_settings;
 use crate::application::http::realm::handlers::update_realm::{__path_update_realm, update_realm};
 use crate::application::http::realm::handlers::update_realm_setting::{
     __path_update_realm_setting, update_realm_setting,
+};
+use crate::application::http::realm::handlers::upsert_smtp_config::{
+    __path_upsert_smtp_config, upsert_smtp_config,
 };
 use crate::application::http::server::app_state::AppState;
 use axum::routing::{delete, get, post, put};
@@ -24,7 +33,10 @@ use utoipa::OpenApi;
     delete_realm,
     update_realm_setting,
     get_user_realms,
-    get_login_realm_settings_handler
+    get_login_realm_settings_handler,
+    get_smtp_config,
+    upsert_smtp_config,
+    delete_smtp_config,
 ))]
 pub struct RealmApiDoc;
 
@@ -66,6 +78,15 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             put(update_realm_setting),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/smtp-config",
+                state.args.server.root_path
+            ),
+            get(get_smtp_config)
+                .put(upsert_smtp_config)
+                .delete(delete_smtp_config),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(
