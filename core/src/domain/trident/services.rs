@@ -1238,3 +1238,547 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{
+        authentication::ports::MockAuthSessionRepository,
+        common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
+        credential::ports::MockCredentialRepository,
+        realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
+        seawatch::ports::MockSecurityEventRepository,
+        trident::ports::{
+            MockMagicLinkRepository, MockPasswordResetTokenRepository, MockRecoveryCodeRepository,
+        },
+        user::ports::{MockUserRepository, MockUserRequiredActionRepository},
+        webhook::ports::MockWebhookRepository,
+    };
+    use ferriskey_domain::realm::RealmSetting;
+    use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
+
+    struct TridentTestBuilder {
+        credential_repo: Arc<MockCredentialRepository>,
+        recovery_code_repo: Arc<MockRecoveryCodeRepository>,
+        auth_session_repo: Arc<MockAuthSessionRepository>,
+        hasher_repo: Arc<MockHasherRepository>,
+        user_required_action_repo: Arc<MockUserRequiredActionRepository>,
+        magic_link_repo: Arc<MockMagicLinkRepository>,
+        user_repo: Arc<MockUserRepository>,
+        realm_repo: Arc<MockRealmRepository>,
+        email_port: Arc<MockEmailPort>,
+        smtp_config_repo: Arc<MockSmtpConfigRepository>,
+        prt_repo: Arc<MockPasswordResetTokenRepository>,
+        security_event_repo: Arc<MockSecurityEventRepository>,
+        webhook_repo: Arc<MockWebhookRepository>,
+    }
+
+    impl TridentTestBuilder {
+        fn new() -> Self {
+            Self {
+                credential_repo: Arc::new(MockCredentialRepository::new()),
+                recovery_code_repo: Arc::new(MockRecoveryCodeRepository::new()),
+                auth_session_repo: Arc::new(MockAuthSessionRepository::new()),
+                hasher_repo: Arc::new(MockHasherRepository::new()),
+                user_required_action_repo: Arc::new(MockUserRequiredActionRepository::new()),
+                magic_link_repo: Arc::new(MockMagicLinkRepository::new()),
+                user_repo: Arc::new(MockUserRepository::new()),
+                realm_repo: Arc::new(MockRealmRepository::new()),
+                email_port: Arc::new(MockEmailPort::new()),
+                smtp_config_repo: Arc::new(MockSmtpConfigRepository::new()),
+                prt_repo: Arc::new(MockPasswordResetTokenRepository::new()),
+                security_event_repo: Arc::new(MockSecurityEventRepository::new()),
+                webhook_repo: Arc::new(MockWebhookRepository::new()),
+            }
+        }
+
+        fn build(
+            self,
+        ) -> TridentServiceImpl<
+            MockCredentialRepository,
+            MockRecoveryCodeRepository,
+            MockAuthSessionRepository,
+            MockHasherRepository,
+            MockUserRequiredActionRepository,
+            MockMagicLinkRepository,
+            MockUserRepository,
+            MockRealmRepository,
+            MockEmailPort,
+            MockSmtpConfigRepository,
+            MockPasswordResetTokenRepository,
+            MockSecurityEventRepository,
+            MockWebhookRepository,
+        > {
+            TridentServiceImpl::new(
+                self.credential_repo,
+                self.recovery_code_repo,
+                self.auth_session_repo,
+                self.hasher_repo,
+                self.user_required_action_repo,
+                self.magic_link_repo,
+                self.user_repo,
+                self.realm_repo,
+                self.email_port,
+                self.smtp_config_repo,
+                self.prt_repo,
+                self.security_event_repo,
+                self.webhook_repo,
+            )
+        }
+    }
+
+    fn create_test_realm_setting(realm_id: RealmId, forgot_password_enabled: bool) -> RealmSetting {
+        let mut settings = RealmSetting::new(realm_id, Some("RS256".to_string()));
+        settings.forgot_password_enabled = forgot_password_enabled;
+        settings
+    }
+
+    fn create_test_user_with_email(
+        realm: &crate::domain::realm::entities::Realm,
+        email: &str,
+    ) -> crate::domain::user::entities::User {
+        crate::domain::common::services::tests::create_test_user_with_params_and_realm(
+            realm,
+            "testuser",
+            email.to_string(),
+            true,
+        )
+    }
+
+    // ── request_password_reset ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn request_password_reset_valid_email_returns_ok() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let settings = create_test_realm_setting(realm.id, true);
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let settings_clone = settings.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        let user_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user_clone.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_count_active_by_user_id()
+            .returning(|_| Box::pin(async { Ok(0) }));
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_cleanup_expired()
+            .returning(|| Box::pin(async { Ok(0) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_magic_token()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "hashed".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_create()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.smtp_config_repo)
+            .unwrap()
+            .expect_get_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .request_password_reset(RequestPasswordResetInput {
+                realm_name: "test-realm".to_string(),
+                email: "user@example.com".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn request_password_reset_unknown_email_returns_ok() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let settings = create_test_realm_setting(realm.id, true);
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let settings_clone = settings.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let result = service
+            .request_password_reset(RequestPasswordResetInput {
+                realm_name: "test-realm".to_string(),
+                email: "unknown@example.com".to_string(),
+            })
+            .await;
+
+        // Must return Ok to avoid leaking email existence
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn request_password_reset_rate_limit_skips_token_creation() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let settings = create_test_realm_setting(realm.id, true);
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let settings_clone = settings.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        let user_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user_clone.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+
+        // Already 3 active tokens → rate limited
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_count_active_by_user_id()
+            .returning(|_| Box::pin(async { Ok(3) }));
+
+        // create() should NOT be called
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_create()
+            .never()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .request_password_reset(RequestPasswordResetInput {
+                realm_name: "test-realm".to_string(),
+                email: "user@example.com".to_string(),
+            })
+            .await;
+
+        // Returns Ok even when rate limited (no information leak)
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn request_password_reset_disabled_returns_forbidden() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let settings = create_test_realm_setting(realm.id, false);
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let settings_clone = settings.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        let service = builder.build();
+        let result = service
+            .request_password_reset(RequestPasswordResetInput {
+                realm_name: "test-realm".to_string(),
+                email: "user@example.com".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    // ── complete_password_reset ─────────────────────────────────────────
+
+    #[tokio::test]
+    async fn complete_password_reset_valid_token_succeeds() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let token_id = Uuid::new_v4();
+
+        let prt = PasswordResetToken {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id: realm.id.into(),
+            token_id,
+            token_hash: "hashed_token".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + Duration::minutes(30),
+        };
+        let prt_user_id = prt.user_id;
+
+        let prt_clone = prt.clone();
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(move |_| {
+                let t = prt_clone.clone();
+                Box::pin(async move { Ok(Some(t)) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_magic_token()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_password_credential()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .returning(move |_, _, _, _, _| {
+                let cred = crate::domain::credential::entities::Credential {
+                    id: Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: CredentialType::Password,
+                    user_id: prt_user_id,
+                    user_label: None,
+                    secret_data: "new_hash".to_string(),
+                    credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                    temporary: false,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_delete_all_by_user_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "raw_token".to_string(),
+                new_password: "newpassword123".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_expired_token_returns_error() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let token_id = Uuid::new_v4();
+
+        let prt = PasswordResetToken {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id: realm.id.into(),
+            token_id,
+            token_hash: "hashed_token".to_string(),
+            created_at: Utc::now() - Duration::hours(1),
+            expires_at: Utc::now() - Duration::minutes(30), // expired
+        };
+
+        let prt_clone = prt.clone();
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(move |_| {
+                let t = prt_clone.clone();
+                Box::pin(async move { Ok(Some(t)) })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_delete_by_token_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "raw_token".to_string(),
+                new_password: "newpassword123".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::ExpiredToken)));
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_invalid_token_returns_error() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let token_id = Uuid::new_v4();
+
+        let prt = PasswordResetToken {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id: realm.id.into(),
+            token_id,
+            token_hash: "hashed_token".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + Duration::minutes(30),
+        };
+
+        let prt_clone = prt.clone();
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(move |_| {
+                let t = prt_clone.clone();
+                Box::pin(async move { Ok(Some(t)) })
+            });
+
+        // Token verification fails
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_magic_token()
+            .returning(|_, _| Box::pin(async { Ok(false) }));
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_delete_by_token_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "wrong_token".to_string(),
+                new_password: "newpassword123".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::InvalidToken)));
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_not_found_token_returns_error() {
+        let mut builder = TridentTestBuilder::new();
+        let token_id = Uuid::new_v4();
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "raw_token".to_string(),
+                new_password: "newpassword123".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+}
