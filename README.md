@@ -29,6 +29,15 @@
 
 ---
 
+## This is a wasm POC
+
+```bash
+./examples/wasm-extensions/run.sh
+
+cd api
+LOG_FILTER="info" cargo run --package ferriskey-api -- --extensions-dir ../extensions
+```
+
 ## ✨ Why FerrisKey?
 
 FerrisKey is a modern **Identity & Access Management (IAM)** platform built with **Rust** and a **hexagonal architecture**.
@@ -58,14 +67,14 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 
 ## 🌟 Features
 
-| Capability                      | Details |
-|---------------------------------|---|
-| **OIDC / OAuth2**               | Standards‑compliant flows for modern apps & services. |
-| **Multi‑Tenant Realms**         | Logical isolation of users, roles, clients, secrets. |
-| **Clients & Service Accounts**  | Fine‑grained role mapping; bitwise role system. |
-| **MFA (TOTP)**                  | Pluggable strategies with required actions. |
-| **Observability**               | Prometheus metrics, Grafana dashboards. |
-| **Kubernetes‑ready**            | Helm chart with sane defaults; OCI distribution. |
+| Capability                     | Details                                               |
+| ------------------------------ | ----------------------------------------------------- |
+| **OIDC / OAuth2**              | Standards‑compliant flows for modern apps & services. |
+| **Multi‑Tenant Realms**        | Logical isolation of users, roles, clients, secrets.  |
+| **Clients & Service Accounts** | Fine‑grained role mapping; bitwise role system.       |
+| **MFA (TOTP)**                 | Pluggable strategies with required actions.           |
+| **Observability**              | Prometheus metrics, Grafana dashboards.               |
+| **Kubernetes‑ready**           | Helm chart with sane defaults; OCI distribution.      |
 
 > **License:** Apache‑2.0. No paywalls. Community‑first.
 
@@ -92,7 +101,7 @@ docker compose --profile build up -d
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
 ### Option C — Helm (Kubernetes)
->
+
 > Requires a reachable Postgres (or include it via your platform’s recommended operator).
 
 See [chart documentation](charts/ferriskey/README.md).
@@ -175,13 +184,13 @@ DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrat
 ## 🧩 Modules
 
 - Trident — MFA & security scopes
-TOTP, WebAuthn, Magic Link; flexible required actions.
+  TOTP, WebAuthn, Magic Link; flexible required actions.
 
 - SeaWatch — Observability & audit logs
-Security event trails; queryable from the console; exportable.
+  Security event trails; queryable from the console; exportable.
 
 - Webhooks — Event‑driven extensibility
-Subscribe to user/client/realm lifecycle events without forking core.
+  Subscribe to user/client/realm lifecycle events without forking core.
 
 ## 🏗️ Architecture
 
