@@ -1,11 +1,11 @@
 import { ArrowLeft } from 'lucide-react'
+import { DangerZone } from '@/components/danger-zone'
 import { UseFormReturn } from 'react-hook-form'
 import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import { Switch } from '@/components/ui/switch'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import type { Schemas } from '@/api/api.client'
 
 interface UpdateProviderSchema {
@@ -235,25 +235,14 @@ export default function PageDetail({
         )}
       </div>
 
-      {/* Danger zone */}
-      <div className='flex flex-col gap-1'>
-        <div className='mb-4'>
-          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
-          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
-        </div>
-
-        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
-          <div className='w-2/3'>
-            <p className='text-sm font-medium'>Delete this identity provider</p>
-            <p className='text-sm text-muted-foreground mt-0.5'>
-              All associated data will be permanently removed. This action is irreversible.
-            </p>
-          </div>
-          <Button variant='destructive' onClick={handleDelete}>
-            Delete provider
-          </Button>
-        </div>
-      </div>
+      <DangerZone
+        label='Delete this identity provider'
+        description='All associated data will be permanently removed. This action is irreversible.'
+        buttonLabel='Delete provider'
+        confirmTitle='Delete identity provider'
+        confirmDescription={`This will permanently delete the provider "${provider.display_name ?? provider.alias}" and all its associated data.`}
+        onConfirm={handleDelete}
+      />
 
       <FloatingActionBar
         show={hasChanges}

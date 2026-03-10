@@ -12,6 +12,7 @@ import BadgeColor from '@/components/ui/badge-color.tsx'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Schemas } from '@/api/api.client'
+import { DangerZone } from '@/components/danger-zone'
 import Role = Schemas.Role
 
 export interface PageRoleSettingsProps {
@@ -21,6 +22,7 @@ export interface PageRoleSettingsProps {
   realmName: string
   hasChanges: boolean
   handleSubmit: () => void
+  onDelete: () => void
 }
 
 export default function PageRoleSettings({
@@ -30,6 +32,7 @@ export default function PageRoleSettings({
   form,
   hasChanges,
   handleSubmit,
+  onDelete,
 }: PageRoleSettingsProps) {
   const navigate = useNavigate()
 
@@ -145,6 +148,15 @@ export default function PageRoleSettings({
         ]}
         description='You have unsaved changes. Do you want to save them?'
         onCancel={() => form.reset()}
+      />
+
+      <DangerZone
+        label='Delete this role'
+        description='Once deleted, all user assignments for this role will be permanently removed.'
+        buttonLabel='Delete role'
+        confirmTitle='Delete role'
+        confirmDescription={`This will permanently delete the role "${role?.name}" and remove all user assignments.`}
+        onConfirm={onDelete}
       />
     </div>
   )

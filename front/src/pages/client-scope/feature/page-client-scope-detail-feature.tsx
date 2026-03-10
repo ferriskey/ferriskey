@@ -22,7 +22,7 @@ export default function PageClientScopeDetailFeature() {
   })
 
   const { mutate: updateClientScope, isPending } = useUpdateClientScope()
-  const { mutate: deleteClientScope, isPending: isDeleting } = useDeleteClientScope()
+  const { mutate: deleteClientScope } = useDeleteClientScope()
 
   const form = useForm<UpdateClientScopeSchema>({
     resolver: zodResolver(updateClientScopeSchema),
@@ -101,7 +101,6 @@ export default function PageClientScopeDetailFeature() {
         handleSubmit={handleSubmit}
         handleReset={handleReset}
         handleDelete={handleDelete}
-        isDeleting={isDeleting}
       />
     </Form>
   )

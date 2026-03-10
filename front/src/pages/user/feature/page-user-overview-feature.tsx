@@ -1,18 +1,30 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { useGetUser, useUpdateUser } from '@/api/user.api.ts'
+import { useBulkDeleteUser, useGetUser, useUpdateUser } from '@/api/user.api.ts'
 import { Form } from '@/components/ui/form.tsx'
-import { UserRouterParams } from '@/routes/sub-router/user.router.ts'
+import { USERS_URL, USER_OVERVIEW_URL, UserRouterParams } from '@/routes/sub-router/user.router.ts'
 import PageUserOverview from '../ui/page-user-overview'
 import { UpdateUserSchema, updateUserValidator } from '../validators'
 import { useFormChanges } from '@/hooks/use-form-changes.ts'
 
 export default function PageUserOverviewFeature() {
   const { realm_name, user_id } = useParams<UserRouterParams>()
+  const navigate = useNavigate()
   const { data: userResponse, isLoading } = useGetUser({ realm: realm_name, userId: user_id })
   const { mutate: updateUser } = useUpdateUser()
+  const { mutateAsync: deleteUser } = useBulkDeleteUser()
+
+  const handleDeleteUser = async () => {
+    if (!user_id || !realm_name) return
+    try {
+      await deleteUser({ path: { realm_name }, body: { ids: [user_id] } })
+      navigate(`${USERS_URL(realm_name)}${USER_OVERVIEW_URL}`)
+    } catch {
+      // error handled by the mutation hook
+    }
+  }
 
   const form = useForm<UpdateUserSchema>({
     resolver: zodResolver(updateUserValidator),
@@ -64,7 +76,7 @@ export default function PageUserOverviewFeature() {
 
   return (
     <Form {...form}>
-      <PageUserOverview onSubmit={handleSubmit} hasChanges={hasChanges} user={userResponse.data} />
+      <PageUserOverview onSubmit={handleSubmit} hasChanges={hasChanges} user={userResponse.data} onDelete={handleDeleteUser} />
     </Form>
   )
 }

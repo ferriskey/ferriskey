@@ -1,6 +1,6 @@
-import { useGetClient, useUpdateClient } from '@/api/client.api'
+import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import PageClientSettings from '../ui/page-client-settings'
 import { useForm } from 'react-hook-form'
 import { updateClientSchema, UpdateClientSchema } from '../schemas/update-client.schema'
@@ -8,14 +8,27 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { useEffect } from 'react'
 import { useFormChanges } from '@/hooks/use-form-changes'
+import { CLIENTS_URL, OVERVIEW_URL } from '@/routes/sub-router/client.router'
 
 export default function PageClientSettingsFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
+  const navigate = useNavigate()
   const { data: clientResponse ,refetch} = useGetClient({
     realm: realm_name ?? 'master',
     clientId: client_id ?? '',
   })
   const { mutate: updateClient } = useUpdateClient()
+  const { mutateAsync: deleteClient } = useDeleteClient()
+
+  const handleDeleteClient = async () => {
+    if (!clientResponse || !realm_name) return
+    try {
+      await deleteClient({ path: { client_id: clientResponse.data.id, realm_name } })
+      navigate(`${CLIENTS_URL(realm_name)}${OVERVIEW_URL}`)
+    } catch {
+      // error handled by the mutation hook
+    }
+  }
 
   const form = useForm<UpdateClientSchema>({
     resolver: zodResolver(updateClientSchema),
@@ -75,6 +88,7 @@ export default function PageClientSettingsFeature() {
             handleSubmit={handleSubmit}
             hasChanges={hasChanges}
             refetch={refetch}
+            onDelete={handleDeleteClient}
           />
         )}
       </>

@@ -7,6 +7,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientSchema } from '../schemas/update-client.schema'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Schemas } from '@/api/api.client.ts'
+import { DangerZone } from '@/components/danger-zone'
 import Client = Schemas.Client
 
 export interface PageClientSettingsProps {
@@ -15,6 +16,7 @@ export interface PageClientSettingsProps {
   handleSubmit: () => void
   hasChanges: boolean
   refetch: () => void
+  onDelete: () => void
 }
 
 export default function PageClientSettings({
@@ -23,7 +25,9 @@ export default function PageClientSettings({
   handleSubmit,
   hasChanges,
   refetch,
+  onDelete,
 }: PageClientSettingsProps) {
+
   return (
     <div className='flex flex-col gap-8'>
       {/* General Settings section */}
@@ -211,6 +215,15 @@ export default function PageClientSettings({
         ]}
         description='Save changes to the client settings. Make sure to review all changes before saving.'
         onCancel={() => form.reset()}
+      />
+
+      <DangerZone
+        label='Delete this client'
+        description='Once deleted, all associated tokens, roles, and configurations will be permanently removed.'
+        buttonLabel='Delete client'
+        confirmTitle='Delete client'
+        confirmDescription={`This will permanently delete the client "${client.name || client.client_id}" and all its associated data.`}
+        onConfirm={onDelete}
       />
     </div>
   )
