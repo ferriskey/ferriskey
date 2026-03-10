@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ferriskey_trident::entities::MagicLink;
+use ferriskey_trident::entities::{MagicLink, PasswordResetToken};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -129,6 +129,17 @@ pub struct VerifyMagicLinkInput {
     pub session_code: String,
 }
 
+pub struct RequestPasswordResetInput {
+    pub realm_name: String,
+    pub email: String,
+}
+
+pub struct VerifyPasswordResetInput {
+    pub token_id: Uuid,
+    pub token: String,
+    pub new_password: String,
+}
+
 #[cfg_attr(test, mockall::automock)]
 pub trait RecoveryCodeRepository: Send + Sync {
     fn generate_recovery_code(&self) -> MfaRecoveryCode;
@@ -229,6 +240,16 @@ pub trait TridentService: Send + Sync {
         &self,
         input: VerifyMagicLinkInput,
     ) -> impl Future<Output = Result<String, CoreError>> + Send;
+
+    fn request_password_reset(
+        &self,
+        input: RequestPasswordResetInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn verify_password_reset(
+        &self,
+        input: VerifyPasswordResetInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -254,4 +275,34 @@ pub trait MagicLinkRepository: Send + Sync {
 
     fn cleanup_expired(&self, realm_id: Uuid)
     -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait PasswordResetTokenRepository: Send + Sync {
+    fn create(
+        &self,
+        token: &PasswordResetToken,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_by_token_id(
+        &self,
+        token_id: Uuid,
+    ) -> impl Future<Output = Result<Option<PasswordResetToken>, CoreError>> + Send;
+
+    fn delete_by_token_id(
+        &self,
+        token_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn delete_all_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn count_active_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<i64, CoreError>> + Send;
+
+    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }

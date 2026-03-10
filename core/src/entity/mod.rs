@@ -17,6 +17,7 @@ pub mod identity_provider_links;
 pub mod identity_providers;
 pub mod jwt_keys;
 pub mod magic_links;
+pub mod password_reset_tokens;
 pub mod post_logout_redirect_uris;
 pub mod realm_settings;
 pub mod realms;

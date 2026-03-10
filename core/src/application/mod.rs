@@ -61,6 +61,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -149,6 +150,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
     let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));
     let email_port = Arc::new(SmtpEmailPort::new());
+    let password_reset_token =
+        Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -241,6 +244,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             email_port.clone(),
             smtp_config.clone(),
+            password_reset_token.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
