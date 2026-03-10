@@ -199,8 +199,8 @@ importers:
         specifier: ^1.97.3
         version: 1.97.3
       typed-openapi:
-        specifier: ^2.2.4
-        version: 2.2.4(openapi-types@12.1.3)(react@19.2.4)
+        specifier: ^1.5.0
+        version: 1.5.1(openapi-types@12.1.3)(react@19.2.4)
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -3398,8 +3398,8 @@ packages:
     resolution: {integrity: sha512-3KS2b+kL7fsuk/eJZ7EQdnEmQoaho/r6KUef7hxvltNA5DR8NAUM+8wJMbJyZ4G9/7i3v5zPBIMN5aybAh2/Jg==}
     engines: {node: '>= 0.4'}
 
-  typed-openapi@2.2.4:
-    resolution: {integrity: sha512-OVSqe63hAvk+aaCIsdmnwjvUruhY6x5yRLiux583iTzDoBKJ247ZVj30oYqvNFD31TzzCPx8P0SNs9KJhXYZnA==}
+  typed-openapi@1.5.1:
+    resolution: {integrity: sha512-hOny70AxxGSRDD1SaO6Hy4zsFtY03dyVse6zD+M0kNZ1al+wfwe9dd459tuUie6uAcx8thlcGsaNswOWYs2KwA==}
     hasBin: true
 
   typescript-eslint@8.56.1:
@@ -6848,7 +6848,7 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typed-openapi@2.2.4(openapi-types@12.1.3)(react@19.2.4):
+  typed-openapi@1.5.1(openapi-types@12.1.3)(react@19.2.4):
     dependencies:
       '@apidevtools/swagger-parser': 10.1.1(openapi-types@12.1.3)
       '@sinclair/typebox-codegen': 0.11.1
