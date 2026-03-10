@@ -103,6 +103,22 @@ type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 
+type ApplicationTridentService = TridentServiceImpl<
+    CredentialRepo,
+    RecoveryCodeRepo,
+    AuthSessionRepo,
+    HasherRepo,
+    UserRequiredActionRepo,
+    MagicLinkRepo,
+    UserRepo,
+    RealmRepo,
+    EmailPortImpl,
+    SmtpConfigRepo,
+    PasswordResetTokenRepo,
+    SecurityEventRepo,
+    WebhookRepo,
+>;
+
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
     ClientRepo,
@@ -163,19 +179,7 @@ pub struct ApplicationService {
         SecurityEventRepo,
         WebhookRepo,
     >,
-    pub(crate) trident_service: TridentServiceImpl<
-        CredentialRepo,
-        RecoveryCodeRepo,
-        AuthSessionRepo,
-        HasherRepo,
-        UserRequiredActionRepo,
-        MagicLinkRepo,
-        UserRepo,
-        RealmRepo,
-        EmailPortImpl,
-        SmtpConfigRepo,
-        PasswordResetTokenRepo,
-    >,
+    pub(crate) trident_service: ApplicationTridentService,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,
         UserRepo,

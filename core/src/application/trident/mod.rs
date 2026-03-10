@@ -5,10 +5,10 @@ use crate::{
         common::entities::app_errors::CoreError,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
-            RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
-            UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
-            VerifyPasswordResetInput, WebAuthnPublicKeyAuthenticateInput,
+            CompletePasswordResetInput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
+            MagicLinkInput, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
+            TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
+            VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
             WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
             WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
             WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
@@ -125,10 +125,10 @@ impl TridentService for ApplicationService {
         self.trident_service.request_password_reset(input).await
     }
 
-    async fn verify_password_reset(
+    async fn complete_password_reset(
         &self,
-        input: VerifyPasswordResetInput,
+        input: CompletePasswordResetInput,
     ) -> Result<(), CoreError> {
-        self.trident_service.verify_password_reset(input).await
+        self.trident_service.complete_password_reset(input).await
     }
 }

@@ -19,6 +19,12 @@ pub enum SecurityEventType {
     #[serde(rename = "password_reset")]
     PasswordReset,
 
+    #[serde(rename = "password_reset_requested")]
+    PasswordResetRequested,
+
+    #[serde(rename = "password_reset_completed")]
+    PasswordResetCompleted,
+
     #[serde(rename = "user_created")]
     UserCreated,
 
@@ -56,6 +62,8 @@ impl Display for SecurityEventType {
             SecurityEventType::LoginSuccess => write!(f, "login_success"),
             SecurityEventType::LoginFailure => write!(f, "login_failure"),
             SecurityEventType::PasswordReset => write!(f, "password_reset"),
+            SecurityEventType::PasswordResetRequested => write!(f, "password_reset_requested"),
+            SecurityEventType::PasswordResetCompleted => write!(f, "password_reset_completed"),
             SecurityEventType::UserCreated => write!(f, "user_created"),
             SecurityEventType::UserDeleted => write!(f, "user_deleted"),
             SecurityEventType::RoleAssigned => write!(f, "role_assigned"),

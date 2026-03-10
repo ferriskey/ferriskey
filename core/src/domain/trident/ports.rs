@@ -134,7 +134,7 @@ pub struct RequestPasswordResetInput {
     pub email: String,
 }
 
-pub struct VerifyPasswordResetInput {
+pub struct CompletePasswordResetInput {
     pub token_id: Uuid,
     pub token: String,
     pub new_password: String,
@@ -246,9 +246,9 @@ pub trait TridentService: Send + Sync {
         input: RequestPasswordResetInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn verify_password_reset(
+    fn complete_password_reset(
         &self,
-        input: VerifyPasswordResetInput,
+        input: CompletePasswordResetInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
