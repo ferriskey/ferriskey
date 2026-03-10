@@ -16,7 +16,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::RealmServiceImpl,
+        realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -36,12 +36,16 @@ use crate::{
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
+        email::SmtpEmailPort,
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
         },
-        realm::repositories::realm_postgres_repository::PostgresRealmRepository,
+        realm::repositories::{
+            realm_postgres_repository::PostgresRealmRepository,
+            smtp_config_postgres_repository::PostgresSmtpConfigRepository,
+        },
         repositories::{
             access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
@@ -94,6 +98,8 @@ type ScopeMappingRepo = PostgresScopeMappingRepository;
 type MagicLinkRepo = PostgresMagicLinkRepository;
 type CompassFlowRepo = PostgresCompassFlowRepository;
 type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
+type SmtpConfigRepo = PostgresSmtpConfigRepository;
+type EmailPortImpl = SmtpEmailPort;
 
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
@@ -144,6 +150,8 @@ pub struct ApplicationService {
         ProtocolMapperRepo,
         ScopeMappingRepo,
     >,
+    pub(crate) mail_service:
+        MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,
         UserRepo,
@@ -162,6 +170,8 @@ pub struct ApplicationService {
         MagicLinkRepo,
         UserRepo,
         RealmRepo,
+        EmailPortImpl,
+        SmtpConfigRepo,
     >,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,

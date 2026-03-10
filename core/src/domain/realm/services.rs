@@ -12,11 +12,12 @@ use crate::domain::{
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
-        entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
+        entities::{Realm, RealmId, RealmLoginSetting, RealmSetting, SmtpConfig},
         ports::{
-            CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
-            GetRealmSettingInput, RealmPolicy, RealmRepository, RealmService, UpdateRealmInput,
-            UpdateRealmSettingInput,
+            CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, DeleteSmtpConfigInput,
+            GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput, MailService, RealmPolicy,
+            RealmRepository, RealmService, SmtpConfigRepository, UpdateRealmInput,
+            UpdateRealmSettingInput, UpsertSmtpConfigInput,
         },
     },
     role::{
@@ -761,6 +762,150 @@ where
         settings.identity_providers = idp;
 
         Ok(settings)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) smtp_config_repository: Arc<SC>,
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, SC> MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        smtp_config_repository: Arc<SC>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            smtp_config_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, SC> MailService for MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
+    async fn get_smtp_config(
+        &self,
+        identity: Identity,
+        input: GetSmtpConfigInput,
+    ) -> Result<SmtpConfig, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_realm(&identity, &realm).await,
+            "view realm settings",
+        )?;
+
+        self.smtp_config_repository
+            .get_by_realm_id(realm.id)
+            .await?
+            .ok_or(CoreError::NotFound)
+    }
+
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
+    async fn upsert_smtp_config(
+        &self,
+        identity: Identity,
+        input: UpsertSmtpConfigInput,
+    ) -> Result<SmtpConfig, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_realm(&identity, &realm).await,
+            "update realm SMTP config",
+        )?;
+
+        let config = SmtpConfig {
+            id: uuid::Uuid::nil(),
+            realm_id: realm.id.into(),
+            host: input.host,
+            port: input.port,
+            username: input.username,
+            password: input.password,
+            from_email: input.from_email,
+            from_name: input.from_name,
+            encryption: input.encryption.parse().unwrap(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        self.smtp_config_repository.upsert(&config).await
+    }
+
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
+    async fn delete_smtp_config(
+        &self,
+        identity: Identity,
+        input: DeleteSmtpConfigInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_realm(&identity, &realm).await,
+            "delete realm SMTP config",
+        )?;
+
+        self.smtp_config_repository
+            .delete_by_realm_id(realm.id)
+            .await
     }
 }
 

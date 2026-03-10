@@ -4,6 +4,7 @@ pub mod client;
 pub mod common;
 pub mod compass;
 pub mod db;
+pub mod email;
 pub mod health;
 pub mod identity_provider;
 pub mod realm;

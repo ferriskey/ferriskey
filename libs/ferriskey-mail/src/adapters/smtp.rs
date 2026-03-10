@@ -3,7 +3,11 @@ use lettre::{
     transport::smtp::authentication::Credentials,
 };
 
-use crate::{entities::EmailMessage, error::EmailError, ports::EmailSender};
+use crate::{
+    entities::{EmailMessage, SmtpEncryption},
+    error::EmailError,
+    ports::EmailSender,
+};
 
 pub struct SmtpEmailSender {
     mailer: AsyncSmtpTransport<Tokio1Executor>,
@@ -17,6 +21,35 @@ impl SmtpEmailSender {
             .map_err(|e| EmailError::Transport(format!("invalid SMTP relay host: {e}")))?
             .credentials(creds)
             .build();
+
+        Ok(Self { mailer })
+    }
+
+    pub fn with_config(
+        host: &str,
+        port: u16,
+        username: &str,
+        password: &str,
+        encryption: &SmtpEncryption,
+    ) -> Result<Self, EmailError> {
+        let creds = Credentials::new(username.to_string(), password.to_string());
+
+        let mailer = match encryption {
+            SmtpEncryption::Tls => AsyncSmtpTransport::<Tokio1Executor>::relay(host)
+                .map_err(|e| EmailError::Transport(format!("invalid SMTP relay host: {e}")))?
+                .port(port)
+                .credentials(creds)
+                .build(),
+            SmtpEncryption::StartTls => AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(host)
+                .map_err(|e| EmailError::Transport(format!("invalid SMTP STARTTLS host: {e}")))?
+                .port(port)
+                .credentials(creds)
+                .build(),
+            SmtpEncryption::None => AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(host)
+                .port(port)
+                .credentials(creds)
+                .build(),
+        };
 
         Ok(Self { mailer })
     }

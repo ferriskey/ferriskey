@@ -20,7 +20,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::RealmServiceImpl,
+        realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -44,12 +44,16 @@ use crate::{
             writer::compass_writer_task,
         },
         db::postgres::{Postgres, PostgresConfig},
+        email::SmtpEmailPort,
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
         },
-        realm::repositories::realm_postgres_repository::PostgresRealmRepository,
+        realm::repositories::{
+            realm_postgres_repository::PostgresRealmRepository,
+            smtp_config_postgres_repository::PostgresSmtpConfigRepository,
+        },
         repositories::{
             access_token_repository::PostgresAccessTokenRepository,
             argon2_hasher::Argon2HasherRepository,
@@ -84,6 +88,7 @@ pub mod compass;
 pub mod credential;
 pub mod health;
 pub mod identity_provider;
+pub mod mail;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -142,6 +147,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
+    let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));
+    let email_port = Arc::new(SmtpEmailPort::new());
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -209,6 +216,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             policy.clone(),
         ),
+        mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
         role_service: RoleServiceImpl::new(
             realm.clone(),
             role.clone(),
@@ -231,6 +239,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             magic_link.clone(),
             user.clone(),
             realm.clone(),
+            email_port.clone(),
+            smtp_config.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
