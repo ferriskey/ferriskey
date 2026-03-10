@@ -166,7 +166,7 @@ function App() {
       }
 
       const apiUrl = toAbsoluteApiUrl(uri)
-      const api = createApiClient(fetcher, apiUrl)
+      const api = createApiClient({ fetch: fetcher }).setBaseUrl(apiUrl)
       const axiosClient = axios.create({
         baseURL: apiUrl,
         headers: {

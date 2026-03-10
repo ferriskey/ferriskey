@@ -5,11 +5,17 @@ const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-co
 const LOGOUT_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/logout'
 const REVOKE_TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/revoke'
 
-type PostParameters<Path extends keyof PostEndpoints> =
-  PostEndpoints[Path] extends { parameters: infer Parameters } ? Parameters : never
+type PostParameters<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
+  parameters: infer Parameters
+}
+  ? Parameters
+  : never
 
-type PostResponse<Path extends keyof PostEndpoints> =
-  PostEndpoints[Path] extends { response: infer Response } ? Response : never
+type PostResponse<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
+  response: infer Response
+}
+  ? Response
+  : never
 
 const postUrlEncoded = async <Path extends keyof PostEndpoints>(
   path: Path,
@@ -80,14 +86,7 @@ export const useAuthQuery = (params: AuthQuery) => {
 }
 
 export const useAuthenticateMutation = () => {
-  const authenticateMutation = window.tanstackApi.mutation(
-    'post',
-    '/realms/{realm_name}/login-actions/authenticate',
-    async (res) => res.json()
-  )
-
   return useMutation({
-    ...authenticateMutation.mutationOptions,
     mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
       const headers: Record<string, string> = {}
 
@@ -96,9 +95,7 @@ export const useAuthenticateMutation = () => {
       }
       headers['Content-Type'] = 'application/json'
 
-      const url = new URL(
-        `${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`
-      )
+      const url = new URL(`${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`)
       url.searchParams.set('client_id', params.clientId)
 
       const response = await fetch(url, {
@@ -133,7 +130,7 @@ export interface TokenPayload {
 
 export const useTokenMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', TOKEN_PATH).mutationOptions,
+    //...window.tanstackApi.mutation('post', TOKEN_PATH).mutationOptions,
     mutationFn: async (params: TokenPayload): Promise<Schemas.JwtToken> => {
       if (!params.data.grant_type || !params.data.client_id) {
         throw new Error('grant_type and client_id are required')
@@ -160,8 +157,7 @@ export const useRegistrationMutation = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/protocol/openid-connect/registrations',
-      async (res) => res.json()
+      '/realms/{realm_name}/protocol/openid-connect/registrations'
     ).mutationOptions,
   })
 }
@@ -177,7 +173,7 @@ export interface RevokeTokenPayload {
 
 export const useRevokeTokenMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
+    //...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
     mutationFn: async (params: RevokeTokenPayload): Promise<void> => {
       await postUrlEncoded(REVOKE_TOKEN_PATH, {
         path: { realm_name: params.realm },
@@ -203,7 +199,6 @@ export interface LogoutPayload {
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', LOGOUT_PATH).mutationOptions,
     mutationFn: async (params: LogoutPayload): Promise<void> => {
       await postUrlEncoded(LOGOUT_PATH, {
         path: { realm_name: params.realm },

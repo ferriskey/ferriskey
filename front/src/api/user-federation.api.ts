@@ -4,11 +4,8 @@ export const useCreateUserFederation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'post',
-      '/realms/{realm_name}/federation/providers',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/federation/providers')
+      .mutationOptions,
     onSuccess: async (_, params) => {
       const queryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
         path: {
@@ -49,11 +46,8 @@ export const useUpdateUserFederation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'put',
-      '/realms/{realm_name}/federation/providers/{id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/federation/providers/{id}')
+      .mutationOptions,
     onSuccess: async (_, params) => {
       const listQueryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
         path: {
@@ -86,11 +80,8 @@ export const useDeleteUserFederation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/federation/providers/{id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/federation/providers/{id}')
+      .mutationOptions,
     onSuccess: async (_, params) => {
       const queryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
         path: {
@@ -109,8 +100,7 @@ export const useTestUserFederationConnection = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/federation/providers/{id}/test-connection',
-      async (res) => res.json()
+      '/realms/{realm_name}/federation/providers/{id}/test-connection'
     ).mutationOptions,
   })
 }
@@ -121,8 +111,7 @@ export const useSyncUsers = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/federation/providers/{id}/sync-users',
-      async (res) => res.json()
+      '/realms/{realm_name}/federation/providers/{id}/sync-users'
     ).mutationOptions,
     onSuccess: async (_, params) => {
       const listQueryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {

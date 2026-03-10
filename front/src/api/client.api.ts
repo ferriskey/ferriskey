@@ -49,8 +49,6 @@ export const useUpdateClient = () => {
     ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/clients/{client_id}')
       .mutationOptions,
     onSuccess: async (payload, variables) => {
-      const client = await payload.json()
-
       const keys = window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
         path: {
           client_id: variables.path.client_id,
@@ -58,7 +56,7 @@ export const useUpdateClient = () => {
         },
       }).queryKey
 
-      toast.success(`Client ${client.data.name} was updated successfully`)
+      toast.success(`Client ${payload.data.name} was updated successfully`)
       queryClient.invalidateQueries({
         queryKey: keys,
       })
@@ -69,11 +67,8 @@ export const useUpdateClient = () => {
 export const useDeleteClient = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/clients/{client_id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/clients/{client_id}')
+      .mutationOptions,
     onSuccess: async (res) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/clients', {
         path: {

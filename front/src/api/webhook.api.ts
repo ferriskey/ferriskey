@@ -13,19 +13,15 @@ export const useGetWebhooks = ({ realm = 'master' }: BaseQuery) => {
 
 export const useCreateWebhook = () => {
   return useMutation(
-    window.tanstackApi.mutation('post', '/realms/{realm_name}/webhooks', async (res) => res.json())
-      .mutationOptions
+    window.tanstackApi.mutation('post', '/realms/{realm_name}/webhooks').mutationOptions
   )
 }
 
 export const useDeleteWebhook = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/webhooks/{webhook_id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/webhooks/{webhook_id}')
+      .mutationOptions,
     onSuccess: async (data) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/webhooks', {
         path: {

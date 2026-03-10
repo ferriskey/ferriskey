@@ -1,48 +1,34 @@
-import { Fetcher } from '@/api/api.client.ts'
+import { type Fetcher } from '@/api/api.client.ts'
 import { authStore } from '@/store/auth.store.ts'
 
 export interface BaseQuery {
   realm?: string
 }
 
-export const fetcher: Fetcher = async (method, apiUrl, params) => {
+export const fetcher: Fetcher['fetch'] = async (input) => {
   const headers = new Headers()
 
   const accessToken = authStore.getState().accessToken
 
-  // Replace path parameters (supports both {param} and :param formats)
-  const actualUrl = replacePathParams(apiUrl, (params?.path ?? {}) as Record<string, string>)
-  const url = new URL(actualUrl)
-
-  // Handle query parameters
-  if (params?.query) {
-    const searchParams = new URLSearchParams()
-    Object.entries(params.query).forEach(([key, value]) => {
-      if (value != null) {
-        // Skip null/undefined values
-        if (Array.isArray(value)) {
-          value.forEach((val) => val != null && searchParams.append(key, String(val)))
-        } else {
-          searchParams.append(key, String(value))
-        }
-      }
-    })
-    url.search = searchParams.toString()
+  // Handle query parameters via URLSearchParams
+  if (input.urlSearchParams) {
+    input.url.search = input.urlSearchParams.toString()
   }
 
   // Handle request body for mutation methods
   let body: BodyInit | undefined
-  if (['post', 'put', 'patch', 'delete'].includes(method.toLowerCase()) && params?.body !== undefined) {
+  if (['post', 'put', 'patch', 'delete'].includes(input.method.toLowerCase()) && input.parameters?.body !== undefined) {
+    const bodyData = input.parameters.body
     if (
-      params.body instanceof URLSearchParams ||
-      params.body instanceof FormData ||
-      typeof params.body === 'string' ||
-      params.body instanceof Blob ||
-      params.body instanceof ArrayBuffer
+      bodyData instanceof URLSearchParams ||
+      bodyData instanceof FormData ||
+      typeof bodyData === 'string' ||
+      bodyData instanceof Blob ||
+      bodyData instanceof ArrayBuffer
     ) {
-      body = params.body as BodyInit
+      body = bodyData as BodyInit
     } else {
-      body = JSON.stringify(params.body)
+      body = JSON.stringify(bodyData)
       headers.set('Content-Type', 'application/json')
     }
   }
@@ -52,19 +38,20 @@ export const fetcher: Fetcher = async (method, apiUrl, params) => {
   }
 
   // Add custom headers
-  if (params?.header) {
-    Object.entries(params.header).forEach(([key, value]) => {
+  if (input.parameters?.header) {
+    Object.entries(input.parameters.header).forEach(([key, value]) => {
       if (value != null) {
         headers.set(key, String(value))
       }
     })
   }
 
-  const response = await fetch(url, {
-    method: method.toUpperCase(),
+  const response = await fetch(input.url, {
+    method: input.method.toUpperCase(),
     ...(body && { body }),
     headers,
     credentials: 'include',
+    ...input.overrides,
   })
 
   if (!response.ok) {
@@ -83,10 +70,4 @@ export const fetcher: Fetcher = async (method, apiUrl, params) => {
   }
 
   return response
-}
-
-function replacePathParams(url: string, params: Record<string, string>): string {
-  return url
-    .replace(/{(\w+)}/g, (_, key: string) => params[key] || `{${key}}`)
-    .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`)
 }

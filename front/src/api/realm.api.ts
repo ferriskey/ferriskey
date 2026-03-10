@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { BaseQuery } from '.'
 
 export interface UserRealmsQuery {
@@ -20,9 +19,7 @@ export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms', async (res) => {
-      return await res.json()
-    }).mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms').mutationOptions,
 
     onSuccess: async () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
@@ -34,10 +31,6 @@ export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
       await queryClient.invalidateQueries({
         queryKey: keys,
       })
-    },
-
-    onError: (error: Error) => {
-      toast.error(error.message)
     },
   })
 }
@@ -75,11 +68,7 @@ export const useDeleteRealm = () => {
           realm_name: variables.path.name,
         },
       }).queryKey
-
       await queryClient.invalidateQueries({ queryKey: keys })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
     },
   })
 }
@@ -88,9 +77,7 @@ export const useUpdateRealmSettings = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('put', '/realms/{name}/settings', async (res) => {
-      return res.json()
-    }).mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{name}/settings').mutationOptions,
     onSuccess: async (res) => {
       const queryKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
         path: {

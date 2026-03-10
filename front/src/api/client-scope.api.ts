@@ -30,9 +30,7 @@ export const useCreateClientScope = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/client-scopes', async (res) =>
-      res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/client-scopes').mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
         path: {
@@ -56,8 +54,7 @@ export const useCreateProtocolMapper = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers',
-      async (res) => res.json()
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
@@ -81,8 +78,7 @@ export const useUpdateProtocolMapper = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'patch',
-      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}',
-      async (res) => res.json()
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
@@ -106,8 +102,7 @@ export const useDeleteProtocolMapper = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'delete',
-      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}',
-      async (res) => res.json()
+      '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes/{scope_id}', {
@@ -129,11 +124,8 @@ export const useUpdateClientScope = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'patch',
-      '/realms/{realm_name}/client-scopes/{scope_id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/client-scopes/{scope_id}')
+      .mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey: scopeKey } = window.tanstackApi.get(
         '/realms/{realm_name}/client-scopes/{scope_id}',
@@ -163,11 +155,8 @@ export const useDeleteClientScope = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/client-scopes/{scope_id}',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/client-scopes/{scope_id}')
+      .mutationOptions,
     onSuccess: async (_, variables) => {
       const { queryKey } = window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
         path: { realm_name: variables.path.realm_name },

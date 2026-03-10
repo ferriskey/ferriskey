@@ -3,14 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 export const useUnassignUserRole = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'delete',
-      '/realms/{realm_name}/users/{user_id}/roles/{role_id}',
-      async (response) => {
-        const data = await response.json()
-        return data
-      }
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/users/{user_id}/roles/{role_id}')
+      .mutationOptions,
     onSuccess: async (res) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/roles', {
         path: {
