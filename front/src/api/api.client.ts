@@ -127,6 +127,7 @@ export namespace Schemas {
     name: string
     permissions: Array<string>
   }
+  export type CreateRoleResponse = { data: Role }
   export type RealmSetting = {
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
@@ -987,7 +988,7 @@ export namespace Endpoints {
     }
     response: Schemas.GetClientRolesResponse
   }
-  export type post_Create_role = {
+  export type post_Create_client_role = {
     method: 'POST'
     path: '/realms/{realm_name}/clients/{client_id}/roles'
     requestFormat: 'json'
@@ -1373,6 +1374,17 @@ export namespace Endpoints {
     }
     response: Schemas.GetRolesResponse
   }
+  export type post_Create_realm_role = {
+    method: 'POST'
+    path: '/realms/{realm_name}/roles'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.CreateRoleValidator
+    }
+    response: Schemas.CreateRoleResponse
+  }
   export type get_Get_role = {
     method: 'GET'
     path: '/realms/{realm_name}/roles/{role_id}'
@@ -1645,7 +1657,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_Create_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
-    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_role
+    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_client_role
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
     '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
     '/realms/{realm_name}/federation/providers/{id}/test-connection': Endpoints.post_Test_connection
@@ -1666,6 +1678,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
     '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
     '/realms/{realm_name}/protocol/openid-connect/token/introspect': Endpoints.post_Introspect_token
+    '/realms/{realm_name}/roles': Endpoints.post_Create_realm_role
     '/realms/{realm_name}/users': Endpoints.post_Create_user
     '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
     '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook

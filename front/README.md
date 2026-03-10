@@ -5,17 +5,23 @@ This project uses `typed-openapi` to automatically generate TypeScript types and
 
 ### Prerequisites
 
-Make sure you habe the OpenAPI specification file available (you can go to address API with `/swagger-ui` and downlaod the OpenAPI Document).
+Generate a fresh OpenAPI spec from the backend first:
+
+```bash
+cd ../api
+cargo run --bin ferriskey-api -- gen-api --output ../openapi.json
+cd ../front
+```
 
 ### Generating API Client and Types
 To generate the API client and TanStack Query hooks, run:
 
 ```bash
-pnpm typed-openapi openapi.yaml -o src/api/api.client.ts --tanstack=api.tanstack.ts
+pnpm typed-openapi ../openapi.json -o src/api/api.client.ts --tanstack=api.tanstack.ts
 ```
 
 **Command Breakdown:**
-- `openapi.yaml`: Path to your OpenAPI specification file
+- `../openapi.json`: Path to the generated OpenAPI specification file
 - `-o src/api/api.client.ts`: Output path for the generated TypeScript types and schemas
 - `--tanstack=api.tanstack.ts`: Generates TanStack Query hooks in the specified file
 

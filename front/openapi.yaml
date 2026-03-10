@@ -629,7 +629,7 @@ paths:
       description: Creates a new role for a specific client within a realm. This
         endpoint allows you to define roles that can be assigned to users or
         groups in the context of a client application.
-      operationId: create_role
+      operationId: create_client_role
       parameters:
         - name: realm_name
           in: path
@@ -1097,6 +1097,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetRolesResponse"
+    post:
+      tags:
+        - role
+      summary: Create a new realm role
+      description: Creates a new realm-scoped role in the specified realm.
+      operationId: create_realm_role
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleValidator"
+        required: true
+      responses:
+        "201":
+          description: Realm role created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRoleResponse"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
   /realms/{realm_name}/roles/{role_id}:
     get:
       tags:
@@ -1981,6 +2025,13 @@ components:
           type: array
           items:
             type: string
+    CreateRoleResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Role"
     CreateUserResponse:
       type: object
       required:
