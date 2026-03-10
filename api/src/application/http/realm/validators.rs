@@ -27,3 +27,30 @@ pub struct UpdateRealmSettingValidator {
     pub magic_link_ttl: Option<u32>,
     pub compass_enabled: Option<bool>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpsertSmtpConfigValidator {
+    #[validate(length(min = 1, message = "host is required"))]
+    pub host: String,
+    #[validate(range(min = 1, max = 65535, message = "port must be between 1 and 65535"))]
+    pub port: u16,
+    #[validate(length(min = 1, message = "username is required"))]
+    pub username: String,
+    #[validate(length(min = 1, message = "password is required"))]
+    pub password: String,
+    #[validate(email(message = "from_email must be a valid email"))]
+    pub from_email: String,
+    #[validate(length(min = 1, message = "from_name is required"))]
+    pub from_name: String,
+    #[validate(custom(function = "validate_encryption"))]
+    pub encryption: String,
+}
+
+fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {
+    match value {
+        "tls" | "starttls" | "none" => Ok(()),
+        _ => Err(validator::ValidationError::new(
+            "encryption must be one of: tls, starttls, none",
+        )),
+    }
+}
