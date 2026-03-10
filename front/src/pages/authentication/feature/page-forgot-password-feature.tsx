@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useParams } from 'react-router'
-import { useForgotPasswordMutation } from '@/api/password-reset.api'
+import { useForgotPassword } from '@/api/password-reset.api'
 import {
   forgotPasswordSchema,
   type ForgotPasswordSchema,
@@ -14,7 +14,7 @@ export default function PageForgotPasswordFeature() {
   const { realm_name } = useParams()
   const [submitted, setSubmitted] = useState(false)
 
-  const { mutate: forgotPassword, isPending } = useForgotPasswordMutation()
+  const { mutate: forgotPassword, isPending } = useForgotPassword()
 
   const form = useForm<ForgotPasswordSchema>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -23,7 +23,10 @@ export default function PageForgotPasswordFeature() {
 
   function onSubmit(data: ForgotPasswordSchema) {
     forgotPassword(
-      { realm: realm_name ?? 'master', email: data.email },
+      {
+        path: { realm_name: realm_name ?? 'master' },
+        body: { email: data.email },
+      },
       { onSuccess: () => setSubmitted(true) }
     )
   }

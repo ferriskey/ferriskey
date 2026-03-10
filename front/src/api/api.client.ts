@@ -10,6 +10,7 @@ export namespace Schemas {
     | { Forbidden: string }
     | { BadRequest: string }
     | { ServiceUnavailable: string }
+    | { OAuthError: { error: string; error_description: string } }
   export type ApiErrorResponse = { code: string; message: string; status: number }
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
   export type AuthResponse = { url: string }
@@ -33,10 +34,11 @@ export namespace Schemas {
   export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpRequest = Partial<{ code: string }>
   export type ChallengeOtpResponse = { url: string }
+  export type ClientType = 'confidential' | 'public' | 'system'
   export type RealmId = string
   export type Client = {
     client_id: string
-    client_type: string
+    client_type: ClientType
     created_at: string
     direct_access_grants_enabled: boolean
     enabled: boolean
@@ -76,22 +78,58 @@ export namespace Schemas {
   }
   export type ClientScopesResponse = { data: Array<ClientScope> }
   export type ClientsResponse = { data: Array<Client> }
+  export type FlowId = string
+  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
+  export type FlowStepId = string
+  export type StepStatus = 'success' | 'failure' | 'skipped'
+  export type FlowStepName =
+    | 'authorize'
+    | 'credential_validation'
+    | 'mfa_challenge'
+    | 'token_exchange'
+    | 'idp_redirect'
+    | 'idp_callback'
+    | 'finalize'
+  export type CompassFlowStep = {
+    duration_ms?: (number | null) | undefined
+    error_code?: (string | null) | undefined
+    error_message?: (string | null) | undefined
+    flow_id: FlowId
+    id: FlowStepId
+    started_at: string
+    status: StepStatus
+    step_name: FlowStepName
+  }
+  export type CompassFlow = {
+    client_id?: (string | null) | undefined
+    completed_at?: (string | null) | undefined
+    duration_ms?: (number | null) | undefined
+    grant_type: string
+    id: FlowId
+    ip_address?: (string | null) | undefined
+    realm_id: RealmId
+    started_at: string
+    status: FlowStatus
+    steps: Array<CompassFlowStep>
+    user_agent?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+  }
   export type CreateClientScopeValidator = Partial<{
     description: string | null
     is_default: boolean
     name: string
     protocol: string
   }>
-  export type CreateClientValidator = Partial<{
-    client_id: string
-    client_type: string
-    direct_access_grants_enabled: boolean
-    enabled: boolean
-    name: string
-    protocol: string
-    public_client: boolean
-    service_account_enabled: boolean
-  }>
+  export type CreateClientValidator = {
+    client_id?: string | undefined
+    client_type: ClientType
+    direct_access_grants_enabled?: boolean | undefined
+    enabled?: boolean | undefined
+    name?: string | undefined
+    protocol?: string | undefined
+    public_client?: boolean | undefined
+    service_account_enabled?: boolean | undefined
+  }
   export type CreateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean
     alias: string
@@ -122,13 +160,25 @@ export namespace Schemas {
   }
   export type CreateRealmValidator = Partial<{ name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
+  export type Role = {
+    client?: (null | Client) | undefined
+    client_id?: (string | null) | undefined
+    created_at: string
+    description?: (string | null) | undefined
+    id: string
+    name: string
+    permissions: Array<string>
+    realm_id: RealmId
+    updated_at: string
+  }
+  export type CreateRoleResponse = { data: Role }
   export type CreateRoleValidator = {
     description?: (string | null) | undefined
     name: string
     permissions: Array<string>
   }
-  export type CreateRoleResponse = { data: Role }
   export type RealmSetting = {
+    compass_enabled: boolean
     default_signing_algorithm?: (string | null) | undefined
     forgot_password_enabled: boolean
     id: string
@@ -247,23 +297,23 @@ export namespace Schemas {
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
   export type EventStatus = 'success' | 'failure'
+  export type FlowStats = {
+    avg_duration_ms?: (number | null) | undefined
+    failure_count: number
+    pending_count: number
+    success_count: number
+    total: number
+  }
+  export type ForgotPasswordRequest = { email: string }
+  export type ForgotPasswordResponse = unknown
   export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
   export type GenerateRecoveryCodesResponse = { codes: Array<string> }
   export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string }
   export type GetCertsResponse = { keys: Array<JwkKey> }
   export type GetClientResponse = { data: Client }
-  export type Role = {
-    client?: (null | Client) | undefined
-    client_id?: (string | null) | undefined
-    created_at: string
-    description?: (string | null) | undefined
-    id: string
-    name: string
-    permissions: Array<string>
-    realm_id: RealmId
-    updated_at: string
-  }
   export type GetClientRolesResponse = { data: Array<Role> }
+  export type GetFlowResponse = { data: CompassFlow }
+  export type GetFlowsResponse = { data: Array<CompassFlow> }
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string
     end_session_endpoint: string
@@ -281,6 +331,8 @@ export namespace Schemas {
     | 'login_success'
     | 'login_failure'
     | 'password_reset'
+    | 'password_reset_requested'
+    | 'password_reset_completed'
     | 'user_created'
     | 'user_deleted'
     | 'role_assigned'
@@ -309,51 +361,6 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined
   }
   export type GetSecurityEventsResponse = { data: Array<SecurityEvent> }
-  export type FlowId = string
-  export type FlowStepId = string
-  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
-  export type StepStatus = 'success' | 'failure' | 'skipped'
-  export type FlowStepName =
-    | 'authorize'
-    | 'credential_validation'
-    | 'mfa_challenge'
-    | 'token_exchange'
-    | 'idp_redirect'
-    | 'idp_callback'
-    | 'finalize'
-  export type CompassFlowStep = {
-    id: FlowStepId
-    flow_id: FlowId
-    step_name: FlowStepName
-    status: StepStatus
-    duration_ms?: (number | null) | undefined
-    error_code?: (string | null) | undefined
-    error_message?: (string | null) | undefined
-    started_at: string
-  }
-  export type CompassFlow = {
-    id: FlowId
-    realm_id: RealmId
-    client_id?: (string | null) | undefined
-    user_id?: (string | null) | undefined
-    grant_type: string
-    status: FlowStatus
-    ip_address?: (string | null) | undefined
-    user_agent?: (string | null) | undefined
-    started_at: string
-    completed_at?: (string | null) | undefined
-    duration_ms?: (number | null) | undefined
-    steps: Array<CompassFlowStep>
-  }
-  export type FlowStats = {
-    total: number
-    success_count: number
-    failure_count: number
-    pending_count: number
-    avg_duration_ms?: (number | null) | undefined
-  }
-  export type GetFlowsResponse = { data: Array<CompassFlow> }
-  export type GetFlowResponse = { data: CompassFlow }
   export type GetStatsResponse = { data: FlowStats }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
@@ -478,6 +485,7 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
     credential_type: string
@@ -579,6 +587,7 @@ export namespace Schemas {
   export type UpdateRealmResponse = { data: Realm }
   export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmSettingValidator = Partial<{
+    compass_enabled: boolean | null
     default_signing_algorithm: string | null
     forgot_password_enabled: boolean | null
     magic_link_enabled: boolean | null
@@ -632,7 +641,13 @@ export namespace Endpoints {
     parameters: {
       body: Schemas.CreateRealmValidator
     }
-    response: Schemas.Realm
+    responses: {
+      201: Schemas.Realm
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_realm = {
     method: 'GET'
@@ -641,7 +656,12 @@ export namespace Endpoints {
     parameters: {
       path: { name: string }
     }
-    response: Schemas.Realm
+    responses: {
+      200: Schemas.Realm
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_realm = {
     method: 'PUT'
@@ -652,7 +672,12 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRealmValidator
     }
-    response: Schemas.UpdateRealmResponse
+    responses: {
+      200: Schemas.UpdateRealmResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_realm = {
     method: 'DELETE'
@@ -661,7 +686,13 @@ export namespace Endpoints {
     parameters: {
       path: { name: string }
     }
-    response: Schemas.DeleteRealmResponse
+    responses: {
+      200: Schemas.DeleteRealmResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_login_realm_settings_handler = {
     method: 'GET'
@@ -670,7 +701,12 @@ export namespace Endpoints {
     parameters: {
       path: { name: string }
     }
-    response: Schemas.RealmLoginSetting
+    responses: {
+      200: Schemas.RealmLoginSetting
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_realm_setting = {
     method: 'PUT'
@@ -681,7 +717,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRealmSettingValidator
     }
-    response: Schemas.UpdateRealmSettingResponse
+    responses: {
+      200: Schemas.UpdateRealmSettingResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_openid_configuration = {
     method: 'GET'
@@ -690,7 +732,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetOpenIdConfigurationResponse
+    responses: { 200: Schemas.GetOpenIdConfigurationResponse }
   }
   export type post_Broker_callback = {
     method: 'POST'
@@ -705,7 +747,12 @@ export namespace Endpoints {
       }
       path: { realm_name: string; alias: string }
     }
-    response: unknown
+    responses: {
+      302: unknown
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      502: Schemas.ApiErrorResponse
+    }
   }
   export type get_Broker_login = {
     method: 'GET'
@@ -723,7 +770,12 @@ export namespace Endpoints {
       }>
       path: { realm_name: string; alias: string }
     }
-    response: unknown
+    responses: {
+      302: unknown
+      400: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_client_scopes = {
     method: 'GET'
@@ -732,7 +784,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.ClientScopesResponse
+    responses: { 200: Schemas.ClientScopesResponse }
   }
   export type post_Create_client_scope = {
     method: 'POST'
@@ -743,7 +795,7 @@ export namespace Endpoints {
 
       body: Schemas.CreateClientScopeValidator
     }
-    response: Schemas.ClientScope
+    responses: { 201: Schemas.ClientScope; 400: unknown; 401: unknown; 403: unknown }
   }
   export type get_Get_client_scope = {
     method: 'GET'
@@ -752,7 +804,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; scope_id: string }
     }
-    response: Schemas.ClientScope
+    responses: { 200: Schemas.ClientScope }
   }
   export type delete_Delete_client_scope = {
     method: 'DELETE'
@@ -761,7 +813,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; scope_id: string }
     }
-    response: Schemas.DeleteClientScopeResponse
+    responses: { 200: Schemas.DeleteClientScopeResponse }
   }
   export type patch_Update_client_scope = {
     method: 'PATCH'
@@ -772,7 +824,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateClientScopeValidator
     }
-    response: Schemas.ClientScope
+    responses: { 200: Schemas.ClientScope }
   }
   export type post_Create_protocol_mapper = {
     method: 'POST'
@@ -783,7 +835,7 @@ export namespace Endpoints {
 
       body: Schemas.CreateProtocolMapperValidator
     }
-    response: Schemas.ProtocolMapper
+    responses: { 201: Schemas.ProtocolMapper; 400: unknown; 401: unknown; 403: unknown }
   }
   export type delete_Delete_protocol_mapper = {
     method: 'DELETE'
@@ -792,7 +844,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; scope_id: string; mapper_id: string }
     }
-    response: Schemas.DeleteProtocolMapperResponse
+    responses: { 200: Schemas.DeleteProtocolMapperResponse }
   }
   export type patch_Update_protocol_mapper = {
     method: 'PATCH'
@@ -803,7 +855,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateProtocolMapperValidator
     }
-    response: Schemas.ProtocolMapper
+    responses: { 200: Schemas.ProtocolMapper }
   }
   export type get_Get_clients = {
     method: 'GET'
@@ -812,7 +864,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.ClientsResponse
+    responses: {
+      200: Schemas.ClientsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_client = {
     method: 'POST'
@@ -823,7 +881,12 @@ export namespace Endpoints {
 
       body: Schemas.CreateClientValidator
     }
-    response: Schemas.Client
+    responses: {
+      201: Schemas.Client
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_client = {
     method: 'GET'
@@ -832,7 +895,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Schemas.GetClientResponse
+    responses: {
+      200: Schemas.GetClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_client = {
     method: 'DELETE'
@@ -841,7 +910,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Schemas.DeleteClientResponse
+    responses: {
+      200: Schemas.DeleteClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type patch_Update_client = {
     method: 'PATCH'
@@ -852,7 +926,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateClientValidator
     }
-    response: Schemas.UpdateClientResponse
+    responses: {
+      200: Schemas.UpdateClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_client_client_scopes = {
     method: 'GET'
@@ -861,7 +941,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Array<Schemas.ClientScope>
+    responses: {
+      200: Array<Schemas.ClientScope>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
   }
   export type put_Assign_default_scope = {
     method: 'PUT'
@@ -870,7 +955,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; scope_id: string }
     }
-    response: Schemas.ClientScopeMapping
+    responses: { 200: Schemas.ClientScopeMapping }
   }
   export type delete_Unassign_default_scope = {
     method: 'DELETE'
@@ -879,7 +964,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; scope_id: string }
     }
-    response: unknown
+    responses: { 200: unknown }
   }
   export type put_Assign_optional_scope = {
     method: 'PUT'
@@ -888,7 +973,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; scope_id: string }
     }
-    response: Schemas.ClientScopeMapping
+    responses: { 200: Schemas.ClientScopeMapping }
   }
   export type delete_Unassign_optional_scope = {
     method: 'DELETE'
@@ -897,7 +982,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; scope_id: string }
     }
-    response: unknown
+    responses: { 200: unknown }
   }
   export type get_Get_post_logout_redirect_uris = {
     method: 'GET'
@@ -906,7 +991,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Array<Schemas.RedirectUri>
+    responses: { 200: Array<Schemas.RedirectUri> }
   }
   export type post_Create_post_logout_redirect_uri = {
     method: 'POST'
@@ -917,7 +1002,7 @@ export namespace Endpoints {
 
       body: Schemas.CreateRedirectUriValidator
     }
-    response: Schemas.RedirectUri
+    responses: { 201: Schemas.RedirectUri }
   }
   export type put_Update_post_logout_redirect_uri = {
     method: 'PUT'
@@ -928,7 +1013,7 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRedirectUriValidator
     }
-    response: Schemas.UpdatePostLogoutRedirectUriResponse
+    responses: { 200: Schemas.UpdatePostLogoutRedirectUriResponse }
   }
   export type delete_Delete_post_logout_redirect_uri = {
     method: 'DELETE'
@@ -937,7 +1022,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string }
     }
-    response: unknown
+    responses: { 200: unknown }
   }
   export type get_Get_redirect_uris = {
     method: 'GET'
@@ -946,7 +1031,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Array<Schemas.RedirectUri>
+    responses: {
+      200: Array<Schemas.RedirectUri>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_redirect_uri = {
     method: 'POST'
@@ -957,7 +1048,7 @@ export namespace Endpoints {
 
       body: Schemas.CreateRedirectUriValidator
     }
-    response: Schemas.RedirectUri
+    responses: { 201: Schemas.RedirectUri }
   }
   export type put_Update_redirect_uri = {
     method: 'PUT'
@@ -968,7 +1059,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRedirectUriValidator
     }
-    response: Schemas.UpdateRedirectUriResponse
+    responses: {
+      200: Schemas.UpdateRedirectUriResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_redirect_uri = {
     method: 'DELETE'
@@ -977,7 +1074,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string }
     }
-    response: unknown
+    responses: {
+      200: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_client_roles = {
     method: 'GET'
@@ -986,7 +1089,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string }
     }
-    response: Schemas.GetClientRolesResponse
+    responses: {
+      200: Schemas.GetClientRolesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_client_role = {
     method: 'POST'
@@ -997,7 +1106,63 @@ export namespace Endpoints {
 
       body: Schemas.CreateRoleValidator
     }
-    response: Schemas.Role
+    responses: {
+      201: Schemas.Role
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_flows = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows'
+    requestFormat: 'json'
+    parameters: {
+      path: {
+        realm_name: string
+        client_id: string | null
+        user_id: string | null
+        grant_type: string | null
+        status: string | null
+        limit: number | null
+        offset: number | null
+      }
+    }
+    responses: {
+      200: Schemas.GetFlowsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_flow = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; flow_id: string }
+    }
+    responses: {
+      200: Schemas.GetFlowResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_stats = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/stats'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetStatsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_List_providers = {
     method: 'GET'
@@ -1006,7 +1171,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.ListProvidersResponse
+    responses: {
+      200: Schemas.ListProvidersResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_provider = {
     method: 'POST'
@@ -1017,7 +1188,13 @@ export namespace Endpoints {
 
       body: Schemas.CreateProviderRequest
     }
-    response: Schemas.ProviderResponse
+    responses: {
+      201: Schemas.ProviderResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_provider = {
     method: 'GET'
@@ -1026,7 +1203,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: Schemas.ProviderResponse
+    responses: {
+      200: Schemas.ProviderResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_provider = {
     method: 'PUT'
@@ -1037,7 +1220,14 @@ export namespace Endpoints {
 
       body: Schemas.UpdateProviderRequest
     }
-    response: Schemas.UpdateProviderResponse
+    responses: {
+      200: Schemas.UpdateProviderResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_provider = {
     method: 'DELETE'
@@ -1046,7 +1236,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: Schemas.DeleteProviderResponse
+    responses: {
+      204: Schemas.DeleteProviderResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Sync_users = {
     method: 'POST'
@@ -1055,7 +1251,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: Schemas.SyncUsersResponse
+    responses: {
+      200: Schemas.SyncUsersResponse
+      401: unknown
+      403: unknown
+      404: unknown
+      500: unknown
+    }
   }
   export type post_Test_connection = {
     method: 'POST'
@@ -1064,7 +1266,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; id: string }
     }
-    response: Schemas.TestConnectionResponse
+    responses: { 200: Schemas.TestConnectionResponse; 401: unknown; 403: unknown; 404: unknown }
   }
   export type get_List_identity_providers = {
     method: 'GET'
@@ -1074,7 +1276,7 @@ export namespace Endpoints {
       query: Partial<{ brief_representation: boolean }>
       path: { realm_name: string }
     }
-    response: Schemas.IdentityProvidersResponse
+    responses: { 200: Schemas.IdentityProvidersResponse; 401: unknown; 403: unknown; 404: unknown }
   }
   export type post_Create_identity_provider = {
     method: 'POST'
@@ -1085,7 +1287,14 @@ export namespace Endpoints {
 
       body: Schemas.CreateIdentityProviderValidator
     }
-    response: Schemas.IdentityProviderResponse
+    responses: {
+      201: Schemas.IdentityProviderResponse
+      400: unknown
+      401: unknown
+      403: unknown
+      404: unknown
+      409: unknown
+    }
   }
   export type get_Get_identity_provider = {
     method: 'GET'
@@ -1094,7 +1303,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; alias: string }
     }
-    response: Schemas.IdentityProviderResponse
+    responses: { 200: Schemas.IdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown }
   }
   export type put_Update_identity_provider = {
     method: 'PUT'
@@ -1105,7 +1314,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateIdentityProviderValidator
     }
-    response: Schemas.UpdateIdentityProviderResponse
+    responses: {
+      200: Schemas.UpdateIdentityProviderResponse
+      400: unknown
+      401: unknown
+      403: unknown
+      404: unknown
+    }
   }
   export type delete_Delete_identity_provider = {
     method: 'DELETE'
@@ -1114,7 +1329,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; alias: string }
     }
-    response: Schemas.DeleteIdentityProviderResponse
+    responses: {
+      200: Schemas.DeleteIdentityProviderResponse
+      401: unknown
+      403: unknown
+      404: unknown
+      409: unknown
+    }
   }
   export type post_Authenticate = {
     method: 'POST'
@@ -1125,7 +1346,12 @@ export namespace Endpoints {
 
       body: Schemas.AuthenticateRequest
     }
-    response: Schemas.AuthenticateResponse
+    responses: {
+      200: Schemas.AuthenticateResponse
+      400: Schemas.ApiError
+      401: Schemas.ApiError
+      500: Schemas.ApiError
+    }
   }
   export type post_Burn_recovery_code = {
     method: 'POST'
@@ -1136,7 +1362,14 @@ export namespace Endpoints {
 
       body: Schemas.BurnRecoveryCodeRequest
     }
-    response: Schemas.BurnRecoveryCodeResponse
+    responses: {
+      200: Schemas.BurnRecoveryCodeResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Challenge_otp = {
     method: 'POST'
@@ -1147,7 +1380,27 @@ export namespace Endpoints {
 
       body: Schemas.ChallengeOtpRequest
     }
-    response: Schemas.ChallengeOtpResponse
+    responses: {
+      200: Schemas.ChallengeOtpResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type post_Forgot_password = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/forgot-password'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.ForgotPasswordRequest
+    }
+    responses: {
+      200: Schemas.ForgotPasswordResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Generate_recovery_codes = {
     method: 'POST'
@@ -1158,7 +1411,27 @@ export namespace Endpoints {
 
       body: Schemas.GenerateRecoveryCodesRequest
     }
-    response: Schemas.GenerateRecoveryCodesResponse
+    responses: {
+      200: Schemas.GenerateRecoveryCodesResponse
+      400: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type post_Reset_password_with_token = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/reset-password'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.ResetPasswordRequest
+    }
+    responses: {
+      200: Schemas.ResetPasswordResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Send_magic_link = {
     method: 'POST'
@@ -1169,7 +1442,7 @@ export namespace Endpoints {
 
       body: Schemas.SendMagicLinkRequest
     }
-    response: Schemas.SendMagicLinkResponse
+    responses: { 200: Schemas.SendMagicLinkResponse; 400: unknown; 500: unknown }
   }
   export type get_Setup_otp = {
     method: 'GET'
@@ -1178,7 +1451,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.SetupOtpResponse
+    responses: { 200: Schemas.SetupOtpResponse; 500: Schemas.ApiErrorResponse }
   }
   export type post_Update_password = {
     method: 'POST'
@@ -1189,7 +1462,12 @@ export namespace Endpoints {
 
       body: Schemas.UpdatePasswordRequest
     }
-    response: Schemas.UpdatePasswordResponse
+    responses: {
+      200: Schemas.UpdatePasswordResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Verify_magic_link = {
     method: 'GET'
@@ -1199,7 +1477,13 @@ export namespace Endpoints {
       query: { token_id: string; magic_token: string }
       path: { realm_name: string }
     }
-    response: Schemas.AuthenticateResponse
+    responses: {
+      200: Schemas.AuthenticateResponse
+      400: unknown
+      401: unknown
+      404: unknown
+      500: unknown
+    }
   }
   export type post_Verify_otp = {
     method: 'POST'
@@ -1210,7 +1494,11 @@ export namespace Endpoints {
 
       body: Schemas.OtpVerifyRequest
     }
-    response: Schemas.VerifyOtpResponse
+    responses: {
+      200: Schemas.VerifyOtpResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Webauthn_public_key_authenticate = {
     method: 'POST'
@@ -1221,7 +1509,13 @@ export namespace Endpoints {
 
       body: Schemas.PublicKeyCredential
     }
-    response: Schemas.AuthenticationAttemptResponse
+    responses: {
+      200: Schemas.AuthenticationAttemptResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Webauthn_public_key_create = {
     method: 'POST'
@@ -1232,7 +1526,13 @@ export namespace Endpoints {
 
       body: Schemas.PublicKeyCredential
     }
-    response: Schemas.ValidatePublicKeyResponse
+    responses: {
+      200: Schemas.ValidatePublicKeyResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Webauthn_public_key_create_options = {
     method: 'POST'
@@ -1241,7 +1541,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.PublicKeyCredentialCreationOptionsJSON
+    responses: {
+      200: Schemas.PublicKeyCredentialCreationOptionsJSON
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Webauthn_public_key_request_options = {
     method: 'POST'
@@ -1250,7 +1555,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.PublicKeyCredentialRequestOptionsJSON
+    responses: {
+      200: Schemas.PublicKeyCredentialRequestOptionsJSON
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Auth_handler = {
     method: 'GET'
@@ -1266,7 +1576,7 @@ export namespace Endpoints {
       }>
       path: { realm_name: string }
     }
-    response: unknown
+    responses: { 302: Schemas.AuthResponse; 400: unknown; 401: unknown; 500: unknown }
   }
   export type get_Get_certs = {
     method: 'GET'
@@ -1275,7 +1585,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetCertsResponse
+    responses: {
+      200: Schemas.GetCertsResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_jwks_json = {
     method: 'GET'
@@ -1284,7 +1599,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetCertsResponse
+    responses: {
+      200: Schemas.GetCertsResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Logout_get = {
     method: 'GET'
@@ -1299,7 +1619,7 @@ export namespace Endpoints {
       }>
       path: { realm_name: string }
     }
-    response: unknown
+    responses: { 204: unknown; 307: unknown }
   }
   export type post_Logout_post = {
     method: 'POST'
@@ -1310,7 +1630,7 @@ export namespace Endpoints {
 
       body: Schemas.LogoutRequestValidator
     }
-    response: unknown
+    responses: { 204: unknown; 307: unknown }
   }
   export type post_Registration_handler = {
     method: 'POST'
@@ -1321,7 +1641,13 @@ export namespace Endpoints {
 
       body: Schemas.RegistrationRequest
     }
-    response: Schemas.JwtToken
+    responses: {
+      201: Schemas.JwtToken
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Revoke_token = {
     method: 'POST'
@@ -1332,7 +1658,7 @@ export namespace Endpoints {
 
       body: Schemas.RevokeTokenRequestValidator
     }
-    response: unknown
+    responses: { 200: unknown }
   }
   export type post_Exchange_token = {
     method: 'POST'
@@ -1343,7 +1669,12 @@ export namespace Endpoints {
 
       body: Schemas.TokenRequestValidator
     }
-    response: Schemas.JwtToken
+    responses: {
+      200: Schemas.JwtToken
+      401: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Introspect_token = {
     method: 'POST'
@@ -1354,7 +1685,11 @@ export namespace Endpoints {
 
       body: Schemas.IntrospectRequestValidator
     }
-    response: Schemas.TokenIntrospectionResponse
+    responses: {
+      200: Schemas.TokenIntrospectionResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_userinfo = {
     method: 'GET'
@@ -1363,7 +1698,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.UserInfoResponse
+    responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown }
   }
   export type get_Get_roles = {
     method: 'GET'
@@ -1372,7 +1707,11 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetRolesResponse
+    responses: {
+      200: Schemas.GetRolesResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_realm_role = {
     method: 'POST'
@@ -1383,7 +1722,13 @@ export namespace Endpoints {
 
       body: Schemas.CreateRoleValidator
     }
-    response: Schemas.CreateRoleResponse
+    responses: {
+      201: Schemas.CreateRoleResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_role = {
     method: 'GET'
@@ -1392,7 +1737,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; role_id: string }
     }
-    response: Schemas.GetRoleResponse
+    responses: {
+      200: Schemas.GetRoleResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_role = {
     method: 'PUT'
@@ -1403,7 +1753,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRoleValidator
     }
-    response: Schemas.UpdateRoleResponse
+    responses: {
+      200: Schemas.UpdateRoleResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_role = {
     method: 'DELETE'
@@ -1412,7 +1768,11 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; role_id: string }
     }
-    response: Schemas.DeleteRoleResponse
+    responses: {
+      200: Schemas.DeleteRoleResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type patch_Update_role_permissions = {
     method: 'PATCH'
@@ -1423,35 +1783,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRolePermissionsValidator
     }
-    response: Schemas.UpdateRolePermissionsResponse
-  }
-  export type get_Get_compass_flows = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-      query?: { client_id?: string; user_id?: string; grant_type?: string; status?: string; limit?: number; offset?: number }
+    responses: {
+      200: Schemas.UpdateRolePermissionsResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
     }
-    response: Schemas.GetFlowsResponse
-  }
-  export type get_Get_compass_flow = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; flow_id: string }
-    }
-    response: Schemas.GetFlowResponse
-  }
-  export type get_Get_compass_stats = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/stats'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-    }
-    response: Schemas.GetStatsResponse
   }
   export type get_Get_security_events = {
     method: 'GET'
@@ -1460,7 +1798,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetSecurityEventsResponse
+    responses: {
+      200: Schemas.GetSecurityEventsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_users = {
     method: 'GET'
@@ -1469,7 +1812,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.UsersResponse
+    responses: {
+      200: Schemas.UsersResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_user = {
     method: 'POST'
@@ -1480,7 +1828,13 @@ export namespace Endpoints {
 
       body: Schemas.CreateUserValidator
     }
-    response: Schemas.CreateUserResponse
+    responses: {
+      201: Schemas.CreateUserResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_user_realms = {
     method: 'GET'
@@ -1489,7 +1843,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.UserRealmsResponse
+    responses: {
+      200: Schemas.UserRealmsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Bulk_delete_user = {
     method: 'DELETE'
@@ -1500,7 +1859,13 @@ export namespace Endpoints {
 
       body: Schemas.BulkDeleteUserValidator
     }
-    response: Schemas.BulkDeleteUserResponse
+    responses: {
+      200: Schemas.BulkDeleteUserResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_user = {
     method: 'GET'
@@ -1509,7 +1874,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string }
     }
-    response: Schemas.UserResponse
+    responses: {
+      200: Schemas.UserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_user = {
     method: 'PUT'
@@ -1520,7 +1890,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateUserValidator
     }
-    response: Schemas.UpdateUserResponse
+    responses: {
+      200: Schemas.UpdateUserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_user = {
     method: 'DELETE'
@@ -1529,7 +1905,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string }
     }
-    response: Schemas.DeleteUserResponse
+    responses: {
+      200: Schemas.DeleteUserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_user_credentials = {
     method: 'GET'
@@ -1538,7 +1920,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string }
     }
-    response: Schemas.GetUserCredentialsResponse
+    responses: {
+      200: Schemas.GetUserCredentialsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_user_credential = {
     method: 'DELETE'
@@ -1547,7 +1934,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string; credential_id: string }
     }
-    response: Schemas.DeleteUserCredentialResponse
+    responses: {
+      200: Schemas.DeleteUserCredentialResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_user_permissions = {
     method: 'GET'
@@ -1556,7 +1948,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string }
     }
-    response: Schemas.UserPermissionsResponse
+    responses: {
+      200: Schemas.UserPermissionsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Reset_password = {
     method: 'PUT'
@@ -1567,7 +1965,13 @@ export namespace Endpoints {
 
       body: Schemas.ResetPasswordValidator
     }
-    response: Schemas.ResetPasswordResponse
+    responses: {
+      200: Schemas.ResetPasswordResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_user_roles = {
     method: 'GET'
@@ -1576,7 +1980,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string }
     }
-    response: Schemas.GetUserRolesResponse
+    responses: {
+      200: Schemas.GetUserRolesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Assign_role = {
     method: 'POST'
@@ -1585,7 +1994,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string; role_id: string }
     }
-    response: Schemas.AssignRoleResponse
+    responses: {
+      200: Schemas.AssignRoleResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Unassign_role = {
     method: 'DELETE'
@@ -1594,7 +2008,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; user_id: string; role_id: string }
     }
-    response: Schemas.UnassignRoleResponse
+    responses: {
+      200: Schemas.UnassignRoleResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Fetch_webhooks = {
     method: 'GET'
@@ -1603,7 +2022,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string }
     }
-    response: Schemas.GetWebhooksResponse
+    responses: {
+      200: Schemas.GetWebhooksResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type post_Create_webhook = {
     method: 'POST'
@@ -1614,7 +2038,13 @@ export namespace Endpoints {
 
       body: Schemas.CreateWebhookValidator
     }
-    response: Schemas.CreateWebhookResponse
+    responses: {
+      200: Schemas.CreateWebhookResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_webhook = {
     method: 'GET'
@@ -1623,7 +2053,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; webhook_id: string }
     }
-    response: Schemas.Webhook
+    responses: {
+      200: Schemas.Webhook
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Update_webhook = {
     method: 'PUT'
@@ -1632,7 +2067,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; webhook_id: string }
     }
-    response: Schemas.UpdateWebhookResponse
+    responses: {
+      200: Schemas.UpdateWebhookResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type delete_Delete_webhook = {
     method: 'DELETE'
@@ -1641,7 +2082,12 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; webhook_id: string }
     }
-    response: Schemas.DeleteWebhookResponse
+    responses: {
+      200: Schemas.DeleteWebhookResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
 
   // </Endpoints>
@@ -1665,7 +2111,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
     '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
     '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
+    '/realms/{realm_name}/login-actions/forgot-password': Endpoints.post_Forgot_password
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
     '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
@@ -1696,6 +2144,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
+    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_flows
+    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_flow
+    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_stats
     '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
     '/realms/{realm_name}/identity-providers': Endpoints.get_List_identity_providers
@@ -1709,9 +2160,6 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
-    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_compass_flows
-    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_compass_flow
-    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_compass_stats
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
     '/realms/{realm_name}/users': Endpoints.get_Get_users
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
@@ -1787,7 +2235,7 @@ type RequestFormat = 'json' | 'form-data' | 'form-url' | 'binary' | 'text'
 
 export type DefaultEndpoint = {
   parameters?: EndpointParameters | undefined
-  response: unknown
+  responses?: Record<string, unknown>
   responseHeaders?: Record<string, unknown>
 }
 
@@ -1802,27 +2250,176 @@ export type Endpoint<TConfig extends DefaultEndpoint = DefaultEndpoint> = {
     hasParameters: boolean
     areParametersRequired: boolean
   }
-  response: TConfig['response']
+  responses?: TConfig['responses']
   responseHeaders?: TConfig['responseHeaders']
 }
 
-export type Fetcher = (
-  method: Method,
-  url: string,
-  parameters?: EndpointParameters | undefined
-) => Promise<Response>
+export interface Fetcher {
+  decodePathParams?: (path: string, pathParams: Record<string, string>) => string
+  encodeSearchParams?: (searchParams: Record<string, unknown> | undefined) => URLSearchParams
+  //
+  fetch: (input: {
+    method: Method
+    url: URL
+    urlSearchParams?: URLSearchParams | undefined
+    parameters?: EndpointParameters | undefined
+    path: string
+    overrides?: RequestInit
+    throwOnStatusError?: boolean
+  }) => Promise<Response>
+  parseResponseData?: (response: Response) => Promise<unknown>
+}
+
+export const successStatusCodes = [
+  200, 201, 202, 203, 204, 205, 206, 207, 208, 226, 300, 301, 302, 303, 304, 305, 306, 307, 308,
+] as const
+export type SuccessStatusCode = (typeof successStatusCodes)[number]
+
+export const errorStatusCodes = [
+  400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418,
+  421, 422, 423, 424, 425, 426, 428, 429, 431, 451, 500, 501, 502, 503, 504, 505, 506, 507, 508,
+  510, 511,
+] as const
+export type ErrorStatusCode = (typeof errorStatusCodes)[number]
+
+// Taken from https://github.com/unjs/fetchdts/blob/ec4eaeab5d287116171fc1efd61f4a1ad34e4609/src/fetch.ts#L3
+export interface TypedHeaders<
+  TypedHeaderValues extends Record<string, string> | unknown,
+> extends Omit<Headers, 'append' | 'delete' | 'get' | 'getSetCookie' | 'has' | 'set' | 'forEach'> {
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/append) */
+  append: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name,
+    value: Lowercase<Name> extends keyof TypedHeaderValues
+      ? TypedHeaderValues[Lowercase<Name>]
+      : string
+  ) => void
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/delete) */
+  delete: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name
+  ) => void
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/get) */
+  get: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name
+  ) =>
+    | (Lowercase<Name> extends keyof TypedHeaderValues
+        ? TypedHeaderValues[Lowercase<Name>]
+        : string)
+    | null
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/getSetCookie) */
+  getSetCookie: () => string[]
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/has) */
+  has: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name
+  ) => boolean
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/set) */
+  set: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name,
+    value: Lowercase<Name> extends keyof TypedHeaderValues
+      ? TypedHeaderValues[Lowercase<Name>]
+      : string
+  ) => void
+  forEach: (
+    callbackfn: (
+      value: TypedHeaderValues[keyof TypedHeaderValues] | (string & {}),
+      key: Extract<keyof TypedHeaderValues, string> | (string & {}),
+      parent: TypedHeaders<TypedHeaderValues>
+    ) => void,
+    thisArg?: any
+  ) => void
+}
+
+/** @see https://developer.mozilla.org/en-US/docs/Web/API/Response */
+export interface TypedSuccessResponse<TSuccess, TStatusCode, THeaders> extends Omit<
+  Response,
+  'ok' | 'status' | 'json' | 'headers'
+> {
+  ok: true
+  status: TStatusCode
+  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>
+  data: TSuccess
+  /** [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/Response/json) */
+  json: () => Promise<TSuccess>
+}
+
+/** @see https://developer.mozilla.org/en-US/docs/Web/API/Response */
+export interface TypedErrorResponse<TData, TStatusCode, THeaders> extends Omit<
+  Response,
+  'ok' | 'status' | 'json' | 'headers'
+> {
+  ok: false
+  status: TStatusCode
+  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>
+  data: TData
+  /** [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/Response/json) */
+  json: () => Promise<TData>
+}
+
+export type TypedApiResponse<
+  TAllResponses extends Record<string | number, unknown> = {},
+  THeaders = {},
+> = {
+  [K in keyof TAllResponses]: K extends string
+    ? K extends `${infer TStatusCode extends number}`
+      ? TStatusCode extends SuccessStatusCode
+        ? TypedSuccessResponse<
+            TAllResponses[K],
+            TStatusCode,
+            K extends keyof THeaders ? THeaders[K] : never
+          >
+        : TypedErrorResponse<
+            TAllResponses[K],
+            TStatusCode,
+            K extends keyof THeaders ? THeaders[K] : never
+          >
+      : never
+    : K extends number
+      ? K extends SuccessStatusCode
+        ? TypedSuccessResponse<TAllResponses[K], K, K extends keyof THeaders ? THeaders[K] : never>
+        : TypedErrorResponse<TAllResponses[K], K, K extends keyof THeaders ? THeaders[K] : never>
+      : never
+}[keyof TAllResponses]
+
+export type SafeApiResponse<TEndpoint> = TEndpoint extends { responses: infer TResponses }
+  ? TResponses extends Record<string, unknown>
+    ? TypedApiResponse<
+        TResponses,
+        TEndpoint extends { responseHeaders: infer THeaders } ? THeaders : never
+      >
+    : never
+  : never
+
+export type InferResponseByStatus<TEndpoint, TStatusCode> = Extract<
+  SafeApiResponse<TEndpoint>,
+  { status: TStatusCode }
+>
 
 type RequiredKeys<T> = {
   [P in keyof T]-?: undefined extends T[P] ? never : P
 }[keyof T]
 
 type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T]
+type NotNever<T> = [T] extends [never] ? false : true
 
 // </ApiClientTypes>
+
+// <TypedStatusError>
+export class TypedStatusError<TData = unknown> extends Error {
+  response: TypedErrorResponse<TData, ErrorStatusCode, unknown>
+  status: number
+  constructor(response: TypedErrorResponse<TData, ErrorStatusCode, unknown>) {
+    super(`HTTP ${response.status}: ${response.statusText}`)
+    this.name = 'TypedStatusError'
+    this.response = response
+    this.status = response.status
+  }
+}
+// </TypedStatusError>
 
 // <ApiClient>
 export class ApiClient {
   baseUrl: string = ''
+  successStatusCodes = successStatusCodes
+  errorStatusCodes = errorStatusCodes
 
   constructor(public fetcher: Fetcher) {}
 
@@ -1831,66 +2428,234 @@ export class ApiClient {
     return this
   }
 
-  parseResponse = async <T>(response: Response): Promise<T> => {
-    const contentType = response.headers.get('content-type')
-    if (contentType?.includes('application/json')) {
-      return response.json()
+  /**
+   * Replace path parameters in URL
+   * Supports both OpenAPI format {param} and Express format :param
+   */
+  defaultDecodePathParams = (url: string, params: Record<string, string>): string => {
+    return url
+      .replace(/{(\w+)}/g, (_, key: string) => params[key] || `{${key}}`)
+      .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`)
+  }
+
+  /** Uses URLSearchParams, skips null/undefined values */
+  defaultEncodeSearchParams = (
+    queryParams: Record<string, unknown> | undefined
+  ): URLSearchParams | undefined => {
+    if (!queryParams) return
+
+    const searchParams = new URLSearchParams()
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value != null) {
+        // Skip null/undefined values
+        if (Array.isArray(value)) {
+          value.forEach((val) => val != null && searchParams.append(key, String(val)))
+        } else {
+          searchParams.append(key, String(value))
+        }
+      }
+    })
+
+    return searchParams
+  }
+
+  defaultParseResponseData = async (response: Response): Promise<unknown> => {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.startsWith('text/')) {
+      return await response.text()
     }
-    return response.text() as unknown as T
+
+    if (contentType === 'application/octet-stream') {
+      return await response.arrayBuffer()
+    }
+
+    if (
+      contentType.includes('application/json') ||
+      (contentType.includes('application/') && contentType.includes('json')) ||
+      contentType === '*/*'
+    ) {
+      try {
+        return await response.json()
+      } catch {
+        return undefined
+      }
+    }
+
+    return
   }
 
   // <ApiClient.post>
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('post', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  post<Path extends keyof PostEndpoints, _TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request('post', path, ...params)
   }
   // </ApiClient.post>
 
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('get', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  get<Path extends keyof GetEndpoints, _TEndpoint extends GetEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request('get', path, ...params)
   }
   // </ApiClient.get>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('put', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  put<Path extends keyof PutEndpoints, _TEndpoint extends PutEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request('put', path, ...params)
   }
   // </ApiClient.put>
 
   // <ApiClient.delete>
   delete<Path extends keyof DeleteEndpoints, TEndpoint extends DeleteEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('delete', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  delete<Path extends keyof DeleteEndpoints, TEndpoint extends DeleteEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  delete<Path extends keyof DeleteEndpoints, _TEndpoint extends DeleteEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request('delete', path, ...params)
   }
   // </ApiClient.delete>
 
   // <ApiClient.patch>
   patch<Path extends keyof PatchEndpoints, TEndpoint extends PatchEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('patch', this.baseUrl + path, params[0]).then((response) =>
-      this.parseResponse(response)
-    ) as Promise<TEndpoint['response']>
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  patch<Path extends keyof PatchEndpoints, TEndpoint extends PatchEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  patch<Path extends keyof PatchEndpoints, _TEndpoint extends PatchEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request('patch', path, ...params)
   }
   // </ApiClient.patch>
 
@@ -1905,14 +2670,94 @@ export class ApiClient {
   >(
     method: TMethod,
     path: TPath,
-    ...params: MaybeOptionalArg<TEndpoint extends { parameters: infer Params } ? Params : never>
-  ): Promise<
-    Omit<Response, 'json'> & {
-      /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
-      json: () => Promise<TEndpoint extends { response: infer Res } ? Res : never>
-    }
-  > {
-    return this.fetcher(method, this.baseUrl + (path as string), params[0] as EndpointParameters)
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
+
+  request<
+    TMethod extends keyof EndpointByMethod,
+    TPath extends keyof EndpointByMethod[TMethod],
+    TEndpoint extends EndpointByMethod[TMethod][TPath],
+  >(
+    method: TMethod,
+    path: TPath,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>
+
+  request<
+    TMethod extends keyof EndpointByMethod,
+    TPath extends keyof EndpointByMethod[TMethod],
+    TEndpoint extends EndpointByMethod[TMethod][TPath],
+  >(method: TMethod, path: TPath, ...params: MaybeOptionalArg<any>): Promise<any> {
+    const requestParams = params[0]
+    const withResponse = requestParams?.withResponse
+    const {
+      withResponse: _,
+      throwOnStatusError = withResponse ? false : true,
+      overrides,
+      ...fetchParams
+    } = requestParams || {}
+
+    const parametersToSend: EndpointParameters = {}
+    if (requestParams?.body !== undefined) (parametersToSend as any).body = requestParams.body
+    if (requestParams?.query !== undefined) (parametersToSend as any).query = requestParams.query
+    if (requestParams?.header !== undefined) (parametersToSend as any).header = requestParams.header
+    if (requestParams?.path !== undefined) (parametersToSend as any).path = requestParams.path
+
+    const resolvedPath = (this.fetcher.decodePathParams ?? this.defaultDecodePathParams)(
+      this.baseUrl + (path as string),
+      (parametersToSend.path ?? {}) as Record<string, string>
+    )
+    const url = new URL(resolvedPath)
+    const urlSearchParams = (this.fetcher.encodeSearchParams ?? this.defaultEncodeSearchParams)(
+      parametersToSend.query
+    )
+
+    const promise = this.fetcher
+      .fetch({
+        method: method,
+        path: path as string,
+        url,
+        urlSearchParams,
+        parameters: Object.keys(fetchParams).length ? fetchParams : undefined,
+        overrides,
+        throwOnStatusError,
+      })
+      .then(async (response) => {
+        const data = await (this.fetcher.parseResponseData ?? this.defaultParseResponseData)(
+          response
+        )
+        const typedResponse = Object.assign(response, {
+          data: data,
+          json: () => Promise.resolve(data),
+        }) as SafeApiResponse<TEndpoint>
+
+        if (throwOnStatusError && errorStatusCodes.includes(response.status as never)) {
+          throw new TypedStatusError(typedResponse as never)
+        }
+
+        return withResponse ? typedResponse : data
+      })
+
+    return promise as Extract<
+      InferResponseByStatus<TEndpoint, SuccessStatusCode>,
+      { data: {} }
+    >['data']
   }
   // </ApiClient.request>
 }
@@ -1929,6 +2774,21 @@ export function createApiClient(fetcher: Fetcher, baseUrl?: string) {
  api.get("/users").then((users) => console.log(users));
  api.post("/users", { body: { name: "John" } }).then((user) => console.log(user));
  api.put("/users/:id", { path: { id: 1 }, body: { name: "John" } }).then((user) => console.log(user));
+
+ // With error handling
+ const result = await api.get("/users/{id}", { path: { id: "123" }, withResponse: true });
+ if (result.ok) {
+   // Access data directly
+   const user = result.data;
+   console.log(user);
+
+   // Or use the json() method for compatibility
+   const userFromJson = await result.json();
+   console.log(userFromJson);
+ } else {
+   const error = result.data;
+   console.error(`Error ${result.status}:`, error);
+ }
 */
 
-// </ApiClient
+// </ApiClient>

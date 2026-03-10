@@ -1,14 +1,11 @@
+import { useResetPassword } from '@/api/password-reset.api'
+import { Form } from '@/components/ui/form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useParams } from 'react-router'
-import { useResetPasswordMutation } from '@/api/password-reset.api'
-import {
-  resetPasswordSchema,
-  type ResetPasswordSchema,
-} from '../schemas/reset-password.schema'
+import { resetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import PageResetPassword from '../ui/page-reset-password'
-import { Form } from '@/components/ui/form'
 
 export default function PageResetPasswordFeature() {
   const { realm_name } = useParams()
@@ -20,7 +17,7 @@ export default function PageResetPasswordFeature() {
   const missingParams = !tokenId || !token
 
   const [success, setSuccess] = useState(false)
-  const { mutate: resetPassword, isPending, error } = useResetPasswordMutation()
+  const { mutate: resetPassword, isPending, error } = useResetPassword()
 
   const form = useForm<ResetPasswordSchema>({
     resolver: zodResolver(resetPasswordSchema),
@@ -32,10 +29,12 @@ export default function PageResetPasswordFeature() {
 
     resetPassword(
       {
-        realm: realm_name ?? 'master',
-        token_id: tokenId,
-        token: token,
-        new_password: data.password,
+        path: { realm_name: realm_name ?? 'master' },
+        body: {
+          token_id: tokenId,
+          token: token,
+          new_password: data.password,
+        },
       },
       { onSuccess: () => setSuccess(true) }
     )
