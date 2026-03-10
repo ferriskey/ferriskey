@@ -1118,15 +1118,15 @@ export namespace Endpoints {
     path: '/realms/{realm_name}/compass/v1/flows'
     requestFormat: 'json'
     parameters: {
-      path: {
-        realm_name: string
-        client_id: string | null
-        user_id: string | null
-        grant_type: string | null
-        status: string | null
-        limit: number | null
-        offset: number | null
-      }
+      query: Partial<{
+        client_id: string
+        user_id: string
+        grant_type: string
+        status: string
+        limit: number
+        offset: number
+      }>
+      path: { realm_name: string }
     }
     responses: {
       200: Schemas.GetFlowsResponse
@@ -1163,41 +1163,6 @@ export namespace Endpoints {
       403: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
     }
-  }
-  export type get_Get_flows = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows'
-    requestFormat: 'json'
-    parameters: {
-      query: Partial<{
-        client_id: string
-        user_id: string
-        grant_type: string
-        status: string
-        limit: number
-        offset: number
-      }>
-      path: { realm_name: string }
-    }
-    response: Schemas.GetFlowsResponse
-  }
-  export type get_Get_flow = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string; flow_id: string }
-    }
-    response: Schemas.GetFlowResponse
-  }
-  export type get_Get_stats = {
-    method: 'GET'
-    path: '/realms/{realm_name}/compass/v1/stats'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-    }
-    response: Schemas.GetStatsResponse
   }
   export type get_List_providers = {
     method: 'GET'
@@ -1431,18 +1396,11 @@ export namespace Endpoints {
 
       body: Schemas.ForgotPasswordRequest
     }
-    responses: { 204: unknown; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse }
-  }
-  export type post_Forgot_password = {
-    method: 'POST'
-    path: '/realms/{realm_name}/login-actions/forgot-password'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-
-      body: Schemas.ForgotPasswordRequest
+    responses: {
+      200: Schemas.ForgotPasswordResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
     }
-    response: Schemas.ForgotPasswordResponse
   }
   export type post_Generate_recovery_codes = {
     method: 'POST'
@@ -1474,17 +1432,6 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
     }
-  }
-  export type post_Reset_password_with_token = {
-    method: 'POST'
-    path: '/realms/{realm_name}/login-actions/reset-password'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-
-      body: Schemas.ResetPasswordRequest
-    }
-    response: Schemas.ResetPasswordResponse
   }
   export type post_Send_magic_link = {
     method: 'POST'
@@ -1836,7 +1783,13 @@ export namespace Endpoints {
 
       body: Schemas.UpdateRolePermissionsValidator
     }
-    response: Schemas.UpdateRolePermissionsResponse
+    responses: {
+      200: Schemas.UpdateRolePermissionsResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type get_Get_security_events = {
     method: 'GET'

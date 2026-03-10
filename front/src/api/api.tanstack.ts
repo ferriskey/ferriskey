@@ -11,15 +11,15 @@ import { errorStatusCodes, TypedStatusError } from './api.client.ts'
 
 type EndpointQueryKey<TOptions extends EndpointParameters> = [
   TOptions & {
-    _id: string;
-    _infinite?: boolean;
+    _id: string
+    _infinite?: boolean
   },
-];
+]
 
 const createQueryKey = <TOptions extends EndpointParameters>(
   id: string,
   options?: TOptions,
-  infinite?: boolean,
+  infinite?: boolean
 ): [EndpointQueryKey<TOptions>[0]] => {
   const params: EndpointQueryKey<TOptions>[0] = { _id: id } as EndpointQueryKey<TOptions>[0]
   if (infinite) {
@@ -41,26 +41,26 @@ const createQueryKey = <TOptions extends EndpointParameters>(
 }
 
 // <EndpointByMethod.Shorthands>
-export type PostEndpoints = EndpointByMethod['post'];
-export type GetEndpoints = EndpointByMethod['get'];
-export type PutEndpoints = EndpointByMethod['put'];
-export type DeleteEndpoints = EndpointByMethod['delete'];
-export type PatchEndpoints = EndpointByMethod['patch'];
+export type PostEndpoints = EndpointByMethod['post']
+export type GetEndpoints = EndpointByMethod['get']
+export type PutEndpoints = EndpointByMethod['put']
+export type DeleteEndpoints = EndpointByMethod['delete']
+export type PatchEndpoints = EndpointByMethod['patch']
 // </EndpointByMethod.Shorthands>
 
 // <ApiClientTypes>
 export type EndpointParameters = {
-  body?: unknown;
-  query?: Record<string, unknown>;
-  header?: Record<string, unknown>;
-  path?: Record<string, unknown>;
-};
+  body?: unknown
+  query?: Record<string, unknown>
+  header?: Record<string, unknown>
+  path?: Record<string, unknown>
+}
 
 type RequiredKeys<T> = {
-  [P in keyof T]-?: undefined extends T[P] ? never : P;
-}[keyof T];
+  [P in keyof T]-?: undefined extends T[P] ? never : P
+}[keyof T]
 
-type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T];
+type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T]
 
 type InferResponseData<TEndpoint, TStatusCode> =
   TypedSuccessResponse<any, any, any> extends InferResponseByStatus<TEndpoint, TStatusCode>
@@ -97,17 +97,6 @@ export class TanstackQueryApiClient {
         },
         queryKey: queryKey,
       }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const res = await this.client.post(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
     }
 
     return query
@@ -138,17 +127,6 @@ export class TanstackQueryApiClient {
         },
         queryKey: queryKey,
       }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const res = await this.client.get(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
     }
 
     return query
@@ -179,17 +157,6 @@ export class TanstackQueryApiClient {
         },
         queryKey: queryKey,
       }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const res = await this.client.put(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
     }
 
     return query
@@ -220,17 +187,6 @@ export class TanstackQueryApiClient {
         },
         queryKey: queryKey,
       }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const res = await this.client.delete(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
     }
 
     return query
@@ -261,17 +217,6 @@ export class TanstackQueryApiClient {
         },
         queryKey: queryKey,
       }),
-      mutationOptions: {
-        mutationKey: queryKey,
-        mutationFn: async (localOptions: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const res = await this.client.patch(path, {
-            ...params,
-            ...queryKey[0],
-            ...localOptions,
-          })
-          return res as TEndpoint['response']
-        },
-      },
     }
 
     return query
@@ -299,12 +244,16 @@ export class TanstackQueryApiClient {
   >(
     method: TMethod,
     path: TPath,
-    selectFn?: (
-      res: Omit<Response, 'json'> & {
-        /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
-        json: () => Promise<TEndpoint extends { response: infer Res } ? Res : never>;
-      },
-    ) => TSelection,
+    options?: {
+      withResponse?: TWithResponse
+      selectFn?: (
+        res: TWithResponse extends true
+          ? InferResponseByStatus<TEndpoint, SuccessStatusCode>
+          : InferResponseData<TEndpoint, SuccessStatusCode>
+      ) => TSelection
+      throwOnStatusError?: boolean
+      throwOnError?: boolean | ((error: TError) => boolean)
+    }
   ) {
     const mutationKey = [{ method, path }] as const
     const mutationFn = async (
@@ -340,11 +289,19 @@ export class TanstackQueryApiClient {
       mutationOptions: {
         throwOnError: options?.throwOnError as boolean | ((error: TError) => boolean),
         mutationKey: mutationKey,
-        mutationFn: async (params: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
-          const response = await this.client.request(method, path, params)
-          const res = selectFn ? selectFn(response) : response
-          return res as unknown extends TSelection ? typeof response : Awaited<TSelection>
-        },
+        mutationFn: mutationFn,
+      } as Omit<
+        import('@tanstack/react-query').UseMutationOptions<
+          TSelection,
+          TError,
+          (TEndpoint extends { parameters: infer Parameters } ? Parameters : {}) & {
+            withResponse?: boolean
+            throwOnStatusError?: boolean
+          }
+        >,
+        'mutationFn'
+      > & {
+        mutationFn: typeof mutationFn
       },
     }
   }
