@@ -5,9 +5,10 @@ use crate::{
         common::entities::app_errors::CoreError,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput, SetupOtpInput,
-            SetupOtpOutput, TridentService, UpdatePasswordInput, VerifyMagicLinkInput,
-            VerifyOtpInput, VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
+            GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
+            RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
+            UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
+            VerifyPasswordResetInput, WebAuthnPublicKeyAuthenticateInput,
             WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
             WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
             WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
@@ -115,5 +116,19 @@ impl TridentService for ApplicationService {
 
     async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
         self.trident_service.verify_magic_link(input).await
+    }
+
+    async fn request_password_reset(
+        &self,
+        input: RequestPasswordResetInput,
+    ) -> Result<(), CoreError> {
+        self.trident_service.request_password_reset(input).await
+    }
+
+    async fn verify_password_reset(
+        &self,
+        input: VerifyPasswordResetInput,
+    ) -> Result<(), CoreError> {
+        self.trident_service.verify_password_reset(input).await
     }
 }

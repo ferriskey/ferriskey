@@ -72,3 +72,20 @@ impl MagicLink {
         Utc::now() > self.expires_at
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordResetToken {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub token_id: Uuid,
+    pub token_hash: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+impl PasswordResetToken {
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expires_at
+    }
+}

@@ -53,6 +53,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
@@ -100,6 +101,7 @@ type CompassFlowRepo = PostgresCompassFlowRepository;
 type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
+type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
@@ -172,6 +174,7 @@ pub struct ApplicationService {
         RealmRepo,
         EmailPortImpl,
         SmtpConfigRepo,
+        PasswordResetTokenRepo,
     >,
     pub(crate) user_service: UserServiceImpl<
         RealmRepo,

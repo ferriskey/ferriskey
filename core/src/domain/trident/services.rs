@@ -31,13 +31,14 @@ use crate::{
         crypto::HasherRepository,
         realm::ports::{RealmRepository, SmtpConfigRepository},
         trident::{
-            entities::{MfaRecoveryCode, TotpSecret},
+            entities::{MfaRecoveryCode, PasswordResetToken, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                MagicLinkInput, MagicLinkRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
+                MagicLinkInput, MagicLinkRepository, PasswordResetTokenRepository,
+                RecoveryCodeFormatter, RecoveryCodeRepository, RequestPasswordResetInput,
                 SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
-                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
+                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyPasswordResetInput,
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
@@ -188,7 +189,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -200,6 +201,7 @@ where
     RR: RealmRepository,
     ES: EmailPort,
     SC: SmtpConfigRepository,
+    PRT: PasswordResetTokenRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -211,10 +213,11 @@ where
     pub(crate) realm_repository: Arc<RR>,
     pub(crate) email_port: Arc<ES>,
     pub(crate) smtp_config_repository: Arc<SC>,
+    pub(crate) password_reset_token_repository: Arc<PRT>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -226,6 +229,7 @@ where
     RR: RealmRepository,
     ES: EmailPort,
     SC: SmtpConfigRepository,
+    PRT: PasswordResetTokenRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -239,6 +243,7 @@ where
         realm_repository: Arc<RR>,
         email_port: Arc<ES>,
         smtp_config_repository: Arc<SC>,
+        password_reset_token_repository: Arc<PRT>,
     ) -> Self {
         Self {
             credential_repository,
@@ -251,12 +256,13 @@ where
             realm_repository,
             email_port,
             smtp_config_repository,
+            password_reset_token_repository,
         }
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -268,6 +274,7 @@ where
     RR: RealmRepository,
     ES: EmailPort,
     SC: SmtpConfigRepository,
+    PRT: PasswordResetTokenRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -983,5 +990,176 @@ where
             .inspect_err(|e| warn!("Failed to delete used magic link: {}", e));
 
         Ok(login_url)
+    }
+
+    async fn request_password_reset(
+        &self,
+        input: RequestPasswordResetInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let settings = self
+            .realm_repository
+            .get_realm_settings(realm.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
+
+        if !settings.forgot_password_enabled {
+            return Err(CoreError::Forbidden(
+                "Password reset is not enabled for this realm".to_string(),
+            ));
+        }
+
+        let user = match self
+            .user_repository
+            .get_by_email(&input.email, realm.id)
+            .await
+        {
+            Ok(Some(user)) => user,
+            Ok(None) => {
+                warn!("User not found for password reset request");
+                return Ok(()); // Don't leak email existence
+            }
+            Err(e) => {
+                error!("Failed to look up user during password reset: {}", e);
+                return Ok(());
+            }
+        };
+
+        // Rate limit: max 3 active tokens per user
+        let active_count = self
+            .password_reset_token_repository
+            .count_active_by_user_id(user.id)
+            .await?;
+
+        if active_count >= 3 {
+            warn!("Too many active password reset tokens for user {}", user.id);
+            return Ok(());
+        }
+
+        // Cleanup expired tokens
+        self.password_reset_token_repository
+            .cleanup_expired()
+            .await?;
+
+        let token_id = generate_uuid_v7();
+        let raw_token = generate_random_token();
+        let token_hash = self
+            .hasher_repository
+            .hash_magic_token(&raw_token)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let ttl_minutes = 30i64;
+        let expires_at = Utc::now() + Duration::minutes(ttl_minutes);
+
+        let prt = PasswordResetToken {
+            id: generate_uuid_v7(),
+            user_id: user.id,
+            realm_id: realm.id.into(),
+            token_id,
+            token_hash: token_hash.hash,
+            created_at: Utc::now(),
+            expires_at,
+        };
+
+        self.password_reset_token_repository.create(&prt).await?;
+
+        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
+            Ok(Some(smtp_config)) => {
+                let subject = "Reset your password";
+                let body = format!(
+                    "A password reset was requested for your account.\n\nToken ID: {}\nToken: {}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
+                    token_id, raw_token, ttl_minutes
+                );
+                if let Err(e) = self
+                    .email_port
+                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .await
+                {
+                    warn!("Failed to send password reset email: {}", e);
+                }
+            }
+            _ => {
+                warn!("SMTP not configured for realm, logging password reset token instead");
+                debug!(
+                    "Password reset token_id: {}, token: {}",
+                    token_id, raw_token
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn verify_password_reset(
+        &self,
+        input: VerifyPasswordResetInput,
+    ) -> Result<(), CoreError> {
+        let prt = self
+            .password_reset_token_repository
+            .get_by_token_id(input.token_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if prt.is_expired() {
+            self.password_reset_token_repository
+                .delete_by_token_id(input.token_id)
+                .await?;
+            return Err(CoreError::ExpiredToken);
+        }
+
+        let is_valid = self
+            .hasher_repository
+            .verify_magic_token(&input.token, &prt.token_hash)
+            .await
+            .map_err(|e| {
+                error!("Token verification failed: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        if !is_valid {
+            let _ = self
+                .password_reset_token_repository
+                .delete_by_token_id(input.token_id)
+                .await;
+            return Err(CoreError::InvalidToken);
+        }
+
+        // Delete existing password credential if any, then create new one
+        let _ = self
+            .credential_repository
+            .delete_password_credential(prt.user_id)
+            .await;
+
+        let hash_result = self
+            .hasher_repository
+            .hash_password(&input.new_password)
+            .await
+            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        self.credential_repository
+            .create_credential(
+                prt.user_id,
+                "password".into(),
+                hash_result,
+                "".into(),
+                false,
+            )
+            .await
+            .map_err(|_| CoreError::CreateCredentialError)?;
+
+        // Delete all password reset tokens for this user
+        self.password_reset_token_repository
+            .delete_all_by_user_id(prt.user_id)
+            .await?;
+
+        Ok(())
     }
 }
