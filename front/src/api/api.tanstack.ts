@@ -1,5 +1,13 @@
 import { queryOptions } from '@tanstack/react-query'
-import type { EndpointByMethod, ApiClient } from './api.client.ts'
+import type {
+  EndpointByMethod,
+  ApiClient,
+  SuccessStatusCode,
+  ErrorStatusCode,
+  InferResponseByStatus,
+  TypedSuccessResponse,
+} from './api.client.ts'
+import { errorStatusCodes, TypedStatusError } from './api.client.ts'
 
 type EndpointQueryKey<TOptions extends EndpointParameters> = [
   TOptions & {
@@ -54,6 +62,11 @@ type RequiredKeys<T> = {
 
 type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T];
 
+type InferResponseData<TEndpoint, TStatusCode> =
+  TypedSuccessResponse<any, any, any> extends InferResponseByStatus<TEndpoint, TStatusCode>
+    ? Extract<InferResponseByStatus<TEndpoint, TStatusCode>, { data: {} }>['data']
+    : Extract<InferResponseByStatus<TEndpoint, TStatusCode>['data'], {}>
+
 // </ApiClientTypes>
 
 // <ApiClient>
@@ -65,19 +78,22 @@ export class TanstackQueryApiClient {
     path: Path,
     ...params: MaybeOptionalArg<TEndpoint['parameters']>
   ) {
-    const queryKey = createQueryKey(path, params[0])
+    const queryKey = createQueryKey(path as string, params[0])
     const query = {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       queryKey,
+      queryFn: {} as 'You need to pass .queryOptions to the useQuery hook',
       queryOptions: queryOptions({
         queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.post(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          }
+          const res = await this.client.post(path, requestParams as never)
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>
         },
         queryKey: queryKey,
       }),
@@ -103,19 +119,22 @@ export class TanstackQueryApiClient {
     path: Path,
     ...params: MaybeOptionalArg<TEndpoint['parameters']>
   ) {
-    const queryKey = createQueryKey(path, params[0])
+    const queryKey = createQueryKey(path as string, params[0])
     const query = {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       queryKey,
+      queryFn: {} as 'You need to pass .queryOptions to the useQuery hook',
       queryOptions: queryOptions({
         queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.get(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          }
+          const res = await this.client.get(path, requestParams as never)
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>
         },
         queryKey: queryKey,
       }),
@@ -141,19 +160,22 @@ export class TanstackQueryApiClient {
     path: Path,
     ...params: MaybeOptionalArg<TEndpoint['parameters']>
   ) {
-    const queryKey = createQueryKey(path, params[0])
+    const queryKey = createQueryKey(path as string, params[0])
     const query = {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       queryKey,
+      queryFn: {} as 'You need to pass .queryOptions to the useQuery hook',
       queryOptions: queryOptions({
         queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.put(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          }
+          const res = await this.client.put(path, requestParams as never)
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>
         },
         queryKey: queryKey,
       }),
@@ -179,19 +201,22 @@ export class TanstackQueryApiClient {
     path: Path,
     ...params: MaybeOptionalArg<TEndpoint['parameters']>
   ) {
-    const queryKey = createQueryKey(path, params[0])
+    const queryKey = createQueryKey(path as string, params[0])
     const query = {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       queryKey,
+      queryFn: {} as 'You need to pass .queryOptions to the useQuery hook',
       queryOptions: queryOptions({
         queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.delete(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          }
+          const res = await this.client.delete(path, requestParams as never)
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>
         },
         queryKey: queryKey,
       }),
@@ -217,19 +242,22 @@ export class TanstackQueryApiClient {
     path: Path,
     ...params: MaybeOptionalArg<TEndpoint['parameters']>
   ) {
-    const queryKey = createQueryKey(path, params[0])
+    const queryKey = createQueryKey(path as string, params[0])
     const query = {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       queryKey,
+      queryFn: {} as 'You need to pass .queryOptions to the useQuery hook',
       queryOptions: queryOptions({
         queryFn: async ({ queryKey, signal }) => {
-          const res = await this.client.patch(path, {
-            ...params,
-            ...queryKey[0],
-            signal,
-          })
-          return res as TEndpoint['response']
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          }
+          const res = await this.client.patch(path, requestParams as never)
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>
         },
         queryKey: queryKey,
       }),
@@ -252,13 +280,22 @@ export class TanstackQueryApiClient {
 
   // <ApiClient.request>
   /**
-   * Generic mutation method with full type-safety for any endpoint that doesnt require parameters to be passed initially
+   * Generic mutation method with full type-safety for any endpoint; it doesnt require parameters to be passed initially
+   * but instead will require them to be passed when calling the mutation.mutate() method
    */
   mutation<
     TMethod extends keyof EndpointByMethod,
     TPath extends keyof EndpointByMethod[TMethod],
     TEndpoint extends EndpointByMethod[TMethod][TPath],
-    TSelection,
+    TWithResponse extends boolean = false,
+    TSelection = TWithResponse extends true
+      ? InferResponseByStatus<TEndpoint, SuccessStatusCode>
+      : InferResponseData<TEndpoint, SuccessStatusCode>,
+    TError = TEndpoint extends { responses: infer TResponses }
+      ? TResponses extends Record<string | number, unknown>
+        ? TypedStatusError<InferResponseData<TEndpoint, ErrorStatusCode>>
+        : Error
+      : Error,
   >(
     method: TMethod,
     path: TPath,
@@ -270,11 +307,38 @@ export class TanstackQueryApiClient {
     ) => TSelection,
   ) {
     const mutationKey = [{ method, path }] as const
+    const mutationFn = async (
+      params: (TEndpoint extends { parameters: infer Parameters } ? Parameters : {}) & {
+        throwOnStatusError?: boolean
+        overrides?: RequestInit
+      }
+    ): Promise<TSelection> => {
+      const withResponse = options?.withResponse ?? false
+      const throwOnStatusError =
+        params.throwOnStatusError ?? options?.throwOnStatusError ?? (withResponse ? false : true)
+      const selectFn = options?.selectFn
+      const response = await (this.client as any)[method](path, {
+        ...(params as any),
+        withResponse: true,
+        throwOnStatusError: false,
+      })
+
+      if (throwOnStatusError && errorStatusCodes.includes(response.status as never)) {
+        throw new TypedStatusError(response as never)
+      }
+
+      // Return just the data if withResponse is false, otherwise return the full response
+      const finalResponse = withResponse ? response : response.data
+      const res = selectFn ? selectFn(finalResponse as any) : finalResponse
+      return res as never
+    }
     return {
       /** type-only property if you need easy access to the endpoint params */
       '~endpoint': {} as TEndpoint,
       mutationKey: mutationKey,
+      mutationFn: {} as 'You need to pass .mutationOptions to the useMutation hook',
       mutationOptions: {
+        throwOnError: options?.throwOnError as boolean | ((error: TError) => boolean),
         mutationKey: mutationKey,
         mutationFn: async (params: TEndpoint extends { parameters: infer Parameters } ? Parameters : never) => {
           const response = await this.client.request(method, path, params)

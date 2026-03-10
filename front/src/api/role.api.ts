@@ -3,10 +3,6 @@ import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Schemas } from './api.client'
 
-type CreateRoleMutationResponse = {
-  data: Schemas.Role
-}
-
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
     window.tanstackApi.get('/realms/{realm_name}/roles', {
@@ -32,19 +28,10 @@ export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) =
 
 export const useCreateRole = () => {
   const queryClient = useQueryClient()
-  const createRealmRole = window.tanstackApi.mutation(
-    'post',
-    '/realms/{realm_name}/roles',
-    async (res): Promise<CreateRoleMutationResponse> => res.json()
-  )
+  const createRealmRole = window.tanstackApi.mutation('post', '/realms/{realm_name}/roles')
   const createClientRole = window.tanstackApi.mutation(
     'post',
-    '/realms/{realm_name}/clients/{client_id}/roles',
-    async (res): Promise<CreateRoleMutationResponse> => {
-      const role = await res.json()
-
-      return { data: role }
-    }
+    '/realms/{realm_name}/clients/{client_id}/roles'
   )
 
   return useMutation({
@@ -83,12 +70,15 @@ export const useCreateRole = () => {
       await queryClient.invalidateQueries({ queryKey })
 
       if (variables.clientId) {
-        const clientRolesQuery = window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/roles', {
-          path: {
-            realm_name: variables.realmName,
-            client_id: variables.clientId,
-          },
-        })
+        const clientRolesQuery = window.tanstackApi.get(
+          '/realms/{realm_name}/clients/{client_id}/roles',
+          {
+            path: {
+              realm_name: variables.realmName,
+              client_id: variables.clientId,
+            },
+          }
+        )
 
         await queryClient.invalidateQueries({ queryKey: clientRolesQuery.queryKey })
       }
@@ -107,9 +97,7 @@ export const useUpdateRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}', async (res) =>
-      res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}').mutationOptions,
     onSuccess(res) {
       queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role updated successfully', {
@@ -128,11 +116,8 @@ export const useUpdateRolePermissions = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'patch',
-      '/realms/{realm_name}/roles/{role_id}/permissions',
-      async (res) => res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/roles/{role_id}/permissions')
+      .mutationOptions,
     onSuccess(res) {
       queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
       toast.success('Role permissions updated successfully', {
@@ -151,9 +136,8 @@ export const useDeleteRole = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/roles/{role_id}', async (res) =>
-      res.json()
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/roles/{role_id}')
+      .mutationOptions,
     // FIXME: there is no bulk delete endpoint, and this one may be inefficient, and the
     // stacked toast messages will look bad.
     onSuccess: async (_, variables) => {

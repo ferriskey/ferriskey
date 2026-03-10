@@ -49,11 +49,8 @@ export const useGetUserCredentials = ({ realm, userId }: GetUserQueryParams) => 
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/users', async (res) => {
-      return res.json()
-    }).mutationOptions,
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/users').mutationOptions,
     onSuccess: async (res) => {
-      console.log(res)
       const queryKeys = window.tanstackApi.get('/realms/{realm_name}/users', {
         path: {
           realm_name: res.data.realm!.name,
@@ -71,9 +68,7 @@ export const useCreateUser = () => {
 export const useUpdateUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}', async (res) => {
-      return res.json()
-    }).mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}').mutationOptions,
     onSuccess: (_res, variables) => {
       const { realm_name, user_id } = variables.path
       const userDetailKey = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}', {
@@ -96,10 +91,7 @@ export const useUpdateUser = () => {
 export const useBulkDeleteUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/users/bulk', async (res) => {
-      const data = await res.json()
-      return data
-    }).mutationOptions,
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/users/bulk').mutationOptions,
     onSuccess: async (res) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users', {
         path: {
@@ -117,14 +109,8 @@ export const useResetUserPassword = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation(
-      'put',
-      '/realms/{realm_name}/users/{user_id}/reset-password',
-      async (res) => {
-        const data = await res.json()
-        return data
-      }
-    ).mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}/reset-password')
+      .mutationOptions,
     onSuccess: async (res) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/credentials', {
         path: {
@@ -157,8 +143,7 @@ export const useAssignUserRole = () => {
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/users/{user_id}/roles/{role_id}')
       .mutationOptions,
-    onSuccess: async (res) => {
-      const data = await res.json()
+    onSuccess: async (data) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/roles', {
         path: {
           realm_name: data.realm_name,

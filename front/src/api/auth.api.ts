@@ -5,11 +5,17 @@ const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-co
 const LOGOUT_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/logout'
 const REVOKE_TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/revoke'
 
-type PostParameters<Path extends keyof PostEndpoints> =
-  PostEndpoints[Path] extends { parameters: infer Parameters } ? Parameters : never
+type PostParameters<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
+  parameters: infer Parameters
+}
+  ? Parameters
+  : never
 
-type PostResponse<Path extends keyof PostEndpoints> =
-  PostEndpoints[Path] extends { response: infer Response } ? Response : never
+type PostResponse<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
+  response: infer Response
+}
+  ? Response
+  : never
 
 const postUrlEncoded = async <Path extends keyof PostEndpoints>(
   path: Path,
@@ -82,8 +88,7 @@ export const useAuthQuery = (params: AuthQuery) => {
 export const useAuthenticateMutation = () => {
   const authenticateMutation = window.tanstackApi.mutation(
     'post',
-    '/realms/{realm_name}/login-actions/authenticate',
-    async (res) => res.json()
+    '/realms/{realm_name}/login-actions/authenticate'
   )
 
   return useMutation({
@@ -96,9 +101,7 @@ export const useAuthenticateMutation = () => {
       }
       headers['Content-Type'] = 'application/json'
 
-      const url = new URL(
-        `${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`
-      )
+      const url = new URL(`${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`)
       url.searchParams.set('client_id', params.clientId)
 
       const response = await fetch(url, {
@@ -160,8 +163,7 @@ export const useRegistrationMutation = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/protocol/openid-connect/registrations',
-      async (res) => res.json()
+      '/realms/{realm_name}/protocol/openid-connect/registrations'
     ).mutationOptions,
   })
 }

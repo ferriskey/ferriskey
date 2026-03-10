@@ -5,10 +5,7 @@ export const useDeleteUserCredential = () => {
   return useMutation({
     ...window.tanstackApi.mutation(
       'delete',
-      '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}',
-      async (res) => {
-        return res.json()
-      }
+      '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}'
     ).mutationOptions,
     onSuccess: async (payload) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/credentials', {
