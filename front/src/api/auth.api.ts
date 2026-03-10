@@ -87,7 +87,6 @@ export const useAuthQuery = (params: AuthQuery) => {
 
 export const useAuthenticateMutation = () => {
   return useMutation({
-    //...authenticateMutation.mutationOptions,
     mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
       const headers: Record<string, string> = {}
 

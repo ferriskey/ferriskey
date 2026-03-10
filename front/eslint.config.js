@@ -5,7 +5,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "src/api/api.client.ts", "src/api/api.tanstack.ts"] },
   {
     extends: [
       js.configs.recommended,
