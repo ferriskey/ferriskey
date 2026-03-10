@@ -12,6 +12,7 @@ import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import SelectClientBox from './components/select-client-box'
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
 import { Schemas } from '@/api/api.client.ts'
@@ -22,6 +23,7 @@ export interface PageCreateRoleProps {
   handleSubmit: () => void
   handleBack: () => void
   clients: Client[]
+  roleScope: 'realm' | 'client'
   selectedPermissions: Permissions[]
   handleSelectAllInGroup: (groupPermissions: Permissions[]) => void
   handlePermissionToggle: (permission: Permissions) => void
@@ -32,6 +34,7 @@ export default function PageCreateRole({
   handleSubmit,
   handleBack,
   clients,
+  roleScope,
   selectedPermissions,
   handleSelectAllInGroup,
   handlePermissionToggle,
@@ -99,19 +102,59 @@ export default function PageCreateRole({
         {/* Client */}
         <FormField
           control={form.control}
-          name='clientId'
+          name='scope'
           render={({ field }) => (
             <div className='flex items-start justify-between px-8 py-4 border-t'>
               <div className='w-1/3'>
-                <p className='text-sm font-medium'>Client</p>
-                <p className='text-sm text-muted-foreground mt-0.5'>Associate this role with a specific client.</p>
+                <p className='text-sm font-medium'>Role Scope</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Choose whether this role is shared across the realm or attached to a specific client.
+                </p>
               </div>
               <div className='w-1/2'>
-                <SelectClientBox clients={clients} onValueChange={field.onChange} />
+                <RadioGroup
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  className='flex gap-6 pt-3'
+                >
+                  <div className='flex items-center space-x-2'>
+                    <RadioGroupItem value='realm' id='role-scope-realm' />
+                    <Label htmlFor='role-scope-realm'>Realm role</Label>
+                  </div>
+                  <div className='flex items-center space-x-2'>
+                    <RadioGroupItem value='client' id='role-scope-client' />
+                    <Label htmlFor='role-scope-client'>Client role</Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
           )}
         />
+
+        {roleScope === 'client' && (
+          <FormField
+            control={form.control}
+            name='clientId'
+            render={({ field }) => (
+              <div className='flex items-start justify-between px-8 py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Client</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>
+                    Associate this role with a specific client.
+                  </p>
+                </div>
+                <div className='w-1/2'>
+                  <SelectClientBox clients={clients} onValueChange={field.onChange} />
+                  {form.formState.errors.clientId?.message && (
+                    <p className='mt-2 text-sm text-red-500'>
+                      {form.formState.errors.clientId.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          />
+        )}
 
         {/* Permissions */}
         <div className='flex items-start justify-between px-8 py-4 border-t'>

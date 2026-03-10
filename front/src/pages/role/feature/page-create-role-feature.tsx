@@ -3,7 +3,7 @@ import { useGetClients } from '@/api/client.api'
 import { useCreateRole } from '@/api/role.api'
 import { RouterParams } from '@/routes/router'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 import { createRoleSchema, CreateRoleSchema } from '../schemas/create-role.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,7 +16,7 @@ export default function PageCreateRoleFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
 
-  const { mutate: createRole, data } = useCreateRole()
+  const { mutate: createRole, isSuccess } = useCreateRole()
   const { data: clientsResponse } = useGetClients({ realm: realm_name || '' })
 
   const [selectedPermissions, setSelectedPermissions] = useState<Permissions[]>([])
@@ -32,7 +32,8 @@ export default function PageCreateRoleFeature() {
     mode: 'onChange',
     defaultValues: {
       name: '',
-      clientId: '',
+      scope: 'realm',
+      clientId: undefined,
       description: '',
       permissions: [],
     },
@@ -47,15 +48,18 @@ export default function PageCreateRoleFeature() {
       return
     }
 
+    if (values.scope === 'client' && !values.clientId) {
+      toast.error('Please select a client for a client role')
+      return
+    }
+
     createRole({
+      realmName: realm_name,
+      clientId: values.scope === 'client' ? values.clientId : undefined,
       body: {
         name: values.name,
         permissions: values.permissions,
         description: values.description,
-      },
-      path: {
-        client_id: values.clientId,
-        realm_name: realm_name,
       },
     })
   }
@@ -88,11 +92,22 @@ export default function PageCreateRoleFeature() {
     form.setValue('permissions', li)
   }, [selectedPermissions, form])
 
+  const roleScope = useWatch({
+    control: form.control,
+    name: 'scope',
+  }) ?? 'realm'
+
   useEffect(() => {
-    if (data) {
+    if (roleScope === 'realm') {
+      form.setValue('clientId', undefined, { shouldValidate: true, shouldDirty: true })
+    }
+  }, [form, roleScope])
+
+  useEffect(() => {
+    if (isSuccess) {
       navigate(`${ROLES_URL(realm_name)}${ROLE_OVERVIEW_URL}`)
     }
-  }, [data, navigate, realm_name])
+  }, [isSuccess, navigate, realm_name])
 
   return (
     <Form {...form}>
@@ -103,6 +118,7 @@ export default function PageCreateRoleFeature() {
         handleSubmit={handleSubmit}
         handlePermissionToggle={handlePermissionToggle}
         handleSelectAllInGroup={handleSelectAllInGroup}
+        roleScope={roleScope}
         selectedPermissions={selectedPermissions}
       />
     </Form>
