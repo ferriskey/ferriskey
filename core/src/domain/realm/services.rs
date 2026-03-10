@@ -468,6 +468,12 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_master = self
+            .realm_repository
+            .get_by_name("master".into())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
         if !realm.can_delete() {
             return Err(CoreError::CannotDeleteMasterRealm);
         }
@@ -479,6 +485,11 @@ where
             "insufficient permissions",
         )?;
 
+        let client = self
+            .client_repository
+            .get_by_client_id(format!("{}-realm", input.realm_name), realm_master.id)
+            .await?;
+
         self.webhook_repository
             .notify(
                 realm_id,
@@ -489,6 +500,8 @@ where
         self.realm_repository
             .delete_by_name(input.realm_name)
             .await?;
+
+        self.client_repository.delete_by_id(client.id).await?;
 
         Ok(())
     }
