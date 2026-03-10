@@ -29,16 +29,23 @@ use crate::{
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
-        realm::ports::{RealmRepository, SmtpConfigRepository},
+        realm::{
+            entities::RealmId,
+            ports::{RealmRepository, SmtpConfigRepository},
+        },
+        seawatch::{
+            entities::{EventStatus, SecurityEvent, SecurityEventType},
+            ports::SecurityEventRepository,
+        },
         trident::{
             entities::{MfaRecoveryCode, PasswordResetToken, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
-                ChallengeOtpOutput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-                MagicLinkInput, MagicLinkRepository, PasswordResetTokenRepository,
-                RecoveryCodeFormatter, RecoveryCodeRepository, RequestPasswordResetInput,
-                SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
-                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyPasswordResetInput,
+                ChallengeOtpOutput, CompletePasswordResetInput, GenerateRecoveryCodeInput,
+                GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkRepository,
+                PasswordResetTokenRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
+                RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
+                UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
@@ -48,6 +55,10 @@ use crate::{
         user::{
             entities::RequiredAction,
             ports::{UserRepository, UserRequiredActionRepository},
+        },
+        webhook::{
+            entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+            ports::WebhookRepository,
         },
     },
     infrastructure::recovery_code::formatters::{
@@ -189,7 +200,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -202,6 +213,8 @@ where
     ES: EmailPort,
     SC: SmtpConfigRepository,
     PRT: PasswordResetTokenRepository,
+    SE: SecurityEventRepository,
+    WH: WebhookRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -214,10 +227,12 @@ where
     pub(crate) email_port: Arc<ES>,
     pub(crate) smtp_config_repository: Arc<SC>,
     pub(crate) password_reset_token_repository: Arc<PRT>,
+    pub(crate) security_event_repository: Arc<SE>,
+    pub(crate) webhook_repository: Arc<WH>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -230,6 +245,8 @@ where
     ES: EmailPort,
     SC: SmtpConfigRepository,
     PRT: PasswordResetTokenRepository,
+    SE: SecurityEventRepository,
+    WH: WebhookRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -244,6 +261,8 @@ where
         email_port: Arc<ES>,
         smtp_config_repository: Arc<SC>,
         password_reset_token_repository: Arc<PRT>,
+        security_event_repository: Arc<SE>,
+        webhook_repository: Arc<WH>,
     ) -> Self {
         Self {
             credential_repository,
@@ -257,12 +276,14 @@ where
             email_port,
             smtp_config_repository,
             password_reset_token_repository,
+            security_event_repository,
+            webhook_repository,
         }
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -275,6 +296,8 @@ where
     ES: EmailPort,
     SC: SmtpConfigRepository,
     PRT: PasswordResetTokenRepository,
+    SE: SecurityEventRepository,
+    WH: WebhookRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -1095,19 +1118,36 @@ where
             }
         }
 
+        // Log SeaWatch event
+        let _ = self
+            .security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::PasswordResetRequested,
+                    EventStatus::Success,
+                    user.id,
+                )
+                .with_target("user".to_string(), user.id, None),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to log password reset requested event: {}", e));
+
         Ok(())
     }
 
-    async fn verify_password_reset(
+    async fn complete_password_reset(
         &self,
-        input: VerifyPasswordResetInput,
+        input: CompletePasswordResetInput,
     ) -> Result<(), CoreError> {
+        // 1. Get token by token_id
         let prt = self
             .password_reset_token_repository
             .get_by_token_id(input.token_id)
             .await?
             .ok_or(CoreError::NotFound)?;
 
+        // 2. Verify not expired + Argon2 verify
         if prt.is_expired() {
             self.password_reset_token_repository
                 .delete_by_token_id(input.token_id)
@@ -1132,12 +1172,13 @@ where
             return Err(CoreError::InvalidToken);
         }
 
-        // Delete existing password credential if any, then create new one
+        // 3. Delete old password credential
         let _ = self
             .credential_repository
             .delete_password_credential(prt.user_id)
             .await;
 
+        // 4. Create new hashed credential
         let hash_result = self
             .hasher_repository
             .hash_password(&input.new_password)
@@ -1155,10 +1196,44 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        // Delete all password reset tokens for this user
+        // 5. Delete all reset tokens for this user
         self.password_reset_token_repository
             .delete_all_by_user_id(prt.user_id)
             .await?;
+
+        // 6. Remove UpdatePassword from required_actions if present
+        let _ = self
+            .user_required_action_repository
+            .remove_required_action(prt.user_id, RequiredAction::UpdatePassword)
+            .await
+            .inspect_err(|e| warn!("Failed to remove UpdatePassword required action: {}", e));
+
+        let realm_id: RealmId = prt.realm_id.into();
+
+        // 7. Log SeaWatch PasswordResetCompleted
+        let _ = self
+            .security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::PasswordResetCompleted,
+                    EventStatus::Success,
+                    prt.user_id,
+                )
+                .with_target("user".to_string(), prt.user_id, None),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to log password reset completed event: {}", e));
+
+        // 8. Emit webhook auth.reset_password
+        let _ = self
+            .webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::AuthResetPassword, prt.user_id, None::<()>),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to emit password reset webhook: {}", e));
 
         Ok(())
     }

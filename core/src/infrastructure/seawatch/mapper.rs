@@ -18,6 +18,8 @@ impl From<security_events::Model> for SecurityEvent {
             "login_success" => SecurityEventType::LoginSuccess,
             "login_failure" => SecurityEventType::LoginFailure,
             "password_reset" => SecurityEventType::PasswordReset,
+            "password_reset_requested" => SecurityEventType::PasswordResetRequested,
+            "password_reset_completed" => SecurityEventType::PasswordResetCompleted,
             "user_created" => SecurityEventType::UserCreated,
             "user_deleted" => SecurityEventType::UserDeleted,
             "role_assigned" => SecurityEventType::RoleAssigned,
