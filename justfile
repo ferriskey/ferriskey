@@ -14,6 +14,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 #        just dev
 #   3) Run frontend dev server (Node/pnpm):
 #        just web
+#        just dev-web (local)
 #
 # Notes:
 # - Some recipes may prompt to install missing tools (Docker, Node, pnpm, etc).
@@ -212,6 +213,10 @@ dev-test-down: _ensure-docker-running
 dev-test-rm: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes and remove images.
   @{{compose}} --profile build down -v --rmi local
+
+# Run frontend dev server locally (Node/pnpm)
+dev-web: _ensure-pnpm
+  @cd front && pnpm install && pnpm run dev
 
 web: _ensure-pnpm
   @# Run the frontend server inside container.

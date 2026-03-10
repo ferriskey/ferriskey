@@ -163,6 +163,7 @@ src/
 - **Server state:** React Query (TanStack Query)
 - **Client state:** Zustand (auth, realm context)
 - **Forms:** react-hook-form + Zod validation
+- **Frontend API calls:** Prefer the generated `createApiClient` / `window.tanstackApi` client and TanStack Query hooks or mutations over direct `axios` calls. Use `axios` only when a flow cannot be expressed through the generated client.
 
 ## Database & Migrations
 
