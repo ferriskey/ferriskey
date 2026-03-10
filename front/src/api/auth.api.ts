@@ -86,13 +86,8 @@ export const useAuthQuery = (params: AuthQuery) => {
 }
 
 export const useAuthenticateMutation = () => {
-  const authenticateMutation = window.tanstackApi.mutation(
-    'post',
-    '/realms/{realm_name}/login-actions/authenticate'
-  )
-
   return useMutation({
-    ...authenticateMutation.mutationOptions,
+    //...authenticateMutation.mutationOptions,
     mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
       const headers: Record<string, string> = {}
 
@@ -136,7 +131,7 @@ export interface TokenPayload {
 
 export const useTokenMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', TOKEN_PATH).mutationOptions,
+    //...window.tanstackApi.mutation('post', TOKEN_PATH).mutationOptions,
     mutationFn: async (params: TokenPayload): Promise<Schemas.JwtToken> => {
       if (!params.data.grant_type || !params.data.client_id) {
         throw new Error('grant_type and client_id are required')
@@ -179,7 +174,7 @@ export interface RevokeTokenPayload {
 
 export const useRevokeTokenMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
+    //...window.tanstackApi.mutation('post', REVOKE_TOKEN_PATH).mutationOptions,
     mutationFn: async (params: RevokeTokenPayload): Promise<void> => {
       await postUrlEncoded(REVOKE_TOKEN_PATH, {
         path: { realm_name: params.realm },
@@ -205,7 +200,6 @@ export interface LogoutPayload {
 
 export const useLogoutMutation = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', LOGOUT_PATH).mutationOptions,
     mutationFn: async (params: LogoutPayload): Promise<void> => {
       await postUrlEncoded(LOGOUT_PATH, {
         path: { realm_name: params.realm },
