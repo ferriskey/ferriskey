@@ -7,6 +7,7 @@ use utoipa::OpenApi;
 use crate::application::{auth::auth, http::server::app_state::AppState};
 
 use super::handlers::{
+    create_role::{__path_create_role, create_role},
     delete_role::{__path_delete_role, delete_role},
     get_role::{__path_get_role, get_role},
     get_roles::{__path_get_roles, get_roles},
@@ -15,7 +16,14 @@ use super::handlers::{
 };
 
 #[derive(OpenApi)]
-#[openapi(paths(get_roles, get_role, update_role, update_role_permissions, delete_role))]
+#[openapi(paths(
+    create_role,
+    get_roles,
+    get_role,
+    update_role,
+    update_role_permissions,
+    delete_role
+))]
 pub struct RoleApiDoc;
 
 pub fn role_routes(state: AppState) -> Router<AppState> {
@@ -25,7 +33,7 @@ pub fn role_routes(state: AppState) -> Router<AppState> {
                 "{}/realms/{{realm_name}}/roles",
                 state.args.server.root_path
             ),
-            get(get_roles),
+            get(get_roles).post(create_role),
         )
         .route(
             &format!(
@@ -43,7 +51,7 @@ pub fn role_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/roles/{{role_id}}/permissions",
+                "{}/realms/{{realm_name}}/roles/{{role_id}}",
                 state.args.server.root_path
             ),
             put(update_role),

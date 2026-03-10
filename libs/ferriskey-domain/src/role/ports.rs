@@ -4,12 +4,17 @@ use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
 use crate::realm::{Realm, RealmId};
 use crate::role::{
-    commands::{GetUserRolesInput, UpdateRoleInput},
+    commands::{CreateRoleInput, GetUserRolesInput, UpdateRoleInput},
     entities::Role,
     value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
 };
 
 pub trait RoleService: Send + Sync {
+    fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> impl Future<Output = Result<Role, CoreError>> + Send;
     fn delete_role(
         &self,
         identity: Identity,
