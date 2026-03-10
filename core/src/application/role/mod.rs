@@ -6,13 +6,21 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         role::{
-            entities::{GetUserRolesInput, Role, UpdateRoleInput},
+            entities::{CreateRoleInput, GetUserRolesInput, Role, UpdateRoleInput},
             ports::RoleService,
         },
     },
 };
 
 impl RoleService for ApplicationService {
+    async fn create_role(
+        &self,
+        identity: Identity,
+        input: CreateRoleInput,
+    ) -> Result<Role, CoreError> {
+        self.role_service.create_role(identity, input).await
+    }
+
     async fn delete_role(
         &self,
         identity: Identity,
