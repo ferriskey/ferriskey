@@ -500,6 +500,19 @@ export namespace Schemas {
   export type SendMagicLinkRequest = { email: string }
   export type SendMagicLinkResponse = { message: string }
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string }
+  export type SmtpEncryption = 'tls' | 'starttls' | 'none'
+  export type SmtpConfig = {
+    created_at: string
+    encryption: SmtpEncryption
+    from_email: string
+    from_name: string
+    host: string
+    id: string
+    port: number
+    realm_id: string
+    updated_at: string
+    username: string
+  }
   export type SyncUsersResponse = {
     completed_at?: (string | null) | undefined
     created: number
@@ -612,6 +625,15 @@ export namespace Schemas {
     required_actions: Array<string> | null
   }>
   export type UpdateWebhookResponse = { data: Webhook }
+  export type UpsertSmtpConfigValidator = {
+    encryption: string
+    from_email: string
+    from_name: string
+    host: string
+    password: string
+    port: number
+    username: string
+  }
   export type UserInfoResponse = {
     email?: (string | null) | undefined
     email_verified?: (boolean | null) | undefined
@@ -1805,6 +1827,45 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_Get_smtp_config = {
+    method: 'GET'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.SmtpConfig
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Upsert_smtp_config = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.UpsertSmtpConfigValidator
+    }
+    responses: {
+      200: Schemas.SmtpConfig
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type delete_Delete_smtp_config = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: { 204: unknown; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse }
+  }
   export type get_Get_users = {
     method: 'GET'
     path: '/realms/{realm_name}/users'
@@ -2161,6 +2222,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
+    '/realms/{realm_name}/smtp-config': Endpoints.get_Get_smtp_config
     '/realms/{realm_name}/users': Endpoints.get_Get_users
     '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
     '/realms/{realm_name}/users/{user_id}': Endpoints.get_Get_user
@@ -2180,6 +2242,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.put_Update_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
+    '/realms/{realm_name}/smtp-config': Endpoints.put_Upsert_smtp_config
     '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
     '/realms/{realm_name}/users/{user_id}/reset-password': Endpoints.put_Reset_password
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.put_Update_webhook
@@ -2196,6 +2259,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider
     '/realms/{realm_name}/identity-providers/{alias}': Endpoints.delete_Delete_identity_provider
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
+    '/realms/{realm_name}/smtp-config': Endpoints.delete_Delete_smtp_config
     '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user
     '/realms/{realm_name}/users/{user_id}': Endpoints.delete_Delete_user
     '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}': Endpoints.delete_Delete_user_credential
