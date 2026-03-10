@@ -8,6 +8,9 @@ pub struct JwtToken {
     token_type: String,
     refresh_token: String,
     expires_in: u32,
+    refresh_expires_in: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     id_token: Option<String>,
 }
@@ -18,6 +21,8 @@ impl JwtToken {
         token_type: String,
         refresh_token: String,
         expires_in: u32,
+        refresh_expires_in: u32,
+        session_state: Option<String>,
         id_token: Option<String>,
     ) -> Self {
         Self {
@@ -25,6 +30,8 @@ impl JwtToken {
             token_type,
             refresh_token,
             expires_in,
+            refresh_expires_in,
+            session_state,
             id_token,
         }
     }

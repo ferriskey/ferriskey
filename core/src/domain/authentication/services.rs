@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
@@ -366,6 +367,13 @@ where
                     .apply_mappers(&all_mappers, &context, TokenType::IdToken)?;
 
             let aud = claims.azp.clone();
+
+            // at_hash = base64url(left-half of SHA-256(access_token))
+            let at_hash = {
+                let digest = Sha256::digest(jwt.token.as_bytes());
+                Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]))
+            };
+
             // Identity claims (preferred_username, email, email_verified) are injected
             // into `additional_claims` by the protocol mappers attached to the `profile`
             // and `email` scopes.  The dedicated struct fields are intentionally left as
@@ -379,8 +387,12 @@ where
                 email_verified: None,
                 exp,
                 iat,
+                jti: Uuid::new_v4(),
+                sid: None,
+                at_hash,
                 preferred_username: None,
                 sub: claims.sub,
+                typ: ClaimsTyp::Id,
                 additional_claims: id_mapper_output.claims,
             };
             let t = Self::encode_token_with_key(&id_claims, id_claims.exp, &jwt_key_pair)?;
@@ -684,6 +696,8 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
             id_token_value,
         ))
     }
@@ -749,6 +763,8 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
             id_token_value,
         ))
     }
@@ -841,6 +857,8 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
             id_token_value,
         ))
     }
@@ -906,6 +924,8 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
             id_token_value,
         ))
     }
@@ -1347,6 +1367,7 @@ This is a server error that should be investigated. Do not forward back this mes
                 ClaimsTyp::Bearer => "Bearer".to_string(),
                 ClaimsTyp::Refresh => "Refresh".to_string(),
                 ClaimsTyp::Temporary => "Temporary".to_string(),
+                ClaimsTyp::Id => "ID".to_string(),
             }),
             exp: claims.exp,
             iat: Some(claims.iat),
@@ -1804,6 +1825,8 @@ where
             "Bearer".to_string(),
             refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
             None,
         ))
     }
@@ -1974,6 +1997,7 @@ where
                     .map_err(|_| CoreError::InternalServerError)?;
             }
             ClaimsTyp::Temporary => {}
+            ClaimsTyp::Id => {}
         }
 
         Ok(())
