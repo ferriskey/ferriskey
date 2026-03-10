@@ -20,7 +20,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::RealmServiceImpl,
+        realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -88,6 +88,7 @@ pub mod compass;
 pub mod credential;
 pub mod health;
 pub mod identity_provider;
+pub mod mail;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -213,9 +214,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client_scope.clone(),
             protocol_mapper.clone(),
             scope_mapping.clone(),
-            smtp_config.clone(),
             policy.clone(),
         ),
+        mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
         role_service: RoleServiceImpl::new(
             realm.clone(),
             role.clone(),

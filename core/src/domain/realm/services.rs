@@ -15,9 +15,9 @@ use crate::domain::{
         entities::{Realm, RealmId, RealmLoginSetting, RealmSetting, SmtpConfig},
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, DeleteSmtpConfigInput,
-            GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput, RealmPolicy, RealmRepository,
-            RealmService, SmtpConfigRepository, UpdateRealmInput, UpdateRealmSettingInput,
-            UpsertSmtpConfigInput,
+            GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput, MailService, RealmPolicy,
+            RealmRepository, RealmService, SmtpConfigRepository, UpdateRealmInput,
+            UpdateRealmSettingInput, UpsertSmtpConfigInput,
         },
     },
     role::{
@@ -37,7 +37,7 @@ use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, SC>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -49,7 +49,6 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
-    SC: SmtpConfigRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -61,13 +60,11 @@ where
     pub(crate) client_scope_repository: Arc<CS>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
     pub(crate) client_scope_mapping_repository: Arc<CSM>,
-    pub(crate) smtp_config_repository: Arc<SC>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM, SC>
-    RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, SC>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -79,7 +76,6 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
-    SC: SmtpConfigRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -93,7 +89,6 @@ where
         client_scope_repository: Arc<CS>,
         protocol_mapper_repository: Arc<PM>,
         client_scope_mapping_repository: Arc<CSM>,
-        smtp_config_repository: Arc<SC>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -107,7 +102,6 @@ where
             client_scope_repository,
             protocol_mapper_repository,
             client_scope_mapping_repository,
-            smtp_config_repository,
             policy,
         }
     }
@@ -258,8 +252,8 @@ where
     }
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM, SC> RealmService
-    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, SC>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmService
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -271,7 +265,6 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
-    SC: SmtpConfigRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -770,7 +763,51 @@ where
 
         Ok(settings)
     }
+}
 
+#[derive(Clone, Debug)]
+pub struct MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) smtp_config_repository: Arc<SC>,
+    pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, SC> MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
+    pub fn new(
+        realm_repository: Arc<R>,
+        smtp_config_repository: Arc<SC>,
+        policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    ) -> Self {
+        Self {
+            realm_repository,
+            smtp_config_repository,
+            policy,
+        }
+    }
+}
+
+impl<R, U, C, UR, SC> MailService for MailServiceImpl<R, U, C, UR, SC>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    SC: SmtpConfigRepository,
+{
     #[instrument(
         skip(self, identity, input),
         fields(
@@ -884,7 +921,7 @@ mod tests {
         common::services::tests::{
             create_test_realm_with_name, create_test_user_identity_with_realm,
         },
-        realm::{entities::RealmId, ports::MockRealmRepository, ports::MockSmtpConfigRepository},
+        realm::{entities::RealmId, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
         user::ports::{MockUserRepository, MockUserRoleRepository},
         webhook::ports::MockWebhookRepository,
@@ -902,7 +939,6 @@ mod tests {
         client_scope_repo: Arc<MockClientScopeRepository>,
         protocol_mapper_repo: Arc<MockProtocolMapperRepository>,
         client_scope_mapping_repo: Arc<MockClientScopeMappingRepository>,
-        smtp_config_repo: Arc<MockSmtpConfigRepository>,
     }
 
     impl RealmServiceTestBuilder {
@@ -917,7 +953,6 @@ mod tests {
             let client_scope_repo = Arc::new(MockClientScopeRepository::new());
             let protocol_mapper_repo = Arc::new(MockProtocolMapperRepository::new());
             let client_scope_mapping_repo = Arc::new(MockClientScopeMappingRepository::new());
-            let smtp_config_repo = Arc::new(MockSmtpConfigRepository::new());
 
             Self {
                 realm_repo,
@@ -930,7 +965,6 @@ mod tests {
                 client_scope_repo,
                 protocol_mapper_repo,
                 client_scope_mapping_repo,
-                smtp_config_repo,
             }
         }
 
@@ -1225,7 +1259,6 @@ mod tests {
             MockClientScopeRepository,
             MockProtocolMapperRepository,
             MockClientScopeMappingRepository,
-            MockSmtpConfigRepository,
         > {
             let policy = Arc::new(FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -1243,7 +1276,6 @@ mod tests {
                 self.client_scope_repo,
                 self.protocol_mapper_repo,
                 self.client_scope_mapping_repo,
-                self.smtp_config_repo,
                 policy,
             )
         }

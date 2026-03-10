@@ -16,7 +16,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::RealmServiceImpl,
+        realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -149,8 +149,9 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ProtocolMapperRepo,
         ScopeMappingRepo,
-        SmtpConfigRepo,
     >,
+    pub(crate) mail_service:
+        MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<
         RealmRepo,
         UserRepo,
