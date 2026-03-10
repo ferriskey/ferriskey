@@ -19,14 +19,14 @@ export const useGetFlows = ({
 }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/compass/v1/flows', {
-      path: {
-        realm_name: realm!,
-        client_id: clientId ?? null,
-        user_id: userId ?? null,
-        grant_type: grantType ?? null,
-        status: status ?? null,
-        limit: limit ?? null,
-        offset: offset ?? null,
+      path: { realm_name: realm! },
+      query: {
+        client_id: clientId,
+        user_id: userId,
+        grant_type: grantType,
+        status,
+        limit,
+        offset,
       },
     }).queryOptions,
     enabled: !!realm,
