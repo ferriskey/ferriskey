@@ -24,6 +24,7 @@ pub mod redirect_uris;
 pub mod refresh_tokens;
 pub mod roles;
 pub mod security_events;
+pub mod smtp_configs;
 pub mod user_federation_mappings;
 pub mod user_federation_providers;
 pub mod user_required_actions;

@@ -4,10 +4,11 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         realm::{
-            entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
+            entities::{Realm, RealmId, RealmLoginSetting, RealmSetting, SmtpConfig},
             ports::{
-                CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
-                GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
+                CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput,
+                DeleteSmtpConfigInput, GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput,
+                RealmService, UpdateRealmInput, UpdateRealmSettingInput, UpsertSmtpConfigInput,
             },
         },
     },
@@ -86,5 +87,29 @@ impl RealmService for ApplicationService {
 
     async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
         self.realm_service.seed_default_scopes(realm_id).await
+    }
+
+    async fn get_smtp_config(
+        &self,
+        identity: Identity,
+        input: GetSmtpConfigInput,
+    ) -> Result<SmtpConfig, CoreError> {
+        self.realm_service.get_smtp_config(identity, input).await
+    }
+
+    async fn upsert_smtp_config(
+        &self,
+        identity: Identity,
+        input: UpsertSmtpConfigInput,
+    ) -> Result<SmtpConfig, CoreError> {
+        self.realm_service.upsert_smtp_config(identity, input).await
+    }
+
+    async fn delete_smtp_config(
+        &self,
+        identity: Identity,
+        input: DeleteSmtpConfigInput,
+    ) -> Result<(), CoreError> {
+        self.realm_service.delete_smtp_config(identity, input).await
     }
 }

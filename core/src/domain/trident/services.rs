@@ -20,13 +20,16 @@ use crate::{
             ports::AuthSessionRepository,
             value_objects::Identity,
         },
-        common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
+        common::{
+            email::EmailPort, entities::app_errors::CoreError, generate_random_string,
+            generate_random_token,
+        },
         credential::{
             entities::{Credential, CredentialData, CredentialType},
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
-        realm::ports::RealmRepository,
+        realm::ports::{RealmRepository, SmtpConfigRepository},
         trident::{
             entities::{MfaRecoveryCode, TotpSecret},
             ports::{
@@ -185,7 +188,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -195,6 +198,8 @@ where
     ML: MagicLinkRepository,
     UR: UserRepository,
     RR: RealmRepository,
+    ES: EmailPort,
+    SC: SmtpConfigRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -204,9 +209,12 @@ where
     pub(crate) magic_link_repository: Arc<ML>,
     pub(crate) user_repository: Arc<UR>,
     pub(crate) realm_repository: Arc<RR>,
+    pub(crate) email_port: Arc<ES>,
+    pub(crate) smtp_config_repository: Arc<SC>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR> TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -216,6 +224,8 @@ where
     ML: MagicLinkRepository,
     UR: UserRepository,
     RR: RealmRepository,
+    ES: EmailPort,
+    SC: SmtpConfigRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -227,6 +237,8 @@ where
         magic_link_repository: Arc<ML>,
         user_repository: Arc<UR>,
         realm_repository: Arc<RR>,
+        email_port: Arc<ES>,
+        smtp_config_repository: Arc<SC>,
     ) -> Self {
         Self {
             credential_repository,
@@ -237,12 +249,14 @@ where
             magic_link_repository,
             user_repository,
             realm_repository,
+            email_port,
+            smtp_config_repository,
         }
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -252,6 +266,8 @@ where
     ML: MagicLinkRepository,
     UR: UserRepository,
     RR: RealmRepository,
+    ES: EmailPort,
+    SC: SmtpConfigRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -853,10 +869,30 @@ where
             )
             .await?;
 
-        debug!(
-            "------------ Magic link generated with token_id: {}, token: {} (email: {}, ttl: {}min) ------------",
-            magic_token_id, magic_token, user.email, ttl_minutes
-        );
+        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
+            Ok(Some(smtp_config)) => {
+                let subject = "Your magic link";
+                let body = format!(
+                    "Your magic link token: {}\nThis link expires in {} minutes.",
+                    magic_token, ttl_minutes
+                );
+                if let Err(e) = self
+                    .email_port
+                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .await
+                {
+                    warn!("Failed to send magic link email: {}", e);
+                }
+            }
+            _ => {
+                warn!("SMTP not configured for realm, logging magic link instead");
+                debug!(
+                    "Magic link token_id: {}, token: {}",
+                    magic_token_id, magic_token
+                );
+            }
+        }
+
         Ok(())
     }
 

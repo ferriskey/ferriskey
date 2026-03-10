@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use rand::{Rng, distributions::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
+pub mod email;
 pub mod entities;
 pub mod policies;
 pub mod ports;

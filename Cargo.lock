@@ -1556,6 +1556,7 @@ dependencies = [
  "ferriskey-aegis",
  "ferriskey-compass",
  "ferriskey-domain",
+ "ferriskey-mail",
  "ferriskey-security",
  "ferriskey-trident",
  "futures",

@@ -4,7 +4,7 @@ use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
-    realm::entities::{Realm, RealmLoginSetting, RealmSetting},
+    realm::entities::{Realm, RealmLoginSetting, RealmSetting, SmtpConfig},
     user::entities::User,
 };
 
@@ -64,6 +64,24 @@ pub trait RealmService: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<RealmLoginSetting, CoreError>> + Send;
+
+    fn get_smtp_config(
+        &self,
+        identity: Identity,
+        input: GetSmtpConfigInput,
+    ) -> impl Future<Output = Result<SmtpConfig, CoreError>> + Send;
+
+    fn upsert_smtp_config(
+        &self,
+        identity: Identity,
+        input: UpsertSmtpConfigInput,
+    ) -> impl Future<Output = Result<SmtpConfig, CoreError>> + Send;
+
+    fn delete_smtp_config(
+        &self,
+        identity: Identity,
+        input: DeleteSmtpConfigInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait RealmPolicy: Send + Sync {
@@ -173,5 +191,42 @@ pub struct UpdateRealmSettingInput {
 }
 
 pub struct DeleteRealmInput {
+    pub realm_name: String,
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait SmtpConfigRepository: Send + Sync {
+    fn get_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<SmtpConfig>, CoreError>> + Send;
+
+    fn upsert(
+        &self,
+        config: &SmtpConfig,
+    ) -> impl Future<Output = Result<SmtpConfig, CoreError>> + Send;
+
+    fn delete_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+pub struct UpsertSmtpConfigInput {
+    pub realm_name: String,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub from_email: String,
+    pub from_name: String,
+    pub encryption: String,
+}
+
+pub struct GetSmtpConfigInput {
+    pub realm_name: String,
+}
+
+pub struct DeleteSmtpConfigInput {
     pub realm_name: String,
 }
