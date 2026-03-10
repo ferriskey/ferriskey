@@ -1098,8 +1098,8 @@ where
             Ok(Some(smtp_config)) => {
                 let subject = "Reset your password";
                 let body = format!(
-                    "A password reset was requested for your account.\n\nToken ID: {}\nToken: {}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
-                    token_id, raw_token, ttl_minutes
+                    "A password reset was requested for your account.\n\nClick the link below to reset your password:\n{}/realms/{}/authentication/reset-password?token_id={}&token={}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
+                    input.base_url, realm.name, token_id, raw_token, ttl_minutes
                 );
                 if let Err(e) = self
                     .email_port
@@ -1425,6 +1425,7 @@ mod tests {
             .request_password_reset(RequestPasswordResetInput {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
+                base_url: "http://localhost:5555".to_string(),
             })
             .await;
 
@@ -1465,6 +1466,7 @@ mod tests {
             .request_password_reset(RequestPasswordResetInput {
                 realm_name: "test-realm".to_string(),
                 email: "unknown@example.com".to_string(),
+                base_url: "http://localhost:5555".to_string(),
             })
             .await;
 
@@ -1524,6 +1526,7 @@ mod tests {
             .request_password_reset(RequestPasswordResetInput {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
+                base_url: "http://localhost:5555".to_string(),
             })
             .await;
 
@@ -1560,6 +1563,7 @@ mod tests {
             .request_password_reset(RequestPasswordResetInput {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
+                base_url: "http://localhost:5555".to_string(),
             })
             .await;
 

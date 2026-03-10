@@ -132,6 +132,7 @@ pub struct VerifyMagicLinkInput {
 pub struct RequestPasswordResetInput {
     pub realm_name: String,
     pub email: String,
+    pub base_url: String,
 }
 
 pub struct CompletePasswordResetInput {
