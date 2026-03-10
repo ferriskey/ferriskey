@@ -9,9 +9,7 @@ import MultipleSelector from '@/components/ui/multiselect'
 import { Label } from '@/components/ui/label'
 import { formatRequiredAction, formatSnakeCaseToTitleCase } from '@/utils'
 import { Schemas } from '@/api/api.client'
-import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
-import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { DangerZone } from '@/components/danger-zone'
 import User = Schemas.User
 
 type Props = {
@@ -23,7 +21,6 @@ type Props = {
 
 export default function PageUserOverview({ onSubmit, hasChanges, user, onDelete }: Props) {
   const form = useFormContext<UpdateUserSchema>()
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const requiredActions = Object.values(RequiredAction).map((action) => ({
     label: formatRequiredAction(action),
@@ -210,25 +207,14 @@ export default function PageUserOverview({ onSubmit, hasChanges, user, onDelete 
         />
       </div>
 
-      {/* Danger Zone */}
-      <div className='flex flex-col gap-1'>
-        <div className='mb-4'>
-          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
-          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
-        </div>
-
-        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
-          <div className='w-2/3'>
-            <p className='text-sm font-medium'>Delete this user</p>
-            <p className='text-sm text-muted-foreground mt-0.5'>
-              Once deleted, all associated sessions, credentials, and role assignments will be permanently removed.
-            </p>
-          </div>
-          <Button variant='destructive' onClick={() => setShowDeleteDialog(true)}>
-            Delete user
-          </Button>
-        </div>
-      </div>
+      <DangerZone
+        label='Delete this user'
+        description='Once deleted, all associated sessions, credentials, and role assignments will be permanently removed.'
+        buttonLabel='Delete user'
+        confirmTitle='Delete user'
+        confirmDescription={`This will permanently delete the user "${user.username}" and all associated data.`}
+        onConfirm={onDelete}
+      />
 
       <FloatingActionBar
         show={hasChanges}
@@ -244,13 +230,6 @@ export default function PageUserOverview({ onSubmit, hasChanges, user, onDelete 
         onCancel={() => form.reset()}
       />
 
-      <ConfirmDeleteAlert
-        open={showDeleteDialog}
-        title='Delete user'
-        description={`This will permanently delete the user "${user.username}" and all associated data.`}
-        onConfirm={onDelete}
-        onCancel={() => setShowDeleteDialog(false)}
-      />
     </div>
   )
 }

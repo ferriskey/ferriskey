@@ -12,8 +12,7 @@ import BadgeColor from '@/components/ui/badge-color.tsx'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Schemas } from '@/api/api.client'
-import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
-import { useState } from 'react'
+import { DangerZone } from '@/components/danger-zone'
 import Role = Schemas.Role
 
 export interface PageRoleSettingsProps {
@@ -36,7 +35,6 @@ export default function PageRoleSettings({
   onDelete,
 }: PageRoleSettingsProps) {
   const navigate = useNavigate()
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const handleBackClick = () => {
     navigate(`/realms/${realmName}/roles`)
@@ -152,32 +150,13 @@ export default function PageRoleSettings({
         onCancel={() => form.reset()}
       />
 
-      {/* Danger Zone */}
-      <div className='flex flex-col gap-1'>
-        <div className='mb-4'>
-          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
-          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
-        </div>
-
-        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
-          <div className='w-2/3'>
-            <p className='text-sm font-medium'>Delete this role</p>
-            <p className='text-sm text-muted-foreground mt-0.5'>
-              Once deleted, all user assignments for this role will be permanently removed.
-            </p>
-          </div>
-          <Button variant='destructive' onClick={() => setShowDeleteDialog(true)}>
-            Delete role
-          </Button>
-        </div>
-      </div>
-
-      <ConfirmDeleteAlert
-        open={showDeleteDialog}
-        title='Delete role'
-        description={`This will permanently delete the role "${role?.name}" and remove all user assignments.`}
+      <DangerZone
+        label='Delete this role'
+        description='Once deleted, all user assignments for this role will be permanently removed.'
+        buttonLabel='Delete role'
+        confirmTitle='Delete role'
+        confirmDescription={`This will permanently delete the role "${role?.name}" and remove all user assignments.`}
         onConfirm={onDelete}
-        onCancel={() => setShowDeleteDialog(false)}
       />
     </div>
   )

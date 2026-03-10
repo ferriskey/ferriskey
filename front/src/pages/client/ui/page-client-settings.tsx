@@ -7,9 +7,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientSchema } from '../schemas/update-client.schema'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { Schemas } from '@/api/api.client.ts'
-import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
-import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { DangerZone } from '@/components/danger-zone'
 import Client = Schemas.Client
 
 export interface PageClientSettingsProps {
@@ -29,7 +27,6 @@ export default function PageClientSettings({
   refetch,
   onDelete,
 }: PageClientSettingsProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   return (
     <div className='flex flex-col gap-8'>
@@ -220,32 +217,13 @@ export default function PageClientSettings({
         onCancel={() => form.reset()}
       />
 
-      {/* Danger Zone */}
-      <div className='flex flex-col gap-1'>
-        <div className='mb-4'>
-          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
-          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
-        </div>
-
-        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
-          <div className='w-2/3'>
-            <p className='text-sm font-medium'>Delete this client</p>
-            <p className='text-sm text-muted-foreground mt-0.5'>
-              Once deleted, all associated tokens, roles, and configurations will be permanently removed.
-            </p>
-          </div>
-          <Button variant='destructive' onClick={() => setShowDeleteDialog(true)}>
-            Delete client
-          </Button>
-        </div>
-      </div>
-
-      <ConfirmDeleteAlert
-        open={showDeleteDialog}
-        title='Delete client'
-        description={`This will permanently delete the client "${client.name || client.client_id}" and all its associated data.`}
+      <DangerZone
+        label='Delete this client'
+        description='Once deleted, all associated tokens, roles, and configurations will be permanently removed.'
+        buttonLabel='Delete client'
+        confirmTitle='Delete client'
+        confirmDescription={`This will permanently delete the client "${client.name || client.client_id}" and all its associated data.`}
         onConfirm={onDelete}
-        onCancel={() => setShowDeleteDialog(false)}
       />
     </div>
   )

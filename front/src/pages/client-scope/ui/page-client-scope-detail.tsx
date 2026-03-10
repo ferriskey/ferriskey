@@ -1,5 +1,4 @@
 import { Schemas } from '@/api/api.client'
-import { Button } from '@/components/ui/button'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
@@ -10,10 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useState } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientScopeSchema } from '../schemas/update-client-scope.schema'
-import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+import { DangerZone } from '@/components/danger-zone'
 
 import ClientScope = Schemas.ClientScope
 
@@ -26,7 +24,6 @@ interface PageClientScopeDetailProps {
   handleSubmit: () => void
   handleReset: () => void
   handleDelete: () => void
-  isDeleting?: boolean
 }
 
 export default function PageClientScopeDetail({
@@ -39,7 +36,6 @@ export default function PageClientScopeDetail({
   handleReset,
   handleDelete,
 }: PageClientScopeDetailProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   if (isLoading) {
     return <div className='text-sm text-muted-foreground'>Loading...</div>
   }
@@ -184,35 +180,13 @@ export default function PageClientScopeDetail({
         )}
       </div>
 
-      {/* Danger Zone */}
-      <div className='flex flex-col gap-1'>
-        <div className='mb-4'>
-          <p className='text-xs text-destructive/70 mb-0.5'>Irreversible actions</p>
-          <h2 className='text-base font-semibold text-destructive'>Danger Zone</h2>
-        </div>
-
-        <div className='flex items-center justify-between py-4 border-t border-destructive/20'>
-          <div className='w-2/3'>
-            <p className='text-sm font-medium'>Delete this client scope</p>
-            <p className='text-sm text-muted-foreground mt-0.5'>
-              Once deleted, all associated protocol mappers and client mappings will be permanently removed.
-            </p>
-          </div>
-          <Button variant='destructive' onClick={() => setDeleteDialogOpen(true)}>
-            Delete scope
-          </Button>
-        </div>
-      </div>
-
-      <ConfirmDeleteAlert
-        open={deleteDialogOpen}
-        title='Delete client scope'
-        description={`This will permanently delete the scope "${scope.name}" and all its associated protocol mappers and client mappings.`}
-        onConfirm={() => {
-          handleDelete()
-          setDeleteDialogOpen(false)
-        }}
-        onCancel={() => setDeleteDialogOpen(false)}
+      <DangerZone
+        label='Delete this client scope'
+        description='Once deleted, all associated protocol mappers and client mappings will be permanently removed.'
+        buttonLabel='Delete scope'
+        confirmTitle='Delete client scope'
+        confirmDescription={`This will permanently delete the scope "${scope.name}" and all its associated protocol mappers and client mappings.`}
+        onConfirm={handleDelete}
       />
 
       <FloatingActionBar
