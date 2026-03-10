@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum Permissions {
     #[serde(rename = "create_client")]
+    #[default]
     CreateClient,
     #[serde(rename = "manage_authorization")]
     ManageAuthorization,
@@ -95,11 +98,5 @@ impl std::fmt::Display for Permissions {
             Self::QueryClientScopes => write!(f, "query_client_scopes"),
             Self::ViewClientScopes => write!(f, "view_client_scopes"),
         }
-    }
-}
-
-impl Default for Permissions {
-    fn default() -> Permissions {
-        Self::CreateClient
     }
 }

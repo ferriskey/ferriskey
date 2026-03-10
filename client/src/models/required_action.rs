@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum RequiredAction {
     #[serde(rename = "configure_otp")]
+    #[default]
     ConfigureOtp,
     #[serde(rename = "verify_email")]
     VerifyEmail,
@@ -29,11 +32,5 @@ impl std::fmt::Display for RequiredAction {
             Self::VerifyEmail => write!(f, "verify_email"),
             Self::UpdatePassword => write!(f, "update_password"),
         }
-    }
-}
-
-impl Default for RequiredAction {
-    fn default() -> RequiredAction {
-        Self::ConfigureOtp
     }
 }

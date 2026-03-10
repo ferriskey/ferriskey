@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum GrantType {
     #[serde(rename = "authorization_code")]
+    #[default]
     AuthorizationCode,
     #[serde(rename = "password")]
     Password,
@@ -32,11 +35,5 @@ impl std::fmt::Display for GrantType {
             Self::ClientCredentials => write!(f, "client_credentials"),
             Self::RefreshToken => write!(f, "refresh_token"),
         }
-    }
-}
-
-impl Default for GrantType {
-    fn default() -> GrantType {
-        Self::AuthorizationCode
     }
 }

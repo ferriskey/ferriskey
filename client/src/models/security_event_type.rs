@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum SecurityEventType {
     #[serde(rename = "login_success")]
+    #[default]
     LoginSuccess,
     #[serde(rename = "login_failure")]
     LoginFailure,
@@ -59,11 +62,5 @@ impl std::fmt::Display for SecurityEventType {
             Self::ClientSecretRotated => write!(f, "client_secret_rotated"),
             Self::RealmConfigChanged => write!(f, "realm_config_changed"),
         }
-    }
-}
-
-impl Default for SecurityEventType {
-    fn default() -> SecurityEventType {
-        Self::LoginSuccess
     }
 }

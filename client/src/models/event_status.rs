@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum EventStatus {
     #[serde(rename = "success")]
+    #[default]
     Success,
     #[serde(rename = "failure")]
     Failure,
@@ -26,11 +29,5 @@ impl std::fmt::Display for EventStatus {
             Self::Success => write!(f, "success"),
             Self::Failure => write!(f, "failure"),
         }
-    }
-}
-
-impl Default for EventStatus {
-    fn default() -> EventStatus {
-        Self::Success
     }
 }
