@@ -1866,6 +1866,35 @@ export namespace Endpoints {
     }
     responses: { 204: unknown; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse }
   }
+  export type get_Get_smtp_config = {
+    method: 'GET'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: Schemas.SmtpConfig
+  }
+  export type put_Upsert_smtp_config = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.UpsertSmtpConfigValidator
+    }
+    response: Schemas.SmtpConfig
+  }
+  export type delete_Delete_smtp_config = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    response: unknown
+  }
   export type get_Get_users = {
     method: 'GET'
     path: '/realms/{realm_name}/users'

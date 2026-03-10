@@ -147,6 +147,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Realm"
+  /realms/{realm_name}/smtp-config:
+    get:
+      tags:
+        - realm
+      summary: Get SMTP configuration for a realm
+      operationId: get_smtp_config
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SMTP config retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmtpConfig"
+        "404":
+          description: SMTP config not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+    put:
+      tags:
+        - realm
+      summary: Create or update SMTP configuration for a realm
+      operationId: upsert_smtp_config
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertSmtpConfigRequest"
+        required: true
+      responses:
+        "200":
+          description: SMTP config saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmtpConfig"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+    delete:
+      tags:
+        - realm
+      summary: Delete SMTP configuration for a realm
+      operationId: delete_smtp_config
+      parameters:
+        - name: realm_name
+          in: path
+          description: Realm name
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: SMTP config deleted successfully
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
   /realms/{realm_name}/.well-known/openid-configuration:
     get:
       tags:
@@ -2789,6 +2867,77 @@ components:
           type:
             - boolean
             - "null"
+    SmtpConfig:
+      type: object
+      required:
+        - id
+        - realm_id
+        - host
+        - port
+        - username
+        - from_email
+        - from_name
+        - encryption
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        realm_id:
+          type: string
+          format: uuid
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        from_email:
+          type: string
+        from_name:
+          type: string
+        encryption:
+          type: string
+          enum:
+            - tls
+            - starttls
+            - none
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpsertSmtpConfigRequest:
+      type: object
+      required:
+        - host
+        - port
+        - username
+        - password
+        - from_email
+        - from_name
+        - encryption
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        from_email:
+          type: string
+        from_name:
+          type: string
+        encryption:
+          type: string
+          enum:
+            - tls
+            - starttls
+            - none
     UpdateRealmValidator:
       type: object
       required:
