@@ -90,14 +90,16 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                             />
                           )}
                         />
-                        <div className='hidden items-center'>
-                          <a
-                            href='#'
-                            className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
-                          >
-                            Forgot your password?
-                          </a>
-                        </div>
+                        {loginSettings?.forgot_password_enabled && (
+                          <div className='flex items-center'>
+                            <Link
+                              to={'../forgot-password'}
+                              className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
+                            >
+                              Forgot your password?
+                            </Link>
+                          </div>
+                        )}
                       </div>
                       <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
                         Login
