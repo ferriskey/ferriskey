@@ -16,6 +16,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        password_policy::services::PasswordPolicyServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -53,6 +54,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
@@ -102,6 +104,7 @@ type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
+type PasswordPolicyRepo = PostgresPasswordPolicyRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -195,6 +198,7 @@ pub struct ApplicationService {
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
+    pub(crate) password_policy_service: PasswordPolicyServiceImpl<PasswordPolicyRepo>,
 
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
