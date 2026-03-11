@@ -33,12 +33,18 @@ pub enum Relation {
     JwtKeys,
     #[sea_orm(has_many = "super::magic_links::Entity")]
     MagicLinks,
+    #[sea_orm(has_one = "super::password_policy::Entity")]
+    PasswordPolicy,
+    #[sea_orm(has_many = "super::password_reset_tokens::Entity")]
+    PasswordResetTokens,
     #[sea_orm(has_many = "super::realm_settings::Entity")]
     RealmSettings,
     #[sea_orm(has_many = "super::roles::Entity")]
     Roles,
     #[sea_orm(has_many = "super::security_events::Entity")]
     SecurityEvents,
+    #[sea_orm(has_one = "super::smtp_configs::Entity")]
+    SmtpConfigs,
     #[sea_orm(has_many = "super::user_federation_providers::Entity")]
     UserFederationProviders,
     #[sea_orm(has_many = "super::user_sessions::Entity")]
@@ -103,6 +109,18 @@ impl Related<super::magic_links::Entity> for Entity {
     }
 }
 
+impl Related<super::password_policy::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PasswordPolicy.def()
+    }
+}
+
+impl Related<super::password_reset_tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PasswordResetTokens.def()
+    }
+}
+
 impl Related<super::realm_settings::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::RealmSettings.def()
@@ -118,6 +136,12 @@ impl Related<super::roles::Entity> for Entity {
 impl Related<super::security_events::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::SecurityEvents.def()
+    }
+}
+
+impl Related<super::smtp_configs::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SmtpConfigs.def()
     }
 }
 

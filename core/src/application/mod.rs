@@ -155,7 +155,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
-    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_pool()));
+    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(

@@ -42,6 +42,8 @@ pub enum Relation {
     IdentityProviderLinks,
     #[sea_orm(has_many = "super::magic_links::Entity")]
     MagicLinks,
+    #[sea_orm(has_many = "super::password_reset_tokens::Entity")]
+    PasswordResetTokens,
     #[sea_orm(
         belongs_to = "super::realms::Entity",
         from = "Column::RealmId",
@@ -101,6 +103,12 @@ impl Related<super::identity_provider_links::Entity> for Entity {
 impl Related<super::magic_links::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MagicLinks.def()
+    }
+}
+
+impl Related<super::password_reset_tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PasswordResetTokens.def()
     }
 }
 
