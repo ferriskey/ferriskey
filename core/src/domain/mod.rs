@@ -16,3 +16,4 @@ pub mod session;
 pub mod trident;
 pub mod user;
 pub mod webhook;
+pub mod password_policy;
