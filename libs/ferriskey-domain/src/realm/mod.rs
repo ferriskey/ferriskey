@@ -97,3 +97,45 @@ impl Realm {
         self.name != "master"
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
+pub struct PasswordPolicy {
+    pub id: Uuid,
+    pub realm_id: RealmId,
+    pub min_length: i32,
+    pub require_uppercase: bool,
+    pub require_lowercase: bool,
+    pub require_number: bool,
+    pub require_special: bool,
+    pub max_age_days: Option<i32>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl PasswordPolicy {
+    pub fn default(realm_id: RealmId) -> Self {
+        let (now, _) = generate_timestamp();
+        Self {
+            id: generate_uuid_v7(),
+            realm_id,
+            min_length: 8,
+            require_uppercase: false,
+            require_lowercase: false,
+            require_number: false,
+            require_special: false,
+            max_age_days: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct UpdatePasswordPolicy {
+    pub min_length: Option<i32>,
+    pub require_uppercase: Option<bool>,
+    pub require_lowercase: Option<bool>,
+    pub require_number: Option<bool>,
+    pub require_special: Option<bool>,
+    pub max_age_days: Option<i32>,
+}
