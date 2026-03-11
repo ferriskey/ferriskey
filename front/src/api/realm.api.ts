@@ -109,14 +109,14 @@ export const useUpdatePasswordPolicy = () => {
   return useMutation({
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/password-policy').mutationOptions,
     onSuccess: async (_, variables) => {
-      const queryKeys = window.tanstackApi.get('/realms/{realm_name}/password-policy', {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/password-policy', {
         path: {
           realm_name: variables.path.realm_name,
         },
       }).queryKey
 
       await queryClient.invalidateQueries({
-        queryKey: [...queryKeys],
+        queryKey: keys,
       })
     },
   })

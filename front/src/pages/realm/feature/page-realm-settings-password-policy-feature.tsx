@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 import { useFormChanges } from '@/hooks/use-form-changes'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
+import { type Schemas } from '@/api/api.client'
 
 const passwordPolicySchema = z.object({
     minLength: z.number().min(1).max(128),
@@ -14,7 +15,7 @@ const passwordPolicySchema = z.object({
     requireLowercase: z.boolean(),
     requireNumber: z.boolean(),
     requireSpecial: z.boolean(),
-    maxAgeDays: z.number().nullable(),
+    maxAgeDays: z.number().nullable().optional(),
 })
 
 export type PasswordPolicySchema = z.infer<typeof passwordPolicySchema>
@@ -40,9 +41,7 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
         if (!realm_name) return
 
         mutate({
-            path: {
-                realm_name: realm_name
-            },
+            path: { realm_name },
             body: {
                 min_length: values.minLength,
                 require_uppercase: values.requireUppercase,
@@ -50,31 +49,33 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
                 require_number: values.requireNumber,
                 require_special: values.requireSpecial,
                 max_age_days: values.maxAgeDays,
-            }
+            },
         })
     }
 
+    const policy = data as Schemas.PasswordPolicy
     const hasChanges = useFormChanges(
         form,
-        data && {
-            minLength: data.min_length,
-            requireUppercase: data.require_uppercase,
-            requireLowercase: data.require_lowercase,
-            requireNumber: data.require_number,
-            require_special: data.require_special,
-            maxAgeDays: data.max_age_days,
+        policy && {
+            minLength: policy.min_length,
+            requireUppercase: policy.require_uppercase,
+            requireLowercase: policy.require_lowercase,
+            requireNumber: policy.require_number,
+            requireSpecial: policy.require_special,
+            maxAgeDays: policy.max_age_days,
         }
     )
 
     useEffect(() => {
         if (data) {
+            const policy = data as Schemas.PasswordPolicy
             form.reset({
-                minLength: data.min_length,
-                requireUppercase: data.require_uppercase,
-                requireLowercase: data.require_lowercase,
-                requireNumber: data.require_number,
-                requireSpecial: data.require_special,
-                maxAgeDays: data.max_age_days,
+                minLength: policy.min_length,
+                requireUppercase: policy.require_uppercase,
+                requireLowercase: policy.require_lowercase,
+                requireNumber: policy.require_number,
+                requireSpecial: policy.require_special,
+                maxAgeDays: policy.max_age_days,
             })
         }
     }, [data, form])

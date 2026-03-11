@@ -3,6 +3,7 @@ import { PasswordPolicySchema } from '../feature/page-realm-settings-password-po
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 
 export interface PageRealmSettingsPasswordPolicyProps {
@@ -158,6 +159,12 @@ export default function PageRealmSettingsPasswordPolicy({ form, hasChanges, hand
                             </div>
                         )}
                     />
+                </div>
+
+                <div className='flex justify-end pt-4 border-t'>
+                    <Button type='button' onClick={() => form.handleSubmit(handleSubmit)()}>
+                        Save
+                    </Button>
                 </div>
 
                 <FloatingActionBar
