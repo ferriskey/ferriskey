@@ -36,8 +36,7 @@ use serde_json::json;
 
 pub mod user_role_service;
 
-#[derive(Clone, Debug)]
-pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -49,6 +48,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    PPS: PasswordPolicyService,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -736,7 +736,7 @@ mod tests {
             self
         }
 
-        fn build(
+        pub fn build(
             self,
         ) -> UserServiceImpl<
             MockRealmRepository,
@@ -749,8 +749,10 @@ mod tests {
             MockUserRequiredActionRepository,
             MockWebhookRepository,
             MockSecurityEventRepository,
+            MockPasswordPolicyService,
         > {
             use crate::domain::common::policies::FerriskeyPolicy;
+            use crate::domain::password_policy::ports::MockPasswordPolicyService;
 
             let policy = FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -768,6 +770,7 @@ mod tests {
                 self.user_required_action_repo,
                 self.webhook_repo,
                 self.security_event_repo,
+                Arc::new(MockPasswordPolicyService::new()),
                 Arc::new(policy),
             )
         }
