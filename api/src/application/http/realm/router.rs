@@ -98,7 +98,7 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/password-policy",
+                "{}/{{realm_name}}/password-policy",
                 state.args.server.root_path
             ),
             get(get_password_policy).put(update_password_policy),
