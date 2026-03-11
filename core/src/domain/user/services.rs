@@ -64,7 +64,57 @@ where
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> std::fmt::Debug
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    RO: RoleRepository,
+    URA: UserRequiredActionRepository,
+    W: WebhookRepository,
+    SE: SecurityEventRepository,
+    PPS: PasswordPolicyService,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UserServiceImpl").finish()
+    }
+}
+
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> Clone
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    RO: RoleRepository,
+    URA: UserRequiredActionRepository,
+    W: WebhookRepository,
+    SE: SecurityEventRepository,
+    PPS: PasswordPolicyService,
+{
+    fn clone(&self) -> Self {
+        Self {
+            realm_repository: self.realm_repository.clone(),
+            user_repository: self.user_repository.clone(),
+            credential_repository: self.credential_repository.clone(),
+            hasher_repository: self.hasher_repository.clone(),
+            user_role_repository: self.user_role_repository.clone(),
+            role_repository: self.role_repository.clone(),
+            user_required_action_repository: self.user_required_action_repository.clone(),
+            webhook_repository: self.webhook_repository.clone(),
+            security_event_repository: self.security_event_repository.clone(),
+            password_policy_service: self.password_policy_service.clone(),
+            policy: self.policy.clone(),
+        }
+    }
+}
 where
     R: RealmRepository,
     U: UserRepository,
