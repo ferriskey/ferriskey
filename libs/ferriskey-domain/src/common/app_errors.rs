@@ -255,6 +255,9 @@ pub enum CoreError {
 
     #[error("User account is disabled")]
     UserDisabled,
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
 }
 
 impl From<AuthenticationError> for CoreError {
