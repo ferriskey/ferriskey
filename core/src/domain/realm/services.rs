@@ -28,6 +28,7 @@ use crate::domain::{
         entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
         ports::WebhookRepository,
     },
+    password_policy::{entities::UpdatePasswordPolicy, ports::PasswordPolicyRepository},
 };
 use ferriskey_aegis::ports::{
     ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
@@ -60,11 +61,12 @@ where
     pub(crate) client_scope_repository: Arc<CS>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
     pub(crate) client_scope_mapping_repository: Arc<CSM>,
+    pub(crate) password_policy_repository: Arc<PP>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -76,6 +78,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    PP: PasswordPolicyRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -89,6 +92,7 @@ where
         client_scope_repository: Arc<CS>,
         protocol_mapper_repository: Arc<PM>,
         client_scope_mapping_repository: Arc<CSM>,
+        password_policy_repository: Arc<PP>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -102,6 +106,7 @@ where
             client_scope_repository,
             protocol_mapper_repository,
             client_scope_mapping_repository,
+            password_policy_repository,
             policy,
         }
     }
@@ -252,8 +257,8 @@ where
     }
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmService
-    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP> RealmService
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -265,6 +270,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    PP: PasswordPolicyRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -294,6 +300,18 @@ where
         let realm = self.realm_repository.create_realm(input.realm_name).await?;
         self.realm_repository
             .create_realm_settings(realm.id, "RS256".to_string())
+            .await?;
+
+        // Create default password policy
+        self.password_policy_repository
+            .upsert(realm.id.into(), UpdatePasswordPolicy {
+                min_length: Some(8),
+                require_uppercase: Some(false),
+                require_lowercase: Some(false),
+                require_number: Some(false),
+                require_special: Some(false),
+                max_age_days: None,
+            })
             .await?;
 
         let name = format!("{}-realm", realm.name);
