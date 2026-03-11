@@ -24,6 +24,26 @@ where
     }
 }
 
+impl<R> std::fmt::Debug for PasswordPolicyServiceImpl<R>
+where
+    R: PasswordPolicyRepository,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PasswordPolicyServiceImpl").finish()
+    }
+}
+
+impl<R> Clone for PasswordPolicyServiceImpl<R>
+where
+    R: PasswordPolicyRepository,
+{
+    fn clone(&self) -> Self {
+        Self {
+            repository: self.repository.clone(),
+        }
+    }
+}
+
 impl<R> PasswordPolicyService for PasswordPolicyServiceImpl<R>
 where
     R: PasswordPolicyRepository,
