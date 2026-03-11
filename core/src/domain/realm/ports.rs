@@ -64,6 +64,11 @@ pub trait RealmService: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<RealmLoginSetting, CoreError>> + Send;
+
+    fn get_realm_id_by_name(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<RealmId, CoreError>> + Send;
 }
 
 pub trait MailService: Send + Sync {
