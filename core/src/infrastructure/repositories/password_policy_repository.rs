@@ -55,7 +55,7 @@ impl From<PasswordPolicyRow> for PasswordPolicy {
 
 impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Option<PasswordPolicy>, CoreError> {
-        let row = query_as!(
+        let row: Option<PasswordPolicyRow> = query_as!(
             PasswordPolicyRow,
             r#"
             SELECT id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
@@ -79,7 +79,7 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
         
         let existing = self.find_by_realm_id(realm_id).await?;
         
-        let row = if let Some(policy) = existing {
+        let row: PasswordPolicyRow = if let Some(policy) = existing {
             // Update
             query_as!(
                 PasswordPolicyRow,
