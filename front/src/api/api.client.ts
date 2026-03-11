@@ -1,5 +1,4 @@
 export namespace Schemas {
-  export const _type_only = true;
   // <Schemas>
   export type ActorType = "user" | "service_account" | "admin" | "system";
   export type ValidationError = { field: string; message: string };
