@@ -1,6 +1,9 @@
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
+use sea_orm::DatabaseConnection;
 
 use crate::{
+    application::migrate::{build_runner, context::MigrationContext},
     domain::{
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
         aegis::services::{
@@ -23,6 +26,7 @@ use crate::{
         user::services::UserServiceImpl,
         webhook::services::WebhookServiceImpl,
     },
+    infrastructure::migrate::repository::PostgresMigrationRepository,
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
         aegis::repositories::{
@@ -266,6 +270,7 @@ pub struct ApplicationService {
     >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
+    pub(crate) db: DatabaseConnection,
 }
 
 impl CoreService for ApplicationService {
@@ -274,5 +279,21 @@ impl CoreService for ApplicationService {
         config: StartupConfig,
     ) -> Result<InitializationResult, CoreError> {
         self.core_service.initialize_application(config).await
+    }
+}
+
+impl ApplicationService {
+    pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
+        let ctx = MigrationContext::new(
+            self.realm_service.realm_repository.clone(),
+            self.realm_service.client_repository.clone(),
+            self.realm_service.client_scope_repository.clone(),
+            self.realm_service.protocol_mapper_repository.clone(),
+            self.realm_service.client_scope_mapping_repository.clone(),
+        );
+
+        build_runner(PostgresMigrationRepository::new(self.db.clone()))
+            .run(&ctx)
+            .await
     }
 }
