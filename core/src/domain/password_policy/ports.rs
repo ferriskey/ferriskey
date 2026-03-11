@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use uuid::Uuid;
 use crate::domain::common::entities::app_errors::CoreError;
 use super::entities::{PasswordPolicy, UpdatePasswordPolicy};
