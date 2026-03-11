@@ -253,6 +253,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             security_event.clone(),
             webhook.clone(),
         ),
+        password_policy_service: PasswordPolicyServiceImpl::new(password_policy.clone()),
         user_service: UserServiceImpl::new(
             realm.clone(),
             user.clone(),
@@ -263,11 +264,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user_required_action.clone(),
             webhook.clone(),
             security_event.clone(),
-            password_policy.clone(),
+            Arc::new(PasswordPolicyServiceImpl::new(password_policy.clone())),
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
-        password_policy_service: PasswordPolicyServiceImpl::new(password_policy.clone()),
         core_service: CoreServiceImpl::new(
             realm.clone(),
             keystore.clone(),
