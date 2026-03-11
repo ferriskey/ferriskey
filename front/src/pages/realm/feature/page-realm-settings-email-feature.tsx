@@ -1,10 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { useFormChanges } from '@/hooks/use-form-changes'
 import { useGetSmtpConfig, useUpsertSmtpConfig, useDeleteSmtpConfig } from '@/api/smtp.api'
 import PageRealmSettingsEmail from '../ui/page-realm-settings-email'
 
@@ -12,7 +10,7 @@ const smtpConfigSchema = z.object({
   host: z.string().min(1, 'Host is required'),
   port: z.number().min(1).max(65535),
   username: z.string().min(1, 'Username is required'),
-  password: z.string(),
+  password: z.string().min(1, 'Password is required'),
   from_email: z.string().email('Must be a valid email'),
   from_name: z.string().min(1, 'From name is required'),
   encryption: z.enum(['tls', 'starttls', 'none']),
@@ -40,45 +38,6 @@ export default function PageRealmSettingsEmailFeature() {
       encryption: 'tls',
     },
   })
-
-  useEffect(() => {
-    if (data && !isError) {
-      form.reset({
-        host: data.host,
-        port: data.port,
-        username: data.username,
-        password: '',
-        from_email: data.from_email,
-        from_name: data.from_name,
-        encryption: (data.encryption as 'tls' | 'starttls' | 'none') ?? 'tls',
-      })
-    }
-  }, [data, isError, form])
-
-  const defaultValues: SmtpConfigSchema = {
-    host: '',
-    port: 587,
-    username: '',
-    password: '',
-    from_email: '',
-    from_name: '',
-    encryption: 'tls',
-  }
-
-  const hasChanges = useFormChanges(
-    form,
-    data && !isError
-      ? {
-          host: data.host,
-          port: data.port,
-          username: data.username,
-          password: '',
-          from_email: data.from_email,
-          from_name: data.from_name,
-          encryption: (data.encryption as 'tls' | 'starttls' | 'none') ?? 'tls',
-        }
-      : defaultValues
-  )
 
   const handleSubmit = (values: SmtpConfigSchema) => {
     if (!realm_name) return
@@ -113,8 +72,7 @@ export default function PageRealmSettingsEmailFeature() {
   return (
     <PageRealmSettingsEmail
       form={form}
-      hasChanges={hasChanges}
-      hasConfig={hasConfig}
+      config={hasConfig ? data : undefined}
       handleSubmit={handleSubmit}
       handleDelete={handleDelete}
     />
