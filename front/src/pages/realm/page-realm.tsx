@@ -6,6 +6,7 @@ import PageRealmSettingsLoginFeature from './feature/page-realm-settings-login-f
 import PageRealmSettingsSecurityFeature from './feature/page-realm-settings-security-feature'
 import PageRealmSettingsWebhooksFeature from './feature/page-realm-settings-webhooks-feature'
 import PageRealmSettingsCreateWebhookFeature from './feature/page-realm-settings-create-webhook-feature'
+import PageRealmSettingsPasswordPolicyFeature from './feature/page-realm-settings-password-policy-feature'
 
 export default function PageRealm() {
   const { realm_name } = useParams<RouterParams>()
@@ -17,6 +18,7 @@ export default function PageRealm() {
         <Route path='/login' element={<PageRealmSettingsLoginFeature />} />
         <Route path='/security' element={<PageRealmSettingsSecurityFeature />} />
         <Route path='/webhooks' element={<PageRealmSettingsWebhooksFeature />} />
+        <Route path='/password-policy' element={<PageRealmSettingsPasswordPolicyFeature />} />
 
       </Route>
       <Route path='/webhooks/create' element={<PageRealmSettingsCreateWebhookFeature />} />
