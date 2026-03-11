@@ -15,6 +15,7 @@ use crate::domain::{
     realm::ports::RealmRepository,
     role::{entities::permission::Permissions, ports::RoleRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
+    password_policy::ports::PasswordPolicyService,
     user::{
         entities::{
             AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
@@ -58,11 +59,12 @@ where
     pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) security_event_repository: Arc<SE>,
+    pub(crate) password_policy_service: Arc<PPS>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -74,6 +76,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    PPS: PasswordPolicyService,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -86,6 +89,7 @@ where
         user_required_action_repository: Arc<URA>,
         webhook_repository: Arc<W>,
         security_event_repository: Arc<SE>,
+        password_policy_service: Arc<PPS>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -98,13 +102,14 @@ where
             user_required_action_repository,
             webhook_repository,
             security_event_repository,
+            password_policy_service,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserService
-    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> UserService
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -116,6 +121,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    PPS: PasswordPolicyService,
 {
     async fn delete_user(
         &self,
@@ -182,7 +188,14 @@ where
             self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
-
+ 
+        let policy = self
+            .password_policy_service
+            .get_policy(realm.id.into())
+            .await?;
+        self.password_policy_service
+            .validate_password(&input.password, &policy)?;
+ 
         let password_credential = self
             .credential_repository
             .get_password_credential(input.user_id)
