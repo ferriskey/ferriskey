@@ -23,4 +23,11 @@ impl Postgres {
     pub fn get_db(&self) -> DatabaseConnection {
         self.db.clone()
     }
+
+    pub fn get_pool(&self) -> sqlx::PgPool {
+        self.db
+            .get_postgres_connection_pool()
+            .expect("Failed to get postgres connection pool")
+            .clone()
+    }
 }
