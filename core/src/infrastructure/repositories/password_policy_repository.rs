@@ -62,7 +62,7 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
             FROM password_policy
             WHERE realm_id = $1
             "#,
-            realm_id
+            realm_id as Uuid
         )
         .fetch_optional(&self.pool)
         .await
@@ -89,14 +89,14 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
                 WHERE realm_id = $8
                 RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
                 "#,
-                update.min_length.unwrap_or(policy.min_length),
-                update.require_uppercase.unwrap_or(policy.require_uppercase),
-                update.require_lowercase.unwrap_or(policy.require_lowercase),
-                update.require_number.unwrap_or(policy.require_number),
-                update.require_special.unwrap_or(policy.require_special),
-                update.max_age_days.or(policy.max_age_days),
-                now,
-                realm_id
+                update.min_length.unwrap_or(policy.min_length) as i32,
+                update.require_uppercase.unwrap_or(policy.require_uppercase) as bool,
+                update.require_lowercase.unwrap_or(policy.require_lowercase) as bool,
+                update.require_number.unwrap_or(policy.require_number) as bool,
+                update.require_special.unwrap_or(policy.require_special) as bool,
+                update.max_age_days.or(policy.max_age_days) as Option<i32>,
+                now as DateTime<Utc>,
+                realm_id as Uuid
             )
             .fetch_one(&self.pool)
             .await
@@ -109,16 +109,16 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
                 "#,
-                Uuid::now_v7(),
-                realm_id,
-                update.min_length.unwrap_or(8),
-                update.require_uppercase.unwrap_or(false),
-                update.require_lowercase.unwrap_or(false),
-                update.require_number.unwrap_or(false),
-                update.require_special.unwrap_or(false),
-                update.max_age_days,
-                now,
-                now
+                Uuid::now_v7() as Uuid,
+                realm_id as Uuid,
+                update.min_length.unwrap_or(8) as i32,
+                update.require_uppercase.unwrap_or(false) as bool,
+                update.require_lowercase.unwrap_or(false) as bool,
+                update.require_number.unwrap_or(false) as bool,
+                update.require_special.unwrap_or(false) as bool,
+                update.max_age_days as Option<i32>,
+                now as DateTime<Utc>,
+                now as DateTime<Utc>
             )
             .fetch_one(&self.pool)
             .await
