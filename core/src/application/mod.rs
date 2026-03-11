@@ -20,9 +20,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        password_policy::{
-            ports::PasswordPolicyRepository, services::PasswordPolicyServiceImpl,
-        },
+        password_policy::services::PasswordPolicyServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
