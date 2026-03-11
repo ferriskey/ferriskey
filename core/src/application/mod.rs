@@ -90,6 +90,7 @@ pub mod credential;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
+pub mod migrate;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -321,6 +322,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         flow_recorder,
+        db: postgres.get_db(),
     };
 
     Ok(app)

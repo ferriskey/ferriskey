@@ -1,0 +1,13 @@
+[package]
+name = "ferriskey-migrate"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono = { version = "0.4.43", features = ["serde"] }
+thiserror = "2.0.18"
+
+[dev-dependencies]
+mockall = "0.13"
+tokio = { version = "1", features = ["rt", "macros"] }

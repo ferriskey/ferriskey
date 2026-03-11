@@ -152,6 +152,18 @@ async fn main() -> Result<(), anyhow::Error> {
         })
         .await?;
 
+    let report = app_state.service.run_data_migrations().await?;
+    if report.is_empty() {
+        info!("data migrations: already up to date");
+    } else {
+        for record in &report.applied {
+            info!(
+                "data migration applied: v{} — {}",
+                record.version, record.name
+            );
+        }
+    }
+
     let router = router(app_state)?;
 
     let addr = {

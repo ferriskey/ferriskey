@@ -13,6 +13,7 @@ ferriskey-trident = { path = "../libs/ferriskey-trident" }
 ferriskey-aegis = { path = "../libs/ferriskey-aegis" }
 ferriskey-mail = { path = "../libs/ferriskey-mail" }
 ferriskey-compass = { path = "../libs/ferriskey-compass" }
+ferriskey-migrate = { path = "../libs/ferriskey-migrate" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"

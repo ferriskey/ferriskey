@@ -7,6 +7,7 @@ pub mod db;
 pub mod email;
 pub mod health;
 pub mod identity_provider;
+pub mod migrate;
 pub mod realm;
 pub mod recovery_code;
 pub mod repositories;
