@@ -41,15 +41,16 @@ use crate::{
             entities::{MfaRecoveryCode, PasswordResetToken, TotpSecret},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
-                ChallengeOtpOutput, CompletePasswordResetInput, GenerateRecoveryCodeInput,
-                GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkRepository,
-                PasswordResetTokenRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
-                RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
-                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
+                GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
+                MagicLinkRepository, PasswordResetTokenRepository, RecoveryCodeFormatter,
+                RecoveryCodeRepository, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
+                TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
+                VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
+                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
+                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -1139,7 +1140,7 @@ where
     async fn complete_password_reset(
         &self,
         input: CompletePasswordResetInput,
-    ) -> Result<(), CoreError> {
+    ) -> Result<CompletePasswordResetOutput, CoreError> {
         // 1. Get token by token_id
         let prt = self
             .password_reset_token_repository
@@ -1196,31 +1197,34 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
+        let user_id = prt.user_id;
+        let realm_id = prt.realm_id;
+
         // 5. Delete all reset tokens for this user
         self.password_reset_token_repository
-            .delete_all_by_user_id(prt.user_id)
+            .delete_all_by_user_id(user_id)
             .await?;
 
         // 6. Remove UpdatePassword from required_actions if present
         let _ = self
             .user_required_action_repository
-            .remove_required_action(prt.user_id, RequiredAction::UpdatePassword)
+            .remove_required_action(user_id, RequiredAction::UpdatePassword)
             .await
             .inspect_err(|e| warn!("Failed to remove UpdatePassword required action: {}", e));
 
-        let realm_id: RealmId = prt.realm_id.into();
+        let realm_id_typed: RealmId = realm_id.into();
 
         // 7. Log SeaWatch PasswordResetCompleted
         let _ = self
             .security_event_repository
             .store_event(
                 SecurityEvent::new(
-                    realm_id,
+                    realm_id_typed,
                     SecurityEventType::PasswordResetCompleted,
                     EventStatus::Success,
-                    prt.user_id,
+                    user_id,
                 )
-                .with_target("user".to_string(), prt.user_id, None),
+                .with_target("user".to_string(), user_id, None),
             )
             .await
             .inspect_err(|e| warn!("Failed to log password reset completed event: {}", e));
@@ -1229,11 +1233,28 @@ where
         let _ = self
             .webhook_repository
             .notify(
-                realm_id,
-                WebhookPayload::new(WebhookTrigger::AuthResetPassword, prt.user_id, None::<()>),
+                realm_id_typed,
+                WebhookPayload::new(WebhookTrigger::AuthResetPassword, user_id, None::<()>),
             )
             .await
             .inspect_err(|e| warn!("Failed to emit password reset webhook: {}", e));
+
+        Ok(CompletePasswordResetOutput { user_id, realm_id })
+    }
+
+    async fn verify_reset_token(&self, input: VerifyResetTokenInput) -> Result<(), CoreError> {
+        let prt = self
+            .password_reset_token_repository
+            .get_by_token_id(input.token_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if prt.is_expired() {
+            self.password_reset_token_repository
+                .delete_by_token_id(input.token_id)
+                .await?;
+            return Err(CoreError::ExpiredToken);
+        }
 
         Ok(())
     }

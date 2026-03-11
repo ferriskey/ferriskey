@@ -18,11 +18,15 @@ export const useResetPassword = () => {
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/reset-password')
       .mutationOptions,
-    onSuccess: () => {
-      toast.success('Your password has been reset successfully')
-    },
     onError: (error) => {
       toast.error('Failed to reset password', { description: error.message })
     },
+  })
+}
+
+export const useVerifyResetToken = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/verify-reset-token')
+      .mutationOptions,
   })
 }

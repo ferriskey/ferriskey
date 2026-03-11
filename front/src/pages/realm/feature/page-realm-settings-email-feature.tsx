@@ -1,9 +1,9 @@
+import { useDeleteSmtpConfig, useGetSmtpConfig, useUpsertSmtpConfig } from '@/api/smtp.api'
+import { RouterParams } from '@/routes/router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
-import { useGetSmtpConfig, useUpsertSmtpConfig, useDeleteSmtpConfig } from '@/api/smtp.api'
+import { z } from 'zod'
 import PageRealmSettingsEmail from '../ui/page-realm-settings-email'
 
 const smtpConfigSchema = z.object({
@@ -11,7 +11,7 @@ const smtpConfigSchema = z.object({
   port: z.number().min(1).max(65535),
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required'),
-  from_email: z.string().email('Must be a valid email'),
+  from_email: z.email('Must be a valid email'),
   from_name: z.string().min(1, 'From name is required'),
   encryption: z.enum(['tls', 'starttls', 'none']),
 })

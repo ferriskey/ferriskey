@@ -9,8 +9,9 @@ use crate::{
             },
             ports::AuthService,
             value_objects::{
-                EndSessionInput, EndSessionOutput, GetUserInfoInput, Identity,
-                IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+                EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput,
+                Identity, IntrospectTokenInput, RegisterUserInput, RevokeTokenInput,
+                UserInfoResponse,
             },
         },
         common::entities::app_errors::CoreError,
@@ -74,5 +75,12 @@ impl AuthService for ApplicationService {
 
     async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
         self.auth_service.end_session(input).await
+    }
+
+    async fn generate_tokens_for_user(
+        &self,
+        input: GenerateTokensForUserInput,
+    ) -> Result<JwtToken, CoreError> {
+        self.auth_service.generate_tokens_for_user(input).await
     }
 }

@@ -65,6 +65,12 @@ pub struct RegisterUserInput {
     pub last_name: Option<String>,
 }
 
+pub struct GenerateTokensForUserInput {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub base_url: String,
+}
+
 impl CreateAuthSessionRequest {
     pub fn new(realm_id: Uuid, client_id: Uuid, redirect_uri: String) -> Self {
         Self {
