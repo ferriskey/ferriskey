@@ -18,6 +18,8 @@ pub enum ClaimsTyp {
     Refresh,
     Bearer,
     Temporary,
+    #[serde(rename = "ID")]
+    Id,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -38,6 +40,7 @@ pub struct JwtClaim {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 
     /// Dynamic claims injected by protocol mappers.
@@ -55,11 +58,19 @@ pub struct IdTokenClaims {
     pub iss: String,
     pub sub: Uuid,
     pub aud: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub azp: Option<String>,
     pub exp: i64,
     pub iat: i64,
+    pub jti: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at_hash: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_time: Option<i64>,
+    pub typ: ClaimsTyp,
 
     // Identity claims — absent when the respective scope is not active
     #[serde(skip_serializing_if = "Option::is_none")]
