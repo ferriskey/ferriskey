@@ -10,7 +10,7 @@ import PageRealmSettingsEmail from '../ui/page-realm-settings-email'
 
 const smtpConfigSchema = z.object({
   host: z.string().min(1, 'Host is required'),
-  port: z.coerce.number().min(1).max(65535),
+  port: z.number().min(1).max(65535),
   username: z.string().min(1, 'Username is required'),
   password: z.string(),
   from_email: z.string().email('Must be a valid email'),

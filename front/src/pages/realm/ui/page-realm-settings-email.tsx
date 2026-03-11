@@ -42,7 +42,7 @@ export default function PageRealmSettingsEmail({
                   <p className='text-sm text-muted-foreground mt-0.5'>SMTP server hostname.</p>
                 </div>
                 <div className='w-1/2'>
-                  <InputText label='Host' placeholder='smtp.example.com' {...field} error={form.formState.errors.host?.message} />
+                  <InputText label='Host' {...field} error={form.formState.errors.host?.message} />
                 </div>
               </div>
             )}
@@ -134,7 +134,7 @@ export default function PageRealmSettingsEmail({
                   <p className='text-sm text-muted-foreground mt-0.5'>Sender email address for outgoing emails.</p>
                 </div>
                 <div className='w-1/2'>
-                  <InputText label='From Email' placeholder='noreply@example.com' {...field} error={form.formState.errors.from_email?.message} />
+                  <InputText label='From Email' {...field} error={form.formState.errors.from_email?.message} />
                 </div>
               </div>
             )}
@@ -150,7 +150,7 @@ export default function PageRealmSettingsEmail({
                   <p className='text-sm text-muted-foreground mt-0.5'>Display name for the sender.</p>
                 </div>
                 <div className='w-1/2'>
-                  <InputText label='From Name' placeholder='FerrisKey' {...field} error={form.formState.errors.from_name?.message} />
+                  <InputText label='From Name' {...field} error={form.formState.errors.from_name?.message} />
                 </div>
               </div>
             )}

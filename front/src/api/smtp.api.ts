@@ -16,8 +16,7 @@ export const useUpsertSmtpConfig = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/smtp-config', async (res) => res.json())
-      .mutationOptions,
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/smtp-config').mutationOptions,
     onSuccess: async (_, variables) => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/smtp-config', {
         path: { realm_name: variables.path.realm_name },
@@ -26,7 +25,7 @@ export const useUpsertSmtpConfig = () => {
       await queryClient.invalidateQueries({ queryKey: keys })
       toast.success('SMTP configuration saved successfully')
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error('Failed to save SMTP configuration', { description: error.message })
     },
   })
@@ -45,7 +44,7 @@ export const useDeleteSmtpConfig = () => {
       await queryClient.invalidateQueries({ queryKey: keys })
       toast.success('SMTP configuration deleted')
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error('Failed to delete SMTP configuration', { description: error.message })
     },
   })
