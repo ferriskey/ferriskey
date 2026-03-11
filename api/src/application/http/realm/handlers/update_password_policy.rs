@@ -1,10 +1,14 @@
+use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::app_state::AppState;
 use axum::{
     extract::{Path, State},
+    Extension,
     Json,
 };
-use crate::application::http::errors::error::ApiError;
-use ferriskey_domain::realm::{PasswordPolicy, UpdatePasswordPolicy};
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::password_policy::entities::{PasswordPolicy, UpdatePasswordPolicy};
+use ferriskey_core::domain::password_policy::ports::PasswordPolicyService;
+use ferriskey_core::domain::realm::ports::{GetRealmInput, RealmService};
 
 /// Update the password policy for a realm
 #[utoipa::path(
@@ -24,22 +28,20 @@ use ferriskey_domain::realm::{PasswordPolicy, UpdatePasswordPolicy};
 pub async fn update_password_policy(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,
+    Extension(identity): Extension<Identity>,
     Json(update): Json<UpdatePasswordPolicy>,
 ) -> Result<Json<PasswordPolicy>, ApiError> {
     let realm = state
-        .application_service
-        .realm_service
-        .realm_repository
-        .get_by_name(realm_name)
+        .service
+        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
         .await
-        .map_err(|_| ApiError::InternalServerError)?
-        .ok_or(ApiError::NotFound("Realm not found".to_string()))?;
+        .map_err(ApiError::from)?;
 
     let policy = state
-        .application_service
-        .password_policy_service
+        .service
         .update_policy(realm.id.into(), update)
-        .await?;
+        .await
+        .map_err(ApiError::from)?;
 
     Ok(Json(policy))
 }
