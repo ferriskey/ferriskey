@@ -38,7 +38,7 @@ use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -50,6 +50,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    PP: PasswordPolicyRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
