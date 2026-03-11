@@ -115,6 +115,8 @@ where
         }
     }
 }
+
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, PPS>
 where
     R: RealmRepository,
     U: UserRepository,
