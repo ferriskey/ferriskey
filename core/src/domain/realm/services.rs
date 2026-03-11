@@ -834,6 +834,16 @@ where
 
         Ok(settings)
     }
+
+    async fn get_realm_id_by_name(&self, realm_name: String) -> Result<RealmId, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        Ok(realm.id)
+    }
 }
 
 #[derive(Clone, Debug)]

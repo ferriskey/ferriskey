@@ -20,9 +20,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        password_policy::{
-            ports::PasswordPolicyRepository, services::PasswordPolicyServiceImpl,
-        },
+        password_policy::services::PasswordPolicyServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -94,6 +92,7 @@ pub mod credential;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
+pub mod password_policy;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -156,7 +155,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
-    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_pool()));
+    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
