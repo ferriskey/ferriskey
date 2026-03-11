@@ -49,7 +49,36 @@ use utoipa::OpenApi;
 pub struct RealmApiDoc;
 
 pub fn realm_routes(state: AppState) -> Router<AppState> {
-    Router::new()
+    let public_routes = Router::new()
+        .route(
+            &format!("{}/realms/{{realm_name}}", state.args.server.root_path),
+            get(get_realm),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-settings",
+                state.args.server.root_path
+            ),
+            get(get_login_realm_settings_handler),
+        );
+
+    let private_routes = Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/smtp-config",
+                state.args.server.root_path
+            ),
+            get(get_smtp_config)
+                .put(upsert_smtp_config)
+                .delete(delete_smtp_config),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/password-policy",
+                state.args.server.root_path
+            ),
+            get(get_password_policy).put(update_password_policy),
+        )
         .route(
             &format!(
                 "{}/realms/{{realm_name}}/users/@me/realms",
@@ -63,10 +92,6 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_user_realm_settings),
-        )
-        .route(
-            &format!("{}/realms/{{realm_name}}", state.args.server.root_path),
-            get(get_realm),
         )
         .route(
             &format!("{}/realms", state.args.server.root_path),
@@ -87,28 +112,7 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
             ),
             put(update_realm_setting),
         )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/smtp-config",
-                state.args.server.root_path
-            ),
-            get(get_smtp_config)
-                .put(upsert_smtp_config)
-                .delete(delete_smtp_config),
-        )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/password-policy",
-                state.args.server.root_path
-            ),
-            get(get_password_policy).put(update_password_policy),
-        )
-        .layer(middleware::from_fn_with_state(state.clone(), auth))
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/login-settings",
-                state.args.server.root_path
-            ),
-            get(get_login_realm_settings_handler),
-        )
+        .layer(middleware::from_fn_with_state(state.clone(), auth));
+
+    public_routes.merge(private_routes)
 }
