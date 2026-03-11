@@ -203,6 +203,7 @@ impl From<CoreError> for ApiError {
                 error_description: description,
             },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".to_string()),
+            CoreError::BadRequest(msg) => Self::BadRequest(msg),
         }
     }
 }
