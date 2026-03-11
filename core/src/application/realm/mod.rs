@@ -44,6 +44,10 @@ impl RealmService for ApplicationService {
         self.realm_service.get_login_settings(realm_name).await
     }
 
+    async fn get_realm_id_by_name(&self, realm_name: String) -> Result<RealmId, CoreError> {
+        self.realm_service.get_realm_id_by_name(realm_name).await
+    }
+
     async fn get_realm_by_name(
         &self,
         identity: Identity,
