@@ -94,6 +94,7 @@ pub mod credential;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
+pub mod password_policy;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
