@@ -16,6 +16,9 @@ pub enum CoreError {
     #[error("Invalid resource")]
     Invalid,
 
+    #[error("Invalid required action: {0}")]
+    InvalidRequiredAction(String),
+
     #[error("Forbidden: {0}")]
     Forbidden(String),
 
