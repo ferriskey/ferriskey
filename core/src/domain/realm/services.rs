@@ -37,7 +37,6 @@ use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMap
 use serde_json::json;
 use tracing::instrument;
 
-#[derive(Clone, Debug)]
 pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
 where
     R: RealmRepository,
@@ -65,6 +64,59 @@ where
     pub(crate) password_policy_repository: Arc<PP>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+}
+
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP> std::fmt::Debug
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    W: WebhookRepository,
+    I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    CSM: ClientScopeMappingRepository,
+    PP: PasswordPolicyRepository,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RealmServiceImpl").finish()
+    }
+}
+
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP> Clone
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    RO: RoleRepository,
+    W: WebhookRepository,
+    I: IdentityProviderRepository,
+    CS: ClientScopeRepository,
+    PM: ProtocolMapperRepository,
+    CSM: ClientScopeMappingRepository,
+    PP: PasswordPolicyRepository,
+{
+    fn clone(&self) -> Self {
+        Self {
+            realm_repository: self.realm_repository.clone(),
+            user_repository: self.user_repository.clone(),
+            user_role_repository: self.user_role_repository.clone(),
+            role_repository: self.role_repository.clone(),
+            client_repository: self.client_repository.clone(),
+            webhook_repository: self.webhook_repository.clone(),
+            identity_provider_repository: self.identity_provider_repository.clone(),
+            client_scope_repository: self.client_scope_repository.clone(),
+            protocol_mapper_repository: self.protocol_mapper_repository.clone(),
+            client_scope_mapping_repository: self.client_scope_mapping_repository.clone(),
+            password_policy_repository: self.password_policy_repository.clone(),
+            policy: self.policy.clone(),
+        }
+    }
 }
 
 impl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, PP>
