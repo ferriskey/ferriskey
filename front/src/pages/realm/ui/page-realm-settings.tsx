@@ -14,6 +14,7 @@ export default function PageRealmSettings({ realm, tab }: PageRealmSettingsProps
   const tabs = [
     { key: 'general', label: 'General' },
     { key: 'login', label: 'Login' },
+    { key: 'email', label: 'Email' },
     { key: 'password-policy', label: 'Password Policy' },
     { key: 'webhooks', label: 'Webhooks' },
     { key: 'security', label: 'Security', disabled: true },

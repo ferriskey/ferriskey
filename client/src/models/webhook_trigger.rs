@@ -12,9 +12,12 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Default,
+)]
 pub enum WebhookTrigger {
     #[serde(rename = "user.created")]
+    #[default]
     UserCreated,
     #[serde(rename = "user.updated")]
     UserUpdated,
@@ -101,11 +104,5 @@ impl std::fmt::Display for WebhookTrigger {
             Self::WebhookUpdated => write!(f, "webhook.updated"),
             Self::WebhookDeleted => write!(f, "webhook.deleted"),
         }
-    }
-}
-
-impl Default for WebhookTrigger {
-    fn default() -> WebhookTrigger {
-        Self::UserCreated
     }
 }

@@ -42,11 +42,14 @@ pub async fn forgot_password(
     State(state): State<AppState>,
     ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
 ) -> Result<Response<ForgotPasswordResponse>, ApiError> {
+    let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+
     state
         .service
         .request_password_reset(RequestPasswordResetInput {
             realm_name,
             email: payload.email,
+            base_url,
         })
         .await?;
 

@@ -6,6 +6,7 @@ import PageRealmSettingsLoginFeature from './feature/page-realm-settings-login-f
 import PageRealmSettingsSecurityFeature from './feature/page-realm-settings-security-feature'
 import PageRealmSettingsWebhooksFeature from './feature/page-realm-settings-webhooks-feature'
 import PageRealmSettingsCreateWebhookFeature from './feature/page-realm-settings-create-webhook-feature'
+import PageRealmSettingsEmailFeature from './feature/page-realm-settings-email-feature'
 import PageRealmSettingsPasswordPolicyFeature from './feature/page-realm-settings-password-policy-feature'
 
 export default function PageRealm() {
@@ -16,6 +17,7 @@ export default function PageRealm() {
         <Route index element={<PageRealmSettingsGeneralFeature />} />
         <Route path='/general' element={<PageRealmSettingsGeneralFeature />} />
         <Route path='/login' element={<PageRealmSettingsLoginFeature />} />
+        <Route path='/email' element={<PageRealmSettingsEmailFeature />} />
         <Route path='/security' element={<PageRealmSettingsSecurityFeature />} />
         <Route path='/webhooks' element={<PageRealmSettingsWebhooksFeature />} />
         <Route path='/password-policy' element={<PageRealmSettingsPasswordPolicyFeature />} />

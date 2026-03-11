@@ -1267,7 +1267,7 @@ mod tests {
             Arc::get_mut(&mut self.client_scope_mapping_repo)
                 .unwrap()
                 .expect_assign_scope_to_client()
-                .withf(|_, _, is_default, is_optional| *is_optional == !is_default)
+                .withf(|_, _, is_default, is_optional| *is_optional != *is_default)
                 .times(7)
                 .returning(|client_id, scope_id, is_default, _is_optional| {
                     Box::pin(async move {
