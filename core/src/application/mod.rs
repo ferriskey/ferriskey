@@ -20,6 +20,9 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        password_policy::{
+            ports::PasswordPolicyRepository, services::PasswordPolicyServiceImpl,
+        },
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -64,6 +67,7 @@ use crate::{
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
+            password_policy_repository::PostgresPasswordPolicyRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
@@ -152,6 +156,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
+    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_pool()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -261,6 +266,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        password_policy_service: PasswordPolicyServiceImpl::new(password_policy.clone()),
         core_service: CoreServiceImpl::new(
             realm.clone(),
             keystore.clone(),
