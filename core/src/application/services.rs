@@ -194,6 +194,7 @@ pub struct ApplicationService {
         UserRequiredActionRepo,
         WebhookRepo,
         SecurityEventRepo,
+        PasswordPolicyServiceImpl<PasswordPolicyRepo>,
     >,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service:
