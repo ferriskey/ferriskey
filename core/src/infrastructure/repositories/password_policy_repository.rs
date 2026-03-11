@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use sqlx::{PgPool, query_as};
+use sqlx::PgPool;
 use uuid::Uuid;
 use crate::domain::{
     common::entities::app_errors::CoreError,
@@ -55,15 +54,14 @@ impl From<PasswordPolicyRow> for PasswordPolicy {
 
 impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Option<PasswordPolicy>, CoreError> {
-        let row: Option<PasswordPolicyRow> = query_as!(
-            PasswordPolicyRow,
+        let row: Option<PasswordPolicyRow> = sqlx::query_as::<_, PasswordPolicyRow>(
             r#"
-            SELECT id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
+            SELECT id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at, updated_at
             FROM password_policy
             WHERE realm_id = $1
             "#,
-            realm_id as Uuid
         )
+        .bind(realm_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| {
@@ -81,45 +79,43 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
         
         let row: PasswordPolicyRow = if let Some(policy) = existing {
             // Update
-            query_as!(
-                PasswordPolicyRow,
+            sqlx::query_as::<_, PasswordPolicyRow>(
                 r#"
                 UPDATE password_policy
                 SET min_length = $1, require_uppercase = $2, require_lowercase = $3, require_number = $4, require_special = $5, max_age_days = $6, updated_at = $7
                 WHERE realm_id = $8
-                RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
+                RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at, updated_at
                 "#,
-                update.min_length.unwrap_or(policy.min_length) as i32,
-                update.require_uppercase.unwrap_or(policy.require_uppercase) as bool,
-                update.require_lowercase.unwrap_or(policy.require_lowercase) as bool,
-                update.require_number.unwrap_or(policy.require_number) as bool,
-                update.require_special.unwrap_or(policy.require_special) as bool,
-                update.max_age_days.or(policy.max_age_days) as Option<i32>,
-                now as DateTime<Utc>,
-                realm_id as Uuid
             )
+            .bind(update.min_length.unwrap_or(policy.min_length) as i32)
+            .bind(update.require_uppercase.unwrap_or(policy.require_uppercase) as bool)
+            .bind(update.require_lowercase.unwrap_or(policy.require_lowercase) as bool)
+            .bind(update.require_number.unwrap_or(policy.require_number) as bool)
+            .bind(update.require_special.unwrap_or(policy.require_special) as bool)
+            .bind(update.max_age_days.or(policy.max_age_days) as Option<i32>)
+            .bind(now)
+            .bind(realm_id)
             .fetch_one(&self.pool)
             .await
         } else {
             // Insert (should not happen if migration added default)
-            query_as!(
-                PasswordPolicyRow,
+            sqlx::query_as::<_, PasswordPolicyRow>(
                 r#"
                 INSERT INTO password_policy (id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>"
+                RETURNING id, realm_id, min_length, require_uppercase, require_lowercase, require_number, require_special, max_age_days, created_at, updated_at
                 "#,
-                Uuid::now_v7() as Uuid,
-                realm_id as Uuid,
-                update.min_length.unwrap_or(8) as i32,
-                update.require_uppercase.unwrap_or(false) as bool,
-                update.require_lowercase.unwrap_or(false) as bool,
-                update.require_number.unwrap_or(false) as bool,
-                update.require_special.unwrap_or(false) as bool,
-                update.max_age_days as Option<i32>,
-                now as DateTime<Utc>,
-                now as DateTime<Utc>
             )
+            .bind(Uuid::now_v7())
+            .bind(realm_id)
+            .bind(update.min_length.unwrap_or(8) as i32)
+            .bind(update.require_uppercase.unwrap_or(false) as bool)
+            .bind(update.require_lowercase.unwrap_or(false) as bool)
+            .bind(update.require_number.unwrap_or(false) as bool)
+            .bind(update.require_special.unwrap_or(false) as bool)
+            .bind(update.max_age_days as Option<i32>)
+            .bind(now)
+            .bind(now)
             .fetch_one(&self.pool)
             .await
         }.map_err(|e| {
