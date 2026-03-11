@@ -54,6 +54,12 @@ pub enum RequiredAction {
     UpdatePassword,
 }
 
+impl RequiredAction {
+    pub fn allowed_values() -> Vec<&'static str> {
+        vec!["configure_otp", "verify_email", "update_password"]
+    }
+}
+
 impl Display for RequiredAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

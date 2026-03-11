@@ -268,8 +268,8 @@ where
                 .map_err(|_| CoreError::InternalServerError)?;
 
             for action in required_actions {
-                let required_action: RequiredAction =
-                    RequiredAction::try_from(action).map_err(|_| CoreError::InternalServerError)?;
+                let required_action: RequiredAction = RequiredAction::try_from(action.clone())
+                    .map_err(|_| CoreError::InvalidRequiredAction(action))?;
                 self.user_required_action_repository
                     .add_required_action(user.id, required_action)
                     .await

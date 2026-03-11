@@ -1,4 +1,5 @@
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use ferriskey_core::domain::user::entities::RequiredAction;
 
 use crate::application::http::server::api_entities::api_error::ApiError;
 
@@ -11,6 +12,13 @@ impl From<CoreError> for ApiError {
                 Self::BadRequest("Email already exists in this realm".to_string())
             }
             CoreError::Invalid => Self::BadRequest("Invalid resource".to_string()),
+            CoreError::InvalidRequiredAction(action) => {
+                let allowed = RequiredAction::allowed_values().join(", ");
+                Self::BadRequest(format!(
+                    "Invalid required action: {}. Allowed values: {}",
+                    action, allowed
+                ))
+            }
             CoreError::Forbidden(msg) => Self::Forbidden(msg),
             CoreError::InternalServerError => {
                         Self::InternalServerError("Internal server error".to_string())
