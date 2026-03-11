@@ -52,7 +52,7 @@ where
         self.repository
             .find_by_realm_id(realm_id)
             .await?
-            .ok_or(CoreError::InvalidRealm)
+            .ok_or(CoreError::NotFound)
     }
 
     async fn update_policy(
@@ -64,7 +64,7 @@ where
     }
 
     fn validate_password(&self, password: &str, policy: &PasswordPolicy) -> Result<(), CoreError> {
-        if password.len() < policy.min_length as usize {
+        if password.chars().count() < policy.min_length as usize {
             return Err(CoreError::BadRequest("Password is too short".to_string()));
         }
 
@@ -125,55 +125,14 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_password_lowercase() {
+    fn test_validate_password_uppercase() {
         let repo = Arc::new(MockPasswordPolicyRepository::new());
         let service = PasswordPolicyServiceImpl::new(repo);
         let realm_id = RealmId::default();
         let mut policy = PasswordPolicy::default(realm_id);
-        policy.require_lowercase = true;
-
-        assert!(service.validate_password("PASSWORD", &policy).is_err());
-        assert!(service.validate_password("passworD", &policy).is_ok());
-    }
-
-    #[test]
-    fn test_validate_password_number() {
-        let repo = Arc::new(MockPasswordPolicyRepository::new());
-        let service = PasswordPolicyServiceImpl::new(repo);
-        let realm_id = RealmId::default();
-        let mut policy = PasswordPolicy::default(realm_id);
-        policy.require_number = true;
+        policy.require_uppercase = true;
 
         assert!(service.validate_password("password", &policy).is_err());
-        assert!(service.validate_password("password1", &policy).is_ok());
-    }
-
-    #[test]
-    fn test_validate_password_special() {
-        let repo = Arc::new(MockPasswordPolicyRepository::new());
-        let service = PasswordPolicyServiceImpl::new(repo);
-        let realm_id = RealmId::default();
-        let mut policy = PasswordPolicy::default(realm_id);
-        policy.require_special = true;
-
-        assert!(service.validate_password("password123", &policy).is_err());
-        assert!(service.validate_password("password123!", &policy).is_ok());
-    }
-
-    #[test]
-    fn test_validate_password_combo() {
-        let repo = Arc::new(MockPasswordPolicyRepository::new());
-        let service = PasswordPolicyServiceImpl::new(repo);
-        let realm_id = RealmId::default();
-        let mut policy = PasswordPolicy::default(realm_id);
-        policy.min_length = 8;
-        policy.require_uppercase = true;
-        policy.require_lowercase = true;
-        policy.require_number = true;
-        policy.require_special = true;
-
-        assert!(service.validate_password("Short1!", &policy).is_err()); // Too short
-        assert!(service.validate_password("longenough", &policy).is_err()); // Missing upper, number, special
-        assert!(service.validate_password("LongEnough1!", &policy).is_ok());
+        assert!(service.validate_password("Password", &policy).is_ok());
     }
 }

@@ -142,11 +142,11 @@ type ApplicationAuthService = AuthServiceImpl<
 
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
-    pub(crate) security_event_service:
+    pub security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
-    pub(crate) credential_service:
+    pub credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, CredentialRepo>,
-    pub(crate) client_service: ClientServiceImpl<
+    pub client_service: ClientServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -159,7 +159,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ScopeMappingRepo,
     >,
-    pub(crate) realm_service: RealmServiceImpl<
+    pub realm_service: RealmServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -172,9 +172,9 @@ pub struct ApplicationService {
         ScopeMappingRepo,
         PasswordPolicyRepo,
     >,
-    pub(crate) mail_service:
+    pub mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
-    pub(crate) role_service: RoleServiceImpl<
+    pub role_service: RoleServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -183,8 +183,8 @@ pub struct ApplicationService {
         SecurityEventRepo,
         WebhookRepo,
     >,
-    pub(crate) trident_service: ApplicationTridentService,
-    pub(crate) user_service: UserServiceImpl<
+    pub trident_service: ApplicationTridentService,
+    pub user_service: UserServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -197,13 +197,13 @@ pub struct ApplicationService {
         SecurityEventRepo,
         PasswordPolicyServiceImpl<PasswordPolicyRepo>,
     >,
-    pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
-    pub(crate) webhook_service:
+    pub health_service: HealthServiceImpl<HealthCheckRepo>,
+    pub webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
-    pub(crate) password_policy_service: PasswordPolicyServiceImpl<PasswordPolicyRepo>,
+    pub password_policy_service: PasswordPolicyServiceImpl<PasswordPolicyRepo>,
 
-    pub(crate) auth_service: ApplicationAuthService,
-    pub(crate) core_service: CoreServiceImpl<
+    pub auth_service: ApplicationAuthService,
+    pub core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
         ClientRepo,
@@ -214,12 +214,12 @@ pub struct ApplicationService {
         CredentialRepo,
         RedirectUriRepo,
     >,
-    pub(crate) identity_provider_service: IdentityProviderServiceImpl<
+    pub identity_provider_service: IdentityProviderServiceImpl<
         IdentityProviderRepo,
         crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
         RealmRepo,
     >,
-    pub(crate) federation_service:
+    pub federation_service:
         crate::domain::abyss::federation::services::FederationServiceImpl<
             RealmRepo,
             FederationRepo,
@@ -227,7 +227,7 @@ pub struct ApplicationService {
             UserRepo,
             CredentialRepo,
         >,
-    pub(crate) broker_service: BrokerServiceImpl<
+    pub broker_service: BrokerServiceImpl<
         RealmRepo,
         IdentityProviderRepo,
         BrokerAuthSessionRepo,
@@ -238,7 +238,7 @@ pub struct ApplicationService {
         AuthSessionRepo,
         OAuthClientImpl,
     >,
-    pub(crate) client_scope_service: ClientScopeServiceImpl<
+    pub client_scope_service: ClientScopeServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -246,7 +246,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ProtocolMapperRepo,
     >,
-    pub(crate) protocol_mapper_service: ProtocolMapperServiceImpl<
+    pub protocol_mapper_service: ProtocolMapperServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -254,7 +254,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ProtocolMapperRepo,
     >,
-    pub(crate) scope_mapping_service: ScopeMappingServiceImpl<
+    pub scope_mapping_service: ScopeMappingServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,
@@ -262,7 +262,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ScopeMappingRepo,
     >,
-    pub(crate) compass_service: CompassServiceImpl<
+    pub compass_service: CompassServiceImpl<
         RealmRepo,
         UserRepo,
         ClientRepo,

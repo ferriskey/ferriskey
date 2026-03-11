@@ -1,6 +1,4 @@
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveValue};
 use uuid::Uuid;
 use crate::domain::{
     common::entities::app_errors::CoreError,
@@ -9,24 +7,8 @@ use crate::domain::{
         ports::PasswordPolicyRepository,
     },
 };
-use chrono::{Utc, TimeZone};
-
-impl From<crate::entity::password_policy::Model> for PasswordPolicy {
-    fn from(model: crate::entity::password_policy::Model) -> Self {
-        Self {
-            id: model.id,
-            realm_id: model.realm_id.into(),
-            min_length: model.min_length,
-            require_uppercase: model.require_uppercase,
-            require_lowercase: model.require_lowercase,
-            require_number: model.require_number,
-            require_special: model.require_special,
-            max_age_days: model.max_age_days,
-            created_at: Utc.from_utc_datetime(&model.created_at.naive_utc()),
-            updated_at: Utc.from_utc_datetime(&model.updated_at.naive_utc()),
-        }
-    }
-}
+use crate::entity::password_policy::{Entity as PasswordPolicyEntity, Column, ActiveModel};
+use chrono::{DateTime, Utc, FixedOffset};
 
 #[derive(Debug, Clone)]
 pub struct PostgresPasswordPolicyRepository {
@@ -41,8 +23,8 @@ impl PostgresPasswordPolicyRepository {
 
 impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
     async fn find_by_realm_id(&self, realm_id: Uuid) -> Result<Option<PasswordPolicy>, CoreError> {
-        let model = crate::entity::password_policy::Entity::find()
-            .filter(crate::entity::password_policy::Column::RealmId.eq(realm_id))
+        let model = PasswordPolicyEntity::find()
+            .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -50,67 +32,87 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(Into::into))
+        Ok(model.map(|m| PasswordPolicy {
+            id: m.id,
+            realm_id: m.realm_id.into(),
+            min_length: m.min_length,
+            require_uppercase: m.require_uppercase,
+            require_lowercase: m.require_lowercase,
+            require_number: m.require_number,
+            require_special: m.require_special,
+            max_age_days: m.max_age_days,
+            created_at: m.created_at.into(),
+            updated_at: m.updated_at.into(),
+        }))
     }
 
     async fn upsert(&self, realm_id: Uuid, update: UpdatePasswordPolicy) -> Result<PasswordPolicy, CoreError> {
-        let existing = crate::entity::password_policy::Entity::find()
-            .filter(crate::entity::password_policy::Column::RealmId.eq(realm_id))
-            .one(&self.db)
+        let now: DateTime<FixedOffset> = Utc::now().into();
+
+        let mut active_model = ActiveModel {
+            realm_id: ActiveValue::Set(realm_id),
+            updated_at: ActiveValue::Set(now),
+            ..Default::default()
+        };
+
+        if let Some(min_length) = update.min_length {
+            active_model.min_length = ActiveValue::Set(min_length);
+        }
+        if let Some(require_uppercase) = update.require_uppercase {
+            active_model.require_uppercase = ActiveValue::Set(require_uppercase);
+        }
+        if let Some(require_lowercase) = update.require_lowercase {
+            active_model.require_lowercase = ActiveValue::Set(require_lowercase);
+        }
+        if let Some(require_number) = update.require_number {
+            active_model.require_number = ActiveValue::Set(require_number);
+        }
+        if let Some(require_special) = update.require_special {
+            active_model.require_special = ActiveValue::Set(require_special);
+        }
+        
+        // Tri-state max_age_days:
+        // None = omitted (don't set)
+        // Some(None) = set to null
+        // Some(Some(v)) = set to value
+        match update.max_age_days {
+            Some(val) => active_model.max_age_days = ActiveValue::Set(val),
+            None => {}
+        }
+
+        // Atomic upsert via on_conflict
+        let model = PasswordPolicyEntity::insert(active_model)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::column(Column::RealmId)
+                    .update_columns(vec![
+                        Column::MinLength,
+                        Column::RequireUppercase,
+                        Column::RequireLowercase,
+                        Column::RequireNumber,
+                        Column::RequireSpecial,
+                        Column::MaxAgeDays,
+                        Column::UpdatedAt,
+                    ])
+                    .to_owned()
+            )
+            .exec_with_returning(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to fetch existing policy during upsert: {:?}", e);
+                tracing::error!("Failed to upsert password policy: {:?}", e);
                 CoreError::InternalServerError
             })?;
 
-        let now = Utc::now();
-
-        let model = if let Some(policy) = existing {
-            // Update
-            let mut active_model: crate::entity::password_policy::ActiveModel = policy.into();
-            
-            if let Some(min_length) = update.min_length {
-                active_model.min_length = Set(min_length);
-            }
-            if let Some(require_uppercase) = update.require_uppercase {
-                active_model.require_uppercase = Set(require_uppercase);
-            }
-            if let Some(require_lowercase) = update.require_lowercase {
-                active_model.require_lowercase = Set(require_lowercase);
-            }
-            if let Some(require_number) = update.require_number {
-                active_model.require_number = Set(require_number);
-            }
-            if let Some(require_special) = update.require_special {
-                active_model.require_special = Set(require_special);
-            }
-            if let Some(max_age_days) = update.max_age_days {
-                active_model.max_age_days = Set(Some(max_age_days));
-            }
-            
-            active_model.updated_at = Set(now.fixed_offset());
-            active_model.update(&self.db).await
-        } else {
-            // Insert
-            let active_model = crate::entity::password_policy::ActiveModel {
-                id: Set(Uuid::now_v7()),
-                realm_id: Set(realm_id),
-                min_length: Set(update.min_length.unwrap_or(8)),
-                require_uppercase: Set(update.require_uppercase.unwrap_or(false)),
-                require_lowercase: Set(update.require_lowercase.unwrap_or(false)),
-                require_number: Set(update.require_number.unwrap_or(false)),
-                require_special: Set(update.require_special.unwrap_or(false)),
-                max_age_days: Set(update.max_age_days),
-                created_at: Set(now.fixed_offset()),
-                updated_at: Set(now.fixed_offset()),
-            };
-            active_model.insert(&self.db).await
-        }
-        .map_err(|e| {
-            tracing::error!("Failed to upsert password policy: {:?}", e);
-            CoreError::InternalServerError
-        })?;
-
-        Ok(model.into())
+        Ok(PasswordPolicy {
+            id: model.id,
+            realm_id: model.realm_id.into(),
+            min_length: model.min_length,
+            require_uppercase: model.require_uppercase,
+            require_lowercase: model.require_lowercase,
+            require_number: model.require_number,
+            require_special: model.require_special,
+            max_age_days: model.max_age_days,
+            created_at: model.created_at.into(),
+            updated_at: model.updated_at.into(),
+        })
     }
 }

@@ -137,5 +137,6 @@ pub struct UpdatePasswordPolicy {
     pub require_lowercase: Option<bool>,
     pub require_number: Option<bool>,
     pub require_special: Option<bool>,
-    pub max_age_days: Option<i32>,
+    /// Tri-state: None = omitted, Some(None) = clear value, Some(Some(v)) = set value
+    pub max_age_days: Option<Option<i32>>,
 }

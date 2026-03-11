@@ -1,4 +1,4 @@
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, ConnectionTrait};
 
 #[derive(Debug, Clone)]
 pub struct Postgres {
@@ -24,7 +24,11 @@ impl Postgres {
         self.db.clone()
     }
 
-    pub fn get_pool(&self) -> sqlx::PgPool {
-        self.db.get_postgres_connection_pool().clone()
+    pub fn get_pool(&self) -> Option<sqlx::PgPool> {
+        if let sea_orm::DatabaseBackend::Postgres = self.db.get_database_backend() {
+            Some(self.db.get_postgres_connection_pool().clone())
+        } else {
+            None
+        }
     }
 }

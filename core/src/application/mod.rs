@@ -20,7 +20,9 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        password_policy::services::PasswordPolicyServiceImpl,
+        password_policy::{
+            services::PasswordPolicyServiceImpl,
+        },
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -92,7 +94,6 @@ pub mod credential;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
-pub mod password_policy;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -104,13 +105,12 @@ pub use services::ApplicationService;
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
-        "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
+        "postgres://{}:{}@{}:{}/{}",
         config.database.username,
         config.database.password,
         config.database.host,
         config.database.port,
         config.database.name,
-        urlencoding::encode(&config.database.schema)
     );
 
     let postgres = Postgres::new(PostgresConfig { database_url })
