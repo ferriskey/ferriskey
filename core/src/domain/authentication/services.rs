@@ -38,6 +38,7 @@ use crate::domain::{
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
     jwt::{
+        JwtError,
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
         ports::{AccessTokenRepository, RefreshTokenRepository},
     },
@@ -515,7 +516,10 @@ where
             .refresh_token_repository
             .get_by_jti(claims.jti)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|error| match error {
+                JwtError::InvalidToken | JwtError::ExpiredToken => CoreError::InvalidRefreshToken,
+                _ => CoreError::InternalServerError,
+            })?;
 
         if refresh_token.revoked {
             return Err(CoreError::ExpiredToken);

@@ -67,7 +67,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             .one(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?
-            .ok_or_else(|| JwtError::GenerationError("Refresh token not found".to_string()))?;
+            .ok_or(JwtError::InvalidToken)?;
 
         Ok(refresh_token.into())
     }

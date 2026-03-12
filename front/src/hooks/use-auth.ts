@@ -6,6 +6,7 @@ import userStore from '@/store/user.store'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser } from '@/contracts/states.interface'
+import { authRefreshController } from './auth-refresh-controller'
 
 type JwtPayload = {
   exp?: number
@@ -65,7 +66,7 @@ export function useAuth() {
     setUser,
     setExpiration,
   } = userStore()
-  const { mutate: exchangeToken, data: responseExchangeToken } = useTokenMutation()
+  const { mutateAsync: exchangeToken } = useTokenMutation()
   const { mutateAsync: revokeToken } = useRevokeTokenMutation()
   const { mutateAsync: remoteLogout } = useLogoutMutation()
   const [hasHydrated, setHasHydrated] = useState<boolean>(
@@ -82,6 +83,7 @@ export function useAuth() {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
+      authRefreshController.reset(realm_name)
       setTokens(access_token, refresh_token, id_token)
       setExpiration(expiration)
 
@@ -89,7 +91,33 @@ export function useAuth() {
         setAuthenticated(true)
       }
     },
-    [setAuthenticated, setTokens, setExpiration]
+    [realm_name, setAuthenticated, setTokens, setExpiration]
+  )
+
+  const clearAuthState = useCallback(
+    (redirectToLogin: boolean, errorMessage?: string) => {
+      authRefreshController.reset(realm_name)
+      authStore.persist?.clearStorage?.()
+      setTokens(null, null, null)
+      setUser(null)
+      setExpiration(null)
+      setAuthenticated(false)
+      setLoading(false)
+
+      if (redirectToLogin) {
+        const params = new URLSearchParams()
+        if (errorMessage) {
+          params.set('login_error', errorMessage)
+        }
+
+        const suffix = params.toString()
+        navigate(
+          `/realms/${realm_name}/authentication/login${suffix ? `?${suffix}` : ''}`,
+          { replace: true }
+        )
+      }
+    },
+    [navigate, realm_name, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
   )
 
   function isTokenExpired(): boolean {
@@ -147,31 +175,47 @@ export function useAuth() {
     } catch (error) {
       console.error('Failed to clear server-side session cookies during logout:', error)
     } finally {
-      authStore.persist?.clearStorage?.()
-      setTokens(null, null, null)
-      setUser(null)
-      setExpiration(null)
-      setAuthenticated(false)
-      setLoading(false)
-      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
+      clearAuthState(true)
     }
   }
 
   const refreshAccessToken = useCallback(() => {
     if (!refreshToken) {
       setAuthenticated(false)
-      return
+      return Promise.resolve()
     }
 
-    exchangeToken({
-      realm: realm_name,
-      data: {
-        grant_type: GrantType.RefreshToken,
-        client_id: 'security-admin-console',
-        refresh_token: refreshToken,
-      },
+    return authRefreshController.run(realm_name, async () => {
+      const response = await exchangeToken({
+        realm: realm_name,
+        data: {
+          grant_type: GrantType.RefreshToken,
+          client_id: 'security-admin-console',
+          refresh_token: refreshToken,
+        },
+      })
+
+      setAuthTokensWrapper(
+        response.access_token,
+        response.refresh_token,
+        response.id_token ?? idToken
+      )
+    }).catch((error: unknown) => {
+      const message = error instanceof Error && error.message !== 'refresh temporarily blocked'
+        ? 'Your session expired. Please sign in again.'
+        : undefined
+
+      clearAuthState(Boolean(message), message)
     })
-  }, [refreshToken, exchangeToken, realm_name, setAuthenticated])
+  }, [
+    clearAuthState,
+    exchangeToken,
+    idToken,
+    realm_name,
+    refreshToken,
+    setAuthTokensWrapper,
+    setAuthenticated,
+  ])
 
   useEffect(() => {
     if (!authStore.persist?.onFinishHydration) return
@@ -198,16 +242,6 @@ export function useAuth() {
   }, [hasHydrated, navigate, realm_name, setAuthenticated])
 
   useEffect(() => {
-    if (responseExchangeToken?.access_token) {
-      setAuthTokensWrapper(
-        responseExchangeToken.access_token,
-        responseExchangeToken.refresh_token,
-        responseExchangeToken.id_token ?? idToken
-      )
-    }
-  }, [idToken, responseExchangeToken, setAuthTokensWrapper])
-
-  useEffect(() => {
     const interval = setInterval(() => {
       if (!isAuthenticated || !accessToken) return
       const payload = decodeJwt(accessToken)
@@ -226,7 +260,7 @@ export function useAuth() {
       const timeToExpiry = exp - currentTime
 
       if (timeToExpiry <= 5) {
-        refreshAccessToken()
+        void refreshAccessToken()
       }
     }, 1000 * 5)
 
