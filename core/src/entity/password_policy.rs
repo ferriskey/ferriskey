@@ -1,0 +1,40 @@
+//! `SeaORM` Entity for password_policy
+
+use sea_orm::entity::prelude::*;
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[sea_orm(table_name = "password_policy")]
+pub struct Model {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Uuid,
+    #[sea_orm(unique)]
+    pub realm_id: Uuid,
+    pub min_length: i32,
+    pub require_uppercase: bool,
+    pub require_lowercase: bool,
+    pub require_number: bool,
+    pub require_special: bool,
+    pub max_age_days: Option<i32>,
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::realms::Entity",
+        from = "Column::RealmId",
+        to = "super::realms::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Realms,
+}
+
+impl Related<super::realms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Realms.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
