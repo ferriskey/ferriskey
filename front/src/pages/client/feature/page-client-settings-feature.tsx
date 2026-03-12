@@ -37,6 +37,10 @@ export default function PageClientSettingsFeature() {
       name: clientResponse?.data.name ?? '',
       enabled: clientResponse?.data.enabled ?? false,
       directAccessGrantsEnabled: clientResponse?.data.direct_access_grants_enabled ?? false,
+      accessTokenLifetime: clientResponse?.data.access_token_lifetime ?? null,
+      refreshTokenLifetime: clientResponse?.data.refresh_token_lifetime ?? null,
+      idTokenLifetime: clientResponse?.data.id_token_lifetime ?? null,
+      temporaryTokenLifetime: clientResponse?.data.temporary_token_lifetime ?? null,
     },
   })
 
@@ -47,6 +51,10 @@ export default function PageClientSettingsFeature() {
       name: clientResponse.data.name ?? '',
       enabled: clientResponse.data.enabled ?? false,
       directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled ?? false,
+      accessTokenLifetime: clientResponse.data.access_token_lifetime ?? null,
+      refreshTokenLifetime: clientResponse.data.refresh_token_lifetime ?? null,
+      idTokenLifetime: clientResponse.data.id_token_lifetime ?? null,
+      temporaryTokenLifetime: clientResponse.data.temporary_token_lifetime ?? null,
     }
   )
 
@@ -59,6 +67,10 @@ export default function PageClientSettingsFeature() {
         name: values.name,
         enabled: values.enabled,
         direct_access_grants_enabled: values.directAccessGrantsEnabled,
+        access_token_lifetime: values.accessTokenLifetime,
+        refresh_token_lifetime: values.refreshTokenLifetime,
+        id_token_lifetime: values.idTokenLifetime,
+        temporary_token_lifetime: values.temporaryTokenLifetime,
       },
       path: {
         client_id: clientResponse.data.id,
@@ -74,6 +86,10 @@ export default function PageClientSettingsFeature() {
         name: clientResponse.data.name,
         enabled: clientResponse.data.enabled,
         directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled,
+        accessTokenLifetime: clientResponse.data.access_token_lifetime ?? null,
+        refreshTokenLifetime: clientResponse.data.refresh_token_lifetime ?? null,
+        idTokenLifetime: clientResponse.data.id_token_lifetime ?? null,
+        temporaryTokenLifetime: clientResponse.data.temporary_token_lifetime ?? null,
       })
     }
   }, [clientResponse, form])

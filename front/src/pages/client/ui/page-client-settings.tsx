@@ -203,6 +203,133 @@ export default function PageClientSettings({
         </div>
       </div>
 
+      {/* Token Lifetimes section */}
+      <div className='flex flex-col gap-1'>
+        <div className='mb-4'>
+          <p className='text-xs text-muted-foreground mb-0.5'>Override realm defaults</p>
+          <h2 className='text-base font-semibold'>Token Lifetimes</h2>
+          <p className='text-sm text-muted-foreground mt-1'>
+            Leave empty to inherit the realm default value.
+          </p>
+        </div>
+
+        <FormField
+          control={form.control}
+          name='accessTokenLifetime'
+          render={({ field, fieldState }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Access Token Lifetime</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Duration in seconds. Between 60s and 86400s (24h).
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem>
+                  <FormControl>
+                    <InputText
+                      label='Access Token Lifetime'
+                      value={field.value ?? ''}
+                      name='accessTokenLifetime'
+                      type='number'
+                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='refreshTokenLifetime'
+          render={({ field, fieldState }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Refresh Token Lifetime</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Duration in seconds. Between 300s (5min) and 2592000s (30d).
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem>
+                  <FormControl>
+                    <InputText
+                      label='Refresh Token Lifetime'
+                      value={field.value ?? ''}
+                      name='refreshTokenLifetime'
+                      type='number'
+                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='idTokenLifetime'
+          render={({ field, fieldState }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>ID Token Lifetime</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Duration in seconds. Between 60s and 86400s (24h).
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem>
+                  <FormControl>
+                    <InputText
+                      label='ID Token Lifetime'
+                      value={field.value ?? ''}
+                      name='idTokenLifetime'
+                      type='number'
+                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='temporaryTokenLifetime'
+          render={({ field, fieldState }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Temporary Token Lifetime</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Duration in seconds. Between 60s and 86400s (24h).
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem>
+                  <FormControl>
+                    <InputText
+                      label='Temporary Token Lifetime'
+                      value={field.value ?? ''}
+                      name='temporaryTokenLifetime'
+                      type='number'
+                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      error={fieldState.error?.message}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
+      </div>
+
       <FloatingActionBar
         show={hasChanges}
         title='Save Changes'

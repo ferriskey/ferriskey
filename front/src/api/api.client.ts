@@ -33,19 +33,23 @@ export namespace Schemas {
   export type ClientType = "confidential" | "public" | "system";
   export type RealmId = string;
   export type Client = {
+    access_token_lifetime?: (number | null) | undefined;
     client_id: string;
     client_type: ClientType;
     created_at: string;
     direct_access_grants_enabled: boolean;
     enabled: boolean;
     id: string;
+    id_token_lifetime?: (number | null) | undefined;
     name: string;
     protocol: string;
     public_client: boolean;
     realm_id: RealmId;
     redirect_uris?: (Array<RedirectUri> | null) | undefined;
+    refresh_token_lifetime?: (number | null) | undefined;
     secret?: (string | null) | undefined;
     service_account_enabled: boolean;
+    temporary_token_lifetime?: (number | null) | undefined;
     updated_at: string;
   };
   export type ScopeType = "NONE" | "OPTIONAL" | "DEFAULT";
@@ -166,14 +170,18 @@ export namespace Schemas {
     permissions: Array<string>;
   };
   export type RealmSetting = {
+    access_token_lifetime: number;
     compass_enabled: boolean;
     default_signing_algorithm?: (string | null) | undefined;
     forgot_password_enabled: boolean;
     id: string;
+    id_token_lifetime: number;
     magic_link_enabled: boolean;
     magic_link_ttl: number;
     realm_id: RealmId;
+    refresh_token_lifetime: number;
     remember_me_enabled: boolean;
+    temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
   };
@@ -539,10 +547,14 @@ export namespace Schemas {
     protocol: string | null;
   }>;
   export type UpdateClientValidator = Partial<{
+    access_token_lifetime: number | null;
     client_id: string | null;
     direct_access_grants_enabled: boolean | null;
     enabled: boolean | null;
+    id_token_lifetime: number | null;
     name: string | null;
+    refresh_token_lifetime: number | null;
+    temporary_token_lifetime: number | null;
   }>;
   export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse };
   export type UpdateIdentityProviderValidator = Partial<{
@@ -578,12 +590,16 @@ export namespace Schemas {
   export type UpdateRealmResponse = { data: Realm };
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
+    access_token_lifetime: number | null;
     compass_enabled: boolean | null;
     default_signing_algorithm: string | null;
     forgot_password_enabled: boolean | null;
+    id_token_lifetime: number | null;
     magic_link_enabled: boolean | null;
     magic_link_ttl: number | null;
+    refresh_token_lifetime: number | null;
     remember_me_enabled: boolean | null;
+    temporary_token_lifetime: number | null;
     user_registration_enabled: boolean | null;
   }>;
   export type UpdateRealmValidator = { name: string };
