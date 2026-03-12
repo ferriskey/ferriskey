@@ -46,7 +46,7 @@ pub async fn get_password_policy(
 
     let policy = state
         .service
-        .get_password_policy(identity, realm.id)
+        .get_password_policy(identity, realm.id.into())
         .await
         .map_err(ApiError::from)?;
 
