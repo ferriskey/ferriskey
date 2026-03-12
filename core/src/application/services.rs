@@ -286,6 +286,25 @@ impl CoreService for ApplicationService {
 }
 
 impl ApplicationService {
+    pub async fn get_password_policy(
+        &self,
+        _identity: crate::domain::authentication::value_objects::Identity,
+        realm_id: uuid::Uuid,
+    ) -> Result<crate::domain::password_policy::entity::PasswordPolicy, CoreError> {
+        self.password_policy_service.get_policy(realm_id).await
+    }
+
+    pub async fn update_password_policy(
+        &self,
+        _identity: crate::domain::authentication::value_objects::Identity,
+        realm_id: uuid::Uuid,
+        update: crate::domain::password_policy::entity::UpdatePasswordPolicy,
+    ) -> Result<crate::domain::password_policy::entity::PasswordPolicy, CoreError> {
+        self.password_policy_service
+            .update_policy(realm_id, update)
+            .await
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),
