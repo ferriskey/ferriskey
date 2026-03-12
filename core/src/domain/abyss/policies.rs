@@ -440,6 +440,10 @@ mod tests {
             service_account_enabled: false,
             client_type: ClientType::System,
             direct_access_grants_enabled: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
         });
 
         let client_clone = client.clone();

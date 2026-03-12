@@ -16,6 +16,10 @@ pub struct Model {
     pub magic_link_enabled: bool,
     pub magic_link_ttl_minutes: i32,
     pub compass_enabled: bool,
+    pub access_token_lifetime_secs: i32,
+    pub refresh_token_lifetime_secs: i32,
+    pub id_token_lifetime_secs: i32,
+    pub temporary_token_lifetime_secs: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
