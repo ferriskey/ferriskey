@@ -4,51 +4,69 @@ import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
+import {
+  buildLoginErrorRedirect,
+  getTokenExchangeErrorMessage,
+  validateCallbackParams,
+} from './callback-helpers'
 
 export default function PageCallbackFeature() {
   const navigate = useNavigate()
 
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const code = useMemo(() => {
-    const urlParams = new URLSearchParams(window.location.search)
     return urlParams.get('code')
-  }, [])
+  }, [urlParams])
+  const state = useMemo(() => urlParams.get('state'), [urlParams])
   const setup = true
 
   const { realm_name } = useParams()
   const { setAuthTokens } = useAuth()
 
-  const { mutate: exchangeToken, data, error } = useTokenMutation()
-  const hasProcessedToken = useRef(false)
+  const { mutateAsync: exchangeToken } = useTokenMutation()
+  const hasStartedExchange = useRef(false)
+
+  const callbackValidationError = useMemo(() => {
+    return validateCallbackParams({
+      code,
+      returnedState: state,
+      expectedState: sessionStorage.getItem('oauth_state'),
+    })
+  }, [code, state])
 
   useEffect(() => {
-    if (code && !hasProcessedToken.current) {
-      exchangeToken({
-        realm: realm_name ?? 'master',
-        data: {
-          client_id: 'security-admin-console',
-          code,
-          grant_type: GrantType.Code,
-        },
-      })
-    }
-  }, [code, exchangeToken, realm_name])
-
-  useEffect(() => {
-    if (data && !hasProcessedToken.current) {
-      hasProcessedToken.current = true
-
-      setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
-
-      navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
-    }
-  }, [data, realm_name, navigate, setAuthTokens])
-
-  useEffect(() => {
-    if (error && !hasProcessedToken.current) {
+    if (callbackValidationError) {
+      sessionStorage.removeItem('oauth_state')
       document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
-      hasProcessedToken.current = true
+      navigate(buildLoginErrorRedirect(realm_name, callbackValidationError), { replace: true })
+      return
     }
-  }, [error, hasProcessedToken])
+
+    if (!code || hasStartedExchange.current) {
+      return
+    }
+
+    hasStartedExchange.current = true
+    sessionStorage.removeItem('oauth_state')
+
+    void exchangeToken({
+      realm: realm_name ?? 'master',
+      data: {
+        client_id: 'security-admin-console',
+        code,
+        grant_type: GrantType.Code,
+      },
+    })
+      .then((data) => {
+        setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
+        navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
+      })
+      .catch((error: unknown) => {
+        const message = getTokenExchangeErrorMessage(error)
+        document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
+        navigate(buildLoginErrorRedirect(realm_name, message), { replace: true })
+      })
+  }, [callbackValidationError, code, exchangeToken, navigate, realm_name, setAuthTokens])
 
   return <PageCallback code={code} setup={setup} />
 }
