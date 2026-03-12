@@ -1,5 +1,4 @@
 use chrono::Utc;
-use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -23,7 +22,6 @@ impl PostgresPasswordPolicyRepository {
 
 impl From<crate::entity::password_policy::Model> for PasswordPolicy {
     fn from(model: crate::entity::password_policy::Model) -> Self {
-        use chrono::TimeZone;
         PasswordPolicy {
             id: model.id,
             realm_id: model.realm_id,
@@ -33,8 +31,8 @@ impl From<crate::entity::password_policy::Model> for PasswordPolicy {
             require_number: model.require_number,
             require_special: model.require_special,
             max_age_days: model.max_age_days,
-            created_at: Utc.from_utc_datetime(&model.created_at),
-            updated_at: Utc.from_utc_datetime(&model.updated_at),
+            created_at: model.created_at.into(),
+            updated_at: model.updated_at.into(),
         }
     }
 }
@@ -60,7 +58,7 @@ impl PasswordPolicyRepository for PostgresPasswordPolicyRepository {
         realm_id: Uuid,
         update: UpdatePasswordPolicy,
     ) -> Result<PasswordPolicy, CoreError> {
-        let now = Utc::now().naive_utc();
+        let now = Utc::now().into();
 
         // Try to find existing policy
         let existing = crate::entity::password_policy::Entity::find()
