@@ -46,6 +46,18 @@ pub struct UpsertSmtpConfigValidator {
     pub encryption: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdatePasswordPolicyValidator {
+    #[validate(range(min = 1, max = 128, message = "min_length must be between 1 and 128"))]
+    pub min_length: Option<i32>,
+    pub require_uppercase: Option<bool>,
+    pub require_lowercase: Option<bool>,
+    pub require_number: Option<bool>,
+    pub require_special: Option<bool>,
+    #[validate(range(min = 1, message = "max_age_days must be greater than 0"))]
+    pub max_age_days: Option<i32>,
+}
+
 fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {
     match value {
         "tls" | "starttls" | "none" => Ok(()),
