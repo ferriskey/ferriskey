@@ -55,6 +55,10 @@ pub struct Client {
     pub client_type: ClientType,
     pub name: String,
     pub redirect_uris: Option<Vec<redirect_uri::RedirectUri>>,
+    pub access_token_lifetime: Option<i64>,
+    pub refresh_token_lifetime: Option<i64>,
+    pub id_token_lifetime: Option<i64>,
+    pub temporary_token_lifetime: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -70,6 +74,10 @@ pub struct ClientConfig {
     pub service_account_enabled: bool,
     pub client_type: ClientType,
     pub direct_access_grants_enabled: Option<bool>,
+    pub access_token_lifetime: Option<i64>,
+    pub refresh_token_lifetime: Option<i64>,
+    pub id_token_lifetime: Option<i64>,
+    pub temporary_token_lifetime: Option<i64>,
 }
 
 impl Client {
@@ -88,6 +96,10 @@ impl Client {
             client_type: config.client_type,
             name: config.name,
             redirect_uris: None,
+            access_token_lifetime: config.access_token_lifetime,
+            refresh_token_lifetime: config.refresh_token_lifetime,
+            id_token_lifetime: config.id_token_lifetime,
+            temporary_token_lifetime: config.temporary_token_lifetime,
             created_at: now,
             updated_at: now,
         }
@@ -109,6 +121,10 @@ impl Client {
             client_type: ClientType::Confidential,
             name: format!("{client_id} Client"),
             redirect_uris: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
             created_at: now,
             updated_at: now,
         }

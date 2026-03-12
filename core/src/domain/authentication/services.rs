@@ -48,6 +48,11 @@ use crate::domain::{
         value_objects::CreateUserRequest,
     },
 };
+use ferriskey_domain::token_lifetime::TokenLifetimes;
+use ferriskey_security::jwt::entities::{
+    DEFAULT_ACCESS_TOKEN_LIFETIME, DEFAULT_REFRESH_TOKEN_LIFETIME,
+};
+
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
@@ -173,6 +178,26 @@ where
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
         if exp <= now { 0 } else { (exp - now) as u32 }
+    }
+
+    async fn resolve_token_lifetimes(
+        &self,
+        realm_id: RealmId,
+        client_uuid: Uuid,
+    ) -> Result<TokenLifetimes, CoreError> {
+        let realm_settings = self
+            .realm_repository
+            .get_realm_settings(realm_id)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let client = self
+            .client_repository
+            .get_by_id(client_uuid)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        Ok(TokenLifetimes::resolve(&realm_settings, &client))
     }
 
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
@@ -311,6 +336,7 @@ where
             input.client_id,
             Some(input.email),
             input.scope.clone(),
+            input.access_token_lifetime,
         );
 
         // Apply mapper output to claims
@@ -348,6 +374,7 @@ where
             claims.aud.clone(),
             claims.azp.clone(),
             claims.scope.clone(),
+            input.refresh_token_lifetime,
         );
 
         let refresh_token = Self::encode_token_with_key(
@@ -357,8 +384,8 @@ where
         )?;
 
         let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
-        let exp = claims.exp.unwrap_or(0);
         let iat = Utc::now().timestamp();
+        let id_token_exp = iat + input.id_token_lifetime;
 
         let id_token: Option<Jwt> = if contains_openid_scope {
             // Apply mappers for ID token
@@ -385,7 +412,7 @@ where
                 auth_time: None,
                 email: None,
                 email_verified: None,
-                exp,
+                exp: id_token_exp,
                 iat,
                 jti: Uuid::new_v4(),
                 sid: None,
@@ -628,6 +655,10 @@ where
 
         info!("Final scope for authorization code grant: {}", final_scope);
 
+        let lifetimes = self
+            .resolve_token_lifetimes(params.realm_id, auth_session.client_id)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -642,6 +673,9 @@ where
                 user_id: user.id,
                 username: user.username.clone(),
                 scope: Some(final_scope.clone()),
+                access_token_lifetime: lifetimes.access_token,
+                refresh_token_lifetime: lifetimes.refresh_token,
+                id_token_lifetime: lifetimes.id_token,
             })
             .await
             .map_err(|e| {
@@ -739,6 +773,10 @@ where
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
 
+        let lifetimes = self
+            .resolve_token_lifetimes(params.realm_id, client.id)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -753,6 +791,9 @@ where
                 user_id: user.id,
                 username: user.username,
                 scope: Some(final_scope),
+                access_token_lifetime: lifetimes.access_token,
+                refresh_token_lifetime: lifetimes.refresh_token,
+                id_token_lifetime: lifetimes.id_token,
             })
             .await?;
 
@@ -832,6 +873,10 @@ where
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
 
+        let lifetimes = self
+            .resolve_token_lifetimes(params.realm_id, client.id)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -846,6 +891,9 @@ where
                 user_id: user.id,
                 username: user.username,
                 scope: Some(final_scope),
+                access_token_lifetime: lifetimes.access_token,
+                refresh_token_lifetime: lifetimes.refresh_token,
+                id_token_lifetime: lifetimes.id_token,
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -895,6 +943,10 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
+        let lifetimes = self
+            .resolve_token_lifetimes(params.realm_id, client.id)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -909,6 +961,9 @@ where
                 user_id: user.id,
                 username: user.username,
                 scope: claims.scope.clone(),
+                access_token_lifetime: lifetimes.access_token,
+                refresh_token_lifetime: lifetimes.refresh_token,
+                id_token_lifetime: lifetimes.id_token,
             })
             .await?;
 
@@ -1228,6 +1283,12 @@ This is a server error that should be investigated. Do not forward back this mes
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
+        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+        let access_lifetime = realm_settings
+            .as_ref()
+            .map(|s| s.access_token_lifetime)
+            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
+
         let jwt_claim = JwtClaim::new(
             user.id,
             user.username.clone(),
@@ -1237,6 +1298,7 @@ This is a server error that should be investigated. Do not forward back this mes
             client_id.clone(),
             Some(user.email.clone()),
             Some(auth_session.scope),
+            access_lifetime,
         );
 
         if !user.required_actions.is_empty() || has_temporary_password {
@@ -2079,6 +2141,17 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+
+        let access_lifetime = realm_settings
+            .as_ref()
+            .map(|s| s.access_token_lifetime)
+            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
+        let refresh_lifetime = realm_settings
+            .as_ref()
+            .map(|s| s.refresh_token_lifetime)
+            .unwrap_or(DEFAULT_REFRESH_TOKEN_LIFETIME);
+
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
         let iss = format!("{}/realms/{}", input.base_url, realm.name);
@@ -2091,12 +2164,19 @@ where
             "".to_string(),
             Some(user.email.clone()),
             None,
+            access_lifetime,
         );
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
 
-        let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp, None);
+        let refresh_claims = JwtClaim::new_refresh_token(
+            claims.sub,
+            claims.iss,
+            claims.aud,
+            claims.azp,
+            None,
+            refresh_lifetime,
+        );
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), realm.id)

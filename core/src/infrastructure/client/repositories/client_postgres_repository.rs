@@ -46,6 +46,10 @@ impl ClientRepository for PostgresClientRepository {
             service_account_enabled: Set(data.service_account_enabled),
             direct_access_grants_enabled: Set(Some(data.direct_access_grants_enabled)),
             client_type: Set(data.client_type.to_string()),
+            access_token_lifetime_secs: Set(None),
+            refresh_token_lifetime_secs: Set(None),
+            id_token_lifetime_secs: Set(None),
+            temporary_token_lifetime_secs: Set(None),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };

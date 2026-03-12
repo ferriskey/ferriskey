@@ -149,6 +149,10 @@ pub trait RealmRepository: Send + Sync {
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
         compass_enabled: Option<bool>,
+        access_token_lifetime: Option<i64>,
+        refresh_token_lifetime: Option<i64>,
+        id_token_lifetime: Option<i64>,
+        temporary_token_lifetime: Option<i64>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -190,6 +194,11 @@ pub struct UpdateRealmSettingInput {
     pub magic_link_enabled: Option<bool>,
     pub magic_link_ttl: Option<u32>,
     pub compass_enabled: Option<bool>,
+
+    pub access_token_lifetime: Option<i64>,
+    pub refresh_token_lifetime: Option<i64>,
+    pub id_token_lifetime: Option<i64>,
+    pub temporary_token_lifetime: Option<i64>,
 }
 
 pub struct DeleteRealmInput {
