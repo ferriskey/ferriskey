@@ -17,7 +17,10 @@ use crate::application::{
                 __path_send_magic_link, __path_verify_magic_link, send_magic_link,
                 verify_magic_link,
             },
-            reset_password::{__path_reset_password_with_token, reset_password_with_token},
+            reset_password::{
+                __path_reset_password_with_token, __path_verify_reset_token,
+                reset_password_with_token, verify_reset_token,
+            },
             setup_otp::{__path_setup_otp, setup_otp},
             update_password::{__path_update_password, update_password},
             verify_otp::{__path_verify_otp, verify_otp},
@@ -53,6 +56,7 @@ use crate::application::{
     verify_magic_link,
     forgot_password,
     reset_password_with_token,
+    verify_reset_token,
 ))]
 pub struct TridentApiDoc;
 
@@ -86,6 +90,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(reset_password_with_token),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/verify-reset-token",
+                state.args.server.root_path
+            ),
+            post(verify_reset_token),
         );
 
     // Authenticated routes

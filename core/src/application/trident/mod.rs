@@ -5,14 +5,14 @@ use crate::{
         common::entities::app_errors::CoreError,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            CompletePasswordResetInput, GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput,
-            MagicLinkInput, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
-            TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
-            VerifyOtpOutput, WebAuthnPublicKeyAuthenticateInput,
-            WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
-            WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
-            WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
-            WebAuthnValidatePublicKeyOutput,
+            CompletePasswordResetInput, CompletePasswordResetOutput, GenerateRecoveryCodeInput,
+            GenerateRecoveryCodeOutput, MagicLinkInput, RequestPasswordResetInput, SetupOtpInput,
+            SetupOtpOutput, TridentService, UpdatePasswordInput, VerifyMagicLinkInput,
+            VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
+            WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
+            WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
+            WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
+            WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
         },
     },
 };
@@ -128,7 +128,11 @@ impl TridentService for ApplicationService {
     async fn complete_password_reset(
         &self,
         input: CompletePasswordResetInput,
-    ) -> Result<(), CoreError> {
+    ) -> Result<CompletePasswordResetOutput, CoreError> {
         self.trident_service.complete_password_reset(input).await
+    }
+
+    async fn verify_reset_token(&self, input: VerifyResetTokenInput) -> Result<(), CoreError> {
+        self.trident_service.verify_reset_token(input).await
     }
 }

@@ -141,6 +141,15 @@ pub struct CompletePasswordResetInput {
     pub new_password: String,
 }
 
+pub struct CompletePasswordResetOutput {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+}
+
+pub struct VerifyResetTokenInput {
+    pub token_id: Uuid,
+}
+
 #[cfg_attr(test, mockall::automock)]
 pub trait RecoveryCodeRepository: Send + Sync {
     fn generate_recovery_code(&self) -> MfaRecoveryCode;
@@ -250,6 +259,11 @@ pub trait TridentService: Send + Sync {
     fn complete_password_reset(
         &self,
         input: CompletePasswordResetInput,
+    ) -> impl Future<Output = Result<CompletePasswordResetOutput, CoreError>> + Send;
+
+    fn verify_reset_token(
+        &self,
+        input: VerifyResetTokenInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 

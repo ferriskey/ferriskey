@@ -5,24 +5,22 @@ import { InputText } from '@/components/ui/input-text'
 import { UseFormReturn } from 'react-hook-form'
 import { Link, useParams } from 'react-router'
 import { type ResetPasswordSchema } from '../schemas/reset-password.schema'
-import { CheckCircle, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import './page-login.css'
 
 export interface PageResetPasswordProps {
   form: UseFormReturn<ResetPasswordSchema>
   onSubmit: (data: ResetPasswordSchema) => void
-  success: boolean
   isPending: boolean
-  missingParams: boolean
+  tokenStatus: 'loading' | 'valid' | 'invalid'
   errorMessage: string | null
 }
 
 export default function PageResetPassword({
   form,
   onSubmit,
-  success,
   isPending,
-  missingParams,
+  tokenStatus,
   errorMessage,
 }: PageResetPasswordProps) {
   const { realm_name } = useParams()
@@ -51,10 +49,10 @@ export default function PageResetPassword({
                     </h1>
                   </div>
 
-                  {missingParams ? (
-                    <MissingParamsMessage realmName={realm_name} />
-                  ) : success ? (
-                    <SuccessMessage realmName={realm_name} />
+                  {tokenStatus === 'loading' ? (
+                    <LoadingMessage />
+                  ) : tokenStatus === 'invalid' ? (
+                    <InvalidTokenMessage realmName={realm_name} />
                   ) : (
                     <>
                       {errorMessage && (
@@ -113,31 +111,23 @@ export default function PageResetPassword({
   )
 }
 
-function SuccessMessage({ realmName }: { realmName?: string }) {
+function LoadingMessage() {
   return (
     <div className='flex flex-col items-center gap-4 py-4'>
-      <div className='flex h-12 w-12 items-center justify-center rounded-full bg-green-100'>
-        <CheckCircle className='h-6 w-6 text-green-600' />
-      </div>
-      <p className='text-center text-sm text-muted-foreground'>Your password has been reset.</p>
-      <Link
-        to={`/realms/${realmName}/authentication/login`}
-        className='font-semibold text-foreground underline underline-offset-4 text-sm'
-      >
-        Back to login
-      </Link>
+      <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
+      <p className='text-center text-sm text-muted-foreground'>Verifying your reset link...</p>
     </div>
   )
 }
 
-function MissingParamsMessage({ realmName }: { realmName?: string }) {
+function InvalidTokenMessage({ realmName }: { realmName?: string }) {
   return (
     <div className='flex flex-col items-center gap-4 py-4'>
       <div className='flex h-12 w-12 items-center justify-center rounded-full bg-amber-100'>
         <AlertTriangle className='h-6 w-6 text-amber-600' />
       </div>
       <p className='text-center text-sm text-muted-foreground'>
-        This link is invalid or incomplete.
+        This reset link is invalid or has expired.
       </p>
       <Link
         to={`/realms/${realmName}/authentication/forgot-password`}

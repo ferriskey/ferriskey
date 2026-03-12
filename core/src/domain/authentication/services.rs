@@ -29,8 +29,8 @@ use crate::domain::{
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
             AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
-            GetUserInfoInput, GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput,
-            RevokeTokenInput, UserInfoResponse,
+            GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
+            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -1799,36 +1799,12 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        let iss = format!("{}/realms/{}", url, realm.name);
-        let claims = JwtClaim::new(
-            user.id,
-            user.username.clone(),
-            iss.clone(),
-            vec![format!("{}-realm", realm.name), "account".to_string()],
-            ClaimsTyp::Bearer,
-            "".to_string(),
-            Some(user.email.clone()),
-            None,
-        );
-
-        let jwt = self.generate_token(claims.clone(), realm.id).await?;
-
-        let refresh_claims =
-            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp, None);
-
-        let refresh_token = self
-            .generate_token(refresh_claims.clone(), realm.id)
-            .await?;
-
-        Ok(JwtToken::new(
-            jwt.token,
-            "Bearer".to_string(),
-            refresh_token.token,
-            Self::expires_in_from(jwt.expires_at),
-            Self::expires_in_from(refresh_token.expires_at),
-            None,
-            None,
-        ))
+        self.generate_tokens_for_user(GenerateTokensForUserInput {
+            user_id: user.id,
+            realm_id: realm.id.into(),
+            base_url: url,
+        })
+        .await
     }
 
     async fn get_userinfo(
@@ -2091,5 +2067,49 @@ where
         }
 
         Ok(EndSessionOutput { redirect_uri: None })
+    }
+
+    async fn generate_tokens_for_user(
+        &self,
+        input: GenerateTokensForUserInput,
+    ) -> Result<JwtToken, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_id(input.realm_id.into())
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        let iss = format!("{}/realms/{}", input.base_url, realm.name);
+        let claims = JwtClaim::new(
+            user.id,
+            user.username.clone(),
+            iss.clone(),
+            vec![format!("{}-realm", realm.name), "account".to_string()],
+            ClaimsTyp::Bearer,
+            "".to_string(),
+            Some(user.email.clone()),
+            None,
+        );
+
+        let jwt = self.generate_token(claims.clone(), realm.id).await?;
+
+        let refresh_claims =
+            JwtClaim::new_refresh_token(claims.sub, claims.iss, claims.aud, claims.azp, None);
+
+        let refresh_token = self
+            .generate_token(refresh_claims.clone(), realm.id)
+            .await?;
+
+        Ok(JwtToken::new(
+            jwt.token,
+            "Bearer".to_string(),
+            refresh_token.token,
+            Self::expires_in_from(jwt.expires_at),
+            Self::expires_in_from(refresh_token.expires_at),
+            None,
+            None,
+        ))
     }
 }
