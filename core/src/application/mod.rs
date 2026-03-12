@@ -61,6 +61,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
