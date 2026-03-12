@@ -19,6 +19,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
+        password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -269,6 +270,7 @@ pub struct ApplicationService {
         CompassFlowRepo,
         CompassFlowStepRepo,
     >,
+    pub(crate) password_policy_service: PasswordPolicyService<PasswordPolicyRepo>,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
