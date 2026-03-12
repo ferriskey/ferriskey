@@ -13,7 +13,11 @@ impl Display for PasswordPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PasswordPolicyError::TooShort { min, actual } => {
-                write!(f, "Password is too short: {} characters (minimum {} required)", actual, min)
+                write!(
+                    f,
+                    "Password is too short: {} characters (minimum {} required)",
+                    actual, min
+                )
             }
             PasswordPolicyError::MissingUppercase => {
                 write!(f, "Password must contain at least one uppercase letter")
@@ -25,7 +29,7 @@ impl Display for PasswordPolicyError {
                 write!(f, "Password must contain at least one number")
             }
             PasswordPolicyError::MissingSpecialCharacter => {
-                write!(f, "Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;':\",./<>?)")
+                write!(f, "Password must contain at least one special character")
             }
         }
     }
