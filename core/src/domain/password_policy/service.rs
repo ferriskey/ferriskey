@@ -123,19 +123,24 @@ mod tests {
     #[test]
     fn test_password_missing_uppercase() {
         let policy = create_test_policy(8, true, false, false, false);
-        let result = PasswordPolicyService::<MockRepository>::validate_password("password", &policy);
+        let result =
+            PasswordPolicyService::<MockRepository>::validate_password("password", &policy);
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert_eq!(errors.len(), 2);
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::TooShort { .. })));
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::MissingUppercase)));
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, PasswordPolicyError::MissingUppercase))
+        );
     }
 
     #[test]
     fn test_password_meets_all_requirements() {
         let policy = create_test_policy(8, true, true, true, true);
-        let result = PasswordPolicyService::<MockRepository>::validate_password("Password1!", &policy);
+        let result =
+            PasswordPolicyService::<MockRepository>::validate_password("Password1!", &policy);
 
         assert!(result.is_ok());
     }
@@ -143,15 +148,31 @@ mod tests {
     #[test]
     fn test_password_multiple_violations() {
         let policy = create_test_policy(8, true, true, true, true);
-        let result = PasswordPolicyService::<MockRepository>::validate_password("pass", &policy);
+        let result = PasswordPolicyService::<MockRepository>::validate_password("PASS", &policy);
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert_eq!(errors.len(), 5);
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::TooShort { .. })));
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::MissingUppercase)));
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::MissingNumber)));
-        assert!(errors.iter().any(|e| matches!(e, PasswordPolicyError::MissingSpecialCharacter)));
+        assert_eq!(errors.len(), 4);
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, PasswordPolicyError::TooShort { .. }))
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, PasswordPolicyError::MissingLowercase))
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, PasswordPolicyError::MissingNumber))
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, PasswordPolicyError::MissingSpecialCharacter))
+        );
     }
 
     // Mock repository for tests
