@@ -106,6 +106,7 @@ type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
+type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
