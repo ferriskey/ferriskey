@@ -10,11 +10,13 @@ use crate::domain::password_policy::entity::{PasswordPolicy, UpdatePasswordPolic
 use crate::domain::password_policy::repository::PasswordPolicyRepository;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PostgresPasswordPolicyRepository {
     pub db: DatabaseConnection,
 }
 
 impl PostgresPasswordPolicyRepository {
+    #[allow(dead_code)]
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
