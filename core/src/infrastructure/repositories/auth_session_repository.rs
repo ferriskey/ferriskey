@@ -43,7 +43,9 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
             code_challenge: model.code_challenge,
-            code_challenge_method: model.code_challenge_method,
+            code_challenge_method: model
+                .code_challenge_method
+                .and_then(|s| s.parse().ok()),
         }
     }
 }
@@ -79,7 +81,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             webauthn_challenge_issued_at: Set(None),
             compass_flow_id: Set(session.compass_flow_id),
             code_challenge: Set(session.code_challenge.clone()),
-            code_challenge_method: Set(session.code_challenge_method.clone()),
+            code_challenge_method: Set(session.code_challenge_method.map(|m| m.as_str().to_string())),
         };
 
         let t = model

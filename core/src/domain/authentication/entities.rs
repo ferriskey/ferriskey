@@ -8,7 +8,9 @@ use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
 
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
-    authentication::value_objects::Identity, common::generate_timestamp, jwt::entities::JwtClaim,
+    authentication::value_objects::{CodeChallengeMethod, Identity},
+    common::generate_timestamp,
+    jwt::entities::JwtClaim,
     user::entities::RequiredAction,
 };
 
@@ -42,7 +44,7 @@ pub struct AuthSession {
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
-    pub code_challenge_method: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +63,7 @@ pub struct AuthSessionParams {
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
-    pub code_challenge_method: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 impl AuthSession {
@@ -123,7 +125,7 @@ pub struct AuthInput {
     pub scope: Option<String>,
     pub state: Option<String>,
     pub code_challenge: Option<String>,
-    pub code_challenge_method: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 pub struct AuthOutput {

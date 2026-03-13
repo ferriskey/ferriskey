@@ -28,9 +28,9 @@ use crate::domain::{
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
-            GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+            AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
+            GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams,
+            Identity, IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -638,8 +638,8 @@ where
                 CoreError::InvalidRequest
             })?;
 
-            let challenge_valid: bool = match auth_session.code_challenge_method.as_deref() {
-                Some("S256") => {
+            let challenge_valid: bool = match auth_session.code_challenge_method {
+                Some(CodeChallengeMethod::S256) => {
                     let hash = Sha256::digest(code_verifier.as_bytes());
                     let computed = BASE64_URL_SAFE_NO_PAD.encode(hash);
                     computed
@@ -649,10 +649,6 @@ where
                 }
                 None => {
                     warn!("PKCE challenge method is required but was not stored in auth session");
-                    false
-                }
-                Some(method) => {
-                    warn!("Unsupported PKCE challenge method: {}", method);
                     false
                 }
             };
@@ -1493,14 +1489,10 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
-        let code_challenge_method = match input.code_challenge_method.as_deref() {
-            Some("S256") => "S256".to_string(),
+        let code_challenge_method = match input.code_challenge_method {
+            Some(CodeChallengeMethod::S256) => CodeChallengeMethod::S256,
             None => {
                 warn!("PKCE challenge method is required");
-                return Err(CoreError::InvalidRequest);
-            }
-            Some(other) => {
-                warn!("Unsupported PKCE challenge method requested: {}", other);
                 return Err(CoreError::InvalidRequest);
             }
         };

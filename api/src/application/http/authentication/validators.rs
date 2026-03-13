@@ -1,4 +1,5 @@
 use ferriskey_core::domain::authentication::entities::GrantType;
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
@@ -41,13 +42,6 @@ pub struct AuthRequestValidator {
     // Example: "openid profile email"
     #[serde(default)]
     pub scope: Option<String>,
-}
-
-#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq, Default)]
-pub enum CodeChallengeMethod {
-    #[serde(rename = "S256")]
-    #[default]
-    S256,
 }
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]

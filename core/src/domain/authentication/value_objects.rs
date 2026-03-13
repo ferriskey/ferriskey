@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -8,6 +9,32 @@ use crate::domain::user::entities::User;
 use crate::domain::{authentication::entities::GrantType, user::entities::RequiredAction};
 
 pub use ferriskey_domain::auth::{Identity, IdentityKind};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ToSchema)]
+pub enum CodeChallengeMethod {
+    #[serde(rename = "S256")]
+    #[default]
+    S256,
+}
+
+impl CodeChallengeMethod {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CodeChallengeMethod::S256 => "S256",
+        }
+    }
+}
+
+impl FromStr for CodeChallengeMethod {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "S256" => Ok(CodeChallengeMethod::S256),
+            _ => Err(()),
+        }
+    }
+}
 
 pub struct AuthenticateRequest {
     pub realm_name: String,

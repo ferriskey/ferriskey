@@ -12,6 +12,7 @@ use ferriskey_core::domain::authentication::entities::{
     AuthInput, AuthenticateInput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
@@ -53,7 +54,7 @@ pub struct AuthRequest {
     #[serde(default)]
     pub code_challenge: Option<String>,
     #[serde(default)]
-    pub code_challenge_method: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -95,7 +96,7 @@ pub async fn auth_handler(
             scope: params.scope.clone(),
             state: params.state.clone(),
             code_challenge: params.code_challenge.clone(),
-            code_challenge_method: params.code_challenge_method.clone(),
+            code_challenge_method: params.code_challenge_method,
         })
         .await
         .map_err(ApiError::from)?;
