@@ -1,0 +1,2 @@
+{{- /* Validate chart values before rendering resources. */ -}}
+{{- include "ferriskey.validate.exposure" . -}}
