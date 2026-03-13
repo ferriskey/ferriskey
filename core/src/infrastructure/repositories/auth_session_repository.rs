@@ -127,6 +127,37 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
+    async fn consume_by_code(
+        &self,
+        code: String,
+    ) -> Result<Option<AuthSession>, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::find()
+            .filter(crate::entity::auth_sessions::Column::Code.eq(code))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error getting session for consumption: {:?}", e);
+                AuthenticationError::NotFound
+            })?;
+
+        if let Some(session_model) = session {
+            let session: AuthSession = session_model.into();
+
+            // Delete the session to prevent replay attacks
+            crate::entity::auth_sessions::Entity::delete_by_id(session.id)
+                .exec(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("Error deleting consumed session: {:?}", e);
+                    AuthenticationError::NotFound
+                })?;
+
+            Ok(Some(session))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn update_code_and_user_id(
         &self,
         session_code: Uuid,

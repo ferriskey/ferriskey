@@ -602,7 +602,7 @@ where
 
         let auth_session = self
             .auth_session_repository
-            .get_by_code(code.clone())
+            .consume_by_code(code.clone())
             .await
             .map_err(|e| {
                 warn!("Auth session not found for code {}: {:?}", code, e);
@@ -610,6 +610,27 @@ where
                 CoreError::MissingAuthorizationCode
             })?
             .ok_or(CoreError::NotFound)?;
+
+        if auth_session.realm_id != params.realm_id {
+            warn!(
+                "Authorization code realm mismatch: code belongs to realm {:?} but requested in realm {:?}",
+                auth_session.realm_id, params.realm_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        let request_client_id = Uuid::parse_str(&params.client_id).map_err(|_| {
+            warn!("Invalid client ID format: {}", params.client_id);
+            CoreError::InvalidRequest
+        })?;
+
+        if auth_session.client_id != request_client_id {
+            warn!(
+                "Authorization code client mismatch: code belongs to client {} but requested by client {}",
+                auth_session.client_id, params.client_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
 
         if let Some(stored_challenge) = auth_session.code_challenge.as_deref() {
             let code_verifier = params.code_verifier.as_deref().ok_or_else(|| {

@@ -72,6 +72,10 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         code: String,
     ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
+    fn consume_by_code(
+        &self,
+        code: String,
+    ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
     fn update_code_and_user_id(
         &self,
         session_code: Uuid,
