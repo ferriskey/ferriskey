@@ -6,4 +6,7 @@ pub mod scope;
 pub mod services;
 pub mod value_objects;
 
+#[cfg(test)]
+mod tests;
+
 pub use scope::{OidcScope, SCOPE_EMAIL, SCOPE_OPENID, SCOPE_PROFILE, ScopeManager};

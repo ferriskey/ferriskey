@@ -39,11 +39,12 @@ pub struct GrantTypeParams {
     pub client_id: String,
     pub client_secret: Option<String>,
     pub code: Option<String>,
-    pub username: Option<String>,
-    pub password: Option<String>,
     pub refresh_token: Option<String>,
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
+    pub code_verifier: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

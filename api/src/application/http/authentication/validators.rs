@@ -19,13 +19,16 @@ pub struct TokenRequestValidator {
     pub code: Option<String>,
 
     #[serde(default)]
-    pub username: Option<String>,
-
-    #[serde(default)]
-    pub password: Option<String>,
-
-    #[serde(default)]
     pub refresh_token: Option<String>,
+
+    #[serde(default)]
+    pub code_verifier: Option<String>,
+
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+
+    #[serde(default)]
+    pub code_challenge_method: Option<String>,
 
     // Scace-delimited list of scopes requested
     // Example: "openid profile email"

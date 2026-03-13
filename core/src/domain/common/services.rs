@@ -359,12 +359,10 @@ where
             }
         }
 
-        let admin_redirect_patterns = vec![
-            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
+        let admin_redirect_uris = vec![
+            "http://localhost:5555/realms/master/authentication/callback",
+            "http://localhost:3000/realms/master/authentication/callback",
+            "http://localhost:5173/realms/master/authentication/callback",
         ];
 
         let existing_uris = self
@@ -373,13 +371,13 @@ where
             .await
             .unwrap_or_default();
 
-        for pattern in admin_redirect_patterns {
-            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+        for uri in admin_redirect_uris {
+            let uri_exists = existing_uris.iter().any(|existing_uri| existing_uri.value == uri);
 
-            if !pattern_exists {
+            if !uri_exists {
                 match self
                     .redirect_uri_repository
-                    .create_redirect_uri(client.id, pattern.to_string(), true)
+                    .create_redirect_uri(client.id, uri.to_string(), true)
                     .await
                 {
                     Ok(_) => {
@@ -394,7 +392,7 @@ where
                     }
                 }
             } else {
-                tracing::info!("admin redirect URI already exists: {}", pattern);
+                tracing::info!("admin redirect URI already exists: {}", uri);
             }
         }
 

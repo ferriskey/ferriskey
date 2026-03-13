@@ -50,6 +50,10 @@ pub struct AuthRequest {
     pub scope: Option<String>,
     #[serde(default)]
     pub state: Option<String>,
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+    #[serde(default)]
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -62,7 +66,7 @@ pub struct AuthResponse {
     path = "/protocol/openid-connect/auth",
     tag = "auth",
     summary = "Authenticate a user",
-    description = "Initiates the authentication process for a user in a specific realm.",
+    description = "Initiates the authentication process for a user in a specific realm. PKCE parameters are required for authorization code flow.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         AuthRequest
@@ -90,6 +94,8 @@ pub async fn auth_handler(
             response_type: params.response_type.clone(),
             scope: params.scope.clone(),
             state: params.state.clone(),
+            code_challenge: params.code_challenge.clone(),
+            code_challenge_method: params.code_challenge_method.clone(),
         })
         .await
         .map_err(ApiError::from)?;

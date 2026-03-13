@@ -90,12 +90,13 @@ pub async fn broker_callback(
             client_id: result.client_id.clone(),
             client_secret: None,
             code: Some(result.authorization_code.clone()),
-            username: None,
-            password: None,
             refresh_token: None,
             base_url: root_scoped_base_url,
             grant_type: GrantType::Code,
             scope: None,
+            code_verifier: None,
+            code_challenge: None,
+            code_challenge_method: None,
         })
         .await
     {

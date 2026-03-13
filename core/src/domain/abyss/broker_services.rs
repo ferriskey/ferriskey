@@ -639,6 +639,8 @@ where
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
+                code_challenge: None,
+                code_challenge_method: None,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }
