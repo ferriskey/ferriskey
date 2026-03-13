@@ -105,8 +105,6 @@ pub async fn exchange_token(
             grant_type: payload.grant_type,
             scope: payload.scope,
             code_verifier: payload.code_verifier,
-            code_challenge: payload.code_challenge,
-            code_challenge_method: payload.code_challenge_method,
         })
         .await
     {

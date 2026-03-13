@@ -189,6 +189,9 @@ pub struct BrokerCallbackOutput {
 
     /// OAuth client ID related to this broker authentication
     pub client_id: String,
+
+    /// Realm ID for token generation
+    pub realm_id: Uuid,
 }
 
 /// User info extracted from IdP tokens

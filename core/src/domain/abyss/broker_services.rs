@@ -666,6 +666,7 @@ where
             user_id: user.id,
             is_new_user,
             client_id: client.client_id,
+            realm_id: realm.id.into(),
         })
     }
 

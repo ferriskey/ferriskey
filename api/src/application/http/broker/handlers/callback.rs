@@ -9,7 +9,6 @@ use ferriskey_core::domain::abyss::identity_provider::broker::{
     BrokerCallbackInput, BrokerService,
 };
 use ferriskey_core::domain::authentication::{
-    entities::{ExchangeTokenInput, GrantType},
     ports::AuthService,
 };
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
@@ -83,20 +82,13 @@ pub async fn broker_callback(
         Err(e) => return Err(e.into()),
     };
 
+    // Create JWT token from authenticated session instead of re-exchanging authorization code
     if let Ok(jwt_token) = state
         .service
-        .exchange_token(ExchangeTokenInput {
-            realm_name,
-            client_id: result.client_id.clone(),
-            client_secret: None,
-            code: Some(result.authorization_code.clone()),
-            refresh_token: None,
+        .generate_tokens_for_user(ferriskey_core::domain::authentication::value_objects::GenerateTokensForUserInput {
+            user_id: result.user_id,
+            realm_id: result.realm_id,
             base_url: root_scoped_base_url,
-            grant_type: GrantType::Code,
-            scope: None,
-            code_verifier: None,
-            code_challenge: None,
-            code_challenge_method: None,
         })
         .await
     {

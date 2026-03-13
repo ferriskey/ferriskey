@@ -141,8 +141,6 @@ pub struct ExchangeTokenInput {
     pub grant_type: GrantType,
     pub scope: Option<String>,
     pub code_verifier: Option<String>,
-    pub code_challenge: Option<String>,
-    pub code_challenge_method: Option<String>,
 }
 
 pub struct AuthorizeRequestInput {

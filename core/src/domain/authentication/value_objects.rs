@@ -43,8 +43,6 @@ pub struct GrantTypeParams {
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
     pub code_verifier: Option<String>,
-    pub code_challenge: Option<String>,
-    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

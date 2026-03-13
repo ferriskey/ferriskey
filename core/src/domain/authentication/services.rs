@@ -599,9 +599,12 @@ where
                     return Err(CoreError::InvalidRequest);
                 }
             };
-
+            
             if !challenge_valid {
-                warn!("PKCE validation failed for code {}", code);
+                warn!(
+                    "PKCE validation failed for session {}", 
+                    auth_session.id,
+                );
                 return Err(CoreError::InvalidRequest);
             }
         }
@@ -1391,7 +1394,20 @@ where
             )
             .await;
 
-        if input.code_challenge.is_none() {
+        if input.response_type != "code" {
+            warn!(
+                "Unsupported response_type requested: {}",
+                input.response_type
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        if !input
+            .code_challenge
+            .as_deref()
+            .map(|challenge| !challenge.trim().is_empty())
+            .unwrap_or(false)
+        {
             return Err(CoreError::InvalidRequest);
         }
 
@@ -1417,7 +1433,7 @@ where
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
             compass_flow_id: Some(flow_id.0),
-            code_challenge: input.code_challenge,
+            code_challenge: input.code_challenge.clone(),
             code_challenge_method: Some(code_challenge_method),
         };
         let session = self
@@ -1530,8 +1546,6 @@ where
             redirect_uri: None,
             scope: input.scope,
             code_verifier: input.code_verifier,
-            code_challenge: input.code_challenge,
-            code_challenge_method: input.code_challenge_method,
         };
 
         let result = self

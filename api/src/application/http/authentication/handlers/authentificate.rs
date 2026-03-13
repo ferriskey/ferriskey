@@ -171,8 +171,6 @@ pub async fn authenticate(
                 grant_type: GrantType::Code,
                 scope: None,
                 code_verifier: query.code_verifier.clone(),
-                code_challenge: None,
-                code_challenge_method: None,
             })
             .await
     {
