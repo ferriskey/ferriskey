@@ -362,19 +362,31 @@ where
         let admin_redirect_uris: Vec<String> = if let Some(ref base_url) = config.base_url {
             vec![
                 format!(
-                    "{}/realms/master/authentication/callback",
-                    base_url.trim_end_matches('/')
+                    "{}/realms/{}/authentication/callback",
+                    base_url.trim_end_matches('/'),
+                    config.master_realm_name
                 ),
                 format!(
-                    "{}/realms/master/authentication/login",
-                    base_url.trim_end_matches('/')
+                    "{}/realms/{}/authentication/login",
+                    base_url.trim_end_matches('/'),
+                    config.master_realm_name
                 ),
             ]
         } else {
+            // Fallback to localhost defaults for backward compatibility
             vec![
-                "http://localhost:5555/realms/master/authentication/callback".to_string(),
-                "http://localhost:3000/realms/master/authentication/callback".to_string(),
-                "http://localhost:5173/realms/master/authentication/callback".to_string(),
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:3000/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
             ]
         };
 
