@@ -372,7 +372,9 @@ where
             .unwrap_or_default();
 
         for uri in admin_redirect_uris {
-            let uri_exists = existing_uris.iter().any(|existing_uri| existing_uri.value == uri);
+            let uri_exists = existing_uris
+                .iter()
+                .any(|existing_uri| existing_uri.value == uri);
 
             if !uri_exists {
                 match self

@@ -586,25 +586,26 @@ where
                 CoreError::InvalidRequest
             })?;
 
-            let challenge_valid = match auth_session.code_challenge_method.as_deref() {
+            let challenge_valid: bool = match auth_session.code_challenge_method.as_deref() {
                 Some("S256") | None => {
                     use base64::{Engine, engine::general_purpose};
                     use sha2::{Digest, Sha256};
+                    use subtle::ConstantTimeEq;
                     let hash = Sha256::digest(code_verifier.as_bytes());
                     let computed = general_purpose::URL_SAFE_NO_PAD.encode(hash);
-                    computed == stored_challenge
+                    computed
+                        .as_bytes()
+                        .ct_eq(stored_challenge.as_bytes())
+                        .into()
                 }
                 Some(method) => {
                     warn!("Unsupported PKCE challenge method: {}", method);
                     return Err(CoreError::InvalidRequest);
                 }
             };
-            
+
             if !challenge_valid {
-                warn!(
-                    "PKCE validation failed for session {}", 
-                    auth_session.id,
-                );
+                warn!("PKCE validation failed for session {}", auth_session.id,);
                 return Err(CoreError::InvalidRequest);
             }
         }

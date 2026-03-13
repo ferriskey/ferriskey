@@ -8,9 +8,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::abyss::identity_provider::broker::{
     BrokerCallbackInput, BrokerService,
 };
-use ferriskey_core::domain::authentication::{
-    ports::AuthService,
-};
+use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
 use crate::application::http::server::{
@@ -85,11 +83,13 @@ pub async fn broker_callback(
     // Create JWT token from authenticated session instead of re-exchanging authorization code
     if let Ok(jwt_token) = state
         .service
-        .generate_tokens_for_user(ferriskey_core::domain::authentication::value_objects::GenerateTokensForUserInput {
-            user_id: result.user_id,
-            realm_id: result.realm_id,
-            base_url: root_scoped_base_url,
-        })
+        .generate_tokens_for_user(
+            ferriskey_core::domain::authentication::value_objects::GenerateTokensForUserInput {
+                user_id: result.user_id,
+                realm_id: result.realm_id,
+                base_url: root_scoped_base_url,
+            },
+        )
         .await
     {
         let mut identity_cookie =
