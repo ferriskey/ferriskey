@@ -1,6 +1,9 @@
 # -- Override the name of the release.
 nameOverride: ~
 
+# -- Public hostname for the application, independent of the exposure mechanism.
+publicHost: ~
+
 database:
   # -- Host for the database.
   host: ~
@@ -860,13 +863,24 @@ opentelemetry:
   # -- OTLP endpoint for OpenTelemetry exporter.
   otlpEndpoint: http://tempo:4317
 
+gatewayAPI:
+  httpRoute:
+    # -- Enable the HTTPRoute.
+    enabled: false
+
+    # -- Annotations on the HTTPRoute.
+    annotations: {}
+    # -- Labels on the HTTPRoute.
+    labels: {}
+
+    # -- Parent references for the HTTPRoute.
+    # https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: []
+
 
 ingress:
   # -- Enable the ingress.
   enabled: false
-
-  # -- Host for the ingress.
-  host: ~
 
   # -- Annotations on the ingress.
   annotations: {}

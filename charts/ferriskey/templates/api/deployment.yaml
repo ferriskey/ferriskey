@@ -84,7 +84,7 @@ spec:
             - name: SERVER_ROOT_PATH
               value: {{ .Values.api.server.rootPath }}
             - name: WEBAPP_URL
-              value: {{ .Values.api.webapp.url | default (printf "%s://%s" .Values.api.webapp.protocol .Values.ingress.host) }}
+              value: {{ (.Values.api.webapp.url | default (and .Values.publicHost (printf "%s://%s" .Values.api.webapp.protocol .Values.publicHost)) | default "") | quote }}
             {{- with $env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

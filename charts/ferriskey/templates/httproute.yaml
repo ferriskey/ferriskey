@@ -1,0 +1,35 @@
+{{- if .Values.gatewayAPI.httpRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "ferriskey.global.name" . }}
+  {{- with .Values.gatewayAPI.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "ferriskey.global.labels" . | nindent 4 }}
+    {{- with .Values.gatewayAPI.httpRoute.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.gatewayAPI.httpRoute.parentRefs | nindent 4 }}
+  hostnames:
+    - {{ .Values.publicHost | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.api.server.rootPath }}
+      backendRefs:
+        - name: {{ include "ferriskey.api.name" . }}
+          port: {{ .Values.api.server.port }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "ferriskey.webapp.name" . }}
+          port: 80
+{{- end }}
