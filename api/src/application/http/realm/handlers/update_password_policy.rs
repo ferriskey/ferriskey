@@ -5,7 +5,6 @@ use axum::{
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     password_policy::entity::{PasswordPolicy, UpdatePasswordPolicy},
-    realm::ports::{GetRealmInput, RealmService},
 };
 
 use crate::application::http::{
@@ -43,13 +42,6 @@ pub async fn update_password_policy(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdatePasswordPolicyValidator>,
 ) -> Result<Response<PasswordPolicy>, ApiError> {
-    // First get the realm to get its ID
-    let realm = state
-        .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
-
     let update = UpdatePasswordPolicy {
         min_length: payload.min_length,
         require_uppercase: payload.require_uppercase,
@@ -61,7 +53,7 @@ pub async fn update_password_policy(
 
     let policy = state
         .service
-        .update_password_policy(identity, realm.id.into(), update)
+        .update_password_policy(identity, realm_name, update)
         .await
         .map_err(ApiError::from)?;
 
