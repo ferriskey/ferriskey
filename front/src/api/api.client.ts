@@ -33,23 +33,19 @@ export namespace Schemas {
   export type ClientType = "confidential" | "public" | "system";
   export type RealmId = string;
   export type Client = {
-    access_token_lifetime?: (number | null) | undefined;
     client_id: string;
     client_type: ClientType;
     created_at: string;
     direct_access_grants_enabled: boolean;
     enabled: boolean;
     id: string;
-    id_token_lifetime?: (number | null) | undefined;
     name: string;
     protocol: string;
     public_client: boolean;
     realm_id: RealmId;
     redirect_uris?: (Array<RedirectUri> | null) | undefined;
-    refresh_token_lifetime?: (number | null) | undefined;
     secret?: (string | null) | undefined;
     service_account_enabled: boolean;
-    temporary_token_lifetime?: (number | null) | undefined;
     updated_at: string;
   };
   export type ScopeType = "NONE" | "OPTIONAL" | "DEFAULT";
@@ -170,18 +166,14 @@ export namespace Schemas {
     permissions: Array<string>;
   };
   export type RealmSetting = {
-    access_token_lifetime: number;
     compass_enabled: boolean;
     default_signing_algorithm?: (string | null) | undefined;
     forgot_password_enabled: boolean;
     id: string;
-    id_token_lifetime: number;
     magic_link_enabled: boolean;
     magic_link_ttl: number;
     realm_id: RealmId;
-    refresh_token_lifetime: number;
     remember_me_enabled: boolean;
-    temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
   };
@@ -479,8 +471,6 @@ export namespace Schemas {
   }>;
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
-  export type VerifyResetTokenRequest = { token_id: string };
-  export type VerifyResetTokenResponse = { valid: boolean };
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
   export type RevokeTokenRequestValidator = Partial<{
     client_id: string;
@@ -547,14 +537,10 @@ export namespace Schemas {
     protocol: string | null;
   }>;
   export type UpdateClientValidator = Partial<{
-    access_token_lifetime: number | null;
     client_id: string | null;
     direct_access_grants_enabled: boolean | null;
     enabled: boolean | null;
-    id_token_lifetime: number | null;
     name: string | null;
-    refresh_token_lifetime: number | null;
-    temporary_token_lifetime: number | null;
   }>;
   export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse };
   export type UpdateIdentityProviderValidator = Partial<{
@@ -590,16 +576,12 @@ export namespace Schemas {
   export type UpdateRealmResponse = { data: Realm };
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
-    access_token_lifetime: number | null;
     compass_enabled: boolean | null;
     default_signing_algorithm: string | null;
     forgot_password_enabled: boolean | null;
-    id_token_lifetime: number | null;
     magic_link_enabled: boolean | null;
     magic_link_ttl: number | null;
-    refresh_token_lifetime: number | null;
     remember_me_enabled: boolean | null;
-    temporary_token_lifetime: number | null;
     user_registration_enabled: boolean | null;
   }>;
   export type UpdateRealmValidator = { name: string };
@@ -1421,18 +1403,7 @@ export namespace Endpoints {
 
       body: Schemas.ResetPasswordRequest;
     };
-    responses: { 200: Schemas.JwtToken; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
-  export type post_Verify_reset_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/verify-reset-token";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string };
-
-      body: Schemas.VerifyResetTokenRequest;
-    };
-    responses: { 200: Schemas.VerifyResetTokenResponse; 401: Schemas.ApiErrorResponse; 404: Schemas.ApiErrorResponse };
+    responses: { 200: Schemas.ResetPasswordResponse; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
   };
   export type post_Send_magic_link = {
     method: "POST";
@@ -2126,7 +2097,6 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/generate-recovery-codes": Endpoints.post_Generate_recovery_codes;
     "/realms/{realm_name}/login-actions/reset-password": Endpoints.post_Reset_password_with_token;
     "/realms/{realm_name}/login-actions/send-magic-link": Endpoints.post_Send_magic_link;
-    "/realms/{realm_name}/login-actions/verify-reset-token": Endpoints.post_Verify_reset_token;
     "/realms/{realm_name}/login-actions/update-password": Endpoints.post_Update_password;
     "/realms/{realm_name}/login-actions/verify-otp": Endpoints.post_Verify_otp;
     "/realms/{realm_name}/login-actions/webauthn-public-key-authenticate": Endpoints.post_Webauthn_public_key_authenticate;
