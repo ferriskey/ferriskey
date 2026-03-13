@@ -2,38 +2,83 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "password_reset_tokens")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "password_reset_tokens"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub user_id: Uuid,
     pub realm_id: Uuid,
-    #[sea_orm(unique)]
     pub token_id: Uuid,
     pub token_hash: String,
     pub created_at: DateTimeWithTimeZone,
     pub expires_at: DateTimeWithTimeZone,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    UserId,
+    RealmId,
+    TokenId,
+    TokenHash,
+    CreatedAt,
+    ExpiresAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::realms::Entity",
-        from = "Column::RealmId",
-        to = "super::realms::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Realms,
-    #[sea_orm(
-        belongs_to = "super::users::Entity",
-        from = "Column::UserId",
-        to = "super::users::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Users,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::UserId => ColumnType::Uuid.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::TokenId => ColumnType::Uuid.def().unique(),
+            Self::TokenHash => ColumnType::Text.def(),
+            Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::ExpiresAt => ColumnType::TimestampWithTimeZone.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
+            Self::Users => Entity::belongs_to(super::users::Entity)
+                .from(Column::UserId)
+                .to(super::users::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::realms::Entity> for Entity {
