@@ -9,7 +9,7 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::services::AuthServiceImpl,
+        authentication::{services::AuthServiceImpl, value_objects::Identity},
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
@@ -19,7 +19,10 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        password_policy::service::PasswordPolicyService,
+        password_policy::{
+            entity::{PasswordPolicy, UpdatePasswordPolicy},
+            service::PasswordPolicyService,
+        },
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
