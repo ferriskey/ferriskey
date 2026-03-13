@@ -8,10 +8,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::abyss::identity_provider::broker::{
     BrokerCallbackInput, BrokerService,
 };
-use ferriskey_core::domain::authentication::{
-    entities::{ExchangeTokenInput, GrantType},
-    ports::AuthService,
-};
+use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
 use crate::application::http::server::{
@@ -85,18 +82,19 @@ pub async fn broker_callback(
 
     if let Ok(jwt_token) = state
         .service
-        .exchange_token(ExchangeTokenInput {
-            realm_name,
-            client_id: result.client_id.clone(),
-            client_secret: None,
-            code: Some(result.authorization_code.clone()),
-            username: None,
-            password: None,
-            refresh_token: None,
-            base_url: root_scoped_base_url,
-            grant_type: GrantType::Code,
-            scope: None,
-        })
+        .exchange_token(
+            ferriskey_core::domain::authentication::entities::ExchangeTokenInput {
+                realm_name: realm_name.clone(),
+                client_id: result.client_id.clone(),
+                client_secret: None,
+                code: Some(result.authorization_code.clone()),
+                refresh_token: None,
+                base_url: root_scoped_base_url.clone(),
+                grant_type: ferriskey_core::domain::authentication::entities::GrantType::Code,
+                scope: Some("openid profile email".to_string()),
+                code_verifier: None,
+            },
+        )
         .await
     {
         let mut identity_cookie =

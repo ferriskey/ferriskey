@@ -72,6 +72,10 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         code: String,
     ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
+    fn consume_by_code(
+        &self,
+        code: String,
+    ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
     fn update_code_and_user_id(
         &self,
         session_code: Uuid,
@@ -158,7 +162,7 @@ pub trait AuthService: Send + Sync {
 /// A strategy for handling different OAuth2 grant types during authentication.
 ///
 /// This trait defines the contract for implementing specific grant type strategies,
-/// such as `AuthorizationCode`, `ClientCredentials`, or `Password` grant types.
+/// such as `AuthorizationCode` and `ClientCredentials` grant types.
 /// Each implementation of this trait should handle the logic for its respective grant type.
 pub trait GrantTypeStrategy: Send + Sync {
     fn authorization_code(
@@ -170,10 +174,6 @@ pub trait GrantTypeStrategy: Send + Sync {
         params: GrantTypeParams,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
     fn refresh_token(
-        &self,
-        params: GrantTypeParams,
-    ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
-    fn password(
         &self,
         params: GrantTypeParams,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;

@@ -42,6 +42,10 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge,
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
+            code_challenge: model.code_challenge,
+            code_challenge_method: model
+                .code_challenge_method
+                .and_then(|s| s.parse().ok()),
         }
     }
 }
@@ -76,6 +80,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             webauthn_challenge: Set(None),
             webauthn_challenge_issued_at: Set(None),
             compass_flow_id: Set(session.compass_flow_id),
+            code_challenge: Set(session.code_challenge.clone()),
+            code_challenge_method: Set(session.code_challenge_method.map(|m| m.as_str().to_string())),
         };
 
         let t = model
@@ -121,6 +127,37 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         let session: Option<AuthSession> = session.map(|s| s.into());
 
         Ok(session)
+    }
+
+    async fn consume_by_code(
+        &self,
+        code: String,
+    ) -> Result<Option<AuthSession>, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::find()
+            .filter(crate::entity::auth_sessions::Column::Code.eq(code))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error getting session for consumption: {:?}", e);
+                AuthenticationError::NotFound
+            })?;
+
+        if let Some(session_model) = session {
+            let session: AuthSession = session_model.into();
+
+            // Delete the session to prevent replay attacks
+            crate::entity::auth_sessions::Entity::delete_by_id(session.id)
+                .exec(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("Error deleting consumed session: {:?}", e);
+                    AuthenticationError::NotFound
+                })?;
+
+            Ok(Some(session))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn update_code_and_user_id(

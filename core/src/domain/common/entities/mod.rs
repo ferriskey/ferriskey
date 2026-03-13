@@ -10,6 +10,7 @@ pub struct StartupConfig {
     pub admin_email: String,
     pub admin_password: String,
     pub default_client_id: String,
+    pub base_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
