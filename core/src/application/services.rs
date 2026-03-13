@@ -24,7 +24,10 @@ use crate::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
             service::PasswordPolicyService,
         },
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm::{
+            ports::{RealmPolicy, RealmRepository}, // <--- Added RealmRepository trait import
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
