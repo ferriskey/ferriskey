@@ -359,11 +359,24 @@ where
             }
         }
 
-        let admin_redirect_uris = vec![
-            "http://localhost:5555/realms/master/authentication/callback",
-            "http://localhost:3000/realms/master/authentication/callback",
-            "http://localhost:5173/realms/master/authentication/callback",
-        ];
+        let admin_redirect_uris: Vec<String> = if let Some(ref base_url) = config.base_url {
+            vec![
+                format!(
+                    "{}/realms/master/authentication/callback",
+                    base_url.trim_end_matches('/')
+                ),
+                format!(
+                    "{}/realms/master/authentication/login",
+                    base_url.trim_end_matches('/')
+                ),
+            ]
+        } else {
+            vec![
+                "http://localhost:5555/realms/master/authentication/callback".to_string(),
+                "http://localhost:3000/realms/master/authentication/callback".to_string(),
+                "http://localhost:5173/realms/master/authentication/callback".to_string(),
+            ]
+        };
 
         let existing_uris = self
             .redirect_uri_repository

@@ -80,14 +80,19 @@ pub async fn broker_callback(
         Err(e) => return Err(e.into()),
     };
 
-    // Create JWT token from authenticated session instead of re-exchanging authorization code
     if let Ok(jwt_token) = state
         .service
-        .generate_tokens_for_user(
-            ferriskey_core::domain::authentication::value_objects::GenerateTokensForUserInput {
-                user_id: result.user_id,
-                realm_id: result.realm_id,
-                base_url: root_scoped_base_url,
+        .exchange_token(
+            ferriskey_core::domain::authentication::entities::ExchangeTokenInput {
+                realm_name: realm_name.clone(),
+                client_id: result.client_id.clone(),
+                client_secret: None,
+                code: Some(result.authorization_code.clone()),
+                refresh_token: None,
+                base_url: root_scoped_base_url.clone(),
+                grant_type: ferriskey_core::domain::authentication::entities::GrantType::Code,
+                scope: Some("openid profile email".to_string()),
+                code_verifier: None,
             },
         )
         .await

@@ -588,11 +588,8 @@ where
 
             let challenge_valid: bool = match auth_session.code_challenge_method.as_deref() {
                 Some("S256") | None => {
-                    use base64::{Engine, engine::general_purpose};
-                    use sha2::{Digest, Sha256};
-                    use subtle::ConstantTimeEq;
                     let hash = Sha256::digest(code_verifier.as_bytes());
-                    let computed = general_purpose::URL_SAFE_NO_PAD.encode(hash);
+                    let computed = BASE64_URL_SAFE_NO_PAD.encode(hash);
                     computed
                         .as_bytes()
                         .ct_eq(stored_challenge.as_bytes())
@@ -1403,12 +1400,12 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
-        if !input
+        let has_valid_challenge = input
             .code_challenge
             .as_deref()
-            .map(|challenge| !challenge.trim().is_empty())
-            .unwrap_or(false)
-        {
+            .is_some_and(|c| !c.trim().is_empty());
+        if !has_valid_challenge {
+            warn!("Missing or empty code_challenge - PKCE is required");
             return Err(CoreError::InvalidRequest);
         }
 

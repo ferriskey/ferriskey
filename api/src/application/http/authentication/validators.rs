@@ -5,13 +5,12 @@ use std::sync::LazyLock;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
-static CODE_VERIFIER_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9\-._~]+$").unwrap());
+static CODE_VERIFIER_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[A-Za-z0-9\-._~]+$").expect("CODE_VERIFIER_RE is a valid regex")
+});
 
-/// RFC 7636 code_challenge characters: base64url alphabet without padding
-/// Allows: A-Z, a-z, 0-9, hyphen, underscore
 static CODE_CHALLENGE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9\-_]+$").unwrap());
+    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9\-_]+$").expect("CODE_CHALLENGE_RE is a valid regex"));
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]
 pub struct AuthRequestValidator {
@@ -44,16 +43,11 @@ pub struct AuthRequestValidator {
     pub scope: Option<String>,
 }
 
-#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Deserialize, ToSchema, PartialEq, Eq, Default)]
 pub enum CodeChallengeMethod {
     #[serde(rename = "S256")]
+    #[default]
     S256,
-}
-
-impl Default for CodeChallengeMethod {
-    fn default() -> Self {
-        CodeChallengeMethod::S256
-    }
 }
 
 #[derive(Debug, Deserialize, ToSchema, Validate)]
