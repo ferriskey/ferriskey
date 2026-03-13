@@ -58,6 +58,10 @@ pub async fn update_realm_setting(
                 magic_link_enabled: payload.magic_link_enabled,
                 magic_link_ttl: payload.magic_link_ttl,
                 compass_enabled: payload.compass_enabled,
+                access_token_lifetime: payload.access_token_lifetime,
+                refresh_token_lifetime: payload.refresh_token_lifetime,
+                id_token_lifetime: payload.id_token_lifetime,
+                temporary_token_lifetime: payload.temporary_token_lifetime,
             },
         )
         .await

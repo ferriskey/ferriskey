@@ -712,6 +712,10 @@ where
                 input.magic_link_enabled,
                 input.magic_link_ttl,
                 input.compass_enabled,
+                input.access_token_lifetime,
+                input.refresh_token_lifetime,
+                input.id_token_lifetime,
+                input.temporary_token_lifetime,
             )
             .await?;
 
@@ -1056,6 +1060,10 @@ mod tests {
                                 direct_access_grants_enabled: Some(
                                     req.direct_access_grants_enabled,
                                 ),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
                             },
                         ))
                     })
@@ -1083,6 +1091,10 @@ mod tests {
                                 service_account_enabled: false,
                                 client_type: req.client_type.clone(),
                                 direct_access_grants_enabled: Some(true),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
                             },
                         ))
                     })
@@ -1112,6 +1124,10 @@ mod tests {
                                 service_account_enabled: false,
                                 client_type: req.client_type.clone(),
                                 direct_access_grants_enabled: Some(false),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
                             },
                         ))
                     })

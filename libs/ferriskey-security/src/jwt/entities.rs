@@ -13,6 +13,13 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::SecurityError;
+
+/// Default token lifetimes in seconds.
+pub const DEFAULT_ACCESS_TOKEN_LIFETIME: i64 = 300; // 5 minutes
+pub const DEFAULT_REFRESH_TOKEN_LIFETIME: i64 = 86400; // 24 hours
+pub const DEFAULT_ID_TOKEN_LIFETIME: i64 = 300; // 5 minutes
+pub const DEFAULT_TEMPORARY_TOKEN_LIFETIME: i64 = 300; // 5 minutes
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClaimsTyp {
     Refresh,
@@ -107,6 +114,7 @@ impl JwtClaim {
         azp: String,
         email: Option<String>,
         scope: Option<String>,
+        lifetime_seconds: i64,
     ) -> Self {
         let timestamp = Utc::now().timestamp();
         Self {
@@ -114,7 +122,7 @@ impl JwtClaim {
             preferred_username: Some(preferred_username),
             iat: timestamp,
             jti: Uuid::new_v4(),
-            exp: Some(timestamp + 60 * 5), // 5 minutes
+            exp: Some(timestamp + lifetime_seconds),
             iss,
             aud,
             typ,
@@ -132,10 +140,12 @@ impl JwtClaim {
         aud: Vec<String>,
         azp: String,
         scope: Option<String>,
+        lifetime_seconds: i64,
     ) -> Self {
+        let timestamp = chrono::Utc::now().timestamp();
         Self {
             sub,
-            iat: chrono::Utc::now().timestamp(),
+            iat: timestamp,
             jti: Uuid::new_v4(),
             iss,
             aud,
@@ -144,13 +154,13 @@ impl JwtClaim {
             scope,
             preferred_username: None,
             email: None,
-            exp: Some(chrono::Utc::now().timestamp() + 86400), // 24 hours
+            exp: Some(timestamp + lifetime_seconds),
             client_id: None,
             additional_claims: HashMap::new(),
         }
     }
 
-    pub fn new_temporary_token(claims: JwtClaim) -> Self {
+    pub fn new_temporary_token(claims: JwtClaim, lifetime_seconds: i64) -> Self {
         Self {
             sub: claims.sub,
             iat: claims.iat,
@@ -162,7 +172,7 @@ impl JwtClaim {
             scope: claims.scope,
             preferred_username: claims.preferred_username,
             email: claims.email,
-            exp: Some(chrono::Utc::now().timestamp() + 300), // 5 minutes
+            exp: Some(chrono::Utc::now().timestamp() + lifetime_seconds),
             client_id: claims.client_id,
             additional_claims: claims.additional_claims,
         }
@@ -332,7 +342,7 @@ impl JwtKeyPair {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClaimsTyp, JwtClaim};
+    use super::*;
     use uuid::Uuid;
 
     #[test]
@@ -344,6 +354,7 @@ mod tests {
             vec!["test-realm".to_string()],
             "client-id".to_string(),
             scope.clone(),
+            DEFAULT_REFRESH_TOKEN_LIFETIME,
         );
 
         assert_eq!(claims.typ, ClaimsTyp::Refresh);

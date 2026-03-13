@@ -79,15 +79,22 @@ export const useUpdateRealmSettings = () => {
   return useMutation({
     ...window.tanstackApi.mutation('put', '/realms/{name}/settings').mutationOptions,
     onSuccess: async (res) => {
-      const queryKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
+      const loginKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
         path: {
           name: res.data.name,
         },
       }).queryKey
 
-      await queryClient.invalidateQueries({
-        queryKey: [...queryKeys],
-      })
+      const realmKeys = window.tanstackApi.get('/realms/{name}', {
+        path: {
+          name: res.data.name,
+        },
+      }).queryKey
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...loginKeys] }),
+        queryClient.invalidateQueries({ queryKey: [...realmKeys] }),
+      ])
     },
   })
 }

@@ -19,6 +19,10 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub direct_access_grants_enabled: Option<bool>,
+    pub access_token_lifetime_secs: Option<i32>,
+    pub refresh_token_lifetime_secs: Option<i32>,
+    pub id_token_lifetime_secs: Option<i32>,
+    pub temporary_token_lifetime_secs: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

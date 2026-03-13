@@ -117,6 +117,9 @@ pub struct GenerateTokenInput {
     pub email: String,
     pub realm_id: RealmId,
     pub scope: Option<String>,
+    pub access_token_lifetime: i64,
+    pub refresh_token_lifetime: i64,
+    pub id_token_lifetime: i64,
 }
 
 pub struct GetUserInfoInput {

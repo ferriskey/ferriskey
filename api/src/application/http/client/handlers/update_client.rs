@@ -64,6 +64,10 @@ pub async fn update_client(
                     client_id: payload.client_id,
                     enabled: payload.enabled,
                     direct_access_grants_enabled: payload.direct_access_grants_enabled,
+                    access_token_lifetime: payload.access_token_lifetime,
+                    refresh_token_lifetime: payload.refresh_token_lifetime,
+                    id_token_lifetime: payload.id_token_lifetime,
+                    temporary_token_lifetime: payload.temporary_token_lifetime,
                 },
             },
         )

@@ -8,6 +8,7 @@ pub mod client;
 pub mod common;
 pub mod realm;
 pub mod role;
+pub mod token_lifetime;
 pub mod user;
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {

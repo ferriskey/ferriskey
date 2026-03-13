@@ -16,6 +16,10 @@ impl From<Model> for RealmSetting {
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl_minutes.try_into().unwrap_or(15),
             compass_enabled: value.compass_enabled,
+            access_token_lifetime: value.access_token_lifetime_secs as i64,
+            refresh_token_lifetime: value.refresh_token_lifetime_secs as i64,
+            id_token_lifetime: value.id_token_lifetime_secs as i64,
+            temporary_token_lifetime: value.temporary_token_lifetime_secs as i64,
             updated_at,
         }
     }

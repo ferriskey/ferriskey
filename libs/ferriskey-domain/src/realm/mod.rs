@@ -58,6 +58,10 @@ pub struct RealmSetting {
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
     pub compass_enabled: bool,
+    pub access_token_lifetime: i64,
+    pub refresh_token_lifetime: i64,
+    pub id_token_lifetime: i64,
+    pub temporary_token_lifetime: i64,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -75,6 +79,10 @@ impl RealmSetting {
             magic_link_enabled: false,
             magic_link_ttl: 15,
             compass_enabled: true,
+            access_token_lifetime: 300,
+            refresh_token_lifetime: 86400,
+            id_token_lifetime: 300,
+            temporary_token_lifetime: 300,
             updated_at: now,
         }
     }

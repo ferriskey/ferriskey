@@ -615,6 +615,10 @@ pub mod tests {
             client_type: ClientType::Confidential,
             protocol: "openid-connect".to_string(),
             redirect_uris: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

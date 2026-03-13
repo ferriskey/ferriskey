@@ -26,6 +26,10 @@ impl From<Model> for Client {
                 .parse::<ClientType>()
                 .unwrap_or(ClientType::Confidential),
             redirect_uris: None,
+            access_token_lifetime: model.access_token_lifetime_secs.map(|v| v as i64),
+            refresh_token_lifetime: model.refresh_token_lifetime_secs.map(|v| v as i64),
+            id_token_lifetime: model.id_token_lifetime_secs.map(|v| v as i64),
+            temporary_token_lifetime: model.temporary_token_lifetime_secs.map(|v| v as i64),
             created_at,
             updated_at,
         }

@@ -26,6 +26,31 @@ pub struct UpdateRealmSettingValidator {
     #[validate(range(min = 1, message = "magic_link_ttl must be greater than 0"))]
     pub magic_link_ttl: Option<u32>,
     pub compass_enabled: Option<bool>,
+
+    #[validate(range(
+        min = 60,
+        max = 86400,
+        message = "access_token_lifetime must be between 60 and 86400 seconds"
+    ))]
+    pub access_token_lifetime: Option<i64>,
+    #[validate(range(
+        min = 300,
+        max = 2592000,
+        message = "refresh_token_lifetime must be between 300 and 2592000 seconds"
+    ))]
+    pub refresh_token_lifetime: Option<i64>,
+    #[validate(range(
+        min = 60,
+        max = 86400,
+        message = "id_token_lifetime must be between 60 and 86400 seconds"
+    ))]
+    pub id_token_lifetime: Option<i64>,
+    #[validate(range(
+        min = 60,
+        max = 86400,
+        message = "temporary_token_lifetime must be between 60 and 86400 seconds"
+    ))]
+    pub temporary_token_lifetime: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
