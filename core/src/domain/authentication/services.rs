@@ -587,7 +587,7 @@ where
             })?;
 
             let challenge_valid: bool = match auth_session.code_challenge_method.as_deref() {
-                Some("S256") | None => {
+                Some("S256") => {
                     let hash = Sha256::digest(code_verifier.as_bytes());
                     let computed = BASE64_URL_SAFE_NO_PAD.encode(hash);
                     computed
@@ -595,9 +595,13 @@ where
                         .ct_eq(stored_challenge.as_bytes())
                         .into()
                 }
+                None => {
+                    warn!("PKCE challenge method is required but was not stored in auth session");
+                    false
+                }
                 Some(method) => {
                     warn!("Unsupported PKCE challenge method: {}", method);
-                    return Err(CoreError::InvalidRequest);
+                    false
                 }
             };
 
@@ -1410,7 +1414,11 @@ where
         }
 
         let code_challenge_method = match input.code_challenge_method.as_deref() {
-            Some("S256") | None => "S256".to_string(),
+            Some("S256") => "S256".to_string(),
+            None => {
+                warn!("PKCE challenge method is required");
+                return Err(CoreError::InvalidRequest);
+            }
             Some(other) => {
                 warn!("Unsupported PKCE challenge method requested: {}", other);
                 return Err(CoreError::InvalidRequest);
