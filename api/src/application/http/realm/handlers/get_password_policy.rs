@@ -3,9 +3,7 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_core::domain::{
-    authentication::value_objects::Identity,
-    password_policy::entity::PasswordPolicy,
-    realm::ports::{GetRealmInput, RealmService},
+    authentication::value_objects::Identity, password_policy::entity::PasswordPolicy,
 };
 
 use crate::application::http::server::{
@@ -37,16 +35,9 @@ pub async fn get_password_policy(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<PasswordPolicy>, ApiError> {
-    // First get the realm to get its ID
-    let realm = state
-        .service
-        .get_realm_by_name(identity.clone(), GetRealmInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
-
     let policy = state
         .service
-        .get_password_policy(identity, realm.id.into())
+        .get_password_policy(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 
