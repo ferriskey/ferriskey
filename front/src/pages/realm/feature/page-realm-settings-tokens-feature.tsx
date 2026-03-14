@@ -9,10 +9,10 @@ import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 
 const realmTokenSettingsSchema = z.object({
-  accessTokenLifetime: z.number().min(60).max(86400),
-  refreshTokenLifetime: z.number().min(300).max(2592000),
-  idTokenLifetime: z.number().min(60).max(86400),
-  temporaryTokenLifetime: z.number().min(60).max(86400),
+  accessTokenLifetime: z.number(),
+  refreshTokenLifetime: z.number(),
+  idTokenLifetime: z.number(),
+  temporaryTokenLifetime: z.number(),
 })
 
 export type RealmTokenSettingsSchema = z.infer<typeof realmTokenSettingsSchema>
