@@ -216,7 +216,11 @@ mod tests {
 
     #[test]
     fn preserves_login_url_when_webapp_has_no_trailing_slash() {
-        let full_url = webapp_login_url("https://login.example.com", "demo", "?client_id=test-client");
+        let full_url = webapp_login_url(
+            "https://login.example.com",
+            "demo",
+            "?client_id=test-client",
+        );
 
         assert_eq!(
             full_url,
