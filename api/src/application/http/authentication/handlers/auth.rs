@@ -203,28 +203,24 @@ mod tests {
     #[test]
     fn joins_webapp_login_url_without_double_slashes() {
         let full_url = webapp_login_url(
-            "https://accounts.barrzen.com/",
-            "master",
-            "?client_id=test-client&redirect_uri=http://localhost:3000/auth/callback&state=test",
+            "https://login.example.com/",
+            "demo",
+            "?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test",
         );
 
         assert_eq!(
             full_url,
-            "https://accounts.barrzen.com/realms/master/authentication/login?client_id=test-client&redirect_uri=http://localhost:3000/auth/callback&state=test"
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test"
         );
     }
 
     #[test]
     fn preserves_login_url_when_webapp_has_no_trailing_slash() {
-        let full_url = webapp_login_url(
-            "https://accounts.barrzen.com",
-            "master",
-            "?client_id=test-client",
-        );
+        let full_url = webapp_login_url("https://login.example.com", "demo", "?client_id=test-client");
 
         assert_eq!(
             full_url,
-            "https://accounts.barrzen.com/realms/master/authentication/login?client_id=test-client"
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
         );
     }
 }
