@@ -2,19 +2,24 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "compass_flows")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "compass_flows"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub realm_id: Uuid,
-    #[sea_orm(column_type = "Text", nullable)]
     pub client_id: Option<String>,
     pub user_id: Option<Uuid>,
     pub grant_type: String,
     pub status: String,
     pub ip_address: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
     pub user_agent: Option<String>,
     pub started_at: DateTime,
     pub completed_at: Option<DateTime>,
@@ -22,28 +27,77 @@ pub struct Model {
     pub created_at: DateTime,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    RealmId,
+    ClientId,
+    UserId,
+    GrantType,
+    Status,
+    IpAddress,
+    UserAgent,
+    StartedAt,
+    CompletedAt,
+    DurationMs,
+    CreatedAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::auth_sessions::Entity")]
     AuthSessions,
-    #[sea_orm(has_many = "super::compass_flow_steps::Entity")]
     CompassFlowSteps,
-    #[sea_orm(
-        belongs_to = "super::realms::Entity",
-        from = "Column::RealmId",
-        to = "super::realms::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Realms,
-    #[sea_orm(
-        belongs_to = "super::users::Entity",
-        from = "Column::UserId",
-        to = "super::users::Column::Id",
-        on_update = "NoAction",
-        on_delete = "SetNull"
-    )]
     Users,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::ClientId => ColumnType::Text.def().null(),
+            Self::UserId => ColumnType::Uuid.def().null(),
+            Self::GrantType => ColumnType::String(StringLen::N(50u32)).def(),
+            Self::Status => ColumnType::String(StringLen::N(20u32)).def(),
+            Self::IpAddress => ColumnType::String(StringLen::N(45u32)).def().null(),
+            Self::UserAgent => ColumnType::Text.def().null(),
+            Self::StartedAt => ColumnType::DateTime.def(),
+            Self::CompletedAt => ColumnType::DateTime.def().null(),
+            Self::DurationMs => ColumnType::BigInteger.def().null(),
+            Self::CreatedAt => ColumnType::DateTime.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
+            Self::CompassFlowSteps => Entity::has_many(super::compass_flow_steps::Entity).into(),
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
+            Self::Users => Entity::belongs_to(super::users::Entity)
+                .from(Column::UserId)
+                .to(super::users::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::auth_sessions::Entity> for Entity {
