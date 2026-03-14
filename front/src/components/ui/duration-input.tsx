@@ -53,29 +53,57 @@ export function DurationInput({
   error,
   nullable = false,
 }: DurationInputProps) {
-  const [userUnit, setUserUnit] = useState<TimeUnit | null>(null)
+  // Unit is set once at mount, then only changed via dropdown or external reset
+  const [unit, setUnit] = useState<TimeUnit>(() =>
+    value != null ? detectBestUnit(value) : 'seconds'
+  )
 
-  const unit = userUnit ?? (value != null ? detectBestUnit(value) : 'seconds')
+  // Local display string for the input — avoids recalculating from value each render
+  const [displayStr, setDisplayStr] = useState(() =>
+    value != null ? String(value / MULTIPLIERS[detectBestUnit(value)]) : ''
+  )
 
-  const displayValue =
-    value != null ? String(value / MULTIPLIERS[unit]) : ''
+  // Track previous prop value and last emitted value to distinguish
+  // internal changes (our onChange) from external ones (form reset)
+  const [prevValue, setPrevValue] = useState(value)
+  const [lastEmitted, setLastEmitted] = useState(value)
+
+  if (prevValue !== value) {
+    setPrevValue(value)
+    // External change: value differs from what we last emitted
+    if (value !== lastEmitted) {
+      const newUnit = detectBestUnit(value ?? 0)
+      setUnit(newUnit)
+      setDisplayStr(value != null ? String(value / MULTIPLIERS[newUnit]) : '')
+      setLastEmitted(value)
+    }
+  }
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.currentTarget.value
+    setDisplayStr(raw)
+
     if (raw === '') {
-      onChange(nullable ? null : 0)
+      const emitted = nullable ? null : 0
+      setLastEmitted(emitted)
+      onChange(emitted)
       return
     }
     const num = Number(raw)
-    if (Number.isNaN(num)) return
-    onChange(num * MULTIPLIERS[unit])
+    if (!Number.isNaN(num)) {
+      const emitted = num * MULTIPLIERS[unit]
+      setLastEmitted(emitted)
+      onChange(emitted)
+    }
   }
 
   const handleUnitChange = (newUnit: TimeUnit) => {
-    setUserUnit(newUnit)
-    if (value != null) {
-      const currentDisplay = value / MULTIPLIERS[unit]
-      onChange(currentDisplay * MULTIPLIERS[newUnit])
+    setUnit(newUnit)
+    if (displayStr !== '') {
+      const currentDisplay = Number(displayStr) || 0
+      const emitted = currentDisplay * MULTIPLIERS[newUnit]
+      setLastEmitted(emitted)
+      onChange(emitted)
     }
   }
 
@@ -85,7 +113,7 @@ export function DurationInput({
         <InputGroupInput
           type='number'
           placeholder={label}
-          value={displayValue}
+          value={displayStr}
           onChange={handleValueChange}
         />
         <InputGroupAddon align='inline-end'>

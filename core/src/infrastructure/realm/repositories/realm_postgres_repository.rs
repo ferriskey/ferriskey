@@ -43,14 +43,27 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, CoreError> {
         info_span!("Fetching realm by name", name = name);
-        let realm = RealmEntity::find()
+        let realm_model = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .map(Realm::from);
+            .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok(realm)
+        let Some(model) = realm_model else {
+            return Ok(None);
+        };
+
+        let mut realm = Realm::from(model);
+
+        let settings = crate::entity::realm_settings::Entity::find()
+            .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm.id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        realm.settings = settings.map(RealmSetting::from);
+
+        Ok(Some(realm))
     }
 
     async fn get_by_id(
