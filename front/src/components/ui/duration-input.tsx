@@ -111,20 +111,20 @@ export function DurationInput({
     <div>
       <InputGroup className={error ? 'border-destructive ring-destructive/20' : ''}>
         <InputGroupInput
-          type="number"
+          type='number'
           placeholder={label}
           value={displayStr}
           onChange={handleValueChange}
           autoComplete='off'
         />
-        <InputGroupAddon align="inline-end">
+        <InputGroupAddon align='inline-end'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <InputGroupButton variant="ghost" className="pr-1.5! text-xs">
-                {UNIT_LABELS[unit]} <ChevronDownIcon className="size-3" />
+              <InputGroupButton variant='ghost' className='pr-1.5! text-xs'>
+                {UNIT_LABELS[unit]} <ChevronDownIcon className='size-3' />
               </InputGroupButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align='end'>
               <DropdownMenuGroup>
                 {(Object.keys(MULTIPLIERS) as TimeUnit[]).map((u) => (
                   <DropdownMenuItem key={u} onSelect={() => handleUnitChange(u)}>
@@ -137,7 +137,7 @@ export function DurationInput({
         </InputGroupAddon>
       </InputGroup>
 
-      {error && <p className="mt-0.5 px-3 text-xs font-medium text-destructive">{error}</p>}
+      {error && <p className='mt-0.5 px-3 text-xs font-medium text-destructive'>{error}</p>}
     </div>
   )
 }
