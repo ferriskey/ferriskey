@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ChevronDownIcon } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +11,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { ChevronDownIcon } from 'lucide-react'
+import { useState } from 'react'
 
 type TimeUnit = 'seconds' | 'minutes' | 'hours' | 'days'
 
@@ -53,57 +53,28 @@ export function DurationInput({
   error,
   nullable = false,
 }: DurationInputProps) {
-  // Unit is set once at mount, then only changed via dropdown or external reset
-  const [unit, setUnit] = useState<TimeUnit>(() =>
-    value != null ? detectBestUnit(value) : 'seconds'
-  )
+  const [userUnit, setUserUnit] = useState<TimeUnit | null>(null)
 
-  // Local display string for the input — avoids recalculating from value each render
-  const [displayStr, setDisplayStr] = useState(() =>
-    value != null ? String(value / MULTIPLIERS[detectBestUnit(value)]) : ''
-  )
+  const unit = userUnit ?? (value != null ? detectBestUnit(value) : 'seconds')
 
-  // Track previous prop value and last emitted value to distinguish
-  // internal changes (our onChange) from external ones (form reset)
-  const [prevValue, setPrevValue] = useState(value)
-  const [lastEmitted, setLastEmitted] = useState(value)
-
-  if (prevValue !== value) {
-    setPrevValue(value)
-    // External change: value differs from what we last emitted
-    if (value !== lastEmitted) {
-      const newUnit = detectBestUnit(value ?? 0)
-      setUnit(newUnit)
-      setDisplayStr(value != null ? String(value / MULTIPLIERS[newUnit]) : '')
-      setLastEmitted(value)
-    }
-  }
+  const displayValue = value != null ? String(value / MULTIPLIERS[unit]) : ''
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.currentTarget.value
-    setDisplayStr(raw)
-
     if (raw === '') {
-      const emitted = nullable ? null : 0
-      setLastEmitted(emitted)
-      onChange(emitted)
+      onChange(nullable ? null : 0)
       return
     }
     const num = Number(raw)
-    if (!Number.isNaN(num)) {
-      const emitted = num * MULTIPLIERS[unit]
-      setLastEmitted(emitted)
-      onChange(emitted)
-    }
+    if (Number.isNaN(num)) return
+    onChange(num * MULTIPLIERS[unit])
   }
 
   const handleUnitChange = (newUnit: TimeUnit) => {
-    setUnit(newUnit)
-    if (displayStr !== '') {
-      const currentDisplay = Number(displayStr) || 0
-      const emitted = currentDisplay * MULTIPLIERS[newUnit]
-      setLastEmitted(emitted)
-      onChange(emitted)
+    setUserUnit(newUnit)
+    if (value != null) {
+      const currentDisplay = value / MULTIPLIERS[unit]
+      onChange(currentDisplay * MULTIPLIERS[newUnit])
     }
   }
 
@@ -111,19 +82,19 @@ export function DurationInput({
     <div>
       <InputGroup className={error ? 'border-destructive ring-destructive/20' : ''}>
         <InputGroupInput
-          type='number'
+          type="number"
           placeholder={label}
-          value={displayStr}
+          value={displayValue}
           onChange={handleValueChange}
         />
-        <InputGroupAddon align='inline-end'>
+        <InputGroupAddon align="inline-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <InputGroupButton variant='ghost' className='pr-1.5! text-xs'>
-                {UNIT_LABELS[unit]} <ChevronDownIcon className='size-3' />
+              <InputGroupButton variant="ghost" className="pr-1.5! text-xs">
+                {UNIT_LABELS[unit]} <ChevronDownIcon className="size-3" />
               </InputGroupButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
+            <DropdownMenuContent align="end">
               <DropdownMenuGroup>
                 {(Object.keys(MULTIPLIERS) as TimeUnit[]).map((u) => (
                   <DropdownMenuItem key={u} onSelect={() => handleUnitChange(u)}>
@@ -136,9 +107,7 @@ export function DurationInput({
         </InputGroupAddon>
       </InputGroup>
 
-      {error && (
-        <p className='mt-0.5 px-3 text-xs font-medium text-destructive'>{error}</p>
-      )}
+      {error && <p className="mt-0.5 px-3 text-xs font-medium text-destructive">{error}</p>}
     </div>
   )
 }
