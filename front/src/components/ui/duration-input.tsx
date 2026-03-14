@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { ChevronDownIcon } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +11,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { ChevronDownIcon } from 'lucide-react'
+import { useState } from 'react'
 
 type TimeUnit = 'seconds' | 'minutes' | 'hours' | 'days'
 
@@ -115,6 +115,7 @@ export function DurationInput({
           placeholder={label}
           value={displayStr}
           onChange={handleValueChange}
+          autoComplete='off'
         />
         <InputGroupAddon align='inline-end'>
           <DropdownMenu>
@@ -136,9 +137,7 @@ export function DurationInput({
         </InputGroupAddon>
       </InputGroup>
 
-      {error && (
-        <p className='mt-0.5 px-3 text-xs font-medium text-destructive'>{error}</p>
-      )}
+      {error && <p className='mt-0.5 px-3 text-xs font-medium text-destructive'>{error}</p>}
     </div>
   )
 }
