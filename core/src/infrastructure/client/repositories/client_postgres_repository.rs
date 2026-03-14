@@ -153,6 +153,11 @@ impl ClientRepository for PostgresClientRepository {
             None => client.direct_access_grants_enabled,
         };
 
+        client.access_token_lifetime_secs = Set(data.access_token_lifetime.map(|v| v as i32));
+        client.refresh_token_lifetime_secs = Set(data.refresh_token_lifetime.map(|v| v as i32));
+        client.id_token_lifetime_secs = Set(data.id_token_lifetime.map(|v| v as i32));
+        client.temporary_token_lifetime_secs = Set(data.temporary_token_lifetime.map(|v| v as i32));
+
         client.updated_at = Set(Utc::now().naive_utc());
 
         let client = client

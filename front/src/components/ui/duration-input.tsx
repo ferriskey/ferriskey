@@ -115,6 +115,7 @@ export function DurationInput({
           placeholder={label}
           value={displayStr}
           onChange={handleValueChange}
+          autoComplete='off'
         />
         <InputGroupAddon align="inline-end">
           <DropdownMenu>
