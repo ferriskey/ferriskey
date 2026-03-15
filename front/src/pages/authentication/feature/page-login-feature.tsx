@@ -167,8 +167,8 @@ export default function PageLoginFeature() {
       />
       <FloatingActionBar
         show={showSessionBar}
-        title="Session expired"
-        description="Restart your session to continue."
+        title='Session expired'
+        description='Restart your session to continue.'
         actions={[{ label: 'Refresh session', variant: 'default', onClick: restartAuthFlow }]}
       />
     </>
