@@ -1,9 +1,10 @@
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
+import FloatingActionBar from '@/components/ui/floating-action-bar'
 import PageLogin from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
@@ -26,7 +27,8 @@ export default function PageLoginFeature() {
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
-  const loginError = searchParams.get('login_error')
+  const [showSessionBar, setShowSessionBar] = useState(false)
+  const timerRef = useRef<number | null>(null)
 
   const getAuthParamsFromUrl = useCallback(() => {
     return {
@@ -53,6 +55,23 @@ export default function PageLoginFeature() {
       realm: realm_name ?? 'master',
     }
   }, [getAuthParamsFromUrl, realm_name])
+
+  const restartAuthFlow = useCallback(() => {
+    const { query, realm } = getOAuthParams()
+    setShowSessionBar(false)
+    window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+  }, [getOAuthParams])
+
+  const scheduleSessionExpirationBar = useCallback(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+    }
+    timerRef.current = window.setTimeout(() => {
+      setShowSessionBar(true)
+    }, 300_000)
+  }, [])
+
+  const loginError = searchParams.get('login_error')
 
   const {
     mutate: authenticate,
@@ -109,13 +128,27 @@ export default function PageLoginFeature() {
     }
   }, [isAuthInitiated, getOAuthParams, loginError])
 
-  const authErrorMessage = authenticateStatus === 'error'
-    ? (authenticateError?.message ?? 'Authentication failed. Please check your credentials and try again.')
-    : null
+  const authErrorMessage =
+    authenticateStatus === 'error'
+      ? (authenticateError?.message ??
+        'Authentication failed. Please check your credentials and try again.')
+      : null
 
   const errorMessage = loginError ?? authErrorMessage
 
   const isRedirecting = !isAuthInitiated && !loginError
+
+  useEffect(() => {
+    if (isRedirecting) return
+    scheduleSessionExpirationBar()
+
+    return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current)
+      }
+      setShowSessionBar(false)
+    }
+  }, [isRedirecting, scheduleSessionExpirationBar])
 
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
@@ -124,12 +157,20 @@ export default function PageLoginFeature() {
   if (!loginSettings) return null
 
   return (
-    <PageLogin
-      form={form}
-      onSubmit={onSubmit}
-      isError={undefined}
-      loginSettings={loginSettings}
-      errorMessage={errorMessage}
-    />
+    <>
+      <PageLogin
+        form={form}
+        onSubmit={onSubmit}
+        isError={undefined}
+        loginSettings={loginSettings}
+        errorMessage={errorMessage}
+      />
+      <FloatingActionBar
+        show={showSessionBar}
+        title="Session expired"
+        description="Restart your session to continue."
+        actions={[{ label: 'Refresh session', variant: 'default', onClick: restartAuthFlow }]}
+      />
+    </>
   )
 }
