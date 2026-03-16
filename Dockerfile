@@ -1,16 +1,8 @@
-ARG WOLFI_BASE=cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083
-
-FROM ${WOLFI_BASE} AS rust-build
+FROM rust:1.91.1-bookworm AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
-ENV CARGO_HOME=/usr/local/cargo
-
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache rust build-base pkgconf openssl-dev curl ;\
-  cargo install --root /usr/local/cargo sqlx-cli --no-default-features --features postgres
+RUN cargo install sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/maskass/Cargo.toml ./libs/maskass/
@@ -75,14 +67,25 @@ RUN \
   touch operator/src/main.rs && \
   cargo build --release
 
-FROM ${WOLFI_BASE} AS runtime
+FROM debian:bookworm-slim AS runtime
 
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache ca-certificates libssl3 ;\
-  addgroup -S -g 1000 ferriskey && \
-  adduser -S -D -H -u 1000 -G ferriskey ferriskey
+RUN \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates=20230311+deb12u1 \
+    libssl3=3.0.17-1~deb12u2 && \
+    rm -rf /var/lib/apt/lists/* && \
+    addgroup \
+    --system \
+    --gid 1000 \
+    ferriskey && \
+    adduser \
+    --system \
+    --no-create-home \
+    --disabled-login \
+    --uid 1000 \
+    --gid 1000 \
+    ferriskey
 
 USER ferriskey
 
@@ -104,19 +107,17 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM ${WOLFI_BASE} AS webapp-build
+FROM node:20.14.0-alpine AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache nodejs-24 corepack ;\
-  corepack enable ;\
-  corepack prepare pnpm@10.30.0 --activate
+RUN \
+    corepack enable && \
+    corepack prepare pnpm@9.15.0 --activate && \
+    apk --no-cache add dumb-init=1.2.5-r3
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -126,11 +127,10 @@ COPY front/ .
 
 RUN pnpm run build
 
-FROM docker.angie.software/angie:1.11.3-minimal AS webapp
+FROM nginx:1.28.0-alpine3.21-slim AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
-COPY front/default.conf /etc/angie/http.d/default.conf
-COPY --chmod=0755 front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY front/nginx.conf /etc/nginx/conf.d/default.conf
+COPY front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["angie", "-g", "daemon off;"]
+RUN chmod +x /docker-entrypoint.d/docker-entrypoint.sh

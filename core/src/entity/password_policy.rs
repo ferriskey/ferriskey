@@ -7,7 +7,7 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "smtp_configs"
+        "password_policy"
     }
 }
 
@@ -15,13 +15,12 @@ impl EntityName for Entity {
 pub struct Model {
     pub id: Uuid,
     pub realm_id: Uuid,
-    pub host: String,
-    pub port: i32,
-    pub username: String,
-    pub password: String,
-    pub from_email: String,
-    pub from_name: String,
-    pub encryption: String,
+    pub min_length: i32,
+    pub require_uppercase: bool,
+    pub require_lowercase: bool,
+    pub require_number: bool,
+    pub require_special: bool,
+    pub max_age_days: Option<i32>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -30,13 +29,12 @@ pub struct Model {
 pub enum Column {
     Id,
     RealmId,
-    Host,
-    Port,
-    Username,
-    Password,
-    FromEmail,
-    FromName,
-    Encryption,
+    MinLength,
+    RequireUppercase,
+    RequireLowercase,
+    RequireNumber,
+    RequireSpecial,
+    MaxAgeDays,
     CreatedAt,
     UpdatedAt,
 }
@@ -64,13 +62,12 @@ impl ColumnTrait for Column {
         match self {
             Self::Id => ColumnType::Uuid.def(),
             Self::RealmId => ColumnType::Uuid.def().unique(),
-            Self::Host => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::Port => ColumnType::Integer.def(),
-            Self::Username => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::Password => ColumnType::String(StringLen::N(512u32)).def(),
-            Self::FromEmail => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::FromName => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::Encryption => ColumnType::String(StringLen::N(10u32)).def(),
+            Self::MinLength => ColumnType::Integer.def(),
+            Self::RequireUppercase => ColumnType::Boolean.def(),
+            Self::RequireLowercase => ColumnType::Boolean.def(),
+            Self::RequireNumber => ColumnType::Boolean.def(),
+            Self::RequireSpecial => ColumnType::Boolean.def(),
+            Self::MaxAgeDays => ColumnType::Integer.def().null(),
             Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
             Self::UpdatedAt => ColumnType::TimestampWithTimeZone.def(),
         }

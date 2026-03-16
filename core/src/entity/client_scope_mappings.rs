@@ -2,34 +2,72 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "client_scope_mappings")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "client_scope_mappings"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub client_id: Uuid,
-    #[sea_orm(primary_key, auto_increment = false)]
     pub client_scope_id: Uuid,
     pub default_scope_type: String,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    ClientId,
+    ClientScopeId,
+    DefaultScopeType,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    ClientId,
+    ClientScopeId,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = (Uuid, Uuid);
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::client_scopes::Entity",
-        from = "Column::ClientScopeId",
-        to = "super::client_scopes::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     ClientScopes,
-    #[sea_orm(
-        belongs_to = "super::clients::Entity",
-        from = "Column::ClientId",
-        to = "super::clients::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Clients,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::ClientId => ColumnType::Uuid.def(),
+            Self::ClientScopeId => ColumnType::Uuid.def(),
+            Self::DefaultScopeType => ColumnType::String(StringLen::N(255u32)).def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::ClientScopes => Entity::belongs_to(super::client_scopes::Entity)
+                .from(Column::ClientScopeId)
+                .to(super::client_scopes::Column::Id)
+                .into(),
+            Self::Clients => Entity::belongs_to(super::clients::Entity)
+                .from(Column::ClientId)
+                .to(super::clients::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::client_scopes::Entity> for Entity {

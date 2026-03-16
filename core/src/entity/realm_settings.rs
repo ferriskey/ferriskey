@@ -2,10 +2,17 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "realm_settings")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "realm_settings"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub realm_id: Uuid,
     pub default_signing_algorithm: Option<String>,
@@ -22,16 +29,72 @@ pub struct Model {
     pub temporary_token_lifetime_secs: i32,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    RealmId,
+    DefaultSigningAlgorithm,
+    UpdatedAt,
+    UserRegistrationEnabled,
+    ForgotPasswordEnabled,
+    RememberMeEnabled,
+    MagicLinkEnabled,
+    MagicLinkTtlMinutes,
+    CompassEnabled,
+    AccessTokenLifetimeSecs,
+    RefreshTokenLifetimeSecs,
+    IdTokenLifetimeSecs,
+    TemporaryTokenLifetimeSecs,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::realms::Entity",
-        from = "Column::RealmId",
-        to = "super::realms::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Realms,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::DefaultSigningAlgorithm => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::UserRegistrationEnabled => ColumnType::Boolean.def(),
+            Self::ForgotPasswordEnabled => ColumnType::Boolean.def(),
+            Self::RememberMeEnabled => ColumnType::Boolean.def(),
+            Self::MagicLinkEnabled => ColumnType::Boolean.def(),
+            Self::MagicLinkTtlMinutes => ColumnType::Integer.def(),
+            Self::CompassEnabled => ColumnType::Boolean.def(),
+            Self::AccessTokenLifetimeSecs => ColumnType::Integer.def(),
+            Self::RefreshTokenLifetimeSecs => ColumnType::Integer.def(),
+            Self::IdTokenLifetimeSecs => ColumnType::Integer.def(),
+            Self::TemporaryTokenLifetimeSecs => ColumnType::Integer.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::realms::Entity> for Entity {

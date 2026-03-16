@@ -2,10 +2,17 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "clients")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "clients"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub realm_id: Uuid,
     pub name: String,
@@ -25,30 +32,98 @@ pub struct Model {
     pub temporary_token_lifetime_secs: Option<i32>,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    RealmId,
+    Name,
+    ClientId,
+    Secret,
+    Enabled,
+    Protocol,
+    PublicClient,
+    ServiceAccountEnabled,
+    ClientType,
+    CreatedAt,
+    UpdatedAt,
+    DirectAccessGrantsEnabled,
+    AccessTokenLifetimeSecs,
+    RefreshTokenLifetimeSecs,
+    IdTokenLifetimeSecs,
+    TemporaryTokenLifetimeSecs,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::auth_sessions::Entity")]
     AuthSessions,
-    #[sea_orm(has_many = "super::broker_auth_sessions::Entity")]
     BrokerAuthSessions,
-    #[sea_orm(has_many = "super::client_scope_mappings::Entity")]
     ClientScopeMappings,
-    #[sea_orm(has_many = "super::post_logout_redirect_uris::Entity")]
     PostLogoutRedirectUris,
-    #[sea_orm(
-        belongs_to = "super::realms::Entity",
-        from = "Column::RealmId",
-        to = "super::realms::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Realms,
-    #[sea_orm(has_many = "super::redirect_uris::Entity")]
     RedirectUris,
-    #[sea_orm(has_many = "super::roles::Entity")]
     Roles,
-    #[sea_orm(has_one = "super::users::Entity")]
     Users,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::Name => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::ClientId => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Secret => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::Enabled => ColumnType::Boolean.def(),
+            Self::Protocol => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::PublicClient => ColumnType::Boolean.def(),
+            Self::ServiceAccountEnabled => ColumnType::Boolean.def(),
+            Self::ClientType => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::DirectAccessGrantsEnabled => ColumnType::Boolean.def().null(),
+            Self::AccessTokenLifetimeSecs => ColumnType::Integer.def().null(),
+            Self::RefreshTokenLifetimeSecs => ColumnType::Integer.def().null(),
+            Self::IdTokenLifetimeSecs => ColumnType::Integer.def().null(),
+            Self::TemporaryTokenLifetimeSecs => ColumnType::Integer.def().null(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
+            Self::BrokerAuthSessions => {
+                Entity::has_many(super::broker_auth_sessions::Entity).into()
+            }
+            Self::ClientScopeMappings => {
+                Entity::has_many(super::client_scope_mappings::Entity).into()
+            }
+            Self::PostLogoutRedirectUris => {
+                Entity::has_many(super::post_logout_redirect_uris::Entity).into()
+            }
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
+            Self::RedirectUris => Entity::has_many(super::redirect_uris::Entity).into(),
+            Self::Roles => Entity::has_many(super::roles::Entity).into(),
+            Self::Users => Entity::has_one(super::users::Entity).into(),
+        }
+    }
 }
 
 impl Related<super::auth_sessions::Entity> for Entity {
