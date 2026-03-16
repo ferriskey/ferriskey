@@ -34,6 +34,15 @@ pub fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
     )
 }
 
+fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
+    format!(
+        "{}/realms/{}/authentication/login{}",
+        webapp_url.trim_end_matches('/'),
+        realm_name,
+        login_url
+    )
+}
+
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct AuthRequest {
@@ -137,12 +146,7 @@ pub async fn auth_handler(
         }
     }
 
-    let full_url = format!(
-        "{}/realms/{}/authentication/login{}",
-        state.args.webapp_url.clone(),
-        realm_name,
-        result.login_url.clone()
-    );
+    let full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
     let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
         .path("/")
@@ -190,4 +194,37 @@ pub async fn auth_handler(
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
 
     Ok(axum_response.into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::webapp_login_url;
+
+    #[test]
+    fn joins_webapp_login_url_without_double_slashes() {
+        let full_url = webapp_login_url(
+            "https://login.example.com/",
+            "demo",
+            "?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test"
+        );
+    }
+
+    #[test]
+    fn preserves_login_url_when_webapp_has_no_trailing_slash() {
+        let full_url = webapp_login_url(
+            "https://login.example.com",
+            "demo",
+            "?client_id=test-client",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
+        );
+    }
 }
