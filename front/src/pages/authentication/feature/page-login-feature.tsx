@@ -68,7 +68,7 @@ export default function PageLoginFeature() {
     }
     timerRef.current = window.setTimeout(() => {
       setShowSessionBar(true)
-    }, 300_000)
+    }, 600_000)
   }, [])
 
   const loginError = searchParams.get('login_error')
@@ -140,9 +140,7 @@ export default function PageLoginFeature() {
 
   const isSessionError =
     (errorMessage &&
-      /(session|expired|invalid[_-]?session|session[_-]?not[_-]?found|internal server error)/i.test(
-        errorMessage
-      )) ||
+      /(session|expired|invalid[_-]?session|session[_-]?not[_-]?found)/i.test(errorMessage)) ||
     authErrorStatus === 500
 
   const showFloatingActionBar = isSessionError || showSessionBar
