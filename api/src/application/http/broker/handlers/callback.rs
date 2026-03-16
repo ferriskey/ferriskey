@@ -92,7 +92,7 @@ pub async fn broker_callback(
                 base_url: root_scoped_base_url.clone(),
                 grant_type: ferriskey_core::domain::authentication::entities::GrantType::Code,
                 scope: Some("openid profile email".to_string()),
-                code_verifier: None,
+                code_verifier: result.code_verifier,
             },
         )
         .await

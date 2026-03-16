@@ -396,6 +396,36 @@ where
             .await
             .unwrap_or_default();
 
+        let callback_path = format!(
+            "/realms/{}/authentication/callback",
+            config.master_realm_name
+        );
+        let login_path = format!("/realms/{}/authentication/login", config.master_realm_name);
+
+        for existing_uri in existing_uris.iter() {
+            if !admin_redirect_uris.contains(&existing_uri.value)
+                && (existing_uri.value.ends_with(&callback_path)
+                    || existing_uri.value.ends_with(&login_path))
+                && existing_uri.enabled
+            {
+                match self
+                    .redirect_uri_repository
+                    .update_enabled(existing_uri.id, false)
+                    .await
+                {
+                    Ok(_) => tracing::info!(
+                        "Disabled obsolete admin redirect URI: {}",
+                        existing_uri.value
+                    ),
+                    Err(e) => tracing::error!(
+                        "Failed to disable obsolete redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            }
+        }
+
         for uri in admin_redirect_uris {
             let uri_exists = existing_uris
                 .iter()

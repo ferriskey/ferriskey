@@ -619,12 +619,16 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
-        let request_client_id = Uuid::parse_str(&params.client_id).map_err(|_| {
-            warn!("Invalid client ID format: {}", params.client_id);
-            CoreError::InvalidRequest
-        })?;
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|e| {
+                warn!("Failed to lookup client for validation: {:?}", e);
+                CoreError::InvalidClient
+            })?;
 
-        if auth_session.client_id != request_client_id {
+        if auth_session.client_id != client.id {
             warn!(
                 "Authorization code client mismatch: code belongs to client {} but requested by client {}",
                 auth_session.client_id, params.client_id

@@ -43,9 +43,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
             code_challenge: model.code_challenge,
-            code_challenge_method: model
-                .code_challenge_method
-                .and_then(|s| s.parse().ok()),
+            code_challenge_method: model.code_challenge_method.and_then(|s| s.parse().ok()),
         }
     }
 }
@@ -81,7 +79,9 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             webauthn_challenge_issued_at: Set(None),
             compass_flow_id: Set(session.compass_flow_id),
             code_challenge: Set(session.code_challenge.clone()),
-            code_challenge_method: Set(session.code_challenge_method.map(|m| m.as_str().to_string())),
+            code_challenge_method: Set(session
+                .code_challenge_method
+                .map(|m| m.as_str().to_string())),
         };
 
         let t = model
@@ -114,28 +114,20 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
-    async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthenticationError> {
-        let session = crate::entity::auth_sessions::Entity::find()
-            .filter(crate::entity::auth_sessions::Column::Code.eq(code))
-            .one(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Error getting session: {:?}", e);
-                AuthenticationError::NotFound
-            })?;
-
-        let session: Option<AuthSession> = session.map(|s| s.into());
-
-        Ok(session)
-    }
-
     async fn consume_by_code(
         &self,
         code: String,
     ) -> Result<Option<AuthSession>, AuthenticationError> {
+        use sea_orm::TransactionTrait;
+
+        let txn = self.db.begin().await.map_err(|e| {
+            error!("Error beginning transaction: {:?}", e);
+            AuthenticationError::InternalServerError
+        })?;
+
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Code.eq(code))
-            .one(&self.db)
+            .one(&txn)
             .await
             .map_err(|e| {
                 error!("Error getting session for consumption: {:?}", e);
@@ -145,17 +137,31 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         if let Some(session_model) = session {
             let session: AuthSession = session_model.into();
 
-            // Delete the session to prevent replay attacks
-            crate::entity::auth_sessions::Entity::delete_by_id(session.id)
-                .exec(&self.db)
+            let delete_result = crate::entity::auth_sessions::Entity::delete_by_id(session.id)
+                .exec(&txn)
                 .await
                 .map_err(|e| {
                     error!("Error deleting consumed session: {:?}", e);
                     AuthenticationError::NotFound
                 })?;
 
+            if delete_result.rows_affected == 0 {
+                let _ = txn.rollback().await;
+                return Ok(None);
+            }
+
+            txn.commit().await.map_err(|e| {
+                error!("Error committing transaction: {:?}", e);
+                AuthenticationError::InternalServerError
+            })?;
+
             Ok(Some(session))
         } else {
+            txn.commit().await.map_err(|e| {
+                error!("Error committing transaction: {:?}", e);
+                AuthenticationError::InternalServerError
+            })?;
+
             Ok(None)
         }
     }
