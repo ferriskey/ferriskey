@@ -146,3 +146,137 @@ pub struct ListOrganizationMembersInput {
     pub realm_name: String,
     pub organization_id: OrganizationId,
 }
+
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+
+    use ferriskey_domain::realm::RealmId;
+
+    use super::*;
+
+    fn realm_id() -> RealmId {
+        RealmId::new(Uuid::new_v4())
+    }
+
+    fn org_config(name: &str) -> OrganizationConfig {
+        OrganizationConfig {
+            realm_id: realm_id(),
+            name: name.to_string(),
+            display_name: None,
+            description: None,
+            enabled: true,
+        }
+    }
+
+    // --- OrganizationId ---
+
+    #[test]
+    fn organization_id_roundtrip_uuid() {
+        let uuid = Uuid::new_v4();
+        let id = OrganizationId::from(uuid);
+
+        assert_eq!(Uuid::from(id), uuid);
+    }
+
+    #[test]
+    fn organization_id_as_uuid_matches_inner() {
+        let uuid = Uuid::new_v4();
+        let id = OrganizationId::new(uuid);
+
+        assert_eq!(id.as_uuid(), uuid);
+    }
+
+    #[test]
+    fn organization_id_display_matches_uuid_string() {
+        let uuid = Uuid::new_v4();
+        let id = OrganizationId::new(uuid);
+
+        assert_eq!(id.to_string(), uuid.to_string());
+    }
+
+    #[test]
+    fn organization_id_equality() {
+        let uuid = Uuid::new_v4();
+        assert_eq!(OrganizationId::new(uuid), OrganizationId::new(uuid));
+        assert_ne!(
+            OrganizationId::new(uuid),
+            OrganizationId::new(Uuid::new_v4())
+        );
+    }
+
+    // --- Organization::new ---
+
+    #[test]
+    fn organization_new_sets_fields_from_config() {
+        let realm = realm_id();
+        let config = OrganizationConfig {
+            realm_id: realm,
+            name: "acme".to_string(),
+            display_name: Some("Acme Corp".to_string()),
+            description: Some("A test org".to_string()),
+            enabled: true,
+        };
+
+        let org = Organization::new(config);
+
+        assert_eq!(org.name, "acme");
+        assert_eq!(org.display_name.as_deref(), Some("Acme Corp"));
+        assert_eq!(org.description.as_deref(), Some("A test org"));
+        assert!(org.enabled);
+        assert_eq!(org.realm_id, realm);
+    }
+
+    #[test]
+    fn organization_new_generates_unique_ids() {
+        let org1 = Organization::new(org_config("org1"));
+        let org2 = Organization::new(org_config("org2"));
+
+        assert_ne!(org1.id, org2.id);
+    }
+
+    #[test]
+    fn organization_new_created_at_equals_updated_at() {
+        let org = Organization::new(org_config("org"));
+
+        assert_eq!(org.created_at, org.updated_at);
+    }
+
+    #[test]
+    fn organization_new_without_optional_fields() {
+        let org = Organization::new(OrganizationConfig {
+            realm_id: realm_id(),
+            name: "minimal".to_string(),
+            display_name: None,
+            description: None,
+            enabled: false,
+        });
+
+        assert!(org.display_name.is_none());
+        assert!(org.description.is_none());
+        assert!(!org.enabled);
+    }
+
+    // --- OrganizationMember::new ---
+
+    #[test]
+    fn organization_member_new_sets_fields() {
+        let org_id = OrganizationId::new(Uuid::new_v4());
+        let user_id = Uuid::new_v4();
+
+        let member = OrganizationMember::new(org_id, user_id);
+
+        assert_eq!(member.organization_id, org_id);
+        assert_eq!(member.user_id, user_id);
+    }
+
+    #[test]
+    fn organization_member_new_generates_recent_joined_at() {
+        let before = chrono::Utc::now();
+        let member = OrganizationMember::new(OrganizationId::new(Uuid::new_v4()), Uuid::new_v4());
+        let after = chrono::Utc::now();
+
+        assert!(member.joined_at >= before);
+        assert!(member.joined_at <= after);
+    }
+}
