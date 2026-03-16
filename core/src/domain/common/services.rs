@@ -380,11 +380,23 @@ where
                     config.master_realm_name
                 ),
                 format!(
+                    "http://localhost:5555/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
                     "http://localhost:3000/realms/{}/authentication/callback",
                     config.master_realm_name
                 ),
                 format!(
+                    "http://localhost:3000/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
                     "http://localhost:5173/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/login",
                     config.master_realm_name
                 ),
             ]
@@ -403,9 +415,29 @@ where
         let login_path = format!("/realms/{}/authentication/login", config.master_realm_name);
 
         for existing_uri in existing_uris.iter() {
-            if !admin_redirect_uris.contains(&existing_uri.value)
-                && (existing_uri.value.ends_with(&callback_path)
-                    || existing_uri.value.ends_with(&login_path))
+            let matches_path = existing_uri.value.ends_with(&callback_path)
+                || existing_uri.value.ends_with(&login_path);
+
+            if admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
+                && !existing_uri.enabled
+            {
+                match self
+                    .redirect_uri_repository
+                    .update_enabled(existing_uri.id, true)
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("Re-enabled admin redirect URI: {}", existing_uri.value)
+                    }
+                    Err(e) => tracing::error!(
+                        "Failed to re-enable redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            } else if !admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
                 && existing_uri.enabled
             {
                 match self
@@ -438,14 +470,10 @@ where
                     .await
                 {
                     Ok(_) => {
-                        tracing::info!("redirect uri created for client {:}", client.id);
+                        tracing::info!("Created admin redirect URI: {}", uri);
                     }
                     Err(e) => {
-                        tracing::error!(
-                            "failed to create redirect uri for client {:}: {}",
-                            client.id,
-                            e
-                        );
+                        tracing::error!("Failed to create admin redirect URI {}: {}", uri, e);
                     }
                 }
             } else {
