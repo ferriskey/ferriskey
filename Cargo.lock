@@ -1647,6 +1647,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-organization"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "mockall 0.14.0",
+ "serde",
+ "thiserror 2.0.18",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-security"
 version = "0.1.0"
 dependencies = [
