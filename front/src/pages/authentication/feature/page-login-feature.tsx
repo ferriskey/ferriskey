@@ -128,6 +128,8 @@ export default function PageLoginFeature() {
     }
   }, [isAuthInitiated, getOAuthParams, loginError])
 
+  const authErrorStatus = (authenticateError as { status?: number } | null)?.status
+
   const authErrorMessage =
     authenticateStatus === 'error'
       ? (authenticateError?.message ??
@@ -136,19 +138,34 @@ export default function PageLoginFeature() {
 
   const errorMessage = loginError ?? authErrorMessage
 
+  const isSessionError =
+    (errorMessage &&
+      /(session|expired|invalid[_-]?session|session[_-]?not[_-]?found|internal server error)/i.test(
+        errorMessage
+      )) ||
+    authErrorStatus === 500
+
+  const showFloatingActionBar = isSessionError || showSessionBar
+
   const isRedirecting = !isAuthInitiated && !loginError
 
   useEffect(() => {
     if (isRedirecting) return
-    scheduleSessionExpirationBar()
+
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+    }
+
+    if (!isSessionError) {
+      scheduleSessionExpirationBar()
+    }
 
     return () => {
       if (timerRef.current) {
         window.clearTimeout(timerRef.current)
       }
-      setShowSessionBar(false)
     }
-  }, [isRedirecting, scheduleSessionExpirationBar])
+  }, [isRedirecting, scheduleSessionExpirationBar, isSessionError])
 
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
@@ -166,7 +183,7 @@ export default function PageLoginFeature() {
         errorMessage={errorMessage}
       />
       <FloatingActionBar
-        show={showSessionBar}
+        show={showFloatingActionBar}
         title='Session expired'
         description='Restart your session to continue.'
         actions={[{ label: 'Refresh session', variant: 'default', onClick: restartAuthFlow }]}
