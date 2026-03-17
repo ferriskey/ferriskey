@@ -288,7 +288,7 @@ Example:
 | gatewayAPI.httpRoute.annotations | object | `{}` | Annotations on the HTTPRoute. |
 | gatewayAPI.httpRoute.enabled | bool | `false` | Enable the HTTPRoute. |
 | gatewayAPI.httpRoute.labels | object | `{}` | Labels on the HTTPRoute. |
-| gatewayAPI.httpRoute.parentRefs | list | `[]` | Parent references for the HTTPRoute. https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference |
+| gatewayAPI.httpRoute.parentRefs | list | `[]` | Parent references for the HTTPRoute. Must be non-empty when gatewayAPI.httpRoute.enabled is true. |
 | ingress.annotations | object | `{}` | Annotations on the ingress. |
 | ingress.class | string | `nil` | Ingress class. |
 | ingress.enabled | bool | `false` | Enable the ingress. |
@@ -372,7 +372,7 @@ Example:
 | postgresql.updateStrategy | object | `{}` | Update strategy for the PostgreSQL workload. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps |
 | postgresql.volumeMounts | list | `[]` | Volume mounts for the PostgreSQL container. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core |
 | postgresql.volumes | list | `[]` | Volumes for the PostgreSQL pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core |
-| publicHost | string | `nil` | Public hostname for the application, independent of the exposure mechanism. |
+| publicHost | string | `nil` | Public hostname for the application, independent of the exposure mechanism. is required when `ingress.enabled` is `true` or `gatewayAPI.httpRoute.enabled` is `true` to compute the default host for the ingress resources. |
 | webapp.affinity | object | `{}` | Affinity for the webapp pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core |
 | webapp.annotations | object | `{}` | Annotations on webapp workloads. |
 | webapp.api.protocol | string | `"https"` | Protocol for the API. Ignored if `webapp.api.url` is set. |
