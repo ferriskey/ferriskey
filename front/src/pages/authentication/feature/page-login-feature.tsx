@@ -33,7 +33,7 @@ export default function PageLoginFeature() {
   const timerRef = useRef<number | null>(null)
   const countdownRef = useRef<number | null>(null)
   const autoRefreshRef = useRef<number | null>(null)
-  const restartAuthFlowRef = useRef<() => void>(() => {})
+  const restartAuthFlowRef = useRef<() => void>(() => { })
 
   const getAuthParamsFromUrl = useCallback(() => {
     return {
@@ -95,14 +95,10 @@ export default function PageLoginFeature() {
 
     const { query, realm } = getOAuthParams()
 
-    try {
-      await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
-        credentials: 'include',
-        redirect: 'manual',
-      })
-    } catch {
-      // CORS opaque redirect — cookie is still set
-    }
+    await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
+      credentials: 'include',
+      redirect: 'manual',
+    })
 
     try {
       resetAuthenticate()
