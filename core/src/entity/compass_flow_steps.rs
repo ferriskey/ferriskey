@@ -2,32 +2,84 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "compass_flow_steps")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "compass_flow_steps"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub flow_id: Uuid,
     pub step_name: String,
     pub status: String,
     pub duration_ms: Option<i64>,
     pub error_code: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
     pub error_message: Option<String>,
     pub started_at: DateTime,
     pub created_at: DateTime,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    FlowId,
+    StepName,
+    Status,
+    DurationMs,
+    ErrorCode,
+    ErrorMessage,
+    StartedAt,
+    CreatedAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::compass_flows::Entity",
-        from = "Column::FlowId",
-        to = "super::compass_flows::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     CompassFlows,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::FlowId => ColumnType::Uuid.def(),
+            Self::StepName => ColumnType::String(StringLen::N(100u32)).def(),
+            Self::Status => ColumnType::String(StringLen::N(20u32)).def(),
+            Self::DurationMs => ColumnType::BigInteger.def().null(),
+            Self::ErrorCode => ColumnType::String(StringLen::N(100u32)).def().null(),
+            Self::ErrorMessage => ColumnType::Text.def().null(),
+            Self::StartedAt => ColumnType::DateTime.def(),
+            Self::CreatedAt => ColumnType::DateTime.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::CompassFlows => Entity::belongs_to(super::compass_flows::Entity)
+                .from(Column::FlowId)
+                .to(super::compass_flows::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::compass_flows::Entity> for Entity {

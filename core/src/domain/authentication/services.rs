@@ -50,9 +50,7 @@ use crate::domain::{
     },
 };
 use ferriskey_domain::token_lifetime::TokenLifetimes;
-use ferriskey_security::jwt::entities::{
-    DEFAULT_ACCESS_TOKEN_LIFETIME, DEFAULT_REFRESH_TOKEN_LIFETIME,
-};
+use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
@@ -1869,6 +1867,7 @@ where
             user_id: user.id,
             realm_id: realm.id.into(),
             base_url: url,
+            client_id: None,
         })
         .await
     }
@@ -2145,16 +2144,17 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
-
-        let access_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.access_token_lifetime)
-            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
-        let refresh_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.refresh_token_lifetime)
-            .unwrap_or(DEFAULT_REFRESH_TOKEN_LIFETIME);
+        let lifetimes = match input.client_id {
+            Some(client_uuid) => self.resolve_token_lifetimes(realm.id, client_uuid).await?,
+            None => {
+                let realm_settings = self
+                    .realm_repository
+                    .get_realm_settings(realm.id)
+                    .await?
+                    .ok_or(CoreError::InvalidRealm)?;
+                TokenLifetimes::from_realm(&realm_settings)
+            }
+        };
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
@@ -2168,7 +2168,7 @@ where
             "".to_string(),
             Some(user.email.clone()),
             None,
-            access_lifetime,
+            lifetimes.access_token,
         );
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
@@ -2179,7 +2179,7 @@ where
             claims.aud,
             claims.azp,
             None,
-            refresh_lifetime,
+            lifetimes.refresh_token,
         );
 
         let refresh_token = self

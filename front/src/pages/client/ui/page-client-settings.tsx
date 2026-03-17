@@ -1,4 +1,5 @@
 import { InputText } from '@/components/ui/input-text'
+import { DurationInput } from '@/components/ui/duration-input'
 import ManageRedirectUris from '../components/manage-redirect-uris'
 import ManagePostLogoutRedirectUris from '../components/manage-post-logout-redirect-uris'
 import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
@@ -221,22 +222,17 @@ export default function PageClientSettings({
               <div className='w-1/3'>
                 <p className='text-sm font-medium'>Access Token Lifetime</p>
                 <p className='text-sm text-muted-foreground mt-0.5'>
-                  Duration in seconds. Between 60s and 86400s (24h).
+                  How long access tokens remain valid.
                 </p>
               </div>
               <div className='w-1/2'>
-                <FormItem>
-                  <FormControl>
-                    <InputText
+                <DurationInput
                       label='Access Token Lifetime'
-                      value={field.value ?? ''}
-                      name='accessTokenLifetime'
-                      type='number'
-                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      value={field.value ?? null}
+                      onChange={field.onChange}
                       error={fieldState.error?.message}
-                    />
-                  </FormControl>
-                </FormItem>
+                      nullable
+                />
               </div>
             </div>
           )}
@@ -250,22 +246,17 @@ export default function PageClientSettings({
               <div className='w-1/3'>
                 <p className='text-sm font-medium'>Refresh Token Lifetime</p>
                 <p className='text-sm text-muted-foreground mt-0.5'>
-                  Duration in seconds. Between 300s (5min) and 2592000s (30d).
+                  How long refresh tokens remain valid.
                 </p>
               </div>
               <div className='w-1/2'>
-                <FormItem>
-                  <FormControl>
-                    <InputText
+                <DurationInput
                       label='Refresh Token Lifetime'
-                      value={field.value ?? ''}
-                      name='refreshTokenLifetime'
-                      type='number'
-                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      value={field.value ?? null}
+                      onChange={field.onChange}
                       error={fieldState.error?.message}
-                    />
-                  </FormControl>
-                </FormItem>
+                      nullable
+                />
               </div>
             </div>
           )}
@@ -279,22 +270,17 @@ export default function PageClientSettings({
               <div className='w-1/3'>
                 <p className='text-sm font-medium'>ID Token Lifetime</p>
                 <p className='text-sm text-muted-foreground mt-0.5'>
-                  Duration in seconds. Between 60s and 86400s (24h).
+                  How long ID tokens remain valid.
                 </p>
               </div>
               <div className='w-1/2'>
-                <FormItem>
-                  <FormControl>
-                    <InputText
+                <DurationInput
                       label='ID Token Lifetime'
-                      value={field.value ?? ''}
-                      name='idTokenLifetime'
-                      type='number'
-                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      value={field.value ?? null}
+                      onChange={field.onChange}
                       error={fieldState.error?.message}
-                    />
-                  </FormControl>
-                </FormItem>
+                      nullable
+                />
               </div>
             </div>
           )}
@@ -308,22 +294,17 @@ export default function PageClientSettings({
               <div className='w-1/3'>
                 <p className='text-sm font-medium'>Temporary Token Lifetime</p>
                 <p className='text-sm text-muted-foreground mt-0.5'>
-                  Duration in seconds. Between 60s and 86400s (24h).
+                  How long temporary tokens (e.g. password reset) remain valid.
                 </p>
               </div>
               <div className='w-1/2'>
-                <FormItem>
-                  <FormControl>
-                    <InputText
+                <DurationInput
                       label='Temporary Token Lifetime'
-                      value={field.value ?? ''}
-                      name='temporaryTokenLifetime'
-                      type='number'
-                      onChange={(val) => field.onChange(val === undefined || val === '' ? null : val)}
+                      value={field.value ?? null}
+                      onChange={field.onChange}
                       error={fieldState.error?.message}
-                    />
-                  </FormControl>
-                </FormItem>
+                      nullable
+                />
               </div>
             </div>
           )}
