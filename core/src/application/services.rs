@@ -13,7 +13,7 @@ use crate::{
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
-            policies::ensure_policy,
+            policies::FerriskeyPolicy,
             ports::CoreService,
             services::CoreServiceImpl,
         },
@@ -25,7 +25,7 @@ use crate::{
             service::PasswordPolicyService,
         },
         realm::{
-            ports::{RealmPolicy, RealmRepository}, // <--- Added RealmRepository trait import
+            ports::RealmRepository,
             services::{MailServiceImpl, RealmServiceImpl},
         },
         role::services::RoleServiceImpl,
@@ -277,7 +277,8 @@ pub struct ApplicationService {
         CompassFlowRepo,
         CompassFlowStepRepo,
     >,
-    pub(crate) password_policy_service: PasswordPolicyService<PasswordPolicyRepo>,
+    pub(crate) password_policy_service:
+        PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
@@ -306,17 +307,9 @@ impl ApplicationService {
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        // Check authorization
-        ensure_policy(
-            self.realm_service
-                .policy
-                .can_view_realm(&identity, &realm)
-                .await,
-            "view realm password policy",
-        )?;
-
+        // Authorization is handled inside the service
         self.password_policy_service
-            .get_policy(realm.id.into())
+            .get_policy(identity, &realm)
             .await
     }
 
@@ -334,17 +327,9 @@ impl ApplicationService {
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        // Check authorization
-        ensure_policy(
-            self.realm_service
-                .policy
-                .can_update_realm(&identity, &realm)
-                .await,
-            "update realm password policy",
-        )?;
-
+        // Authorization is handled inside the service
         self.password_policy_service
-            .update_policy(realm.id.into(), update)
+            .update_policy(identity, &realm, update)
             .await
     }
 
