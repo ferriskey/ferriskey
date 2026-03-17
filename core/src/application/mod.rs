@@ -323,9 +323,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             compass_flow_step.clone(),
             policy.clone(),
         ),
-        password_policy_service: PasswordPolicyService::new(Arc::new(
-            PostgresPasswordPolicyRepository::new(postgres.get_db()),
-        )),
+        password_policy_service: PasswordPolicyService::new(
+            Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db())),
+            policy.clone(),
+        ),
         flow_recorder,
         db: postgres.get_db(),
     };
