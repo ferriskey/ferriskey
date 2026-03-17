@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import PageLogin from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
@@ -28,7 +29,11 @@ export default function PageLoginFeature() {
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
   const [showSessionBar, setShowSessionBar] = useState(false)
+  const [countdown, setCountdown] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
+  const countdownRef = useRef<number | null>(null)
+  const autoRefreshRef = useRef<number | null>(null)
+  const restartAuthFlowRef = useRef<() => void>(() => {})
 
   const getAuthParamsFromUrl = useCallback(() => {
     return {
@@ -48,7 +53,7 @@ export default function PageLoginFeature() {
       query: new URLSearchParams({
         response_type: 'code',
         client_id: clientId,
-        redirect_uri: redirectUri, // URL de callback de votre app
+        redirect_uri: redirectUri,
         scope: 'openid profile email',
         state,
       }).toString(),
@@ -56,11 +61,13 @@ export default function PageLoginFeature() {
     }
   }, [getAuthParamsFromUrl, realm_name])
 
-  const restartAuthFlow = useCallback(() => {
-    const { query, realm } = getOAuthParams()
-    setShowSessionBar(false)
-    window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
-  }, [getOAuthParams])
+  const {
+    mutate: authenticate,
+    data: authenticateData,
+    status: authenticateStatus,
+    error: authenticateError,
+    reset: resetAuthenticate,
+  } = useAuthenticateMutation()
 
   const scheduleSessionExpirationBar = useCallback(() => {
     if (timerRef.current) {
@@ -71,14 +78,63 @@ export default function PageLoginFeature() {
     }, 600_000)
   }, [])
 
-  const loginError = searchParams.get('login_error')
+  const clearAutoRefreshTimers = useCallback(() => {
+    if (countdownRef.current) window.clearInterval(countdownRef.current)
+    if (autoRefreshRef.current) window.clearTimeout(autoRefreshRef.current)
+    countdownRef.current = null
+    autoRefreshRef.current = null
+  }, [])
 
-  const {
-    mutate: authenticate,
-    data: authenticateData,
-    status: authenticateStatus,
-    error: authenticateError,
-  } = useAuthenticateMutation()
+  const cancelAutoRefresh = useCallback(() => {
+    clearAutoRefreshTimers()
+    setCountdown(null)
+  }, [clearAutoRefreshTimers])
+
+  const restartAuthFlow = useCallback(async () => {
+    cancelAutoRefresh()
+
+    const { query, realm } = getOAuthParams()
+
+    try {
+      await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
+        credentials: 'include',
+        redirect: 'manual',
+      })
+    } catch {
+      // CORS opaque redirect — cookie is still set
+    }
+
+    try {
+      resetAuthenticate()
+
+      const { clientId: cId, redirectUri: rUri } = getAuthParamsFromUrl()
+      const newState = sessionStorage.getItem('oauth_state') ?? crypto.randomUUID()
+
+      navigate(
+        `/realms/${realm}/authentication/login?client_id=${cId}&redirect_uri=${rUri}&state=${newState}`,
+        { replace: true }
+      )
+
+      setShowSessionBar(false)
+      scheduleSessionExpirationBar()
+      toast.success('Session refreshed', { description: 'You can now log in again.' })
+    } catch {
+      toast.error('Session refresh failed', { description: 'Please try again.' })
+    }
+  }, [
+    cancelAutoRefresh,
+    getOAuthParams,
+    getAuthParamsFromUrl,
+    navigate,
+    scheduleSessionExpirationBar,
+    resetAuthenticate,
+  ])
+
+  useEffect(() => {
+    restartAuthFlowRef.current = restartAuthFlow
+  }, [restartAuthFlow])
+
+  const loginError = searchParams.get('login_error')
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
@@ -165,6 +221,28 @@ export default function PageLoginFeature() {
     }
   }, [isRedirecting, scheduleSessionExpirationBar, isSessionError])
 
+  useEffect(() => {
+    if (!showFloatingActionBar) {
+      clearAutoRefreshTimers()
+      return
+    }
+
+    const initId = window.setTimeout(() => setCountdown(5), 0)
+
+    countdownRef.current = window.setInterval(() => {
+      setCountdown((prev) => (prev !== null && prev > 1 ? prev - 1 : prev))
+    }, 1000)
+
+    autoRefreshRef.current = window.setTimeout(() => {
+      restartAuthFlowRef.current()
+    }, 5000)
+
+    return () => {
+      clearAutoRefreshTimers()
+      window.clearTimeout(initId)
+    }
+  }, [showFloatingActionBar, clearAutoRefreshTimers])
+
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
   }
@@ -183,8 +261,15 @@ export default function PageLoginFeature() {
       <FloatingActionBar
         show={showFloatingActionBar}
         title='Session expired'
-        description='Restart your session to continue.'
-        actions={[{ label: 'Refresh session', variant: 'default', onClick: restartAuthFlow }]}
+        description={
+          countdown !== null
+            ? `Refreshing automatically in ${countdown}s...`
+            : 'Restart your session to continue.'
+        }
+        onCancel={countdown !== null ? cancelAutoRefresh : undefined}
+        actions={[
+          { label: 'Refresh session', variant: 'default', onClick: () => restartAuthFlow() },
+        ]}
       />
     </>
   )
