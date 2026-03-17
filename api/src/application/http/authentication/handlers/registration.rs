@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
+use super::auth::root_scoped_base_url;
 use crate::application::{
     http::server::{
         api_entities::{
@@ -61,6 +62,7 @@ pub async fn registration_handler(
         return Err(ApiError::Forbidden("registration disabled".to_string()));
     }
 
+    let url = root_scoped_base_url(&url, &state.args.server.root_path);
     let jwt_token = state
         .service
         .register_user(
