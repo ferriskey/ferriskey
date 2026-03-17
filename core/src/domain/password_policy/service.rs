@@ -9,7 +9,7 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    realm::ports::RealmRepository,
+    realm::entities::Realm,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
@@ -44,26 +44,35 @@ where
     pub async fn get_policy(
         &self,
         identity: Identity,
-        realm_id: Uuid,
+        realm: &Realm,
     ) -> Result<PasswordPolicy, CoreError> {
-        // Get realm for authorization check
-        // Note: This is a simplified version - in practice, you'd need realm_repository here too
-        // For now, we'll skip the authorization check or pass realm info differently
-        // The authorization should happen at the ApplicationService level where we have realm access
+        // Check authorization
+        ensure_policy(
+            self.policy.can_view_password_policy(&identity, realm).await,
+            "view realm password policy",
+        )?;
 
         self.repository
-            .find_by_realm_id(realm_id)
+            .find_by_realm_id(realm.id.into())
             .await?
             .ok_or(CoreError::NotFound)
     }
 
     pub async fn update_policy(
         &self,
-        _identity: Identity,
-        realm_id: Uuid,
+        identity: Identity,
+        realm: &Realm,
         update: UpdatePasswordPolicy,
     ) -> Result<PasswordPolicy, CoreError> {
-        self.repository.upsert(realm_id, update).await
+        // Check authorization
+        ensure_policy(
+            self.policy
+                .can_update_password_policy(&identity, realm)
+                .await,
+            "update realm password policy",
+        )?;
+
+        self.repository.upsert(realm.id.into(), update).await
     }
 
     pub fn validate_password(
@@ -118,6 +127,12 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
+    // Mock types for testing
+    use crate::domain::{
+        client::ports::MockClientRepository,
+        user::ports::{MockUserRepository, MockUserRoleRepository},
+    };
+
     fn create_test_policy(
         min_length: i32,
         require_uppercase: bool,
@@ -142,7 +157,12 @@ mod tests {
     #[test]
     fn test_password_too_short() {
         let policy = create_test_policy(8, false, false, false, false);
-        let result = PasswordPolicyService::<MockRepository>::validate_password("abc", &policy);
+        let result = PasswordPolicyService::<
+            MockRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+        >::validate_password("abc", &policy);
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
@@ -156,8 +176,12 @@ mod tests {
     #[test]
     fn test_password_missing_uppercase() {
         let policy = create_test_policy(8, true, false, false, false);
-        let result =
-            PasswordPolicyService::<MockRepository>::validate_password("password", &policy);
+        let result = PasswordPolicyService::<
+            MockRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+        >::validate_password("password", &policy);
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
@@ -172,8 +196,12 @@ mod tests {
     #[test]
     fn test_password_meets_all_requirements() {
         let policy = create_test_policy(8, true, true, true, true);
-        let result =
-            PasswordPolicyService::<MockRepository>::validate_password("Password1!", &policy);
+        let result = PasswordPolicyService::<
+            MockRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+        >::validate_password("Password1!", &policy);
 
         assert!(result.is_ok());
     }
@@ -181,7 +209,12 @@ mod tests {
     #[test]
     fn test_password_multiple_violations() {
         let policy = create_test_policy(8, true, true, true, true);
-        let result = PasswordPolicyService::<MockRepository>::validate_password("PASS", &policy);
+        let result = PasswordPolicyService::<
+            MockRepository,
+            MockUserRepository,
+            MockClientRepository,
+            MockUserRoleRepository,
+        >::validate_password("PASS", &policy);
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
