@@ -2,7 +2,7 @@
 
 set -eu
 
-HTML_DIR=/usr/share/angie/html
+HTML_DIR=/usr/share/nginx/html
 SRC_DIR=/usr/local/src/ferriskey
 CONFIG_FILE="$HTML_DIR/config.json"
 
