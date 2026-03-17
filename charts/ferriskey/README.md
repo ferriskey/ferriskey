@@ -285,10 +285,13 @@ Example:
 | databaseMigrations.ttlSecondsAfterFinished | int | `nil` | TTL seconds after finished for the database migrations job. If you're not using ArgoCD, set this to `0`. |
 | databaseMigrations.volumeMounts | list | `[]` | Volume mounts for the database migrations job container. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core |
 | databaseMigrations.volumes | list | `[]` | Volumes for the database migrations job pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core |
+| gatewayAPI.httpRoute.annotations | object | `{}` | Annotations on the HTTPRoute. |
+| gatewayAPI.httpRoute.enabled | bool | `false` | Enable the HTTPRoute. |
+| gatewayAPI.httpRoute.labels | object | `{}` | Labels on the HTTPRoute. |
+| gatewayAPI.httpRoute.parentRefs | list | `[]` | Parent references for the HTTPRoute. https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference |
 | ingress.annotations | object | `{}` | Annotations on the ingress. |
 | ingress.class | string | `nil` | Ingress class. |
 | ingress.enabled | bool | `false` | Enable the ingress. |
-| ingress.host | string | `nil` | Host for the ingress. |
 | ingress.labels | object | `{}` | Labels on the ingress. |
 | ingress.tls | list | `[]` | TLS configuration for the ingress. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#ingresstls-v1-networking-k8s-io |
 | nameOverride | string | `nil` | Override the name of the release. |
@@ -369,6 +372,7 @@ Example:
 | postgresql.updateStrategy | object | `{}` | Update strategy for the PostgreSQL workload. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#statefulsetupdatestrategy-v1-apps |
 | postgresql.volumeMounts | list | `[]` | Volume mounts for the PostgreSQL container. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core |
 | postgresql.volumes | list | `[]` | Volumes for the PostgreSQL pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core |
+| publicHost | string | `nil` | Public hostname for the application, independent of the exposure mechanism. |
 | webapp.affinity | object | `{}` | Affinity for the webapp pods. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core |
 | webapp.annotations | object | `{}` | Annotations on webapp workloads. |
 | webapp.api.protocol | string | `"https"` | Protocol for the API. Ignored if `webapp.api.url` is set. |
