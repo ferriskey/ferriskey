@@ -125,8 +125,11 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             AuthenticationError::InternalServerError
         })?;
 
+        use sea_orm::QuerySelect;
+
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Code.eq(code))
+            .lock_exclusive()
             .one(&txn)
             .await
             .map_err(|e| {

@@ -359,17 +359,22 @@ where
             }
         }
 
-        let admin_redirect_uris: Vec<String> = if let Some(ref base_url) = config.base_url {
+        let configured_base_url = config
+            .base_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+
+        let admin_redirect_uris: Vec<String> = if let Some(base_url) = configured_base_url {
+            let base_url = base_url.trim_end_matches('/');
             vec![
                 format!(
                     "{}/realms/{}/authentication/callback",
-                    base_url.trim_end_matches('/'),
-                    config.master_realm_name
+                    base_url, config.master_realm_name
                 ),
                 format!(
                     "{}/realms/{}/authentication/login",
-                    base_url.trim_end_matches('/'),
-                    config.master_realm_name
+                    base_url, config.master_realm_name
                 ),
             ]
         } else {
