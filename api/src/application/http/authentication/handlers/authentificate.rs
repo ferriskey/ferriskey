@@ -21,6 +21,7 @@ use validator::Validate;
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
     client_id: String,
+    code_verifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
@@ -165,12 +166,11 @@ pub async fn authenticate(
                 client_id: query.client_id.clone(),
                 client_secret: None,
                 code: Some(code),
-                username: None,
-                password: None,
                 refresh_token: None,
                 base_url: base_url.clone(),
                 grant_type: GrantType::Code,
                 scope: None,
+                code_verifier: query.code_verifier.clone(),
             })
             .await
     {

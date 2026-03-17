@@ -359,13 +359,48 @@ where
             }
         }
 
-        let admin_redirect_patterns = vec![
-            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
-        ];
+        let admin_redirect_uris: Vec<String> = if let Some(ref base_url) = config.base_url {
+            vec![
+                format!(
+                    "{}/realms/{}/authentication/callback",
+                    base_url.trim_end_matches('/'),
+                    config.master_realm_name
+                ),
+                format!(
+                    "{}/realms/{}/authentication/login",
+                    base_url.trim_end_matches('/'),
+                    config.master_realm_name
+                ),
+            ]
+        } else {
+            // Fallback to localhost defaults for backward compatibility
+            vec![
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:3000/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:3000/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+            ]
+        };
 
         let existing_uris = self
             .redirect_uri_repository
@@ -373,28 +408,76 @@ where
             .await
             .unwrap_or_default();
 
-        for pattern in admin_redirect_patterns {
-            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+        let callback_path = format!(
+            "/realms/{}/authentication/callback",
+            config.master_realm_name
+        );
+        let login_path = format!("/realms/{}/authentication/login", config.master_realm_name);
 
-            if !pattern_exists {
+        for existing_uri in existing_uris.iter() {
+            let matches_path = existing_uri.value.ends_with(&callback_path)
+                || existing_uri.value.ends_with(&login_path);
+
+            if admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
+                && !existing_uri.enabled
+            {
                 match self
                     .redirect_uri_repository
-                    .create_redirect_uri(client.id, pattern.to_string(), true)
+                    .update_enabled(existing_uri.id, true)
                     .await
                 {
                     Ok(_) => {
-                        tracing::info!("redirect uri created for client {:}", client.id);
+                        tracing::info!("Re-enabled admin redirect URI: {}", existing_uri.value)
+                    }
+                    Err(e) => tracing::error!(
+                        "Failed to re-enable redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            } else if !admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
+                && existing_uri.enabled
+            {
+                match self
+                    .redirect_uri_repository
+                    .update_enabled(existing_uri.id, false)
+                    .await
+                {
+                    Ok(_) => tracing::info!(
+                        "Disabled obsolete admin redirect URI: {}",
+                        existing_uri.value
+                    ),
+                    Err(e) => tracing::error!(
+                        "Failed to disable obsolete redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            }
+        }
+
+        for uri in admin_redirect_uris {
+            let uri_exists = existing_uris
+                .iter()
+                .any(|existing_uri| existing_uri.value == uri);
+
+            if !uri_exists {
+                match self
+                    .redirect_uri_repository
+                    .create_redirect_uri(client.id, uri.to_string(), true)
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("Created admin redirect URI: {}", uri);
                     }
                     Err(e) => {
-                        tracing::error!(
-                            "failed to create redirect uri for client {:}: {}",
-                            client.id,
-                            e
-                        );
+                        tracing::error!("Failed to create admin redirect URI {}: {}", uri, e);
                     }
                 }
             } else {
-                tracing::info!("admin redirect URI already exists: {}", pattern);
+                tracing::info!("admin redirect URI already exists: {}", uri);
             }
         }
 

@@ -8,7 +8,9 @@ use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
 
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
-    authentication::value_objects::Identity, common::generate_timestamp, jwt::entities::JwtClaim,
+    authentication::value_objects::{CodeChallengeMethod, Identity},
+    common::generate_timestamp,
+    jwt::entities::JwtClaim,
     user::entities::RequiredAction,
 };
 
@@ -41,6 +43,8 @@ pub struct AuthSession {
     pub webauthn_challenge: Option<WebAuthnChallenge>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
     pub compass_flow_id: Option<Uuid>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +62,8 @@ pub struct AuthSessionParams {
     pub webauthn_challenge: Option<WebAuthnChallenge>,
     pub webauthn_challenge_issued_at: Option<DateTime<Utc>>,
     pub compass_flow_id: Option<Uuid>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 impl AuthSession {
@@ -82,6 +88,8 @@ impl AuthSession {
             webauthn_challenge: params.webauthn_challenge,
             webauthn_challenge_issued_at: params.webauthn_challenge_issued_at,
             compass_flow_id: params.compass_flow_id,
+            code_challenge: params.code_challenge,
+            code_challenge_method: params.code_challenge_method,
         }
     }
 }
@@ -91,9 +99,6 @@ pub enum GrantType {
     #[default]
     #[serde(rename = "authorization_code")]
     Code,
-
-    #[serde(rename = "password")]
-    Password,
 
     #[serde(rename = "client_credentials")]
     Credentials,
@@ -106,7 +111,6 @@ impl Display for GrantType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GrantType::Code => write!(f, "code"),
-            GrantType::Password => write!(f, "password"),
             GrantType::Credentials => write!(f, "credentials"),
             GrantType::RefreshToken => write!(f, "refresh_token"),
         }
@@ -120,6 +124,8 @@ pub struct AuthInput {
     pub response_type: String,
     pub scope: Option<String>,
     pub state: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 pub struct AuthOutput {
@@ -132,12 +138,11 @@ pub struct ExchangeTokenInput {
     pub client_id: String,
     pub client_secret: Option<String>,
     pub code: Option<String>,
-    pub username: Option<String>,
-    pub password: Option<String>,
     pub refresh_token: Option<String>,
     pub base_url: String,
     pub grant_type: GrantType,
     pub scope: Option<String>,
+    pub code_verifier: Option<String>,
 }
 
 pub struct AuthorizeRequestInput {

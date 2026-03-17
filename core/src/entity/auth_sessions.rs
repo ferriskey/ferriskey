@@ -29,6 +29,10 @@ pub struct Model {
     pub webauthn_challenge: Option<Json>,
     pub webauthn_challenge_issued_at: Option<DateTime>,
     pub compass_flow_id: Option<Uuid>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub code_challenge: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]

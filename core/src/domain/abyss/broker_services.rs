@@ -639,6 +639,8 @@ where
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
+                code_challenge: None,
+                code_challenge_method: None,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }
@@ -664,6 +666,8 @@ where
             user_id: user.id,
             is_new_user,
             client_id: client.client_id,
+            realm_id: realm.id.into(),
+            code_verifier: broker_session.code_verifier,
         })
     }
 
