@@ -24,9 +24,7 @@ where
     ) -> Result<bool, CoreError> {
         let user = self.get_user_from_identity(identity).await?;
 
-        let permissions = self
-            .get_permission_for_target_realm(&user, realm)
-            .await?;
+        let permissions = self.get_permission_for_target_realm(&user, realm).await?;
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
@@ -43,9 +41,7 @@ where
     ) -> Result<bool, CoreError> {
         let user = self.get_user_from_identity(identity).await?;
 
-        let permissions = self
-            .get_permission_for_target_realm(&user, realm)
-            .await?;
+        let permissions = self.get_permission_for_target_realm(&user, realm).await?;
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions.iter().cloned().collect::<Vec<Permissions>>(),
