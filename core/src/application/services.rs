@@ -9,7 +9,7 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::services::AuthServiceImpl,
+        authentication::{services::AuthServiceImpl, value_objects::Identity},
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
@@ -19,7 +19,14 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        password_policy::{
+            entity::{PasswordPolicy, UpdatePasswordPolicy},
+            service::PasswordPolicyService,
+        },
+        realm::{
+            ports::RealmRepository,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -106,6 +113,7 @@ type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
+type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -268,6 +276,8 @@ pub struct ApplicationService {
         CompassFlowRepo,
         CompassFlowStepRepo,
     >,
+    pub(crate) password_policy_service:
+        PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
@@ -283,6 +293,45 @@ impl CoreService for ApplicationService {
 }
 
 impl ApplicationService {
+    pub async fn get_password_policy(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<PasswordPolicy, CoreError> {
+        // Get realm by name
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        // Authorization is handled inside the service
+        self.password_policy_service
+            .get_policy(identity, &realm)
+            .await
+    }
+
+    pub async fn update_password_policy(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        update: UpdatePasswordPolicy,
+    ) -> Result<PasswordPolicy, CoreError> {
+        // Get realm by name
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        // Authorization is handled inside the service
+        self.password_policy_service
+            .update_policy(identity, &realm, update)
+            .await
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),

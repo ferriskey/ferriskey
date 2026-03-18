@@ -9,6 +9,7 @@ pub mod credential;
 pub mod crypto;
 pub mod health;
 pub mod jwt;
+pub mod password_policy;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
