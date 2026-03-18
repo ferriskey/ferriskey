@@ -1,8 +1,7 @@
 use std::future::Future;
 
 use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
+    authentication::value_objects::Identity, common::entities::app_errors::CoreError,
     realm::entities::Realm,
 };
 
