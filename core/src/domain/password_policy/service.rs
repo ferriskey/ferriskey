@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use uuid::Uuid;
-
 use crate::domain::{
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
