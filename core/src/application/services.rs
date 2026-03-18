@@ -13,7 +13,6 @@ use crate::{
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
-            policies::FerriskeyPolicy,
             ports::CoreService,
             services::CoreServiceImpl,
         },
