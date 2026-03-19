@@ -24,7 +24,7 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
       require_number: policy?.require_number ?? false,
       require_special: policy?.require_special ?? false,
       max_age_days: policy?.max_age_days ?? 0,
-    }
+    },
   })
 
   const hasChanges = useFormChanges(
@@ -54,7 +54,7 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
         },
         onError: (error: Error) => {
           toast.error(error.message || 'Failed to update password policy')
-        }
+        },
       }
     )
   }
@@ -69,10 +69,7 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
 
   return (
     <Form {...form}>
-      <PageRealmSettingsPasswordPolicy
-        hasChanges={hasChanges}
-        onSave={handleSave}
-      />
+      <PageRealmSettingsPasswordPolicy hasChanges={hasChanges} onSave={handleSave} />
     </Form>
   )
 }
