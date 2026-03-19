@@ -419,6 +419,18 @@ export namespace Schemas {
     state: string | null;
   }>;
   export type OtpVerifyRequest = { code: string; label: string; secret: string };
+  export type PasswordPolicy = {
+    created_at: string;
+    id: string;
+    max_age_days?: (number | null) | undefined;
+    min_length: number;
+    realm_id: string;
+    require_lowercase: boolean;
+    require_number: boolean;
+    require_special: boolean;
+    require_uppercase: boolean;
+    updated_at: string;
+  };
   export type Permissions =
     | "create_client"
     | "manage_authorization"
@@ -568,6 +580,14 @@ export namespace Schemas {
     store_token: boolean | null;
     trust_email: boolean | null;
   }>;
+  export type UpdatePasswordPolicyValidator = Partial<{
+    max_age_days: number | null;
+    min_length: number | null;
+    require_lowercase: boolean | null;
+    require_number: boolean | null;
+    require_special: boolean | null;
+    require_uppercase: boolean | null;
+  }>;
   export type UpdatePasswordRequest = Partial<{ value: string }>;
   export type UpdatePasswordResponse = { message: string };
   export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri };
@@ -619,6 +639,13 @@ export namespace Schemas {
     required_actions: Array<string> | null;
   }>;
   export type UpdateWebhookResponse = { data: Webhook };
+  export type UpdateWebhookValidator = Partial<{
+    description: string | null;
+    endpoint: string;
+    headers: Record<string, string>;
+    name: string | null;
+    subscribers: Array<WebhookTrigger>;
+  }>;
   export type UpsertSmtpConfigValidator = {
     encryption: string;
     from_email: string;
@@ -1555,6 +1582,37 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_Get_password_policy = {
+    method: "GET";
+    path: "/realms/{realm_name}/password-policy";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.PasswordPolicy;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_password_policy = {
+    method: "PUT";
+    path: "/realms/{realm_name}/password-policy";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.UpdatePasswordPolicyValidator;
+    };
+    responses: {
+      200: Schemas.PasswordPolicy;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Auth_handler = {
     method: "GET";
     path: "/realms/{realm_name}/protocol/openid-connect/auth";
@@ -2079,6 +2137,8 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; webhook_id: string };
+
+      body: Schemas.UpdateWebhookValidator;
     };
     responses: {
       200: Schemas.UpdateWebhookResponse;
@@ -2167,6 +2227,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
     "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
     "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
+    "/realms/{realm_name}/password-policy": Endpoints.get_Get_password_policy;
     "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
     "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
     "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
@@ -2194,6 +2255,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.put_Update_redirect_uri;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.put_Update_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.put_Update_identity_provider;
+    "/realms/{realm_name}/password-policy": Endpoints.put_Update_password_policy;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
     "/realms/{realm_name}/users/{user_id}": Endpoints.put_Update_user;

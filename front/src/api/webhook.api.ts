@@ -11,9 +11,26 @@ export const useGetWebhooks = ({ realm = 'master' }: BaseQuery) => {
   )
 }
 
+export const useGetWebhook = ({ realm = 'master', webhookId }: BaseQuery & { webhookId: string }) => {
+  return useQuery(
+    window.tanstackApi.get('/realms/{realm_name}/webhooks/{webhook_id}', {
+      path: {
+        realm_name: realm,
+        webhook_id: webhookId,
+      },
+    }).queryOptions
+  )
+}
+
 export const useCreateWebhook = () => {
   return useMutation(
     window.tanstackApi.mutation('post', '/realms/{realm_name}/webhooks').mutationOptions
+  )
+}
+
+export const useUpdateWebhook = () => {
+  return useMutation(
+    window.tanstackApi.mutation('put', '/realms/{realm_name}/webhooks/{webhook_id}').mutationOptions
   )
 }
 

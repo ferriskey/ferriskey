@@ -40,7 +40,6 @@ pub struct UpdateWebhookValidator {
     #[serde(default)]
     pub headers: HashMap<String, String>,
 
-    #[validate(length(min = 1, message = "subscribers is required"))]
     #[serde(default)]
     pub subscribers: Vec<WebhookTrigger>,
 }

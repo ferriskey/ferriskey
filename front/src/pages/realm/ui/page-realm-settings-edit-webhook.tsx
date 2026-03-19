@@ -5,7 +5,7 @@ import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tabs } from '@radix-ui/react-tabs'
 import { ArrowLeft } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
-import { CreateWebhookSchema } from '../validators'
+import { UpdateWebhookSchema } from '../validators'
 import { Schemas } from '@/api/api.client'
 import { WebhookCategory } from '@/utils/webhook-utils'
 import WebhookTrigger = Schemas.WebhookTrigger
@@ -13,7 +13,7 @@ import { FormField } from '@/components/ui/form'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import ManageWebhookHeaders from '../components/manage-webhook-headers'
 
-export interface PageRealmSettingsCreateWebhookProps {
+export interface PageRealmSettingsEditWebhookProps {
   webhoobCategories: WebhookCategory[]
   handleTriggerToggle: (trigger: WebhookTrigger) => void
   isTriggerSelected: (trigger: WebhookTrigger) => boolean
@@ -21,15 +21,15 @@ export interface PageRealmSettingsCreateWebhookProps {
   handleBack: () => void
 }
 
-export default function PageRealmSettingsCreateWebhook({
+export default function PageRealmSettingsEditWebhook({
   webhoobCategories,
   handleTriggerToggle,
   isTriggerSelected,
   onSubmit,
   handleBack,
-}: PageRealmSettingsCreateWebhookProps) {
-  const form = useFormContext<CreateWebhookSchema>()
-  const formIsValid = form.formState.isValid
+}: PageRealmSettingsEditWebhookProps) {
+  const form = useFormContext<UpdateWebhookSchema>()
+  const showFloatingBar = form.formState.isValid && form.formState.isDirty
 
   return (
     <div className='flex flex-col gap-6 p-8'>
@@ -42,9 +42,9 @@ export default function PageRealmSettingsCreateWebhook({
           <ArrowLeft className='h-3.5 w-3.5' />
           Webhooks
         </button>
-        <h1 className='text-2xl font-bold tracking-tight'>New Webhook</h1>
+        <h1 className='text-2xl font-bold tracking-tight'>Edit Webhook</h1>
         <p className='text-sm text-muted-foreground mt-1'>
-          Configure an endpoint to receive real-time event notifications.
+          Update your webhook configuration and subscriptions.
         </p>
       </div>
 
@@ -178,10 +178,10 @@ export default function PageRealmSettingsCreateWebhook({
       </div>
 
       <FloatingActionBar
-        title='Create Webhook'
-        show={formIsValid}
-        actions={[{ label: 'Create', onClick: onSubmit }]}
-        description='Create a webhook for your realm'
+        title='Update Webhook'
+        show={showFloatingBar}
+        actions={[{ label: 'Save', onClick: onSubmit }]}
+        description='Save changes to your webhook'
         onCancel={handleBack}
       />
     </div>
