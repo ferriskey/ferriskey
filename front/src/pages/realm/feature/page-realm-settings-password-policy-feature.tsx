@@ -52,7 +52,7 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
         onSuccess: () => {
           toast.success('Password policy updated successfully')
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
           toast.error(error.message || 'Failed to update password policy')
         }
       }
@@ -60,11 +60,11 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
   }
 
   if (isLoading) {
-    return <div className="p-8">Loading password policy...</div>
+    return <div className='p-8'>Loading password policy...</div>
   }
 
   if (!policy) {
-    return <div className="p-8 text-muted-foreground text-sm">Failed to load password policy.</div>
+    return <div className='p-8 text-muted-foreground text-sm'>Failed to load password policy.</div>
   }
 
   return (
