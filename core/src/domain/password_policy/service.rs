@@ -53,7 +53,8 @@ where
         self.repository
             .find_by_realm_id(realm.id.into())
             .await?
-            .ok_or(CoreError::NotFound)
+            .map(Ok)
+            .unwrap_or_else(|| Ok(PasswordPolicy::default(realm.id.into())))
     }
 
     pub async fn update_policy(

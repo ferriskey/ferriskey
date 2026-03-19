@@ -98,3 +98,33 @@ export const useUpdateRealmSettings = () => {
     },
   })
 }
+
+export const useGetRealmPasswordPolicy = ({ realm }: BaseQuery) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/password-policy', {
+      path: {
+        realm_name: realm!,
+      },
+    }).queryOptions,
+    enabled: !!realm,
+  })
+}
+
+export const useUpdateRealmPasswordPolicy = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/password-policy').mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/password-policy', {
+        path: {
+          realm_name: variables.path.realm_name,
+        },
+      }).queryKey
+
+      await queryClient.invalidateQueries({
+        queryKey: keys,
+      })
+    },
+  })
+}
