@@ -18,6 +18,23 @@ pub struct PasswordPolicy {
     pub updated_at: DateTime<Utc>,
 }
 
+impl PasswordPolicy {
+    pub fn default(realm_id: Uuid) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            realm_id,
+            min_length: 8,
+            require_uppercase: false,
+            require_lowercase: false,
+            require_number: false,
+            require_special: false,
+            max_age_days: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdatePasswordPolicy {
     pub min_length: Option<i32>,
