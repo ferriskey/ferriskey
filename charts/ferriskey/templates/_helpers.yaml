@@ -167,6 +167,17 @@ default
 {{- end -}}
 {{- end -}}
 
+{{- define "ferriskey.validate.exposure" -}}
+{{- if and (or .Values.ingress.enabled .Values.gatewayAPI.httpRoute.enabled) (not .Values.publicHost) -}}
+{{- fail "publicHost is required when ingress.enabled or gatewayAPI.httpRoute.enabled is true" -}}
+{{- end -}}
+{{- if .Values.gatewayAPI.httpRoute.enabled -}}
+{{- if eq (len .Values.gatewayAPI.httpRoute.parentRefs) 0 -}}
+{{- fail "gatewayAPI.httpRoute.parentRefs is required when gatewayAPI.httpRoute.enabled is true" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "ferriskey.opentelemetry.env" -}}
 {{- if .Values.opentelemetry.enabled }}
 
