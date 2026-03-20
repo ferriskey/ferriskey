@@ -26,8 +26,7 @@ export default function PageRealmSettingsCreateWebhookFeature() {
         ? prev.filter(t => t !== trigger)
         : [...prev, trigger]
 
-      // Mettre à jour le formulaire
-      form.setValue('subscribers', newTriggers)
+      form.setValue('subscribers', newTriggers, { shouldValidate: true })
       return newTriggers
     })
   }
@@ -43,7 +42,7 @@ export default function PageRealmSettingsCreateWebhookFeature() {
   const form = useForm<CreateWebhookSchema>({
     resolver: zodResolver(createWebhookValidator),
     mode: 'all',
-    values: {
+    defaultValues: {
       name: '',
       description: '',
       endpoint: '',
@@ -71,6 +70,19 @@ export default function PageRealmSettingsCreateWebhookFeature() {
       },
       path: {
         realm_name
+      }
+    }, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onError: (error: any) => {
+        const errors = error?.data?.errors
+        if (Array.isArray(errors) && errors.length > 0) {
+          errors.forEach(({ message, field }: { message: string; field: string }) => {
+            const fieldName = field as keyof CreateWebhookSchema
+            form.setError(fieldName, { message })
+          })
+        } else {
+          toast.error(error?.message ?? 'Failed to create webhook')
+        }
       }
     })
   })

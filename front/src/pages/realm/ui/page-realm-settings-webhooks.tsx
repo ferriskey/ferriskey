@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router'
 import { Schemas } from '@/api/api.client'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { OverviewList } from '@/components/ui/overview-list'
@@ -42,7 +42,10 @@ export default function PageRealmSettingsWebhooks({
         emptyLabel='No webhooks configured.'
         action={{ label: 'New Webhook', onClick: () => navigate('create') }}
         renderRow={(webhook) => (
-          <div className='flex items-center justify-between px-8 py-4 hover:bg-muted/40 transition-colors'>
+          <div
+            className='flex items-center justify-between px-8 py-4 hover:bg-muted/40 transition-colors cursor-pointer'
+            onClick={() => navigate(`${webhook.id}/edit`)}
+          >
             <div className='flex items-center gap-4'>
               <EntityAvatar label={webhook.name ?? ''} color='#8B5CF6' />
               <div>
@@ -57,14 +60,24 @@ export default function PageRealmSettingsWebhooks({
                 <div className='text-sm text-muted-foreground mt-0.5 font-mono'>{webhook.endpoint}</div>
               </div>
             </div>
-            <Button
-              variant='ghost'
-              size='icon'
-              className='text-muted-foreground hover:text-destructive'
-              onClick={() => onRowDelete(webhook)}
-            >
-              <Trash2 className='h-4 w-4' />
-            </Button>
+            <div className='flex items-center gap-1'>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='text-muted-foreground hover:text-primary'
+                onClick={(e) => { e.stopPropagation(); navigate(`${webhook.id}/edit`) }}
+              >
+                <Pencil className='h-4 w-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='text-muted-foreground hover:text-destructive'
+                onClick={(e) => { e.stopPropagation(); onRowDelete(webhook) }}
+              >
+                <Trash2 className='h-4 w-4' />
+              </Button>
+            </div>
           </div>
         )
         }
