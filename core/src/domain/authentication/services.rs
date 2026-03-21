@@ -1109,7 +1109,7 @@ where
                     "failed to update auth session with code and user id: {:?}",
                     e
                 );
-                CoreError::InternalServerError
+                CoreError::SessionNotFound
             })?;
 
         let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
@@ -1281,7 +1281,7 @@ This is a server error that should be investigated. Do not forward back this mes
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
@@ -1793,8 +1793,16 @@ where
             .await
             .map_err(|e| {
                 warn!("Failed to get auth session by session code: {:?}", e);
-                CoreError::InternalServerError
+                CoreError::SessionNotFound
             })?;
+
+        if auth_session.expires_at < Utc::now() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        if auth_session.user_id.is_some() {
+            return Err(CoreError::InvalidSession);
+        }
 
         let realm = self
             .realm_repository
