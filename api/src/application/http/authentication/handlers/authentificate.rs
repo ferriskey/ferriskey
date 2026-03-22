@@ -1,3 +1,4 @@
+use super::auth::root_scoped_base_url;
 use crate::application::decoded_token::OptionalToken;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::app_state::AppState;
@@ -124,6 +125,8 @@ pub async fn authenticate(
 
     let session_code = Uuid::parse_str(&session_code)
         .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
+
+    let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
     let authenticate_params = if let Some(token) = optional_token {
         AuthenticateInput::with_existing_token(
