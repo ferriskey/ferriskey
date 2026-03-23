@@ -96,6 +96,7 @@ export enum RequiredAction {
   ConfigureOtp = 'configure_otp',
   VerifyEmail = 'verify_email',
   UpdatePassword = 'update_password',
+  ConfigurePasskey = 'configure_passkey',
 }
 
 export interface User {

@@ -13,7 +13,8 @@ export default function PageRequiredActionFeature() {
     if (token) {
       setAuthToken(token)
     }
-  }, [token, setAuthToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   if (!token) {
     return <div>Loading ...</div>

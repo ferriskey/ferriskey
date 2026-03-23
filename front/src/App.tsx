@@ -230,7 +230,7 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
       if (!pathname.includes('authentication/login')) {
         navigate(`/realms/${defaultRealm}/authentication/login`, { replace: true })
       }
-    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
+    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback') && !pathname.includes('/required-action')) {
       navigate(`/realms/${defaultRealm}/overview`, { replace: true })
     }
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, defaultRealm, navigate])
