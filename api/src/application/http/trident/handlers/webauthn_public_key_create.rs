@@ -1,17 +1,18 @@
-use crate::application::http::server::{
-    api_entities::{
-        api_error::{ApiError, ApiErrorResponse, ValidateJson},
-        response::Response,
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse, ValidateJson},
+            response::Response,
+        },
+        app_state::AppState,
     },
-    app_state::AppState,
+    trident::validators::webauthn_rp_info_from_webapp_url,
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{
     RegisterPublicKeyCredential, TridentService, WebAuthnValidatePublicKeyInput,
-};
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, trident::ports::WebAuthnRpInfo,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{
@@ -78,14 +79,10 @@ pub async fn webauthn_public_key_create(
         .value()
         .to_string();
 
-    let rp_id = state.args.server.host.clone();
-    let allowed_origin = state.args.webapp_url.clone();
+    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
 
     let input = WebAuthnValidatePublicKeyInput {
-        rp_info: WebAuthnRpInfo {
-            rp_id,
-            allowed_origin,
-        },
+        rp_info,
         session_code,
         credential: payload.0,
     };

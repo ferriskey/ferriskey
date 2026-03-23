@@ -3,6 +3,8 @@ pub mod challenge_otp;
 pub mod forgot_password;
 pub mod generate_recovery_codes;
 pub mod magic_link;
+pub mod passkey_authenticate;
+pub mod passkey_request_options;
 pub mod reset_password;
 pub mod setup_otp;
 pub mod update_password;
