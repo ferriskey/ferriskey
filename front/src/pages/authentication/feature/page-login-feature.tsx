@@ -9,6 +9,8 @@ import FloatingActionBar from '@/components/ui/floating-action-bar'
 import PageLogin from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
+import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
+import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication } from '@/lib/webauthn'
 
 const authenticateSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -68,6 +70,60 @@ export default function PageLoginFeature() {
     error: authenticateError,
     reset: resetAuthenticate,
   } = useAuthenticateMutation()
+
+  const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } = usePasskeyRequestOptionsMutation()
+  const { mutateAsync: authenticatePasskeyAsync, mutate: authenticatePasskey } = usePasskeyAuthenticateMutation()
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
+  const conditionalAbortRef = useRef<AbortController | null>(null)
+
+  // Conditional UI: autofill passkeys in the username field (Apple Passkeys, Chrome, etc.)
+  useEffect(() => {
+    if (!loginSettings?.passkey_enabled || !isAuthInitiated) return
+
+    let aborted = false
+    const abortController = new AbortController()
+    conditionalAbortRef.current = abortController
+
+    const startConditionalUI = async () => {
+      const available = await isConditionalMediationAvailable()
+      if (!available || aborted) return
+
+      try {
+        const response = await requestPasskeyOptionsAsync({
+          realm: realm_name,
+          data: {},
+        })
+
+        if (aborted) return
+
+        const assertion = await startConditionalAuthentication(
+          response.publicKey,
+          abortController.signal
+        )
+
+        if (!assertion || aborted) return
+
+        const result = await authenticatePasskeyAsync({
+          realm: realm_name,
+          data: assertion,
+        })
+
+        if (result.login_url) {
+          window.location.href = result.login_url
+        }
+      } catch {
+        // Conditional UI was aborted or failed silently — this is expected
+      }
+    }
+
+    startConditionalUI()
+
+    return () => {
+      aborted = true
+      abortController.abort()
+      conditionalAbortRef.current = null
+    }
+  }, [loginSettings?.passkey_enabled, isAuthInitiated, realm_name, requestPasskeyOptionsAsync, authenticatePasskeyAsync])
 
   const scheduleSessionExpirationBar = useCallback(() => {
     if (timerRef.current) {
@@ -164,6 +220,50 @@ export default function PageLoginFeature() {
     }
   }, [authenticateData, form, navigate, realm_name])
 
+  const onPasskeyLogin = useCallback(() => {
+    if (!isWebAuthnAvailable()) {
+      toast.error('WebAuthn is not supported in this browser')
+      return
+    }
+
+    // Abort any ongoing conditional UI request
+    conditionalAbortRef.current?.abort()
+    conditionalAbortRef.current = null
+
+    setIsPasskeyLoading(true)
+
+    requestPasskeyOptions(
+      { realm: realm_name, data: {} },
+      {
+        onSuccess: async (response) => {
+          try {
+            const assertion = await startAuthentication(response.publicKey)
+            authenticatePasskey(
+              { realm: realm_name, data: assertion },
+              {
+                onSuccess: (result) => {
+                  if (result.login_url) {
+                    window.location.href = result.login_url
+                  }
+                },
+                onError: () => {
+                  toast.error('Passkey authentication failed')
+                  setIsPasskeyLoading(false)
+                },
+              }
+            )
+          } catch {
+            setIsPasskeyLoading(false)
+          }
+        },
+        onError: () => {
+          toast.error('Failed to start passkey authentication')
+          setIsPasskeyLoading(false)
+        },
+      }
+    )
+  }, [form, realm_name, requestPasskeyOptions, authenticatePasskey])
+
   function onSubmit(data: AuthenticateSchema) {
     const { clientId } = getAuthParamsFromUrl()
     authenticate({
@@ -253,6 +353,8 @@ export default function PageLoginFeature() {
         isError={undefined}
         loginSettings={loginSettings}
         errorMessage={errorMessage}
+        onPasskeyLogin={loginSettings?.passkey_enabled ? onPasskeyLogin : undefined}
+        isPasskeyLoading={isPasskeyLoading}
       />
       <FloatingActionBar
         show={showFloatingActionBar}

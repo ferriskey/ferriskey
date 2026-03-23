@@ -178,6 +178,7 @@ export namespace Schemas {
     id_token_lifetime: number;
     magic_link_enabled: boolean;
     magic_link_ttl: number;
+    passkey_enabled: boolean;
     realm_id: RealmId;
     refresh_token_lifetime: number;
     remember_me_enabled: boolean;
@@ -192,7 +193,7 @@ export namespace Schemas {
     settings?: (null | RealmSetting) | undefined;
     updated_at: string;
   };
-  export type RequiredAction = "configure_otp" | "verify_email" | "update_password";
+  export type RequiredAction = "configure_otp" | "verify_email" | "update_password" | "configure_passkey";
   export type User = {
     client_id?: (string | null) | undefined;
     created_at: string;
@@ -419,6 +420,10 @@ export namespace Schemas {
     state: string | null;
   }>;
   export type OtpVerifyRequest = { code: string; label: string; secret: string };
+  export type PasskeyAuthenticateResponse = { login_url: string; status: string };
+  export type PasskeyPublicKeyCredential = Record<string, unknown>;
+  export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>;
+  export type PasskeyRequestOptionsRequest = Partial<{ username: string | null }>;
   export type PasswordPolicy = {
     created_at: string;
     id: string;
@@ -473,6 +478,7 @@ export namespace Schemas {
     identity_providers: Array<IdentityProviderPresentation>;
     magic_link_enabled: boolean;
     magic_link_ttl: number;
+    passkey_enabled: boolean;
     remember_me_enabled: boolean;
     user_registration_enabled: boolean;
   };
@@ -617,6 +623,7 @@ export namespace Schemas {
     id_token_lifetime: number | null;
     magic_link_enabled: boolean | null;
     magic_link_ttl: number | null;
+    passkey_enabled: boolean | null;
     refresh_token_lifetime: number | null;
     remember_me_enabled: boolean | null;
     temporary_token_lifetime: number | null;
@@ -1441,6 +1448,38 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Passkey_authenticate = {
+    method: "POST";
+    path: "/realms/{realm_name}/login-actions/passkey-authenticate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.PasskeyPublicKeyCredential;
+    };
+    responses: {
+      200: Schemas.PasskeyAuthenticateResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Passkey_request_options = {
+    method: "POST";
+    path: "/realms/{realm_name}/login-actions/passkey-request-options";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.PasskeyRequestOptionsRequest;
+    };
+    responses: {
+      200: Schemas.PasskeyPublicKeyCredentialRequestOptionsJSON;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type post_Reset_password_with_token = {
     method: "POST";
     path: "/realms/{realm_name}/login-actions/reset-password";
@@ -2186,6 +2225,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/challenge-otp": Endpoints.post_Challenge_otp;
     "/realms/{realm_name}/login-actions/forgot-password": Endpoints.post_Forgot_password;
     "/realms/{realm_name}/login-actions/generate-recovery-codes": Endpoints.post_Generate_recovery_codes;
+    "/realms/{realm_name}/login-actions/passkey-authenticate": Endpoints.post_Passkey_authenticate;
+    "/realms/{realm_name}/login-actions/passkey-request-options": Endpoints.post_Passkey_request_options;
     "/realms/{realm_name}/login-actions/reset-password": Endpoints.post_Reset_password_with_token;
     "/realms/{realm_name}/login-actions/send-magic-link": Endpoints.post_Send_magic_link;
     "/realms/{realm_name}/login-actions/update-password": Endpoints.post_Update_password;

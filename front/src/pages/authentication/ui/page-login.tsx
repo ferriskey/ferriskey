@@ -11,6 +11,8 @@ import RealmLoginSetting = Schemas.RealmLoginSetting
 import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'
+import { Separator } from '@/components/ui/separator'
+import { KeyRound } from 'lucide-react'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -19,9 +21,11 @@ export interface PageLoginProps {
   isLoading?: boolean
   loginSettings?: RealmLoginSetting
   errorMessage?: string | null
+  onPasskeyLogin?: () => void
+  isPasskeyLoading?: boolean
 }
 
-export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage }: PageLoginProps) {
+export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage, onPasskeyLogin, isPasskeyLoading }: PageLoginProps) {
   const { realm_name } = useParams()
 
   if (isError) return <ErrorMessage />
@@ -70,6 +74,7 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                               label='Username'
                               name='username'
                               className='w-full'
+                              autoComplete={loginSettings?.passkey_enabled ? 'username webauthn' : 'username'}
                               error={form.formState.errors.username?.message}
                             />
                           )}
@@ -104,6 +109,26 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                       <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
                         Login
                       </Button>
+                      {loginSettings?.passkey_enabled && onPasskeyLogin && (
+                        <>
+                          <div className='relative'>
+                            <Separator />
+                            <span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground'>
+                              or
+                            </span>
+                          </div>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            className='w-full rounded-lg py-5 text-sm'
+                            onClick={onPasskeyLogin}
+                            disabled={isPasskeyLoading}
+                          >
+                            <KeyRound className='mr-2 h-4 w-4' />
+                            Sign in with a passkey
+                          </Button>
+                        </>
+                      )}
                       <div className='space-y-4'>
                         <LoginProviders providers={providers} />
                         {loginSettings.user_registration_enabled && (

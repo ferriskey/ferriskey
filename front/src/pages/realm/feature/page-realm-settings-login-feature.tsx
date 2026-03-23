@@ -12,6 +12,7 @@ const realmLoginSettingsSchema = z.object({
   userRegistration: z.boolean(),
   forgotPassword: z.boolean(),
   rememberMe: z.boolean(),
+  passkey: z.boolean(),
 })
 
 export type RealmLoginSettingsSchema = z.infer<typeof realmLoginSettingsSchema>
@@ -27,6 +28,7 @@ export default function PageRealmSettingsLoginFeature() {
       forgotPassword: false,
       rememberMe: false,
       userRegistration: false,
+      passkey: false,
     }
   })
 
@@ -41,6 +43,7 @@ export default function PageRealmSettingsLoginFeature() {
         forgot_password_enabled: values.forgotPassword,
         remember_me_enabled: values.rememberMe,
         user_registration_enabled: values.userRegistration,
+        passkey_enabled: values.passkey,
       }
     })
   }
@@ -51,6 +54,7 @@ export default function PageRealmSettingsLoginFeature() {
       forgotPassword: data.forgot_password_enabled,
       rememberMe: data.remember_me_enabled,
       userRegistration: data.user_registration_enabled,
+      passkey: data.passkey_enabled,
     }
   )
 
@@ -60,6 +64,7 @@ export default function PageRealmSettingsLoginFeature() {
         userRegistration: data.user_registration_enabled,
         forgotPassword: data.forgot_password_enabled,
         rememberMe: data.remember_me_enabled,
+        passkey: data.passkey_enabled,
       })
     }
   }, [data, form])
