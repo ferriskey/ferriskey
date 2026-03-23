@@ -4,7 +4,9 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
+use webauthn_rs::prelude::{
+    DiscoverableAuthentication, PasskeyAuthentication, PasskeyRegistration,
+};
 
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
@@ -21,6 +23,7 @@ pub use ferriskey_domain::authentication::entities::{
 pub enum WebAuthnChallenge {
     Registration(PasskeyRegistration),
     Authentication(PasskeyAuthentication),
+    DiscoverableAuthentication(DiscoverableAuthentication),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -43,7 +43,8 @@ use crate::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
                 GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
-                MagicLinkRepository, PasswordResetTokenRepository, RecoveryCodeFormatter,
+                MagicLinkRepository, PasskeyAuthenticateInput, PasskeyAuthenticateOutput,
+                PasskeyRequestOptionsInput, PasswordResetTokenRepository, RecoveryCodeFormatter,
                 RecoveryCodeRepository, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
                 TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
                 VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
@@ -501,6 +502,11 @@ where
             if filtered.is_empty() {
                 None
             } else {
+                // User already has passkeys — clear the required action if present
+                let _ = self
+                    .user_required_action_repository
+                    .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+                    .await;
                 Some(filtered)
             }
         };
@@ -556,6 +562,12 @@ where
             .create_webauthn_credential(user.id, passkey)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        // Remove the configure_passkey required action if present
+        let _ = self
+            .user_required_action_repository
+            .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+            .await;
 
         Ok(WebAuthnValidatePublicKeyOutput {})
     }
@@ -664,6 +676,191 @@ where
         .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
+    }
+
+    async fn passkey_request_options(
+        &self,
+        input: PasskeyRequestOptionsInput,
+    ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        if let Some(username) = input.username {
+            // Non-discoverable: we know the user, fetch their passkeys
+            let user = self
+                .user_repository
+                .get_by_username(username, realm.id)
+                .await
+                .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+            let creds = self
+                .credential_repository
+                .get_webauthn_public_key_credentials(user.id)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            let creds = creds
+                .into_iter()
+                .map(|v| match v.credential_data {
+                    CredentialData::WebAuthn { credential } => Ok(Passkey::from(*credential)),
+                    _ => {
+                        error!("A WebAuthn credential doesn't hold WebAuthn credential data");
+                        Err(CoreError::InternalServerError)
+                    }
+                })
+                .collect::<Result<Vec<Passkey>, CoreError>>()?;
+
+            if creds.is_empty() {
+                return Err(CoreError::WebAuthnChallengeFailed);
+            }
+
+            let (rcr, pa) = webauthn.start_passkey_authentication(&creds).map_err(|e| {
+                error!("Failed to start passkey authentication: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+            self.auth_session_repository
+                .save_webauthn_challenge(session_code, WebAuthnChallenge::Authentication(pa))
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            Ok(WebAuthnPublicKeyRequestOptionsOutput(rcr))
+        } else {
+            // Discoverable: no user provided, browser will propose available passkeys
+            let (rcr, da) = webauthn.start_discoverable_authentication().map_err(|e| {
+                error!("Failed to start discoverable authentication: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+            self.auth_session_repository
+                .save_webauthn_challenge(
+                    session_code,
+                    WebAuthnChallenge::DiscoverableAuthentication(da),
+                )
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            Ok(WebAuthnPublicKeyRequestOptionsOutput(rcr))
+        }
+    }
+
+    async fn passkey_authenticate(
+        &self,
+        input: PasskeyAuthenticateInput,
+    ) -> Result<PasskeyAuthenticateOutput, CoreError> {
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let mut auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let webauthn_challenge = auth_session.webauthn_challenge.take();
+        let auth_result = match webauthn_challenge {
+            Some(WebAuthnChallenge::Authentication(ref pa)) => {
+                // Non-discoverable: user was known at challenge time
+                webauthn
+                    .finish_passkey_authentication(&input.credential, pa)
+                    .map_err(|e| {
+                        error!("Error during passkey authentication: {e:?}");
+                        CoreError::WebAuthnChallengeFailed
+                    })?
+            }
+            Some(WebAuthnChallenge::DiscoverableAuthentication(da)) => {
+                // Discoverable: resolve credential from the assertion response
+                let user_handle = input
+                    .credential
+                    .get_user_unique_id()
+                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+                let user_uuid = Uuid::from_slice(user_handle)
+                    .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+                let cred_id_bytes: &[u8] = input.credential.raw_id.as_ref();
+
+                let credential = self
+                    .credential_repository
+                    .get_webauthn_credential_by_credential_id_and_user(cred_id_bytes, user_uuid)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+                let passkey = match credential.credential_data {
+                    CredentialData::WebAuthn { credential } => Passkey::from(*credential),
+                    _ => return Err(CoreError::WebAuthnChallengeFailed),
+                };
+
+                let dk: DiscoverableKey = passkey.into();
+                webauthn
+                    .finish_discoverable_authentication(&input.credential, da, &[dk])
+                    .map_err(|e| {
+                        error!("Error during discoverable authentication: {e:?}");
+                        CoreError::WebAuthnChallengeFailed
+                    })?
+            }
+            _ => return Err(CoreError::WebAuthnMissingChallenge),
+        };
+
+        if auth_result.needs_update() {
+            let _ = self
+                .credential_repository
+                .update_webauthn_credential(&auth_result)
+                .await
+                .map_err(|e| {
+                    debug!("{e:?}");
+                    CoreError::InternalServerError
+                })?;
+        }
+
+        if !auth_result.user_verified() {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
+
+        // Resolve the user from the assertion response
+        let user_handle = input
+            .credential
+            .get_user_unique_id()
+            .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+        let user_uuid =
+            Uuid::from_slice(user_handle).map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        let user = self
+            .user_repository
+            .get_by_id(user_uuid)
+            .await
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        if user.realm_id != realm.id {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
+
+        let login_url = store_auth_code_and_generate_login_url::<AS>(
+            &self.auth_session_repository,
+            &auth_session,
+            user.id,
+        )
+        .await?;
+
+        Ok(PasskeyAuthenticateOutput { login_url })
     }
 
     async fn challenge_otp(

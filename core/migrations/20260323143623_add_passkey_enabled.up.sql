@@ -1,0 +1,1 @@
+ALTER TABLE realm_settings ADD COLUMN passkey_enabled BOOLEAN NOT NULL DEFAULT FALSE;

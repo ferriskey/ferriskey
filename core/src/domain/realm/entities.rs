@@ -60,6 +60,7 @@ pub struct RealmLoginSetting {
     pub identity_providers: Vec<IdentityProviderPresentation>,
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
+    pub passkey_enabled: bool,
 }
 
 impl From<RealmSetting> for RealmLoginSetting {
@@ -71,6 +72,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             identity_providers: Vec::new(),
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl,
+            passkey_enabled: value.passkey_enabled,
         }
     }
 }

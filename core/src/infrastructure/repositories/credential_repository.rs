@@ -300,6 +300,22 @@ impl CredentialRepository for PostgresCredentialRepository {
         Ok(credentials)
     }
 
+    async fn get_webauthn_credential_by_credential_id_and_user(
+        &self,
+        credential_id: &[u8],
+        user_id: uuid::Uuid,
+    ) -> Result<Option<Credential>, CredentialError> {
+        let credential = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::WebauthnCredentialId.eq(credential_id))
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?
+            .map(Credential::from);
+
+        Ok(credential)
+    }
+
     async fn update_webauthn_credential(
         &self,
         auth_result: &AuthenticationResult,

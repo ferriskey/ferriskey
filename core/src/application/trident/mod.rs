@@ -6,9 +6,10 @@ use crate::{
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
             CompletePasswordResetInput, CompletePasswordResetOutput, GenerateRecoveryCodeInput,
-            GenerateRecoveryCodeOutput, MagicLinkInput, RequestPasswordResetInput, SetupOtpInput,
-            SetupOtpOutput, TridentService, UpdatePasswordInput, VerifyMagicLinkInput,
-            VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
+            GenerateRecoveryCodeOutput, MagicLinkInput, PasskeyAuthenticateInput,
+            PasskeyAuthenticateOutput, PasskeyRequestOptionsInput, RequestPasswordResetInput,
+            SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
+            VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
             WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
             WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
             WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
@@ -108,6 +109,20 @@ impl TridentService for ApplicationService {
         self.trident_service
             .webauthn_public_key_request_options(identity, input)
             .await
+    }
+
+    async fn passkey_request_options(
+        &self,
+        input: PasskeyRequestOptionsInput,
+    ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
+        self.trident_service.passkey_request_options(input).await
+    }
+
+    async fn passkey_authenticate(
+        &self,
+        input: PasskeyAuthenticateInput,
+    ) -> Result<PasskeyAuthenticateOutput, CoreError> {
+        self.trident_service.passkey_authenticate(input).await
     }
 
     async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {

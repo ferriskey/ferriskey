@@ -176,6 +176,7 @@ impl RealmRepository for PostgresRealmRepository {
         remember_me_enabled: Option<bool>,
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
+        passkey_enabled: Option<bool>,
         compass_enabled: Option<bool>,
         access_token_lifetime: Option<i64>,
         refresh_token_lifetime: Option<i64>,
@@ -214,6 +215,10 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(magic_link_ttl) = magic_link_ttl {
             let ttl_minutes = i32::try_from(magic_link_ttl).map_err(|_| CoreError::Invalid)?;
             realm_setting.magic_link_ttl_minutes = Set(ttl_minutes);
+        }
+
+        if let Some(passkey_enabled) = passkey_enabled {
+            realm_setting.passkey_enabled = Set(passkey_enabled);
         }
 
         if let Some(compass_enabled) = compass_enabled {

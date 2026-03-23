@@ -27,6 +27,7 @@ pub struct Model {
     pub refresh_token_lifetime_secs: i32,
     pub id_token_lifetime_secs: i32,
     pub temporary_token_lifetime_secs: i32,
+    pub passkey_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -45,6 +46,7 @@ pub enum Column {
     RefreshTokenLifetimeSecs,
     IdTokenLifetimeSecs,
     TemporaryTokenLifetimeSecs,
+    PasskeyEnabled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -82,6 +84,7 @@ impl ColumnTrait for Column {
             Self::RefreshTokenLifetimeSecs => ColumnType::Integer.def(),
             Self::IdTokenLifetimeSecs => ColumnType::Integer.def(),
             Self::TemporaryTokenLifetimeSecs => ColumnType::Integer.def(),
+            Self::PasskeyEnabled => ColumnType::Boolean.def(),
         }
     }
 }

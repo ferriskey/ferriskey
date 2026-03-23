@@ -65,6 +65,24 @@ pub struct WebAuthnPublicKeyAuthenticateOutput {
     pub login_url: String,
 }
 
+pub struct PasskeyRequestOptionsInput {
+    pub realm_name: String,
+    pub session_code: String,
+    pub username: Option<String>,
+    pub rp_info: WebAuthnRpInfo,
+}
+
+pub struct PasskeyAuthenticateInput {
+    pub realm_name: String,
+    pub session_code: String,
+    pub rp_info: WebAuthnRpInfo,
+    pub credential: PublicKeyCredential,
+}
+
+pub struct PasskeyAuthenticateOutput {
+    pub login_url: String,
+}
+
 pub struct ChallengeOtpInput {
     pub session_code: String,
     pub code: String,
@@ -242,6 +260,16 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: VerifyOtpInput,
     ) -> impl Future<Output = Result<VerifyOtpOutput, CoreError>> + Send;
+    fn passkey_request_options(
+        &self,
+        input: PasskeyRequestOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError>> + Send;
+
+    fn passkey_authenticate(
+        &self,
+        input: PasskeyAuthenticateInput,
+    ) -> impl Future<Output = Result<PasskeyAuthenticateOutput, CoreError>> + Send;
+
     fn generate_magic_link(
         &self,
         input: MagicLinkInput,
