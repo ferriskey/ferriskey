@@ -4,7 +4,6 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{
         RequestChallengeResponse, TridentService, WebAuthnPublicKeyRequestOptionsInput,
-        WebAuthnRpInfo,
     },
 };
 use serde::Serialize;
@@ -13,12 +12,15 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema},
 };
 
-use crate::application::http::server::{
-    api_entities::{
-        api_error::{ApiError, ApiErrorResponse},
-        response::Response,
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
+        app_state::AppState,
     },
-    app_state::AppState,
+    trident::validators::webauthn_rp_info_from_webapp_url,
 };
 
 #[derive(Debug, Serialize)]
@@ -68,8 +70,7 @@ pub async fn webauthn_public_key_request_options(
         .value()
         .to_string();
 
-    let rp_id = state.args.server.host.clone();
-    let allowed_origin = state.args.webapp_url.clone();
+    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
 
     let output = state
         .service
@@ -77,10 +78,7 @@ pub async fn webauthn_public_key_request_options(
             identity,
             WebAuthnPublicKeyRequestOptionsInput {
                 session_code,
-                rp_info: WebAuthnRpInfo {
-                    rp_id,
-                    allowed_origin,
-                },
+                rp_info,
             },
         )
         .await

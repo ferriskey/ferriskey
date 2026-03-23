@@ -17,6 +17,8 @@ use crate::application::{
                 __path_send_magic_link, __path_verify_magic_link, send_magic_link,
                 verify_magic_link,
             },
+            passkey_authenticate::{__path_passkey_authenticate, passkey_authenticate},
+            passkey_request_options::{__path_passkey_request_options, passkey_request_options},
             reset_password::{
                 __path_reset_password_with_token, __path_verify_reset_token,
                 reset_password_with_token, verify_reset_token,
@@ -52,6 +54,8 @@ use crate::application::{
     webauthn_public_key_create_options,
     webauthn_public_key_authenticate,
     webauthn_public_key_request_options,
+    passkey_request_options,
+    passkey_authenticate,
     send_magic_link,
     verify_magic_link,
     forgot_password,
@@ -97,6 +101,20 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(verify_reset_token),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/passkey-request-options",
+                state.args.server.root_path
+            ),
+            post(passkey_request_options),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/passkey-authenticate",
+                state.args.server.root_path
+            ),
+            post(passkey_authenticate),
         );
 
     // Authenticated routes
