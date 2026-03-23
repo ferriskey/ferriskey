@@ -148,6 +148,7 @@ pub trait RealmRepository: Send + Sync {
         remember_me_enabled: Option<bool>,
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
+        passkey_enabled: Option<bool>,
         compass_enabled: Option<bool>,
         access_token_lifetime: Option<i64>,
         refresh_token_lifetime: Option<i64>,
@@ -193,6 +194,7 @@ pub struct UpdateRealmSettingInput {
     pub remember_me_enabled: Option<bool>,
     pub magic_link_enabled: Option<bool>,
     pub magic_link_ttl: Option<u32>,
+    pub passkey_enabled: Option<bool>,
     pub compass_enabled: Option<bool>,
 
     pub access_token_lifetime: Option<i64>,

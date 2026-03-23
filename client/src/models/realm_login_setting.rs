@@ -21,6 +21,8 @@ pub struct RealmLoginSetting {
     pub magic_link_enabled: bool,
     #[serde(rename = "magic_link_ttl")]
     pub magic_link_ttl: i32,
+    #[serde(rename = "passkey_enabled")]
+    pub passkey_enabled: bool,
     #[serde(rename = "remember_me_enabled")]
     pub remember_me_enabled: bool,
     #[serde(rename = "user_registration_enabled")]
@@ -33,6 +35,7 @@ impl RealmLoginSetting {
         identity_providers: Vec<models::IdentityProviderPresentation>,
         magic_link_enabled: bool,
         magic_link_ttl: i32,
+        passkey_enabled: bool,
         remember_me_enabled: bool,
         user_registration_enabled: bool,
     ) -> RealmLoginSetting {
@@ -41,6 +44,7 @@ impl RealmLoginSetting {
             identity_providers,
             magic_link_enabled,
             magic_link_ttl,
+            passkey_enabled,
             remember_me_enabled,
             user_registration_enabled,
         }

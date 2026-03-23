@@ -23,6 +23,8 @@ pub enum RequiredAction {
     VerifyEmail,
     #[serde(rename = "update_password")]
     UpdatePassword,
+    #[serde(rename = "configure_passkey")]
+    ConfigurePasskey,
 }
 
 impl std::fmt::Display for RequiredAction {
@@ -31,6 +33,7 @@ impl std::fmt::Display for RequiredAction {
             Self::ConfigureOtp => write!(f, "configure_otp"),
             Self::VerifyEmail => write!(f, "verify_email"),
             Self::UpdatePassword => write!(f, "update_password"),
+            Self::ConfigurePasskey => write!(f, "configure_passkey"),
         }
     }
 }

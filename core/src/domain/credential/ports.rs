@@ -78,6 +78,12 @@ pub trait CredentialRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Credential>, CredentialError>> + Send;
 
+    fn get_webauthn_credential_by_credential_id_and_user(
+        &self,
+        credential_id: &[u8],
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Option<Credential>, CredentialError>> + Send;
+
     /// Sometimes webauthn credential needs an internal counter updated after auth attempt
     fn update_webauthn_credential(
         &self,

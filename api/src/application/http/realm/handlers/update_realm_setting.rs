@@ -51,12 +51,12 @@ pub async fn update_realm_setting(
             UpdateRealmSettingInput {
                 realm_name: name,
                 algorithm: payload.default_signing_algorithm,
-
                 forgot_password_enabled: payload.forgot_password_enabled,
                 remember_me_enabled: payload.remember_me_enabled,
                 user_registration_enabled: payload.user_registration_enabled,
                 magic_link_enabled: payload.magic_link_enabled,
                 magic_link_ttl: payload.magic_link_ttl,
+                passkey_enabled: payload.passkey_enabled,
                 compass_enabled: payload.compass_enabled,
                 access_token_lifetime: payload.access_token_lifetime,
                 refresh_token_lifetime: payload.refresh_token_lifetime,

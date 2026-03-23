@@ -711,6 +711,7 @@ where
                 input.remember_me_enabled,
                 input.magic_link_enabled,
                 input.magic_link_ttl,
+                input.passkey_enabled,
                 input.compass_enabled,
                 input.access_token_lifetime,
                 input.refresh_token_lifetime,
