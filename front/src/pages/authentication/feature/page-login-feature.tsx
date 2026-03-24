@@ -10,6 +10,7 @@ import PageLogin from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
+import { useSendMagicLink } from '@/api/trident.api'
 import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication } from '@/lib/webauthn'
 
 const authenticateSchema = z.object({
@@ -73,6 +74,7 @@ export default function PageLoginFeature() {
 
   const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } = usePasskeyRequestOptionsMutation()
   const { mutateAsync: authenticatePasskeyAsync, mutate: authenticatePasskey } = usePasskeyAuthenticateMutation()
+  const { mutate: sendMagicLink, isPending: isMagicLinkLoading } = useSendMagicLink()
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
   const [conditionalUIVersion, setConditionalUIVersion] = useState(0)
   const conditionalAbortRef = useRef<AbortController | null>(null)
@@ -267,6 +269,30 @@ export default function PageLoginFeature() {
     )
   }, [form, realm_name, requestPasskeyOptions, authenticatePasskey])
 
+  const [showMagicLinkDialog, setShowMagicLinkDialog] = useState(false)
+
+  const onMagicLinkLogin = useCallback(() => {
+    setShowMagicLinkDialog(true)
+  }, [])
+
+  const onMagicLinkSubmit = useCallback((email: string) => {
+    sendMagicLink(
+      {
+        path: { realm_name: realm_name ?? 'master' },
+        body: { email },
+      },
+      {
+        onSuccess: () => {
+          setShowMagicLinkDialog(false)
+          toast.success('Check your email for the magic link')
+        },
+        onError: () => {
+          toast.error('Failed to send magic link')
+        },
+      }
+    )
+  }, [realm_name, sendMagicLink])
+
   function onSubmit(data: AuthenticateSchema) {
     const { clientId } = getAuthParamsFromUrl()
     authenticate({
@@ -280,8 +306,25 @@ export default function PageLoginFeature() {
     if (!isAuthInitiated && !loginError) {
       const { query, realm } = getOAuthParams()
       window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      return
     }
-  }, [isAuthInitiated, getOAuthParams, loginError])
+
+    // After OAuth redirect, check if there's a pending magic link verification
+    const pendingMagicLink = sessionStorage.getItem('magic_link_pending')
+    if (isAuthInitiated && pendingMagicLink) {
+      sessionStorage.removeItem('magic_link_pending')
+      try {
+        const { token_id, magic_token } = JSON.parse(pendingMagicLink)
+        const realm = realm_name ?? 'master'
+        navigate(
+          `/realms/${realm}/authentication/magic-link?token_id=${token_id}&magic_token=${encodeURIComponent(magic_token)}&client_id=${clientId}`,
+          { replace: true }
+        )
+      } catch {
+        // Invalid stored data, ignore
+      }
+    }
+  }, [isAuthInitiated, getOAuthParams, loginError, navigate, realm_name, clientId])
 
   const authErrorStatus = (authenticateError as { status?: number } | null)?.status
 
@@ -358,6 +401,11 @@ export default function PageLoginFeature() {
         errorMessage={errorMessage}
         onPasskeyLogin={loginSettings?.passkey_enabled ? onPasskeyLogin : undefined}
         isPasskeyLoading={isPasskeyLoading}
+        onMagicLinkLogin={loginSettings?.magic_link_enabled ? onMagicLinkLogin : undefined}
+        isMagicLinkLoading={isMagicLinkLoading}
+        showMagicLinkDialog={showMagicLinkDialog}
+        onMagicLinkDialogChange={setShowMagicLinkDialog}
+        onMagicLinkSubmit={onMagicLinkSubmit}
       />
       <FloatingActionBar
         show={showFloatingActionBar}

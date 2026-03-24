@@ -6,6 +6,7 @@ import PageOtpChallengeFeature from './feature/page-otp-challenge-feature'
 import PageRegisterFeature from './feature/page-register-feature'
 import PageForgotPasswordFeature from './feature/page-forgot-password-feature'
 import PageResetPasswordFeature from './feature/page-reset-password-feature'
+import PageMagicLinkVerifyFeature from './feature/page-magic-link-verify-feature'
 
 export default function PageAuthentication() {
   return (
@@ -17,6 +18,7 @@ export default function PageAuthentication() {
       <Route path='/otp' element={<PageOtpChallengeFeature />} />
       <Route path='/forgot-password' element={<PageForgotPasswordFeature />} />
       <Route path='/reset-password' element={<PageResetPasswordFeature />} />
+      <Route path='/magic-link' element={<PageMagicLinkVerifyFeature />} />
     </Routes>
   )
 }

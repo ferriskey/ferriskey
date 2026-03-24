@@ -67,11 +67,14 @@ pub async fn send_magic_link(
         payload.email, realm_name
     );
 
+    let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+
     state
         .service
         .generate_magic_link(MagicLinkInput {
             realm_name,
             email: payload.email.clone(),
+            base_url,
         })
         .await?;
 
