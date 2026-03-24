@@ -5,6 +5,7 @@ pub mod common;
 pub mod compass;
 pub mod db;
 pub mod email;
+pub mod email_template;
 pub mod health;
 pub mod identity_provider;
 pub mod migrate;

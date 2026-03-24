@@ -19,6 +19,7 @@ use crate::{
         },
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
+        email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
         password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
@@ -46,6 +47,10 @@ use crate::{
         },
         db::postgres::{Postgres, PostgresConfig},
         email::SmtpEmailPort,
+        email_template::{
+            renderer::mjml_renderer::MjmlTemplateRenderer,
+            repositories::email_template_repository::PostgresEmailTemplateRepository,
+        },
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
@@ -89,6 +94,7 @@ pub mod broker;
 pub mod client;
 pub mod compass;
 pub mod credential;
+pub mod email_template;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
@@ -155,6 +161,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
+
+    let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
+    let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -264,6 +273,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        email_template_service: EmailTemplateServiceImpl::new(
+            realm.clone(),
+            email_template.clone(),
+            mjml_renderer.clone(),
+            policy.clone(),
+        ),
         core_service: CoreServiceImpl::new(
             realm.clone(),
             keystore.clone(),
