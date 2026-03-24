@@ -10,6 +10,7 @@ use crate::domain::authentication::{
     entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
 };
+use crate::domain::realm::entities::RealmId;
 
 impl From<crate::entity::auth_sessions::Model> for AuthSession {
     fn from(model: crate::entity::auth_sessions::Model) -> Self {
@@ -127,6 +128,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn consume_by_code(
         &self,
         code: String,
+        realm_id: RealmId,
     ) -> Result<Option<AuthSession>, AuthenticationError> {
         use sea_orm::TransactionTrait;
 
@@ -137,8 +139,13 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         use sea_orm::QuerySelect;
 
+        let now = Utc::now().naive_utc();
+        let realm_uuid: Uuid = realm_id.into();
+
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Code.eq(code))
+            .filter(crate::entity::auth_sessions::Column::RealmId.eq(realm_uuid))
+            .filter(crate::entity::auth_sessions::Column::ExpiresAt.gt(now))
             .lock_exclusive()
             .one(&txn)
             .await
@@ -170,11 +177,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
             Ok(Some(session))
         } else {
-            txn.commit().await.map_err(|e| {
-                error!("Error committing transaction: {:?}", e);
-                AuthenticationError::InternalServerError
-            })?;
-
+            let _ = txn.rollback().await;
             Ok(None)
         }
     }

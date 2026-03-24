@@ -67,6 +67,7 @@ pub trait AuthSessionRepository: Send + Sync {
     fn consume_by_code(
         &self,
         code: String,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
     fn update_code_and_user_id(
         &self,

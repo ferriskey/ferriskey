@@ -602,15 +602,15 @@ where
 
         let auth_session = self
             .auth_session_repository
-            .consume_by_code(code.clone())
+            .consume_by_code(code.clone(), params.realm_id)
             .await
             .map_err(|e| {
                 let code_fingerprint = &format!("{:x}", Sha256::digest(code.as_bytes()))[..12];
-                warn!(code_fingerprint = %code_fingerprint, error = ?e, "Auth session not found for code");
+                warn!(code_fingerprint = %code_fingerprint, error = ?e, "Storage error consuming auth session");
 
-                CoreError::MissingAuthorizationCode
+                CoreError::InternalServerError
             })?
-            .ok_or(CoreError::NotFound)?;
+            .ok_or(CoreError::MissingAuthorizationCode)?;
 
         if auth_session.realm_id != params.realm_id {
             warn!(
