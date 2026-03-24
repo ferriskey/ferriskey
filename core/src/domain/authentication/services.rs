@@ -1296,7 +1296,7 @@ This is a server error that should be investigated. Do not forward back this mes
             user.username.clone(),
             iss,
             vec![format!("{}-realm", realm.name), "account".to_string()],
-            ClaimsTyp::Bearer,
+            ClaimsTyp::Temporary,
             client_id.clone(),
             Some(user.email.clone()),
             Some(auth_session.scope),
@@ -1781,6 +1781,23 @@ where
         };
 
         Ok(AuthorizeRequestOutput { identity })
+    }
+
+    async fn authorize_login_action_request(
+        &self,
+        input: AuthorizeRequestInput,
+    ) -> Result<AuthorizeRequestOutput, CoreError> {
+        if input.claims.typ != ClaimsTyp::Temporary {
+            return Err(CoreError::InvalidToken);
+        }
+
+        let user = self.user_repository.get_by_id(input.claims.sub).await?;
+
+        self.verify_token(input.token, user.realm_id).await?;
+
+        Ok(AuthorizeRequestOutput {
+            identity: Identity::User(user),
+        })
     }
 
     async fn authenticate(

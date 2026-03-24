@@ -155,3 +155,25 @@ pub async fn auth(
 
     Ok(next.run(req).await)
 }
+
+pub async fn auth_login_actions(
+    State(state): State<AppState>,
+    jwt: Jwt,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let claims = jwt.claims;
+
+    let output = state
+        .service
+        .authorize_login_action_request(AuthorizeRequestInput {
+            claims,
+            token: jwt.token,
+        })
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    req.extensions_mut().insert(output.identity);
+
+    Ok(next.run(req).await)
+}
