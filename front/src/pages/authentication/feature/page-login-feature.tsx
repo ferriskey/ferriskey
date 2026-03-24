@@ -74,6 +74,7 @@ export default function PageLoginFeature() {
   const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } = usePasskeyRequestOptionsMutation()
   const { mutateAsync: authenticatePasskeyAsync, mutate: authenticatePasskey } = usePasskeyAuthenticateMutation()
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
+  const [conditionalUIVersion, setConditionalUIVersion] = useState(0)
   const conditionalAbortRef = useRef<AbortController | null>(null)
 
   // Conditional UI: autofill passkeys in the username field (Apple Passkeys, Chrome, etc.)
@@ -123,7 +124,7 @@ export default function PageLoginFeature() {
       abortController.abort()
       conditionalAbortRef.current = null
     }
-  }, [loginSettings?.passkey_enabled, isAuthInitiated, realm_name, requestPasskeyOptionsAsync, authenticatePasskeyAsync])
+  }, [loginSettings?.passkey_enabled, isAuthInitiated, realm_name, requestPasskeyOptionsAsync, authenticatePasskeyAsync, conditionalUIVersion])
 
   const scheduleSessionExpirationBar = useCallback(() => {
     if (timerRef.current) {
@@ -249,6 +250,7 @@ export default function PageLoginFeature() {
                 onError: () => {
                   toast.error('Passkey authentication failed')
                   setIsPasskeyLoading(false)
+                  setConditionalUIVersion(v => v + 1)
                 },
               }
             )
@@ -259,6 +261,7 @@ export default function PageLoginFeature() {
         onError: () => {
           toast.error('Failed to start passkey authentication')
           setIsPasskeyLoading(false)
+          setConditionalUIVersion(v => v + 1)
         },
       }
     )

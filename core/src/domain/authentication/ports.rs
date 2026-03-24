@@ -121,6 +121,10 @@ pub trait AuthService: Send + Sync {
         &self,
         input: AuthorizeRequestInput,
     ) -> impl Future<Output = Result<AuthorizeRequestOutput, CoreError>> + Send;
+    fn authorize_login_action_request(
+        &self,
+        input: AuthorizeRequestInput,
+    ) -> impl Future<Output = Result<AuthorizeRequestOutput, CoreError>> + Send;
     fn authenticate(
         &self,
         input: AuthenticateInput,
