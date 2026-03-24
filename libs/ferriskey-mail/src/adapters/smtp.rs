@@ -94,10 +94,12 @@ impl EmailSender for SmtpEmailSender {
                         .singlepart(SinglePart::plain(body))
                         .singlepart(SinglePart::html(html)),
                 )
-                .map_err(|e| EmailError::MessageBuild(format!("failed to build email message: {e}")))?,
-            None => builder
-                .body(body)
-                .map_err(|e| EmailError::MessageBuild(format!("failed to build email message: {e}")))?,
+                .map_err(|e| {
+                    EmailError::MessageBuild(format!("failed to build email message: {e}"))
+                })?,
+            None => builder.body(body).map_err(|e| {
+                EmailError::MessageBuild(format!("failed to build email message: {e}"))
+            })?,
         };
 
         self.mailer
