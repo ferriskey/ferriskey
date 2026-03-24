@@ -6,12 +6,13 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import PageLogin from '../ui/page-login'
+import PageLogin, { MagicLinkStep } from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
 import { useSendMagicLink } from '@/api/trident.api'
 import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication } from '@/lib/webauthn'
+import { magicLinkSchema, MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schema'
 
 const authenticateSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -75,7 +76,13 @@ export default function PageLoginFeature() {
   const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } = usePasskeyRequestOptionsMutation()
   const { mutateAsync: authenticatePasskeyAsync, mutate: authenticatePasskey } = usePasskeyAuthenticateMutation()
   const { mutate: sendMagicLink, isPending: isMagicLinkLoading } = useSendMagicLink()
+  const [magicLinkStep, setMagicLinkStep] = useState<MagicLinkStep>('idle')
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
+
+  const magicLinkForm = useForm<MagicLinkSchema>({
+    resolver: zodResolver(magicLinkSchema),
+    defaultValues: { email: '' },
+  })
   const [conditionalUIVersion, setConditionalUIVersion] = useState(0)
   const conditionalAbortRef = useRef<AbortController | null>(null)
 
@@ -269,22 +276,24 @@ export default function PageLoginFeature() {
     )
   }, [form, realm_name, requestPasskeyOptions, authenticatePasskey])
 
-  const [showMagicLinkDialog, setShowMagicLinkDialog] = useState(false)
-
   const onMagicLinkLogin = useCallback(() => {
-    setShowMagicLinkDialog(true)
+    setMagicLinkStep('form')
   }, [])
 
-  const onMagicLinkSubmit = useCallback((email: string) => {
+  const onMagicLinkBack = useCallback(() => {
+    setMagicLinkStep('idle')
+    magicLinkForm.reset()
+  }, [magicLinkForm])
+
+  const onMagicLinkSubmit = useCallback((data: MagicLinkSchema) => {
     sendMagicLink(
       {
         path: { realm_name: realm_name ?? 'master' },
-        body: { email },
+        body: { email: data.email },
       },
       {
         onSuccess: () => {
-          setShowMagicLinkDialog(false)
-          toast.success('Check your email for the magic link')
+          setMagicLinkStep('sent')
         },
         onError: () => {
           toast.error('Failed to send magic link')
@@ -403,9 +412,10 @@ export default function PageLoginFeature() {
         isPasskeyLoading={isPasskeyLoading}
         onMagicLinkLogin={loginSettings?.magic_link_enabled ? onMagicLinkLogin : undefined}
         isMagicLinkLoading={isMagicLinkLoading}
-        showMagicLinkDialog={showMagicLinkDialog}
-        onMagicLinkDialogChange={setShowMagicLinkDialog}
+        magicLinkStep={loginSettings?.magic_link_enabled ? magicLinkStep : undefined}
+        magicLinkForm={magicLinkForm}
         onMagicLinkSubmit={onMagicLinkSubmit}
+        onMagicLinkBack={onMagicLinkBack}
       />
       <FloatingActionBar
         show={showFloatingActionBar}
