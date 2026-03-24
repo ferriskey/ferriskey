@@ -1100,13 +1100,33 @@ where
         match self.smtp_config_repository.get_by_realm_id(realm.id).await {
             Ok(Some(smtp_config)) => {
                 let subject = "Your magic link";
+                let magic_link_url = format!(
+                    "{}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
+                    input.base_url, realm.name, magic_token_id, magic_token
+                );
                 let body = format!(
-                    "Click the link below to sign in:\n{}/realms/{}/authentication/magic-link?token_id={}&magic_token={}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
-                    input.base_url, realm.name, magic_token_id, magic_token, ttl_minutes
+                    "Click the link below to sign in:\n{magic_link_url}\n\nThis link expires in {ttl_minutes} minutes.\n\nIf you did not request this, please ignore this email.",
+                );
+                let html_body = format!(
+                    r#"<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:sans-serif;background:#f4f4f5;margin:0;padding:32px 16px">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto">
+    <tr><td style="background:#fff;border-radius:8px;padding:40px 32px;border:1px solid #e4e4e7">
+      <p style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#71717a;margin:0 0 24px">FerrisKey</p>
+      <h1 style="font-size:22px;font-weight:600;color:#09090b;margin:0 0 12px">Sign in to your account</h1>
+      <p style="font-size:14px;color:#71717a;margin:0 0 28px">Click the button below to sign in. This link expires in <strong>{ttl_minutes} minutes</strong>.</p>
+      <a href="{magic_link_url}" style="display:inline-block;background:#09090b;color:#fff;font-size:14px;font-weight:500;text-decoration:none;padding:12px 24px;border-radius:6px">Sign in</a>
+      <p style="font-size:12px;color:#a1a1aa;margin:28px 0 0">If you did not request this, you can safely ignore this email.</p>
+    </td></tr>
+  </table>
+</body>
+</html>"#,
                 );
                 if let Err(e) = self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .send_email(&smtp_config, &user.email, subject, &body, Some(html_body))
                     .await
                 {
                     warn!("Failed to send magic link email: {}", e);
@@ -1301,7 +1321,7 @@ where
                 );
                 if let Err(e) = self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .send_email(&smtp_config, &user.email, subject, &body, None)
                     .await
                 {
                     warn!("Failed to send password reset email: {}", e);
