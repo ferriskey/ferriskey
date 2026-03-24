@@ -77,24 +77,17 @@ export const useChallengeOtp = () => {
   })
 }
 
-export interface SendMagicLinkRequest {
-  email: string
-}
-
-export interface SendMagicLinkResponse {
-  message: string
-}
-
 export const useSendMagicLink = () => {
   return useMutation({
-    mutationFn: async ({ realm, data }: BaseQuery & { data: SendMagicLinkRequest }): Promise<SendMagicLinkResponse> => {
-      const response = await window.axios.post<SendMagicLinkResponse>(
-        `/realms/${realm}/login-actions/send-magic-link`,
-        data
-      )
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/send-magic-link')
+      .mutationOptions,
+  })
+}
 
-      return response.data
-    },
+export const useVerifyMagicLink = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation('get', '/realms/{realm_name}/login-actions/verify-magic-link')
+      .mutationOptions,
   })
 }
 

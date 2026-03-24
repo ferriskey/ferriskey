@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useParams } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
+import { useVerifyMagicLink } from '@/api/trident.api'
 import PageMagicLinkVerify from '../ui/page-magic-link-verify'
 
 type VerifyStatus = 'loading' | 'error'
 
 export default function PageMagicLinkVerifyFeature() {
   const { realm_name } = useParams()
+  const navigate = useNavigate()
   const location = useLocation()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
 
@@ -13,54 +15,46 @@ export default function PageMagicLinkVerifyFeature() {
   const magicToken = searchParams.get('magic_token')
   const missingParams = !tokenId || !magicToken
 
+  // client_id is present after the OAuth redirect loop sets the session cookie
+  const isSessionReady = searchParams.has('client_id')
+
   const [status, setStatus] = useState<VerifyStatus>(missingParams ? 'error' : 'loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(
     missingParams ? 'Missing magic link parameters.' : null
   )
+
+  const { mutateAsync: verifyMagicLink } = useVerifyMagicLink()
+  const hasStartedVerification = useRef(false)
 
   useEffect(() => {
     if (missingParams) return
 
     const realm = realm_name ?? 'master'
 
-    const ensureSession = async () => {
-      const state = crypto.randomUUID()
-      sessionStorage.setItem('oauth_state', state)
-      const callbackUrl = `${window.location.origin}/realms/${realm}/authentication/callback`
+    if (!isSessionReady) {
+      sessionStorage.setItem(
+        'magic_link_pending',
+        JSON.stringify({ token_id: tokenId, magic_token: magicToken })
+      )
+      navigate(`/realms/${realm}/authentication/login`, { replace: true })
+      return
+    }
 
-      const query = new URLSearchParams({
-        response_type: 'code',
-        client_id: 'security-admin-console',
-        redirect_uri: callbackUrl,
-        scope: 'openid profile email',
-        state,
-      }).toString()
+    if (hasStartedVerification.current) return
+    hasStartedVerification.current = true
 
-      await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
-        credentials: 'include',
-        redirect: 'manual',
+    void verifyMagicLink({
+      path: { realm_name: realm },
+      query: { token_id: tokenId, magic_token: magicToken },
+    })
+      .then((data) => {
+        if (data.url) {
+          window.location.href = data.url
+        } else {
+          setErrorMessage('Verification succeeded but no redirect URL was provided.')
+          setStatus('error')
+        }
       })
-    }
-
-    const verify = async () => {
-      const url = `${window.apiUrl}/realms/${realm}/login-actions/verify-magic-link?token_id=${tokenId}&magic_token=${encodeURIComponent(magicToken)}`
-      const res = await fetch(url, { credentials: 'include' })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error((body as { message?: string }).message ?? 'Verification failed')
-      }
-
-      const data: { url?: string } = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('Verification succeeded but no redirect URL was provided.')
-      }
-    }
-
-    ensureSession()
-      .then(() => verify())
       .catch((err: Error) => {
         setErrorMessage(err.message)
         setStatus('error')

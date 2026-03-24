@@ -274,7 +274,10 @@ export default function PageLoginFeature() {
 
   const onMagicLinkSubmit = useCallback((email: string) => {
     sendMagicLink(
-      { realm: realm_name, data: { email } },
+      {
+        path: { realm_name: realm_name ?? 'master' },
+        body: { email },
+      },
       {
         onSuccess: () => {
           setShowMagicLinkDialog(false)
@@ -300,8 +303,25 @@ export default function PageLoginFeature() {
     if (!isAuthInitiated && !loginError) {
       const { query, realm } = getOAuthParams()
       window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      return
     }
-  }, [isAuthInitiated, getOAuthParams, loginError])
+
+    // After OAuth redirect, check if there's a pending magic link verification
+    const pendingMagicLink = sessionStorage.getItem('magic_link_pending')
+    if (isAuthInitiated && pendingMagicLink) {
+      sessionStorage.removeItem('magic_link_pending')
+      try {
+        const { token_id, magic_token } = JSON.parse(pendingMagicLink)
+        const realm = realm_name ?? 'master'
+        navigate(
+          `/realms/${realm}/authentication/magic-link?token_id=${token_id}&magic_token=${encodeURIComponent(magic_token)}&client_id=${clientId}`,
+          { replace: true }
+        )
+      } catch {
+        // Invalid stored data, ignore
+      }
+    }
+  }, [isAuthInitiated, getOAuthParams, loginError, navigate, realm_name, clientId])
 
   const authErrorStatus = (authenticateError as { status?: number } | null)?.status
 
