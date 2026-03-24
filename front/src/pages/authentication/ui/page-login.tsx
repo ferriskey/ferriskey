@@ -252,10 +252,8 @@ function MagicLinkFormView({
                   label='Email address'
                   name='email'
                   type='email'
-                  placeholder='you@example.com'
                   className='w-full'
                   autoComplete='email'
-                  autoFocus
                   error={form.formState.errors.email?.message}
                 />
               )}
