@@ -51,7 +51,7 @@ impl EmailPort for SmtpEmailPort {
         let email_subject = EmailSubject::new(subject.to_string())
             .map_err(|e| CoreError::External(format!("Invalid subject: {e}")))?;
 
-        let message = EmailMessage::new(from, vec![to], email_subject, body.to_string(), None)
+        let message = EmailMessage::new(from, vec![to], email_subject, body.to_string(), html_body)
             .map_err(|e| CoreError::External(format!("Failed to build email: {e}")))?;
 
         sender
