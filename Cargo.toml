@@ -3,6 +3,6 @@ members = ["core", "api", "operator","client", "libs/maskass", "libs/ferriskey-s
 resolver = "2"
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
 edition = "2024"

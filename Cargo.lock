@@ -1444,7 +1444,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "ferriskey-abyss"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "ferriskey-domain",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-aegis"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "ferriskey-domain",
@@ -1473,7 +1473,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -1530,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-compass"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "ferriskey-domain",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-core"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "argon2",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-domain"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "rand 0.8.5",
@@ -1606,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-mail"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "lettre",
  "thiserror 2.0.18",
@@ -1614,7 +1614,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-migrate"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "mockall 0.13.1",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-operator"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "futures",
@@ -1648,7 +1648,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-security"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "argon2",
  "base64 0.22.1",
@@ -1668,7 +1668,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-trident"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "base32",
  "chrono",
@@ -2861,7 +2861,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
 name = "maskass"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "blake3",
  "serde",
