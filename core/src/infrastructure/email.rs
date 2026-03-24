@@ -25,6 +25,7 @@ impl EmailPort for SmtpEmailPort {
         to_email: &str,
         subject: &str,
         body: &str,
+        html_body: Option<String>,
     ) -> Result<(), CoreError> {
         let encryption = match &config.encryption {
             crate::domain::realm::entities::SmtpEncryption::Tls => SmtpEncryption::Tls,
@@ -50,7 +51,7 @@ impl EmailPort for SmtpEmailPort {
         let email_subject = EmailSubject::new(subject.to_string())
             .map_err(|e| CoreError::External(format!("Invalid subject: {e}")))?;
 
-        let message = EmailMessage::new(from, vec![to], email_subject, body.to_string(), None)
+        let message = EmailMessage::new(from, vec![to], email_subject, body.to_string(), html_body)
             .map_err(|e| CoreError::External(format!("Failed to build email: {e}")))?;
 
         sender

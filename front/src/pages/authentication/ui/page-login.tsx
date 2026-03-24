@@ -1,13 +1,11 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormField } from '@/components/ui/form'
 import { UseFormReturn } from 'react-hook-form'
 import { AuthenticateSchema } from '@/pages/authentication/feature/page-login-feature'
+import { MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schema'
 import { cn } from '@/lib/utils'
 import { InputText } from '@/components/ui/input-text'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Link, useParams } from 'react-router'
 import { Schemas } from '@/api/api.client'
 import RealmLoginSetting = Schemas.RealmLoginSetting
@@ -15,8 +13,9 @@ import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'
 import { Separator } from '@/components/ui/separator'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '@/components/ui/dialog'
-import { KeyRound, Mail } from 'lucide-react'
+import { ArrowLeft, KeyRound, Mail } from 'lucide-react'
+
+export type MagicLinkStep = 'idle' | 'form' | 'sent'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -29,12 +28,28 @@ export interface PageLoginProps {
   isPasskeyLoading?: boolean
   onMagicLinkLogin?: () => void
   isMagicLinkLoading?: boolean
-  showMagicLinkDialog?: boolean
-  onMagicLinkDialogChange?: (open: boolean) => void
-  onMagicLinkSubmit?: (email: string) => void
+  magicLinkStep?: MagicLinkStep
+  magicLinkForm?: UseFormReturn<MagicLinkSchema>
+  onMagicLinkSubmit?: (data: MagicLinkSchema) => void
+  onMagicLinkBack?: () => void
 }
 
-export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage, onPasskeyLogin, isPasskeyLoading, onMagicLinkLogin, isMagicLinkLoading, showMagicLinkDialog, onMagicLinkDialogChange, onMagicLinkSubmit }: PageLoginProps) {
+export default function PageLogin({
+  form,
+  onSubmit,
+  isError,
+  isLoading,
+  loginSettings,
+  errorMessage,
+  onPasskeyLogin,
+  isPasskeyLoading,
+  onMagicLinkLogin,
+  isMagicLinkLoading,
+  magicLinkStep,
+  magicLinkForm,
+  onMagicLinkSubmit,
+  onMagicLinkBack,
+}: PageLoginProps) {
   const { realm_name } = useParams()
 
   if (isError) return <ErrorMessage />
@@ -49,197 +64,244 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
         <div className={cn('flex flex-col gap-6')}>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
             <CardContent className='grid gap-0 p-0'>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                  <div className='p-8 md:p-10'>
-                    <div className='flex flex-col gap-7'>
-                      <div className='space-y-2'>
-                        <div className='flex items-center gap-3'>
-                          <img
-                            src='/logo_ferriskey.png'
-                            alt='FerrisKey'
-                            className='h-7 w-7 object-contain'
+              {magicLinkStep === 'form' && magicLinkForm && onMagicLinkSubmit ? (
+                <MagicLinkFormView
+                  form={magicLinkForm}
+                  onSubmit={onMagicLinkSubmit}
+                  onBack={onMagicLinkBack}
+                  isLoading={isMagicLinkLoading}
+                />
+              ) : magicLinkStep === 'sent' ? (
+                <MagicLinkSentView onBack={onMagicLinkBack} />
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <div className='p-8 md:p-10'>
+                      <div className='flex flex-col gap-7'>
+                        <div className='space-y-2'>
+                          <div className='flex items-center gap-3'>
+                            <img
+                              src='/logo_ferriskey.png'
+                              alt='FerrisKey'
+                              className='h-7 w-7 object-contain'
+                            />
+                            <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                              FerrisKey
+                            </p>
+                          </div>
+                          <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                            {realm_name?.toUpperCase() ?? 'Login'}
+                          </h1>
+                        </div>
+                        {errorMessage && (
+                          <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
+                            {errorMessage}
+                          </div>
+                        )}
+                        <div className='grid gap-3'>
+                          <FormField
+                            control={form.control}
+                            name='username'
+                            render={({ field }) => (
+                              <InputText
+                                {...field}
+                                label='Username'
+                                name='username'
+                                className='w-full'
+                                autoComplete={loginSettings?.passkey_enabled ? 'username webauthn' : 'username'}
+                                error={form.formState.errors.username?.message}
+                              />
+                            )}
                           />
-                          <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                            FerrisKey
-                          </p>
                         </div>
-                        <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                          {realm_name?.toUpperCase() ?? 'Login'}
-                        </h1>
-                      </div>
-                      {errorMessage && (
-                        <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
-                          {errorMessage}
+                        <div className='grid gap-3'>
+                          <FormField
+                            control={form.control}
+                            name='password'
+                            render={({ field }) => (
+                              <InputText
+                                {...field}
+                                label='Password'
+                                name='password'
+                                type='password'
+                                className='w-full'
+                                error={form.formState.errors.password?.message}
+                              />
+                            )}
+                          />
+                          {loginSettings?.forgot_password_enabled && (
+                            <div className='flex items-center'>
+                              <Link
+                                to={'../forgot-password'}
+                                className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
+                              >
+                                Forgot your password?
+                              </Link>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className='grid gap-3'>
-                        <FormField
-                          control={form.control}
-                          name='username'
-                          render={({ field }) => (
-                            <InputText
-                              {...field}
-                              label='Username'
-                              name='username'
-                              className='w-full'
-                              autoComplete={loginSettings?.passkey_enabled ? 'username webauthn' : 'username'}
-                              error={form.formState.errors.username?.message}
-                            />
-                          )}
-                        />
-                      </div>
-                      <div className='grid gap-3'>
-                        <FormField
-                          control={form.control}
-                          name='password'
-                          render={({ field }) => (
-                            <InputText
-                              {...field}
-                              label='Password'
-                              name='password'
-                              type='password'
-                              className='w-full'
-                              error={form.formState.errors.password?.message}
-                            />
-                          )}
-                        />
-                        {loginSettings?.forgot_password_enabled && (
-                          <div className='flex items-center'>
-                            <Link
-                              to={'../forgot-password'}
-                              className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
-                            >
-                              Forgot your password?
-                            </Link>
-                          </div>
+                        <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
+                          Login
+                        </Button>
+                        {(onPasskeyLogin || onMagicLinkLogin) && (
+                          <>
+                            <div className='relative'>
+                              <Separator />
+                              <span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground'>
+                                or
+                              </span>
+                            </div>
+                            <div className='flex flex-col gap-2'>
+                              {onPasskeyLogin && (
+                                <Button
+                                  type='button'
+                                  variant='outline'
+                                  className='w-full rounded-lg py-5 text-sm'
+                                  onClick={onPasskeyLogin}
+                                  disabled={isPasskeyLoading}
+                                >
+                                  <KeyRound className='mr-2 h-4 w-4' />
+                                  Sign in with a passkey
+                                </Button>
+                              )}
+                              {onMagicLinkLogin && (
+                                <Button
+                                  type='button'
+                                  variant='outline'
+                                  className='w-full rounded-lg py-5 text-sm'
+                                  onClick={onMagicLinkLogin}
+                                  disabled={isMagicLinkLoading}
+                                >
+                                  <Mail className='mr-2 h-4 w-4' />
+                                  Sign in with a magic link
+                                </Button>
+                              )}
+                            </div>
+                          </>
                         )}
-                      </div>
-                      <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
-                        Login
-                      </Button>
-                      {(onPasskeyLogin || onMagicLinkLogin) && (
-                        <>
-                          <div className='relative'>
-                            <Separator />
-                            <span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground'>
-                              or
-                            </span>
-                          </div>
-                          <div className='flex flex-col gap-2'>
-                            {onPasskeyLogin && (
-                              <Button
-                                type='button'
-                                variant='outline'
-                                className='w-full rounded-lg py-5 text-sm'
-                                onClick={onPasskeyLogin}
-                                disabled={isPasskeyLoading}
-                              >
-                                <KeyRound className='mr-2 h-4 w-4' />
-                                Sign in with a passkey
-                              </Button>
-                            )}
-                            {onMagicLinkLogin && (
-                              <Button
-                                type='button'
-                                variant='outline'
-                                className='w-full rounded-lg py-5 text-sm'
-                                onClick={onMagicLinkLogin}
-                                disabled={isMagicLinkLoading}
-                              >
-                                <Mail className='mr-2 h-4 w-4' />
-                                Sign in with a magic link
-                              </Button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                      <div className='space-y-4'>
-                        <LoginProviders providers={providers} />
-                        {loginSettings.user_registration_enabled && (
-                          <div className='text-center text-xs text-muted-foreground md:text-sm'>
-                            Don&apos;t have an account?{' '}
-                            <Link to={'../register'} className='font-semibold text-foreground underline underline-offset-4'>
-                              Sign up
-                            </Link>
-                          </div>
-                        )}
+                        <div className='space-y-4'>
+                          <LoginProviders providers={providers} />
+                          {loginSettings.user_registration_enabled && (
+                            <div className='text-center text-xs text-muted-foreground md:text-sm'>
+                              Don&apos;t have an account?{' '}
+                              <Link to={'../register'} className='font-semibold text-foreground underline underline-offset-4'>
+                                Sign up
+                              </Link>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </form>
-              </Form>
+                  </form>
+                </Form>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
-      {onMagicLinkSubmit && (
-        <MagicLinkDialog
-          open={showMagicLinkDialog ?? false}
-          onOpenChange={onMagicLinkDialogChange ?? (() => {})}
-          onSubmit={onMagicLinkSubmit}
-          isLoading={isMagicLinkLoading}
-        />
-      )}
     </div>
   )
 }
 
-function MagicLinkDialog({
-  open,
-  onOpenChange,
+function MagicLinkFormView({
+  form,
   onSubmit,
+  onBack,
   isLoading,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSubmit: (email: string) => void
+  form: UseFormReturn<MagicLinkSchema>
+  onSubmit: (data: MagicLinkSchema) => void
+  onBack?: () => void
   isLoading?: boolean
 }) {
-  const [email, setEmail] = useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (email.trim()) {
-      onSubmit(email.trim())
-    }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Sign in with a magic link</DialogTitle>
-          <DialogDescription>
-            Enter your email address and we&apos;ll send you a link to sign in.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <DialogBody>
-            <div className='grid gap-2'>
-              <Label htmlFor='magic-link-email'>Email</Label>
-              <Input
-                id='magic-link-email'
-                type='email'
-                placeholder='you@example.com'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className='p-8 md:p-10'>
+          <div className='flex flex-col gap-7'>
+            <div className='space-y-2'>
+              {onBack && (
+                <button
+                  type='button'
+                  onClick={onBack}
+                  className='mb-1 flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground'
+                >
+                  <ArrowLeft className='h-3 w-3' />
+                  Back to login
+                </button>
+              )}
+              <div className='flex items-center gap-3'>
+                <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-7 w-7 object-contain' />
+                <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                  FerrisKey
+                </p>
+              </div>
+              <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                Sign in by email
+              </h1>
+              <p className='text-sm text-muted-foreground'>
+                Enter your email address and we&apos;ll send you a link to sign in instantly.
+              </p>
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type='submit' disabled={isLoading || !email.trim()}>
+            <FormField
+              control={form.control}
+              name='email'
+              render={({ field }) => (
+                <InputText
+                  {...field}
+                  label='Email address'
+                  name='email'
+                  type='email'
+                  className='w-full'
+                  autoComplete='email'
+                  error={form.formState.errors.email?.message}
+                />
+              )}
+            />
+            <Button
+              type='submit'
+              className='w-full rounded-lg py-5 text-sm'
+              disabled={isLoading}
+            >
               {isLoading ? 'Sending...' : 'Send magic link'}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+        </div>
+      </form>
+    </Form>
+  )
+}
+
+function MagicLinkSentView({ onBack }: { onBack?: () => void }) {
+  return (
+    <div className='p-8 md:p-10'>
+      <div className='flex flex-col items-center gap-6 text-center'>
+        <div className='flex items-center gap-3 self-start'>
+          <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-7 w-7 object-contain' />
+          <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+            FerrisKey
+          </p>
+        </div>
+        <div className='flex h-14 w-14 items-center justify-center rounded-full bg-primary/10'>
+          <Mail className='h-7 w-7 text-primary' />
+        </div>
+        <div className='space-y-2'>
+          <h1 className='text-2xl font-semibold tracking-tight text-foreground'>Check your inbox</h1>
+          <p className='text-sm text-muted-foreground'>
+            We sent a magic link to your email address. Click the link to sign in — no password needed.
+          </p>
+          <p className='text-xs text-muted-foreground'>
+            The link expires in 15 minutes. Check your spam folder if you don&apos;t see it.
+          </p>
+        </div>
+        {onBack && (
+          <Button variant='outline' onClick={onBack} className='w-full rounded-lg py-5 text-sm'>
+            <ArrowLeft className='mr-2 h-4 w-4' />
+            Back to login
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }
 
