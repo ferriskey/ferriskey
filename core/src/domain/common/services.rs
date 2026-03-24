@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use url::Url;
 
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 
@@ -363,18 +364,40 @@ where
             .base_url
             .as_deref()
             .map(str::trim)
-            .filter(|value| !value.is_empty());
+            .filter(|value| !value.is_empty())
+            .and_then(|url_str| {
+                match Url::parse(url_str) {
+                    Ok(url) => {
+                        // Validate that it has a scheme (http or https) and a host
+                        if (url.scheme() == "http" || url.scheme() == "https")
+                            && url.host().is_some()
+                        {
+                            Some(url)
+                        } else {
+                            tracing::warn!(
+                                "Invalid base_url: must have http/https scheme and host - {}",
+                                url_str
+                            );
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to parse base_url '{}' as URL: {}", url_str, e);
+                        None
+                    }
+                }
+            });
 
         let admin_redirect_uris: Vec<String> = if let Some(base_url) = configured_base_url {
-            let base_url = base_url.trim_end_matches('/');
+            let base_url_str = base_url.as_str().trim_end_matches('/').to_string();
             vec![
                 format!(
                     "{}/realms/{}/authentication/callback",
-                    base_url, config.master_realm_name
+                    base_url_str, config.master_realm_name
                 ),
                 format!(
                     "{}/realms/{}/authentication/login",
-                    base_url, config.master_realm_name
+                    base_url_str, config.master_realm_name
                 ),
             ]
         } else {
@@ -420,8 +443,20 @@ where
         let login_path = format!("/realms/{}/authentication/login", config.master_realm_name);
 
         for existing_uri in existing_uris.iter() {
-            let matches_path = existing_uri.value.ends_with(&callback_path)
-                || existing_uri.value.ends_with(&login_path);
+            let matches_path = match Url::parse(&existing_uri.value) {
+                Ok(url) => {
+                    let path = url.path();
+                    path == callback_path || path == login_path
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to parse existing URI '{}' for path matching: {}",
+                        existing_uri.value,
+                        e
+                    );
+                    false
+                }
+            };
 
             if admin_redirect_uris.contains(&existing_uri.value)
                 && matches_path

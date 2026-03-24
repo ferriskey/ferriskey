@@ -43,7 +43,17 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
             code_challenge: model.code_challenge,
-            code_challenge_method: model.code_challenge_method.and_then(|s| s.parse().ok()),
+            code_challenge_method: model.code_challenge_method.and_then(|s| {
+                s.parse()
+                    .map_err(|_| {
+                        tracing::warn!(
+                            "Invalid code_challenge_method '{}' in auth_session {}",
+                            s,
+                            model.id
+                        );
+                    })
+                    .ok()
+            }),
         }
     }
 }
@@ -134,7 +144,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .await
             .map_err(|e| {
                 error!("Error getting session for consumption: {:?}", e);
-                AuthenticationError::NotFound
+                AuthenticationError::InternalServerError
             })?;
 
         if let Some(session_model) = session {
@@ -145,7 +155,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 .await
                 .map_err(|e| {
                     error!("Error deleting consumed session: {:?}", e);
-                    AuthenticationError::NotFound
+                    AuthenticationError::InternalServerError
                 })?;
 
             if delete_result.rows_affected == 0 {

@@ -605,7 +605,8 @@ where
             .consume_by_code(code.clone())
             .await
             .map_err(|e| {
-                warn!("Auth session not found for code {}: {:?}", code, e);
+                let code_fingerprint = &format!("{:x}", Sha256::digest(code.as_bytes()))[..12];
+                warn!(code_fingerprint = %code_fingerprint, error = ?e, "Auth session not found for code");
 
                 CoreError::MissingAuthorizationCode
             })?
