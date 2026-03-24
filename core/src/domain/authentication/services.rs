@@ -1700,12 +1700,14 @@ where
         let identity: Identity = match input.claims.is_service_account() {
             true => {
                 let client_id = input.claims.client_id.ok_or(CoreError::InvalidClient)?;
-                let client_id = Uuid::parse_str(&client_id).map_err(|e| {
-                    tracing::error!("failed to parse client id: {:?}", e);
-                    CoreError::InvalidClient
-                })?;
-
-                let client = self.client_repository.get_by_id(client_id).await?;
+                let client = self
+                    .client_repository
+                    .get_by_client_id(client_id, user.realm_id)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("failed to find client: {:?}", e);
+                        CoreError::InvalidClient
+                    })?;
 
                 Identity::Client(client)
             }

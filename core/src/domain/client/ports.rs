@@ -11,6 +11,33 @@ pub use mocks::{
     MockClientRepository, MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
 };
 
+pub trait PostLogoutRedirectUriRepository: Send + Sync {
+    fn create_redirect_uri(
+        &self,
+        client_id: Uuid,
+        value: String,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn get_enabled_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
+
+    fn update_enabled(
+        &self,
+        id: Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
 #[cfg(test)]
 mod mocks {
     use mockall::mock;
@@ -112,31 +139,4 @@ mod mocks {
             fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
         }
     }
-}
-
-pub trait PostLogoutRedirectUriRepository: Send + Sync {
-    fn create_redirect_uri(
-        &self,
-        client_id: Uuid,
-        value: String,
-        enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn get_enabled_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn update_enabled(
-        &self,
-        id: Uuid,
-        enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
