@@ -25,6 +25,7 @@ impl EmailPort for SmtpEmailPort {
         to_email: &str,
         subject: &str,
         body: &str,
+        html_body: Option<String>,
     ) -> Result<(), CoreError> {
         let encryption = match &config.encryption {
             crate::domain::realm::entities::SmtpEncryption::Tls => SmtpEncryption::Tls,

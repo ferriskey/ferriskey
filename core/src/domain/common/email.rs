@@ -8,5 +8,6 @@ pub trait EmailPort: Send + Sync {
         to_email: &str,
         subject: &str,
         body: &str,
+        html_body: Option<String>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
