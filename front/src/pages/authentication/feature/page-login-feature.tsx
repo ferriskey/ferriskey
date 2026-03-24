@@ -10,6 +10,7 @@ import PageLogin from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
+import { useSendMagicLink } from '@/api/trident.api'
 import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication } from '@/lib/webauthn'
 
 const authenticateSchema = z.object({
@@ -73,6 +74,7 @@ export default function PageLoginFeature() {
 
   const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } = usePasskeyRequestOptionsMutation()
   const { mutateAsync: authenticatePasskeyAsync, mutate: authenticatePasskey } = usePasskeyAuthenticateMutation()
+  const { mutate: sendMagicLink, isPending: isMagicLinkLoading } = useSendMagicLink()
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
   const conditionalAbortRef = useRef<AbortController | null>(null)
 
@@ -264,6 +266,27 @@ export default function PageLoginFeature() {
     )
   }, [form, realm_name, requestPasskeyOptions, authenticatePasskey])
 
+  const [showMagicLinkDialog, setShowMagicLinkDialog] = useState(false)
+
+  const onMagicLinkLogin = useCallback(() => {
+    setShowMagicLinkDialog(true)
+  }, [])
+
+  const onMagicLinkSubmit = useCallback((email: string) => {
+    sendMagicLink(
+      { realm: realm_name, data: { email } },
+      {
+        onSuccess: () => {
+          setShowMagicLinkDialog(false)
+          toast.success('Check your email for the magic link')
+        },
+        onError: () => {
+          toast.error('Failed to send magic link')
+        },
+      }
+    )
+  }, [realm_name, sendMagicLink])
+
   function onSubmit(data: AuthenticateSchema) {
     const { clientId } = getAuthParamsFromUrl()
     authenticate({
@@ -355,6 +378,11 @@ export default function PageLoginFeature() {
         errorMessage={errorMessage}
         onPasskeyLogin={loginSettings?.passkey_enabled ? onPasskeyLogin : undefined}
         isPasskeyLoading={isPasskeyLoading}
+        onMagicLinkLogin={loginSettings?.magic_link_enabled ? onMagicLinkLogin : undefined}
+        isMagicLinkLoading={isMagicLinkLoading}
+        showMagicLinkDialog={showMagicLinkDialog}
+        onMagicLinkDialogChange={setShowMagicLinkDialog}
+        onMagicLinkSubmit={onMagicLinkSubmit}
       />
       <FloatingActionBar
         show={showFloatingActionBar}

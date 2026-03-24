@@ -139,6 +139,7 @@ pub struct BurnRecoveryCodeOutput {
 pub struct MagicLinkInput {
     pub realm_name: String,
     pub email: String,
+    pub base_url: String,
 }
 
 pub struct VerifyMagicLinkInput {

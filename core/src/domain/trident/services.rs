@@ -1101,8 +1101,8 @@ where
             Ok(Some(smtp_config)) => {
                 let subject = "Your magic link";
                 let body = format!(
-                    "Your magic link token: {}\nThis link expires in {} minutes.",
-                    magic_token, ttl_minutes
+                    "Click the link below to sign in:\n{}/realms/{}/authentication/magic-link?token_id={}&magic_token={}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
+                    input.base_url, realm.name, magic_token_id, magic_token, ttl_minutes
                 );
                 if let Err(e) = self
                     .email_port
@@ -1115,8 +1115,8 @@ where
             _ => {
                 warn!("SMTP not configured for realm, logging magic link instead");
                 debug!(
-                    "Magic link token_id: {}, token: {}",
-                    magic_token_id, magic_token
+                    "Magic link URL: {}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
+                    input.base_url, realm.name, magic_token_id, magic_token
                 );
             }
         }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormField } from '@/components/ui/form'
@@ -5,6 +6,8 @@ import { UseFormReturn } from 'react-hook-form'
 import { AuthenticateSchema } from '@/pages/authentication/feature/page-login-feature'
 import { cn } from '@/lib/utils'
 import { InputText } from '@/components/ui/input-text'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Link, useParams } from 'react-router'
 import { Schemas } from '@/api/api.client'
 import RealmLoginSetting = Schemas.RealmLoginSetting
@@ -12,7 +15,8 @@ import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'
 import { Separator } from '@/components/ui/separator'
-import { KeyRound } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '@/components/ui/dialog'
+import { KeyRound, Mail } from 'lucide-react'
 
 export interface PageLoginProps {
   form: UseFormReturn<AuthenticateSchema>
@@ -23,9 +27,14 @@ export interface PageLoginProps {
   errorMessage?: string | null
   onPasskeyLogin?: () => void
   isPasskeyLoading?: boolean
+  onMagicLinkLogin?: () => void
+  isMagicLinkLoading?: boolean
+  showMagicLinkDialog?: boolean
+  onMagicLinkDialogChange?: (open: boolean) => void
+  onMagicLinkSubmit?: (email: string) => void
 }
 
-export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage, onPasskeyLogin, isPasskeyLoading }: PageLoginProps) {
+export default function PageLogin({ form, onSubmit, isError, isLoading, loginSettings, errorMessage, onPasskeyLogin, isPasskeyLoading, onMagicLinkLogin, isMagicLinkLoading, showMagicLinkDialog, onMagicLinkDialogChange, onMagicLinkSubmit }: PageLoginProps) {
   const { realm_name } = useParams()
 
   if (isError) return <ErrorMessage />
@@ -109,7 +118,7 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                       <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
                         Login
                       </Button>
-                      {loginSettings?.passkey_enabled && onPasskeyLogin && (
+                      {(onPasskeyLogin || onMagicLinkLogin) && (
                         <>
                           <div className='relative'>
                             <Separator />
@@ -117,16 +126,32 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
                               or
                             </span>
                           </div>
-                          <Button
-                            type='button'
-                            variant='outline'
-                            className='w-full rounded-lg py-5 text-sm'
-                            onClick={onPasskeyLogin}
-                            disabled={isPasskeyLoading}
-                          >
-                            <KeyRound className='mr-2 h-4 w-4' />
-                            Sign in with a passkey
-                          </Button>
+                          <div className='flex flex-col gap-2'>
+                            {onPasskeyLogin && (
+                              <Button
+                                type='button'
+                                variant='outline'
+                                className='w-full rounded-lg py-5 text-sm'
+                                onClick={onPasskeyLogin}
+                                disabled={isPasskeyLoading}
+                              >
+                                <KeyRound className='mr-2 h-4 w-4' />
+                                Sign in with a passkey
+                              </Button>
+                            )}
+                            {onMagicLinkLogin && (
+                              <Button
+                                type='button'
+                                variant='outline'
+                                className='w-full rounded-lg py-5 text-sm'
+                                onClick={onMagicLinkLogin}
+                                disabled={isMagicLinkLoading}
+                              >
+                                <Mail className='mr-2 h-4 w-4' />
+                                Sign in with a magic link
+                              </Button>
+                            )}
+                          </div>
                         </>
                       )}
                       <div className='space-y-4'>
@@ -148,7 +173,73 @@ export default function PageLogin({ form, onSubmit, isError, isLoading, loginSet
           </Card>
         </div>
       </div>
+      {onMagicLinkSubmit && (
+        <MagicLinkDialog
+          open={showMagicLinkDialog ?? false}
+          onOpenChange={onMagicLinkDialogChange ?? (() => {})}
+          onSubmit={onMagicLinkSubmit}
+          isLoading={isMagicLinkLoading}
+        />
+      )}
     </div>
+  )
+}
+
+function MagicLinkDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  isLoading,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (email: string) => void
+  isLoading?: boolean
+}) {
+  const [email, setEmail] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (email.trim()) {
+      onSubmit(email.trim())
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Sign in with a magic link</DialogTitle>
+          <DialogDescription>
+            Enter your email address and we&apos;ll send you a link to sign in.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <DialogBody>
+            <div className='grid gap-2'>
+              <Label htmlFor='magic-link-email'>Email</Label>
+              <Input
+                id='magic-link-email'
+                type='email'
+                placeholder='you@example.com'
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type='submit' disabled={isLoading || !email.trim()}>
+              {isLoading ? 'Sending...' : 'Send magic link'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
