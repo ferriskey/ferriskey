@@ -10,6 +10,7 @@ use crate::domain::authentication::{
     entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
 };
+use crate::domain::realm::entities::RealmId;
 
 impl From<crate::entity::auth_sessions::Model> for AuthSession {
     fn from(model: crate::entity::auth_sessions::Model) -> Self {
@@ -42,6 +43,18 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge,
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
+            code_challenge: model.code_challenge,
+            code_challenge_method: model.code_challenge_method.and_then(|s| {
+                s.parse()
+                    .map_err(|_| {
+                        tracing::warn!(
+                            "Invalid code_challenge_method '{}' in auth_session {}",
+                            s,
+                            model.id
+                        );
+                    })
+                    .ok()
+            }),
         }
     }
 }
@@ -76,6 +89,10 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             webauthn_challenge: Set(None),
             webauthn_challenge_issued_at: Set(None),
             compass_flow_id: Set(session.compass_flow_id),
+            code_challenge: Set(session.code_challenge.clone()),
+            code_challenge_method: Set(session
+                .code_challenge_method
+                .map(|m| m.as_str().to_string())),
         };
 
         let t = model
@@ -108,19 +125,61 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
-    async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthenticationError> {
+    async fn consume_by_code(
+        &self,
+        code: String,
+        realm_id: RealmId,
+    ) -> Result<Option<AuthSession>, AuthenticationError> {
+        use sea_orm::TransactionTrait;
+
+        let txn = self.db.begin().await.map_err(|e| {
+            error!("Error beginning transaction: {:?}", e);
+            AuthenticationError::InternalServerError
+        })?;
+
+        use sea_orm::QuerySelect;
+
+        let now = Utc::now().naive_utc();
+        let realm_uuid: Uuid = realm_id.into();
+
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Code.eq(code))
-            .one(&self.db)
+            .filter(crate::entity::auth_sessions::Column::RealmId.eq(realm_uuid))
+            .filter(crate::entity::auth_sessions::Column::ExpiresAt.gt(now))
+            .lock_exclusive()
+            .one(&txn)
             .await
             .map_err(|e| {
-                error!("Error getting session: {:?}", e);
-                AuthenticationError::NotFound
+                error!("Error getting session for consumption: {:?}", e);
+                AuthenticationError::InternalServerError
             })?;
 
-        let session: Option<AuthSession> = session.map(|s| s.into());
+        if let Some(session_model) = session {
+            let session: AuthSession = session_model.into();
 
-        Ok(session)
+            let delete_result = crate::entity::auth_sessions::Entity::delete_by_id(session.id)
+                .exec(&txn)
+                .await
+                .map_err(|e| {
+                    error!("Error deleting consumed session: {:?}", e);
+                    AuthenticationError::InternalServerError
+                })?;
+
+            if delete_result.rows_affected == 0 {
+                let _ = txn.rollback().await;
+                return Ok(None);
+            }
+
+            txn.commit().await.map_err(|e| {
+                error!("Error committing transaction: {:?}", e);
+                AuthenticationError::InternalServerError
+            })?;
+
+            Ok(Some(session))
+        } else {
+            let _ = txn.rollback().await;
+            Ok(None)
+        }
     }
 
     async fn update_code_and_user_id(

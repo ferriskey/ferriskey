@@ -1,16 +1,11 @@
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderValue, StatusCode, header::LOCATION, header::SET_COOKIE},
+    http::{StatusCode, header::LOCATION},
     response::IntoResponse,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite};
 
 use ferriskey_core::domain::abyss::identity_provider::broker::{
     BrokerCallbackInput, BrokerService,
-};
-use ferriskey_core::domain::authentication::{
-    entities::{ExchangeTokenInput, GrantType},
-    ports::AuthService,
 };
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
@@ -82,45 +77,6 @@ pub async fn broker_callback(
         }
         Err(e) => return Err(e.into()),
     };
-
-    if let Ok(jwt_token) = state
-        .service
-        .exchange_token(ExchangeTokenInput {
-            realm_name,
-            client_id: result.client_id.clone(),
-            client_secret: None,
-            code: Some(result.authorization_code.clone()),
-            username: None,
-            password: None,
-            refresh_token: None,
-            base_url: root_scoped_base_url,
-            grant_type: GrantType::Code,
-            scope: None,
-        })
-        .await
-    {
-        let mut identity_cookie =
-            Cookie::build(("FERRISKEY_IDENTITY", jwt_token.access_token().to_string()))
-                .path("/")
-                .http_only(true)
-                .same_site(SameSite::Lax);
-
-        if base_url.starts_with("https://") {
-            identity_cookie = identity_cookie.secure(true);
-        }
-
-        let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
-            .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
-
-        let response = axum::response::Response::builder()
-            .status(StatusCode::FOUND)
-            .header(LOCATION, result.redirect_url)
-            .header(SET_COOKIE, cookie_value)
-            .body(axum::body::Body::empty())
-            .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
-
-        return Ok(response.into_response());
-    }
 
     Ok((StatusCode::FOUND, [(LOCATION, result.redirect_url)]).into_response())
 }
