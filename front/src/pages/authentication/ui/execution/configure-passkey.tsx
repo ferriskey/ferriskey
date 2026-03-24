@@ -12,13 +12,13 @@ export interface ConfigurePasskeyProps {
 
 export default function ConfigurePasskey({ onRegister, isLoading, isSuccess }: ConfigurePasskeyProps) {
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900'>
+    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:bg-none dark:bg-black'>
       <div className='container mx-auto px-4 py-8'>
         <div className='max-w-lg mx-auto'>
           <div className='text-center mb-8'>
             <div className='flex justify-center mb-4'>
-              <div className='p-3 bg-primary dark:bg-primary/30 rounded-full'>
-                <Fingerprint className='h-8 w-8 text-[#19323C] dark:text-white' />
+              <div className='p-3 bg-primary/10 dark:bg-primary/30 rounded-full'>
+                <Fingerprint className='h-8 w-8 text-primary dark:text-white' />
               </div>
             </div>
             <Heading size={2} className='mb-2 text-center'>
