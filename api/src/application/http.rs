@@ -4,7 +4,7 @@ pub mod authentication;
 pub mod broker;
 pub mod client;
 pub mod compass;
-
+pub mod email_template;
 pub mod error;
 pub mod health;
 pub mod realm;
