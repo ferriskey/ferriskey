@@ -647,6 +647,11 @@ where
             })?
             .ok_or(CoreError::NotFound)?;
 
+        if auth_session.authenticated {
+            warn!("Authorization code {} has already been used", code);
+            return Err(CoreError::InvalidToken);
+        }
+
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
@@ -719,6 +724,14 @@ where
                 Some(user_id),
             );
         }
+
+        self.auth_session_repository
+            .update_authenticated(auth_session.id, true)
+            .await
+            .map_err(|e| {
+                warn!("Failed to mark auth session as authenticated: {:?}", e);
+                CoreError::InternalServerError
+            })?;
 
         let id_token_value = id_token.map(|t| t.token);
 
