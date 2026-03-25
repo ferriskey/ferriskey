@@ -1830,7 +1830,7 @@ where
             return Err(CoreError::SessionExpired);
         }
 
-        if auth_session.user_id.is_some() {
+        if auth_session.user_id.is_some() && auth_session.authenticated {
             return Err(CoreError::InvalidSession);
         }
 
