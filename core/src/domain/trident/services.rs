@@ -1030,10 +1030,16 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        self.user_required_action_repository
+        if let Err(e) = self
+            .user_required_action_repository
             .remove_required_action(user.id, RequiredAction::ConfigureOtp)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        {
+            warn!(
+                user_id = %user.id,
+                "Failed to remove ConfigureOtp required action after OTP setup: {e:?}"
+            );
+        }
 
         Ok(VerifyOtpOutput {
             message: "OTP verified successfully".to_string(),
