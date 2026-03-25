@@ -14,6 +14,7 @@ pub mod compass_flow_steps;
 pub mod compass_flows;
 pub mod credentials;
 pub mod data_migrations;
+pub mod email_templates;
 pub mod identity_provider_links;
 pub mod identity_providers;
 pub mod jwt_keys;

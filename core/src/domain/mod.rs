@@ -7,6 +7,7 @@ pub mod common;
 pub mod compass;
 pub mod credential;
 pub mod crypto;
+pub mod email_template;
 pub mod health;
 pub mod jwt;
 pub mod password_policy;

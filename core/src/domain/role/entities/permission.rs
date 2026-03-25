@@ -38,6 +38,9 @@ pub enum Permissions {
     ManageClientScopes = 1 << 22, // 1 << 22
     QueryClientScopes = 1 << 23,  // 1 << 23
     ViewClientScopes = 1 << 24,   // 1 << 24
+
+    ManageEmailTemplates = 1 << 25, // 1 << 25
+    ViewEmailTemplates = 1 << 26,   // 1 << 26
 }
 
 impl Permissions {
@@ -68,6 +71,8 @@ impl Permissions {
             Self::ManageClientScopes,
             Self::QueryClientScopes,
             Self::ViewClientScopes,
+            Self::ManageEmailTemplates,
+            Self::ViewEmailTemplates,
         ];
 
         all_permissions
@@ -104,6 +109,8 @@ impl Permissions {
             Self::ManageClientScopes => "manage_client_scopes".to_string(),
             Self::QueryClientScopes => "query_client_scopes".to_string(),
             Self::ViewClientScopes => "view_client_scopes".to_string(),
+            Self::ManageEmailTemplates => "manage_email_templates".to_string(),
+            Self::ViewEmailTemplates => "view_email_templates".to_string(),
         }
     }
 
@@ -159,6 +166,8 @@ impl Permissions {
             "manage_client_scopes" => Some(Self::ManageClientScopes),
             "query_client_scopes" => Some(Self::QueryClientScopes),
             "view_client_scopes" => Some(Self::ViewClientScopes),
+            "manage_email_templates" => Some(Self::ManageEmailTemplates),
+            "view_email_templates" => Some(Self::ViewEmailTemplates),
             _ => None,
         }
     }

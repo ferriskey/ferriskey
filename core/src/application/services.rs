@@ -18,6 +18,7 @@ use crate::{
         },
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
+        email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
         password_policy::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
@@ -48,6 +49,10 @@ use crate::{
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
         email::SmtpEmailPort,
+        email_template::{
+            renderer::mjml_renderer::MjmlTemplateRenderer,
+            repositories::email_template_repository::PostgresEmailTemplateRepository,
+        },
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
@@ -114,6 +119,8 @@ type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
+type EmailTemplateRepo = PostgresEmailTemplateRepository;
+type MjmlRenderer = MjmlTemplateRenderer;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -275,6 +282,14 @@ pub struct ApplicationService {
         UserRoleRepo,
         CompassFlowRepo,
         CompassFlowStepRepo,
+    >,
+    pub(crate) email_template_service: EmailTemplateServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        EmailTemplateRepo,
+        MjmlRenderer,
     >,
     pub(crate) password_policy_service:
         PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
