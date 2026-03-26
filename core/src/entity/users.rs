@@ -62,6 +62,7 @@ pub enum Relation {
     Credentials,
     IdentityProviderLinks,
     MagicLinks,
+    OrganizationMembers,
     PasswordResetTokens,
     Realms,
     RefreshTokens,
@@ -105,6 +106,9 @@ impl RelationTrait for Relation {
                 Entity::has_many(super::identity_provider_links::Entity).into()
             }
             Self::MagicLinks => Entity::has_many(super::magic_links::Entity).into(),
+            Self::OrganizationMembers => {
+                Entity::has_many(super::organization_members::Entity).into()
+            }
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
             }
@@ -164,6 +168,12 @@ impl Related<super::identity_provider_links::Entity> for Entity {
 impl Related<super::magic_links::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MagicLinks.def()
+    }
+}
+
+impl Related<super::organization_members::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::OrganizationMembers.def()
     }
 }
 

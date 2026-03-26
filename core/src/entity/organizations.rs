@@ -7,7 +7,7 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "email_templates"
+        "organizations"
     }
 }
 
@@ -16,12 +16,13 @@ pub struct Model {
     pub id: Uuid,
     pub realm_id: Uuid,
     pub name: String,
-    pub email_type: String,
-    pub structure: Json,
-    pub mjml: String,
-    pub is_active: bool,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub alias: String,
+    pub domain: Option<String>,
+    pub redirect_url: Option<String>,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -29,10 +30,11 @@ pub enum Column {
     Id,
     RealmId,
     Name,
-    EmailType,
-    Structure,
-    Mjml,
-    IsActive,
+    Alias,
+    Domain,
+    RedirectUrl,
+    Description,
+    Enabled,
     CreatedAt,
     UpdatedAt,
 }
@@ -51,6 +53,8 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    OrganizationAttributes,
+    OrganizationMembers,
     Realms,
 }
 
@@ -61,12 +65,13 @@ impl ColumnTrait for Column {
             Self::Id => ColumnType::Uuid.def(),
             Self::RealmId => ColumnType::Uuid.def(),
             Self::Name => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::EmailType => ColumnType::String(StringLen::N(50u32)).def(),
-            Self::Structure => ColumnType::JsonBinary.def(),
-            Self::Mjml => ColumnType::Text.def(),
-            Self::IsActive => ColumnType::Boolean.def(),
-            Self::CreatedAt => ColumnType::DateTime.def(),
-            Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::Alias => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Domain => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::RedirectUrl => ColumnType::Text.def().null(),
+            Self::Description => ColumnType::Text.def().null(),
+            Self::Enabled => ColumnType::Boolean.def(),
+            Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::UpdatedAt => ColumnType::TimestampWithTimeZone.def(),
         }
     }
 }
@@ -74,11 +79,29 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::OrganizationAttributes => {
+                Entity::has_many(super::organization_attributes::Entity).into()
+            }
+            Self::OrganizationMembers => {
+                Entity::has_many(super::organization_members::Entity).into()
+            }
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::organization_attributes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::OrganizationAttributes.def()
+    }
+}
+
+impl Related<super::organization_members::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::OrganizationMembers.def()
     }
 }
 

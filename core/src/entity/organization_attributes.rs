@@ -7,34 +7,26 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "email_templates"
+        "organization_attributes"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub id: Uuid,
-    pub realm_id: Uuid,
-    pub name: String,
-    pub email_type: String,
-    pub structure: Json,
-    pub mjml: String,
-    pub is_active: bool,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub organization_id: Uuid,
+    pub key: String,
+    pub value: String,
+    pub created_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    RealmId,
-    Name,
-    EmailType,
-    Structure,
-    Mjml,
-    IsActive,
+    OrganizationId,
+    Key,
+    Value,
     CreatedAt,
-    UpdatedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -51,7 +43,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Realms,
+    Organizations,
 }
 
 impl ColumnTrait for Column {
@@ -59,14 +51,10 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::RealmId => ColumnType::Uuid.def(),
-            Self::Name => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::EmailType => ColumnType::String(StringLen::N(50u32)).def(),
-            Self::Structure => ColumnType::JsonBinary.def(),
-            Self::Mjml => ColumnType::Text.def(),
-            Self::IsActive => ColumnType::Boolean.def(),
-            Self::CreatedAt => ColumnType::DateTime.def(),
-            Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::OrganizationId => ColumnType::Uuid.def(),
+            Self::Key => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Value => ColumnType::Text.def(),
+            Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
         }
     }
 }
@@ -74,17 +62,17 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Realms => Entity::belongs_to(super::realms::Entity)
-                .from(Column::RealmId)
-                .to(super::realms::Column::Id)
+            Self::Organizations => Entity::belongs_to(super::organizations::Entity)
+                .from(Column::OrganizationId)
+                .to(super::organizations::Column::Id)
                 .into(),
         }
     }
 }
 
-impl Related<super::realms::Entity> for Entity {
+impl Related<super::organizations::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Realms.def()
+        Relation::Organizations.def()
     }
 }
 

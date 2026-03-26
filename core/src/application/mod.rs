@@ -21,6 +21,7 @@ use crate::{
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
+        organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
@@ -55,6 +56,11 @@ use crate::{
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
+        organization::{
+            organization_attribute_repository::PostgresOrganizationAttributeRepository,
+            organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
@@ -99,6 +105,7 @@ pub mod health;
 pub mod identity_provider;
 pub mod mail;
 pub mod migrate;
+pub mod organization;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -340,6 +347,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         password_policy_service: PasswordPolicyService::new(
             Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db())),
+            policy.clone(),
+        ),
+        organization_service: OrganizationServiceImpl::new(
+            realm.clone(),
+            Arc::new(PostgresOrganizationRepository::new(postgres.get_db())),
+            Arc::new(PostgresOrganizationAttributeRepository::new(
+                postgres.get_db(),
+            )),
+            Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db())),
             policy.clone(),
         ),
         flow_recorder,

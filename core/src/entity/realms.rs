@@ -47,9 +47,11 @@ pub enum Relation {
     ClientScopes,
     Clients,
     CompassFlows,
+    EmailTemplates,
     IdentityProviders,
     JwtKeys,
     MagicLinks,
+    Organizations,
     PasswordPolicy,
     PasswordResetTokens,
     RealmSettings,
@@ -85,9 +87,11 @@ impl RelationTrait for Relation {
             Self::ClientScopes => Entity::has_many(super::client_scopes::Entity).into(),
             Self::Clients => Entity::has_many(super::clients::Entity).into(),
             Self::CompassFlows => Entity::has_many(super::compass_flows::Entity).into(),
+            Self::EmailTemplates => Entity::has_many(super::email_templates::Entity).into(),
             Self::IdentityProviders => Entity::has_many(super::identity_providers::Entity).into(),
             Self::JwtKeys => Entity::has_many(super::jwt_keys::Entity).into(),
             Self::MagicLinks => Entity::has_many(super::magic_links::Entity).into(),
+            Self::Organizations => Entity::has_many(super::organizations::Entity).into(),
             Self::PasswordPolicy => Entity::has_one(super::password_policy::Entity).into(),
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
@@ -142,6 +146,12 @@ impl Related<super::compass_flows::Entity> for Entity {
     }
 }
 
+impl Related<super::email_templates::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::EmailTemplates.def()
+    }
+}
+
 impl Related<super::identity_providers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::IdentityProviders.def()
@@ -157,6 +167,12 @@ impl Related<super::jwt_keys::Entity> for Entity {
 impl Related<super::magic_links::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MagicLinks.def()
+    }
+}
+
+impl Related<super::organizations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Organizations.def()
     }
 }
 
