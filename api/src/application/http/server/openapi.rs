@@ -1,8 +1,17 @@
 use crate::application::http::{
-    abyss::AbyssApiDoc, aegis::router::AegisApiDoc, authentication::router::AuthenticationApiDoc,
-    broker::BrokerApiDoc, client::router::ClientApiDoc, compass::router::CompassApiDoc,
-    realm::router::RealmApiDoc, role::router::RoleApiDoc, seawatch::router::SeawatchApiDoc,
-    trident::router::TridentApiDoc, user::router::UserApiDoc, webhook::router::WebhookApiDoc,
+    abyss::AbyssApiDoc,
+    aegis::router::AegisApiDoc,
+    authentication::router::AuthenticationApiDoc,
+    broker::BrokerApiDoc,
+    client::router::ClientApiDoc,
+    compass::router::CompassApiDoc,
+    email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc},
+    realm::router::RealmApiDoc,
+    role::router::RoleApiDoc,
+    seawatch::router::SeawatchApiDoc,
+    trident::router::TridentApiDoc,
+    user::router::UserApiDoc,
+    webhook::router::WebhookApiDoc,
 };
 use utoipa::OpenApi;
 
@@ -24,7 +33,9 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = AbyssApiDoc),
         (path = "/realms/{realm_name}", api = BrokerApiDoc),
         (path = "/realms/{realm_name}", api = AegisApiDoc),
-        (path = "/realms/{realm_name}", api = CompassApiDoc)
+        (path = "/realms/{realm_name}", api = CompassApiDoc),
+        (path = "/realms/{realm_name}/email-templates", api = EmailTemplateApiDoc),
+        (path = "/email-templates/variables", api = EmailTemplateVariablesApiDoc)
     )
 )]
 pub struct ApiDoc;
