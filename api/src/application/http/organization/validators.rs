@@ -30,3 +30,9 @@ pub struct UpdateOrganizationValidator {
 fn default_enabled() -> bool {
     true
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpsertAttributeValidator {
+    #[validate(length(min = 1, message = "value is required"))]
+    pub value: String,
+}
