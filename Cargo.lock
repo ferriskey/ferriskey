@@ -1592,6 +1592,7 @@ dependencies = [
  "ferriskey-domain",
  "ferriskey-mail",
  "ferriskey-migrate",
+ "ferriskey-organization",
  "ferriskey-security",
  "ferriskey-trident",
  "futures",

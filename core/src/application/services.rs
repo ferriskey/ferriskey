@@ -20,6 +20,7 @@ use crate::{
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
+        organization::services::OrganizationServiceImpl,
         password_policy::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
             service::PasswordPolicyService,
@@ -57,6 +58,11 @@ use crate::{
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
+        organization::{
+            organization_attribute_repository::PostgresOrganizationAttributeRepository,
+            organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
@@ -121,6 +127,9 @@ type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
+type OrganizationRepo = PostgresOrganizationRepository;
+type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
+type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -293,6 +302,15 @@ pub struct ApplicationService {
     >,
     pub(crate) password_policy_service:
         PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
+    pub(crate) organization_service: OrganizationServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        OrganizationRepo,
+        OrganizationAttributeRepo,
+        OrganizationMemberRepo,
+    >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
