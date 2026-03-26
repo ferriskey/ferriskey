@@ -5,9 +5,12 @@ use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
 
 use crate::entities::{
-    AddOrganizationMemberInput, CreateOrganizationInput, DeleteOrganizationInput,
-    GetOrganizationInput, ListOrganizationMembersInput, ListOrganizationsInput, Organization,
-    OrganizationId, OrganizationMember, RemoveOrganizationMemberInput, UpdateOrganizationInput,
+    AddOrganizationMemberInput, CreateOrganizationInput, CreateOrganizationParams,
+    DeleteOrganizationAttributeInput, DeleteOrganizationInput, GetOrganizationInput,
+    ListOrganizationAttributesInput, ListOrganizationMembersInput, ListOrganizationsInput,
+    ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationId,
+    OrganizationMember, RemoveOrganizationMemberInput, UpdateOrganizationInput,
+    UpdateOrganizationParams, UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -15,11 +18,7 @@ use crate::entities::{
 pub trait OrganizationRepository: Send + Sync {
     fn create_organization(
         &self,
-        realm_id: RealmId,
-        name: String,
-        display_name: Option<String>,
-        description: Option<String>,
-        enabled: bool,
+        params: CreateOrganizationParams,
     ) -> impl Future<Output = Result<Organization, CoreError>> + Send;
 
     fn get_organization_by_id(
@@ -27,10 +26,10 @@ pub trait OrganizationRepository: Send + Sync {
         id: OrganizationId,
     ) -> impl Future<Output = Result<Option<Organization>, CoreError>> + Send;
 
-    fn get_organization_by_realm_and_name(
+    fn get_organization_by_realm_and_alias(
         &self,
         realm_id: RealmId,
-        name: &str,
+        alias: &str,
     ) -> impl Future<Output = Result<Option<Organization>, CoreError>> + Send;
 
     fn list_organizations_by_realm(
@@ -41,9 +40,7 @@ pub trait OrganizationRepository: Send + Sync {
     fn update_organization(
         &self,
         id: OrganizationId,
-        display_name: Option<String>,
-        description: Option<String>,
-        enabled: Option<bool>,
+        params: UpdateOrganizationParams,
     ) -> impl Future<Output = Result<Organization, CoreError>> + Send;
 
     fn delete_organization(
@@ -51,11 +48,33 @@ pub trait OrganizationRepository: Send + Sync {
         id: OrganizationId,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn exists_organization_by_realm_and_name(
+    fn exists_organization_by_realm_and_alias(
         &self,
         realm_id: RealmId,
-        name: &str,
+        alias: &str,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+/// Repository trait for OrganizationAttribute persistence
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait OrganizationAttributeRepository: Send + Sync {
+    fn list_attributes(
+        &self,
+        organization_id: OrganizationId,
+    ) -> impl Future<Output = Result<Vec<OrganizationAttribute>, CoreError>> + Send;
+
+    fn upsert_attribute(
+        &self,
+        organization_id: OrganizationId,
+        key: String,
+        value: String,
+    ) -> impl Future<Output = Result<OrganizationAttribute, CoreError>> + Send;
+
+    fn delete_attribute(
+        &self,
+        organization_id: OrganizationId,
+        key: &str,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 /// Repository trait for OrganizationMember persistence
@@ -76,6 +95,11 @@ pub trait OrganizationMemberRepository: Send + Sync {
     fn list_members(
         &self,
         organization_id: OrganizationId,
+    ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
+
+    fn list_organizations_for_user(
+        &self,
+        user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
 
     fn get_member(
@@ -117,6 +141,24 @@ pub trait OrganizationService: Send + Sync {
         input: DeleteOrganizationInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
+    fn list_attributes(
+        &self,
+        identity: Identity,
+        input: ListOrganizationAttributesInput,
+    ) -> impl Future<Output = Result<Vec<OrganizationAttribute>, CoreError>> + Send;
+
+    fn upsert_attribute(
+        &self,
+        identity: Identity,
+        input: UpsertOrganizationAttributeInput,
+    ) -> impl Future<Output = Result<OrganizationAttribute, CoreError>> + Send;
+
+    fn delete_attribute(
+        &self,
+        identity: Identity,
+        input: DeleteOrganizationAttributeInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
     fn add_member(
         &self,
         identity: Identity,
@@ -133,6 +175,12 @@ pub trait OrganizationService: Send + Sync {
         &self,
         identity: Identity,
         input: ListOrganizationMembersInput,
+    ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
+
+    fn list_user_organizations(
+        &self,
+        identity: Identity,
+        input: ListUserOrganizationsInput,
     ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
 }
 
