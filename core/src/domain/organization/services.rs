@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use ferriskey_organization::{
     OrganizationAttribute, OrganizationConfig, OrganizationValidationError,
+    validate_membership_realms,
 };
 
 use crate::domain::{
@@ -36,6 +37,7 @@ where
     OMR: OrganizationMemberRepository,
 {
     pub(crate) realm_repository: Arc<R>,
+    pub(crate) user_repository: Arc<U>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) organization_attribute_repository: Arc<OAR>,
     pub(crate) organization_member_repository: Arc<OMR>,
@@ -54,6 +56,7 @@ where
 {
     pub fn new(
         realm_repository: Arc<R>,
+        user_repository: Arc<U>,
         organization_repository: Arc<OR>,
         organization_attribute_repository: Arc<OAR>,
         organization_member_repository: Arc<OMR>,
@@ -61,6 +64,7 @@ where
     ) -> Self {
         Self {
             realm_repository,
+            user_repository,
             organization_repository,
             organization_attribute_repository,
             organization_member_repository,
@@ -338,6 +342,30 @@ where
             "insufficient permissions to add organization member",
         )?;
 
+        // Disabled organizations cannot accept new members
+        if !org.enabled {
+            return Err(CoreError::Invalid);
+        }
+
+        // Verify user exists and belongs to the same realm as the organization
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await
+            .map_err(|_| CoreError::UserNotFound)?;
+
+        validate_membership_realms(org.realm_id, user.realm_id).map_err(|_| CoreError::Invalid)?;
+
+        // Reject duplicate memberships
+        if self
+            .organization_member_repository
+            .get_member(org.id, input.user_id)
+            .await?
+            .is_some()
+        {
+            return Err(CoreError::AlreadyExists);
+        }
+
         self.organization_member_repository
             .add_member(org.id, input.user_id)
             .await
@@ -357,6 +385,12 @@ where
             self.policy.can_manage_members(&identity, &org).await,
             "insufficient permissions to remove organization member",
         )?;
+
+        // Verify the membership exists before attempting removal
+        self.organization_member_repository
+            .get_member(org.id, input.user_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
 
         self.organization_member_repository
             .remove_member(org.id, input.user_id)
@@ -413,7 +447,7 @@ mod tests {
     use ferriskey_domain::realm::RealmId;
     use ferriskey_organization::{
         MockOrganizationAttributeRepository, MockOrganizationMemberRepository,
-        MockOrganizationRepository, Organization, OrganizationId,
+        MockOrganizationRepository, Organization, OrganizationId, OrganizationMember,
     };
 
     use crate::domain::{
@@ -488,6 +522,15 @@ mod tests {
         }
     }
 
+    fn make_member(org_id: OrganizationId, user_id: Uuid) -> OrganizationMember {
+        OrganizationMember {
+            id: Uuid::new_v4(),
+            organization_id: org_id,
+            user_id,
+            created_at: Utc::now(),
+        }
+    }
+
     type TestService = OrganizationServiceImpl<
         MockRealmRepository,
         MockUserRepository,
@@ -506,20 +549,24 @@ mod tests {
         attr_repo: MockOrganizationAttributeRepository,
         member_repo: MockOrganizationMemberRepository,
     ) -> TestService {
+        let user_arc = Arc::new(user_repo);
         let policy = Arc::new(FerriskeyPolicy::new(
-            Arc::new(user_repo),
+            user_arc.clone(),
             Arc::new(MockClientRepository::new()),
             Arc::new(user_role_repo),
         ));
 
         OrganizationServiceImpl::new(
             Arc::new(realm_repo),
+            user_arc,
             Arc::new(org_repo),
             Arc::new(attr_repo),
             Arc::new(member_repo),
             policy,
         )
     }
+
+    // ─── previous tests ──────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn get_organization_returns_not_found_for_missing_org() {
@@ -599,7 +646,6 @@ mod tests {
             Box::pin(async move { Ok(u) })
         });
 
-        // User has no roles => no permissions
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo
             .expect_get_user_roles()
@@ -733,7 +779,7 @@ mod tests {
                 UpsertOrganizationAttributeInput {
                     realm_name: "test-realm".to_string(),
                     organization_id: org_id,
-                    key: "  ".to_string(), // empty key
+                    key: "  ".to_string(),
                     value: "some-value".to_string(),
                 },
             )
@@ -761,7 +807,6 @@ mod tests {
         org_repo
             .expect_get_organization_by_id()
             .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
-        // Alias already taken
         org_repo
             .expect_exists_organization_by_realm_and_alias()
             .return_once(|_, _| Box::pin(async { Ok(true) }));
@@ -804,5 +849,450 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::AlreadyExists)));
+    }
+
+    // ─── membership tests ─────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn add_member_succeeds_for_same_realm_user() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let member_user = make_user(&realm);
+        let member_user_id = member_user.id;
+        let identity = Identity::User(admin.clone());
+        let org = make_organization(realm_id);
+        let org_id = org.id;
+        let expected_member = make_member(org_id, member_user_id);
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_get_member()
+            .return_once(|_, _| Box::pin(async { Ok(None) }));
+        member_repo
+            .expect_add_member()
+            .return_once(move |_, _| Box::pin(async move { Ok(expected_member) }));
+
+        // Policy lookup (admin user)
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |id| {
+            let admin_clone = admin.clone();
+            let member_clone = member_user.clone();
+            Box::pin(async move {
+                if id == admin_clone.id {
+                    Ok(admin_clone)
+                } else {
+                    Ok(member_clone)
+                }
+            })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .add_member(
+                identity,
+                AddOrganizationMemberInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: member_user_id,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn add_member_rejects_disabled_organization() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let member_user_id = Uuid::new_v4();
+        let identity = Identity::User(admin.clone());
+        let mut org = make_organization(realm_id);
+        org.enabled = false;
+        let org_id = org.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = admin.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .add_member(
+                identity,
+                AddOrganizationMemberInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: member_user_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Invalid)));
+    }
+
+    #[tokio::test]
+    async fn add_member_rejects_cross_realm_user() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let other_realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let other_realm = make_realm(other_realm_id, "other-realm");
+        let admin = make_user(&realm);
+        let cross_realm_user = make_user(&other_realm); // user from different realm
+        let cross_realm_user_id = cross_realm_user.id;
+        let identity = Identity::User(admin.clone());
+        let org = make_organization(realm_id);
+        let org_id = org.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        // Policy call returns admin, member lookup returns cross-realm user
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |id| {
+            let admin_clone = admin.clone();
+            let cross_clone = cross_realm_user.clone();
+            Box::pin(async move {
+                if id == admin_clone.id {
+                    Ok(admin_clone)
+                } else {
+                    Ok(cross_clone)
+                }
+            })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .add_member(
+                identity,
+                AddOrganizationMemberInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: cross_realm_user_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Invalid)));
+    }
+
+    #[tokio::test]
+    async fn add_member_rejects_duplicate_membership() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let member_user = make_user(&realm);
+        let member_user_id = member_user.id;
+        let identity = Identity::User(admin.clone());
+        let org = make_organization(realm_id);
+        let org_id = org.id;
+        let existing_member = make_member(org_id, member_user_id);
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_get_member()
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(existing_member)) }));
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |id| {
+            let admin_clone = admin.clone();
+            let member_clone = member_user.clone();
+            Box::pin(async move {
+                if id == admin_clone.id {
+                    Ok(admin_clone)
+                } else {
+                    Ok(member_clone)
+                }
+            })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .add_member(
+                identity,
+                AddOrganizationMemberInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: member_user_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::AlreadyExists)));
+    }
+
+    #[tokio::test]
+    async fn remove_member_returns_not_found_when_membership_missing() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let identity = Identity::User(admin.clone());
+        let org = make_organization(realm_id);
+        let org_id = org.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_get_member()
+            .return_once(|_, _| Box::pin(async { Ok(None) }));
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = admin.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .remove_member(
+                identity,
+                RemoveOrganizationMemberInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: Uuid::new_v4(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn list_members_returns_members_for_org() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let identity = Identity::User(admin.clone());
+        let org = make_organization(realm_id);
+        let org_id = org.id;
+        let member = make_member(org_id, Uuid::new_v4());
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_list_members()
+            .return_once(move |_| Box::pin(async move { Ok(vec![member]) }));
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = admin.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "view_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .list_members(
+                identity,
+                ListOrganizationMembersInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Ok(v) if v.len() == 1));
+    }
+
+    #[tokio::test]
+    async fn list_user_organizations_returns_memberships() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let target_user_id = Uuid::new_v4();
+        let identity = Identity::User(admin.clone());
+        let org_id = OrganizationId::new(Uuid::new_v4());
+        let member = make_member(org_id, target_user_id);
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_list_organizations_for_user()
+            .return_once(move |_| Box::pin(async move { Ok(vec![member]) }));
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = admin.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            MockOrganizationRepository::new(),
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .list_user_organizations(
+                identity,
+                ListUserOrganizationsInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target_user_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Ok(v) if v.len() == 1));
     }
 }

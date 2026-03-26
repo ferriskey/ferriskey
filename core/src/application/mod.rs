@@ -351,6 +351,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         organization_service: OrganizationServiceImpl::new(
             realm.clone(),
+            user.clone(),
             Arc::new(PostgresOrganizationRepository::new(postgres.get_db())),
             Arc::new(PostgresOrganizationAttributeRepository::new(
                 postgres.get_db(),
