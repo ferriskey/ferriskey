@@ -11,7 +11,7 @@ import type { Active } from '@dnd-kit/core'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
 import { findNode } from '../utils'
-import { BuilderDragOverlay } from './DragOverlay'
+import { BuilderDragOverlay } from './drag-overlay'
 
 interface BuilderShellProps {
   children: ReactNode
