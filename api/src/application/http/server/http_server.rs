@@ -7,6 +7,7 @@ use crate::application::http::broker::router::broker_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::compass::router::compass_routes;
 use crate::application::http::email_template::router::email_template_routes;
+use crate::application::http::organization::router::organization_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::role::router::role_routes;
 use crate::application::http::seawatch::router::seawatch_router;
@@ -124,6 +125,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(abyss_routes(state.clone()))
         .merge(aegis_routes(state.clone()))
         .merge(broker_routes(state.clone(), &root_path))
+        .merge(organization_routes(state.clone()))
         .merge(health_routes(&root_path))
         .route(
             &format!("{}/metrics", root_path),
