@@ -11,4 +11,5 @@ export type RouterParams = {
   scope_id?: string
   mapper_id?: string
   webhook_id?: string
+  template_id?: string
 }

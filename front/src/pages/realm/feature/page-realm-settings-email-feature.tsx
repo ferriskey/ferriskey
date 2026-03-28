@@ -1,8 +1,10 @@
+import { useGetEmailTemplates, useDeleteEmailTemplate, useActivateEmailTemplate } from '@/api/email-template.api'
 import { useDeleteSmtpConfig, useGetSmtpConfig, useUpsertSmtpConfig } from '@/api/smtp.api'
 import { RouterParams } from '@/routes/router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
+import { EMAIL_TEMPLATE_BUILDER_URL } from '@/routes/sub-router/email-template.router'
 import { z } from 'zod'
 import PageRealmSettingsEmail from '../ui/page-realm-settings-email'
 
@@ -20,9 +22,14 @@ export type SmtpConfigSchema = z.infer<typeof smtpConfigSchema>
 
 export default function PageRealmSettingsEmailFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const navigate = useNavigate()
+  const realm = realm_name ?? 'master'
   const { data, isError } = useGetSmtpConfig({ realm: realm_name })
   const { mutate: upsert } = useUpsertSmtpConfig()
   const { mutate: remove } = useDeleteSmtpConfig()
+  const { data: templatesData, isLoading: templatesLoading } = useGetEmailTemplates(realm)
+  const { mutate: deleteTemplate } = useDeleteEmailTemplate()
+  const { mutate: activateTemplate } = useActivateEmailTemplate()
 
   const hasConfig = !!data && !isError
 
@@ -69,12 +76,34 @@ export default function PageRealmSettingsEmailFeature() {
     )
   }
 
+  const handleEditTemplate = (templateId: string) => {
+    navigate(EMAIL_TEMPLATE_BUILDER_URL(realm_name, templateId))
+  }
+
+  const handleCreateTemplate = () => {
+    navigate(EMAIL_TEMPLATE_BUILDER_URL(realm_name, 'new'))
+  }
+
+  const handleDeleteTemplate = (templateId: string) => {
+    deleteTemplate({ realm, templateId })
+  }
+
+  const handleActivateTemplate = (templateId: string) => {
+    activateTemplate({ realm, templateId })
+  }
+
   return (
     <PageRealmSettingsEmail
       form={form}
       config={hasConfig ? data : undefined}
       handleSubmit={handleSubmit}
       handleDelete={handleDelete}
+      templates={templatesData?.data ?? []}
+      templatesLoading={templatesLoading}
+      onEditTemplate={handleEditTemplate}
+      onCreateTemplate={handleCreateTemplate}
+      onDeleteTemplate={handleDeleteTemplate}
+      onActivateTemplate={handleActivateTemplate}
     />
   )
 }
