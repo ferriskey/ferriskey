@@ -60,7 +60,7 @@ pub struct UpdatePasswordPolicyValidator {
     pub require_lowercase: Option<bool>,
     pub require_number: Option<bool>,
     pub require_special: Option<bool>,
-    #[validate(range(min = 1, message = "max_age_days must be greater than 0"))]
+    #[validate(range(min = 0, message = "max_age_days must be 0 or greater"))]
     pub max_age_days: Option<i32>,
 }
 
