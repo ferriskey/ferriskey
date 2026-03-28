@@ -6,13 +6,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { DangerZone } from '@/components/danger-zone'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Schemas } from '@/api/api.client'
+import { Mail, Pencil, Plus, Power, Trash2 } from 'lucide-react'
+
+interface EmailTemplate {
+  id: string
+  name: string
+  email_type: string
+  is_active: boolean
+}
 
 export interface PageRealmSettingsEmailProps {
   form: UseFormReturn<SmtpConfigSchema>
   config?: Schemas.SmtpConfig
   handleSubmit: (values: SmtpConfigSchema) => void
   handleDelete: () => void
+  templates: EmailTemplate[]
+  templatesLoading: boolean
+  onEditTemplate: (id: string) => void
+  onCreateTemplate: () => void
+  onDeleteTemplate: (id: string) => void
+  onActivateTemplate: (id: string) => void
 }
 
 function SmtpConfigDisplay({ config, onDelete }: { config: Schemas.SmtpConfig; onDelete: () => void }) {
@@ -206,15 +221,124 @@ function SmtpConfigForm({
   )
 }
 
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  reset_password: 'Reset Password',
+  magic_link: 'Magic Link',
+  email_verification: 'Email Verification',
+}
+
+function EmailTemplatesSection({
+  templates,
+  isLoading,
+  onEdit,
+  onCreate,
+  onDelete,
+  onActivate,
+}: {
+  templates: EmailTemplate[]
+  isLoading: boolean
+  onEdit: (id: string) => void
+  onCreate: () => void
+  onDelete: (id: string) => void
+  onActivate: (id: string) => void
+}) {
+  return (
+    <div className='flex flex-col gap-4'>
+      <div className='flex items-center justify-between'>
+        <div>
+          <p className='text-xs text-muted-foreground mb-0.5'>Email appearance</p>
+          <h2 className='text-base font-semibold'>Email Templates</h2>
+        </div>
+        <Button variant='outline' size='sm' onClick={onCreate}>
+          <Plus size={14} />
+          New Template
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <p className='text-sm text-muted-foreground py-4'>Loading templates...</p>
+      ) : templates.length === 0 ? (
+        <div className='flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8'>
+          <Mail size={28} className='text-muted-foreground' />
+          <p className='text-sm text-muted-foreground'>No email templates configured.</p>
+          <Button variant='outline' size='sm' onClick={onCreate}>
+            <Plus size={14} />
+            Create Template
+          </Button>
+        </div>
+      ) : (
+        <div className='flex flex-col gap-2'>
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              className='flex items-center justify-between rounded-lg border border-border px-4 py-3'
+            >
+              <div className='flex items-center gap-3'>
+                <span className='text-sm font-medium'>{template.name}</span>
+                <Badge variant='outline'>
+                  {EMAIL_TYPE_LABELS[template.email_type] ?? template.email_type}
+                </Badge>
+                {template.is_active && (
+                  <Badge variant='default' className='bg-green-600 text-white'>
+                    Active
+                  </Badge>
+                )}
+              </div>
+              <div className='flex items-center gap-1'>
+                {!template.is_active && (
+                  <Button variant='ghost' size='icon' title='Activate' onClick={() => onActivate(template.id)}>
+                    <Power size={14} />
+                  </Button>
+                )}
+                <Button variant='ghost' size='icon' title='Edit' onClick={() => onEdit(template.id)}>
+                  <Pencil size={14} />
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  title='Delete'
+                  className='text-destructive hover:text-destructive'
+                  onClick={() => onDelete(template.id)}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PageRealmSettingsEmail({
   form,
   config,
   handleSubmit,
   handleDelete,
+  templates,
+  templatesLoading,
+  onEditTemplate,
+  onCreateTemplate,
+  onDeleteTemplate,
+  onActivateTemplate,
 }: PageRealmSettingsEmailProps) {
-  if (config) {
-    return <SmtpConfigDisplay config={config} onDelete={handleDelete} />
-  }
+  return (
+    <div className='flex flex-col gap-10'>
+      {config ? (
+        <SmtpConfigDisplay config={config} onDelete={handleDelete} />
+      ) : (
+        <SmtpConfigForm form={form} handleSubmit={handleSubmit} />
+      )}
 
-  return <SmtpConfigForm form={form} handleSubmit={handleSubmit} />
+      <EmailTemplatesSection
+        templates={templates}
+        isLoading={templatesLoading}
+        onEdit={onEditTemplate}
+        onCreate={onCreateTemplate}
+        onDelete={onDeleteTemplate}
+        onActivate={onActivateTemplate}
+      />
+    </div>
+  )
 }
