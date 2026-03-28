@@ -329,4 +329,182 @@ mod tests {
 
         assert_eq!(response.status_code(), 404);
     }
+
+    // ── Attribute tests ────────────────────────────────────────────────────────
+
+    async fn create_test_org(ctx: &TestContext, token: &str, alias: &str) -> String {
+        let response = ctx
+            .server
+            .post(&format!("/realms/{}/organizations", ctx.realm_name))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({ "name": alias, "alias": alias }))
+            .await;
+        assert_eq!(response.status_code(), 201);
+        let body: Value = response.json();
+        body["id"].as_str().expect("org id").to_string()
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn list_attributes_returns_empty_initially() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "attr-test-org").await;
+
+        let response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/attributes",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(response.status_code(), 200);
+        let body: Value = response.json();
+        assert!(body.is_array());
+        assert_eq!(body.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn upsert_and_list_attribute() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "upsert-attr-org").await;
+
+        // Create attribute
+        let put_response = ctx
+            .server
+            .put(&format!(
+                "/realms/{}/organizations/{}/attributes/color",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "value": "blue" }))
+            .await;
+
+        assert_eq!(put_response.status_code(), 200);
+        let attr: Value = put_response.json();
+        assert_eq!(attr["key"], "color");
+        assert_eq!(attr["value"], "blue");
+
+        // List should now contain the attribute
+        let list_response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/attributes",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(list_response.status_code(), 200);
+        let attrs: Value = list_response.json();
+        assert_eq!(attrs.as_array().unwrap().len(), 1);
+        assert_eq!(attrs[0]["key"], "color");
+        assert_eq!(attrs[0]["value"], "blue");
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn upsert_attribute_updates_existing_value() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "upsert-update-org").await;
+
+        let attrs_url = format!(
+            "/realms/{}/organizations/{}/attributes/theme",
+            ctx.realm_name, org_id
+        );
+
+        ctx.server
+            .put(&attrs_url)
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "value": "light" }))
+            .await;
+
+        let update_response = ctx
+            .server
+            .put(&attrs_url)
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "value": "dark" }))
+            .await;
+
+        assert_eq!(update_response.status_code(), 200);
+        let attr: Value = update_response.json();
+        assert_eq!(attr["value"], "dark");
+
+        // List should still have only one entry
+        let list_response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/attributes",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        let attrs: Value = list_response.json();
+        assert_eq!(attrs.as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn delete_attribute() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "delete-attr-org").await;
+
+        let attrs_url = format!(
+            "/realms/{}/organizations/{}/attributes/role",
+            ctx.realm_name, org_id
+        );
+
+        ctx.server
+            .put(&attrs_url)
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "value": "primary" }))
+            .await;
+
+        let delete_response = ctx
+            .server
+            .delete(&attrs_url)
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(delete_response.status_code(), 204);
+
+        let list_response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/attributes",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        let attrs: Value = list_response.json();
+        assert_eq!(attrs.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn upsert_attribute_requires_value() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "validate-attr-org").await;
+
+        let response = ctx
+            .server
+            .put(&format!(
+                "/realms/{}/organizations/{}/attributes/key1",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "value": "" }))
+            .await;
+
+        assert_eq!(response.status_code(), 422);
+    }
 }
