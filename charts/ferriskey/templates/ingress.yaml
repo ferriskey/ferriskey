@@ -22,7 +22,7 @@ spec:
   ingressClassName: {{ .Values.ingress.class }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.host | required "ingress.host is required" }}
+    - host: {{ .Values.publicHost | required "publicHost is required when ingress.enabled is true" }}
       http:
         paths:
           - path: {{ .Values.api.server.rootPath }}
