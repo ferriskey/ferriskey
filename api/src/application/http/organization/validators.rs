@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -29,6 +30,11 @@ pub struct UpdateOrganizationValidator {
 
 fn default_enabled() -> bool {
     true
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct AddMemberValidator {
+    pub user_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
