@@ -507,4 +507,159 @@ mod tests {
 
         assert_eq!(response.status_code(), 422);
     }
+
+    // ── Member tests ───────────────────────────────────────────────────────────
+
+    async fn create_test_user(ctx: &TestContext, token: &str, username: &str) -> String {
+        let response = ctx
+            .server
+            .post(&format!("/realms/{}/users", ctx.realm_name))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({
+                "username": username,
+                "email": format!("{}@test.local", username),
+                "enabled": true
+            }))
+            .await;
+        assert_eq!(
+            response.status_code(),
+            201,
+            "failed to create user {username}"
+        );
+        let body: Value = response.json();
+        body["id"].as_str().expect("user id").to_string()
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn list_members_returns_empty_initially() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "member-empty-org").await;
+
+        let response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(response.status_code(), 200);
+        let body: Value = response.json();
+        assert!(body.is_array());
+        assert_eq!(body.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn add_and_list_member() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "add-member-org").await;
+        let user_id = create_test_user(&ctx, &token, "member-user-1").await;
+
+        let add_response = ctx
+            .server
+            .post(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "user_id": user_id }))
+            .await;
+
+        assert_eq!(add_response.status_code(), 201);
+        let member: Value = add_response.json();
+        assert_eq!(member["user_id"], user_id);
+        assert_eq!(member["organization_id"], org_id);
+
+        let list_response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(list_response.status_code(), 200);
+        let members: Value = list_response.json();
+        assert_eq!(members.as_array().unwrap().len(), 1);
+        assert_eq!(members[0]["user_id"], user_id);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn remove_member() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "remove-member-org").await;
+        let user_id = create_test_user(&ctx, &token, "member-user-2").await;
+
+        ctx.server
+            .post(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "user_id": user_id }))
+            .await;
+
+        let remove_response = ctx
+            .server
+            .delete(&format!(
+                "/realms/{}/organizations/{}/members/{}",
+                ctx.realm_name, org_id, user_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(remove_response.status_code(), 204);
+
+        let list_response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        let members: Value = list_response.json();
+        assert_eq!(members.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn list_user_organizations() {
+        let ctx = setup().await;
+        let token = get_admin_token(&ctx).await;
+        let org_id = create_test_org(&ctx, &token, "user-org-list-org").await;
+        let user_id = create_test_user(&ctx, &token, "member-user-3").await;
+
+        ctx.server
+            .post(&format!(
+                "/realms/{}/organizations/{}/members",
+                ctx.realm_name, org_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "user_id": user_id }))
+            .await;
+
+        let response = ctx
+            .server
+            .get(&format!(
+                "/realms/{}/users/{}/organizations",
+                ctx.realm_name, user_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .await;
+
+        assert_eq!(response.status_code(), 200);
+        let orgs: Value = response.json();
+        assert_eq!(orgs.as_array().unwrap().len(), 1);
+        assert_eq!(orgs[0]["organization_id"], org_id);
+    }
 }
