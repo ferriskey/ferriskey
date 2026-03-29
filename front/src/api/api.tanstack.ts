@@ -41,8 +41,8 @@ const createQueryKey = <TOptions extends EndpointParameters>(
 };
 
 // <EndpointByMethod.Shorthands>
-export type PostEndpoints = EndpointByMethod["post"];
 export type GetEndpoints = EndpointByMethod["get"];
+export type PostEndpoints = EndpointByMethod["post"];
 export type PutEndpoints = EndpointByMethod["put"];
 export type DeleteEndpoints = EndpointByMethod["delete"];
 export type PatchEndpoints = EndpointByMethod["patch"];
@@ -73,36 +73,6 @@ type InferResponseData<TEndpoint, TStatusCode> =
 export class TanstackQueryApiClient {
   constructor(public client: ApiClient) {}
 
-  // <ApiClient.post>
-  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
-  ) {
-    const queryKey = createQueryKey(path as string, params[0]);
-    const query = {
-      /** type-only property if you need easy access to the endpoint params */
-      "~endpoint": {} as TEndpoint,
-      queryKey,
-      queryFn: {} as "You need to pass .queryOptions to the useQuery hook",
-      queryOptions: queryOptions({
-        queryFn: async ({ queryKey, signal }) => {
-          const requestParams = {
-            ...(params[0] || {}),
-            ...(queryKey[0] || {}),
-            overrides: { signal },
-            withResponse: false as const,
-          };
-          const res = await this.client.post(path, requestParams as never);
-          return res as InferResponseData<TEndpoint, SuccessStatusCode>;
-        },
-        queryKey: queryKey,
-      }),
-    };
-
-    return query;
-  }
-  // </ApiClient.post>
-
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
@@ -132,6 +102,36 @@ export class TanstackQueryApiClient {
     return query;
   }
   // </ApiClient.get>
+
+  // <ApiClient.post>
+  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
+  ) {
+    const queryKey = createQueryKey(path as string, params[0]);
+    const query = {
+      /** type-only property if you need easy access to the endpoint params */
+      "~endpoint": {} as TEndpoint,
+      queryKey,
+      queryFn: {} as "You need to pass .queryOptions to the useQuery hook",
+      queryOptions: queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+          const requestParams = {
+            ...(params[0] || {}),
+            ...(queryKey[0] || {}),
+            overrides: { signal },
+            withResponse: false as const,
+          };
+          const res = await this.client.post(path, requestParams as never);
+          return res as InferResponseData<TEndpoint, SuccessStatusCode>;
+        },
+        queryKey: queryKey,
+      }),
+    };
+
+    return query;
+  }
+  // </ApiClient.post>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(

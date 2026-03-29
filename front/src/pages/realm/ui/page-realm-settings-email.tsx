@@ -8,13 +8,18 @@ import { DangerZone } from '@/components/danger-zone'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Schemas } from '@/api/api.client'
-import { Mail, Pencil, Plus, Power, Trash2 } from 'lucide-react'
+import { Mail, Pencil, Plus, Trash2 } from 'lucide-react'
 
 interface EmailTemplate {
   id: string
   name: string
   email_type: string
-  is_active: boolean
+}
+
+interface RealmSettings {
+  reset_password_template_id?: string | null
+  magic_link_template_id?: string | null
+  email_verification_template_id?: string | null
 }
 
 export interface PageRealmSettingsEmailProps {
@@ -27,7 +32,8 @@ export interface PageRealmSettingsEmailProps {
   onEditTemplate: (id: string) => void
   onCreateTemplate: () => void
   onDeleteTemplate: (id: string) => void
-  onActivateTemplate: (id: string) => void
+  realmSettings?: RealmSettings | null
+  onAssignTemplate: (field: string, templateId: string | null) => void
 }
 
 function SmtpConfigDisplay({ config, onDelete }: { config: Schemas.SmtpConfig; onDelete: () => void }) {
@@ -233,14 +239,12 @@ function EmailTemplatesSection({
   onEdit,
   onCreate,
   onDelete,
-  onActivate,
 }: {
   templates: EmailTemplate[]
   isLoading: boolean
   onEdit: (id: string) => void
   onCreate: () => void
   onDelete: (id: string) => void
-  onActivate: (id: string) => void
 }) {
   return (
     <div className='flex flex-col gap-4'>
@@ -278,18 +282,8 @@ function EmailTemplatesSection({
                 <Badge variant='outline'>
                   {EMAIL_TYPE_LABELS[template.email_type] ?? template.email_type}
                 </Badge>
-                {template.is_active && (
-                  <Badge variant='default' className='bg-green-600 text-white'>
-                    Active
-                  </Badge>
-                )}
               </div>
               <div className='flex items-center gap-1'>
-                {!template.is_active && (
-                  <Button variant='ghost' size='icon' title='Activate' onClick={() => onActivate(template.id)}>
-                    <Power size={14} />
-                  </Button>
-                )}
                 <Button variant='ghost' size='icon' title='Edit' onClick={() => onEdit(template.id)}>
                   <Pencil size={14} />
                 </Button>
@@ -311,6 +305,65 @@ function EmailTemplatesSection({
   )
 }
 
+const EMAIL_ACTION_CONFIGS = [
+  { field: 'reset_password_template_id', label: 'Reset Password', emailType: 'reset_password', description: 'Template used when a user requests a password reset.' },
+  { field: 'magic_link_template_id', label: 'Magic Link', emailType: 'magic_link', description: 'Template used for passwordless magic link authentication.' },
+  { field: 'email_verification_template_id', label: 'Email Verification', emailType: 'email_verification', description: 'Template used to verify a user\'s email address.' },
+] as const
+
+function EmailActionsSection({
+  templates,
+  realmSettings,
+  onAssignTemplate,
+}: {
+  templates: EmailTemplate[]
+  realmSettings?: RealmSettings | null
+  onAssignTemplate: (field: string, templateId: string | null) => void
+}) {
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className='mb-4'>
+        <p className='text-xs text-muted-foreground mb-0.5'>Email routing</p>
+        <h2 className='text-base font-semibold'>Email Actions Configuration</h2>
+      </div>
+
+      {EMAIL_ACTION_CONFIGS.map((action) => {
+        const filtered = templates.filter((t) => t.email_type === action.emailType)
+        const currentValue = realmSettings?.[action.field] ?? undefined
+
+        return (
+          <div key={action.field} className='flex items-start justify-between py-4 border-t'>
+            <div className='w-1/3'>
+              <p className='text-sm font-medium'>{action.label}</p>
+              <p className='text-sm text-muted-foreground mt-0.5'>{action.description}</p>
+            </div>
+            <div className='w-1/2'>
+              <Select
+                value={currentValue ?? '__none__'}
+                onValueChange={(value) =>
+                  onAssignTemplate(action.field, value === '__none__' ? null : value)
+                }
+              >
+                <SelectTrigger className='w-64'>
+                  <SelectValue placeholder='Not configured' />
+                </SelectTrigger>
+                <SelectContent position='popper'>
+                  <SelectItem value='__none__'>Not configured</SelectItem>
+                  {filtered.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function PageRealmSettingsEmail({
   form,
   config,
@@ -321,7 +374,8 @@ export default function PageRealmSettingsEmail({
   onEditTemplate,
   onCreateTemplate,
   onDeleteTemplate,
-  onActivateTemplate,
+  realmSettings,
+  onAssignTemplate,
 }: PageRealmSettingsEmailProps) {
   return (
     <div className='flex flex-col gap-10'>
@@ -337,7 +391,12 @@ export default function PageRealmSettingsEmail({
         onEdit={onEditTemplate}
         onCreate={onCreateTemplate}
         onDelete={onDeleteTemplate}
-        onActivate={onActivateTemplate}
+      />
+
+      <EmailActionsSection
+        templates={templates}
+        realmSettings={realmSettings}
+        onAssignTemplate={onAssignTemplate}
       />
     </div>
   )

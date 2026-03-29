@@ -266,6 +266,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             password_reset_token.clone(),
             security_event.clone(),
             webhook.clone(),
+            email_template.clone(),
+            mjml_renderer.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),

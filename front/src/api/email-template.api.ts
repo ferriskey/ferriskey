@@ -1,51 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { BaseQuery } from '.'
 
-interface EmailTemplate {
-  id: string
-  realm_id: string
-  name: string
-  email_type: string
-  structure: unknown
-  mjml: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
+export const useGetEmailTemplates = ({ realm = 'master' }: BaseQuery) => {
+  return useQuery(
+    window.tanstackApi.get('/realms/{realm_name}/email-templates', {
+      path: { realm_name: realm },
+    }).queryOptions,
+  )
 }
 
-interface TemplateVariable {
-  name: string
-  description: string
-}
-
-export const useGetEmailTemplates = (realm: string) => {
+export const useGetEmailTemplate = ({ realm = 'master', templateId }: BaseQuery & { templateId: string }) => {
   return useQuery({
-    queryKey: ['email-templates', realm],
-    queryFn: async (): Promise<{ data: EmailTemplate[] }> => {
-      const res = await window.axios.get(`/realms/${realm}/email-templates`)
-      return res.data
-    },
-  })
-}
-
-export const useGetEmailTemplate = (realm: string, templateId: string) => {
-  return useQuery({
-    queryKey: ['email-templates', realm, templateId],
-    queryFn: async (): Promise<{ data: EmailTemplate }> => {
-      const res = await window.axios.get(`/realms/${realm}/email-templates/${templateId}`)
-      return res.data
-    },
+    ...window.tanstackApi.get('/realms/{realm_name}/email-templates/{template_id}', {
+      path: { realm_name: realm, template_id: templateId },
+    }).queryOptions,
     enabled: !!templateId && templateId !== 'new',
   })
 }
 
 export const useGetTemplateVariables = (emailType: string) => {
   return useQuery({
-    queryKey: ['email-template-variables', emailType],
-    queryFn: async (): Promise<{ data: TemplateVariable[] }> => {
-      const res = await window.axios.get(`/email-templates/variables/${emailType}`)
-      return res.data
-    },
+    ...window.tanstackApi.get('/email-templates/variables/{email_type}', {
+      path: { email_type: emailType },
+    }).queryOptions,
     enabled: !!emailType,
   })
 }
@@ -53,16 +31,7 @@ export const useGetTemplateVariables = (emailType: string) => {
 export const useCreateEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: {
-      realm: string
-      body: { name: string; email_type: string; structure: unknown }
-    }): Promise<{ data: EmailTemplate }> => {
-      const res = await window.axios.post(
-        `/realms/${params.realm}/email-templates`,
-        params.body,
-      )
-      return res.data
-    },
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/email-templates').mutationOptions,
     onSuccess: async () => {
       toast.success('Email template created successfully')
       await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
@@ -73,17 +42,7 @@ export const useCreateEmailTemplate = () => {
 export const useUpdateEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: {
-      realm: string
-      templateId: string
-      body: { name: string; structure: unknown }
-    }): Promise<{ data: EmailTemplate }> => {
-      const res = await window.axios.put(
-        `/realms/${params.realm}/email-templates/${params.templateId}`,
-        params.body,
-      )
-      return res.data
-    },
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/email-templates/{template_id}').mutationOptions,
     onSuccess: async () => {
       toast.success('Email template saved successfully')
       await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
@@ -94,27 +53,9 @@ export const useUpdateEmailTemplate = () => {
 export const useDeleteEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: { realm: string; templateId: string }) => {
-      await window.axios.delete(`/realms/${params.realm}/email-templates/${params.templateId}`)
-    },
+    ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/email-templates/{template_id}').mutationOptions,
     onSuccess: async () => {
       toast.success('Email template deleted successfully')
-      await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
-    },
-  })
-}
-
-export const useActivateEmailTemplate = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (params: { realm: string; templateId: string }): Promise<{ data: EmailTemplate }> => {
-      const res = await window.axios.patch(
-        `/realms/${params.realm}/email-templates/${params.templateId}/activate`,
-      )
-      return res.data
-    },
-    onSuccess: async () => {
-      toast.success('Email template activated')
       await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
     },
   })

@@ -101,7 +101,6 @@ pub struct EmailTemplate {
     pub email_type: EmailType,
     pub structure: serde_json::Value,
     pub mjml: String,
-    pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

@@ -19,7 +19,6 @@ pub struct Model {
     pub email_type: String,
     pub structure: Json,
     pub mjml: String,
-    pub is_active: bool,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
@@ -32,7 +31,6 @@ pub enum Column {
     EmailType,
     Structure,
     Mjml,
-    IsActive,
     CreatedAt,
     UpdatedAt,
 }
@@ -64,7 +62,6 @@ impl ColumnTrait for Column {
             Self::EmailType => ColumnType::String(StringLen::N(50u32)).def(),
             Self::Structure => ColumnType::JsonBinary.def(),
             Self::Mjml => ColumnType::Text.def(),
-            Self::IsActive => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
         }

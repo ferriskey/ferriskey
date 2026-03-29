@@ -24,10 +24,17 @@ export default function PageEmailTemplateBuilderFeature() {
   const realm = realm_name ?? 'master'
   const isNew = template_id === 'new'
 
-  const { data: templateData, isLoading } = useGetEmailTemplate(realm, template_id ?? '')
+  const { data: templateData, isLoading } = useGetEmailTemplate({
+    realm,
+    templateId: template_id ?? '',
+  })
 
   if (!isNew && isLoading) {
-    return <div className='flex items-center justify-center p-12 text-sm text-muted-foreground'>Loading template...</div>
+    return (
+      <div className='flex items-center justify-center p-12 text-sm text-muted-foreground'>
+        Loading template...
+      </div>
+    )
   }
 
   return (
@@ -95,7 +102,7 @@ function BuilderFeatureInner({
     if (isNew) {
       createTemplate(
         {
-          realm,
+          path: { realm_name: realm },
           body: { name, email_type: emailType, structure },
         },
         {
@@ -106,8 +113,7 @@ function BuilderFeatureInner({
       )
     } else {
       updateTemplate({
-        realm,
-        templateId,
+        path: { realm_name: realm, template_id: templateId },
         body: { name, structure },
       })
     }

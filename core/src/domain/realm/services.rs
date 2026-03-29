@@ -717,6 +717,9 @@ where
                 input.refresh_token_lifetime,
                 input.id_token_lifetime,
                 input.temporary_token_lifetime,
+                input.reset_password_template_id,
+                input.magic_link_template_id,
+                input.email_verification_template_id,
             )
             .await?;
 
