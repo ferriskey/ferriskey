@@ -28,6 +28,9 @@ pub struct Model {
     pub id_token_lifetime_secs: i32,
     pub temporary_token_lifetime_secs: i32,
     pub passkey_enabled: bool,
+    pub reset_password_template_id: Option<Uuid>,
+    pub magic_link_template_id: Option<Uuid>,
+    pub email_verification_template_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -47,6 +50,9 @@ pub enum Column {
     IdTokenLifetimeSecs,
     TemporaryTokenLifetimeSecs,
     PasskeyEnabled,
+    ResetPasswordTemplateId,
+    MagicLinkTemplateId,
+    EmailVerificationTemplateId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -85,6 +91,9 @@ impl ColumnTrait for Column {
             Self::IdTokenLifetimeSecs => ColumnType::Integer.def(),
             Self::TemporaryTokenLifetimeSecs => ColumnType::Integer.def(),
             Self::PasskeyEnabled => ColumnType::Boolean.def(),
+            Self::ResetPasswordTemplateId => ColumnType::Uuid.def().null(),
+            Self::MagicLinkTemplateId => ColumnType::Uuid.def().null(),
+            Self::EmailVerificationTemplateId => ColumnType::Uuid.def().null(),
         }
     }
 }

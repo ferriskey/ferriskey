@@ -57,25 +57,41 @@ impl TemplateRenderer for MjmlTemplateRenderer {
 /// }
 /// ```
 fn json_to_mjml(node: &serde_json::Value) -> Result<String, CoreError> {
-    let node_type = node.get("type").and_then(|v| v.as_str()).ok_or_else(|| {
-        CoreError::InvalidEmailTemplateStructure("missing 'type' field in node".to_string())
+    // Support wrapper object: { children: [...] } without a type (root from frontend)
+    if node.get("type").is_none() {
+        if let Some(children) = node.get("children").and_then(|v| v.as_array()) {
+            let body_children = children
+                .iter()
+                .map(json_to_mjml)
+                .collect::<Result<Vec<String>, CoreError>>()?
+                .join("");
+            return Ok(format!("<mjml><mj-body>{body_children}</mj-body></mjml>"));
+        }
+        return Err(CoreError::InvalidEmailTemplateStructure(
+            "missing 'type' field in node".to_string(),
+        ));
+    }
+
+    let node_type = node["type"].as_str().ok_or_else(|| {
+        CoreError::InvalidEmailTemplateStructure("'type' must be a string".to_string())
     })?;
 
-    // Build attributes string
-    let attrs = if let Some(attributes) = node.get("attributes").and_then(|v| v.as_object()) {
-        attributes
-            .iter()
-            .map(|(k, v)| {
+    // Build attributes from "attributes", "props", or "styles" objects
+    let mut attr_parts = Vec::new();
+    for key in &["attributes", "props", "styles"] {
+        if let Some(obj) = node.get(*key).and_then(|v| v.as_object()) {
+            for (k, v) in obj {
                 let val = match v {
-                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::String(s) if !s.is_empty() => s.clone(),
+                    serde_json::Value::String(_) => continue,
+                    serde_json::Value::Null => continue,
                     other => other.to_string(),
                 };
-                format!(" {k}=\"{val}\"")
-            })
-            .collect::<String>()
-    } else {
-        String::new()
-    };
+                attr_parts.push(format!(" {k}=\"{val}\""));
+            }
+        }
+    }
+    let attrs = attr_parts.join("");
 
     // Get content (for leaf nodes like mj-text, mj-button)
     let content = node.get("content").and_then(|v| v.as_str()).unwrap_or("");
@@ -251,5 +267,52 @@ mod tests {
         assert!(html.contains("{{user.first_name}}"));
         assert!(html.contains("{{reset_link}}"));
         assert!(html.contains("Reset Password"));
+    }
+
+    #[test]
+    fn test_frontend_builder_format() {
+        // Format sent by the frontend builder: { children: [...] } with props/styles
+        let structure = json!({
+            "children": [
+                {
+                    "id": "node-123",
+                    "type": "mj-section",
+                    "props": {},
+                    "styles": {},
+                    "children": [
+                        {
+                            "id": "node-456",
+                            "type": "mj-column",
+                            "props": {},
+                            "styles": {},
+                            "children": [
+                                {
+                                    "id": "node-789",
+                                    "type": "mj-text",
+                                    "props": {
+                                        "color": "#333333",
+                                        "font-size": "14px"
+                                    },
+                                    "styles": {},
+                                    "children": [],
+                                    "content": "<p>Hello {{user.first_name}}</p>"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let renderer = MjmlTemplateRenderer::new();
+        let mjml = renderer.render_to_intermediate(&structure).unwrap();
+        assert!(mjml.contains("<mjml>"));
+        assert!(mjml.contains("<mj-body>"));
+        assert!(mjml.contains("<mj-text"));
+        assert!(mjml.contains("color=\"#333333\""));
+        assert!(mjml.contains("Hello {{user.first_name}}"));
+
+        let html = renderer.render_to_html(&mjml).unwrap();
+        assert!(html.contains("Hello {{user.first_name}}"));
     }
 }

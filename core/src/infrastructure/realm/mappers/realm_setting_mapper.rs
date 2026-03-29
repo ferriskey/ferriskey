@@ -21,6 +21,9 @@ impl From<Model> for RealmSetting {
             refresh_token_lifetime: value.refresh_token_lifetime_secs as i64,
             id_token_lifetime: value.id_token_lifetime_secs as i64,
             temporary_token_lifetime: value.temporary_token_lifetime_secs as i64,
+            reset_password_template_id: value.reset_password_template_id,
+            magic_link_template_id: value.magic_link_template_id,
+            email_verification_template_id: value.email_verification_template_id,
             updated_at,
         }
     }

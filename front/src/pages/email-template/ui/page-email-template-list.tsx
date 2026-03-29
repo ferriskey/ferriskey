@@ -1,13 +1,12 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Mail, Pencil, Power, Plus, Trash2 } from 'lucide-react'
+import { Mail, Pencil, Plus, Trash2 } from 'lucide-react'
 
 interface EmailTemplate {
   id: string
   name: string
   email_type: string
-  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -17,7 +16,6 @@ interface Props {
   isLoading: boolean
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onActivate: (id: string) => void
   onCreate: () => void
 }
 
@@ -32,7 +30,6 @@ export default function PageEmailTemplateList({
   isLoading,
   onEdit,
   onDelete,
-  onActivate,
   onCreate,
 }: Props) {
   return (
@@ -77,23 +74,8 @@ export default function PageEmailTemplateList({
                   <Badge variant='outline'>
                     {EMAIL_TYPE_LABELS[template.email_type] ?? template.email_type}
                   </Badge>
-                  {template.is_active && (
-                    <Badge variant='default' className='bg-green-600'>
-                      Active
-                    </Badge>
-                  )}
                 </div>
                 <div className='flex items-center gap-1'>
-                  {!template.is_active && (
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      title='Activate'
-                      onClick={() => onActivate(template.id)}
-                    >
-                      <Power size={14} />
-                    </Button>
-                  )}
                   <Button
                     variant='ghost'
                     size='icon'

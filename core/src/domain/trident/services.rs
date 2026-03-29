@@ -29,6 +29,10 @@ use crate::{
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
+        email_template::{
+            entities::interpolate_variables,
+            ports::{EmailTemplateRepository, TemplateRenderer},
+        },
         realm::{
             entities::RealmId,
             ports::{RealmRepository, SmtpConfigRepository},
@@ -202,7 +206,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -217,6 +221,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -231,10 +237,12 @@ where
     pub(crate) password_reset_token_repository: Arc<PRT>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) webhook_repository: Arc<WH>,
+    pub(crate) email_template_repository: Arc<ETR>,
+    pub(crate) template_renderer: Arc<TR>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -249,6 +257,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -265,6 +275,8 @@ where
         password_reset_token_repository: Arc<PRT>,
         security_event_repository: Arc<SE>,
         webhook_repository: Arc<WH>,
+        email_template_repository: Arc<ETR>,
+        template_renderer: Arc<TR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -280,12 +292,39 @@ where
             password_reset_token_repository,
             security_event_repository,
             webhook_repository,
+            email_template_repository,
+            template_renderer,
         }
+    }
+
+    async fn render_email_template(
+        &self,
+        template_id: Uuid,
+        user: &crate::domain::user::entities::User,
+        extra_vars: &[(&str, &str)],
+    ) -> Result<String, CoreError> {
+        let template = self
+            .email_template_repository
+            .get_by_id(template_id)
+            .await?
+            .ok_or(CoreError::EmailTemplateNotFound)?;
+
+        let html = self.template_renderer.render_to_html(&template.mjml)?;
+
+        let mut variables = std::collections::HashMap::new();
+        variables.insert("user.first_name".to_string(), user.firstname.clone());
+        variables.insert("user.last_name".to_string(), user.lastname.clone());
+        variables.insert("user.email".to_string(), user.email.clone());
+        for (key, value) in extra_vars {
+            variables.insert(key.to_string(), value.to_string());
+        }
+
+        Ok(interpolate_variables(&html, &variables))
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -300,6 +339,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     async fn generate_recovery_code(
         &self,
@@ -1103,9 +1144,16 @@ where
             )
             .await?;
 
-        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
-            Ok(Some(smtp_config)) => {
-                let subject = "Your magic link";
+        let template_id = realm
+            .settings
+            .as_ref()
+            .and_then(|s| s.magic_link_template_id);
+
+        match (
+            template_id,
+            self.smtp_config_repository.get_by_realm_id(realm.id).await,
+        ) {
+            (Some(tid), Ok(Some(smtp_config))) => {
                 let magic_link_url = format!(
                     "{}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
                     input.base_url, realm.name, magic_token_id, magic_token
@@ -1113,32 +1161,55 @@ where
                 let body = format!(
                     "Click the link below to sign in:\n{magic_link_url}\n\nThis link expires in {ttl_minutes} minutes.\n\nIf you did not request this, please ignore this email.",
                 );
-                let html_body = format!(
-                    r#"<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:sans-serif;background:#f4f4f5;margin:0;padding:32px 16px">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto">
-    <tr><td style="background:#fff;border-radius:8px;padding:40px 32px;border:1px solid #e4e4e7">
-      <p style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#71717a;margin:0 0 24px">FerrisKey</p>
-      <h1 style="font-size:22px;font-weight:600;color:#09090b;margin:0 0 12px">Sign in to your account</h1>
-      <p style="font-size:14px;color:#71717a;margin:0 0 28px">Click the button below to sign in. This link expires in <strong>{ttl_minutes} minutes</strong>.</p>
-      <a href="{magic_link_url}" style="display:inline-block;background:#09090b;color:#fff;font-size:14px;font-weight:500;text-decoration:none;padding:12px 24px;border-radius:6px">Sign in</a>
-      <p style="font-size:12px;color:#a1a1aa;margin:28px 0 0">If you did not request this, you can safely ignore this email.</p>
-    </td></tr>
-  </table>
-</body>
-</html>"#,
-                );
+
+                let html_body = self
+                    .render_email_template(
+                        tid,
+                        &user,
+                        &[
+                            ("magic_link", magic_link_url.as_str()),
+                            ("expiration", &format!("{ttl_minutes} minutes")),
+                        ],
+                    )
+                    .await
+                    .ok();
+
                 if let Err(e) = self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body, Some(html_body))
+                    .send_email(
+                        &smtp_config,
+                        &user.email,
+                        "Your magic link",
+                        &body,
+                        html_body,
+                    )
                     .await
                 {
                     warn!("Failed to send magic link email: {}", e);
                 }
             }
-            _ => {
+            (None, _) => {
+                warn!(
+                    "No magic link email template configured for realm {}",
+                    realm.name
+                );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("No magic_link email template configured for realm {}", realm.name)
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+            }
+            (_, _) => {
                 warn!("SMTP not configured for realm, logging magic link instead");
                 debug!(
                     "Magic link URL: {}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
@@ -1318,22 +1389,72 @@ where
 
         self.password_reset_token_repository.create(&prt).await?;
 
-        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
-            Ok(Some(smtp_config)) => {
-                let subject = "Reset your password";
-                let body = format!(
-                    "A password reset was requested for your account.\n\nClick the link below to reset your password:\n{}/realms/{}/authentication/reset-password?token_id={}&token={}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
-                    input.base_url, realm.name, token_id, raw_token, ttl_minutes
+        let template_id = realm
+            .settings
+            .as_ref()
+            .and_then(|s| s.reset_password_template_id);
+
+        match (
+            template_id,
+            self.smtp_config_repository.get_by_realm_id(realm.id).await,
+        ) {
+            (Some(tid), Ok(Some(smtp_config))) => {
+                let reset_link = format!(
+                    "{}/realms/{}/authentication/reset-password?token_id={}&token={}",
+                    input.base_url, realm.name, token_id, raw_token
                 );
+                let body = format!(
+                    "A password reset was requested for your account.\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in {ttl_minutes} minutes.\n\nIf you did not request this, please ignore this email.",
+                );
+
+                let html_body = self
+                    .render_email_template(
+                        tid,
+                        &user,
+                        &[
+                            ("reset_link", reset_link.as_str()),
+                            ("expiration", &format!("{ttl_minutes} minutes")),
+                        ],
+                    )
+                    .await
+                    .ok();
+
                 if let Err(e) = self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body, None)
+                    .send_email(
+                        &smtp_config,
+                        &user.email,
+                        "Reset your password",
+                        &body,
+                        html_body,
+                    )
                     .await
                 {
                     warn!("Failed to send password reset email: {}", e);
                 }
             }
-            _ => {
+            (None, _) => {
+                warn!(
+                    "No reset password email template configured for realm {}",
+                    realm.name
+                );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("No reset_password email template configured for realm {}", realm.name)
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+            }
+            (_, _) => {
                 warn!("SMTP not configured for realm, logging password reset token instead");
                 debug!(
                     "Password reset token_id: {}, token: {}",
@@ -1490,6 +1611,7 @@ mod tests {
         authentication::ports::MockAuthSessionRepository,
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
         credential::ports::MockCredentialRepository,
+        email_template::ports::MockEmailTemplateRepository,
         realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
         seawatch::ports::MockSecurityEventRepository,
         trident::ports::{
@@ -1500,6 +1622,22 @@ mod tests {
     };
     use ferriskey_domain::realm::RealmSetting;
     use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
+
+    #[derive(Debug, Clone)]
+    struct NoopTemplateRenderer;
+
+    impl TemplateRenderer for NoopTemplateRenderer {
+        fn render_to_intermediate(
+            &self,
+            _structure: &serde_json::Value,
+        ) -> Result<String, CoreError> {
+            Ok(String::new())
+        }
+
+        fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
+            Ok(String::new())
+        }
+    }
 
     struct TridentTestBuilder {
         credential_repo: Arc<MockCredentialRepository>,
@@ -1515,6 +1653,8 @@ mod tests {
         prt_repo: Arc<MockPasswordResetTokenRepository>,
         security_event_repo: Arc<MockSecurityEventRepository>,
         webhook_repo: Arc<MockWebhookRepository>,
+        email_template_repo: Arc<MockEmailTemplateRepository>,
+        template_renderer: Arc<NoopTemplateRenderer>,
     }
 
     impl TridentTestBuilder {
@@ -1533,6 +1673,8 @@ mod tests {
                 prt_repo: Arc::new(MockPasswordResetTokenRepository::new()),
                 security_event_repo: Arc::new(MockSecurityEventRepository::new()),
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
+                email_template_repo: Arc::new(MockEmailTemplateRepository::new()),
+                template_renderer: Arc::new(NoopTemplateRenderer),
             }
         }
 
@@ -1552,6 +1694,8 @@ mod tests {
             MockPasswordResetTokenRepository,
             MockSecurityEventRepository,
             MockWebhookRepository,
+            MockEmailTemplateRepository,
+            NoopTemplateRenderer,
         > {
             TridentServiceImpl::new(
                 self.credential_repo,
@@ -1567,6 +1711,8 @@ mod tests {
                 self.prt_repo,
                 self.security_event_repo,
                 self.webhook_repo,
+                self.email_template_repo,
+                self.template_renderer,
             )
         }
     }

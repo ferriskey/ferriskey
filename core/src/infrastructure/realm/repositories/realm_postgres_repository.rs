@@ -182,6 +182,9 @@ impl RealmRepository for PostgresRealmRepository {
         refresh_token_lifetime: Option<i64>,
         id_token_lifetime: Option<i64>,
         temporary_token_lifetime: Option<i64>,
+        reset_password_template_id: Option<Option<Uuid>>,
+        magic_link_template_id: Option<Option<Uuid>>,
+        email_verification_template_id: Option<Option<Uuid>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -243,6 +246,18 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(lifetime) = temporary_token_lifetime {
             realm_setting.temporary_token_lifetime_secs =
                 Set(i32::try_from(lifetime).map_err(|_| CoreError::Invalid)?);
+        }
+
+        if let Some(value) = reset_password_template_id {
+            realm_setting.reset_password_template_id = Set(value);
+        }
+
+        if let Some(value) = magic_link_template_id {
+            realm_setting.magic_link_template_id = Set(value);
+        }
+
+        if let Some(value) = email_verification_template_id {
+            realm_setting.email_verification_template_id = Set(value);
         }
 
         let realm_setting = realm_setting

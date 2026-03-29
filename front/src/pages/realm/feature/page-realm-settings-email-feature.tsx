@@ -1,4 +1,5 @@
-import { useGetEmailTemplates, useDeleteEmailTemplate, useActivateEmailTemplate } from '@/api/email-template.api'
+import { useGetEmailTemplates, useDeleteEmailTemplate } from '@/api/email-template.api'
+import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { useDeleteSmtpConfig, useGetSmtpConfig, useUpsertSmtpConfig } from '@/api/smtp.api'
 import { RouterParams } from '@/routes/router'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -27,9 +28,10 @@ export default function PageRealmSettingsEmailFeature() {
   const { data, isError } = useGetSmtpConfig({ realm: realm_name })
   const { mutate: upsert } = useUpsertSmtpConfig()
   const { mutate: remove } = useDeleteSmtpConfig()
-  const { data: templatesData, isLoading: templatesLoading } = useGetEmailTemplates(realm)
+  const { data: templatesData, isLoading: templatesLoading } = useGetEmailTemplates({ realm })
   const { mutate: deleteTemplate } = useDeleteEmailTemplate()
-  const { mutate: activateTemplate } = useActivateEmailTemplate()
+  const { data: realmData } = useGetRealm({ realm })
+  const { mutate: updateSettings } = useUpdateRealmSettings()
 
   const hasConfig = !!data && !isError
 
@@ -72,7 +74,7 @@ export default function PageRealmSettingsEmailFeature() {
             encryption: 'tls',
           })
         },
-      }
+      },
     )
   }
 
@@ -85,12 +87,21 @@ export default function PageRealmSettingsEmailFeature() {
   }
 
   const handleDeleteTemplate = (templateId: string) => {
-    deleteTemplate({ realm, templateId })
+    deleteTemplate({ path: { realm_name: realm, template_id: templateId } })
   }
 
-  const handleActivateTemplate = (templateId: string) => {
-    activateTemplate({ realm, templateId })
+  const handleAssignTemplate = (field: string, templateId: string | null) => {
+    if (!realm_name) return
+
+    updateSettings({
+      path: { name: realm_name },
+      body: {
+        [field]: templateId,
+      },
+    })
   }
+
+  const realmSettings = realmData?.settings
 
   return (
     <PageRealmSettingsEmail
@@ -103,7 +114,8 @@ export default function PageRealmSettingsEmailFeature() {
       onEditTemplate={handleEditTemplate}
       onCreateTemplate={handleCreateTemplate}
       onDeleteTemplate={handleDeleteTemplate}
-      onActivateTemplate={handleActivateTemplate}
+      realmSettings={realmSettings}
+      onAssignTemplate={handleAssignTemplate}
     />
   )
 }

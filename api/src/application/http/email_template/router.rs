@@ -1,4 +1,3 @@
-use super::handlers::activate_template::{__path_activate_template, activate_template};
 use super::handlers::create_template::{__path_create_template, create_template};
 use super::handlers::delete_template::{__path_delete_template, delete_template};
 use super::handlers::fetch_templates::{__path_fetch_templates, fetch_templates};
@@ -16,7 +15,6 @@ use utoipa::OpenApi;
     create_template,
     update_template,
     delete_template,
-    activate_template,
 ))]
 pub struct EmailTemplateApiDoc;
 
@@ -41,13 +39,6 @@ pub fn email_template_routes(state: AppState) -> Router<AppState> {
             get(get_template)
                 .put(update_template)
                 .delete(delete_template),
-        )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/email-templates/{{template_id}}/activate",
-                state.args.server.root_path
-            ),
-            axum::routing::patch(activate_template),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 

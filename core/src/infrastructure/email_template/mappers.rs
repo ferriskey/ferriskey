@@ -20,7 +20,6 @@ impl From<EmailTemplateModel> for EmailTemplate {
             email_type,
             structure: value.structure,
             mjml: value.mjml,
-            is_active: value.is_active,
             created_at,
             updated_at,
         }
@@ -42,7 +41,6 @@ impl From<&EmailTemplateModel> for EmailTemplate {
             email_type,
             structure: value.structure.clone(),
             mjml: value.mjml.clone(),
-            is_active: value.is_active,
             created_at,
             updated_at,
         }

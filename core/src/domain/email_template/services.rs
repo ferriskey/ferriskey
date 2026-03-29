@@ -10,12 +10,11 @@ use crate::domain::{
         policies::{FerriskeyPolicy, ensure_policy},
     },
     email_template::{
-        entities::{EmailTemplate, EmailType},
+        entities::EmailTemplate,
         ports::{
-            ActivateEmailTemplateInput, CreateEmailTemplateInput, DeleteEmailTemplateInput,
-            EmailTemplatePolicy, EmailTemplateRepository, EmailTemplateService,
-            GetEmailTemplateInput, GetEmailTemplatesInput, TemplateRenderer,
-            UpdateEmailTemplateInput,
+            CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplatePolicy,
+            EmailTemplateRepository, EmailTemplateService, GetEmailTemplateInput,
+            GetEmailTemplatesInput, TemplateRenderer, UpdateEmailTemplateInput,
         },
     },
     realm::ports::RealmRepository,
@@ -215,49 +214,12 @@ where
             .await
     }
 
-    async fn activate_template(
-        &self,
-        identity: Identity,
-        input: ActivateEmailTemplateInput,
-    ) -> Result<EmailTemplate, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        ensure_policy(
-            self.policy
-                .can_manage_email_template(&identity, &realm)
-                .await,
-            "insufficient permissions",
-        )?;
-
+    async fn render_template_html(&self, template_id: Uuid) -> Result<String, CoreError> {
         let template = self
             .email_template_repository
-            .get_by_id(input.template_id)
+            .get_by_id(template_id)
             .await?
             .ok_or(CoreError::EmailTemplateNotFound)?;
-
-        self.email_template_repository
-            .activate(
-                realm.id.into(),
-                template.email_type.to_string(),
-                input.template_id,
-            )
-            .await
-    }
-
-    async fn get_active_template_html(
-        &self,
-        realm_id: Uuid,
-        email_type: EmailType,
-    ) -> Result<String, CoreError> {
-        let template = self
-            .email_template_repository
-            .get_active_by_type(realm_id, email_type.to_string())
-            .await?
-            .ok_or(CoreError::NoActiveEmailTemplate(email_type.to_string()))?;
 
         self.template_renderer.render_to_html(&template.mjml)
     }
@@ -268,7 +230,7 @@ mod tests {
     use super::*;
     use crate::domain::{
         client::ports::MockClientRepository,
-        email_template::ports::MockEmailTemplateRepository,
+        email_template::{entities::EmailType, ports::MockEmailTemplateRepository},
         realm::{entities::Realm, ports::MockRealmRepository},
         role::entities::Role,
         user::{
@@ -332,7 +294,6 @@ mod tests {
             email_type: EmailType::ResetPassword,
             structure: json!({"type": "root", "children": []}),
             mjml: "<mjml></mjml>".to_string(),
-            is_active: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -416,10 +377,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_active_template_html() {
+    async fn test_render_template_html() {
         let realm = test_realm();
-        let mut template = test_template(&realm);
-        template.is_active = true;
+        let template = test_template(&realm);
+        let template_id = template.id;
         let template_clone = template.clone();
 
         let realm_repo = MockRealmRepository::new();
@@ -428,7 +389,7 @@ mod tests {
         let client_repo = MockClientRepository::new();
 
         let mut et_repo = MockEmailTemplateRepository::new();
-        et_repo.expect_get_active_by_type().returning(move |_, _| {
+        et_repo.expect_get_by_id().returning(move |_| {
             let t = template_clone.clone();
             Box::pin(async move { Ok(Some(t)) })
         });
@@ -446,18 +407,14 @@ mod tests {
             policy,
         );
 
-        let result = service
-            .get_active_template_html(realm.id.into(), EmailType::ResetPassword)
-            .await;
+        let result = service.render_template_html(template_id).await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "<html><body>Test</body></html>");
     }
 
     #[tokio::test]
-    async fn test_get_active_template_html_not_found() {
-        let realm = test_realm();
-
+    async fn test_render_template_html_not_found() {
         let realm_repo = MockRealmRepository::new();
         let user_repo = MockUserRepository::new();
         let user_role_repo = MockUserRoleRepository::new();
@@ -465,8 +422,8 @@ mod tests {
 
         let mut et_repo = MockEmailTemplateRepository::new();
         et_repo
-            .expect_get_active_by_type()
-            .returning(|_, _| Box::pin(async { Ok(None) }));
+            .expect_get_by_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
 
         let policy = Arc::new(FerriskeyPolicy::new(
             Arc::new(user_repo),
@@ -481,11 +438,9 @@ mod tests {
             policy,
         );
 
-        let result = service
-            .get_active_template_html(realm.id.into(), EmailType::ResetPassword)
-            .await;
+        let result = service.render_template_html(uuid::Uuid::new_v4()).await;
 
         assert!(result.is_err());
-        matches!(result.unwrap_err(), CoreError::NoActiveEmailTemplate(_));
+        matches!(result.unwrap_err(), CoreError::EmailTemplateNotFound);
     }
 }

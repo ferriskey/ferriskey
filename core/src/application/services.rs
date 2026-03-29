@@ -145,6 +145,8 @@ type ApplicationTridentService = TridentServiceImpl<
     PasswordResetTokenRepo,
     SecurityEventRepo,
     WebhookRepo,
+    EmailTemplateRepo,
+    MjmlRenderer,
 >;
 
 type ApplicationAuthService = AuthServiceImpl<

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -32,6 +33,16 @@ pub struct UpdateRealmSettingValidator {
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,
     pub temporary_token_lifetime: Option<i64>,
+
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub reset_password_template_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub magic_link_template_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub email_verification_template_id: Option<Option<Uuid>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -62,6 +73,14 @@ pub struct UpdatePasswordPolicyValidator {
     pub require_special: Option<bool>,
     #[validate(range(min = 0, message = "max_age_days must be 0 or greater"))]
     pub max_age_days: Option<i32>,
+}
+
+fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
 }
 
 fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {

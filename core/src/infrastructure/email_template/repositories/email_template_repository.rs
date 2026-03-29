@@ -48,24 +48,6 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             })
     }
 
-    async fn get_active_by_type(
-        &self,
-        realm_id: Uuid,
-        email_type: String,
-    ) -> Result<Option<EmailTemplate>, CoreError> {
-        EmailTemplateEntity::find()
-            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
-            .filter(EmailTemplateColumn::EmailType.eq(&email_type))
-            .filter(EmailTemplateColumn::IsActive.eq(true))
-            .one(&self.db)
-            .await
-            .map(|model| model.map(EmailTemplate::from))
-            .map_err(|e| {
-                error!("Failed to get active email template: {}", e);
-                CoreError::InternalServerError
-            })
-    }
-
     async fn create(
         &self,
         realm_id: Uuid,
@@ -84,7 +66,6 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             email_type: Set(email_type),
             structure: Set(structure),
             mjml: Set(mjml),
-            is_active: Set(false),
             created_at: Set(chrono::Utc::now().naive_utc()),
             updated_at: Set(chrono::Utc::now().naive_utc()),
         };
@@ -138,58 +119,6 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             .map(|_| ())
             .map_err(|e| {
                 error!("Failed to delete email template: {}", e);
-                CoreError::InternalServerError
-            })
-    }
-
-    async fn activate(
-        &self,
-        realm_id: Uuid,
-        email_type: String,
-        template_id: Uuid,
-    ) -> Result<EmailTemplate, CoreError> {
-        // Deactivate all templates of same type in this realm
-        let all_active = EmailTemplateEntity::find()
-            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
-            .filter(EmailTemplateColumn::EmailType.eq(&email_type))
-            .filter(EmailTemplateColumn::IsActive.eq(true))
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to fetch active templates: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        for model in all_active {
-            let mut active: EmailTemplateActiveModel = model.into();
-            active.is_active = Set(false);
-            active.updated_at = Set(chrono::Utc::now().naive_utc());
-            active.update(&self.db).await.map_err(|e| {
-                error!("Failed to deactivate template: {}", e);
-                CoreError::InternalServerError
-            })?;
-        }
-
-        // Activate the target template
-        let target = EmailTemplateEntity::find_by_id(template_id)
-            .one(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to find template to activate: {}", e);
-                CoreError::InternalServerError
-            })?
-            .ok_or(CoreError::EmailTemplateNotFound)?;
-
-        let mut active: EmailTemplateActiveModel = target.into();
-        active.is_active = Set(true);
-        active.updated_at = Set(chrono::Utc::now().naive_utc());
-
-        active
-            .update(&self.db)
-            .await
-            .map(EmailTemplate::from)
-            .map_err(|e| {
-                error!("Failed to activate template: {}", e);
                 CoreError::InternalServerError
             })
     }

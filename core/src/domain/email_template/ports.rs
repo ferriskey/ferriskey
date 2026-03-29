@@ -40,16 +40,9 @@ pub trait EmailTemplateService: Send + Sync {
         input: DeleteEmailTemplateInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn activate_template(
+    fn render_template_html(
         &self,
-        identity: Identity,
-        input: ActivateEmailTemplateInput,
-    ) -> impl Future<Output = Result<EmailTemplate, CoreError>> + Send;
-
-    fn get_active_template_html(
-        &self,
-        realm_id: Uuid,
-        email_type: EmailType,
+        template_id: Uuid,
     ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }
 
@@ -63,12 +56,6 @@ pub trait EmailTemplateRepository: Send + Sync {
     fn get_by_id(
         &self,
         template_id: Uuid,
-    ) -> impl Future<Output = Result<Option<EmailTemplate>, CoreError>> + Send;
-
-    fn get_active_by_type(
-        &self,
-        realm_id: Uuid,
-        email_type: String,
     ) -> impl Future<Output = Result<Option<EmailTemplate>, CoreError>> + Send;
 
     fn create(
@@ -89,13 +76,6 @@ pub trait EmailTemplateRepository: Send + Sync {
     ) -> impl Future<Output = Result<EmailTemplate, CoreError>> + Send;
 
     fn delete(&self, template_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    fn activate(
-        &self,
-        realm_id: Uuid,
-        email_type: String,
-        template_id: Uuid,
-    ) -> impl Future<Output = Result<EmailTemplate, CoreError>> + Send;
 }
 
 /// Trait for rendering a builder structure JSON into an intermediate format (e.g. MJML)
@@ -147,11 +127,6 @@ pub struct UpdateEmailTemplateInput {
 }
 
 pub struct DeleteEmailTemplateInput {
-    pub realm_name: String,
-    pub template_id: Uuid,
-}
-
-pub struct ActivateEmailTemplateInput {
     pub realm_name: String,
     pub template_id: Uuid,
 }

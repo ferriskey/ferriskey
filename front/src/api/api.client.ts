@@ -1,5 +1,4 @@
 export namespace Schemas {
-  export const _emission_fix = true;
   // <Schemas>
   export type ActorType = "user" | "service_account" | "admin" | "system";
   export type ValidationError = { field: string; message: string };
@@ -127,6 +126,19 @@ export namespace Schemas {
     public_client?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
   };
+  export type EmailType = "reset_password" | "magic_link" | "email_verification";
+  export type EmailTemplate = {
+    created_at: string;
+    email_type: EmailType;
+    id: string;
+    mjml: string;
+    name: string;
+    realm_id: string;
+    structure: unknown;
+    updated_at: string;
+  };
+  export type CreateEmailTemplateResponse = { data: EmailTemplate };
+  export type CreateEmailTemplateValidator = { email_type: string; name: string; structure: unknown };
   export type CreateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean;
     alias: string;
@@ -140,6 +152,14 @@ export namespace Schemas {
     store_token: boolean;
     trust_email: boolean;
   }>;
+  export type CreateOrganizationValidator = {
+    alias: string;
+    description?: (string | null) | undefined;
+    domain?: (string | null) | undefined;
+    enabled?: boolean | undefined;
+    name: string;
+    redirect_url?: (string | null) | undefined;
+  };
   export type CreateProtocolMapperValidator = Partial<{ config: unknown; mapper_type: string; name: string }>;
   export type CreateProviderRequest = {
     config: unknown;
@@ -174,15 +194,18 @@ export namespace Schemas {
     access_token_lifetime: number;
     compass_enabled: boolean;
     default_signing_algorithm?: (string | null) | undefined;
+    email_verification_template_id?: (string | null) | undefined;
     forgot_password_enabled: boolean;
     id: string;
     id_token_lifetime: number;
     magic_link_enabled: boolean;
+    magic_link_template_id?: (string | null) | undefined;
     magic_link_ttl: number;
     passkey_enabled: boolean;
     realm_id: RealmId;
     refresh_token_lifetime: number;
     remember_me_enabled: boolean;
+    reset_password_template_id?: (string | null) | undefined;
     temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
@@ -282,6 +305,7 @@ export namespace Schemas {
   };
   export type DeleteClientResponse = { message: string; realm_name: string };
   export type DeleteClientScopeResponse = { message: string };
+  export type DeleteEmailTemplateResponse = { message: string };
   export type DeleteIdentityProviderResponse = { count: number };
   export type DeleteProtocolMapperResponse = { message: string };
   export type DeleteProviderResponse = { message: string };
@@ -306,6 +330,8 @@ export namespace Schemas {
   export type GetCertsResponse = { keys: Array<JwkKey> };
   export type GetClientResponse = { data: Client };
   export type GetClientRolesResponse = { data: Array<Role> };
+  export type GetEmailTemplateResponse = { data: EmailTemplate };
+  export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> };
   export type GetFlowResponse = { data: CompassFlow };
   export type GetFlowsResponse = { data: Array<CompassFlow> };
   export type GetOpenIdConfigurationResponse = {
@@ -336,7 +362,8 @@ export namespace Schemas {
     | "client_created"
     | "client_deleted"
     | "client_secret_rotated"
-    | "realm_config_changed";
+    | "realm_config_changed"
+    | "email_not_sent";
   export type SecurityEventId = string;
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;
@@ -356,6 +383,8 @@ export namespace Schemas {
   };
   export type GetSecurityEventsResponse = { data: Array<SecurityEvent> };
   export type GetStatsResponse = { data: FlowStats };
+  export type TemplateVariable = { description: string; name: string };
+  export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> };
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> };
   export type GetUserRolesResponse = { data: Array<Role> };
   export type GetWebhooksResponse = { data: Array<Webhook> };
@@ -420,6 +449,19 @@ export namespace Schemas {
     post_logout_redirect_uri: string | null;
     state: string | null;
   }>;
+  export type OrganizationId = string;
+  export type Organization = {
+    alias: string;
+    created_at: string;
+    description?: (string | null) | undefined;
+    domain?: (string | null) | undefined;
+    enabled: boolean;
+    id: OrganizationId;
+    name: string;
+    realm_id: RealmId;
+    redirect_url?: (string | null) | undefined;
+    updated_at: string;
+  };
   export type OtpVerifyRequest = { code: string; label: string; secret: string };
   export type PasskeyAuthenticateResponse = { login_url: string; status: string };
   export type PasskeyPublicKeyCredential = Record<string, unknown>;
@@ -462,7 +504,9 @@ export namespace Schemas {
     | "view_webhooks"
     | "manage_client_scopes"
     | "query_client_scopes"
-    | "view_client_scopes";
+    | "view_client_scopes"
+    | "manage_email_templates"
+    | "view_email_templates";
   export type ProtocolMapper = {
     client_scope_id: string;
     config: unknown;
@@ -575,6 +619,8 @@ export namespace Schemas {
     refresh_token_lifetime: number | null;
     temporary_token_lifetime: number | null;
   }>;
+  export type UpdateEmailTemplateResponse = { data: EmailTemplate };
+  export type UpdateEmailTemplateValidator = { name: string; structure: unknown };
   export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse };
   export type UpdateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean | null;
@@ -586,6 +632,14 @@ export namespace Schemas {
     post_broker_login_flow_alias: string | null;
     store_token: boolean | null;
     trust_email: boolean | null;
+  }>;
+  export type UpdateOrganizationValidator = Partial<{
+    alias: string | null;
+    description: string | null;
+    domain: string | null;
+    enabled: boolean | null;
+    name: string | null;
+    redirect_url: string | null;
   }>;
   export type UpdatePasswordPolicyValidator = Partial<{
     max_age_days: number | null;
@@ -687,6 +741,15 @@ export namespace Schemas {
 export namespace Endpoints {
   // <Endpoints>
 
+  export type get_Get_variables = {
+    method: "GET";
+    path: "/email-templates/variables/{email_type}";
+    requestFormat: "json";
+    parameters: {
+      path: { email_type: string };
+    };
+    responses: { 200: Schemas.GetTemplateVariablesResponse; 400: Schemas.ApiErrorResponse };
+  };
   export type post_Create_realm = {
     method: "POST";
     path: "/realms";
@@ -1217,6 +1280,85 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_Fetch_templates = {
+    method: "GET";
+    path: "/realms/{realm_name}/email-templates";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.GetEmailTemplatesResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_template = {
+    method: "POST";
+    path: "/realms/{realm_name}/email-templates";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.CreateEmailTemplateValidator;
+    };
+    responses: {
+      201: Schemas.CreateEmailTemplateResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_template = {
+    method: "GET";
+    path: "/realms/{realm_name}/email-templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+    };
+    responses: {
+      200: Schemas.GetEmailTemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_template = {
+    method: "PUT";
+    path: "/realms/{realm_name}/email-templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+
+      body: Schemas.UpdateEmailTemplateValidator;
+    };
+    responses: {
+      200: Schemas.UpdateEmailTemplateResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_template = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/email-templates/{template_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string };
+    };
+    responses: {
+      200: Schemas.DeleteEmailTemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_List_providers = {
     method: "GET";
     path: "/realms/{realm_name}/federation/providers";
@@ -1619,6 +1761,87 @@ export namespace Endpoints {
       200: Schemas.PublicKeyCredentialRequestOptionsJSON;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_List_organizations = {
+    method: "GET";
+    path: "/realms/{realm_name}/organizations";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Array<Schemas.Organization>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_organization = {
+    method: "POST";
+    path: "/realms/{realm_name}/organizations";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.CreateOrganizationValidator;
+    };
+    responses: {
+      201: Schemas.Organization;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_organization = {
+    method: "GET";
+    path: "/realms/{realm_name}/organizations/{organization_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+    };
+    responses: {
+      200: Schemas.Organization;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_organization = {
+    method: "PUT";
+    path: "/realms/{realm_name}/organizations/{organization_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+
+      body: Schemas.UpdateOrganizationValidator;
+    };
+    responses: {
+      200: Schemas.Organization;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_organization = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/organizations/{organization_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -2208,6 +2431,52 @@ export namespace Endpoints {
 
 // <EndpointByMethod>
 export type EndpointByMethod = {
+  get: {
+    "/email-templates/variables/{email_type}": Endpoints.get_Get_variables;
+    "/realms/{name}": Endpoints.get_Get_realm;
+    "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
+    "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
+    "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
+    "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
+    "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
+    "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
+    "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
+    "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
+    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
+    "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;
+    "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
+    "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
+    "/realms/{realm_name}/compass/v1/flows/{flow_id}": Endpoints.get_Get_flow;
+    "/realms/{realm_name}/compass/v1/stats": Endpoints.get_Get_stats;
+    "/realms/{realm_name}/email-templates": Endpoints.get_Fetch_templates;
+    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.get_Get_template;
+    "/realms/{realm_name}/federation/providers": Endpoints.get_List_providers;
+    "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
+    "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
+    "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
+    "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
+    "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
+    "/realms/{realm_name}/organizations": Endpoints.get_List_organizations;
+    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.get_Get_organization;
+    "/realms/{realm_name}/password-policy": Endpoints.get_Get_password_policy;
+    "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
+    "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
+    "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
+    "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.get_Logout_get;
+    "/realms/{realm_name}/protocol/openid-connect/userinfo": Endpoints.get_Get_userinfo;
+    "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
+    "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
+    "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
+    "/realms/{realm_name}/smtp-config": Endpoints.get_Get_smtp_config;
+    "/realms/{realm_name}/users": Endpoints.get_Get_users;
+    "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
+    "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
+    "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
+    "/realms/{realm_name}/users/{user_id}/permissions": Endpoints.get_Get_user_permissions;
+    "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
+    "/realms/{realm_name}/webhooks": Endpoints.get_Fetch_webhooks;
+    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.get_Get_webhook;
+  };
   post: {
     "/realms": Endpoints.post_Create_realm;
     "/realms/{realm_name}/broker/{alias}/endpoint": Endpoints.post_Broker_callback;
@@ -2217,6 +2486,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_client_role;
+    "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
     "/realms/{realm_name}/federation/providers": Endpoints.post_Create_provider;
     "/realms/{realm_name}/federation/providers/{id}/sync-users": Endpoints.post_Sync_users;
     "/realms/{realm_name}/federation/providers/{id}/test-connection": Endpoints.post_Test_connection;
@@ -2237,6 +2507,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/webauthn-public-key-create": Endpoints.post_Webauthn_public_key_create;
     "/realms/{realm_name}/login-actions/webauthn-public-key-create-options": Endpoints.post_Webauthn_public_key_create_options;
     "/realms/{realm_name}/login-actions/webauthn-public-key-request-options": Endpoints.post_Webauthn_public_key_request_options;
+    "/realms/{realm_name}/organizations": Endpoints.post_Create_organization;
     "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.post_Logout_post;
     "/realms/{realm_name}/protocol/openid-connect/registrations": Endpoints.post_Registration_handler;
     "/realms/{realm_name}/protocol/openid-connect/revoke": Endpoints.post_Revoke_token;
@@ -2247,47 +2518,6 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
     "/realms/{realm_name}/webhooks": Endpoints.post_Create_webhook;
   };
-  get: {
-    "/realms/{name}": Endpoints.get_Get_realm;
-    "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
-    "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
-    "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
-    "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
-    "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
-    "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
-    "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
-    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
-    "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;
-    "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
-    "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
-    "/realms/{realm_name}/compass/v1/flows/{flow_id}": Endpoints.get_Get_flow;
-    "/realms/{realm_name}/compass/v1/stats": Endpoints.get_Get_stats;
-    "/realms/{realm_name}/federation/providers": Endpoints.get_List_providers;
-    "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
-    "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
-    "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
-    "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
-    "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
-    "/realms/{realm_name}/password-policy": Endpoints.get_Get_password_policy;
-    "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
-    "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
-    "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
-    "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.get_Logout_get;
-    "/realms/{realm_name}/protocol/openid-connect/userinfo": Endpoints.get_Get_userinfo;
-    "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
-    "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
-    "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
-    "/realms/{realm_name}/smtp-config": Endpoints.get_Get_smtp_config;
-    "/realms/{realm_name}/users": Endpoints.get_Get_users;
-    "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
-    "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
-    "/realms/{realm_name}/users/{user_id}/permissions": Endpoints.get_Get_user_permissions;
-    "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
-    "/realms/{realm_name}/webhooks": Endpoints.get_Fetch_webhooks;
-    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.get_Get_webhook;
-  };
   put: {
     "/realms/{name}": Endpoints.put_Update_realm;
     "/realms/{name}/settings": Endpoints.put_Update_realm_setting;
@@ -2295,8 +2525,10 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.put_Assign_optional_scope;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.put_Update_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.put_Update_redirect_uri;
+    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.put_Update_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.put_Update_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.put_Update_identity_provider;
+    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.put_Update_organization;
     "/realms/{realm_name}/password-policy": Endpoints.put_Update_password_policy;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
@@ -2313,8 +2545,10 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.delete_Delete_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
+    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.delete_Delete_identity_provider;
+    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.delete_Delete_organization;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.delete_Delete_role;
     "/realms/{realm_name}/smtp-config": Endpoints.delete_Delete_smtp_config;
     "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
@@ -2334,8 +2568,8 @@ export type EndpointByMethod = {
 // </EndpointByMethod>
 
 // <EndpointByMethod.Shorthands>
-export type PostEndpoints = EndpointByMethod["post"];
 export type GetEndpoints = EndpointByMethod["get"];
+export type PostEndpoints = EndpointByMethod["post"];
 export type PutEndpoints = EndpointByMethod["put"];
 export type DeleteEndpoints = EndpointByMethod["delete"];
 export type PatchEndpoints = EndpointByMethod["patch"];
@@ -2571,37 +2805,6 @@ export class ApiClient {
     return;
   };
 
-  // <ApiClient.post>
-  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<
-      TEndpoint extends { parameters: infer UParams }
-        ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
-          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
-        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
-    >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
-
-  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<
-      TEndpoint extends { parameters: infer UParams }
-        ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
-          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
-        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
-    >
-  ): Promise<SafeApiResponse<TEndpoint>>;
-
-  post<Path extends keyof PostEndpoints, _TEndpoint extends PostEndpoints[Path]>(
-    path: Path,
-    ...params: MaybeOptionalArg<any>
-  ): Promise<any> {
-    return this.request("post", path, ...params);
-  }
-  // </ApiClient.post>
-
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
@@ -2632,6 +2835,37 @@ export class ApiClient {
     return this.request("get", path, ...params);
   }
   // </ApiClient.get>
+
+  // <ApiClient.post>
+  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+    >
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+
+  post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<
+      TEndpoint extends { parameters: infer UParams }
+        ? NotNever<UParams> extends true
+          ? UParams & { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+          : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+        : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
+    >
+  ): Promise<SafeApiResponse<TEndpoint>>;
+
+  post<Path extends keyof PostEndpoints, _TEndpoint extends PostEndpoints[Path]>(
+    path: Path,
+    ...params: MaybeOptionalArg<any>
+  ): Promise<any> {
+    return this.request("post", path, ...params);
+  }
+  // </ApiClient.post>
 
   // <ApiClient.put>
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(

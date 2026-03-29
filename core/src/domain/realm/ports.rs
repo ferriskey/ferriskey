@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use uuid::Uuid;
+
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -154,6 +156,9 @@ pub trait RealmRepository: Send + Sync {
         refresh_token_lifetime: Option<i64>,
         id_token_lifetime: Option<i64>,
         temporary_token_lifetime: Option<i64>,
+        reset_password_template_id: Option<Option<Uuid>>,
+        magic_link_template_id: Option<Option<Uuid>>,
+        email_verification_template_id: Option<Option<Uuid>>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -201,6 +206,10 @@ pub struct UpdateRealmSettingInput {
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,
     pub temporary_token_lifetime: Option<i64>,
+
+    pub reset_password_template_id: Option<Option<Uuid>>,
+    pub magic_link_template_id: Option<Option<Uuid>>,
+    pub email_verification_template_id: Option<Option<Uuid>>,
 }
 
 pub struct DeleteRealmInput {

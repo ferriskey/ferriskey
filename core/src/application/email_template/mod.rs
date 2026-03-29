@@ -6,11 +6,10 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         email_template::{
-            entities::{EmailTemplate, EmailType},
+            entities::EmailTemplate,
             ports::{
-                ActivateEmailTemplateInput, CreateEmailTemplateInput, DeleteEmailTemplateInput,
-                EmailTemplateService, GetEmailTemplateInput, GetEmailTemplatesInput,
-                UpdateEmailTemplateInput,
+                CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplateService,
+                GetEmailTemplateInput, GetEmailTemplatesInput, UpdateEmailTemplateInput,
             },
         },
     },
@@ -67,23 +66,9 @@ impl EmailTemplateService for ApplicationService {
             .await
     }
 
-    async fn activate_template(
-        &self,
-        identity: Identity,
-        input: ActivateEmailTemplateInput,
-    ) -> Result<EmailTemplate, CoreError> {
+    async fn render_template_html(&self, template_id: Uuid) -> Result<String, CoreError> {
         self.email_template_service
-            .activate_template(identity, input)
-            .await
-    }
-
-    async fn get_active_template_html(
-        &self,
-        realm_id: Uuid,
-        email_type: EmailType,
-    ) -> Result<String, CoreError> {
-        self.email_template_service
-            .get_active_template_html(realm_id, email_type)
+            .render_template_html(template_id)
             .await
     }
 }
