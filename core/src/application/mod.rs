@@ -171,6 +171,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
+    let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
+    let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
+        postgres.get_db(),
+    ));
+    let organization_member =
+        Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -203,6 +209,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             federation.clone(),
             scope_mapping.clone(),
             protocol_mapper.clone(),
+            organization_member.clone(),
+            organization.clone(),
+            organization_attribute.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
@@ -354,11 +363,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         organization_service: OrganizationServiceImpl::new(
             realm.clone(),
             user.clone(),
-            Arc::new(PostgresOrganizationRepository::new(postgres.get_db())),
-            Arc::new(PostgresOrganizationAttributeRepository::new(
-                postgres.get_db(),
-            )),
-            Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db())),
+            organization.clone(),
+            organization_attribute.clone(),
+            organization_member.clone(),
             policy.clone(),
         ),
         flow_recorder,

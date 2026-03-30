@@ -165,6 +165,9 @@ type ApplicationAuthService = AuthServiceImpl<
     FederationRepo,
     ScopeMappingRepo,
     ProtocolMapperRepo,
+    OrganizationMemberRepo,
+    OrganizationRepo,
+    OrganizationAttributeRepo,
 >;
 
 #[derive(Clone, Debug)]

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use ferriskey_aegis::entities::ProtocolMapper;
+use ferriskey_organization::OrganizationId;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -11,6 +12,18 @@ use super::mappers::{
     user_attribute_mapper::UserAttributeMapper, user_client_role_mapper::UserClientRoleMapper,
     user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
+
+/// Organization membership data available to protocol mappers.
+/// Attributes are pre-loaded so mappers don't need repository access.
+#[derive(Debug, Clone)]
+pub struct ContextOrganization {
+    pub id: OrganizationId,
+    pub name: String,
+    pub alias: String,
+    pub domain: Option<String>,
+    /// Flat key-value attributes defined on the organization.
+    pub attributes: HashMap<String, String>,
+}
 
 /// All user/client/realm data that protocol mappers may need.
 /// Assembled once before mapper execution and passed by reference.
@@ -31,6 +44,8 @@ pub struct MapperContext {
     pub realm_name: String,
     pub realm_id: RealmId,
     pub user_attributes: HashMap<String, Value>,
+    /// Organizations the user belongs to, with their attributes pre-loaded.
+    pub organizations: Vec<ContextOrganization>,
 }
 
 /// Which token the mapper should apply to.
@@ -363,6 +378,7 @@ mod tests {
             realm_name: "test-realm".to_string(),
             realm_id: RealmId::new(Uuid::new_v4()),
             user_attributes: HashMap::new(),
+            organizations: vec![],
         };
 
         // Empty mappers should produce empty output
@@ -392,6 +408,7 @@ mod tests {
             realm_name: "test-realm".to_string(),
             realm_id: RealmId::new(Uuid::new_v4()),
             user_attributes: HashMap::new(),
+            organizations: vec![],
         };
 
         let mapper = ProtocolMapper {
@@ -415,5 +432,121 @@ mod tests {
             Some(&json!({"roles": ["admin", "user"]}))
         );
         assert!(result.additional_audiences.is_empty());
+    }
+
+    #[test]
+    fn test_context_organization_with_no_orgs() {
+        let context = MapperContext {
+            user_id: Uuid::new_v4(),
+            username: "test".to_string(),
+            email: "test@test.com".to_string(),
+            email_verified: true,
+            firstname: "Test".to_string(),
+            lastname: "User".to_string(),
+            realm_roles: vec![],
+            client_roles: HashMap::new(),
+            client_id: "my-client".to_string(),
+            client_uuid: Uuid::new_v4(),
+            realm_name: "test-realm".to_string(),
+            realm_id: RealmId::new(Uuid::new_v4()),
+            user_attributes: HashMap::new(),
+            organizations: vec![],
+        };
+
+        assert!(context.organizations.is_empty());
+    }
+
+    #[test]
+    fn test_context_organization_fields_accessible() {
+        use ferriskey_organization::OrganizationId;
+
+        let org_id = OrganizationId::new(Uuid::new_v4());
+        let mut attributes = HashMap::new();
+        attributes.insert("department".to_string(), "engineering".to_string());
+        attributes.insert("tier".to_string(), "enterprise".to_string());
+
+        let org = ContextOrganization {
+            id: org_id,
+            name: "Acme Corp".to_string(),
+            alias: "acme".to_string(),
+            domain: Some("acme.com".to_string()),
+            attributes,
+        };
+
+        let context = MapperContext {
+            user_id: Uuid::new_v4(),
+            username: "alice".to_string(),
+            email: "alice@acme.com".to_string(),
+            email_verified: true,
+            firstname: "Alice".to_string(),
+            lastname: "Smith".to_string(),
+            realm_roles: vec![],
+            client_roles: HashMap::new(),
+            client_id: "my-client".to_string(),
+            client_uuid: Uuid::new_v4(),
+            realm_name: "test-realm".to_string(),
+            realm_id: RealmId::new(Uuid::new_v4()),
+            user_attributes: HashMap::new(),
+            organizations: vec![org],
+        };
+
+        assert_eq!(context.organizations.len(), 1);
+        let o = &context.organizations[0];
+        assert_eq!(o.id, org_id);
+        assert_eq!(o.name, "Acme Corp");
+        assert_eq!(o.alias, "acme");
+        assert_eq!(o.domain.as_deref(), Some("acme.com"));
+        assert_eq!(
+            o.attributes.get("department").map(String::as_str),
+            Some("engineering")
+        );
+        assert_eq!(
+            o.attributes.get("tier").map(String::as_str),
+            Some("enterprise")
+        );
+    }
+
+    #[test]
+    fn test_context_supports_multiple_organizations() {
+        use ferriskey_organization::OrganizationId;
+
+        let orgs = vec![
+            ContextOrganization {
+                id: OrganizationId::new(Uuid::new_v4()),
+                name: "Org A".to_string(),
+                alias: "org-a".to_string(),
+                domain: None,
+                attributes: HashMap::new(),
+            },
+            ContextOrganization {
+                id: OrganizationId::new(Uuid::new_v4()),
+                name: "Org B".to_string(),
+                alias: "org-b".to_string(),
+                domain: Some("orgb.io".to_string()),
+                attributes: HashMap::new(),
+            },
+        ];
+
+        let context = MapperContext {
+            user_id: Uuid::new_v4(),
+            username: "bob".to_string(),
+            email: "bob@example.com".to_string(),
+            email_verified: false,
+            firstname: "Bob".to_string(),
+            lastname: "Jones".to_string(),
+            realm_roles: vec![],
+            client_roles: HashMap::new(),
+            client_id: "my-client".to_string(),
+            client_uuid: Uuid::new_v4(),
+            realm_name: "test-realm".to_string(),
+            realm_id: RealmId::new(Uuid::new_v4()),
+            user_attributes: HashMap::new(),
+            organizations: orgs,
+        };
+
+        assert_eq!(context.organizations.len(), 2);
+        assert_eq!(context.organizations[0].alias, "org-a");
+        assert_eq!(context.organizations[1].alias, "org-b");
+        assert!(context.organizations[1].domain.is_some());
     }
 }

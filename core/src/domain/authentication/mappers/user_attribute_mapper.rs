@@ -86,6 +86,7 @@ mod tests {
             realm_name: "test-realm".to_string(),
             realm_id: RealmId::new(Uuid::new_v4()),
             user_attributes,
+            organizations: vec![],
         }
     }
 
