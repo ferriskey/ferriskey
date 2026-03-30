@@ -14,7 +14,11 @@ use uuid::Uuid;
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_organization::{
+    OrganizationAttributeRepository, OrganizationMemberRepository, OrganizationRepository,
+};
 
+use crate::domain::authentication::mapper_engine::ContextOrganization;
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -55,7 +59,7 @@ use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -72,6 +76,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -88,13 +95,16 @@ where
     pub(crate) federation_repository: Arc<F>,
     pub(crate) scope_mapping_repository: Arc<CSM>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
+    pub(crate) organization_member_repository: Arc<OM>,
+    pub(crate) organization_repository: Arc<OR>,
+    pub(crate) organization_attribute_repository: Arc<OAR>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -111,6 +121,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -129,6 +142,9 @@ where
         federation_repository: Arc<F>,
         scope_mapping_repository: Arc<CSM>,
         protocol_mapper_repository: Arc<PM>,
+        organization_member_repository: Arc<OM>,
+        organization_repository: Arc<OR>,
+        organization_attribute_repository: Arc<OAR>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -148,6 +164,9 @@ where
             federation_repository,
             scope_mapping_repository,
             protocol_mapper_repository,
+            organization_member_repository,
+            organization_repository,
+            organization_attribute_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -155,8 +174,8 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -173,6 +192,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -304,6 +326,38 @@ where
             }
         }
 
+        // Load user organization memberships with their attributes
+        let org_memberships = self
+            .organization_member_repository
+            .list_organizations_for_user(input.user_id)
+            .await
+            .unwrap_or_default();
+
+        let mut organizations = Vec::new();
+        for membership in org_memberships {
+            if let Ok(Some(org)) = self
+                .organization_repository
+                .get_organization_by_id(membership.organization_id)
+                .await
+            {
+                let raw_attrs = self
+                    .organization_attribute_repository
+                    .list_attributes(org.id)
+                    .await
+                    .unwrap_or_default();
+
+                let attributes = raw_attrs.into_iter().map(|a| (a.key, a.value)).collect();
+
+                organizations.push(ContextOrganization {
+                    id: org.id,
+                    name: org.name,
+                    alias: org.alias,
+                    domain: org.domain,
+                    attributes,
+                });
+            }
+        }
+
         // Build mapper context
         let context = MapperContext {
             user_id: input.user_id,
@@ -319,6 +373,7 @@ where
             realm_name: input.realm_name.clone(),
             realm_id: input.realm_id,
             user_attributes: HashMap::new(),
+            organizations,
         };
 
         // Apply mappers for access token
@@ -1515,8 +1570,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -1533,6 +1588,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
