@@ -364,7 +364,8 @@ export namespace Schemas {
     | "client_deleted"
     | "client_secret_rotated"
     | "realm_config_changed"
-    | "email_not_sent";
+    | "email_not_sent"
+    | "email_sent";
   export type SecurityEventId = string;
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;

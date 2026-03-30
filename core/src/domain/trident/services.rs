@@ -1174,7 +1174,7 @@ where
                     .await
                     .ok();
 
-                if let Err(e) = self
+                match self
                     .email_port
                     .send_email(
                         &smtp_config,
@@ -1185,24 +1185,47 @@ where
                     )
                     .await
                 {
-                    warn!("Failed to send magic link email: {}", e);
-                    let _ = self
-                        .security_event_repository
-                        .store_event(
-                            SecurityEvent::new(
-                                realm.id,
-                                SecurityEventType::EmailNotSent,
-                                EventStatus::Failure,
-                                user.id,
+                    Ok(()) => {
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailSent,
+                                    EventStatus::Success,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "template_id": tid.to_string(),
+                                    "email_type": "magic_link",
+                                    "user_id": user.id.to_string(),
+                                })),
                             )
-                            .with_details(serde_json::json!({
-                                "reason": format!("Failed to send magic link email: {}", e),
-                                "email_type": "magic_link",
-                                "error_code": "SMTP_SEND_FAILED"
-                            })),
-                        )
-                        .await
-                        .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email sent event: {}", e));
+                    }
+                    Err(e) => {
+                        warn!("Failed to send magic link email: {}", e);
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailNotSent,
+                                    EventStatus::Failure,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "reason": format!("Failed to send magic link email: {}", e),
+                                    "email_type": "magic_link",
+                                    "error_code": "SMTP_SEND_FAILED",
+                                    "template_id": tid.to_string(),
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                    }
                 }
             }
             (None, _) => {
@@ -1222,7 +1245,8 @@ where
                         .with_details(serde_json::json!({
                             "reason": format!("No magic_link email template configured for realm {}", realm.name),
                             "email_type": "magic_link",
-                            "error_code": "TEMPLATE_NOT_CONFIGURED"
+                            "error_code": "TEMPLATE_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
                         })),
                     )
                     .await
@@ -1246,7 +1270,8 @@ where
                         .with_details(serde_json::json!({
                             "reason": format!("SMTP not configured for realm {}", realm.name),
                             "email_type": "magic_link",
-                            "error_code": "SMTP_NOT_CONFIGURED"
+                            "error_code": "SMTP_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
                         })),
                     )
                     .await
@@ -1455,7 +1480,7 @@ where
                     .await
                     .ok();
 
-                if let Err(e) = self
+                match self
                     .email_port
                     .send_email(
                         &smtp_config,
@@ -1466,24 +1491,47 @@ where
                     )
                     .await
                 {
-                    warn!("Failed to send password reset email: {}", e);
-                    let _ = self
-                        .security_event_repository
-                        .store_event(
-                            SecurityEvent::new(
-                                realm.id,
-                                SecurityEventType::EmailNotSent,
-                                EventStatus::Failure,
-                                user.id,
+                    Ok(()) => {
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailSent,
+                                    EventStatus::Success,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "template_id": tid.to_string(),
+                                    "email_type": "reset_password",
+                                    "user_id": user.id.to_string(),
+                                })),
                             )
-                            .with_details(serde_json::json!({
-                                "reason": format!("Failed to send password reset email: {}", e),
-                                "email_type": "reset_password",
-                                "error_code": "SMTP_SEND_FAILED"
-                            })),
-                        )
-                        .await
-                        .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email sent event: {}", e));
+                    }
+                    Err(e) => {
+                        warn!("Failed to send password reset email: {}", e);
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailNotSent,
+                                    EventStatus::Failure,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "reason": format!("Failed to send password reset email: {}", e),
+                                    "email_type": "reset_password",
+                                    "error_code": "SMTP_SEND_FAILED",
+                                    "template_id": tid.to_string(),
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                    }
                 }
             }
             (None, _) => {
@@ -1503,7 +1551,8 @@ where
                         .with_details(serde_json::json!({
                             "reason": format!("No reset_password email template configured for realm {}", realm.name),
                             "email_type": "reset_password",
-                            "error_code": "TEMPLATE_NOT_CONFIGURED"
+                            "error_code": "TEMPLATE_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
                         })),
                     )
                     .await
@@ -1527,7 +1576,8 @@ where
                         .with_details(serde_json::json!({
                             "reason": format!("SMTP not configured for realm {}", realm.name),
                             "email_type": "reset_password",
-                            "error_code": "SMTP_NOT_CONFIGURED"
+                            "error_code": "SMTP_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
                         })),
                     )
                     .await
