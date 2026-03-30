@@ -13,13 +13,13 @@ export function PresetLibrary({ presets, onApplyPreset }: PresetLibraryProps) {
   const { tree, setTree } = useBuilder()
   const [pendingPreset, setPendingPreset] = useState<EmailTemplatePreset | null>(null)
 
-  const applyPreset = (preset: EmailTemplatePreset) => {
+  function applyPreset(preset: EmailTemplatePreset) {
     setTree(regenerateIds(preset.tree))
     onApplyPreset(preset)
     setPendingPreset(null)
   }
 
-  const handleClick = (preset: EmailTemplatePreset) => {
+  function handleClick(preset: EmailTemplatePreset) {
     if (tree.length > 0) {
       setPendingPreset(preset)
     } else {
@@ -47,9 +47,7 @@ export function PresetLibrary({ presets, onApplyPreset }: PresetLibraryProps) {
               <div className='flex items-center gap-1.5'>
                 <span className='truncate font-medium'>{preset.name}</span>
               </div>
-              <p className='mt-0.5 truncate text-xs text-muted-foreground'>
-                {preset.description}
-              </p>
+              <p className='mt-0.5 truncate text-xs text-muted-foreground'>{preset.description}</p>
             </div>
           </button>
         ))}
