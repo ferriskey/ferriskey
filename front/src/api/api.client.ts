@@ -1,6 +1,7 @@
 export namespace Schemas {
   // <Schemas>
   export type ActorType = "user" | "service_account" | "admin" | "system";
+  export type AddMemberValidator = { user_id: string };
   export type ValidationError = { field: string; message: string };
   export type ApiError =
     | { InternalServerError: string }
@@ -462,6 +463,14 @@ export namespace Schemas {
     redirect_url?: (string | null) | undefined;
     updated_at: string;
   };
+  export type OrganizationAttribute = {
+    created_at: string;
+    id: string;
+    key: string;
+    organization_id: OrganizationId;
+    value: string;
+  };
+  export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
   export type OtpVerifyRequest = { code: string; label: string; secret: string };
   export type PasskeyAuthenticateResponse = { login_url: string; status: string };
   export type PasskeyPublicKeyCredential = Record<string, unknown>;
@@ -674,13 +683,16 @@ export namespace Schemas {
     access_token_lifetime: number | null;
     compass_enabled: boolean | null;
     default_signing_algorithm: string | null;
+    email_verification_template_id: string | null;
     forgot_password_enabled: boolean | null;
     id_token_lifetime: number | null;
     magic_link_enabled: boolean | null;
+    magic_link_template_id: string | null;
     magic_link_ttl: number | null;
     passkey_enabled: boolean | null;
     refresh_token_lifetime: number | null;
     remember_me_enabled: boolean | null;
+    reset_password_template_id: string | null;
     temporary_token_lifetime: number | null;
     user_registration_enabled: boolean | null;
   }>;
@@ -708,6 +720,7 @@ export namespace Schemas {
     name: string | null;
     subscribers: Array<WebhookTrigger>;
   }>;
+  export type UpsertAttributeValidator = { value: string };
   export type UpsertSmtpConfigValidator = {
     encryption: string;
     from_email: string;
@@ -1845,6 +1858,105 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_List_attributes = {
+    method: "GET";
+    path: "/realms/{realm_name}/organizations/{organization_id}/attributes";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+    };
+    responses: {
+      200: Array<Schemas.OrganizationAttribute>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Upsert_attribute = {
+    method: "PUT";
+    path: "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string; key: string };
+
+      body: Schemas.UpsertAttributeValidator;
+    };
+    responses: {
+      200: Schemas.OrganizationAttribute;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_attribute = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string; key: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_List_members = {
+    method: "GET";
+    path: "/realms/{realm_name}/organizations/{organization_id}/members";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+    };
+    responses: {
+      200: Array<Schemas.OrganizationMember>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Add_member = {
+    method: "POST";
+    path: "/realms/{realm_name}/organizations/{organization_id}/members";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string };
+
+      body: Schemas.AddMemberValidator;
+    };
+    responses: {
+      201: Schemas.OrganizationMember;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Remove_member = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/organizations/{organization_id}/members/{user_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; organization_id: string; user_id: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_password_policy = {
     method: "GET";
     path: "/realms/{realm_name}/password-policy";
@@ -2275,6 +2387,21 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_List_user_organizations = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/{user_id}/organizations";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; user_id: string };
+    };
+    responses: {
+      200: Array<Schemas.OrganizationMember>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_user_permissions = {
     method: "GET";
     path: "/realms/{realm_name}/users/{user_id}/permissions";
@@ -2458,6 +2585,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
     "/realms/{realm_name}/organizations": Endpoints.get_List_organizations;
     "/realms/{realm_name}/organizations/{organization_id}": Endpoints.get_Get_organization;
+    "/realms/{realm_name}/organizations/{organization_id}/attributes": Endpoints.get_List_attributes;
+    "/realms/{realm_name}/organizations/{organization_id}/members": Endpoints.get_List_members;
     "/realms/{realm_name}/password-policy": Endpoints.get_Get_password_policy;
     "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
     "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
@@ -2472,6 +2601,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
+    "/realms/{realm_name}/users/{user_id}/organizations": Endpoints.get_List_user_organizations;
     "/realms/{realm_name}/users/{user_id}/permissions": Endpoints.get_Get_user_permissions;
     "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
     "/realms/{realm_name}/webhooks": Endpoints.get_Fetch_webhooks;
@@ -2508,6 +2638,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/login-actions/webauthn-public-key-create-options": Endpoints.post_Webauthn_public_key_create_options;
     "/realms/{realm_name}/login-actions/webauthn-public-key-request-options": Endpoints.post_Webauthn_public_key_request_options;
     "/realms/{realm_name}/organizations": Endpoints.post_Create_organization;
+    "/realms/{realm_name}/organizations/{organization_id}/members": Endpoints.post_Add_member;
     "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.post_Logout_post;
     "/realms/{realm_name}/protocol/openid-connect/registrations": Endpoints.post_Registration_handler;
     "/realms/{realm_name}/protocol/openid-connect/revoke": Endpoints.post_Revoke_token;
@@ -2529,6 +2660,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.put_Update_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.put_Update_identity_provider;
     "/realms/{realm_name}/organizations/{organization_id}": Endpoints.put_Update_organization;
+    "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}": Endpoints.put_Upsert_attribute;
     "/realms/{realm_name}/password-policy": Endpoints.put_Update_password_policy;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
@@ -2549,6 +2681,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.delete_Delete_identity_provider;
     "/realms/{realm_name}/organizations/{organization_id}": Endpoints.delete_Delete_organization;
+    "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}": Endpoints.delete_Delete_attribute;
+    "/realms/{realm_name}/organizations/{organization_id}/members/{user_id}": Endpoints.delete_Remove_member;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.delete_Delete_role;
     "/realms/{realm_name}/smtp-config": Endpoints.delete_Delete_smtp_config;
     "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
