@@ -261,7 +261,20 @@ export default function PageOverview({
                           {Boolean(event.details) && (
                             <div className='text-xs text-muted-foreground border-t border-border/60 pt-3'>
                               <span className='font-medium text-foreground'>Details:</span>{' '}
-                              {typeof event.details === 'string' ? event.details : 'Additional context available'}
+                              {typeof event.details === 'object' && event.details !== null && 'reason' in event.details ? (
+                                <span>
+                                  {(event.details as Record<string, unknown>).reason as string}
+                                  {'error_code' in event.details && (
+                                    <Badge variant='outline' className='ml-2 text-[10px]'>
+                                      {(event.details as Record<string, unknown>).error_code as string}
+                                    </Badge>
+                                  )}
+                                </span>
+                              ) : typeof event.details === 'string' ? (
+                                event.details
+                              ) : (
+                                'Additional context available'
+                              )}
                             </div>
                           )}
                         </div>

@@ -1196,7 +1196,9 @@ where
                                 user.id,
                             )
                             .with_details(serde_json::json!({
-                                "reason": format!("Failed to send magic link email: {}", e)
+                                "reason": format!("Failed to send magic link email: {}", e),
+                                "email_type": "magic_link",
+                                "error_code": "SMTP_SEND_FAILED"
                             })),
                         )
                         .await
@@ -1218,7 +1220,9 @@ where
                             user.id,
                         )
                         .with_details(serde_json::json!({
-                            "reason": format!("No magic_link email template configured for realm {}", realm.name)
+                            "reason": format!("No magic_link email template configured for realm {}", realm.name),
+                            "email_type": "magic_link",
+                            "error_code": "TEMPLATE_NOT_CONFIGURED"
                         })),
                     )
                     .await
@@ -1240,7 +1244,9 @@ where
                             user.id,
                         )
                         .with_details(serde_json::json!({
-                            "reason": format!("SMTP not configured for realm {}", realm.name)
+                            "reason": format!("SMTP not configured for realm {}", realm.name),
+                            "email_type": "magic_link",
+                            "error_code": "SMTP_NOT_CONFIGURED"
                         })),
                     )
                     .await
@@ -1471,7 +1477,9 @@ where
                                 user.id,
                             )
                             .with_details(serde_json::json!({
-                                "reason": format!("Failed to send password reset email: {}", e)
+                                "reason": format!("Failed to send password reset email: {}", e),
+                                "email_type": "reset_password",
+                                "error_code": "SMTP_SEND_FAILED"
                             })),
                         )
                         .await
@@ -1493,7 +1501,9 @@ where
                             user.id,
                         )
                         .with_details(serde_json::json!({
-                            "reason": format!("No reset_password email template configured for realm {}", realm.name)
+                            "reason": format!("No reset_password email template configured for realm {}", realm.name),
+                            "email_type": "reset_password",
+                            "error_code": "TEMPLATE_NOT_CONFIGURED"
                         })),
                     )
                     .await
@@ -1515,7 +1525,9 @@ where
                             user.id,
                         )
                         .with_details(serde_json::json!({
-                            "reason": format!("SMTP not configured for realm {}", realm.name)
+                            "reason": format!("SMTP not configured for realm {}", realm.name),
+                            "email_type": "reset_password",
+                            "error_code": "SMTP_NOT_CONFIGURED"
                         })),
                     )
                     .await
