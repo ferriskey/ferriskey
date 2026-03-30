@@ -258,23 +258,35 @@ export default function PageOverview({
                               {formatTimestamp(event.timestamp)}
                             </div>
                           </div>
-                          {Boolean(event.details) && (
-                            <div className='text-xs text-muted-foreground border-t border-border/60 pt-3'>
-                              <span className='font-medium text-foreground'>Details:</span>{' '}
-                              {typeof event.details === 'object' && event.details !== null && 'reason' in event.details ? (
-                                <span>
+                          {Boolean(event.details) && typeof event.details === 'object' && event.details !== null && (
+                            <div className='text-xs text-muted-foreground border-t border-border/60 pt-3 space-y-2'>
+                              {'reason' in event.details && (
+                                <div>
+                                  <span className='font-medium text-foreground'>Details:</span>{' '}
                                   {(event.details as Record<string, unknown>).reason as string}
                                   {'error_code' in event.details && (
                                     <Badge variant='outline' className='ml-2 text-[10px]'>
                                       {(event.details as Record<string, unknown>).error_code as string}
                                     </Badge>
                                   )}
-                                </span>
-                              ) : typeof event.details === 'string' ? (
-                                event.details
-                              ) : (
-                                'Additional context available'
+                                </div>
                               )}
+                              {(() => {
+                                const excluded = ['reason', 'error_code']
+                                const entries = Object.entries(event.details as Record<string, unknown>)
+                                  .filter(([key]) => !excluded.includes(key))
+                                if (entries.length === 0) return null
+                                return (
+                                  <div className='flex flex-col gap-y-1'>
+                                    {entries.map(([key, value]) => (
+                                      <div key={key}>
+                                        <span className='text-muted-foreground'>{formatSnakeCaseToTitleCase(key)}:</span>{' '}
+                                        <code className='text-foreground bg-muted px-1 py-0.5 rounded text-[11px]'>{String(value)}</code>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              })()}
                             </div>
                           )}
                         </div>
