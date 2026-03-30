@@ -5,7 +5,7 @@ import {
   useUpdateEmailTemplate,
 } from '@/api/email-template.api'
 import type { BuilderNode } from '@/lib/builder-core'
-import { createMjmlAdapter } from '@/lib/builder-mjml'
+import { type EmailTemplatePreset, createMjmlAdapter } from '@/lib/builder-mjml'
 import type { EmailTemplateRouterParams } from '@/routes/sub-router/email-template.router'
 import { EMAIL_TEMPLATES_URL } from '@/routes/sub-router/email-template.router'
 import { useCallback, useMemo, useState } from 'react'
@@ -119,6 +119,11 @@ function BuilderFeatureInner({
     }
   }
 
+  const handleApplyPreset = (preset: EmailTemplatePreset) => {
+    setEmailType(preset.emailType)
+    setName(preset.name)
+  }
+
   const handleBack = () => {
     navigate(EMAIL_TEMPLATES_URL(realmName) + '/overview')
   }
@@ -137,6 +142,7 @@ function BuilderFeatureInner({
       isSaving={isCreating || isUpdating}
       onSave={handleSave}
       onBack={handleBack}
+      onApplyPreset={handleApplyPreset}
     />
   )
 }
