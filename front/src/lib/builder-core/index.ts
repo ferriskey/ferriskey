@@ -19,6 +19,7 @@ export { ComponentLibrary } from './components/component-library'
 export { ConfigPanel } from './components/config-panel'
 export { BuilderDragOverlay } from './components/drag-overlay'
 export { BuilderShell } from './components/builder-shell'
+export { PresetLibrary } from './components/preset-library'
 
 // Utils
-export { findNode, generateNodeId } from './utils'
+export { findNode, generateNodeId, regenerateIds } from './utils'

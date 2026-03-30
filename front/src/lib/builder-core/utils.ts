@@ -86,6 +86,17 @@ export function insertNodeInTree(
 /**
  * Move a node from its current position to a new parent/index.
  */
+/**
+ * Recursively regenerate all node IDs in a tree to avoid collisions.
+ */
+export function regenerateIds(nodes: BuilderNode[]): BuilderNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    id: generateNodeId(),
+    children: regenerateIds(node.children),
+  }))
+}
+
 export function moveNodeInTree(
   tree: BuilderNode[],
   nodeId: string,

@@ -5,10 +5,11 @@ import {
   Canvas,
   ComponentLibrary,
   ConfigPanel,
+  PresetLibrary,
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
-import { MjmlPreview } from '@/lib/builder-mjml'
+import { type EmailTemplatePreset, MjmlPreview, emailTemplatePresets } from '@/lib/builder-mjml'
 import { ArrowLeft, Eye, Layers, Save } from 'lucide-react'
 import { useState } from 'react'
 
@@ -25,6 +26,7 @@ interface Props {
   isSaving: boolean
   onSave: () => void
   onBack: () => void
+  onApplyPreset: (preset: EmailTemplatePreset) => void
 }
 
 type Tab = 'builder' | 'preview'
@@ -42,6 +44,7 @@ export default function PageEmailTemplateBuilder({
   isSaving,
   onSave,
   onBack,
+  onApplyPreset,
 }: Props) {
   const [tab, setTab] = useState<Tab>('builder')
 
@@ -109,6 +112,7 @@ export default function PageEmailTemplateBuilder({
             <div className='flex flex-1 overflow-hidden'>
               {/* Component Library */}
               <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
+                <PresetLibrary presets={emailTemplatePresets} onApplyPreset={onApplyPreset} />
                 <ComponentLibrary />
               </div>
 
