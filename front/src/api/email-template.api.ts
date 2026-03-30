@@ -32,9 +32,13 @@ export const useCreateEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/email-templates').mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/email-templates', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
       toast.success('Email template created successfully')
-      await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
     },
   })
 }
@@ -43,9 +47,13 @@ export const useUpdateEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/email-templates/{template_id}').mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/email-templates', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
       toast.success('Email template saved successfully')
-      await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
     },
   })
 }
@@ -54,9 +62,13 @@ export const useDeleteEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/email-templates/{template_id}').mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/email-templates', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
       toast.success('Email template deleted successfully')
-      await queryClient.invalidateQueries({ queryKey: ['email-templates'] })
     },
   })
 }

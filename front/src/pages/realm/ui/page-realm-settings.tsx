@@ -15,6 +15,7 @@ export default function PageRealmSettings({ realm, tab }: PageRealmSettingsProps
     { key: 'general', label: 'General' },
     { key: 'login', label: 'Login' },
     { key: 'tokens', label: 'Tokens' },
+    { key: 'smtp', label: 'SMTP' },
     { key: 'email', label: 'Email' },
     { key: 'password-policy', label: 'Password Policy' },
     { key: 'webhooks', label: 'Webhooks' },
@@ -47,7 +48,8 @@ export default function PageRealmSettings({ realm, tab }: PageRealmSettingsProps
             key={t.key}
             onClick={() => !t.disabled && handleTabChange(t.key)}
             disabled={t.disabled}
-            className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors border',
+            className={cn(
+              'px-4 py-1.5 rounded-md text-sm font-medium transition-colors border',
               t.disabled
                 ? 'bg-transparent text-muted-foreground border-border opacity-50 cursor-not-allowed'
                 : tab === t.key
