@@ -4,5 +4,5 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-authors = ["nathaelb <pro.nathaelbonnal@gmail.com>"]
+authors = ["nathaelb <pro.nathaelbonnal@gmail.com>", "Baptiste Parmantier <baptiste.parmantier.pro@gmail.com>"]
 edition = "2024"
