@@ -8,6 +8,8 @@ use ferriskey_core::domain::{
         ListOrganizationAttributesInput, OrganizationAttribute, OrganizationId, OrganizationService,
     },
 };
+use serde::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::server::api_entities::{
@@ -15,6 +17,11 @@ use crate::application::http::server::api_entities::{
     response::Response,
 };
 use crate::application::http::server::app_state::AppState;
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ListOrganizationAttributesResponse {
+    pub data: Vec<OrganizationAttribute>,
+}
 
 #[utoipa::path(
     get,
@@ -26,7 +33,7 @@ use crate::application::http::server::app_state::AppState;
         ("organization_id" = Uuid, Path, description = "Organization ID"),
     ),
     responses(
-        (status = 200, description = "Attributes retrieved successfully", body = Vec<OrganizationAttribute>),
+        (status = 200, description = "Attributes retrieved successfully", body = ListOrganizationAttributesResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Organization not found", body = ApiErrorResponse),
@@ -37,7 +44,7 @@ pub async fn list_attributes(
     Path((realm_name, organization_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<Vec<OrganizationAttribute>>, ApiError> {
+) -> Result<Response<ListOrganizationAttributesResponse>, ApiError> {
     state
         .service
         .list_attributes(
@@ -48,6 +55,6 @@ pub async fn list_attributes(
             },
         )
         .await
-        .map(Response::OK)
+        .map(|data| Response::OK(ListOrganizationAttributesResponse { data }))
         .map_err(ApiError::from)
 }

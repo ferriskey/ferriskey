@@ -24,6 +24,7 @@ import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageEmailTemplate from './pages/email-template/page-email-template'
 import PageUserFederation from './pages/user-federation/page-user-federation'
 import PageUser from './pages/user/page-user'
+import PageOrganization from './pages/organization/page-organization'
 
 declare global {
   interface Window {
@@ -255,6 +256,7 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
             <Route path='identity-providers/*' element={<PageIdentityProviders />} />
             <Route path='email-templates/*' element={<PageEmailTemplate />} />
             <Route path='user-federation/*' element={<PageUserFederation />} />
+            <Route path='organizations/*' element={<PageOrganization />} />
           </Route>
         </Route>
 

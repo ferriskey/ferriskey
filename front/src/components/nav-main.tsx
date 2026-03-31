@@ -12,7 +12,7 @@ import {
   CLIENT_SCOPES_OVERVIEW_URL,
   CLIENT_SCOPES_URL,
 } from '@/routes/sub-router/client-scope.router'
-import { Key, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
+import { Building2, Key, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { ROLE_OVERVIEW_URL, ROLES_URL } from '../routes/sub-router/role.router'
 import { USER_OVERVIEW_URL, USERS_URL } from '../routes/sub-router/user.router'
@@ -21,6 +21,11 @@ import { useGetUsers } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'
 import { cn } from '@/lib/utils'
 import { useGetClientScopes } from '@/api/client-scope.api'
+import { useGetOrganizations } from '@/api/organization.api'
+import {
+  ORGANIZATION_OVERVIEW_URL,
+  ORGANIZATIONS_URL,
+} from '@/routes/sub-router/organization.router'
 
 const navItem = (active: boolean) => cn(
   'relative',
@@ -45,6 +50,7 @@ export function NavMain() {
   const { data: usersData } = useGetUsers({ realm: realm_name ?? 'master' })
   const { data: rolesData } = useGetRoles({ realm: realm_name ?? 'master' })
   const { data: clientScopesData } = useGetClientScopes({ realm: realm_name ?? 'master' })
+  const { data: organizationsData } = useGetOrganizations({ realm: realm_name ?? 'master' })
 
   const handleClick = (url: string) => {
     navigate(url)
@@ -119,6 +125,24 @@ export function NavMain() {
           </SidebarMenuButton>
           {clientScopesData?.data && (
             <SidebarMenuBadge>{clientScopesData.data.length}</SidebarMenuBadge>
+          )}
+        </SidebarMenuItem>
+
+        <SidebarMenuItem
+          onClick={() =>
+            handleClick(`${ORGANIZATIONS_URL(realm_name)}${ORGANIZATION_OVERVIEW_URL}`)
+          }
+          className={navItem(isActive(ORGANIZATIONS_URL(realm_name)))}
+        >
+          <SidebarMenuButton
+            isActive={isActive(ORGANIZATIONS_URL(realm_name))}
+            className={btnClass(isActive(ORGANIZATIONS_URL(realm_name)))}
+          >
+            <Building2 />
+            <span>Organizations</span>
+          </SidebarMenuButton>
+          {organizationsData?.data && (
+            <SidebarMenuBadge>{organizationsData.data.length}</SidebarMenuBadge>
           )}
         </SidebarMenuItem>
       </SidebarMenu>

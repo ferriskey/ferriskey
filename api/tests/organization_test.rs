@@ -167,8 +167,8 @@ mod tests {
 
         assert_eq!(response.status_code(), 200);
         let body: Value = response.json();
-        assert!(body.is_array());
-        assert_eq!(body.as_array().unwrap().len(), 0);
+        assert!(body["data"].is_array());
+        assert_eq!(body["data"].as_array().unwrap().len(), 0);
     }
 
     #[tokio::test]
@@ -401,9 +401,9 @@ mod tests {
 
         assert_eq!(list_response.status_code(), 200);
         let attrs: Value = list_response.json();
-        assert_eq!(attrs.as_array().unwrap().len(), 1);
-        assert_eq!(attrs[0]["key"], "color");
-        assert_eq!(attrs[0]["value"], "blue");
+        assert_eq!(attrs["data"].as_array().unwrap().len(), 1);
+        assert_eq!(attrs["data"][0]["key"], "color");
+        assert_eq!(attrs["data"][0]["value"], "blue");
     }
 
     #[tokio::test]
@@ -446,7 +446,7 @@ mod tests {
             .await;
 
         let attrs: Value = list_response.json();
-        assert_eq!(attrs.as_array().unwrap().len(), 1);
+        assert_eq!(attrs["data"].as_array().unwrap().len(), 1);
     }
 
     #[tokio::test]
@@ -485,7 +485,7 @@ mod tests {
             .await;
 
         let attrs: Value = list_response.json();
-        assert_eq!(attrs.as_array().unwrap().len(), 0);
+        assert_eq!(attrs["data"].as_array().unwrap().len(), 0);
     }
 
     #[tokio::test]
