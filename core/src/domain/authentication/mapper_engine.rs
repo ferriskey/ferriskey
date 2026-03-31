@@ -9,6 +9,7 @@ use crate::domain::{common::entities::app_errors::CoreError, realm::entities::Re
 
 use super::mappers::{
     audience_mapper::AudienceMapper, hardcoded_claim_mapper::HardcodedClaimMapper,
+    org_detail_mapper::OrgDetailMapper, org_membership_mapper::OrgMembershipMapper,
     user_attribute_mapper::UserAttributeMapper, user_client_role_mapper::UserClientRoleMapper,
     user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
@@ -73,6 +74,8 @@ enum MapperExecutor {
     UserAttribute(UserAttributeMapper),
     UserClientRole(UserClientRoleMapper),
     UserRealmRole(UserRealmRoleMapper),
+    OrgMembership(OrgMembershipMapper),
+    OrgDetail(OrgDetailMapper),
 }
 
 impl MapperExecutor {
@@ -89,6 +92,8 @@ impl MapperExecutor {
             Self::UserAttribute(m) => m.execute(config, context, token_type),
             Self::UserClientRole(m) => m.execute(config, context, token_type),
             Self::UserRealmRole(m) => m.execute(config, context, token_type),
+            Self::OrgMembership(m) => m.execute(config, context, token_type),
+            Self::OrgDetail(m) => m.execute(config, context, token_type),
         }
     }
 }
@@ -125,6 +130,14 @@ impl MapperEngine {
         executors.insert(
             "oidc-usermodel-client-role-mapper".to_string(),
             MapperExecutor::UserClientRole(UserClientRoleMapper),
+        );
+        executors.insert(
+            "oidc-organization-membership-mapper".to_string(),
+            MapperExecutor::OrgMembership(OrgMembershipMapper),
+        );
+        executors.insert(
+            "oidc-organization-detail-mapper".to_string(),
+            MapperExecutor::OrgDetail(OrgDetailMapper),
         );
         Self { executors }
     }
