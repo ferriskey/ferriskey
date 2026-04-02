@@ -31,6 +31,8 @@ pub struct Model {
     pub reset_password_template_id: Option<Uuid>,
     pub magic_link_template_id: Option<Uuid>,
     pub email_verification_template_id: Option<Uuid>,
+    pub email_verification_enabled: bool,
+    pub email_verification_ttl_hours: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -53,6 +55,8 @@ pub enum Column {
     ResetPasswordTemplateId,
     MagicLinkTemplateId,
     EmailVerificationTemplateId,
+    EmailVerificationEnabled,
+    EmailVerificationTtlHours,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -97,6 +101,8 @@ impl ColumnTrait for Column {
             Self::ResetPasswordTemplateId => ColumnType::Uuid.def().null(),
             Self::MagicLinkTemplateId => ColumnType::Uuid.def().null(),
             Self::EmailVerificationTemplateId => ColumnType::Uuid.def().null(),
+            Self::EmailVerificationEnabled => ColumnType::Boolean.def(),
+            Self::EmailVerificationTtlHours => ColumnType::Integer.def(),
         }
     }
 }
