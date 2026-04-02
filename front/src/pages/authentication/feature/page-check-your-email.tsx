@@ -1,4 +1,4 @@
-import { useLocation, useParams } from 'react-router'
+import { useLocation, useParams, Link } from 'react-router'
 import { Mail, ArrowLeft } from 'lucide-react'
 
 export default function PageCheckYourEmail() {
@@ -21,16 +21,16 @@ export default function PageCheckYourEmail() {
         </p>
 
         <p className='text-sm text-muted-foreground'>
-          Click the link in the email to verify your account. The link expires in 24 hours.
+          Click the link in the email to verify your account. The link expires soon.
         </p>
 
-        <a
-          href={`/realms/${realm_name}/authentication/login`}
+        <Link
+          to={`/realms/${realm_name}/authentication/login`}
           className='inline-flex items-center gap-2 text-sm text-primary hover:underline'
         >
           <ArrowLeft className='w-4 h-4' />
           Back to login
-        </a>
+        </Link>
       </div>
     </div>
   )

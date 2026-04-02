@@ -30,14 +30,14 @@ pub struct VerifyEmailQuery {
     ),
 )]
 pub async fn verify_email_handler(
-    Path(_realm_name): Path<String>,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Query(query): Query<VerifyEmailQuery>,
 ) -> Result<axum::Json<VerifyEmailResult>, ApiError> {
     let result = state
         .service
         .email_verification_service
-        .verify_email(query.token)
+        .verify_email(realm_name, query.token)
         .await?;
 
     Ok(axum::Json(result))
