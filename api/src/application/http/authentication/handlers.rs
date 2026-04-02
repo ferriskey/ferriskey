@@ -8,3 +8,4 @@ pub mod registration;
 pub mod revoke;
 pub mod token;
 pub mod userinfo;
+pub mod verify_email;
