@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useSearchParams, useParams } from 'react-router'
+import { useSearchParams, useParams, Link } from 'react-router'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
 type VerifyState = 'loading' | 'success' | 'error' | 'expired'
@@ -10,18 +10,21 @@ export default function PageVerifyEmail() {
   const hasFetched = useRef(false)
 
   const token = searchParams.get('token')
-  const initialState: VerifyState = token ? 'loading' : 'error'
+  const initialState: VerifyState = token && realm_name ? 'loading' : 'error'
   const [state, setState] = useState<VerifyState>(initialState)
 
   useEffect(() => {
-    if (!token || hasFetched.current) return
+    if (!token || !realm_name || hasFetched.current) return
     hasFetched.current = true
 
     const apiUrl = window.apiUrl || ''
-    fetch(`${apiUrl}/realms/${realm_name}/login-actions/verify-email?token=${encodeURIComponent(token)}`)
+    fetch(
+      `${apiUrl}/realms/${encodeURIComponent(realm_name)}/login-actions/verify-email?token=${encodeURIComponent(token)}`
+    )
       .then((res) => {
-        if (res.ok) setState('success')
-        else setState('expired')
+        if (res.ok) return setState('success')
+        if (res.status === 400 || res.status === 410) return setState('expired')
+        setState('error')
       })
       .catch(() => setState('error'))
   }, [token, realm_name])
@@ -43,12 +46,12 @@ export default function PageVerifyEmail() {
             <p className='text-muted-foreground'>
               Your email has been verified. You can now sign in.
             </p>
-            <a
-              href={`/realms/${realm_name}/authentication/login`}
+            <Link
+              to={`/realms/${realm_name}/authentication/login`}
               className='inline-block px-6 py-2 bg-primary text-primary-foreground rounded-md'
             >
               Go to login
-            </a>
+            </Link>
           </>
         )}
 

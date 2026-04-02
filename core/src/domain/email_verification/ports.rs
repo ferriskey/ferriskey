@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
@@ -23,6 +25,7 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
     fn find_valid_by_hash(
         &self,
         token_hash: &str,
+        realm_id: Uuid,
     ) -> impl std::future::Future<Output = Result<Option<EmailVerificationToken>, CoreError>> + Send;
 
     fn mark_used(
@@ -36,6 +39,7 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
     ) -> impl std::future::Future<Output = Result<u64, CoreError>> + Send;
 }
 
+#[cfg_attr(test, mockall::automock)]
 pub trait EmailVerificationService: Send + Sync {
     fn send_verification_email(
         &self,
@@ -46,12 +50,10 @@ pub trait EmailVerificationService: Send + Sync {
 
     fn verify_email(
         &self,
+        realm_name: String,
         token: String,
     ) -> impl std::future::Future<Output = Result<VerifyEmailResult, CoreError>> + Send;
 }
-
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VerifyEmailResult {

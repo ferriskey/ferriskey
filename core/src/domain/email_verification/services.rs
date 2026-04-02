@@ -182,83 +182,97 @@ where
             base_url, realm_name, raw_token
         );
 
-        // Get template_id and smtp_config
+        // Get template_id
         let template_id = realm
             .settings
             .as_ref()
             .and_then(|s| s.email_verification_template_id);
 
-        match (
-            template_id,
-            self.smtp_config_repository.get_by_realm_id(realm.id).await,
-        ) {
-            (Some(tid), Ok(Some(smtp_config))) => {
-                let expiration_label = if ttl_hours == 1 {
-                    "1 hour".to_string()
-                } else {
-                    format!("{} hours", ttl_hours)
-                };
+        if let Some(tid) = template_id {
+            match self.smtp_config_repository.get_by_realm_id(realm.id).await {
+                Ok(Some(smtp_config)) => {
+                    let expiration_label = if ttl_hours == 1 {
+                        "1 hour".to_string()
+                    } else {
+                        format!("{} hours", ttl_hours)
+                    };
 
-                let body = format!(
-                    "Click the link below to verify your email address:\n{}\n\nThis link expires in {}.\n\nIf you did not register for this account, please ignore this email.",
-                    verification_link, expiration_label
-                );
+                    let body = format!(
+                        "Click the link below to verify your email address:\n{}\n\nThis link expires in {}.\n\nIf you did not register for this account, please ignore this email.",
+                        verification_link, expiration_label
+                    );
 
-                let html_body = self
-                    .render_email_template(
-                        tid,
-                        &user,
-                        &[
-                            ("verification_link", verification_link.as_str()),
-                            ("expiration", expiration_label.as_str()),
-                        ],
-                    )
-                    .await
-                    .ok();
+                    let html_body = self
+                        .render_email_template(
+                            tid,
+                            &user,
+                            &[
+                                ("verification_link", verification_link.as_str()),
+                                ("expiration", expiration_label.as_str()),
+                            ],
+                        )
+                        .await
+                        .ok();
 
-                match self
-                    .email_port
-                    .send_email(
-                        &smtp_config,
-                        &user.email,
-                        "Verify your email address",
-                        &body,
-                        html_body,
-                    )
-                    .await
-                {
-                    Ok(()) => {
-                        tracing::info!(
-                            "Verification email sent to {} for user {}",
-                            user.email,
-                            user.id
-                        );
-                    }
-                    Err(e) => {
-                        warn!("Failed to send verification email: {}", e);
+                    match self
+                        .email_port
+                        .send_email(
+                            &smtp_config,
+                            &user.email,
+                            "Verify your email address",
+                            &body,
+                            html_body,
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            tracing::info!(
+                                "Verification email sent to {} for user {}",
+                                user.email,
+                                user.id
+                            );
+                        }
+                        Err(e) => {
+                            warn!("Failed to send verification email: {}", e);
+                        }
                     }
                 }
+                Ok(None) => {
+                    warn!("SMTP not configured for realm {}", realm.name);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to fetch SMTP configuration for realm {}: {}",
+                        realm.name, e
+                    );
+                }
             }
-            (None, _) => {
-                warn!(
-                    "No email verification template configured for realm {}",
-                    realm.name
-                );
-            }
-            (_, _) => {
-                warn!("SMTP not configured for realm {}", realm.name);
-            }
+        } else {
+            warn!(
+                "No email verification template configured for realm {}",
+                realm.name
+            );
         }
 
         Ok(())
     }
 
-    async fn verify_email(&self, token: String) -> Result<VerifyEmailResult, CoreError> {
+    async fn verify_email(
+        &self,
+        realm_name: String,
+        token: String,
+    ) -> Result<VerifyEmailResult, CoreError> {
         let token_hash = generate_token_hash(&token);
+
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
 
         let token_record = self
             .email_verification_token_repository
-            .find_valid_by_hash(&token_hash)
+            .find_valid_by_hash(&token_hash, realm.id.into())
             .await?
             .ok_or(CoreError::InvalidOrExpiredToken)?;
 
@@ -266,12 +280,8 @@ where
             return Err(CoreError::InvalidOrExpiredToken);
         }
 
-        // Mark token as used
-        self.email_verification_token_repository
-            .mark_used(token_record.id)
-            .await?;
-
-        // Get user and update email_verified = true
+        // Update user BEFORE marking token as used, so the token remains retryable
+        // if the user update fails.
         let user = self.user_repository.get_by_id(token_record.user_id).await?;
 
         self.user_repository
@@ -288,11 +298,19 @@ where
             )
             .await?;
 
-        // Remove verify_email required action
-        let _ = self
+        // Remove verify_email required action (best-effort, user is already verified)
+        if let Err(e) = self
             .user_required_action_repository
             .remove_required_action(token_record.user_id, RequiredAction::VerifyEmail)
-            .await;
+            .await
+        {
+            warn!("Failed to remove VerifyEmail required action: {}", e);
+        }
+
+        // Mark token as used only after user update succeeds
+        self.email_verification_token_repository
+            .mark_used(token_record.id)
+            .await?;
 
         // Clean up other tokens for this user
         let _ = self
@@ -457,7 +475,6 @@ mod tests {
         assert_ne!(hash1, hash2);
     }
 
-    // Restructured test
     #[tokio::test]
     async fn test_verify_email_success() {
         let realm = test_realm();
@@ -470,7 +487,7 @@ mod tests {
         let mut evrt = MockEmailVerificationTokenRepository::new();
         let tc = token_record.clone();
         evrt.expect_find_valid_by_hash()
-            .return_once(move |_| Box::pin(async move { Ok(Some(tc)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(tc)) }));
         evrt.expect_mark_used()
             .return_once(|_| Box::pin(async move { Ok(()) }));
         evrt.expect_delete_by_user_id()
@@ -490,17 +507,26 @@ mod tests {
             .expect_remove_required_action()
             .returning(|_, _| Box::pin(async move { Ok(()) }));
 
+        let realm_clone = realm.clone();
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
         let service = build_service(
             evrt,
             user_repo,
-            MockRealmRepository::new(),
+            realm_repo,
             ura_repo,
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
         );
 
-        let result = service.verify_email(raw_token.to_string()).await;
+        let result = service
+            .verify_email("test-realm".to_string(), raw_token.to_string())
+            .await;
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.user_id, user_id);
@@ -509,21 +535,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_email_invalid_token() {
+        let realm = test_realm();
         let mut evrt = MockEmailVerificationTokenRepository::new();
         evrt.expect_find_valid_by_hash()
-            .return_once(|_| Box::pin(async move { Ok(None) }));
+            .return_once(|_, _| Box::pin(async move { Ok(None) }));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
 
         let service = build_service(
             evrt,
             MockUserRepository::new(),
-            MockRealmRepository::new(),
+            realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
         );
 
-        let result = service.verify_email("invalid-token".to_string()).await;
+        let result = service
+            .verify_email("test-realm".to_string(), "invalid-token".to_string())
+            .await;
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -549,21 +584,29 @@ mod tests {
         };
 
         let mut evrt = MockEmailVerificationTokenRepository::new();
-        // DB already filters expired tokens, so find_valid_by_hash returns None
         evrt.expect_find_valid_by_hash()
-            .return_once(move |_| Box::pin(async move { Ok(None) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(None) }));
+
+        let mut realm_repo = MockRealmRepository::new();
+        let r = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = r.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
 
         let service = build_service(
             evrt,
             MockUserRepository::new(),
-            MockRealmRepository::new(),
+            realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
         );
 
-        let result = service.verify_email(raw_token.to_string()).await;
+        let result = service
+            .verify_email("test-realm".to_string(), raw_token.to_string())
+            .await;
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -589,21 +632,29 @@ mod tests {
         };
 
         let mut evrt = MockEmailVerificationTokenRepository::new();
-        // find_valid_by_hash filters used_at IS NULL, so returns None for used tokens
         evrt.expect_find_valid_by_hash()
-            .return_once(move |_| Box::pin(async move { Ok(None) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(None) }));
+
+        let mut realm_repo = MockRealmRepository::new();
+        let r = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = r.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
 
         let service = build_service(
             evrt,
             MockUserRepository::new(),
-            MockRealmRepository::new(),
+            realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
         );
 
-        let result = service.verify_email(raw_token.to_string()).await;
+        let result = service
+            .verify_email("test-realm".to_string(), raw_token.to_string())
+            .await;
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),

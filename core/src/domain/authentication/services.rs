@@ -2152,10 +2152,13 @@ where
 
         if email_verification_enabled {
             // Add verify_email required action
-            let _ = self
-                .user_required_action_repository
+            self.user_required_action_repository
                 .add_required_action(user.id, RequiredAction::VerifyEmail)
-                .await;
+                .await
+                .map_err(|e| {
+                    tracing::error!(user_id = %user.id, error = %e, "Failed to add VerifyEmail required action");
+                    CoreError::InternalServerError
+                })?;
 
             return Ok(RegisterUserOutput::PendingVerification {
                 message: "Please check your email to verify your account.".to_string(),
