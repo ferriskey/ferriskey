@@ -270,6 +270,12 @@ pub enum CoreError {
 
     #[error("Email template rendering failed: {0}")]
     EmailTemplateRenderError(String),
+
+    #[error("Email verification token is invalid or expired")]
+    InvalidOrExpiredToken,
+
+    #[error("Email verification template is not configured for this realm")]
+    EmailVerificationTemplateNotConfigured,
 }
 
 impl From<AuthenticationError> for CoreError {
