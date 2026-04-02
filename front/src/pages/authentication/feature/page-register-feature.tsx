@@ -63,11 +63,20 @@ export default function PageRegisterFeature() {
   }
 
   useEffect(() => {
-    if (data) {
+    if (!data) return
+
+    if ('access_token' in data) {
+      // Email verification disabled - direct login
       setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
       navigate(`/realms/${realm_name}/overview`, { replace: true })
+    } else {
+      // Email verification enabled - redirect to check-your-email page
+      navigate(`/realms/${realm_name}/authentication/check-your-email`, {
+        replace: true,
+        state: { email: form.getValues('email') },
+      })
     }
-  }, [data, setAuthTokens, navigate, realm_name])
+  }, [data, setAuthTokens, navigate, realm_name, form])
 
   return <PageRegister form={form} onSubmit={onSubmit} backToLogin={backToLogin} />
 }
