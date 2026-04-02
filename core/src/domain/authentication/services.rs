@@ -34,7 +34,8 @@ use crate::domain::{
         value_objects::{
             AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
             GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+            IntrospectTokenInput, RegisterUserInput, RegisterUserOutput, RevokeTokenInput,
+            UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -49,7 +50,7 @@ use crate::domain::{
     realm::{entities::RealmId, ports::RealmRepository},
     user::{
         entities::RequiredAction,
-        ports::{UserRepository, UserRoleRepository},
+        ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         value_objects::CreateUserRequest,
     },
 };
@@ -59,8 +60,27 @@ use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-where
+pub struct AuthServiceImpl<
+    R,
+    C,
+    RU,
+    PLRU,
+    U,
+    UR,
+    CR,
+    H,
+    AS,
+    KS,
+    RT,
+    AT,
+    F,
+    CSM,
+    PM,
+    OM,
+    OR,
+    OAR,
+    URA,
+> where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
@@ -79,6 +99,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -98,13 +119,14 @@ where
     pub(crate) organization_member_repository: Arc<OM>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) organization_attribute_repository: Arc<OAR>,
+    pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -124,6 +146,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -145,6 +168,7 @@ where
         organization_member_repository: Arc<OM>,
         organization_repository: Arc<OR>,
         organization_attribute_repository: Arc<OAR>,
+        user_required_action_repository: Arc<URA>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -167,6 +191,7 @@ where
             organization_member_repository,
             organization_repository,
             organization_attribute_repository,
+            user_required_action_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -174,8 +199,8 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -195,6 +220,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -1570,8 +1596,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -1591,6 +1617,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -1923,22 +1950,28 @@ where
         &self,
         url: String,
         input: RegisterUserInput,
-    ) -> Result<JwtToken, CoreError> {
+    ) -> Result<RegisterUserOutput, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(input.realm_name.clone())
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
         let firstname: String = input.first_name.unwrap_or_else(|| "FirstName".to_string());
         let lastname: String = input.last_name.unwrap_or_else(|| "LastName".to_string());
 
+        let email_verification_enabled = realm
+            .settings
+            .as_ref()
+            .map(|s| s.email_verification_enabled)
+            .unwrap_or(false);
+
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
                 client_id: None,
                 email: input.email,
-                email_verified: true,
+                email_verified: !email_verification_enabled,
                 enabled: true,
                 firstname,
                 lastname,
@@ -1959,13 +1992,29 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        self.generate_tokens_for_user(GenerateTokensForUserInput {
-            user_id: user.id,
-            realm_id: realm.id.into(),
-            base_url: url,
-            client_id: None,
-        })
-        .await
+        if email_verification_enabled {
+            // Add verify_email required action
+            let _ = self
+                .user_required_action_repository
+                .add_required_action(user.id, RequiredAction::VerifyEmail)
+                .await;
+
+            return Ok(RegisterUserOutput::PendingVerification {
+                message: "Please check your email to verify your account.".to_string(),
+                user_id: user.id,
+            });
+        }
+
+        let token = self
+            .generate_tokens_for_user(GenerateTokensForUserInput {
+                user_id: user.id,
+                realm_id: realm.id.into(),
+                base_url: url,
+                client_id: None,
+            })
+            .await?;
+
+        Ok(RegisterUserOutput::Authenticated(token))
     }
 
     async fn get_userinfo(
