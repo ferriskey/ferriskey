@@ -43,6 +43,13 @@ pub struct UpdateRealmSettingValidator {
     #[serde(default, deserialize_with = "deserialize_optional_field")]
     #[schema(value_type = Option<Uuid>)]
     pub email_verification_template_id: Option<Option<Uuid>>,
+    pub email_verification_enabled: Option<bool>,
+    #[validate(range(
+        min = 1,
+        max = 720,
+        message = "email_verification_ttl_hours must be between 1 and 720"
+    ))]
+    pub email_verification_ttl_hours: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
