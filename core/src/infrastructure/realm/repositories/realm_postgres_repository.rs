@@ -185,6 +185,8 @@ impl RealmRepository for PostgresRealmRepository {
         reset_password_template_id: Option<Option<Uuid>>,
         magic_link_template_id: Option<Option<Uuid>>,
         email_verification_template_id: Option<Option<Uuid>>,
+        email_verification_enabled: Option<bool>,
+        email_verification_ttl_hours: Option<i64>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -258,6 +260,15 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(value) = email_verification_template_id {
             realm_setting.email_verification_template_id = Set(value);
+        }
+
+        if let Some(value) = email_verification_enabled {
+            realm_setting.email_verification_enabled = Set(value);
+        }
+
+        if let Some(hours) = email_verification_ttl_hours {
+            realm_setting.email_verification_ttl_hours =
+                Set(i32::try_from(hours).map_err(|_| CoreError::Invalid)?);
         }
 
         let realm_setting = realm_setting
