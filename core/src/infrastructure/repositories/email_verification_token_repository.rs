@@ -74,10 +74,12 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
     async fn find_valid_by_hash(
         &self,
         token_hash: &str,
+        realm_id: Uuid,
     ) -> Result<Option<EmailVerificationToken>, CoreError> {
         let now = Utc::now().fixed_offset();
         let model = EvtEntity::find()
             .filter(EvtColumn::TokenHash.eq(token_hash))
+            .filter(EvtColumn::RealmId.eq(realm_id))
             .filter(EvtColumn::UsedAt.is_null())
             .filter(EvtColumn::ExpiresAt.gt(now))
             .one(&self.db)
