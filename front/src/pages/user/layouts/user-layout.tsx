@@ -3,6 +3,7 @@ import { useGetUser } from '../../../api/user.api'
 import { UserRouterParams, USERS_URL } from '../../../routes/sub-router/user.router'
 import { ArrowLeft } from 'lucide-react'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
+import AssignOrganizationModalFeature from '../feature/modals/assign-organization-modal-feature'
 
 export default function UserLayout() {
   const navigate = useNavigate()
@@ -16,11 +17,13 @@ export default function UserLayout() {
 
   const baseUrl = `/realms/${realm_name}/users/${user_id}`
   const isRoleMappingTab = pathname.includes('role-mapping')
+  const isOrganizationsTab = pathname.includes('organizations')
 
   const tabs = [
     { key: 'overview', label: 'Overview', path: `${baseUrl}/overview` },
     { key: 'credentials', label: 'Credentials', path: `${baseUrl}/credentials` },
     { key: 'role-mapping', label: 'Role Mapping', path: `${baseUrl}/role-mapping` },
+    { key: 'organizations', label: 'Organizations', path: `${baseUrl}/organizations` },
   ]
 
   return (
@@ -77,6 +80,7 @@ export default function UserLayout() {
           })}
         </div>
         {isRoleMappingTab && <RoleMappingModalFeature />}
+        {isOrganizationsTab && <AssignOrganizationModalFeature />}
       </div>
 
       <Outlet />

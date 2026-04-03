@@ -4,6 +4,7 @@ import PageOrganizationsOverviewFeature from './feature/page-organizations-overv
 import PageOrganizationSettingsFeature from './feature/page-organization-settings-feature'
 import PageOrganizationAttributesFeature from './feature/page-organization-attributes-feature'
 import PageCreateOrganizationFeature from './feature/page-create-organization-feature'
+import PageOrganizationMembersFeature from './feature/page-organization-members-feature'
 
 export default function PageOrganization() {
   return (
@@ -14,6 +15,7 @@ export default function PageOrganization() {
       <Route path='/:organizationId' element={<OrganizationLayout />}>
         <Route path='settings' element={<PageOrganizationSettingsFeature />} />
         <Route path='attributes' element={<PageOrganizationAttributesFeature />} />
+        <Route path='members' element={<PageOrganizationMembersFeature />} />
       </Route>
     </Routes>
   )
