@@ -10,5 +10,5 @@ export const USER_CREATE_URL = '/create'
 export type UserRouterParams = {
   realm_name: string
   user_id: string
-  current_view: 'overview' | 'credentials' | 'role-mapping'
+  current_view: 'overview' | 'credentials' | 'role-mapping' | 'organizations'
 }

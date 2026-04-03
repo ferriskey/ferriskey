@@ -2,12 +2,14 @@ import { useGetOrganization } from '@/api/organization.api'
 import { RouterParams } from '@/routes/router'
 import {
   ORGANIZATION_ATTRIBUTES_URL,
+  ORGANIZATION_MEMBERS_URL,
   ORGANIZATION_SETTINGS_URL,
   ORGANIZATION_URL,
   ORGANIZATIONS_URL,
 } from '@/routes/sub-router/organization.router'
 import { ArrowLeft } from 'lucide-react'
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router'
+import AddMemberModalFeature from '../feature/modals/add-member-modal-feature'
 
 export default function OrganizationLayout() {
   const { realm_name, organizationId } = useParams<RouterParams & { organizationId: string }>()
@@ -21,9 +23,12 @@ export default function OrganizationLayout() {
 
   const baseUrl = ORGANIZATION_URL(realm_name, organizationId)
 
+  const isMembersTab = pathname.includes('members')
+
   const tabs = [
     { key: 'settings', label: 'Settings', path: `${baseUrl}${ORGANIZATION_SETTINGS_URL}` },
     { key: 'attributes', label: 'Attributes', path: `${baseUrl}${ORGANIZATION_ATTRIBUTES_URL}` },
+    { key: 'members', label: 'Members', path: `${baseUrl}${ORGANIZATION_MEMBERS_URL}` },
   ]
 
   return (
@@ -64,20 +69,23 @@ export default function OrganizationLayout() {
       </div>
 
       {/* Tabs */}
-      <div className='-mx-8 px-8 pb-4 border-b flex items-center gap-2 -mt-2'>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => navigate(tab.path)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
-              pathname.startsWith(tab.path)
-                ? 'bg-primary/10 text-primary border-primary/40'
-                : 'bg-transparent text-foreground border-border hover:bg-muted'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className='-mx-8 px-8 pb-4 border-b flex items-center justify-between -mt-2'>
+        <div className='flex items-center gap-2'>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => navigate(tab.path)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                pathname.startsWith(tab.path)
+                  ? 'bg-primary/10 text-primary border-primary/40'
+                  : 'bg-transparent text-foreground border-border hover:bg-muted'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {isMembersTab && <AddMemberModalFeature />}
       </div>
 
       <Outlet />

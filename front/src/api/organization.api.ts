@@ -134,3 +134,102 @@ export const useDeleteOrganizationAttribute = () => {
     },
   })
 }
+
+export const useGetOrganizationMembers = ({
+  realm,
+  organizationId,
+}: BaseQuery & { organizationId?: string }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/members', {
+      path: { realm_name: realm!, organization_id: organizationId! },
+    }).queryOptions,
+    enabled: !!realm && !!organizationId,
+  })
+}
+
+export const useRemoveOrganizationMember = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get(
+        '/realms/{realm_name}/organizations/{organization_id}/members',
+        {
+          path: {
+            realm_name: variables.path.realm_name,
+            organization_id: variables.path.organization_id,
+          },
+        }
+      ).queryKey
+      toast.success('Member removed from organization')
+      await queryClient.invalidateQueries({ queryKey: keys })
+    },
+  })
+}
+
+export const useGetUserOrganizations = ({
+  realm,
+  userId,
+}: BaseQuery & { userId?: string }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/organizations', {
+      path: { realm_name: realm!, user_id: userId! },
+    }).queryOptions,
+    enabled: !!realm && !!userId,
+  })
+}
+
+export const useAddUserToOrganization = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/organizations/{organization_id}/members'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const userOrgsKeys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/organizations', {
+        path: {
+          realm_name: variables.path.realm_name,
+          user_id: variables.body.user_id,
+        },
+      }).queryKey
+      const orgMembersKeys = window.tanstackApi.get(
+        '/realms/{realm_name}/organizations/{organization_id}/members',
+        {
+          path: {
+            realm_name: variables.path.realm_name,
+            organization_id: variables.path.organization_id,
+          },
+        }
+      ).queryKey
+      toast.success('User added to organization')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userOrgsKeys }),
+        queryClient.invalidateQueries({ queryKey: orgMembersKeys }),
+      ])
+    },
+  })
+}
+
+export const useRemoveUserFromOrganization = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/organizations', {
+        path: {
+          realm_name: variables.path.realm_name,
+          user_id: variables.path.user_id,
+        },
+      }).queryKey
+      toast.success('User removed from organization')
+      await queryClient.invalidateQueries({ queryKey: keys })
+    },
+  })
+}
