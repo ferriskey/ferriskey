@@ -42,6 +42,13 @@ function MapperCategoryBadge({ mapperType }: { mapperType: string }) {
       </span>
     )
   }
+  if (t.includes('organization')) {
+    return (
+      <span className='inline-flex items-center px-2.5 py-0.5 rounded-md border border-teal-300 text-teal-600 text-xs font-mono bg-teal-50 dark:bg-teal-500/10 dark:border-teal-400/40'>
+        organization
+      </span>
+    )
+  }
   if (t.includes('property') || t.includes('full-name') || t.includes('usermodel')) {
     return (
       <span className='inline-flex items-center px-2.5 py-0.5 rounded-md border border-blue-300 text-blue-500 text-xs font-mono bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400/40'>
