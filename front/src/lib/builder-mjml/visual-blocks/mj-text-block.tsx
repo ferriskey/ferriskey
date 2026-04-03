@@ -58,7 +58,10 @@ export function MjTextBlock({ node, isSelected }: Props) {
           variables={adapter.variables}
         />
       ) : (
-        <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+        <div
+          className='[&_p]:m-0 [&_h1]:m-0 [&_h2]:m-0 [&_h3]:m-0 [&_ul]:m-0 [&_ol]:m-0'
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+        />
       )}
     </div>
   )

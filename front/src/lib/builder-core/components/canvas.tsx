@@ -58,7 +58,7 @@ function SortableNode({ node }: SortableNodeProps) {
     <div ref={setNodeRef} style={style} data-sortable-id={node.id} {...attributes}>
       {showBefore && <DropIndicatorLine />}
       <div
-        className={cn('relative cursor-pointer', isSelected && 'z-10')}
+        className={cn('relative cursor-pointer', isSelected && 'z-40')}
         onClick={(e) => {
           e.stopPropagation()
           selectNode(node.id)

@@ -2,7 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bold,
   Italic,
@@ -10,6 +10,7 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
+  Braces,
 } from 'lucide-react'
 
 interface TemplateVariable {
@@ -32,7 +33,9 @@ export function InlineTextEditor({
 }: InlineTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: false,
+      }),
       Underline,
       Link.configure({ openOnClick: false }),
     ],
@@ -60,7 +63,7 @@ export function InlineTextEditor({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className='absolute bottom-full left-4 mb-1 z-20 flex flex-wrap items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 shadow-md'>
+      <div className='absolute bottom-full left-4 mb-1 z-50 flex items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 shadow-md whitespace-nowrap'>
         <ToolbarButton
           active={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -107,26 +110,13 @@ export function InlineTextEditor({
         {variables && variables.length > 0 && (
           <>
             <div className='mx-0.5 h-4 w-px bg-border' />
-            <select
-              className='rounded bg-background px-1 py-0.5 text-xs border border-border'
-              value=''
-              onChange={(e) => {
-                if (e.target.value) insertVariable(e.target.value)
-              }}
-            >
-              <option value=''>+ Variable</option>
-              {variables.map((v) => (
-                <option key={v.name} value={v.name}>
-                  {`{{${v.name}}}`}
-                </option>
-              ))}
-            </select>
+            <VariableDropdown variables={variables} onInsert={insertVariable} />
           </>
         )}
       </div>
       <EditorContent
         editor={editor}
-        className='prose prose-sm max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[1em]'
+        className='max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[1em] [&_.ProseMirror_p]:m-0 [&_.ProseMirror_h1]:m-0 [&_.ProseMirror_h2]:m-0 [&_.ProseMirror_h3]:m-0 [&_.ProseMirror_ul]:m-0 [&_.ProseMirror_ol]:m-0'
       />
     </div>
   )
@@ -153,5 +143,60 @@ function ToolbarButton({
     >
       {children}
     </button>
+  )
+}
+
+function VariableDropdown({
+  variables,
+  onInsert,
+}: {
+  variables: TemplateVariable[]
+  onInsert: (varName: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div ref={ref} className='relative'>
+      <button
+        type='button'
+        className={`rounded p-1 transition-colors ${
+          open
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted'
+        }`}
+        onClick={() => setOpen(!open)}
+      >
+        <Braces size={12} />
+      </button>
+      {open && (
+        <div className='absolute top-full left-0 mt-1 min-w-[160px] rounded border border-border bg-background py-1 shadow-lg z-50'>
+          {variables.map((v) => (
+            <button
+              key={v.name}
+              type='button'
+              className='flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted transition-colors'
+              onClick={() => {
+                onInsert(v.name)
+                setOpen(false)
+              }}
+            >
+              <span className='font-mono text-primary'>{`{{${v.name}}}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
