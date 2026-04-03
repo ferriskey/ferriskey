@@ -5,7 +5,7 @@ import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { IUser } from '@/contracts/states.interface'
+import { IUser, OrganizationClaim } from '@/contracts/states.interface'
 import { authRefreshController } from './auth-refresh-controller'
 
 type JwtPayload = {
@@ -15,6 +15,7 @@ type JwtPayload = {
   preferred_username?: string
   email?: string
   name?: string
+  organizations?: Record<string, OrganizationClaim>
 }
 
 function decodeJwt(token: string): JwtPayload | null {
@@ -45,6 +46,17 @@ function decodeJwt(token: string): JwtPayload | null {
           : undefined,
       email: typeof claims.email === 'string' ? claims.email : undefined,
       name: typeof claims.name === 'string' ? claims.name : undefined,
+      organizations: (() => {
+        const raw = claims.organizations
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
+        const validated: Record<string, OrganizationClaim> = {}
+        for (const [alias, entry] of Object.entries(raw as Record<string, unknown>)) {
+          if (typeof entry === 'object' && entry !== null && typeof (entry as OrganizationClaim).id === 'string') {
+            validated[alias] = entry as OrganizationClaim
+          }
+        }
+        return validated
+      })(),
     }
   } catch {
     return null
@@ -288,6 +300,7 @@ export function useAuth() {
       preferred_username: decoded.preferred_username ?? '',
       email: decoded.email ?? '',
       name: decoded.name ?? '',
+      organizations: decoded.organizations ?? {},
     }
 
     setUser(user)
