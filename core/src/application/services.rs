@@ -19,6 +19,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
+        email_verification::services::EmailVerificationServiceImpl,
         health::services::HealthServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::{
@@ -73,6 +74,7 @@ use crate::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
+            email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
@@ -130,6 +132,7 @@ type MjmlRenderer = MjmlTemplateRenderer;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
+type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -168,6 +171,7 @@ type ApplicationAuthService = AuthServiceImpl<
     OrganizationMemberRepo,
     OrganizationRepo,
     OrganizationAttributeRepo,
+    UserRequiredActionRepo,
 >;
 
 #[derive(Clone, Debug)]
@@ -319,6 +323,16 @@ pub struct ApplicationService {
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
+    pub email_verification_service: EmailVerificationServiceImpl<
+        EmailVerificationTokenRepo,
+        UserRepo,
+        RealmRepo,
+        UserRequiredActionRepo,
+        EmailPortImpl,
+        SmtpConfigRepo,
+        EmailTemplateRepo,
+        MjmlRenderer,
+    >,
 }
 
 impl CoreService for ApplicationService {

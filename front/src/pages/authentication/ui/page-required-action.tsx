@@ -3,6 +3,7 @@ import { match } from 'ts-pattern'
 import ConfigureOtpFeature from '../feature/execution/configure-otp-feature'
 import UpdatePasswordFeature from '@/pages/authentication/feature/execution/update-password-feature.tsx'
 import ConfigurePasskeyFeature from '../feature/execution/configure-passkey-feature'
+import VerifyEmailFeature from '../feature/execution/verify-email-feature'
 
 export interface PageRequiredActionProps {
   execution: string
@@ -13,5 +14,6 @@ export default function PageRequiredAction({ execution }: PageRequiredActionProp
     .with(RequiredAction.ConfigureOtp, () => <ConfigureOtpFeature />)
     .with(RequiredAction.UpdatePassword, () => <UpdatePasswordFeature />)
     .with(RequiredAction.ConfigurePasskey, () => <ConfigurePasskeyFeature />)
+    .with(RequiredAction.VerifyEmail, () => <VerifyEmailFeature />)
     .otherwise(() => <div>No action required</div>)
 }

@@ -223,6 +223,12 @@ impl From<CoreError> for ApiError {
             CoreError::EmailTemplateRenderError(msg) => {
                 Self::InternalServerError(format!("Email template render error: {msg}"))
             }
+            CoreError::InvalidOrExpiredToken => {
+                Self::BadRequest("Invalid or expired email verification token".to_string())
+            }
+            CoreError::EmailVerificationTemplateNotConfigured => {
+                Self::BadRequest("Email verification template is not configured for this realm".to_string())
+            }
         }
     }
 }
