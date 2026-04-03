@@ -152,7 +152,15 @@ export function Canvas({ maxWidth = 600 }: CanvasProps) {
   })
 
   return (
-    <div className='flex flex-1 justify-center bg-muted/30 p-6' onClick={() => selectNode(null)}>
+    <div
+      className='flex flex-1 justify-center p-6'
+      style={{
+        backgroundColor: '#f8f9fa',
+        backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+        backgroundSize: '20px 20px',
+      }}
+      onClick={() => selectNode(null)}
+    >
       <div
         ref={setNodeRef}
         className={`min-h-[400px] rounded-lg bg-white shadow-sm transition-all duration-200 ${
