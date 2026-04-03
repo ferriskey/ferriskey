@@ -5,7 +5,6 @@ use ferriskey_core::domain::{
         ports::AuthService,
         value_objects::{RegisterUserInput, RegisterUserOutput},
     },
-    email_verification::ports::EmailVerificationService,
     realm::ports::RealmService,
 };
 use serde::{Deserialize, Serialize};
@@ -101,28 +100,12 @@ pub async fn registration_handler(
         RegisterUserOutput::Authenticated(token) => Ok(Response::Created(
             RegistrationResponse::Authenticated(token),
         )),
-        RegisterUserOutput::PendingVerification { message, user_id } => {
-            // Send verification email (fire and forget - don't fail registration if email fails)
-            if let Err(e) = state
-                .service
-                .email_verification_service
-                .send_verification_email(user_id, realm_name, base_url)
-                .await
-            {
-                tracing::warn!(
-                    user_id = %user_id,
-                    error = %e,
-                    "Failed to send verification email after registration"
-                );
-            }
-
-            Ok(Response::Created(
-                RegistrationResponse::PendingVerification(PendingVerificationResponse {
-                    message,
-                    user_id,
-                }),
-            ))
-        }
+        RegisterUserOutput::PendingVerification { message, user_id } => Ok(Response::Created(
+            RegistrationResponse::PendingVerification(PendingVerificationResponse {
+                message,
+                user_id,
+            }),
+        )),
     }
 }
 
