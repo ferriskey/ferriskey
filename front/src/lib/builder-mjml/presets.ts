@@ -81,6 +81,7 @@ export const emailTemplatePresets: EmailTemplatePreset[] = [
         [
           column('preset-rp-header-col', [
             text('preset-rp-header-title', '<h1 style="margin:0;color:#ffffff;font-size:24px;text-align:center;">Reset Your Password</h1>', {
+              'font-size': '24px',
               color: '#ffffff',
               align: 'center',
             }),
@@ -140,6 +141,7 @@ export const emailTemplatePresets: EmailTemplatePreset[] = [
         [
           column('preset-ml-header-col', [
             text('preset-ml-header-title', '<h1 style="margin:0;color:#ffffff;font-size:24px;text-align:center;">Sign In</h1>', {
+              'font-size': '24px',
               color: '#ffffff',
               align: 'center',
             }),
@@ -199,6 +201,7 @@ export const emailTemplatePresets: EmailTemplatePreset[] = [
         [
           column('preset-ev-header-col', [
             text('preset-ev-header-title', '<h1 style="margin:0;color:#ffffff;font-size:24px;text-align:center;">Verify Your Email</h1>', {
+              'font-size': '24px',
               color: '#ffffff',
               align: 'center',
             }),

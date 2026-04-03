@@ -50,6 +50,13 @@ export interface BuilderAdapter {
   /** Render a preview of the full tree (e.g. as HTML string for an iframe) */
   renderPreview(tree: BuilderNode[]): string
 
+  /** Render a visual block for the canvas (optional — falls back to label if not provided) */
+  renderVisualBlock?(
+    node: BuilderNode,
+    isSelected: boolean,
+    children: ReactNode,
+  ): ReactNode
+
   /** Get the default props/styles for a new node of the given type */
   getDefaultNode(type: string): Omit<BuilderNode, 'id'>
 }

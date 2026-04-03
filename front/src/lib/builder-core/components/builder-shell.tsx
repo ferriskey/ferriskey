@@ -1,17 +1,30 @@
 import {
   DndContext,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import type { Active } from '@dnd-kit/core'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
 import { findNode } from '../utils'
 import { BuilderDragOverlay } from './drag-overlay'
+
+export interface DropIndicator {
+  overId: string
+  position: 'before' | 'after' | 'inside'
+}
+
+const DropIndicatorContext = createContext<DropIndicator | null>(null)
+
+export function useDropIndicator() {
+  return useContext(DropIndicatorContext)
+}
 
 interface BuilderShellProps {
   children: ReactNode
@@ -25,6 +38,7 @@ interface BuilderShellProps {
 export function BuilderShell({ children }: BuilderShellProps) {
   const { addNode, moveNode, tree } = useBuilderContext()
   const [activeItem, setActiveItem] = useState<Active | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -38,8 +52,42 @@ export function BuilderShell({ children }: BuilderShellProps) {
     setActiveItem(event.active)
   }
 
+  function handleDragOver(event: DragOverEvent) {
+    const { over } = event
+    if (!over) {
+      setDropIndicator(null)
+      return
+    }
+
+    const overData = over.data.current
+
+    if (overData?.parentId !== undefined) {
+      // Over an empty drop zone or canvas root
+      setDropIndicator({ overId: String(over.id), position: 'inside' })
+    } else if (overData?.node) {
+      // Over a sortable node — use the activatorEvent to determine before/after
+      const overElement = document.querySelector(`[data-sortable-id="${over.id}"]`)
+      if (overElement) {
+        const rect = overElement.getBoundingClientRect()
+        const pointerEvent = event.activatorEvent as PointerEvent
+        const dragY = (event.delta?.y ?? 0) + (pointerEvent?.clientY ?? 0)
+        const midY = rect.top + rect.height / 2
+        setDropIndicator({
+          overId: String(over.id),
+          position: dragY < midY ? 'before' : 'after',
+        })
+      } else {
+        setDropIndicator({ overId: String(over.id), position: 'after' })
+      }
+    } else {
+      setDropIndicator(null)
+    }
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    const currentIndicator = dropIndicator
     setActiveItem(null)
+    setDropIndicator(null)
 
     const { active, over } = event
     if (!over) return
@@ -66,6 +114,10 @@ export function BuilderShell({ children }: BuilderShellProps) {
           : (findNode(tree, targetParentId)?.children ?? [])
       targetIndex = siblings.findIndex((n) => n.id === overNode.id)
       if (targetIndex < 0) targetIndex = siblings.length
+      // If the indicator says "after", insert after the hovered node
+      if (currentIndicator?.overId === String(over.id) && currentIndicator.position === 'after') {
+        targetIndex += 1
+      }
     }
 
     if (activeData?.source === 'library') {
@@ -83,10 +135,18 @@ export function BuilderShell({ children }: BuilderShellProps) {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setActiveItem(null)
+        setDropIndicator(null)
+      }}
     >
-      {children}
+      <DropIndicatorContext.Provider value={dropIndicator}>
+        {children}
+      </DropIndicatorContext.Provider>
       <BuilderDragOverlay activeItem={activeItem} />
     </DndContext>
   )
