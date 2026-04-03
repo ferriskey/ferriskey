@@ -22,14 +22,12 @@ interface InlineTextEditorProps {
   content: string
   onChange: (html: string) => void
   variables?: TemplateVariable[]
-  className?: string
 }
 
 export function InlineTextEditor({
   content,
   onChange,
   variables,
-  className,
 }: InlineTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -58,12 +56,8 @@ export function InlineTextEditor({
   }
 
   return (
-    <div
-      className={className}
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className='absolute bottom-full left-4 mb-1 z-50 flex items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 shadow-md whitespace-nowrap'>
+    <>
+      <div className='absolute bottom-full left-4 mb-1 z-50 flex items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 shadow-md whitespace-nowrap text-sm leading-normal'>
         <ToolbarButton
           active={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -116,9 +110,9 @@ export function InlineTextEditor({
       </div>
       <EditorContent
         editor={editor}
-        className='max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[1em] [&_.ProseMirror_p]:m-0 [&_.ProseMirror_h1]:m-0 [&_.ProseMirror_h2]:m-0 [&_.ProseMirror_h3]:m-0 [&_.ProseMirror_ul]:m-0 [&_.ProseMirror_ol]:m-0'
+        className='[&_.ProseMirror]:outline-none'
       />
-    </div>
+    </>
   )
 }
 

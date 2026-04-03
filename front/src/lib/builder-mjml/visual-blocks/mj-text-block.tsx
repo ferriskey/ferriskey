@@ -44,25 +44,28 @@ export function MjTextBlock({ node, isSelected }: Props) {
     lineHeight,
   }
 
-  return (
-    <div
-      className={`relative transition-all ${
-        isSelected ? '' : 'hover:ring-1 hover:ring-dashed hover:ring-border'
-      }`}
-      style={style}
-    >
-      {isSelected ? (
+  if (isSelected) {
+    return (
+      <div
+        className='relative transition-all'
+        style={style}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <InlineTextEditor
           content={sanitizedContent}
           onChange={(html) => updateNode(node.id, { content: html })}
           variables={adapter.variables}
         />
-      ) : (
-        <div
-          className='[&_p]:m-0 [&_h1]:m-0 [&_h2]:m-0 [&_h3]:m-0 [&_ul]:m-0 [&_ol]:m-0'
-          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-        />
-      )}
-    </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className='relative transition-all hover:ring-1 hover:ring-dashed hover:ring-border'
+      style={style}
+      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+    />
   )
 }
