@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { useBuilderContext } from '../context'
 import { useSelectedNode } from '../hooks'
 
@@ -14,29 +15,37 @@ export function ConfigPanel() {
     )
   }
 
+  const componentDef = adapter.components.find(
+    (c) => c.type === selectedNode.type,
+  )
+
   return (
-    <div className='flex flex-col gap-3 p-3'>
-      <div className='flex items-center justify-between'>
-        <h3 className='text-sm font-medium'>
-          {adapter.components.find((c) => c.type === selectedNode.type)
-            ?.label ?? selectedNode.type}
+    <div className='flex flex-col'>
+      <div className='flex items-center gap-2 border-b border-border px-3 py-2.5'>
+        {componentDef?.icon && (
+          <span className='flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground'>
+            {componentDef.icon}
+          </span>
+        )}
+        <h3 className='flex-1 text-sm font-medium'>
+          {componentDef?.label ?? selectedNode.type}
         </h3>
         <button
           type='button'
-          className='rounded px-2 py-1 text-xs text-destructive hover:bg-destructive/10'
+          className='flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive'
           onClick={() => removeNode(selectedNode.id)}
         >
-          Delete
+          <Trash2 className='h-3.5 w-3.5' />
         </button>
       </div>
 
-      <div className='h-px bg-border' />
-
-      {adapter.renderConfigPanel(selectedNode, (updates) => {
-        if (selectedNodeId) {
-          updateNode(selectedNodeId, updates)
-        }
-      })}
+      <div className='flex flex-col gap-0 p-3'>
+        {adapter.renderConfigPanel(selectedNode, (updates) => {
+          if (selectedNodeId) {
+            updateNode(selectedNodeId, updates)
+          }
+        })}
+      </div>
     </div>
   )
 }

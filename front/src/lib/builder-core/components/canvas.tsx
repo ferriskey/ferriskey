@@ -1,17 +1,28 @@
+import { cn } from '@/lib/utils'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
+import { useDropIndicator } from './builder-shell'
+
+function DropIndicatorLine() {
+  return (
+    <div className='relative flex items-center py-0.5'>
+      <div className='bg-primary h-2 w-2 rounded-full' />
+      <div className='bg-primary h-0.5 flex-1 rounded-full' />
+    </div>
+  )
+}
 
 interface SortableNodeProps {
   node: BuilderNode
-  depth: number
 }
 
-function SortableNode({ node, depth }: SortableNodeProps) {
+function SortableNode({ node }: SortableNodeProps) {
   const { selectedNodeId, selectNode, adapter } = useBuilderContext()
   const isSelected = selectedNodeId === node.id
+  const indicator = useDropIndicator()
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
@@ -29,62 +40,88 @@ function SortableNode({ node, depth }: SortableNodeProps) {
 
   const componentDef = adapter.components.find((c) => c.type === node.type)
 
+  const renderedChildren =
+    node.children.length > 0 ? (
+      <DroppableChildren>{node.children}</DroppableChildren>
+    ) : componentDef?.isContainer ? (
+      <EmptyDropZone parentId={node.id} />
+    ) : null
+
+  const visualBlock = adapter.renderVisualBlock
+    ? adapter.renderVisualBlock(node, isSelected, renderedChildren)
+    : null
+
+  const showBefore = indicator?.overId === node.id && indicator.position === 'before'
+  const showAfter = indicator?.overId === node.id && indicator.position === 'after'
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} data-sortable-id={node.id} {...attributes}>
+      {showBefore && <DropIndicatorLine />}
       <div
-        className={`group relative cursor-pointer rounded border transition-colors ${
-          isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-border'
-        }`}
-        style={{ marginLeft: depth * 12 }}
+        className={cn('relative cursor-pointer', isSelected && 'z-40')}
         onClick={(e) => {
           e.stopPropagation()
           selectNode(node.id)
         }}
+        {...listeners}
       >
-        <div className='flex items-center gap-1.5 px-2 py-1 text-xs' {...listeners}>
-          {componentDef?.icon && (
-            <span className='flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground'>
-              {componentDef.icon}
-            </span>
-          )}
-          <span className='truncate font-medium'>{componentDef?.label ?? node.type}</span>
-          {node.content && (
-            <span className='ml-auto truncate text-muted-foreground max-w-[120px]'>
-              {node.content.replace(/<[^>]*>/g, '').slice(0, 30)}
-            </span>
-          )}
-        </div>
-
-        {node.children.length > 0 && (
-          <DroppableChildren depth={depth + 1}>{node.children}</DroppableChildren>
-        )}
-
-        {componentDef?.isContainer && node.children.length === 0 && (
-          <EmptyDropZone parentId={node.id} depth={depth + 1} />
+        {visualBlock ?? (
+          <FallbackNode node={node} isSelected={isSelected}>
+            {renderedChildren}
+          </FallbackNode>
         )}
       </div>
+      {showAfter && <DropIndicatorLine />}
+    </div>
+  )
+}
+
+function FallbackNode({
+  node,
+  isSelected,
+  children,
+}: {
+  node: BuilderNode
+  isSelected: boolean
+  children?: React.ReactNode
+}) {
+  const { adapter } = useBuilderContext()
+  const componentDef = adapter.components.find((c) => c.type === node.type)
+
+  return (
+    <div
+      className={`rounded border p-2 text-xs transition-colors ${
+        isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-border'
+      }`}
+    >
+      <div className='flex items-center gap-1.5'>
+        {componentDef?.icon && (
+          <span className='flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground'>
+            {componentDef.icon}
+          </span>
+        )}
+        <span className='truncate font-medium'>{componentDef?.label ?? node.type}</span>
+      </div>
+      {children}
     </div>
   )
 }
 
 interface DroppableChildrenProps {
   children: BuilderNode[]
-  depth: number
 }
 
-function DroppableChildren({ children, depth }: DroppableChildrenProps) {
+function DroppableChildren({ children }: DroppableChildrenProps) {
   return (
     <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-      <div className='py-0.5'>
-        {children.map((child) => (
-          <SortableNode key={child.id} node={child} depth={depth} />
-        ))}
-      </div>
+      {children.map((child) => (
+        <SortableNode key={child.id} node={child} />
+      ))}
     </SortableContext>
   )
 }
 
-function EmptyDropZone({ parentId, depth }: { parentId: string; depth: number }) {
+function EmptyDropZone({ parentId }: { parentId: string }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `empty-${parentId}`,
     data: { parentId },
@@ -93,17 +130,20 @@ function EmptyDropZone({ parentId, depth }: { parentId: string; depth: number })
   return (
     <div
       ref={setNodeRef}
-      className={`mx-2 my-1 rounded border border-dashed py-3 text-center text-xs text-muted-foreground transition-colors ${
-        isOver ? 'border-primary bg-primary/5' : 'border-border'
+      className={`my-1 rounded border border-dashed py-4 text-center text-xs text-muted-foreground transition-colors ${
+        isOver ? 'border-primary bg-primary/5' : 'border-border/50'
       }`}
-      style={{ marginLeft: depth * 12 }}
     >
       Drop components here
     </div>
   )
 }
 
-export function Canvas() {
+interface CanvasProps {
+  maxWidth?: number
+}
+
+export function Canvas({ maxWidth = 600 }: CanvasProps) {
   const { tree, selectNode } = useBuilderContext()
 
   const { setNodeRef, isOver } = useDroppable({
@@ -113,23 +153,33 @@ export function Canvas() {
 
   return (
     <div
-      ref={setNodeRef}
-      className={`min-h-[300px] flex-1 rounded-lg border p-2 transition-colors ${
-        isOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/30'
-      }`}
+      className='flex min-h-full flex-1 items-start justify-center p-6'
+      style={{
+        backgroundColor: '#f8f9fa',
+        backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+        backgroundSize: '20px 20px',
+      }}
       onClick={() => selectNode(null)}
     >
-      {tree.length === 0 ? (
-        <div className='flex h-full min-h-[280px] items-center justify-center text-sm text-muted-foreground'>
-          Drag components here to start building
-        </div>
-      ) : (
-        <SortableContext items={tree.map((n) => n.id)} strategy={verticalListSortingStrategy}>
-          {tree.map((node) => (
-            <SortableNode key={node.id} node={node} depth={0} />
-          ))}
-        </SortableContext>
-      )}
+      <div
+        ref={setNodeRef}
+        className={`min-h-[400px] rounded-lg bg-white shadow-sm transition-all duration-200 ${
+          isOver ? 'ring-2 ring-primary ring-dashed' : ''
+        }`}
+        style={{ width: '100%', maxWidth }}
+      >
+        {tree.length === 0 ? (
+          <div className='flex h-full min-h-[400px] items-center justify-center text-sm text-muted-foreground'>
+            Drag components here to start building
+          </div>
+        ) : (
+          <SortableContext items={tree.map((n) => n.id)} strategy={verticalListSortingStrategy}>
+            {tree.map((node) => (
+              <SortableNode key={node.id} node={node} />
+            ))}
+          </SortableContext>
+        )}
+      </div>
     </div>
   )
 }

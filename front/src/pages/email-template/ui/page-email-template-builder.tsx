@@ -9,8 +9,9 @@ import {
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
-import { type EmailTemplatePreset, MjmlPreview, emailTemplatePresets } from '@/lib/builder-mjml'
-import { ArrowLeft, Eye, Layers, Save } from 'lucide-react'
+import { type EmailTemplatePreset, emailTemplatePresets } from '@/lib/builder-mjml'
+import { PREVIEW_WIDTHS, type PreviewMode } from '@/lib/builder-mjml/types'
+import { ArrowLeft, Monitor, Smartphone, Save, Tablet } from 'lucide-react'
 import { useState } from 'react'
 
 interface Props {
@@ -29,8 +30,6 @@ interface Props {
   onApplyPreset: (preset: EmailTemplatePreset) => void
 }
 
-type Tab = 'builder' | 'preview'
-
 export default function PageEmailTemplateBuilder({
   adapter,
   tree,
@@ -46,7 +45,8 @@ export default function PageEmailTemplateBuilder({
   onBack,
   onApplyPreset,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('builder')
+  const [viewport, setViewport] = useState<PreviewMode>('desktop')
+  const viewportWidth = PREVIEW_WIDTHS[viewport]
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
@@ -80,24 +80,15 @@ export default function PageEmailTemplateBuilder({
           )}
 
           <div className='flex items-center gap-1 rounded-md border border-border p-0.5'>
-            <button
-              type='button'
-              className={`rounded px-2 py-1 text-xs transition-colors ${
-                tab === 'builder' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-              }`}
-              onClick={() => setTab('builder')}
-            >
-              <Layers size={14} />
-            </button>
-            <button
-              type='button'
-              className={`rounded px-2 py-1 text-xs transition-colors ${
-                tab === 'preview' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-              }`}
-              onClick={() => setTab('preview')}
-            >
-              <Eye size={14} />
-            </button>
+            <ViewportButton active={viewport === 'desktop'} onClick={() => setViewport('desktop')} label='Desktop'>
+              <Monitor size={14} />
+            </ViewportButton>
+            <ViewportButton active={viewport === 'tablet'} onClick={() => setViewport('tablet')} label='Tablet'>
+              <Tablet size={14} />
+            </ViewportButton>
+            <ViewportButton active={viewport === 'mobile'} onClick={() => setViewport('mobile')} label='Mobile'>
+              <Smartphone size={14} />
+            </ViewportButton>
           </div>
 
           <Button onClick={onSave} disabled={isSaving || !name}>
@@ -107,32 +98,51 @@ export default function PageEmailTemplateBuilder({
         </div>
 
         {/* Content */}
-        {tab === 'builder' ? (
-          <BuilderShell>
-            <div className='flex flex-1 overflow-hidden'>
-              {/* Component Library */}
-              <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
-                <PresetLibrary presets={emailTemplatePresets} onApplyPreset={onApplyPreset} />
-                <ComponentLibrary />
-              </div>
-
-              {/* Canvas */}
-              <div className='flex-1 overflow-y-auto p-4'>
-                <Canvas />
-              </div>
-
-              {/* Config Panel */}
-              <div className='w-72 shrink-0 overflow-y-auto border-l border-border'>
-                <ConfigPanel />
-              </div>
+        <BuilderShell>
+          <div className='flex flex-1 overflow-hidden'>
+            {/* Component Library */}
+            <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
+              <PresetLibrary presets={emailTemplatePresets} onApplyPreset={onApplyPreset} />
+              <ComponentLibrary />
             </div>
-          </BuilderShell>
-        ) : (
-          <div className='flex-1 overflow-y-auto p-4'>
-            <MjmlPreview />
+
+            {/* Visual Canvas */}
+            <div className='flex-1 overflow-y-auto'>
+              <Canvas maxWidth={viewportWidth} />
+            </div>
+
+            {/* Right Panel: Config */}
+            <div className='w-80 shrink-0 overflow-y-auto border-l border-border'>
+              <ConfigPanel />
+            </div>
           </div>
-        )}
+        </BuilderShell>
       </div>
     </BuilderProvider>
+  )
+}
+
+function ViewportButton({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type='button'
+      title={label}
+      className={`rounded px-2 py-1 text-xs transition-colors ${
+        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+      }`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   )
 }
