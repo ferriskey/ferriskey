@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import type { BuilderNode } from '../../builder-core'
+import { useBuilderContext } from '../../builder-core'
+import { InlineTextEditor } from './inline-text-editor'
 
 interface Props {
   node: BuilderNode
@@ -17,6 +19,8 @@ function stripConflictingInlineStyles(html: string): string {
 }
 
 export function MjTextBlock({ node, isSelected }: Props) {
+  const { updateNode, adapter } = useBuilderContext()
+
   const fontSize = (node.props['font-size'] as string) || '14px'
   const color = (node.props['color'] as string) || '#333333'
   const align = (node.props['align'] as string) || 'left'
@@ -30,21 +34,32 @@ export function MjTextBlock({ node, isSelected }: Props) {
     [node.content],
   )
 
+  const style = {
+    fontSize,
+    color,
+    textAlign: align as 'left' | 'center' | 'right',
+    padding,
+    fontWeight,
+    fontFamily,
+    lineHeight,
+  }
+
   return (
     <div
-      className={`transition-all ${
-        isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-dashed hover:ring-border'
+      className={`relative transition-all ${
+        isSelected ? '' : 'hover:ring-1 hover:ring-dashed hover:ring-border'
       }`}
-      style={{
-        fontSize,
-        color,
-        textAlign: align as 'left' | 'center' | 'right',
-        padding,
-        fontWeight,
-        fontFamily,
-        lineHeight,
-      }}
-      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-    />
+      style={style}
+    >
+      {isSelected ? (
+        <InlineTextEditor
+          content={sanitizedContent}
+          onChange={(html) => updateNode(node.id, { content: html })}
+          variables={adapter.variables}
+        />
+      ) : (
+        <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+      )}
+    </div>
   )
 }

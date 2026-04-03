@@ -14,9 +14,10 @@ export function createMjmlAdapter(
 ): BuilderAdapter {
   return {
     components: mjmlComponents,
+    variables: options.variables,
 
     renderConfigPanel(node, onUpdate) {
-      return renderMjmlConfigPanel(node, onUpdate, options.variables)
+      return renderMjmlConfigPanel(node, onUpdate)
     },
 
     renderPreview(tree: BuilderNode[]): string {

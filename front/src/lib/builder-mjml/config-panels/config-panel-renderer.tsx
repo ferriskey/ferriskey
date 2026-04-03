@@ -6,22 +6,15 @@ import {
   SelectField,
   PaddingFields,
 } from './shared-fields'
-import { RichTextEditor } from './rich-text-editor'
 import { ConfigSection } from './config-section'
 
 type OnUpdate = (
   updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>,
 ) => void
 
-interface TemplateVariable {
-  name: string
-  description: string
-}
-
 export function renderMjmlConfigPanel(
   node: BuilderNode,
   onUpdate: OnUpdate,
-  variables?: TemplateVariable[],
 ): ReactNode {
   const updateProp = (key: string, value: string) => {
     onUpdate({ props: { [key]: value } })
@@ -117,14 +110,7 @@ export function renderMjmlConfigPanel(
     case 'mj-text':
       return (
         <div className='flex flex-col gap-0'>
-          <ConfigSection title='Content'>
-            <RichTextEditor
-              content={node.content ?? ''}
-              onChange={(html) => onUpdate({ content: html })}
-              variables={variables}
-            />
-          </ConfigSection>
-          <ConfigSection title='Typography' defaultOpen={false}>
+          <ConfigSection title='Typography'>
             <ColorField
               label='Color'
               value={node.props['color'] as string}
@@ -232,11 +218,6 @@ export function renderMjmlConfigPanel(
       return (
         <div className='flex flex-col gap-0'>
           <ConfigSection title='Content'>
-            <RichTextEditor
-              content={node.content ?? ''}
-              onChange={(html) => onUpdate({ content: html })}
-              variables={variables}
-            />
             <TextField
               label='Link URL'
               value={node.props['href'] as string}

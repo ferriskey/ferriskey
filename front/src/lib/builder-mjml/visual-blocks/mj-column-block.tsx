@@ -14,12 +14,12 @@ export function MjColumnBlock({ node, isSelected, children }: Props) {
 
   return (
     <div
-      className={`relative flex-1 transition-all ${
+      className={`relative flex-1 self-stretch transition-all ${
         isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-dotted hover:ring-border'
       }`}
       style={{ backgroundColor: bgColor, width }}
     >
-      <div className='flex min-h-[40px] flex-col'>
+      <div className='flex min-h-[40px] h-full flex-col'>
         {hasChildren ? (
           children
         ) : (

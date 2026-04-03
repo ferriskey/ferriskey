@@ -41,6 +41,9 @@ export interface BuilderAdapter {
   /** All available components the user can drag into the builder */
   components: ComponentDefinition[]
 
+  /** Template variables available for insertion in text editors */
+  variables?: { name: string; description: string }[]
+
   /** Render the configuration panel for the selected node */
   renderConfigPanel(
     node: BuilderNode,

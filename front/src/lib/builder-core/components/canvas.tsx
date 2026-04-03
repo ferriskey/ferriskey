@@ -153,7 +153,7 @@ export function Canvas({ maxWidth = 600 }: CanvasProps) {
 
   return (
     <div
-      className='flex flex-1 justify-center p-6'
+      className='flex min-h-full flex-1 items-start justify-center p-6'
       style={{
         backgroundColor: '#f8f9fa',
         backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
