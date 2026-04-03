@@ -2215,10 +2215,11 @@ export namespace Endpoints {
   }
   export type get_Verify_email_handler = {
     method: 'GET'
-    path: '/realms/{realm_name}/realms/{realm_name}/login-actions/verify-email'
+    path: '/realms/{realm_name}/login-actions/verify-email'
     requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; token: string }
+      path: { realm_name: string }
+      query: { token: string }
     }
     responses: { 200: Schemas.VerifyEmailResult; 400: unknown }
   }
@@ -2708,7 +2709,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
-    '/realms/{realm_name}/realms/{realm_name}/login-actions/verify-email': Endpoints.get_Verify_email_handler
+    '/realms/{realm_name}/login-actions/verify-email': Endpoints.get_Verify_email_handler
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
