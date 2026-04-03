@@ -16,7 +16,7 @@ pub struct VerifyEmailQuery {
 /// GET /realms/{realm_name}/login-actions/verify-email?token=xxx
 #[utoipa::path(
     get,
-    path = "/realms/{realm_name}/login-actions/verify-email",
+    path = "/login-actions/verify-email",
     tag = "auth",
     summary = "Verify email address",
     description = "Verify a user's email address using the token from the verification email",
