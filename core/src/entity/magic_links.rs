@@ -20,6 +20,7 @@ pub struct Model {
     pub token: String,
     pub created_at: DateTime,
     pub expires_at: DateTime,
+    pub auth_session_code: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -31,6 +32,7 @@ pub enum Column {
     Token,
     CreatedAt,
     ExpiresAt,
+    AuthSessionCode,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -62,6 +64,7 @@ impl ColumnTrait for Column {
             Self::Token => ColumnType::String(StringLen::N(255u32)).def().unique(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
+            Self::AuthSessionCode => ColumnType::Uuid.def().null(),
         }
     }
 }
