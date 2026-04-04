@@ -140,12 +140,14 @@ pub struct MagicLinkInput {
     pub realm_name: String,
     pub email: String,
     pub base_url: String,
+    /// Session code from the FERRISKEY_SESSION cookie at send time,
+    /// stored so verify can use the correct AuthSession without an OAuth redirect.
+    pub session_code: Option<String>,
 }
 
 pub struct VerifyMagicLinkInput {
     pub magic_token_id: Uuid,
     pub magic_token: String,
-    pub session_code: String,
 }
 
 pub struct RequestPasswordResetInput {
@@ -305,6 +307,7 @@ pub trait MagicLinkRepository: Send + Sync {
         magic_token_id: Uuid,
         magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
+        auth_session_code: Option<Uuid>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_by_token_id(

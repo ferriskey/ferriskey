@@ -65,6 +65,10 @@ pub struct MagicLink {
     pub magic_token_hash: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    /// Session code of the AuthSession that was active when the magic link was created.
+    /// Used at verify time to redirect the user to the correct client, bypassing the
+    /// OAuth redirect loop that would otherwise default to `security-admin-console`.
+    pub auth_session_code: Option<Uuid>,
 }
 
 impl MagicLink {

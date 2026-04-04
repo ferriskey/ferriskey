@@ -41,6 +41,7 @@ impl From<MagicLinkModel> for MagicLink {
             magic_token_hash: model.token,
             created_at,
             expires_at,
+            auth_session_code: model.auth_session_code,
         }
     }
 }
@@ -53,6 +54,7 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
         token_id: Uuid,
         magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
+        auth_session_code: Option<Uuid>,
     ) -> Result<(), CoreError> {
         // Extract token
         let magic_token_hash = &magic_token_hash.hash;
@@ -68,6 +70,7 @@ impl MagicLinkRepository for PostgresMagicLinkRepository {
             token: Set(magic_token_hash.to_string()),
             created_at: Set(Utc::now().naive_utc()),
             expires_at: Set(expires_at.naive_utc()),
+            auth_session_code: Set(auth_session_code),
         };
 
         active_model.insert(&self.db).await.map_err(|e| {

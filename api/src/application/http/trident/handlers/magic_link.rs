@@ -8,7 +8,7 @@ use ferriskey_core::domain::trident::ports::{
     MagicLinkInput, TridentService, VerifyMagicLinkInput,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{debug, warn};
+use tracing::debug;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
@@ -60,6 +60,7 @@ pub struct VerifyMagicLinkQuery {
 pub async fn send_magic_link(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<SendMagicLinkRequest>,
 ) -> Result<Response<SendMagicLinkResponse>, ApiError> {
     debug!(
@@ -68,6 +69,9 @@ pub async fn send_magic_link(
     );
 
     let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+    let session_code = cookie
+        .get("FERRISKEY_SESSION")
+        .map(|c| c.value().to_string());
 
     state
         .service
@@ -75,6 +79,7 @@ pub async fn send_magic_link(
             realm_name,
             email: payload.email.clone(),
             base_url,
+            session_code,
         })
         .await?;
 
@@ -107,23 +112,7 @@ pub async fn send_magic_link(
 pub async fn verify_magic_link(
     State(state): State<AppState>,
     Query(query): Query<VerifyMagicLinkQuery>,
-    cookie: CookieManager,
 ) -> Result<impl IntoResponse, ApiError> {
-    let session_code = match cookie.get("FERRISKEY_SESSION") {
-        Some(cookie) => cookie,
-        None => {
-            warn!("Magic link verification attempted without session cookie");
-            return Err(ApiError::Unauthorized("Missing session cookie".to_string()));
-        }
-    };
-
-    let session_code = session_code.value().to_string();
-
-    let session_code = Uuid::parse_str(&session_code).map_err(|_| {
-        warn!("Failed to parse session code from cookie");
-        ApiError::BadRequest("Invalid session code in cookie".to_string())
-    })?;
-
     debug!("Verifying magic link for token_id: {}", query.token_id);
 
     let login_url = state
@@ -131,7 +120,6 @@ pub async fn verify_magic_link(
         .verify_magic_link(VerifyMagicLinkInput {
             magic_token_id: query.token_id,
             magic_token: query.magic_token,
-            session_code: session_code.to_string(),
         })
         .await?;
 
