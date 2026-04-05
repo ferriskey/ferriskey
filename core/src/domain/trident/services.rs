@@ -1134,6 +1134,11 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
         let ttl_minutes = settings.magic_link_ttl;
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
+        let auth_session_code = input
+            .session_code
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok());
+
         self.magic_link_repository
             .create_magic_link(
                 user.id,
@@ -1141,6 +1146,7 @@ where
                 magic_token_id,
                 &magic_token_hash,
                 expires_at,
+                auth_session_code,
             )
             .await?;
 
@@ -1283,19 +1289,6 @@ where
     }
 
     async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
-        let session_code = Uuid::parse_str(&input.session_code).map_err(|_| {
-            error!("Failed to parse session code");
-            CoreError::SessionCreateError
-        })?;
-
-        // Fetch the auth session first
-        let auth_session = self
-            .auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .inspect_err(|_| error!("Session not found for code: {}", session_code))
-            .map_err(|_| CoreError::SessionNotFound)?;
-
         let magic_link = self
             .magic_link_repository
             .get_by_token_id(input.magic_token_id)
@@ -1308,6 +1301,22 @@ where
                 );
                 CoreError::InvalidMagicLink
             })?;
+
+        // Use the session code stored at send time so that the user is redirected to
+        // the correct client (e.g. an external React app) and not to the fallback
+        // `security-admin-console` that would be created by the OAuth redirect loop.
+        let session_code = magic_link.auth_session_code.ok_or_else(|| {
+            warn!("Magic link has no associated auth session code");
+            CoreError::SessionNotFound
+        })?;
+
+        // Fetch the auth session
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .inspect_err(|_| error!("Session not found for code: {}", session_code))
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         if magic_link.realm_id != Uuid::from(auth_session.realm_id) {
             warn!(
