@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import PageLogin, { MagicLinkStep } from '../ui/page-login'
+import PageLogin, { LoginErrorPage, MagicLinkStep } from '../ui/page-login'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
@@ -28,7 +28,22 @@ export default function PageLoginFeature() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const clientId = searchParams.get('client_id')
   const redirectUri = searchParams.get('redirect_uri')
-  const isAuthInitiated = Boolean(clientId && redirectUri)
+
+  // Detect stale realm in redirect_uri.
+  // When the user edits the realm in the URL (e.g. /realms/master → /realms/cloud-iam)
+  // the old redirect_uri (".../realms/master/authentication/callback") stays in the query
+  // params. If we don't catch this, the OAuth session is created with the wrong callback
+  // and the user ends up redirected to the wrong realm after login.
+  const currentRealm = realm_name ?? 'master'
+  const realmCallbackUri = `${window.location.origin}/realms/${currentRealm}/authentication/callback`
+  const isRedirectUriStale =
+    redirectUri !== null &&
+    redirectUri.includes('/realms/') &&
+    !redirectUri.includes(`/realms/${currentRealm}/`)
+
+  // Auth is "initiated" (OAuth session exists) only when both params are present
+  // AND the redirect_uri belongs to the current realm.
+  const isAuthInitiated = Boolean(clientId && redirectUri) && !isRedirectUriStale
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
@@ -40,13 +55,19 @@ export default function PageLoginFeature() {
   const restartAuthFlowRef = useRef<() => void>(() => { })
 
   const getAuthParamsFromUrl = useCallback(() => {
+    const resolvedClientId = clientId ?? 'security-admin-console'
+    // For the webapp's own OAuth client, always derive redirect_uri from the
+    // current realm — never use a stale value carried over from another realm's
+    // query params.
+    const resolvedRedirectUri =
+      resolvedClientId === 'security-admin-console'
+        ? realmCallbackUri
+        : (redirectUri ?? realmCallbackUri)
     return {
-      clientId: clientId ?? 'security-admin-console',
-      redirectUri:
-        redirectUri ??
-        `${window.location.origin}/realms/${realm_name ?? 'master'}/authentication/callback`,
+      clientId: resolvedClientId,
+      redirectUri: resolvedRedirectUri,
     }
-  }, [clientId, redirectUri, realm_name])
+  }, [clientId, redirectUri, realmCallbackUri])
 
   const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
@@ -379,6 +400,13 @@ export default function PageLoginFeature() {
 
   if (isRedirecting) {
     return <PageLogin form={form} onSubmit={onSubmit} isLoading loginSettings={loginSettings} />
+  }
+
+  // Fatal configuration error (e.g. "Invalid redirect URI", "Client not found").
+  // The backend redirected here because it can't trust the redirect_uri.
+  // Show a clean error card — do NOT render the login form or retry the OAuth flow.
+  if (loginError && !isAuthInitiated) {
+    return <LoginErrorPage errorMessage={loginError} />
   }
 
   if (!loginSettings) return null

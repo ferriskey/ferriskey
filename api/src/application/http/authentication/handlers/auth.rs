@@ -12,6 +12,7 @@ use ferriskey_core::domain::authentication::entities::{
     AuthInput, AuthenticateInput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
@@ -90,7 +91,7 @@ pub async fn auth_handler(
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
-    let result = state
+    let result = match state
         .service
         .auth(AuthInput {
             client_id: params.client_id.clone(),
@@ -101,7 +102,32 @@ pub async fn auth_handler(
             state: params.state.clone(),
         })
         .await
-        .map_err(ApiError::from)?;
+    {
+        Ok(result) => result,
+        // For these errors we must NOT redirect to redirect_uri (it may be invalid / unknown).
+        // Instead, redirect the browser to the FerrisKey login page with a human-readable
+        // error message so the user sees a proper UI rather than raw JSON.
+        Err(
+            e @ CoreError::InvalidRedirectUri
+            | e @ CoreError::ClientNotFound
+            | e @ CoreError::InvalidRealm,
+        ) => {
+            warn!(
+                realm = %realm_name,
+                client_id = %params.client_id,
+                error = %e,
+                "Auth flow rejected — redirecting to login error page"
+            );
+            let error_url = format!(
+                "{}/realms/{}/authentication/login?login_error={}",
+                state.args.webapp_url.trim_end_matches('/'),
+                realm_name,
+                urlencoding::encode(&e.to_string()),
+            );
+            return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
+        }
+        Err(e) => return Err(ApiError::from(e)),
+    };
 
     if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
         && !identity_cookie.value().trim().is_empty()

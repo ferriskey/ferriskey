@@ -200,6 +200,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ProtocolMapperRepo,
         ScopeMappingRepo,
+        RedirectUriRepo,
     >,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,

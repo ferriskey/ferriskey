@@ -13,7 +13,7 @@ import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, KeyRound, Mail } from 'lucide-react'
+import { ArrowLeft, KeyRound, Mail, ShieldAlert } from 'lucide-react'
 
 export type MagicLinkStep = 'idle' | 'form' | 'sent'
 
@@ -310,6 +310,52 @@ function ErrorMessage() {
     <div className='flex min-h-svh flex-col items-center justify-center'>
       <p className='text-lg font-semibold text-destructive'>An error occurred during login</p>
       <p className='text-muted-foreground'>Please try again</p>
+    </div>
+  )
+}
+
+export function LoginErrorPage({ errorMessage }: { errorMessage: string }) {
+  return (
+    <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
+        <div className='flex flex-col gap-6'>
+          <Card className='login-card overflow-hidden border p-0 shadow-sm'>
+            <CardContent className='grid gap-0 p-0'>
+              <div className='p-8 md:p-10'>
+                <div className='flex flex-col gap-7'>
+                  <div className='space-y-2'>
+                    <div className='flex items-center gap-3'>
+                      <img
+                        src='/logo_ferriskey.png'
+                        alt='FerrisKey'
+                        className='h-7 w-7 object-contain'
+                      />
+                      <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                        FerrisKey
+                      </p>
+                    </div>
+                    <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                      Authentication error
+                    </h1>
+                  </div>
+
+                  <div className='flex flex-col items-center gap-4 py-2'>
+                    <div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10'>
+                      <ShieldAlert className='h-6 w-6 text-destructive' />
+                    </div>
+                    <div className='space-y-1 text-center'>
+                      <p className='text-sm font-medium text-foreground'>{errorMessage}</p>
+                      <p className='text-xs text-muted-foreground'>
+                        Contact your administrator if this problem persists.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }
