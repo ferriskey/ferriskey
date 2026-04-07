@@ -5,7 +5,11 @@ use crate::domain::{
         IdentityProviderRepository, entities::IdentityProviderPresentation,
     },
     authentication::value_objects::Identity,
-    client::{entities::ClientType, ports::ClientRepository, value_objects::CreateClientRequest},
+    client::{
+        entities::ClientType,
+        ports::{ClientRepository, RedirectUriRepository},
+        value_objects::CreateClientRequest,
+    },
     common::{
         entities::app_errors::CoreError,
         generate_random_string,
@@ -37,7 +41,7 @@ use serde_json::json;
 use tracing::instrument;
 
 #[derive(Clone, Debug)]
-pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -49,6 +53,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    RU: RedirectUriRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -60,11 +65,13 @@ where
     pub(crate) client_scope_repository: Arc<CS>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
     pub(crate) client_scope_mapping_repository: Arc<CSM>,
+    pub(crate) redirect_uri_repository: Arc<RU>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
+    RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -76,6 +83,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    RU: RedirectUriRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -89,6 +97,7 @@ where
         client_scope_repository: Arc<CS>,
         protocol_mapper_repository: Arc<PM>,
         client_scope_mapping_repository: Arc<CSM>,
+        redirect_uri_repository: Arc<RU>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -102,6 +111,7 @@ where
             client_scope_repository,
             protocol_mapper_repository,
             client_scope_mapping_repository,
+            redirect_uri_repository,
             policy,
         }
     }
@@ -252,8 +262,8 @@ where
     }
 }
 
-impl<R, U, C, UR, RO, W, I, CS, PM, CSM> RealmService
-    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM>
+impl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU> RealmService
+    for RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -265,6 +275,7 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
     CSM: ClientScopeMappingRepository,
+    RU: RedirectUriRepository,
 {
     #[instrument(
         skip(self, identity, input),
@@ -360,6 +371,48 @@ where
 
         self.seed_default_scopes_for_client(realm.id, account_client.id)
             .await?;
+
+        // Create the security-admin-console client for this realm so that the
+        // FerrisKey webapp can initiate the OAuth flow for this realm.
+        let console_client = self
+            .client_repository
+            .create_client(CreateClientRequest {
+                client_id: "security-admin-console".to_string(),
+                client_type: ClientType::Confidential,
+                direct_access_grants_enabled: false,
+                enabled: true,
+                name: "security-admin-console".to_string(),
+                protocol: "openid-connect".to_string(),
+                public_client: false,
+                realm_id: realm.id,
+                secret: Some(generate_random_string()),
+                service_account_enabled: false,
+            })
+            .await?;
+
+        // Seed the same redirect-URI patterns used for master so that the webapp
+        // callback URL is accepted for every realm.
+        let console_redirect_patterns = vec![
+            "^http://localhost:[0-9]+/.*",
+            "^/*",
+            "http://localhost:3000/admin",
+            "http://localhost:5173/admin",
+        ];
+
+        for pattern in console_redirect_patterns {
+            if let Err(e) = self
+                .redirect_uri_repository
+                .create_redirect_uri(console_client.id, pattern.to_string(), true)
+                .await
+            {
+                tracing::error!(
+                    "Failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
+                    pattern,
+                    realm.name,
+                    e
+                );
+            }
+        }
 
         Ok(realm)
     }
