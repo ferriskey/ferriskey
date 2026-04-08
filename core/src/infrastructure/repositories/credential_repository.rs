@@ -222,7 +222,7 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         let models = hashes
             .into_iter()
-            .zip(credential_data.into_iter())
+            .zip(credential_data)
             .map(|(h, cred_data)| ActiveModel {
                 id: Set(generate_uuid_v7()),
                 salt: Set(Some(h.salt)),
