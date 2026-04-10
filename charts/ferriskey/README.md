@@ -17,6 +17,8 @@ helm repo add ferriskey oci://ghcr.io/ferriskey/charts
 helm install ferriskey ferriskey/ferriskey
 ```
 
+With Helm, the database migrations job is executed as a `post-install` and `pre-upgrade` hook, so it is recreated on each upgrade instead of being patched in place.
+
 #### ArgoCD
 
 If you're using ArgoCD, you need to set the following values:
@@ -55,6 +57,8 @@ helm install ferriskey ferriskey/ferriskey \
     --set database.passwordSecret.name=$SECRET_NAME \
     --set postgresql.enabled=false
 ```
+
+With Helm, the database migrations job is executed as a `post-install` and `pre-upgrade` hook, so it is recreated on each upgrade instead of being patched in place.
 
 #### ArgoCD
 
