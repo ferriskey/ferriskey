@@ -32,9 +32,9 @@ use crate::domain::{
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
-            GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+            AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
+            GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams,
+            Identity, IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -547,44 +547,6 @@ where
         Ok(token_data.claims)
     }
 
-    async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
-        let credential = self
-            .credential_repository
-            .get_password_credential(user_id)
-            .instrument(info_span!("auth.verify_password.credential_fetch"))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = credential.credential_data
-        else {
-            return Err(CoreError::InternalServerError);
-        };
-
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                hash_iterations,
-                &algorithm,
-                &salt,
-            )
-            .instrument(info_span!(
-                "auth.verify_password.hasher_verify",
-                hash_algorithm = %algorithm,
-                hash_iterations
-            ))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(is_valid)
-    }
-
     async fn verify_refresh_token(
         &self,
         token: String,
@@ -693,14 +655,67 @@ where
 
         let auth_session = self
             .auth_session_repository
-            .get_by_code(code.clone())
+            .consume_by_code(code.clone(), params.realm_id)
             .await
             .map_err(|e| {
-                warn!("Auth session not found for code {}: {:?}", code, e);
+                let code_fingerprint = &format!("{:x}", Sha256::digest(code.as_bytes()))[..12];
+                warn!(code_fingerprint = %code_fingerprint, error = ?e, "Storage error consuming auth session");
 
-                CoreError::MissingAuthorizationCode
+                CoreError::InternalServerError
             })?
-            .ok_or(CoreError::NotFound)?;
+            .ok_or(CoreError::MissingAuthorizationCode)?;
+
+        if auth_session.realm_id != params.realm_id {
+            warn!(
+                "Authorization code realm mismatch: code belongs to realm {:?} but requested in realm {:?}",
+                auth_session.realm_id, params.realm_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|e| {
+                warn!("Failed to lookup client for validation: {:?}", e);
+                CoreError::InvalidClient
+            })?;
+
+        if auth_session.client_id != client.id {
+            warn!(
+                "Authorization code client mismatch: code belongs to client {} but requested by client {}",
+                auth_session.client_id, params.client_id
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        if let Some(stored_challenge) = auth_session.code_challenge.as_deref() {
+            let code_verifier = params.code_verifier.as_deref().ok_or_else(|| {
+                warn!("Missing code_verifier for PKCE validation");
+                CoreError::InvalidRequest
+            })?;
+
+            let challenge_valid: bool = match auth_session.code_challenge_method {
+                Some(CodeChallengeMethod::S256) => {
+                    let hash = Sha256::digest(code_verifier.as_bytes());
+                    let computed = BASE64_URL_SAFE_NO_PAD.encode(hash);
+                    computed
+                        .as_bytes()
+                        .ct_eq(stored_challenge.as_bytes())
+                        .into()
+                }
+                None => {
+                    warn!("PKCE challenge method is required but was not stored in auth session");
+                    false
+                }
+            };
+
+            if !challenge_valid {
+                warn!("PKCE validation failed for session {}", auth_session.id,);
+                return Err(CoreError::InvalidRequest);
+            }
+        }
 
         if auth_session.authenticated {
             warn!("Authorization code {} has already been used", code);
@@ -880,107 +895,6 @@ where
         ))
     }
 
-    async fn password(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
-        let username = params.username.ok_or(CoreError::InternalServerError)?;
-        let password = params.password.ok_or(CoreError::InternalServerError)?;
-
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm_id)
-            .instrument(info_span!("auth.password.client_lookup"))
-            .await
-            .map_err(|_| CoreError::InvalidClient)?;
-
-        if !client.direct_access_grants_enabled {
-            // Public clients must have direct access grants enabled for password flow.
-            if client.public_client {
-                return Err(CoreError::InvalidClient);
-            }
-
-            // Confidential clients are still allowed when authenticating with a valid secret.
-            if !Self::verify_client_secret(
-                client.secret.as_deref(),
-                params.client_secret.as_deref(),
-            ) {
-                return Err(CoreError::InvalidClientSecret);
-            }
-        } else if !client.public_client {
-            // When direct access grants are enabled, confidential clients may call
-            // password flow without a secret; if one is provided, it must be valid.
-            if let Some(provided_secret) = &params.client_secret
-                && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
-            {
-                return Err(CoreError::InvalidClientSecret);
-            }
-        }
-
-        let user = self
-            .user_repository
-            .get_by_username(username, params.realm_id)
-            .instrument(info_span!("auth.password.user_lookup"))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        if !user.enabled {
-            return Err(CoreError::UserDisabled);
-        }
-
-        let credential = self
-            .verify_password(user.id, password)
-            .instrument(info_span!("auth.password.verify_password"))
-            .await;
-
-        let is_valid = match credential {
-            Ok(is_valid) => is_valid,
-            Err(_) => return Err(CoreError::Invalid),
-        };
-
-        if !is_valid {
-            return Err(CoreError::Invalid);
-        }
-
-        let final_scope = self
-            .resolve_scopes_for_client(client.id, params.scope)
-            .await?;
-
-        let lifetimes = self
-            .resolve_token_lifetimes(params.realm_id, client.id)
-            .await?;
-
-        let (jwt, refresh_token, id_token) = self
-            .create_jwt(GenerateTokenInput {
-                base_url: params.base_url,
-                client_id: params.client_id,
-                client_uuid: client.id,
-                email: user.email.clone(),
-                email_verified: user.email_verified,
-                firstname: user.firstname.clone(),
-                lastname: user.lastname.clone(),
-                realm_id: params.realm_id,
-                realm_name: params.realm_name,
-                user_id: user.id,
-                username: user.username,
-                scope: Some(final_scope),
-                access_token_lifetime: lifetimes.access_token,
-                refresh_token_lifetime: lifetimes.refresh_token,
-                id_token_lifetime: lifetimes.id_token,
-            })
-            .instrument(info_span!("auth.password.create_jwt"))
-            .await?;
-
-        let id_token_value = id_token.map(|t| t.token);
-
-        Ok(JwtToken::new(
-            jwt.token,
-            "Bearer".to_string(),
-            refresh_token.token,
-            Self::expires_in_from(jwt.expires_at),
-            Self::expires_in_from(refresh_token.expires_at),
-            None,
-            id_token_value,
-        ))
-    }
-
     async fn refresh_token(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let refresh_token = params.refresh_token.ok_or(CoreError::InvalidRefreshToken)?;
 
@@ -1062,7 +976,6 @@ where
     ) -> Result<JwtToken, CoreError> {
         match grant_type {
             GrantType::Code => self.authorization_code(params).await,
-            GrantType::Password => self.password(params).await,
             GrantType::Credentials => self.client_credential(params).await,
             GrantType::RefreshToken => self.refresh_token(params).await,
         }
@@ -1611,17 +1524,10 @@ where
             .get_enabled_by_client_id(client.id)
             .await?;
 
-        if !client_redirect_uris.iter().any(|uri| {
-            if uri.value == redirect_uri {
-                return true;
-            }
-
-            if let Ok(regex) = regex::Regex::new(&uri.value) {
-                return regex.is_match(&redirect_uri);
-            }
-
-            false
-        }) {
+        if !client_redirect_uris
+            .iter()
+            .any(|uri| uri.value == redirect_uri)
+        {
             return Err(CoreError::InvalidRedirectUri);
         }
 
@@ -1640,6 +1546,31 @@ where
             )
             .await;
 
+        if input.response_type != "code" {
+            warn!(
+                "Unsupported response_type requested: {}",
+                input.response_type
+            );
+            return Err(CoreError::InvalidRequest);
+        }
+
+        let has_valid_challenge = input
+            .code_challenge
+            .as_deref()
+            .is_some_and(|c| !c.trim().is_empty());
+        if !has_valid_challenge {
+            warn!("Missing or empty code_challenge - PKCE is required");
+            return Err(CoreError::InvalidRequest);
+        }
+
+        let code_challenge_method = match input.code_challenge_method {
+            Some(CodeChallengeMethod::S256) => CodeChallengeMethod::S256,
+            None => {
+                warn!("PKCE challenge method is required");
+                return Err(CoreError::InvalidRequest);
+            }
+        };
+
         let params = AuthSessionParams {
             realm_id: realm.id,
             client_id: client.id,
@@ -1654,6 +1585,8 @@ where
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
             compass_flow_id: Some(flow_id.0),
+            code_challenge: input.code_challenge.clone(),
+            code_challenge_method: Some(code_challenge_method),
         };
         let session = self
             .auth_session_repository
@@ -1707,10 +1640,9 @@ where
             client_id = %input.client_id,
             grant_type = ?input.grant_type,
             has_client_secret = input.client_secret.is_some(),
-            has_username = input.username.is_some(),
-            has_password = input.password.is_some(),
             has_code = input.code.is_some(),
-            has_refresh_token = input.refresh_token.is_some()
+            has_refresh_token = input.refresh_token.is_some(),
+            has_code_verifier = input.code_verifier.is_some()
         )
     )]
     async fn exchange_token(&self, input: ExchangeTokenInput) -> Result<JwtToken, CoreError> {
@@ -1762,11 +1694,10 @@ where
             client_id: input.client_id,
             client_secret: input.client_secret,
             code: input.code,
-            username: input.username,
-            password: input.password,
             refresh_token: input.refresh_token,
             redirect_uri: None,
             scope: input.scope,
+            code_verifier: input.code_verifier,
         };
 
         let result = self
@@ -1839,12 +1770,14 @@ where
         let identity: Identity = match input.claims.is_service_account() {
             true => {
                 let client_id = input.claims.client_id.ok_or(CoreError::InvalidClient)?;
-                let client_id = Uuid::parse_str(&client_id).map_err(|e| {
-                    tracing::error!("failed to parse client id: {:?}", e);
-                    CoreError::InvalidClient
-                })?;
-
-                let client = self.client_repository.get_by_id(client_id).await?;
+                let client = self
+                    .client_repository
+                    .get_by_client_id(client_id, user.realm_id)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("failed to find client: {:?}", e);
+                        CoreError::InvalidClient
+                    })?;
 
                 Identity::Client(client)
             }
