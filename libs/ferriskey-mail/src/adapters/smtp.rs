@@ -1,5 +1,6 @@
 use lettre::{
-    AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox,
+    AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
+    message::{Mailbox, MultiPart, SinglePart},
     transport::smtp::authentication::Credentials,
 };
 
@@ -62,7 +63,7 @@ impl EmailSender for SmtpEmailSender {
             to,
             subject,
             body,
-            html_body: _,
+            html_body,
         } = message;
 
         if to.is_empty() {
@@ -86,9 +87,20 @@ impl EmailSender for SmtpEmailSender {
             builder = builder.to(recipient_mailbox);
         }
 
-        let email = builder
-            .body(body)
-            .map_err(|e| EmailError::MessageBuild(format!("failed to build email message: {e}")))?;
+        let email = match html_body {
+            Some(html) => builder
+                .multipart(
+                    MultiPart::alternative()
+                        .singlepart(SinglePart::plain(body))
+                        .singlepart(SinglePart::html(html)),
+                )
+                .map_err(|e| {
+                    EmailError::MessageBuild(format!("failed to build email message: {e}"))
+                })?,
+            None => builder.body(body).map_err(|e| {
+                EmailError::MessageBuild(format!("failed to build email message: {e}"))
+            })?,
+        };
 
         self.mailer
             .send(email)

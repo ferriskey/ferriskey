@@ -1,4 +1,8 @@
+use super::handlers::get_password_policy::{__path_get_password_policy, get_password_policy};
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
+use super::handlers::update_password_policy::{
+    __path_update_password_policy, update_password_policy,
+};
 use crate::application::auth::auth;
 use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
 use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
@@ -37,6 +41,8 @@ use utoipa::OpenApi;
     get_smtp_config,
     upsert_smtp_config,
     delete_smtp_config,
+    get_password_policy,
+    update_password_policy,
 ))]
 pub struct RealmApiDoc;
 
@@ -87,6 +93,13 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
             get(get_smtp_config)
                 .put(upsert_smtp_config)
                 .delete(delete_smtp_config),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/password-policy",
+                state.args.server.root_path
+            ),
+            get(get_password_policy).put(update_password_policy),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(

@@ -52,11 +52,19 @@ pub enum RequiredAction {
 
     #[serde(rename = "update_password")]
     UpdatePassword,
+
+    #[serde(rename = "configure_passkey")]
+    ConfigurePasskey,
 }
 
 impl RequiredAction {
     pub fn allowed_values() -> Vec<&'static str> {
-        vec!["configure_otp", "verify_email", "update_password"]
+        vec![
+            "configure_otp",
+            "verify_email",
+            "update_password",
+            "configure_passkey",
+        ]
     }
 }
 
@@ -66,6 +74,7 @@ impl Display for RequiredAction {
             RequiredAction::ConfigureOtp => write!(f, "configure_otp"),
             RequiredAction::VerifyEmail => write!(f, "verify_email"),
             RequiredAction::UpdatePassword => write!(f, "update_password"),
+            RequiredAction::ConfigurePasskey => write!(f, "configure_passkey"),
         }
     }
 }
@@ -78,6 +87,7 @@ impl TryFrom<String> for RequiredAction {
             "configure_otp" => Ok(RequiredAction::ConfigureOtp),
             "verify_email" => Ok(RequiredAction::VerifyEmail),
             "update_password" => Ok(RequiredAction::UpdatePassword),
+            "configure_passkey" => Ok(RequiredAction::ConfigurePasskey),
             _ => Err(RequiredActionError::Invalid),
         }
     }

@@ -1,15 +1,15 @@
+use super::auth::root_scoped_base_url;
 use crate::application::decoded_token::OptionalToken;
 use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
 use crate::application::http::server::app_state::AppState;
 use crate::application::url::FullUrl;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderValue, StatusCode, header::SET_COOKIE};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
-use axum_extra::extract::cookie::{Cookie, SameSite};
 
 use ferriskey_core::domain::authentication::entities::{
-    AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus, ExchangeTokenInput, GrantType,
+    AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::user::entities::RequiredAction;
@@ -126,6 +126,8 @@ pub async fn authenticate(
     let session_code = Uuid::parse_str(&session_code)
         .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
 
+    let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
+
     let authenticate_params = if let Some(token) = optional_token {
         AuthenticateInput::with_existing_token(
             realm_name.clone(),
@@ -190,14 +192,5 @@ pub async fn authenticate(
     }
 
     let response: AuthenticateResponse = result.into();
-    if let Some(cookie_value) = identity_cookie_value {
-        return Ok((
-            StatusCode::OK,
-            [(SET_COOKIE, cookie_value)],
-            axum::Json(response),
-        )
-            .into_response());
-    }
-
     Ok((StatusCode::OK, axum::Json(response)).into_response())
 }

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -25,32 +26,23 @@ pub struct UpdateRealmSettingValidator {
     pub magic_link_enabled: Option<bool>,
     #[validate(range(min = 1, message = "magic_link_ttl must be greater than 0"))]
     pub magic_link_ttl: Option<u32>,
+    pub passkey_enabled: Option<bool>,
     pub compass_enabled: Option<bool>,
 
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "access_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub access_token_lifetime: Option<i64>,
-    #[validate(range(
-        min = 300,
-        max = 2592000,
-        message = "refresh_token_lifetime must be between 300 and 2592000 seconds"
-    ))]
     pub refresh_token_lifetime: Option<i64>,
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "id_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub id_token_lifetime: Option<i64>,
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "temporary_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub temporary_token_lifetime: Option<i64>,
+
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub reset_password_template_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub magic_link_template_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<Uuid>)]
+    pub email_verification_template_id: Option<Option<Uuid>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -69,6 +61,26 @@ pub struct UpsertSmtpConfigValidator {
     pub from_name: String,
     #[validate(custom(function = "validate_encryption"))]
     pub encryption: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdatePasswordPolicyValidator {
+    #[validate(range(min = 1, max = 128, message = "min_length must be between 1 and 128"))]
+    pub min_length: Option<i32>,
+    pub require_uppercase: Option<bool>,
+    pub require_lowercase: Option<bool>,
+    pub require_number: Option<bool>,
+    pub require_special: Option<bool>,
+    #[validate(range(min = 0, message = "max_age_days must be 0 or greater"))]
+    pub max_age_days: Option<i32>,
+}
+
+fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
 }
 
 fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {

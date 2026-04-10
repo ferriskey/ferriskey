@@ -35,6 +35,15 @@ pub fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
     )
 }
 
+fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
+    format!(
+        "{}/realms/{}/authentication/login{}",
+        webapp_url.trim_end_matches('/'),
+        realm_name,
+        login_url
+    )
+}
+
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct AuthRequest {
@@ -86,7 +95,7 @@ pub async fn auth_handler(
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
-    let result = state
+    let result = match state
         .service
         .auth(AuthInput {
             client_id: params.client_id.clone(),
@@ -99,7 +108,32 @@ pub async fn auth_handler(
             code_challenge_method: params.code_challenge_method,
         })
         .await
-        .map_err(ApiError::from)?;
+    {
+        Ok(result) => result,
+        // For these errors we must NOT redirect to redirect_uri (it may be invalid / unknown).
+        // Instead, redirect the browser to the FerrisKey login page with a human-readable
+        // error message so the user sees a proper UI rather than raw JSON.
+        Err(
+            e @ CoreError::InvalidRedirectUri
+            | e @ CoreError::ClientNotFound
+            | e @ CoreError::InvalidRealm,
+        ) => {
+            warn!(
+                realm = %realm_name,
+                client_id = %params.client_id,
+                error = %e,
+                "Auth flow rejected — redirecting to login error page"
+            );
+            let error_url = format!(
+                "{}/realms/{}/authentication/login?login_error={}",
+                state.args.webapp_url.trim_end_matches('/'),
+                realm_name,
+                urlencoding::encode(&e.to_string()),
+            );
+            return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
+        }
+        Err(e) => return Err(ApiError::from(e)),
+    };
 
     if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
         && !identity_cookie.value().trim().is_empty()
@@ -144,12 +178,7 @@ pub async fn auth_handler(
         }
     }
 
-    let full_url = format!(
-        "{}/realms/{}/authentication/login{}",
-        state.args.webapp_url.clone(),
-        realm_name,
-        result.login_url.clone()
-    );
+    let full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
     let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
         .path("/")
@@ -197,4 +226,37 @@ pub async fn auth_handler(
         .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
 
     Ok(axum_response.into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::webapp_login_url;
+
+    #[test]
+    fn joins_webapp_login_url_without_double_slashes() {
+        let full_url = webapp_login_url(
+            "https://login.example.com/",
+            "demo",
+            "?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test"
+        );
+    }
+
+    #[test]
+    fn preserves_login_url_when_webapp_has_no_trailing_slash() {
+        let full_url = webapp_login_url(
+            "https://login.example.com",
+            "demo",
+            "?client_id=test-client",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
+        );
+    }
 }

@@ -65,7 +65,7 @@ export default function PageRealmSettingsCreateWebhook({
                 <p className='text-sm text-muted-foreground mt-0.5'>A descriptive name for this webhook.</p>
               </div>
               <div className='w-1/2'>
-                <InputText label='Webhook Name' {...field} />
+                <InputText label='Webhook Name' {...field} error={form.formState.errors.name?.message} />
               </div>
             </div>
           )}
@@ -81,7 +81,7 @@ export default function PageRealmSettingsCreateWebhook({
                 <p className='text-sm text-muted-foreground mt-0.5'>The HTTPS URL that will receive events.</p>
               </div>
               <div className='w-1/2'>
-                <InputText label='Webhook URL' {...field} />
+                <InputText label='Webhook URL' {...field} error={form.formState.errors.endpoint?.message} />
               </div>
             </div>
           )}
@@ -97,7 +97,7 @@ export default function PageRealmSettingsCreateWebhook({
                 <p className='text-sm text-muted-foreground mt-0.5'>Optional description for this webhook.</p>
               </div>
               <div className='w-1/2'>
-                <InputText label='Description' {...field} />
+                <InputText label='Description' {...field} error={form.formState.errors.description?.message} />
               </div>
             </div>
           )}

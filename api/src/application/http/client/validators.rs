@@ -40,35 +40,15 @@ pub struct UpdateClientValidator {
     pub direct_access_grants_enabled: Option<bool>,
 
     #[serde(default)]
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "access_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub access_token_lifetime: Option<i64>,
 
     #[serde(default)]
-    #[validate(range(
-        min = 300,
-        max = 2592000,
-        message = "refresh_token_lifetime must be between 300 and 2592000 seconds"
-    ))]
     pub refresh_token_lifetime: Option<i64>,
 
     #[serde(default)]
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "id_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub id_token_lifetime: Option<i64>,
 
     #[serde(default)]
-    #[validate(range(
-        min = 60,
-        max = 86400,
-        message = "temporary_token_lifetime must be between 60 and 86400 seconds"
-    ))]
     pub temporary_token_lifetime: Option<i64>,
 }
 

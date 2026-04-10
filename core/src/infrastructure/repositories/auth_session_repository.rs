@@ -357,4 +357,25 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         Ok(())
     }
+
+    async fn update_authenticated(
+        &self,
+        session_code: Uuid,
+        authenticated: bool,
+    ) -> Result<(), AuthenticationError> {
+        crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::Authenticated,
+                Expr::value(authenticated),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating session authenticated: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        Ok(())
+    }
 }

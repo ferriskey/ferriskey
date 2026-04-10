@@ -14,7 +14,11 @@ use uuid::Uuid;
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_organization::{
+    OrganizationAttributeRepository, OrganizationMemberRepository, OrganizationRepository,
+};
 
+use crate::domain::authentication::mapper_engine::ContextOrganization;
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -50,14 +54,12 @@ use crate::domain::{
     },
 };
 use ferriskey_domain::token_lifetime::TokenLifetimes;
-use ferriskey_security::jwt::entities::{
-    DEFAULT_ACCESS_TOKEN_LIFETIME, DEFAULT_REFRESH_TOKEN_LIFETIME,
-};
+use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -74,6 +76,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -90,13 +95,16 @@ where
     pub(crate) federation_repository: Arc<F>,
     pub(crate) scope_mapping_repository: Arc<CSM>,
     pub(crate) protocol_mapper_repository: Arc<PM>,
+    pub(crate) organization_member_repository: Arc<OM>,
+    pub(crate) organization_repository: Arc<OR>,
+    pub(crate) organization_attribute_repository: Arc<OAR>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -113,6 +121,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -131,6 +142,9 @@ where
         federation_repository: Arc<F>,
         scope_mapping_repository: Arc<CSM>,
         protocol_mapper_repository: Arc<PM>,
+        organization_member_repository: Arc<OM>,
+        organization_repository: Arc<OR>,
+        organization_attribute_repository: Arc<OAR>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -150,6 +164,9 @@ where
             federation_repository,
             scope_mapping_repository,
             protocol_mapper_repository,
+            organization_member_repository,
+            organization_repository,
+            organization_attribute_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -157,8 +174,8 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -175,6 +192,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -306,6 +326,38 @@ where
             }
         }
 
+        // Load user organization memberships with their attributes
+        let org_memberships = self
+            .organization_member_repository
+            .list_organizations_for_user(input.user_id)
+            .await
+            .unwrap_or_default();
+
+        let mut organizations = Vec::new();
+        for membership in org_memberships {
+            if let Ok(Some(org)) = self
+                .organization_repository
+                .get_organization_by_id(membership.organization_id)
+                .await
+            {
+                let raw_attrs = self
+                    .organization_attribute_repository
+                    .list_attributes(org.id)
+                    .await
+                    .unwrap_or_default();
+
+                let attributes = raw_attrs.into_iter().map(|a| (a.key, a.value)).collect();
+
+                organizations.push(ContextOrganization {
+                    id: org.id,
+                    name: org.name,
+                    alias: org.alias,
+                    domain: org.domain,
+                    attributes,
+                });
+            }
+        }
+
         // Build mapper context
         let context = MapperContext {
             user_id: input.user_id,
@@ -321,6 +373,7 @@ where
             realm_name: input.realm_name.clone(),
             realm_id: input.realm_id,
             user_attributes: HashMap::new(),
+            organizations,
         };
 
         // Apply mappers for access token
@@ -664,6 +717,11 @@ where
             }
         }
 
+        if auth_session.authenticated {
+            warn!("Authorization code {} has already been used", code);
+            return Err(CoreError::InvalidToken);
+        }
+
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
@@ -736,6 +794,14 @@ where
                 Some(user_id),
             );
         }
+
+        self.auth_session_repository
+            .update_authenticated(auth_session.id, true)
+            .await
+            .map_err(|e| {
+                warn!("Failed to mark auth session as authenticated: {:?}", e);
+                CoreError::InternalServerError
+            })?;
 
         let id_token_value = id_token.map(|t| t.token);
 
@@ -1024,7 +1090,7 @@ where
                     "failed to update auth session with code and user id: {:?}",
                     e
                 );
-                CoreError::InternalServerError
+                CoreError::SessionNotFound
             })?;
 
         let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
@@ -1196,7 +1262,7 @@ This is a server error that should be investigated. Do not forward back this mes
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
@@ -1211,7 +1277,7 @@ This is a server error that should be investigated. Do not forward back this mes
             user.username.clone(),
             iss,
             vec![format!("{}-realm", realm.name), "account".to_string()],
-            ClaimsTyp::Bearer,
+            ClaimsTyp::Temporary,
             client_id.clone(),
             Some(user.email.clone()),
             Some(auth_session.scope),
@@ -1417,8 +1483,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR> AuthService
+    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -1435,6 +1501,9 @@ where
     F: FederationRepository,
     CSM: ClientScopeMappingRepository,
     PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -1718,6 +1787,23 @@ where
         Ok(AuthorizeRequestOutput { identity })
     }
 
+    async fn authorize_login_action_request(
+        &self,
+        input: AuthorizeRequestInput,
+    ) -> Result<AuthorizeRequestOutput, CoreError> {
+        if input.claims.typ != ClaimsTyp::Temporary {
+            return Err(CoreError::InvalidToken);
+        }
+
+        let user = self.user_repository.get_by_id(input.claims.sub).await?;
+
+        self.verify_token(input.token, user.realm_id).await?;
+
+        Ok(AuthorizeRequestOutput {
+            identity: Identity::User(user),
+        })
+    }
+
     async fn authenticate(
         &self,
         input: super::entities::AuthenticateInput,
@@ -1728,8 +1814,16 @@ where
             .await
             .map_err(|e| {
                 warn!("Failed to get auth session by session code: {:?}", e);
-                CoreError::InternalServerError
+                CoreError::SessionNotFound
             })?;
+
+        if auth_session.expires_at < Utc::now() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        if auth_session.user_id.is_some() && auth_session.authenticated {
+            return Err(CoreError::InvalidSession);
+        }
 
         let realm = self
             .realm_repository
@@ -1802,6 +1896,7 @@ where
             user_id: user.id,
             realm_id: realm.id.into(),
             base_url: url,
+            client_id: None,
         })
         .await
     }
@@ -2078,16 +2173,17 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
-
-        let access_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.access_token_lifetime)
-            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
-        let refresh_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.refresh_token_lifetime)
-            .unwrap_or(DEFAULT_REFRESH_TOKEN_LIFETIME);
+        let lifetimes = match input.client_id {
+            Some(client_uuid) => self.resolve_token_lifetimes(realm.id, client_uuid).await?,
+            None => {
+                let realm_settings = self
+                    .realm_repository
+                    .get_realm_settings(realm.id)
+                    .await?
+                    .ok_or(CoreError::InvalidRealm)?;
+                TokenLifetimes::from_realm(&realm_settings)
+            }
+        };
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
@@ -2101,7 +2197,7 @@ where
             "".to_string(),
             Some(user.email.clone()),
             None,
-            access_lifetime,
+            lifetimes.access_token,
         );
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
@@ -2112,7 +2208,7 @@ where
             claims.aud,
             claims.azp,
             None,
-            refresh_lifetime,
+            lifetimes.refresh_token,
         );
 
         let refresh_token = self

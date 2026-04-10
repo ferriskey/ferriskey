@@ -43,14 +43,27 @@ impl RealmRepository for PostgresRealmRepository {
 
     async fn get_by_name(&self, name: String) -> Result<Option<Realm>, CoreError> {
         info_span!("Fetching realm by name", name = name);
-        let realm = RealmEntity::find()
+        let realm_model = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .one(&self.db)
             .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .map(Realm::from);
+            .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok(realm)
+        let Some(model) = realm_model else {
+            return Ok(None);
+        };
+
+        let mut realm = Realm::from(model);
+
+        let settings = crate::entity::realm_settings::Entity::find()
+            .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm.id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        realm.settings = settings.map(RealmSetting::from);
+
+        Ok(Some(realm))
     }
 
     async fn get_by_id(
@@ -163,11 +176,15 @@ impl RealmRepository for PostgresRealmRepository {
         remember_me_enabled: Option<bool>,
         magic_link_enabled: Option<bool>,
         magic_link_ttl: Option<u32>,
+        passkey_enabled: Option<bool>,
         compass_enabled: Option<bool>,
         access_token_lifetime: Option<i64>,
         refresh_token_lifetime: Option<i64>,
         id_token_lifetime: Option<i64>,
         temporary_token_lifetime: Option<i64>,
+        reset_password_template_id: Option<Option<Uuid>>,
+        magic_link_template_id: Option<Option<Uuid>>,
+        email_verification_template_id: Option<Option<Uuid>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -203,6 +220,10 @@ impl RealmRepository for PostgresRealmRepository {
             realm_setting.magic_link_ttl_minutes = Set(ttl_minutes);
         }
 
+        if let Some(passkey_enabled) = passkey_enabled {
+            realm_setting.passkey_enabled = Set(passkey_enabled);
+        }
+
         if let Some(compass_enabled) = compass_enabled {
             realm_setting.compass_enabled = Set(compass_enabled);
         }
@@ -225,6 +246,18 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(lifetime) = temporary_token_lifetime {
             realm_setting.temporary_token_lifetime_secs =
                 Set(i32::try_from(lifetime).map_err(|_| CoreError::Invalid)?);
+        }
+
+        if let Some(value) = reset_password_template_id {
+            realm_setting.reset_password_template_id = Set(value);
+        }
+
+        if let Some(value) = magic_link_template_id {
+            realm_setting.magic_link_template_id = Set(value);
+        }
+
+        if let Some(value) = email_verification_template_id {
+            realm_setting.email_verification_template_id = Set(value);
         }
 
         let realm_setting = realm_setting

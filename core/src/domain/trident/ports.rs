@@ -65,6 +65,24 @@ pub struct WebAuthnPublicKeyAuthenticateOutput {
     pub login_url: String,
 }
 
+pub struct PasskeyRequestOptionsInput {
+    pub realm_name: String,
+    pub session_code: String,
+    pub username: Option<String>,
+    pub rp_info: WebAuthnRpInfo,
+}
+
+pub struct PasskeyAuthenticateInput {
+    pub realm_name: String,
+    pub session_code: String,
+    pub rp_info: WebAuthnRpInfo,
+    pub credential: PublicKeyCredential,
+}
+
+pub struct PasskeyAuthenticateOutput {
+    pub login_url: String,
+}
+
 pub struct ChallengeOtpInput {
     pub session_code: String,
     pub code: String,
@@ -121,12 +139,15 @@ pub struct BurnRecoveryCodeOutput {
 pub struct MagicLinkInput {
     pub realm_name: String,
     pub email: String,
+    pub base_url: String,
+    /// Session code from the FERRISKEY_SESSION cookie at send time,
+    /// stored so verify can use the correct AuthSession without an OAuth redirect.
+    pub session_code: Option<String>,
 }
 
 pub struct VerifyMagicLinkInput {
     pub magic_token_id: Uuid,
     pub magic_token: String,
-    pub session_code: String,
 }
 
 pub struct RequestPasswordResetInput {
@@ -242,6 +263,16 @@ pub trait TridentService: Send + Sync {
         identity: Identity,
         input: VerifyOtpInput,
     ) -> impl Future<Output = Result<VerifyOtpOutput, CoreError>> + Send;
+    fn passkey_request_options(
+        &self,
+        input: PasskeyRequestOptionsInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError>> + Send;
+
+    fn passkey_authenticate(
+        &self,
+        input: PasskeyAuthenticateInput,
+    ) -> impl Future<Output = Result<PasskeyAuthenticateOutput, CoreError>> + Send;
+
     fn generate_magic_link(
         &self,
         input: MagicLinkInput,
@@ -276,6 +307,7 @@ pub trait MagicLinkRepository: Send + Sync {
         magic_token_id: Uuid,
         magic_token_hash: &HashResult,
         expires_at: DateTime<Utc>,
+        auth_session_code: Option<Uuid>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_by_token_id(

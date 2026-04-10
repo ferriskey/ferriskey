@@ -21,8 +21,10 @@ import PageOverview from './pages/overview/page-overview'
 import PageRealm from './pages/realm/page-realm'
 import PageRole from './pages/role/page-role'
 import PageSeawatch from './pages/seawatch/page-seawatch'
+import PageEmailTemplate from './pages/email-template/page-email-template'
 import PageUserFederation from './pages/user-federation/page-user-federation'
 import PageUser from './pages/user/page-user'
+import PageOrganization from './pages/organization/page-organization'
 
 declare global {
   interface Window {
@@ -230,7 +232,7 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
       if (!pathname.includes('authentication/login')) {
         navigate(`/realms/${defaultRealm}/authentication/login`, { replace: true })
       }
-    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback')) {
+    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback') && !pathname.includes('/required-action')) {
       navigate(`/realms/${defaultRealm}/overview`, { replace: true })
     }
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, defaultRealm, navigate])
@@ -252,7 +254,9 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
             <Route path='seawatch/*' element={<PageSeawatch />} />
             <Route path='compass/*' element={<PageCompass />} />
             <Route path='identity-providers/*' element={<PageIdentityProviders />} />
+            <Route path='email-templates/*' element={<PageEmailTemplate />} />
             <Route path='user-federation/*' element={<PageUserFederation />} />
+            <Route path='organizations/*' element={<PageOrganization />} />
           </Route>
         </Route>
 

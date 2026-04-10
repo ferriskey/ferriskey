@@ -98,13 +98,27 @@ impl WebhookRepository for PostgresWebhookRepository {
         webhook_id: Uuid,
         realm_id: RealmId,
     ) -> Result<Option<Webhook>, CoreError> {
-        let webhook = WebhookEntity::find()
+        let mut webhook = WebhookEntity::find()
             .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
             .filter(WebhookColumn::Id.eq(webhook_id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .map(Webhook::from);
+
+        if let Some(ref mut webhook) = webhook {
+            let subscribers = WebhookSubscriberEntity::find()
+                .filter(WebhookSubscriberColumn::WebhookId.eq(webhook_id))
+                .all(&self.db)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                .into_iter()
+                .map(|s| s.try_into())
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            webhook.subscribers = subscribers;
+        }
 
         Ok(webhook)
     }
@@ -173,6 +187,7 @@ impl WebhookRepository for PostgresWebhookRepository {
     ) -> Result<Webhook, CoreError> {
         let headers = to_value(headers).unwrap_or_default();
         let mut webhook = WebhookEntity::update(WebhookActiveModel {
+            id: Set(id),
             name: Set(name),
             description: Set(description),
             endpoint: Set(endpoint),
@@ -200,22 +215,26 @@ impl WebhookRepository for PostgresWebhookRepository {
             let subscriber = WebhookSubscriberActiveModel {
                 id: Set(subscription_id),
                 name: Set(subscriber.to_string()),
-                webhook_id: Set(subscription_id),
+                webhook_id: Set(id),
             };
 
             derived_subscribers.push(subscriber);
         }
 
-        let subscribers = WebhookSubscriberEntity::insert_many(derived_subscribers)
-            .exec_with_returning_many(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .iter()
-            .map(|value| value.clone().try_into())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| CoreError::InternalServerError)?;
+        if derived_subscribers.is_empty() {
+            webhook.subscribers = Vec::new();
+        } else {
+            let subscribers = WebhookSubscriberEntity::insert_many(derived_subscribers)
+                .exec_with_returning_many(&self.db)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                .iter()
+                .map(|value| value.clone().try_into())
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| CoreError::InternalServerError)?;
 
-        webhook.subscribers = subscribers;
+            webhook.subscribers = subscribers;
+        }
         Ok(webhook)
     }
 

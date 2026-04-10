@@ -7,9 +7,9 @@ export const updateRealmValidator = z.object({
 })
 
 export const createWebhookValidator = z.object({
-  name: z.string(),
+  name: z.string().min(1),
   description: z.string().optional(),
-  endpoint: z.string().url().optional(),
+  endpoint: z.union([z.string().url(), z.literal('')]).optional(),
   subscribers: z.array(z.string()),
   headers: z
     .array(
@@ -21,5 +21,19 @@ export const createWebhookValidator = z.object({
     .optional(),
 })
 
+export const updateWebhookValidator = createWebhookValidator
+
 export type UpdateRealmSchema = z.infer<typeof updateRealmValidator>
 export type CreateWebhookSchema = z.infer<typeof createWebhookValidator>
+export type UpdateWebhookSchema = z.infer<typeof updateWebhookValidator>
+
+export const updatePasswordPolicyValidator = z.object({
+  min_length: z.number().min(1).max(128).nullable().optional(),
+  require_uppercase: z.boolean().nullable().optional(),
+  require_lowercase: z.boolean().nullable().optional(),
+  require_number: z.boolean().nullable().optional(),
+  require_special: z.boolean().nullable().optional(),
+  max_age_days: z.number().min(0).nullable().optional(),
+})
+
+export type UpdatePasswordPolicySchema = z.infer<typeof updatePasswordPolicyValidator>

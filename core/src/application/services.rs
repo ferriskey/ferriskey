@@ -9,7 +9,7 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::services::AuthServiceImpl,
+        authentication::{services::AuthServiceImpl, value_objects::Identity},
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
@@ -18,8 +18,17 @@ use crate::{
         },
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
+        email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        organization::services::OrganizationServiceImpl,
+        password_policy::{
+            entity::{PasswordPolicy, UpdatePasswordPolicy},
+            service::PasswordPolicyService,
+        },
+        realm::{
+            ports::RealmRepository,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -41,10 +50,19 @@ use crate::{
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
         email::SmtpEmailPort,
+        email_template::{
+            renderer::mjml_renderer::MjmlTemplateRenderer,
+            repositories::email_template_repository::PostgresEmailTemplateRepository,
+        },
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
+        organization::{
+            organization_attribute_repository::PostgresOrganizationAttributeRepository,
+            organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
@@ -106,6 +124,12 @@ type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
 type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
+type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
+type EmailTemplateRepo = PostgresEmailTemplateRepository;
+type MjmlRenderer = MjmlTemplateRenderer;
+type OrganizationRepo = PostgresOrganizationRepository;
+type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
+type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -121,6 +145,8 @@ type ApplicationTridentService = TridentServiceImpl<
     PasswordResetTokenRepo,
     SecurityEventRepo,
     WebhookRepo,
+    EmailTemplateRepo,
+    MjmlRenderer,
 >;
 
 type ApplicationAuthService = AuthServiceImpl<
@@ -139,6 +165,9 @@ type ApplicationAuthService = AuthServiceImpl<
     FederationRepo,
     ScopeMappingRepo,
     ProtocolMapperRepo,
+    OrganizationMemberRepo,
+    OrganizationRepo,
+    OrganizationAttributeRepo,
 >;
 
 #[derive(Clone, Debug)]
@@ -171,6 +200,7 @@ pub struct ApplicationService {
         ClientScopeRepo,
         ProtocolMapperRepo,
         ScopeMappingRepo,
+        RedirectUriRepo,
     >,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
@@ -268,6 +298,25 @@ pub struct ApplicationService {
         CompassFlowRepo,
         CompassFlowStepRepo,
     >,
+    pub(crate) email_template_service: EmailTemplateServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        EmailTemplateRepo,
+        MjmlRenderer,
+    >,
+    pub(crate) password_policy_service:
+        PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
+    pub(crate) organization_service: OrganizationServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        OrganizationRepo,
+        OrganizationAttributeRepo,
+        OrganizationMemberRepo,
+    >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
@@ -283,6 +332,45 @@ impl CoreService for ApplicationService {
 }
 
 impl ApplicationService {
+    pub async fn get_password_policy(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<PasswordPolicy, CoreError> {
+        // Get realm by name
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        // Authorization is handled inside the service
+        self.password_policy_service
+            .get_policy(identity, &realm)
+            .await
+    }
+
+    pub async fn update_password_policy(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        update: UpdatePasswordPolicy,
+    ) -> Result<PasswordPolicy, CoreError> {
+        // Get realm by name
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        // Authorization is handled inside the service
+        self.password_policy_service
+            .update_policy(identity, &realm, update)
+            .await
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),

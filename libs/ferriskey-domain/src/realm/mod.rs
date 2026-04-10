@@ -57,11 +57,15 @@ pub struct RealmSetting {
     pub remember_me_enabled: bool,
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
+    pub passkey_enabled: bool,
     pub compass_enabled: bool,
     pub access_token_lifetime: i64,
     pub refresh_token_lifetime: i64,
     pub id_token_lifetime: i64,
     pub temporary_token_lifetime: i64,
+    pub reset_password_template_id: Option<Uuid>,
+    pub magic_link_template_id: Option<Uuid>,
+    pub email_verification_template_id: Option<Uuid>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -78,11 +82,15 @@ impl RealmSetting {
             user_registration_enabled: false,
             magic_link_enabled: false,
             magic_link_ttl: 15,
+            passkey_enabled: false,
             compass_enabled: true,
             access_token_lifetime: 300,
             refresh_token_lifetime: 86400,
             id_token_lifetime: 300,
             temporary_token_lifetime: 300,
+            reset_password_template_id: None,
+            magic_link_template_id: None,
+            email_verification_template_id: None,
             updated_at: now,
         }
     }

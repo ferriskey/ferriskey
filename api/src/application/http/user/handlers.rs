@@ -8,6 +8,7 @@ pub mod get_user;
 pub mod get_user_permissions;
 pub mod get_user_roles;
 pub mod get_users;
+pub mod list_user_organizations;
 pub mod reset_password;
 pub mod unassign_role;
 pub mod update_user;

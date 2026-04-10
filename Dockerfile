@@ -1,16 +1,8 @@
-ARG WOLFI_BASE=cgr.dev/chainguard/wolfi-base@sha256:c9a27ee8d2d441f941de2f8e4c2c8ddb0b313adb5d14ab934b19f467b9ea8083
-
-FROM ${WOLFI_BASE} AS rust-build
+FROM rust:1.91.1-bookworm AS rust-build
 
 WORKDIR /usr/local/src/ferriskey
 
-ENV CARGO_HOME=/usr/local/cargo
-
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache rust build-base pkgconf openssl-dev curl ;\
-  cargo install --root /usr/local/cargo sqlx-cli --no-default-features --features postgres
+RUN cargo install sqlx-cli --no-default-features --features postgres
 
 COPY Cargo.toml Cargo.lock ./
 COPY libs/maskass/Cargo.toml ./libs/maskass/
@@ -22,6 +14,7 @@ COPY libs/ferriskey-aegis/Cargo.toml ./libs/ferriskey-aegis/
 COPY libs/ferriskey-mail/Cargo.toml ./libs/ferriskey-mail/
 COPY libs/ferriskey-compass/Cargo.toml ./libs/ferriskey-compass/
 COPY libs/ferriskey-migrate/Cargo.toml ./libs/ferriskey-migrate/
+COPY libs/ferriskey-organization/Cargo.toml ./libs/ferriskey-organization/
 
 COPY core/Cargo.toml ./core/
 
@@ -30,7 +23,8 @@ COPY operator/Cargo.toml ./operator/
 COPY client/Cargo.toml ./client/
 
 RUN \
-  mkdir -p api/src core/src entity/src operator/src client/src libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src libs/ferriskey-migrate/src && \
+  mkdir -p api/src core/src entity/src operator/src client/src \
+  libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src libs/ferriskey-migrate/src libs/ferriskey-organization/src && \
   touch libs/maskass/src/lib.rs && \
   touch libs/ferriskey-domain/src/lib.rs && \
   touch libs/ferriskey-security/src/lib.rs && \
@@ -40,6 +34,7 @@ RUN \
   touch libs/ferriskey-mail/src/lib.rs && \
   touch libs/ferriskey-compass/src/lib.rs && \
   touch libs/ferriskey-migrate/src/lib.rs && \
+  touch libs/ferriskey-organization/src/lib.rs && \
   touch core/src/lib.rs && \
   touch client/src/lib.rs && \
   echo "fn main() {}" > operator/src/main.rs && \
@@ -55,6 +50,7 @@ COPY libs/ferriskey-aegis libs/ferriskey-aegis
 COPY libs/ferriskey-mail libs/ferriskey-mail
 COPY libs/ferriskey-compass libs/ferriskey-compass
 COPY libs/ferriskey-migrate libs/ferriskey-migrate
+COPY libs/ferriskey-organization libs/ferriskey-organization
 
 COPY core core
 COPY api api
@@ -71,18 +67,30 @@ RUN \
   touch libs/ferriskey-mail/src/lib.rs && \
   touch libs/ferriskey-compass/src/lib.rs && \
   touch libs/ferriskey-migrate/src/lib.rs && \
+  touch libs/ferriskey-organization/src/lib.rs && \
   touch core/src/lib.rs && \
   touch operator/src/main.rs && \
   cargo build --release
 
-FROM ${WOLFI_BASE} AS runtime
+FROM debian:bookworm-slim AS runtime
 
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache ca-certificates libssl3 ;\
-  addgroup -S -g 1000 ferriskey && \
-  adduser -S -D -H -u 1000 -G ferriskey ferriskey
+RUN \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates=20230311+deb12u1 \
+    libssl3=3.0.17-1~deb12u2 && \
+    rm -rf /var/lib/apt/lists/* && \
+    addgroup \
+    --system \
+    --gid 1000 \
+    ferriskey && \
+    adduser \
+    --system \
+    --no-create-home \
+    --disabled-login \
+    --uid 1000 \
+    --gid 1000 \
+    ferriskey
 
 USER ferriskey
 
@@ -104,19 +112,17 @@ EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
-FROM ${WOLFI_BASE} AS webapp-build
+FROM node:20.14.0-alpine AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-# hadolint ignore=DL3018
-RUN set -eux ;\
-  apk update --no-cache && apk upgrade --no-cache ;\
-  apk add --no-cache nodejs-24 corepack ;\
-  corepack enable ;\
-  corepack prepare pnpm@10.30.0 --activate
+RUN \
+    corepack enable && \
+    corepack prepare pnpm@9.15.0 --activate && \
+    apk --no-cache add dumb-init=1.2.5-r3
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -126,11 +132,10 @@ COPY front/ .
 
 RUN pnpm run build
 
-FROM docker.angie.software/angie:1.11.3-minimal AS webapp
+FROM nginx:1.28.0-alpine3.21-slim AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
-COPY front/default.conf /etc/angie/http.d/default.conf
-COPY --chmod=0755 front/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY front/nginx.conf /etc/nginx/conf.d/default.conf
+COPY front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["angie", "-g", "daemon off;"]
+RUN chmod +x /docker-entrypoint.d/docker-entrypoint.sh

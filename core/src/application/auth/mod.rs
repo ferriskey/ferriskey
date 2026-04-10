@@ -38,6 +38,15 @@ impl AuthService for ApplicationService {
         self.auth_service.authorize_request(input).await
     }
 
+    async fn authorize_login_action_request(
+        &self,
+        input: AuthorizeRequestInput,
+    ) -> Result<AuthorizeRequestOutput, CoreError> {
+        self.auth_service
+            .authorize_login_action_request(input)
+            .await
+    }
+
     async fn exchange_token(&self, input: ExchangeTokenInput) -> Result<JwtToken, CoreError> {
         self.auth_service.exchange_token(input).await
     }

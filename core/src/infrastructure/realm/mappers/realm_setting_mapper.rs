@@ -15,11 +15,15 @@ impl From<Model> for RealmSetting {
             user_registration_enabled: value.user_registration_enabled,
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl_minutes.try_into().unwrap_or(15),
+            passkey_enabled: value.passkey_enabled,
             compass_enabled: value.compass_enabled,
             access_token_lifetime: value.access_token_lifetime_secs as i64,
             refresh_token_lifetime: value.refresh_token_lifetime_secs as i64,
             id_token_lifetime: value.id_token_lifetime_secs as i64,
             temporary_token_lifetime: value.temporary_token_lifetime_secs as i64,
+            reset_password_template_id: value.reset_password_template_id,
+            magic_link_template_id: value.magic_link_template_id,
+            email_verification_template_id: value.email_verification_template_id,
             updated_at,
         }
     }

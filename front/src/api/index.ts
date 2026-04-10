@@ -55,18 +55,19 @@ export const fetcher: Fetcher['fetch'] = async (input) => {
   })
 
   if (!response.ok) {
-    // Parse the error response to get the message from the backend
-    let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+    let errorBody: Record<string, unknown> | undefined
     try {
-      const errorBody = await response.json()
-      if (errorBody.message) {
-        errorMessage = errorBody.message
-      }
+      errorBody = await response.json()
     } catch {
-      // If parsing fails, use the default message
+      // If parsing fails, errorBody stays undefined
     }
 
-    throw new Error(errorMessage)
+    const error: Error & { status?: number; data?: Record<string, unknown> } = new Error(
+      (errorBody?.message as string) ?? `HTTP ${response.status}: ${response.statusText}`
+    )
+    error.status = response.status
+    error.data = errorBody
+    throw error
   }
 
   return response

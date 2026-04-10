@@ -10,4 +10,6 @@ export type RouterParams = {
   role_id?: string
   scope_id?: string
   mapper_id?: string
+  webhook_id?: string
+  template_id?: string
 }

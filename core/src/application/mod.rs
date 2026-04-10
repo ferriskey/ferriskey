@@ -19,7 +19,10 @@ use crate::{
         },
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
+        email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
+        organization::services::OrganizationServiceImpl,
+        password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -45,10 +48,19 @@ use crate::{
         },
         db::postgres::{Postgres, PostgresConfig},
         email::SmtpEmailPort,
+        email_template::{
+            renderer::mjml_renderer::MjmlTemplateRenderer,
+            repositories::email_template_repository::PostgresEmailTemplateRepository,
+        },
         health::repositories::PostgresHealthCheckRepository,
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
+        organization::{
+            organization_attribute_repository::PostgresOrganizationAttributeRepository,
+            organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
@@ -61,6 +73,7 @@ use crate::{
             credential_repository::PostgresCredentialRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
@@ -87,10 +100,12 @@ pub mod broker;
 pub mod client;
 pub mod compass;
 pub mod credential;
+pub mod email_template;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
 pub mod migrate;
+pub mod organization;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -154,6 +169,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
 
+    let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
+    let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
+    let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
+    let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
+        postgres.get_db(),
+    ));
+    let organization_member =
+        Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
+
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
         compass_rx,
@@ -185,6 +209,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             federation.clone(),
             scope_mapping.clone(),
             protocol_mapper.clone(),
+            organization_member.clone(),
+            organization.clone(),
+            organization_attribute.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
@@ -218,6 +245,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client_scope.clone(),
             protocol_mapper.clone(),
             scope_mapping.clone(),
+            redirect_uri.clone(),
             policy.clone(),
         ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
@@ -248,6 +276,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             password_reset_token.clone(),
             security_event.clone(),
             webhook.clone(),
+            email_template.clone(),
+            mjml_renderer.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
@@ -262,6 +292,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        email_template_service: EmailTemplateServiceImpl::new(
+            realm.clone(),
+            email_template.clone(),
+            mjml_renderer.clone(),
+            policy.clone(),
+        ),
         core_service: CoreServiceImpl::new(
             realm.clone(),
             keystore.clone(),
@@ -319,6 +355,18 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             compass_flow.clone(),
             compass_flow_step.clone(),
+            policy.clone(),
+        ),
+        password_policy_service: PasswordPolicyService::new(
+            Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db())),
+            policy.clone(),
+        ),
+        organization_service: OrganizationServiceImpl::new(
+            realm.clone(),
+            user.clone(),
+            organization.clone(),
+            organization_attribute.clone(),
+            organization_member.clone(),
             policy.clone(),
         ),
         flow_recorder,

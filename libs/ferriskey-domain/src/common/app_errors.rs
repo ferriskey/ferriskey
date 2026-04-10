@@ -258,6 +258,18 @@ pub enum CoreError {
 
     #[error("User account is disabled")]
     UserDisabled,
+
+    #[error("Email template not found")]
+    EmailTemplateNotFound,
+
+    #[error("No active email template for type: {0}")]
+    NoActiveEmailTemplate(String),
+
+    #[error("Invalid email template structure: {0}")]
+    InvalidEmailTemplateStructure(String),
+
+    #[error("Email template rendering failed: {0}")]
+    EmailTemplateRenderError(String),
 }
 
 impl From<AuthenticationError> for CoreError {

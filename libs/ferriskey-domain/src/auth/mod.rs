@@ -14,6 +14,7 @@ impl std::fmt::Display for IdentityKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Identity {
     User(User),
     Client(Client),

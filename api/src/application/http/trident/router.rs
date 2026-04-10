@@ -5,7 +5,7 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::application::{
-    auth::auth,
+    auth::{auth, auth_login_actions},
     http::{
         server::app_state::AppState,
         trident::handlers::{
@@ -17,6 +17,8 @@ use crate::application::{
                 __path_send_magic_link, __path_verify_magic_link, send_magic_link,
                 verify_magic_link,
             },
+            passkey_authenticate::{__path_passkey_authenticate, passkey_authenticate},
+            passkey_request_options::{__path_passkey_request_options, passkey_request_options},
             reset_password::{
                 __path_reset_password_with_token, __path_verify_reset_token,
                 reset_password_with_token, verify_reset_token,
@@ -52,6 +54,8 @@ use crate::application::{
     webauthn_public_key_create_options,
     webauthn_public_key_authenticate,
     webauthn_public_key_request_options,
+    passkey_request_options,
+    passkey_authenticate,
     send_magic_link,
     verify_magic_link,
     forgot_password,
@@ -97,10 +101,24 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(verify_reset_token),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/passkey-request-options",
+                state.args.server.root_path
+            ),
+            post(passkey_request_options),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/passkey-authenticate",
+                state.args.server.root_path
+            ),
+            post(passkey_authenticate),
         );
 
-    // Authenticated routes
-    let protected_routes = Router::new()
+    // Login action routes (protected by temporary token)
+    let login_action_routes = Router::new()
         .route(
             &format!(
                 "{}/realms/{{realm_name}}/login-actions/setup-otp",
@@ -124,10 +142,10 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
-                "{}/realms/{{realm_name}}/login-actions/webauthn-public-key-create",
+                "{}/realms/{{realm_name}}/login-actions/update-password",
                 state.args.server.root_path
             ),
-            post(webauthn_public_key_create),
+            post(update_password),
         )
         .route(
             &format!(
@@ -136,6 +154,20 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             ),
             post(webauthn_public_key_create_options),
         )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/webauthn-public-key-create",
+                state.args.server.root_path
+            ),
+            post(webauthn_public_key_create),
+        )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_login_actions,
+        ));
+
+    // Bearer authenticated routes
+    let bearer_protected_routes = Router::new()
         .route(
             &format!(
                 "{}/realms/{{realm_name}}/login-actions/webauthn-public-key-request-options",
@@ -149,13 +181,6 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(webauthn_public_key_authenticate),
-        )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/login-actions/update-password",
-                state.args.server.root_path
-            ),
-            post(update_password),
         )
         .route(
             &format!(
@@ -173,6 +198,8 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 
-    // Merge both router
-    public_routes.merge(protected_routes)
+    // Merge all routers
+    public_routes
+        .merge(login_action_routes)
+        .merge(bearer_protected_routes)
 }

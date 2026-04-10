@@ -211,6 +211,18 @@ impl From<CoreError> for ApiError {
                 error_description: description,
             },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".to_string()),
+            CoreError::EmailTemplateNotFound => {
+                Self::NotFound("Email template not found".to_string())
+            }
+            CoreError::NoActiveEmailTemplate(email_type) => {
+                Self::NotFound(format!("No active email template for type: {email_type}"))
+            }
+            CoreError::InvalidEmailTemplateStructure(msg) => {
+                Self::BadRequest(format!("Invalid email template structure: {msg}"))
+            }
+            CoreError::EmailTemplateRenderError(msg) => {
+                Self::InternalServerError(format!("Email template render error: {msg}"))
+            }
         }
     }
 }

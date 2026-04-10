@@ -1,3 +1,4 @@
+use super::auth::root_scoped_base_url;
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::{
@@ -93,6 +94,7 @@ pub async fn exchange_token(
     let has_code_verifier = payload.code_verifier.is_some();
 
     let is_secure = base_url.starts_with("https://");
+    let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
     let token = match state
         .service
         .exchange_token(ExchangeTokenInput {

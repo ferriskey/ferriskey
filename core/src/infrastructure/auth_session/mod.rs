@@ -60,4 +60,49 @@ impl AuthSessionRepository for AuthSessionRepoAny {
             AuthSessionRepoAny::Postgres(repo) => repo.take_webauthn_challenge(session_code).await,
         }
     }
+
+    async fn update_user_id(
+        &self,
+        session_code: Uuid,
+        user_id: Uuid,
+    ) -> Result<AuthSession, AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => repo.update_user_id(session_code, user_id).await,
+        }
+    }
+
+    async fn update_code(
+        &self,
+        session_code: Uuid,
+        code: String,
+    ) -> Result<AuthSession, AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => repo.update_code(session_code, code).await,
+        }
+    }
+
+    async fn update_compass_flow_id(
+        &self,
+        session_code: Uuid,
+        compass_flow_id: Uuid,
+    ) -> Result<(), AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => {
+                repo.update_compass_flow_id(session_code, compass_flow_id)
+                    .await
+            }
+        }
+    }
+
+    async fn update_authenticated(
+        &self,
+        session_code: Uuid,
+        authenticated: bool,
+    ) -> Result<(), AuthenticationError> {
+        match self {
+            AuthSessionRepoAny::Postgres(repo) => {
+                repo.update_authenticated(session_code, authenticated).await
+            }
+        }
+    }
 }

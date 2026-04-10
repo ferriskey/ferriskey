@@ -2,6 +2,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { RealmLoginSettingsSchema } from '../feature/page-realm-settings-login-feature'
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 
 export interface PageRealmSettingsLoginProps {
@@ -88,6 +89,80 @@ export default function PageRealmSettingsLogin({ form, hasChanges, handleSubmit 
               </div>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name='passkey'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Passkey Authentication</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Allow users to sign in with a passkey instead of a password.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='magicLink'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Magic Link</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Allow users to sign in via a magic link sent by email.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
+
+          {form.watch('magicLink') && (
+            <FormField
+              control={form.control}
+              name='magicLinkTtl'
+              render={({ field }) => (
+                <div className='flex items-center justify-between py-4 border-t'>
+                  <div className='w-1/3'>
+                    <p className='text-sm font-medium'>Magic Link TTL (minutes)</p>
+                    <p className='text-sm text-muted-foreground mt-0.5'>How long the magic link remains valid.</p>
+                  </div>
+                  <div className='w-1/2'>
+                    <FormItem>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={1}
+                          className='w-24'
+                          value={field.value}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  </div>
+                </div>
+              )}
+            />
+          )}
         </div>
 
         <FloatingActionBar

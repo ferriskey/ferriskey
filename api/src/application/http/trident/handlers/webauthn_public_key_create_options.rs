@@ -1,16 +1,18 @@
-use crate::application::http::server::{
-    api_entities::{
-        api_error::{ApiError, ApiErrorResponse},
-        response::Response,
+use crate::application::http::{
+    server::{
+        api_entities::{
+            api_error::{ApiError, ApiErrorResponse},
+            response::Response,
+        },
+        app_state::AppState,
     },
-    app_state::AppState,
+    trident::validators::webauthn_rp_info_from_webapp_url,
 };
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use ferriskey_core::domain::{
-    authentication::value_objects::Identity,
-    trident::ports::{CreationChallengeResponse, WebAuthnRpInfo},
+    authentication::value_objects::Identity, trident::ports::CreationChallengeResponse,
 };
 use serde::Serialize;
 use utoipa::{
@@ -66,8 +68,7 @@ pub async fn webauthn_public_key_create_options(
         .value()
         .to_string();
 
-    let rp_id = state.args.server.host.clone();
-    let allowed_origin = state.args.webapp_url.clone();
+    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
 
     let output = state
         .service
@@ -75,10 +76,7 @@ pub async fn webauthn_public_key_create_options(
             identity,
             WebAuthnPublicKeyCreateOptionsInput {
                 session_code,
-                rp_info: WebAuthnRpInfo {
-                    rp_id,
-                    allowed_origin,
-                },
+                rp_info,
             },
         )
         .await

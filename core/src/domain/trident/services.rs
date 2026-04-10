@@ -29,6 +29,10 @@ use crate::{
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
+        email_template::{
+            entities::interpolate_variables,
+            ports::{EmailTemplateRepository, TemplateRenderer},
+        },
         realm::{
             entities::RealmId,
             ports::{RealmRepository, SmtpConfigRepository},
@@ -43,7 +47,8 @@ use crate::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
                 GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
-                MagicLinkRepository, PasswordResetTokenRepository, RecoveryCodeFormatter,
+                MagicLinkRepository, PasskeyAuthenticateInput, PasskeyAuthenticateOutput,
+                PasskeyRequestOptionsInput, PasswordResetTokenRepository, RecoveryCodeFormatter,
                 RecoveryCodeRepository, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
                 TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
                 VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
@@ -201,7 +206,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -216,6 +221,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -230,10 +237,12 @@ where
     pub(crate) password_reset_token_repository: Arc<PRT>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) webhook_repository: Arc<WH>,
+    pub(crate) email_template_repository: Arc<ETR>,
+    pub(crate) template_renderer: Arc<TR>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -248,6 +257,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -264,6 +275,8 @@ where
         password_reset_token_repository: Arc<PRT>,
         security_event_repository: Arc<SE>,
         webhook_repository: Arc<WH>,
+        email_template_repository: Arc<ETR>,
+        template_renderer: Arc<TR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -279,12 +292,39 @@ where
             password_reset_token_repository,
             security_event_repository,
             webhook_repository,
+            email_template_repository,
+            template_renderer,
         }
+    }
+
+    async fn render_email_template(
+        &self,
+        template_id: Uuid,
+        user: &crate::domain::user::entities::User,
+        extra_vars: &[(&str, &str)],
+    ) -> Result<String, CoreError> {
+        let template = self
+            .email_template_repository
+            .get_by_id(template_id)
+            .await?
+            .ok_or(CoreError::EmailTemplateNotFound)?;
+
+        let html = self.template_renderer.render_to_html(&template.mjml)?;
+
+        let mut variables = std::collections::HashMap::new();
+        variables.insert("user.first_name".to_string(), user.firstname.clone());
+        variables.insert("user.last_name".to_string(), user.lastname.clone());
+        variables.insert("user.email".to_string(), user.email.clone());
+        for (key, value) in extra_vars {
+            variables.insert(key.to_string(), value.to_string());
+        }
+
+        Ok(interpolate_variables(&html, &variables))
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -299,6 +339,8 @@ where
     PRT: PasswordResetTokenRepository,
     SE: SecurityEventRepository,
     WH: WebhookRepository,
+    ETR: EmailTemplateRepository,
+    TR: TemplateRenderer,
 {
     async fn generate_recovery_code(
         &self,
@@ -501,6 +543,11 @@ where
             if filtered.is_empty() {
                 None
             } else {
+                // User already has passkeys — clear the required action if present
+                let _ = self
+                    .user_required_action_repository
+                    .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+                    .await;
                 Some(filtered)
             }
         };
@@ -556,6 +603,12 @@ where
             .create_webauthn_credential(user.id, passkey)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        // Remove the configure_passkey required action if present
+        let _ = self
+            .user_required_action_repository
+            .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+            .await;
 
         Ok(WebAuthnValidatePublicKeyOutput {})
     }
@@ -664,6 +717,191 @@ where
         .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
+    }
+
+    async fn passkey_request_options(
+        &self,
+        input: PasskeyRequestOptionsInput,
+    ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        if let Some(username) = input.username {
+            // Non-discoverable: we know the user, fetch their passkeys
+            let user = self
+                .user_repository
+                .get_by_username(username, realm.id)
+                .await
+                .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+            let creds = self
+                .credential_repository
+                .get_webauthn_public_key_credentials(user.id)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            let creds = creds
+                .into_iter()
+                .map(|v| match v.credential_data {
+                    CredentialData::WebAuthn { credential } => Ok(Passkey::from(*credential)),
+                    _ => {
+                        error!("A WebAuthn credential doesn't hold WebAuthn credential data");
+                        Err(CoreError::InternalServerError)
+                    }
+                })
+                .collect::<Result<Vec<Passkey>, CoreError>>()?;
+
+            if creds.is_empty() {
+                return Err(CoreError::WebAuthnChallengeFailed);
+            }
+
+            let (rcr, pa) = webauthn.start_passkey_authentication(&creds).map_err(|e| {
+                error!("Failed to start passkey authentication: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+            self.auth_session_repository
+                .save_webauthn_challenge(session_code, WebAuthnChallenge::Authentication(pa))
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            Ok(WebAuthnPublicKeyRequestOptionsOutput(rcr))
+        } else {
+            // Discoverable: no user provided, browser will propose available passkeys
+            let (rcr, da) = webauthn.start_discoverable_authentication().map_err(|e| {
+                error!("Failed to start discoverable authentication: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+            self.auth_session_repository
+                .save_webauthn_challenge(
+                    session_code,
+                    WebAuthnChallenge::DiscoverableAuthentication(da),
+                )
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+
+            Ok(WebAuthnPublicKeyRequestOptionsOutput(rcr))
+        }
+    }
+
+    async fn passkey_authenticate(
+        &self,
+        input: PasskeyAuthenticateInput,
+    ) -> Result<PasskeyAuthenticateOutput, CoreError> {
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+
+        let mut auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let webauthn_challenge = auth_session.webauthn_challenge.take();
+        let auth_result = match webauthn_challenge {
+            Some(WebAuthnChallenge::Authentication(ref pa)) => {
+                // Non-discoverable: user was known at challenge time
+                webauthn
+                    .finish_passkey_authentication(&input.credential, pa)
+                    .map_err(|e| {
+                        error!("Error during passkey authentication: {e:?}");
+                        CoreError::WebAuthnChallengeFailed
+                    })?
+            }
+            Some(WebAuthnChallenge::DiscoverableAuthentication(da)) => {
+                // Discoverable: resolve credential from the assertion response
+                let user_handle = input
+                    .credential
+                    .get_user_unique_id()
+                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+                let user_uuid = Uuid::from_slice(user_handle)
+                    .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+                let cred_id_bytes: &[u8] = input.credential.raw_id.as_ref();
+
+                let credential = self
+                    .credential_repository
+                    .get_webauthn_credential_by_credential_id_and_user(cred_id_bytes, user_uuid)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+                let passkey = match credential.credential_data {
+                    CredentialData::WebAuthn { credential } => Passkey::from(*credential),
+                    _ => return Err(CoreError::WebAuthnChallengeFailed),
+                };
+
+                let dk: DiscoverableKey = passkey.into();
+                webauthn
+                    .finish_discoverable_authentication(&input.credential, da, &[dk])
+                    .map_err(|e| {
+                        error!("Error during discoverable authentication: {e:?}");
+                        CoreError::WebAuthnChallengeFailed
+                    })?
+            }
+            _ => return Err(CoreError::WebAuthnMissingChallenge),
+        };
+
+        if auth_result.needs_update() {
+            let _ = self
+                .credential_repository
+                .update_webauthn_credential(&auth_result)
+                .await
+                .map_err(|e| {
+                    debug!("{e:?}");
+                    CoreError::InternalServerError
+                })?;
+        }
+
+        if !auth_result.user_verified() {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
+
+        // Resolve the user from the assertion response
+        let user_handle = input
+            .credential
+            .get_user_unique_id()
+            .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+        let user_uuid =
+            Uuid::from_slice(user_handle).map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        let user = self
+            .user_repository
+            .get_by_id(user_uuid)
+            .await
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        if user.realm_id != realm.id {
+            return Err(CoreError::WebAuthnChallengeFailed);
+        }
+
+        let login_url = store_auth_code_and_generate_login_url::<AS>(
+            &self.auth_session_repository,
+            &auth_session,
+            user.id,
+        )
+        .await?;
+
+        Ok(PasskeyAuthenticateOutput { login_url })
     }
 
     async fn challenge_otp(
@@ -833,10 +1071,16 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        self.user_required_action_repository
+        if let Err(e) = self
+            .user_required_action_repository
             .remove_required_action(user.id, RequiredAction::ConfigureOtp)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        {
+            warn!(
+                user_id = %user.id,
+                "Failed to remove ConfigureOtp required action after OTP setup: {e:?}"
+            );
+        }
 
         Ok(VerifyOtpOutput {
             message: "OTP verified successfully".to_string(),
@@ -890,6 +1134,11 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
         let ttl_minutes = settings.magic_link_ttl;
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes as i64);
+        let auth_session_code = input
+            .session_code
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok());
+
         self.magic_link_repository
             .create_magic_link(
                 user.id,
@@ -897,30 +1146,142 @@ where
                 magic_token_id,
                 &magic_token_hash,
                 expires_at,
+                auth_session_code,
             )
             .await?;
 
-        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
-            Ok(Some(smtp_config)) => {
-                let subject = "Your magic link";
-                let body = format!(
-                    "Your magic link token: {}\nThis link expires in {} minutes.",
-                    magic_token, ttl_minutes
+        let template_id = realm
+            .settings
+            .as_ref()
+            .and_then(|s| s.magic_link_template_id);
+
+        match (
+            template_id,
+            self.smtp_config_repository.get_by_realm_id(realm.id).await,
+        ) {
+            (Some(tid), Ok(Some(smtp_config))) => {
+                let magic_link_url = format!(
+                    "{}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
+                    input.base_url, realm.name, magic_token_id, magic_token
                 );
-                if let Err(e) = self
+                let body = format!(
+                    "Click the link below to sign in:\n{magic_link_url}\n\nThis link expires in {ttl_minutes} minutes.\n\nIf you did not request this, please ignore this email.",
+                );
+
+                let html_body = self
+                    .render_email_template(
+                        tid,
+                        &user,
+                        &[
+                            ("magic_link", magic_link_url.as_str()),
+                            ("expiration", &format!("{ttl_minutes} minutes")),
+                        ],
+                    )
+                    .await
+                    .ok();
+
+                match self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .send_email(
+                        &smtp_config,
+                        &user.email,
+                        "Your magic link",
+                        &body,
+                        html_body,
+                    )
                     .await
                 {
-                    warn!("Failed to send magic link email: {}", e);
+                    Ok(()) => {
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailSent,
+                                    EventStatus::Success,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "template_id": tid.to_string(),
+                                    "email_type": "magic_link",
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email sent event: {}", e));
+                    }
+                    Err(e) => {
+                        warn!("Failed to send magic link email: {}", e);
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailNotSent,
+                                    EventStatus::Failure,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "reason": format!("Failed to send magic link email: {}", e),
+                                    "email_type": "magic_link",
+                                    "error_code": "SMTP_SEND_FAILED",
+                                    "template_id": tid.to_string(),
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                    }
                 }
             }
-            _ => {
+            (None, _) => {
+                warn!(
+                    "No magic link email template configured for realm {}",
+                    realm.name
+                );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("No magic_link email template configured for realm {}", realm.name),
+                            "email_type": "magic_link",
+                            "error_code": "TEMPLATE_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+            }
+            (_, _) => {
                 warn!("SMTP not configured for realm, logging magic link instead");
                 debug!(
-                    "Magic link token_id: {}, token: {}",
-                    magic_token_id, magic_token
+                    "Magic link URL: {}/realms/{}/authentication/magic-link?token_id={}&magic_token={}",
+                    input.base_url, realm.name, magic_token_id, magic_token
                 );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("SMTP not configured for realm {}", realm.name),
+                            "email_type": "magic_link",
+                            "error_code": "SMTP_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
             }
         }
 
@@ -928,19 +1289,6 @@ where
     }
 
     async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
-        let session_code = Uuid::parse_str(&input.session_code).map_err(|_| {
-            error!("Failed to parse session code");
-            CoreError::SessionCreateError
-        })?;
-
-        // Fetch the auth session first
-        let auth_session = self
-            .auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .inspect_err(|_| error!("Session not found for code: {}", session_code))
-            .map_err(|_| CoreError::SessionNotFound)?;
-
         let magic_link = self
             .magic_link_repository
             .get_by_token_id(input.magic_token_id)
@@ -953,6 +1301,22 @@ where
                 );
                 CoreError::InvalidMagicLink
             })?;
+
+        // Use the session code stored at send time so that the user is redirected to
+        // the correct client (e.g. an external React app) and not to the fallback
+        // `security-admin-console` that would be created by the OAuth redirect loop.
+        let session_code = magic_link.auth_session_code.ok_or_else(|| {
+            warn!("Magic link has no associated auth session code");
+            CoreError::SessionNotFound
+        })?;
+
+        // Fetch the auth session
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .inspect_err(|_| error!("Session not found for code: {}", session_code))
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         if magic_link.realm_id != Uuid::from(auth_session.realm_id) {
             warn!(
@@ -1095,27 +1459,138 @@ where
 
         self.password_reset_token_repository.create(&prt).await?;
 
-        match self.smtp_config_repository.get_by_realm_id(realm.id).await {
-            Ok(Some(smtp_config)) => {
-                let subject = "Reset your password";
-                let body = format!(
-                    "A password reset was requested for your account.\n\nClick the link below to reset your password:\n{}/realms/{}/authentication/reset-password?token_id={}&token={}\n\nThis link expires in {} minutes.\n\nIf you did not request this, please ignore this email.",
-                    input.base_url, realm.name, token_id, raw_token, ttl_minutes
+        let template_id = realm
+            .settings
+            .as_ref()
+            .and_then(|s| s.reset_password_template_id);
+
+        match (
+            template_id,
+            self.smtp_config_repository.get_by_realm_id(realm.id).await,
+        ) {
+            (Some(tid), Ok(Some(smtp_config))) => {
+                let reset_link = format!(
+                    "{}/realms/{}/authentication/reset-password?token_id={}&token={}",
+                    input.base_url, realm.name, token_id, raw_token
                 );
-                if let Err(e) = self
+                let body = format!(
+                    "A password reset was requested for your account.\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in {ttl_minutes} minutes.\n\nIf you did not request this, please ignore this email.",
+                );
+
+                let html_body = self
+                    .render_email_template(
+                        tid,
+                        &user,
+                        &[
+                            ("reset_link", reset_link.as_str()),
+                            ("expiration", &format!("{ttl_minutes} minutes")),
+                        ],
+                    )
+                    .await
+                    .ok();
+
+                match self
                     .email_port
-                    .send_email(&smtp_config, &user.email, subject, &body)
+                    .send_email(
+                        &smtp_config,
+                        &user.email,
+                        "Reset your password",
+                        &body,
+                        html_body,
+                    )
                     .await
                 {
-                    warn!("Failed to send password reset email: {}", e);
+                    Ok(()) => {
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailSent,
+                                    EventStatus::Success,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "template_id": tid.to_string(),
+                                    "email_type": "reset_password",
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email sent event: {}", e));
+                    }
+                    Err(e) => {
+                        warn!("Failed to send password reset email: {}", e);
+                        let _ = self
+                            .security_event_repository
+                            .store_event(
+                                SecurityEvent::new(
+                                    realm.id,
+                                    SecurityEventType::EmailNotSent,
+                                    EventStatus::Failure,
+                                    user.id,
+                                )
+                                .with_details(serde_json::json!({
+                                    "reason": format!("Failed to send password reset email: {}", e),
+                                    "email_type": "reset_password",
+                                    "error_code": "SMTP_SEND_FAILED",
+                                    "template_id": tid.to_string(),
+                                    "user_id": user.id.to_string(),
+                                })),
+                            )
+                            .await
+                            .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+                    }
                 }
             }
-            _ => {
+            (None, _) => {
+                warn!(
+                    "No reset password email template configured for realm {}",
+                    realm.name
+                );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("No reset_password email template configured for realm {}", realm.name),
+                            "email_type": "reset_password",
+                            "error_code": "TEMPLATE_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
+            }
+            (_, _) => {
                 warn!("SMTP not configured for realm, logging password reset token instead");
                 debug!(
                     "Password reset token_id: {}, token: {}",
                     token_id, raw_token
                 );
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            realm.id,
+                            SecurityEventType::EmailNotSent,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_details(serde_json::json!({
+                            "reason": format!("SMTP not configured for realm {}", realm.name),
+                            "email_type": "reset_password",
+                            "error_code": "SMTP_NOT_CONFIGURED",
+                            "user_id": user.id.to_string(),
+                        })),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log email not sent event: {}", e));
             }
         }
 
@@ -1267,6 +1742,7 @@ mod tests {
         authentication::ports::MockAuthSessionRepository,
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
         credential::ports::MockCredentialRepository,
+        email_template::ports::MockEmailTemplateRepository,
         realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
         seawatch::ports::MockSecurityEventRepository,
         trident::ports::{
@@ -1277,6 +1753,22 @@ mod tests {
     };
     use ferriskey_domain::realm::RealmSetting;
     use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
+
+    #[derive(Debug, Clone)]
+    struct NoopTemplateRenderer;
+
+    impl TemplateRenderer for NoopTemplateRenderer {
+        fn render_to_intermediate(
+            &self,
+            _structure: &serde_json::Value,
+        ) -> Result<String, CoreError> {
+            Ok(String::new())
+        }
+
+        fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
+            Ok(String::new())
+        }
+    }
 
     struct TridentTestBuilder {
         credential_repo: Arc<MockCredentialRepository>,
@@ -1292,6 +1784,8 @@ mod tests {
         prt_repo: Arc<MockPasswordResetTokenRepository>,
         security_event_repo: Arc<MockSecurityEventRepository>,
         webhook_repo: Arc<MockWebhookRepository>,
+        email_template_repo: Arc<MockEmailTemplateRepository>,
+        template_renderer: Arc<NoopTemplateRenderer>,
     }
 
     type TridentTestService = TridentServiceImpl<
@@ -1326,6 +1820,8 @@ mod tests {
                 prt_repo: Arc::new(MockPasswordResetTokenRepository::new()),
                 security_event_repo: Arc::new(MockSecurityEventRepository::new()),
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
+                email_template_repo: Arc::new(MockEmailTemplateRepository::new()),
+                template_renderer: Arc::new(NoopTemplateRenderer),
             }
         }
 
@@ -1344,6 +1840,8 @@ mod tests {
                 self.prt_repo,
                 self.security_event_repo,
                 self.webhook_repo,
+                self.email_template_repo,
+                self.template_renderer,
             )
         }
     }

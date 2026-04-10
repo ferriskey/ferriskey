@@ -11,6 +11,7 @@ export interface InputTextProps {
   onChange?: (value: string | number | undefined) => void
   error?: string
   disabled?: boolean
+  autoComplete?: string
   // variable to control the toggle visibility of the password even if it's in disable
   togglePasswordVisibility?: boolean
 }
@@ -24,6 +25,7 @@ export function InputText({
   error,
   className = '',
   disabled,
+  autoComplete,
   togglePasswordVisibility = false,
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
@@ -70,6 +72,7 @@ export function InputText({
               className={'input__value'}
               type={currentType}
               disabled={disabled}
+              autoComplete={autoComplete}
               value={currentValue}
               onChange={(e) => {
                 if (!onChange) return

@@ -521,6 +521,94 @@ where
             }
         }
 
+        // Ensure security-admin-console exists in every realm, not just master.
+        // This is idempotent: existing clients and URIs are skipped.
+        // It also back-fills realms that were created before this seeding was added.
+        let all_realms = self
+            .realm_repository
+            .fetch_realm()
+            .await
+            .unwrap_or_default();
+
+        let console_redirect_patterns = [
+            "^http://localhost:[0-9]+/.*",
+            "^/*",
+            "http://localhost:3000/admin",
+            "http://localhost:5173/admin",
+        ];
+
+        for r in &all_realms {
+            if r.id == realm.id {
+                // master is already handled above
+                continue;
+            }
+
+            let console_client = match self
+                .client_repository
+                .get_by_client_id(config.default_client_id.clone(), r.id)
+                .await
+            {
+                Ok(c) => {
+                    tracing::info!("security-admin-console already exists in realm {:}", r.name);
+                    c
+                }
+                Err(_) => {
+                    tracing::info!("creating security-admin-console for realm {:}", r.name);
+                    match self
+                        .client_repository
+                        .create_client(CreateClientRequest {
+                            realm_id: r.id,
+                            name: config.default_client_id.clone(),
+                            client_id: config.default_client_id.clone(),
+                            enabled: true,
+                            protocol: "openid-connect".to_string(),
+                            public_client: false,
+                            service_account_enabled: false,
+                            direct_access_grants_enabled: false,
+                            client_type: ClientType::Confidential,
+                            secret: Some(generate_random_string()),
+                        })
+                        .await
+                    {
+                        Ok(c) => {
+                            tracing::info!("security-admin-console created for realm {:}", r.name);
+                            c
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                "failed to create security-admin-console for realm {:}: {:}",
+                                r.name,
+                                e
+                            );
+                            continue;
+                        }
+                    }
+                }
+            };
+
+            let existing_uris = self
+                .redirect_uri_repository
+                .get_by_client_id(console_client.id)
+                .await
+                .unwrap_or_default();
+
+            for pattern in &console_redirect_patterns {
+                if !existing_uris.iter().any(|uri| &uri.value == pattern)
+                    && let Err(e) = self
+                        .redirect_uri_repository
+                        .create_redirect_uri(console_client.id, pattern.to_string(), true)
+                        .await
+                {
+                    tracing::error!(
+                        "failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
+                        pattern,
+                        r.name,
+                        e
+                    );
+                }
+            }
+        }
+
         Ok(InitializationResult {
             master_realm_id: realm.id,
             admin_role_id: role.id,

@@ -2,12 +2,18 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "smtp_configs")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "smtp_configs"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[sea_orm(unique)]
     pub realm_id: Uuid,
     pub host: String,
     pub port: i32,
@@ -20,16 +26,66 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    RealmId,
+    Host,
+    Port,
+    Username,
+    Password,
+    FromEmail,
+    FromName,
+    Encryption,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::realms::Entity",
-        from = "Column::RealmId",
-        to = "super::realms::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
     Realms,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::RealmId => ColumnType::Uuid.def().unique(),
+            Self::Host => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Port => ColumnType::Integer.def(),
+            Self::Username => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Password => ColumnType::String(StringLen::N(512u32)).def(),
+            Self::FromEmail => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::FromName => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Encryption => ColumnType::String(StringLen::N(10u32)).def(),
+            Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::UpdatedAt => ColumnType::TimestampWithTimeZone.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
+        }
+    }
 }
 
 impl Related<super::realms::Entity> for Entity {

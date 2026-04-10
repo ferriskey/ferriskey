@@ -30,6 +30,7 @@ pub struct UpdateWebhookResponse {
         ("realm_name" = String, Path, description = "Name of the realm"),
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
     ),
+    request_body = UpdateWebhookValidator,
     responses(
         (status = 200, description = "Webhook updated successfully", body = UpdateWebhookResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
@@ -40,8 +41,7 @@ pub struct UpdateWebhookResponse {
 )]
 
 pub async fn update_webhook(
-    Path(realm_name): Path<String>,
-    Path(webhook_id): Path<Uuid>,
+    Path((realm_name, webhook_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateWebhookValidator>,
