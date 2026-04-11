@@ -20,10 +20,13 @@
 kind: Job
 metadata:
   name: {{ include "ferriskey.databaseMigrations.name" . }}
-  {{- with $annotations }}
   annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "1"
+    {{- with $annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
   labels:
     {{- include "ferriskey.databaseMigrations.labels" . | nindent 4 }}
 spec:
