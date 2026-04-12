@@ -37,6 +37,14 @@ use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 ))]
 pub struct AuthenticationApiDoc;
 
+/// Build the authentication router with optional per-IP rate limiting on
+/// sensitive endpoints (token, introspect, auth, authenticate).
+///
+/// **Proxy note:** The default key extractor uses the TCP peer IP
+/// (`ConnectInfo<SocketAddr>`). Behind a reverse proxy all clients appear as
+/// the proxy's IP, effectively creating a single global bucket. For
+/// proxy-aware rate limiting, consider switching to `SmartIpKeyExtractor`
+/// which reads `X-Forwarded-For` / `X-Real-Ip` headers.
 pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppState> {
     let rate_limit_args = &state.args.rate_limit;
 

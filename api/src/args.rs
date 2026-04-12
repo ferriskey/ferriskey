@@ -379,7 +379,8 @@ pub struct RateLimitArgs {
         env = "AUTH_RATE_LIMIT_BURST",
         default_value_t = 10,
         name = "AUTH_RATE_LIMIT_BURST",
-        long_help = "Maximum burst size for rate-limited auth endpoints"
+        long_help = "Maximum burst size for rate-limited auth endpoints",
+        value_parser = clap::value_parser!(u32).range(1..),
     )]
     pub auth_rate_limit_burst: u32,
 }
