@@ -505,7 +505,7 @@ pub mod tests {
     use crate::domain::realm::entities::RealmId;
     use crate::domain::{
         authentication::value_objects::Identity,
-        client::entities::{Client, ClientType},
+        client::entities::{Client, ClientType, MaintenanceSessionStrategy},
         common::entities::app_errors::CoreError,
         realm::entities::Realm,
         role::entities::Role,
@@ -682,6 +682,9 @@ pub mod tests {
             refresh_token_lifetime: None,
             id_token_lifetime: None,
             temporary_token_lifetime: None,
+            maintenance_enabled: false,
+            maintenance_reason: None,
+            maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

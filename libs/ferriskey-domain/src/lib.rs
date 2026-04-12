@@ -6,6 +6,7 @@ pub mod auth;
 pub mod authentication;
 pub mod client;
 pub mod common;
+pub mod maintenance;
 pub mod realm;
 pub mod role;
 pub mod token_lifetime;

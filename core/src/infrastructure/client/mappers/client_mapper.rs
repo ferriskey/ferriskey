@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 
 use crate::{
-    domain::client::entities::{Client, ClientType},
+    domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy},
     entity::clients::Model,
 };
 
@@ -30,6 +30,12 @@ impl From<Model> for Client {
             refresh_token_lifetime: model.refresh_token_lifetime_secs.map(|v| v as i64),
             id_token_lifetime: model.id_token_lifetime_secs.map(|v| v as i64),
             temporary_token_lifetime: model.temporary_token_lifetime_secs.map(|v| v as i64),
+            maintenance_enabled: model.maintenance_enabled.unwrap_or(false),
+            maintenance_reason: model.maintenance_reason,
+            maintenance_session_strategy: model
+                .maintenance_session_strategy
+                .and_then(|s| s.parse::<MaintenanceSessionStrategy>().ok())
+                .unwrap_or_default(),
             created_at,
             updated_at,
         }

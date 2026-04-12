@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::client::entities::ClientType;
+use crate::client::entities::{ClientType, MaintenanceSessionStrategy};
 use crate::realm::RealmId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +47,9 @@ pub struct UpdateClientRequest {
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,
     pub temporary_token_lifetime: Option<i64>,
+    pub maintenance_enabled: Option<bool>,
+    pub maintenance_reason: Option<Option<String>>,
+    pub maintenance_session_strategy: Option<MaintenanceSessionStrategy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

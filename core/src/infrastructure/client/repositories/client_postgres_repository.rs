@@ -50,6 +50,9 @@ impl ClientRepository for PostgresClientRepository {
             refresh_token_lifetime_secs: Set(None),
             id_token_lifetime_secs: Set(None),
             temporary_token_lifetime_secs: Set(None),
+            maintenance_enabled: Set(Some(false)),
+            maintenance_reason: Set(None),
+            maintenance_session_strategy: Set(None),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -157,6 +160,19 @@ impl ClientRepository for PostgresClientRepository {
         client.refresh_token_lifetime_secs = Set(data.refresh_token_lifetime.map(|v| v as i32));
         client.id_token_lifetime_secs = Set(data.id_token_lifetime.map(|v| v as i32));
         client.temporary_token_lifetime_secs = Set(data.temporary_token_lifetime.map(|v| v as i32));
+
+        client.maintenance_enabled = match data.maintenance_enabled {
+            Some(enabled) => Set(Some(enabled)),
+            None => client.maintenance_enabled,
+        };
+        client.maintenance_reason = match data.maintenance_reason {
+            Some(reason) => Set(reason),
+            None => client.maintenance_reason,
+        };
+        client.maintenance_session_strategy = match data.maintenance_session_strategy {
+            Some(strategy) => Set(Some(strategy.to_string())),
+            None => client.maintenance_session_strategy,
+        };
 
         client.updated_at = Set(Utc::now().naive_utc());
 

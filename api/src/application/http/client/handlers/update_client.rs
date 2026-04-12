@@ -68,6 +68,9 @@ pub async fn update_client(
                     refresh_token_lifetime: payload.refresh_token_lifetime,
                     id_token_lifetime: payload.id_token_lifetime,
                     temporary_token_lifetime: payload.temporary_token_lifetime,
+                    maintenance_enabled: None,
+                    maintenance_reason: None,
+                    maintenance_session_strategy: None,
                 },
             },
         )

@@ -211,6 +211,7 @@ impl From<CoreError> for ApiError {
                 error_description: description,
             },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".to_string()),
+            CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason),
             CoreError::EmailTemplateNotFound => {
                 Self::NotFound("Email template not found".to_string())
             }
