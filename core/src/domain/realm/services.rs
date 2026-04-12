@@ -978,7 +978,7 @@ mod tests {
     };
     use crate::domain::{
         abyss::identity_provider::ports::MockIdentityProviderRepository,
-        client::ports::MockClientRepository,
+        client::ports::{MockClientRepository, MockRedirectUriRepository},
         common::services::tests::{
             create_test_realm_with_name, create_test_user_identity_with_realm,
         },
@@ -1000,6 +1000,7 @@ mod tests {
         client_scope_repo: Arc<MockClientScopeRepository>,
         protocol_mapper_repo: Arc<MockProtocolMapperRepository>,
         client_scope_mapping_repo: Arc<MockClientScopeMappingRepository>,
+        redirect_uri_repo: Arc<MockRedirectUriRepository>,
     }
 
     impl RealmServiceTestBuilder {
@@ -1014,6 +1015,7 @@ mod tests {
             let client_scope_repo = Arc::new(MockClientScopeRepository::new());
             let protocol_mapper_repo = Arc::new(MockProtocolMapperRepository::new());
             let client_scope_mapping_repo = Arc::new(MockClientScopeMappingRepository::new());
+            let redirect_uri_repo = Arc::new(MockRedirectUriRepository::new());
 
             Self {
                 realm_repo,
@@ -1026,6 +1028,7 @@ mod tests {
                 client_scope_repo,
                 protocol_mapper_repo,
                 client_scope_mapping_repo,
+                redirect_uri_repo,
             }
         }
 
@@ -1192,6 +1195,58 @@ mod tests {
             self
         }
 
+        fn with_security_admin_console_client(mut self, new_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_create_client()
+                .withf(move |req| {
+                    req.client_id == "security-admin-console" && req.realm_id == new_realm_id
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id: req.realm_id,
+                                name: req.name.clone(),
+                                client_id: req.client_id.clone(),
+                                secret: req.secret.clone(),
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: false,
+                                service_account_enabled: false,
+                                client_type: req.client_type.clone(),
+                                direct_access_grants_enabled: Some(false),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
+                            },
+                        ))
+                    })
+                });
+            self
+        }
+
+        fn with_console_redirect_uris(mut self) -> Self {
+            Arc::get_mut(&mut self.redirect_uri_repo)
+                .unwrap()
+                .expect_create_redirect_uri()
+                .returning(|client_id, value, enabled| {
+                    Box::pin(async move {
+                        Ok(ferriskey_domain::client::entities::redirect_uri::RedirectUri {
+                            id: uuid::Uuid::new_v4(),
+                            client_id,
+                            value,
+                            enabled,
+                            created_at: chrono::Utc::now(),
+                            updated_at: chrono::Utc::now(),
+                        })
+                    })
+                });
+            self
+        }
+
         fn with_role_creation(mut self, master_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.role_repo)
                 .unwrap()
@@ -1332,6 +1387,7 @@ mod tests {
             MockClientScopeRepository,
             MockProtocolMapperRepository,
             MockClientScopeMappingRepository,
+            MockRedirectUriRepository,
         > {
             let policy = Arc::new(FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -1349,6 +1405,7 @@ mod tests {
                 self.client_scope_repo,
                 self.protocol_mapper_repo,
                 self.client_scope_mapping_repo,
+                self.redirect_uri_repo,
                 policy,
             )
         }
@@ -1399,6 +1456,8 @@ mod tests {
             .with_admin_cli_client(new_realm.id)
             .with_ferriskey_account_client(new_realm.id)
             .with_seed_default_scopes(new_realm.id)
+            .with_security_admin_console_client(new_realm.id)
+            .with_console_redirect_uris()
             .build();
 
         let created_realm = service.create_realm(identity, input).await?;
@@ -1454,6 +1513,8 @@ mod tests {
             .with_admin_cli_client(new_realm.id)
             .with_ferriskey_account_client(new_realm.id)
             .with_seed_default_scopes(new_realm.id)
+            .with_security_admin_console_client(new_realm.id)
+            .with_console_redirect_uris()
             .with_system_client(master_realm.id)
             .with_admin_role_creation(master_realm.id)
             .with_assign_role()
