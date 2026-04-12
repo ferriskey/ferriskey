@@ -72,6 +72,8 @@ pub struct Args {
     pub webapp_url: String,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
+    #[command(flatten)]
+    pub rate_limit: RateLimitArgs,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -86,6 +88,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
+            rate_limit: RateLimitArgs::default(),
             command: None,
         }
     }
@@ -357,6 +360,35 @@ impl Default for ObservabilityArgs {
             active_observability: false,
             otlp_endpoint: Some("http://localhost:4317".to_string()),
             metrics_endpoint: Some("http://localhost:4317".to_string()),
+        }
+    }
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct RateLimitArgs {
+    #[arg(
+        long = "auth-rate-limit-per-minute",
+        env = "AUTH_RATE_LIMIT_PER_MINUTE",
+        default_value_t = 30,
+        name = "AUTH_RATE_LIMIT_PER_MINUTE",
+        long_help = "Maximum number of requests per minute for rate-limited auth endpoints"
+    )]
+    pub auth_rate_limit_per_minute: u64,
+    #[arg(
+        long = "auth-rate-limit-burst",
+        env = "AUTH_RATE_LIMIT_BURST",
+        default_value_t = 10,
+        name = "AUTH_RATE_LIMIT_BURST",
+        long_help = "Maximum burst size for rate-limited auth endpoints"
+    )]
+    pub auth_rate_limit_burst: u32,
+}
+
+impl Default for RateLimitArgs {
+    fn default() -> Self {
+        Self {
+            auth_rate_limit_per_minute: 30,
+            auth_rate_limit_burst: 10,
         }
     }
 }

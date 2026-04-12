@@ -18,6 +18,7 @@ use super::handlers::{
     userinfo::{__path_get_userinfo, get_userinfo},
 };
 use crate::application::{auth::auth, http::server::app_state::AppState};
+use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 
 #[derive(OpenApi)]
 #[openapi(paths(
@@ -37,7 +38,10 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
 pub struct AuthenticationApiDoc;
 
 pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppState> {
-    Router::new()
+    let rate_limit_args = &state.args.rate_limit;
+
+    // Non-rate-limited routes: userinfo (behind auth middleware), certs, jwks, well-known, logout, revoke, registrations
+    let non_rate_limited = Router::new()
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
             get(get_userinfo),
@@ -47,14 +51,6 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             post(get_userinfo),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
-        .route(
-            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
-            post(exchange_token),
-        )
-        .route(
-            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token/introspect"),
-            post(introspect_token),
-        )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/revoke"),
             post(revoke_token),
@@ -68,16 +64,8 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             post(logout_post),
         )
         .route(
-            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
-            get(auth_handler),
-        )
-        .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/registrations"),
             post(registration_handler),
-        )
-        .route(
-            &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),
-            post(authenticate),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),
@@ -94,5 +82,40 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/.well-known/openid-configuration"),
             get(get_openid_configuration),
+        );
+
+    // Rate-limited routes: token, introspect, auth, authenticate
+    let rate_limited = Router::new()
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
+            post(exchange_token),
         )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token/introspect"),
+            post(introspect_token),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
+            get(auth_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),
+            post(authenticate),
+        );
+
+    // Apply governor layer only if rate limiting is enabled (per_minute > 0)
+    let rate_limited = if rate_limit_args.auth_rate_limit_per_minute > 0 {
+        let replenish_interval_ms =
+            (60_000u64 / rate_limit_args.auth_rate_limit_per_minute).max(1);
+        let config = GovernorConfigBuilder::default()
+            .per_millisecond(replenish_interval_ms)
+            .burst_size(rate_limit_args.auth_rate_limit_burst)
+            .finish()
+            .expect("invariant: replenish_interval_ms >= 1 and burst_size > 0");
+        rate_limited.layer(GovernorLayer::new(config))
+    } else {
+        rate_limited
+    };
+
+    non_rate_limited.merge(rate_limited)
 }
