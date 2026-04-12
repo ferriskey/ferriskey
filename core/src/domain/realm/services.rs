@@ -978,7 +978,7 @@ mod tests {
     };
     use crate::domain::{
         abyss::identity_provider::ports::MockIdentityProviderRepository,
-        client::ports::MockClientRepository,
+        client::ports::{MockClientRepository, MockRedirectUriRepository},
         common::services::tests::{
             create_test_realm_with_name, create_test_user_identity_with_realm,
         },
@@ -1000,6 +1000,7 @@ mod tests {
         client_scope_repo: Arc<MockClientScopeRepository>,
         protocol_mapper_repo: Arc<MockProtocolMapperRepository>,
         client_scope_mapping_repo: Arc<MockClientScopeMappingRepository>,
+        redirect_uri_repo: Arc<MockRedirectUriRepository>,
     }
 
     impl RealmServiceTestBuilder {
@@ -1014,6 +1015,7 @@ mod tests {
             let client_scope_repo = Arc::new(MockClientScopeRepository::new());
             let protocol_mapper_repo = Arc::new(MockProtocolMapperRepository::new());
             let client_scope_mapping_repo = Arc::new(MockClientScopeMappingRepository::new());
+            let redirect_uri_repo = Arc::new(MockRedirectUriRepository::new());
 
             Self {
                 realm_repo,
@@ -1026,6 +1028,7 @@ mod tests {
                 client_scope_repo,
                 protocol_mapper_repo,
                 client_scope_mapping_repo,
+                redirect_uri_repo,
             }
         }
 
@@ -1332,6 +1335,7 @@ mod tests {
             MockClientScopeRepository,
             MockProtocolMapperRepository,
             MockClientScopeMappingRepository,
+            MockRedirectUriRepository,
         > {
             let policy = Arc::new(FerriskeyPolicy::new(
                 self.user_repo.clone(),
@@ -1349,6 +1353,7 @@ mod tests {
                 self.client_scope_repo,
                 self.protocol_mapper_repo,
                 self.client_scope_mapping_repo,
+                self.redirect_uri_repo,
                 policy,
             )
         }
