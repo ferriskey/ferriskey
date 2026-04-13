@@ -5,7 +5,10 @@ use uuid::Uuid;
 use crate::domain::jwt::entities::JwtClaim;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::user::entities::User;
-use crate::domain::{authentication::entities::GrantType, user::entities::RequiredAction};
+use crate::domain::{
+    authentication::entities::{GrantType, JwtToken},
+    user::entities::RequiredAction,
+};
 
 pub use ferriskey_domain::auth::{Identity, IdentityKind};
 
@@ -63,6 +66,15 @@ pub struct RegisterUserInput {
     pub email: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum RegisterUserOutput {
+    /// Normal registration - returns JWT tokens
+    Authenticated(JwtToken),
+    /// Email verification required - no tokens
+    PendingVerification { message: String, user_id: Uuid },
 }
 
 pub struct GenerateTokensForUserInput {

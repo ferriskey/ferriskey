@@ -8,6 +8,7 @@ pub mod compass;
 pub mod credential;
 pub mod crypto;
 pub mod email_template;
+pub mod email_verification;
 pub mod health;
 pub mod jwt;
 pub mod organization;
