@@ -508,6 +508,7 @@ where
         Ok((jwt, refresh_token, id_token))
     }
 
+    #[instrument(skip(self, token))]
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
@@ -1824,6 +1825,7 @@ where
         result
     }
 
+    #[instrument(skip(self, input), fields(claims.sub = %input.claims.sub))]
     async fn authorize_request(
         &self,
         input: AuthorizeRequestInput,

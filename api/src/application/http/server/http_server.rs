@@ -48,8 +48,15 @@ pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
 pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
     let trace_layer = tower_http::trace::TraceLayer::new_for_http().make_span_with(
         |request: &axum::extract::Request| {
+            let method = request.method().as_str();
+            let path = request
+                .extensions()
+                .get::<axum::extract::MatchedPath>()
+                .map(|p| p.as_str())
+                .unwrap_or(request.uri().path());
+            let otel_name = format!("{method} {path}");
             let uri: String = request.uri().to_string();
-            info_span!("http_request", method = ?request.method(), uri)
+            info_span!("http_request", method, uri, otel.name = %otel_name)
         },
     );
 

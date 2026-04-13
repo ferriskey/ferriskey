@@ -2,6 +2,7 @@ use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::aegis::entities::ProtocolMapper;
@@ -27,6 +28,7 @@ impl PostgresProtocolMapperRepository {
 }
 
 impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
+    #[instrument(skip(self, payload), fields(scope.id = %payload.client_scope_id))]
     async fn create(
         &self,
         payload: CreateProtocolMapperRequest,
@@ -50,6 +52,7 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(model.into())
     }
 
+    #[instrument(skip(self))]
     async fn get_by_id(&self, id: Uuid) -> Result<Option<ProtocolMapper>, CoreError> {
         let model = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
@@ -63,6 +66,7 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(model.map(ProtocolMapper::from))
     }
 
+    #[instrument(skip(self))]
     async fn get_by_scope_id(&self, scope_id: Uuid) -> Result<Vec<ProtocolMapper>, CoreError> {
         let models = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(scope_id))
@@ -76,6 +80,7 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(models.into_iter().map(ProtocolMapper::from).collect())
     }
 
+    #[instrument(skip(self, payload))]
     async fn update_by_id(
         &self,
         id: Uuid,
@@ -114,6 +119,7 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(model.into())
     }
 
+    #[instrument(skip(self))]
     async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
         let result = client_scope_protocol_mappers::Entity::delete_many()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))

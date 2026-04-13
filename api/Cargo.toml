@@ -42,6 +42,7 @@ opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
 opentelemetry_sdk = "0.31.0"
 opentelemetry = "0.31.0"
 urlencoding = "2.1.3"
+opentelemetry-appender-tracing = "0.31.1"
 
 [dev-dependencies]
 test-context = "*"

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tracing::instrument;
+
 use crate::domain::{
     aegis::{
         entities::ClientScope,
@@ -70,6 +72,14 @@ where
     CS: ClientScopeRepository,
     PM: ProtocolMapperRepository,
 {
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn create_client_scope(
         &self,
         identity: Identity,
@@ -101,6 +111,15 @@ where
         Ok(client_scope)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            scope.id = %input.scope_id,
+        )
+    )]
     async fn get_client_scope(
         &self,
         identity: Identity,
@@ -133,6 +152,14 @@ where
         Ok(client_scope)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+        )
+    )]
     async fn get_client_scopes(
         &self,
         identity: Identity,
@@ -166,6 +193,15 @@ where
         Ok(client_scopes)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            scope.id = %input.scope_id,
+        )
+    )]
     async fn update_client_scope(
         &self,
         identity: Identity,
@@ -191,6 +227,15 @@ where
         Ok(client_scope)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            scope.id = %input.scope_id,
+        )
+    )]
     async fn delete_client_scope(
         &self,
         identity: Identity,

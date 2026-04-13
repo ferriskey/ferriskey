@@ -2,6 +2,7 @@ use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::aegis::entities::{ClientScope, ClientScopeMapping};
@@ -23,6 +24,7 @@ impl PostgresScopeMappingRepository {
 }
 
 impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
+    #[instrument(skip(self))]
     async fn assign_scope_to_client(
         &self,
         client_id: Uuid,
@@ -52,6 +54,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
         Ok(model.into())
     }
 
+    #[instrument(skip(self))]
     async fn remove_scope_from_client(
         &self,
         client_id: Uuid,
@@ -74,6 +77,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn get_client_scopes(
         &self,
         client_id: Uuid,
@@ -90,6 +94,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
         Ok(models.into_iter().map(ClientScopeMapping::from).collect())
     }
 
+    #[instrument(skip(self))]
     async fn get_default_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
         let mappings = client_scope_mappings::Entity::find()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))
@@ -126,6 +131,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
             .collect())
     }
 
+    #[instrument(skip(self))]
     async fn get_optional_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
         let mappings = client_scope_mappings::Entity::find()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))

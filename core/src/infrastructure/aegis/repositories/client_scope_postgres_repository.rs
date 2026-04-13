@@ -3,6 +3,7 @@ use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::aegis::entities::ClientScope;
@@ -27,6 +28,7 @@ impl PostgresClientScopeRepository {
 }
 
 impl ClientScopeRepository for PostgresClientScopeRepository {
+    #[instrument(skip(self, payload), fields(realm.id = ?payload.realm_id))]
     async fn create(&self, payload: CreateClientScopeRequest) -> Result<ClientScope, CoreError> {
         let now = Utc::now().naive_utc();
 
@@ -53,6 +55,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(model.into())
     }
 
+    #[instrument(skip(self))]
     async fn get_by_id(&self, id: Uuid) -> Result<Option<ClientScope>, CoreError> {
         let model = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.eq(id))
@@ -66,6 +69,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(model.map(ClientScope::from))
     }
 
+    #[instrument(skip(self))]
     async fn find_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<ClientScope>, CoreError> {
         let models = client_scopes::Entity::find()
             .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -79,6 +83,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(models.into_iter().map(ClientScope::from).collect())
     }
 
+    #[instrument(skip(self))]
     async fn find_by_name(
         &self,
         name: String,
@@ -97,6 +102,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(model.map(ClientScope::from))
     }
 
+    #[instrument(skip(self, payload))]
     async fn update_by_id(
         &self,
         id: Uuid,
@@ -144,6 +150,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(model.into())
     }
 
+    #[instrument(skip(self))]
     async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
         let result = client_scopes::Entity::delete_many()
             .filter(client_scopes::Column::Id.eq(id))

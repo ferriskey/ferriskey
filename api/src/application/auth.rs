@@ -134,6 +134,7 @@ pub async fn extract_token_from_bearer(parts: &mut Parts) -> Result<String, Auth
     Ok(bearer.token().to_string())
 }
 
+#[tracing::instrument(skip(state, jwt, req, next), fields(claims.sub = %jwt.claims.sub))]
 pub async fn auth(
     State(state): State<AppState>,
     jwt: Jwt,
