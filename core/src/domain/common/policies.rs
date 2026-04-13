@@ -74,7 +74,7 @@ where
     /// * `false` - User does not have sufficient permissions
     #[inline]
     #[allow(dead_code)]
-    fn has_user_management_permissions(permissions: &[Permissions]) -> bool {
+    fn has_user_management_permissions(permissions: &HashSet<Permissions>) -> bool {
         Permissions::has_one_of_permissions(
             permissions,
             &[Permissions::ManageUsers, Permissions::ManageRealm],

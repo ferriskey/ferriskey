@@ -29,7 +29,7 @@ where
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[
                 Permissions::ManageRealm,
                 Permissions::ManageWebhooks,
@@ -52,7 +52,7 @@ where
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         );
 
@@ -71,7 +71,7 @@ where
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         );
 
@@ -90,7 +90,7 @@ where
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         );
 

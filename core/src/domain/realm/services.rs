@@ -670,7 +670,7 @@ where
             }
 
             let has_access = Permissions::has_one_of_permissions(
-                &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+                &permissions,
                 &[
                     Permissions::QueryRealms,
                     Permissions::ManageRealm,

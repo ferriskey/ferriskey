@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
@@ -125,7 +127,7 @@ impl Permissions {
 
     #[instrument]
     pub fn has_one_of_permissions(
-        permissions: &[Permissions],
+        permissions: &HashSet<Permissions>,
         required_permissions: &[Permissions],
     ) -> bool {
         required_permissions
@@ -244,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_has_one_of_permissions() {
-        let user_permissions = vec![Permissions::ManageUsers];
+        let user_permissions = HashSet::from([Permissions::ManageUsers]);
 
         assert!(Permissions::has_one_of_permissions(
             &user_permissions,

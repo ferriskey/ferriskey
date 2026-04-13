@@ -54,10 +54,8 @@ where
             .get_permission_for_target_realm(&user, &target_realm)
             .await?;
 
-        let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm],
-        );
+        let has_permission =
+            Permissions::has_one_of_permissions(&permissions, &[Permissions::ManageRealm]);
 
         Ok(has_permission)
     }
@@ -99,7 +97,7 @@ where
             .await?;
 
         let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ViewRealm],
         );
 
@@ -142,10 +140,8 @@ where
             .get_permission_for_target_realm(&user, &target_realm)
             .await?;
 
-        let has_permission = Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
-            &[Permissions::ManageRealm],
-        );
+        let has_permission =
+            Permissions::has_one_of_permissions(&permissions, &[Permissions::ManageRealm]);
 
         Ok(has_permission)
     }
