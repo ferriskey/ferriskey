@@ -109,6 +109,7 @@ pub mod email_template;
 pub mod health;
 pub mod identity_provider;
 pub mod mail;
+pub mod maintenance;
 pub mod migrate;
 pub mod organization;
 pub mod realm;

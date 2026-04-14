@@ -6,6 +6,7 @@ use crate::application::http::{
     client::router::ClientApiDoc,
     compass::router::CompassApiDoc,
     email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc},
+    maintenance::router::MaintenanceApiDoc,
     organization::router::OrganizationApiDoc,
     realm::router::RealmApiDoc,
     role::router::RoleApiDoc,
@@ -37,7 +38,8 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = CompassApiDoc),
         (path = "/realms/{realm_name}/email-templates", api = EmailTemplateApiDoc),
         (path = "/email-templates/variables", api = EmailTemplateVariablesApiDoc),
-        (path = "/realms/{realm_name}/organizations", api = OrganizationApiDoc)
+        (path = "/realms/{realm_name}/organizations", api = OrganizationApiDoc),
+        (path = "/realms/{realm_name}/clients", api = MaintenanceApiDoc)
     )
 )]
 pub struct ApiDoc;
