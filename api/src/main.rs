@@ -16,6 +16,8 @@ use std::sync::Arc;
 
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 
 use crate::application::http::server::http_server::{router, state};
 use crate::application::http::server::openapi::ApiDoc;
@@ -23,7 +25,7 @@ use crate::args::{Args, Command, LogArgs, ObservabilityArgs};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{MetricExporter, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
 use opentelemetry_otlp::{Protocol, SpanExporter};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -69,6 +71,10 @@ fn init_tracing_and_logging(
                 anyhow::anyhow!("Metrics endpoint is required when observability is active")
             })?;
 
+        let resource = Resource::builder()
+            .with_service_name(service_name.to_string())
+            .build();
+
         // Create the OTLP exporter
         let span_exporter = SpanExporter::builder()
             .with_tonic()
@@ -87,6 +93,7 @@ fn init_tracing_and_logging(
             .build();
 
         let tracer = tracer_provider.tracer(service_name.to_string());
+        let trace_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
         // Prometheus natively supports accepting metrics via the OTLP protocol
         // Create the metric exporter
@@ -103,17 +110,37 @@ fn init_tracing_and_logging(
         // Metrics layer for tracing
         let metrics_layer = MetricsLayer::new(meter_provider);
 
-        // Trace layer for tracing
-        let trace_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+        let log_exporter = LogExporter::builder()
+            .with_tonic()
+            .with_endpoint(otlp_endpoint)
+            .build()?;
 
-        // Combine layers into a subscriber
-        let subscriber = Registry::default()
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_resource(resource)
+            .with_batch_exporter(log_exporter)
+            .build();
+
+        let otel_log_layer = OpenTelemetryTracingBridge::new(&logger_provider);
+
+        Registry::default()
             .with(fmt_layer)
             .with(trace_layer)
             .with(metrics_layer)
-            .with(filter);
+            .with(otel_log_layer)
+            .with(filter)
+            .init();
 
-        subscriber.init();
+        // Trace layer for tracing
+
+        // Combine layers into a subscriber
+        // let subscriber = Registry::default()
+        //     .with(fmt_layer)
+        //     .with(trace_layer)
+        //     .with(metrics_layer)
+        //     .with(filter);
+
+        // subscriber.init();
+        std::mem::forget(logger_provider);
     } else {
         let subscriber = Registry::default().with(fmt_layer);
 

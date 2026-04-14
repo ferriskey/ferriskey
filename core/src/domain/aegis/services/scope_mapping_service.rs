@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use tracing::instrument;
+
 use crate::domain::{
     aegis::{
         entities::{ClientScope, ClientScopeMapping},
@@ -70,6 +72,16 @@ where
     CS: ClientScopeRepository,
     CSM: ClientScopeMappingRepository,
 {
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            client.id = %input.client_id,
+            scope.id = %input.scope_id,
+        )
+    )]
     async fn assign_scope_to_client(
         &self,
         identity: Identity,
@@ -105,6 +117,16 @@ where
         Ok(mapping)
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            client.id = %input.client_id,
+            scope.id = %input.scope_id,
+        )
+    )]
     async fn unassign_scope_from_client(
         &self,
         identity: Identity,
@@ -129,6 +151,15 @@ where
         Ok(())
     }
 
+    #[instrument(
+        skip(self, identity, input),
+        fields(
+            identity.id = %identity.id(),
+            identity.kind = %identity.kind(),
+            realm.name = %input.realm_name,
+            client.id = %input.client_id,
+        )
+    )]
     async fn get_client_scopes(
         &self,
         identity: Identity,
