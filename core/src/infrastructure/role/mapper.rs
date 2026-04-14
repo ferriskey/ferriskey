@@ -10,7 +10,7 @@ impl From<Model> for Role {
         let permissions = Permissions::from_bitfield(model.permissions as u64);
         let permissions = permissions
             .iter()
-            .map(|p| p.name().to_string())
+            .map(|p| p.name())
             .collect::<Vec<String>>();
 
         Role {
