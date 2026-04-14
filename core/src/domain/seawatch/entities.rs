@@ -60,6 +60,12 @@ pub enum SecurityEventType {
 
     #[serde(rename = "email_sent")]
     EmailSent,
+
+    #[serde(rename = "client_maintenance_enabled")]
+    ClientMaintenanceEnabled,
+
+    #[serde(rename = "client_maintenance_disabled")]
+    ClientMaintenanceDisabled,
 }
 
 impl Display for SecurityEventType {
@@ -82,6 +88,12 @@ impl Display for SecurityEventType {
             SecurityEventType::RealmConfigChanged => write!(f, "realm_config_changed"),
             SecurityEventType::EmailNotSent => write!(f, "email_not_sent"),
             SecurityEventType::EmailSent => write!(f, "email_sent"),
+            SecurityEventType::ClientMaintenanceEnabled => {
+                write!(f, "client_maintenance_enabled")
+            }
+            SecurityEventType::ClientMaintenanceDisabled => {
+                write!(f, "client_maintenance_disabled")
+            }
         }
     }
 }

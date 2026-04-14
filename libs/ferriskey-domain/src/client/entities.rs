@@ -18,6 +18,37 @@ pub enum ClientType {
     System,
 }
 
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum MaintenanceSessionStrategy {
+    Terminate,
+    #[default]
+    Expire,
+}
+
+impl fmt::Display for MaintenanceSessionStrategy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MaintenanceSessionStrategy::Terminate => write!(f, "terminate"),
+            MaintenanceSessionStrategy::Expire => write!(f, "expire"),
+        }
+    }
+}
+
+impl FromStr for MaintenanceSessionStrategy {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "terminate" => Ok(MaintenanceSessionStrategy::Terminate),
+            "expire" => Ok(MaintenanceSessionStrategy::Expire),
+            _ => Err(format!("unknown maintenance session strategy: {s}")),
+        }
+    }
+}
+
 impl fmt::Display for ClientType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -59,6 +90,9 @@ pub struct Client {
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,
     pub temporary_token_lifetime: Option<i64>,
+    pub maintenance_enabled: bool,
+    pub maintenance_reason: Option<String>,
+    pub maintenance_session_strategy: MaintenanceSessionStrategy,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -100,6 +134,9 @@ impl Client {
             refresh_token_lifetime: config.refresh_token_lifetime,
             id_token_lifetime: config.id_token_lifetime,
             temporary_token_lifetime: config.temporary_token_lifetime,
+            maintenance_enabled: false,
+            maintenance_reason: None,
+            maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: now,
             updated_at: now,
         }
@@ -125,6 +162,9 @@ impl Client {
             refresh_token_lifetime: None,
             id_token_lifetime: None,
             temporary_token_lifetime: None,
+            maintenance_enabled: false,
+            maintenance_reason: None,
+            maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: now,
             updated_at: now,
         }

@@ -21,6 +21,7 @@ use crate::{
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
+        maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
@@ -56,6 +57,10 @@ use crate::{
         identity_provider::{
             PostgresBrokerAuthSessionRepository, PostgresIdentityProviderLinkRepository,
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
+        },
+        maintenance::repositories::{
+            maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository,
+            realm_maintenance_whitelist_repository::PostgresRealmMaintenanceWhitelistRepository,
         },
         organization::{
             organization_attribute_repository::PostgresOrganizationAttributeRepository,
@@ -178,6 +183,13 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let organization_member =
         Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
 
+    let maintenance_whitelist = Arc::new(PostgresMaintenanceWhitelistRepository::new(
+        postgres.get_db(),
+    ));
+    let realm_maintenance_whitelist = Arc::new(PostgresRealmMaintenanceWhitelistRepository::new(
+        postgres.get_db(),
+    ));
+
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
         compass_rx,
@@ -193,6 +205,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
 
     let app = ApplicationService {
+        maintenance_service: MaintenanceServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            webhook.clone(),
+            security_event.clone(),
+            maintenance_whitelist.clone(),
+            realm_maintenance_whitelist.clone(),
+            policy.clone(),
+        ),
         auth_service: AuthServiceImpl::new(
             realm.clone(),
             client.clone(),
@@ -212,6 +233,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             organization_member.clone(),
             organization.clone(),
             organization_attribute.clone(),
+            maintenance_whitelist.clone(),
+            realm_maintenance_whitelist.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),

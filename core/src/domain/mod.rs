@@ -10,6 +10,7 @@ pub mod crypto;
 pub mod email_template;
 pub mod health;
 pub mod jwt;
+pub mod maintenance;
 pub mod organization;
 pub mod password_policy;
 pub mod realm;

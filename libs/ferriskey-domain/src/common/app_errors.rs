@@ -259,6 +259,9 @@ pub enum CoreError {
     #[error("User account is disabled")]
     UserDisabled,
 
+    #[error("Client is under maintenance: {0}")]
+    ClientUnderMaintenance(String),
+
     #[error("Email template not found")]
     EmailTemplateNotFound,
 

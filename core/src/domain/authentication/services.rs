@@ -19,6 +19,9 @@ use ferriskey_organization::{
 };
 
 use crate::domain::authentication::mapper_engine::ContextOrganization;
+use crate::domain::maintenance::ports::{
+    MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
+};
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -59,8 +62,28 @@ use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
 #[derive(Clone, Debug)]
-pub struct AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-where
+pub struct AuthServiceImpl<
+    R,
+    C,
+    RU,
+    PLRU,
+    U,
+    UR,
+    CR,
+    H,
+    AS,
+    KS,
+    RT,
+    AT,
+    F,
+    CSM,
+    PM,
+    OM,
+    OR,
+    OAR,
+    MW,
+    RMW,
+> where
     R: RealmRepository,
     C: ClientRepository,
     RU: RedirectUriRepository,
@@ -79,6 +102,8 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    MW: MaintenanceWhitelistRepository,
+    RMW: RealmMaintenanceWhitelistRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -98,13 +123,15 @@ where
     pub(crate) organization_member_repository: Arc<OM>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) organization_attribute_repository: Arc<OAR>,
+    pub(crate) maintenance_whitelist_repository: Arc<MW>,
+    pub(crate) realm_maintenance_whitelist_repository: Arc<RMW>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -124,6 +151,8 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    MW: MaintenanceWhitelistRepository,
+    RMW: RealmMaintenanceWhitelistRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -145,6 +174,8 @@ where
         organization_member_repository: Arc<OM>,
         organization_repository: Arc<OR>,
         organization_attribute_repository: Arc<OAR>,
+        maintenance_whitelist_repository: Arc<MW>,
+        realm_maintenance_whitelist_repository: Arc<RMW>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -167,6 +198,8 @@ where
             organization_member_repository,
             organization_repository,
             organization_attribute_repository,
+            maintenance_whitelist_repository,
+            realm_maintenance_whitelist_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -174,8 +207,8 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
+    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -195,6 +228,8 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    MW: MaintenanceWhitelistRepository,
+    RMW: RealmMaintenanceWhitelistRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -1204,7 +1239,8 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        self.client_repository
+        let client = self
+            .client_repository
             .get_by_client_id(client_id.clone(), realm.id)
             .await
             .map_err(|e| {
@@ -1225,6 +1261,49 @@ where
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
+        }
+
+        // Check maintenance mode
+        if client.maintenance_enabled {
+            let user_roles = self
+                .user_role_repository
+                .get_user_roles(user.id)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+            let role_ids: Vec<Uuid> = user_roles.iter().map(|r| r.id).collect();
+
+            let allowed_user_ids = self
+                .maintenance_whitelist_repository
+                .get_whitelisted_user_ids(client.id)
+                .await?;
+            let allowed_role_ids = self
+                .maintenance_whitelist_repository
+                .get_whitelisted_role_ids(client.id)
+                .await?;
+            let realm_allowed_user_ids = self
+                .realm_maintenance_whitelist_repository
+                .get_whitelisted_user_ids(realm.id)
+                .await?;
+            let realm_allowed_role_ids = self
+                .realm_maintenance_whitelist_repository
+                .get_whitelisted_role_ids(realm.id)
+                .await?;
+
+            let is_allowed = allowed_user_ids.contains(&user.id)
+                || role_ids.iter().any(|r| allowed_role_ids.contains(r))
+                || realm_allowed_user_ids.contains(&user.id)
+                || role_ids.iter().any(|r| realm_allowed_role_ids.contains(r));
+
+            if !is_allowed {
+                let reason = client
+                    .maintenance_reason
+                    .unwrap_or_else(|| "This service is currently under maintenance".to_string());
+                warn!(
+                    "User {} denied access to client {} (maintenance mode)",
+                    user.username, client.name
+                );
+                return Err(CoreError::ClientUnderMaintenance(reason));
+            }
         }
 
         // Check if user has federation mapping (LDAP authentication) FIRST
@@ -1570,8 +1649,29 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR> AuthService
-    for AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW> AuthService
+    for AuthServiceImpl<
+        R,
+        C,
+        RU,
+        PLRU,
+        U,
+        UR,
+        CR,
+        H,
+        AS,
+        KS,
+        RT,
+        AT,
+        F,
+        CSM,
+        PM,
+        OM,
+        OR,
+        OAR,
+        MW,
+        RMW,
+    >
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -1591,6 +1691,8 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    MW: MaintenanceWhitelistRepository,
+    RMW: RealmMaintenanceWhitelistRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self

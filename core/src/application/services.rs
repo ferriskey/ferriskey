@@ -20,6 +20,7 @@ use crate::{
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
         health::services::HealthServiceImpl,
+        maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
@@ -149,6 +150,20 @@ type ApplicationTridentService = TridentServiceImpl<
     MjmlRenderer,
 >;
 
+type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;
+type RealmMaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::realm_maintenance_whitelist_repository::PostgresRealmMaintenanceWhitelistRepository;
+
+type ApplicationMaintenanceService = MaintenanceServiceImpl<
+    RealmRepo,
+    UserRepo,
+    ClientRepo,
+    UserRoleRepo,
+    WebhookRepo,
+    SecurityEventRepo,
+    MaintenanceWhitelistRepo,
+    RealmMaintenanceWhitelistRepo,
+>;
+
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
     ClientRepo,
@@ -168,6 +183,8 @@ type ApplicationAuthService = AuthServiceImpl<
     OrganizationMemberRepo,
     OrganizationRepo,
     OrganizationAttributeRepo,
+    MaintenanceWhitelistRepo,
+    RealmMaintenanceWhitelistRepo,
 >;
 
 #[derive(Clone, Debug)]
@@ -230,6 +247,8 @@ pub struct ApplicationService {
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
 
+    #[allow(dead_code)]
+    pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,

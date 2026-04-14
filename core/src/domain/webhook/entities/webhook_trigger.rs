@@ -60,6 +60,10 @@ pub enum WebhookTrigger {
     WebhookUpdated,
     #[serde(rename = "webhook.deleted")]
     WebhookDeleted,
+    #[serde(rename = "client.maintenance.enabled")]
+    ClientMaintenanceEnabled,
+    #[serde(rename = "client.maintenance.disabled")]
+    ClientMaintenanceDisabled,
 }
 
 impl Display for WebhookTrigger {
@@ -92,6 +96,12 @@ impl Display for WebhookTrigger {
             WebhookTrigger::WebhookCreated => write!(f, "webhook.created"),
             WebhookTrigger::WebhookUpdated => write!(f, "webhook.updated"),
             WebhookTrigger::WebhookDeleted => write!(f, "webhook.deleted"),
+            WebhookTrigger::ClientMaintenanceEnabled => {
+                write!(f, "client.maintenance.enabled")
+            }
+            WebhookTrigger::ClientMaintenanceDisabled => {
+                write!(f, "client.maintenance.disabled")
+            }
         }
     }
 }
@@ -128,6 +138,8 @@ impl TryFrom<String> for WebhookTrigger {
             "webhook.created" => Ok(WebhookTrigger::WebhookCreated),
             "webhook.updated" => Ok(WebhookTrigger::WebhookUpdated),
             "webhook.deleted" => Ok(WebhookTrigger::WebhookDeleted),
+            "client.maintenance.enabled" => Ok(WebhookTrigger::ClientMaintenanceEnabled),
+            "client.maintenance.disabled" => Ok(WebhookTrigger::ClientMaintenanceDisabled),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }
