@@ -7,6 +7,7 @@ use crate::application::http::broker::router::broker_routes;
 use crate::application::http::client::router::client_routes;
 use crate::application::http::compass::router::compass_routes;
 use crate::application::http::email_template::router::email_template_routes;
+use crate::application::http::maintenance::router::maintenance_routes;
 use crate::application::http::organization::router::organization_routes;
 use crate::application::http::realm::router::realm_routes;
 use crate::application::http::role::router::role_routes;
@@ -118,6 +119,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(authentication_routes(state.clone(), &root_path))
         .merge(role_routes(state.clone()))
         .merge(webhook_routes(state.clone()))
+        .merge(maintenance_routes(state.clone()))
         .merge(email_template_routes(state.clone()))
         .merge(trident_routes(state.clone()))
         .merge(seawatch_router(state.clone()))

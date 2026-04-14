@@ -247,7 +247,6 @@ pub struct ApplicationService {
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
 
-    #[allow(dead_code)]
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) core_service: CoreServiceImpl<
