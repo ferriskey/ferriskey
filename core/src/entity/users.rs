@@ -57,6 +57,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     AccessTokens,
     AuthSessions,
+    ClientMaintenanceWhitelist,
     Clients,
     CompassFlows,
     Credentials,
@@ -64,6 +65,7 @@ pub enum Relation {
     MagicLinks,
     OrganizationMembers,
     PasswordResetTokens,
+    RealmMaintenanceWhitelist,
     Realms,
     RefreshTokens,
     UserFederationMappings,
@@ -96,6 +98,9 @@ impl RelationTrait for Relation {
         match self {
             Self::AccessTokens => Entity::has_many(super::access_tokens::Entity).into(),
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
+            Self::ClientMaintenanceWhitelist => {
+                Entity::has_many(super::client_maintenance_whitelist::Entity).into()
+            }
             Self::Clients => Entity::belongs_to(super::clients::Entity)
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
@@ -111,6 +116,9 @@ impl RelationTrait for Relation {
             }
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
+            }
+            Self::RealmMaintenanceWhitelist => {
+                Entity::has_many(super::realm_maintenance_whitelist::Entity).into()
             }
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
@@ -138,6 +146,12 @@ impl Related<super::access_tokens::Entity> for Entity {
 impl Related<super::auth_sessions::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AuthSessions.def()
+    }
+}
+
+impl Related<super::client_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientMaintenanceWhitelist.def()
     }
 }
 
@@ -180,6 +194,12 @@ impl Related<super::organization_members::Entity> for Entity {
 impl Related<super::password_reset_tokens::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PasswordResetTokens.def()
+    }
+}
+
+impl Related<super::realm_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RealmMaintenanceWhitelist.def()
     }
 }
 

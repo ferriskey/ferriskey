@@ -75,6 +75,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     AuthSessions,
     BrokerAuthSessions,
+    ClientMaintenanceWhitelist,
     ClientScopeMappings,
     PostLogoutRedirectUris,
     Realms,
@@ -120,6 +121,9 @@ impl RelationTrait for Relation {
             Self::BrokerAuthSessions => {
                 Entity::has_many(super::broker_auth_sessions::Entity).into()
             }
+            Self::ClientMaintenanceWhitelist => {
+                Entity::has_many(super::client_maintenance_whitelist::Entity).into()
+            }
             Self::ClientScopeMappings => {
                 Entity::has_many(super::client_scope_mappings::Entity).into()
             }
@@ -146,6 +150,12 @@ impl Related<super::auth_sessions::Entity> for Entity {
 impl Related<super::broker_auth_sessions::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::BrokerAuthSessions.def()
+    }
+}
+
+impl Related<super::client_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientMaintenanceWhitelist.def()
     }
 }
 

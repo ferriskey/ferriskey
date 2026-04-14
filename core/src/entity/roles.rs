@@ -49,7 +49,9 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    ClientMaintenanceWhitelist,
     Clients,
+    RealmMaintenanceWhitelist,
     Realms,
     UserRole,
 }
@@ -73,10 +75,16 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::ClientMaintenanceWhitelist => {
+                Entity::has_many(super::client_maintenance_whitelist::Entity).into()
+            }
             Self::Clients => Entity::belongs_to(super::clients::Entity)
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
                 .into(),
+            Self::RealmMaintenanceWhitelist => {
+                Entity::has_many(super::realm_maintenance_whitelist::Entity).into()
+            }
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
@@ -86,9 +94,21 @@ impl RelationTrait for Relation {
     }
 }
 
+impl Related<super::client_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientMaintenanceWhitelist.def()
+    }
+}
+
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
+    }
+}
+
+impl Related<super::realm_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RealmMaintenanceWhitelist.def()
     }
 }
 

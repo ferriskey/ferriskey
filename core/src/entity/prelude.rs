@@ -3,6 +3,7 @@
 pub use super::access_tokens::Entity as AccessTokens;
 pub use super::auth_sessions::Entity as AuthSessions;
 pub use super::broker_auth_sessions::Entity as BrokerAuthSessions;
+pub use super::client_maintenance_whitelist::Entity as ClientMaintenanceWhitelist;
 pub use super::client_scope_attributes::Entity as ClientScopeAttributes;
 pub use super::client_scope_mappings::Entity as ClientScopeMappings;
 pub use super::client_scope_protocol_mappers::Entity as ClientScopeProtocolMappers;
@@ -23,6 +24,7 @@ pub use super::organizations::Entity as Organizations;
 pub use super::password_policy::Entity as PasswordPolicy;
 pub use super::password_reset_tokens::Entity as PasswordResetTokens;
 pub use super::post_logout_redirect_uris::Entity as PostLogoutRedirectUris;
+pub use super::realm_maintenance_whitelist::Entity as RealmMaintenanceWhitelist;
 pub use super::realm_settings::Entity as RealmSettings;
 pub use super::realms::Entity as Realms;
 pub use super::redirect_uris::Entity as RedirectUris;
