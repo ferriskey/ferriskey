@@ -69,6 +69,9 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    EmailTemplates3,
+    EmailTemplates2,
+    EmailTemplates1,
     Realms,
 }
 
@@ -101,6 +104,18 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::EmailTemplates3 => Entity::belongs_to(super::email_templates::Entity)
+                .from(Column::EmailVerificationTemplateId)
+                .to(super::email_templates::Column::Id)
+                .into(),
+            Self::EmailTemplates2 => Entity::belongs_to(super::email_templates::Entity)
+                .from(Column::MagicLinkTemplateId)
+                .to(super::email_templates::Column::Id)
+                .into(),
+            Self::EmailTemplates1 => Entity::belongs_to(super::email_templates::Entity)
+                .from(Column::ResetPasswordTemplateId)
+                .to(super::email_templates::Column::Id)
+                .into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)

@@ -54,6 +54,7 @@ pub enum Relation {
     Organizations,
     PasswordPolicy,
     PasswordResetTokens,
+    RealmMaintenanceWhitelist,
     RealmSettings,
     Roles,
     SecurityEvents,
@@ -95,6 +96,9 @@ impl RelationTrait for Relation {
             Self::PasswordPolicy => Entity::has_one(super::password_policy::Entity).into(),
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
+            }
+            Self::RealmMaintenanceWhitelist => {
+                Entity::has_many(super::realm_maintenance_whitelist::Entity).into()
             }
             Self::RealmSettings => Entity::has_many(super::realm_settings::Entity).into(),
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
@@ -185,6 +189,12 @@ impl Related<super::password_policy::Entity> for Entity {
 impl Related<super::password_reset_tokens::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PasswordResetTokens.def()
+    }
+}
+
+impl Related<super::realm_maintenance_whitelist::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RealmMaintenanceWhitelist.def()
     }
 }
 
