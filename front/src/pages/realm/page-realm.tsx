@@ -11,6 +11,7 @@ import PageRealmSettingsEmailFeature from './feature/page-realm-settings-email-f
 import PageRealmSettingsSmtpFeature from './feature/page-realm-settings-smtp-feature'
 import PageRealmSettingsTokensFeature from './feature/page-realm-settings-tokens-feature'
 import PageRealmSettingsPasswordPolicyFeature from './feature/page-realm-settings-password-policy-feature'
+import PageRealmSettingsMaintenanceFeature from './feature/page-realm-settings-maintenance-feature'
 
 export default function PageRealm() {
   const { realm_name } = useParams<RouterParams>()
@@ -24,6 +25,7 @@ export default function PageRealm() {
         <Route path='/email' element={<PageRealmSettingsEmailFeature />} />
         <Route path='/smtp' element={<PageRealmSettingsSmtpFeature />} />
         <Route path='/password-policy' element={<PageRealmSettingsPasswordPolicyFeature />} />
+        <Route path='/maintenance' element={<PageRealmSettingsMaintenanceFeature />} />
         <Route path='/security' element={<PageRealmSettingsSecurityFeature />} />
         <Route path='/webhooks' element={<PageRealmSettingsWebhooksFeature />} />
       </Route>

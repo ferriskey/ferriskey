@@ -10,6 +10,8 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'redirect_uri.created',
     'redirect_uri.deleted',
     'redirect_uri.updated',
+    'client.maintenance.enabled',
+    'client.maintenance.disabled',
   ],
   Realm: ['realm.created', 'realm.deleted', 'realm.settings.updated', 'realm.updated'],
   Role: ['role.created', 'role.updated'],
@@ -58,6 +60,8 @@ export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
   'webhook.created': 'Webhook Created',
   'webhook.deleted': 'Webhook Deleted',
   'webhook.updated': 'Webhook Updated',
+  'client.maintenance.enabled': 'Client Maintenance Enabled',
+  'client.maintenance.disabled': 'Client Maintenance Disabled',
 }
 
 export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string> = {
@@ -92,6 +96,8 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
   'webhook.created': 'A new webhook has been created.',
   'webhook.deleted': 'A webhook has been deleted.',
   'webhook.updated': 'A webhook has been updated.',
+  'client.maintenance.enabled': 'Maintenance mode has been enabled on a client.',
+  'client.maintenance.disabled': 'Maintenance mode has been disabled on a client.',
 }
 
 export type WebhookCategory = {

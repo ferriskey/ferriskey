@@ -24,6 +24,7 @@ export default function ClientLayout() {
       : []),
     { key: 'roles', label: 'Roles', path: `${baseUrl}/roles` },
     { key: 'client-scopes', label: 'Client Scopes', path: `${baseUrl}/scopes` },
+    { key: 'maintenance', label: 'Maintenance', path: `${baseUrl}/maintenance` },
   ]
 
   return (
