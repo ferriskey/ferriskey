@@ -26,7 +26,7 @@ where
         let permissions = self.get_user_permissions(&user).await?;
 
         Ok(Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageUsers],
         ))
     }
@@ -40,7 +40,7 @@ where
         let permissions = self.get_user_permissions(&user).await?;
 
         Ok(Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[
                 Permissions::ManageRealm,
                 Permissions::ManageUsers,
@@ -58,7 +58,7 @@ where
         let permissions = self.get_user_permissions(&user).await?;
 
         Ok(Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageUsers],
         ))
     }
@@ -72,7 +72,7 @@ where
         let permissions = self.get_user_permissions(&user).await?;
 
         Ok(Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm],
         ))
     }
@@ -86,7 +86,7 @@ where
         let permissions = self.get_user_permissions(&user).await?;
 
         Ok(Permissions::has_one_of_permissions(
-            &permissions.iter().cloned().collect::<Vec<Permissions>>(),
+            &permissions,
             &[Permissions::ManageRealm, Permissions::ManageUsers],
         ))
     }
