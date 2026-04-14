@@ -59,6 +59,7 @@ pub enum Relation {
     Roles,
     SecurityEvents,
     SmtpConfigs,
+    UserAttributes,
     UserFederationProviders,
     UserSessions,
     Users,
@@ -104,6 +105,7 @@ impl RelationTrait for Relation {
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
             Self::SecurityEvents => Entity::has_many(super::security_events::Entity).into(),
             Self::SmtpConfigs => Entity::has_one(super::smtp_configs::Entity).into(),
+            Self::UserAttributes => Entity::has_many(super::user_attributes::Entity).into(),
             Self::UserFederationProviders => {
                 Entity::has_many(super::user_federation_providers::Entity).into()
             }
@@ -219,6 +221,12 @@ impl Related<super::security_events::Entity> for Entity {
 impl Related<super::smtp_configs::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::SmtpConfigs.def()
+    }
+}
+
+impl Related<super::user_attributes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserAttributes.def()
     }
 }
 

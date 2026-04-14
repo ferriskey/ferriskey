@@ -32,6 +32,7 @@ pub use super::refresh_tokens::Entity as RefreshTokens;
 pub use super::roles::Entity as Roles;
 pub use super::security_events::Entity as SecurityEvents;
 pub use super::smtp_configs::Entity as SmtpConfigs;
+pub use super::user_attributes::Entity as UserAttributes;
 pub use super::user_federation_mappings::Entity as UserFederationMappings;
 pub use super::user_federation_providers::Entity as UserFederationProviders;
 pub use super::user_required_actions::Entity as UserRequiredActions;

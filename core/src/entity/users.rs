@@ -68,6 +68,7 @@ pub enum Relation {
     RealmMaintenanceWhitelist,
     Realms,
     RefreshTokens,
+    UserAttributes,
     UserFederationMappings,
     UserRequiredActions,
     UserRole,
@@ -125,6 +126,7 @@ impl RelationTrait for Relation {
                 .to(super::realms::Column::Id)
                 .into(),
             Self::RefreshTokens => Entity::has_many(super::refresh_tokens::Entity).into(),
+            Self::UserAttributes => Entity::has_many(super::user_attributes::Entity).into(),
             Self::UserFederationMappings => {
                 Entity::has_many(super::user_federation_mappings::Entity).into()
             }
@@ -212,6 +214,12 @@ impl Related<super::realms::Entity> for Entity {
 impl Related<super::refresh_tokens::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::RefreshTokens.def()
+    }
+}
+
+impl Related<super::user_attributes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserAttributes.def()
     }
 }
 
