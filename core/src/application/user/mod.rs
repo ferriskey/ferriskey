@@ -6,8 +6,9 @@ use crate::{
         role::entities::permission::Permissions,
         user::{
             entities::{
-                AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
-                ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
+                AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetUserAttributesInput,
+                GetUserInput, GetUserPermissionsInput, ResetPasswordInput, SetUserAttributesInput,
+                UnassignRoleInput, UpdateUserInput, User, UserAttribute,
             },
             ports::UserService,
         },
@@ -93,6 +94,32 @@ impl UserService for ApplicationService {
     ) -> Result<Vec<Permissions>, CoreError> {
         self.user_service
             .get_user_permissions(identity, input)
+            .await
+    }
+
+    async fn get_user_attributes(
+        &self,
+        identity: Identity,
+        input: GetUserAttributesInput,
+    ) -> Result<Vec<UserAttribute>, CoreError> {
+        self.user_service.get_user_attributes(identity, input).await
+    }
+
+    async fn set_user_attributes(
+        &self,
+        identity: Identity,
+        input: SetUserAttributesInput,
+    ) -> Result<Vec<UserAttribute>, CoreError> {
+        self.user_service.set_user_attributes(identity, input).await
+    }
+
+    async fn delete_user_attribute(
+        &self,
+        identity: Identity,
+        input: DeleteUserAttributeInput,
+    ) -> Result<(), CoreError> {
+        self.user_service
+            .delete_user_attribute(identity, input)
             .await
     }
 }

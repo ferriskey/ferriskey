@@ -17,12 +17,13 @@ use crate::domain::{
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
         entities::{
-            AssignRoleInput, CreateUserInput, GetUserInput, GetUserPermissionsInput,
-            RequiredAction, ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
+            AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetUserAttributesInput,
+            GetUserInput, GetUserPermissionsInput, RequiredAction, ResetPasswordInput,
+            SetUserAttributesInput, UnassignRoleInput, UpdateUserInput, User, UserAttribute,
         },
         ports::{
-            UserPolicy, UserRepository, UserRequiredActionRepository, UserRoleRepository,
-            UserService,
+            UserAttributeRepository, UserPolicy, UserRepository, UserRequiredActionRepository,
+            UserRoleRepository, UserService,
         },
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
@@ -36,7 +37,7 @@ use serde_json::json;
 pub mod user_role_service;
 
 #[derive(Clone, Debug)]
-pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -48,6 +49,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    UAR: UserAttributeRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -56,13 +58,15 @@ where
     pub(crate) user_role_repository: Arc<UR>,
     pub(crate) role_repository: Arc<RO>,
     pub(crate) user_required_action_repository: Arc<URA>,
+    pub(crate) user_attribute_repository: Arc<UAR>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) security_event_repository: Arc<SE>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
+    UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -74,6 +78,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    UAR: UserAttributeRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -84,6 +89,7 @@ where
         user_role_repository: Arc<UR>,
         role_repository: Arc<RO>,
         user_required_action_repository: Arc<URA>,
+        user_attribute_repository: Arc<UAR>,
         webhook_repository: Arc<W>,
         security_event_repository: Arc<SE>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
@@ -96,6 +102,7 @@ where
             user_role_repository,
             role_repository,
             user_required_action_repository,
+            user_attribute_repository,
             webhook_repository,
             security_event_repository,
             policy,
@@ -103,8 +110,8 @@ where
     }
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE> UserService
-    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR> UserService
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -116,6 +123,7 @@ where
     URA: UserRequiredActionRepository,
     W: WebhookRepository,
     SE: SecurityEventRepository,
+    UAR: UserAttributeRepository,
 {
     async fn delete_user(
         &self,
@@ -588,6 +596,87 @@ where
 
         Ok(permissions.into_iter().collect())
     }
+
+    async fn get_user_attributes(
+        &self,
+        identity: Identity,
+        input: GetUserAttributesInput,
+    ) -> Result<Vec<UserAttribute>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_user(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
+            return Err(CoreError::NotFound);
+        }
+
+        self.user_attribute_repository
+            .list_by_user_id(input.user_id)
+            .await
+    }
+
+    async fn set_user_attributes(
+        &self,
+        identity: Identity,
+        input: SetUserAttributesInput,
+    ) -> Result<Vec<UserAttribute>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_user(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
+            return Err(CoreError::NotFound);
+        }
+
+        self.user_attribute_repository
+            .upsert_many(input.user_id, realm.id, input.attributes)
+            .await
+    }
+
+    async fn delete_user_attribute(
+        &self,
+        identity: Identity,
+        input: DeleteUserAttributeInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_user(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
+            return Err(CoreError::NotFound);
+        }
+
+        self.user_attribute_repository
+            .delete_by_key(input.user_id, input.key)
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -605,7 +694,8 @@ mod tests {
         role::ports::MockRoleRepository,
         seawatch::ports::MockSecurityEventRepository,
         user::ports::{
-            MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository,
+            MockUserAttributeRepository, MockUserRepository, MockUserRequiredActionRepository,
+            MockUserRoleRepository,
         },
         webhook::{entities::webhook_payload::WebhookPayload, ports::MockWebhookRepository},
     };
@@ -618,6 +708,7 @@ mod tests {
         user_role_repo: Arc<MockUserRoleRepository>,
         role_repo: Arc<MockRoleRepository>,
         user_required_action_repo: Arc<MockUserRequiredActionRepository>,
+        user_attribute_repo: Arc<MockUserAttributeRepository>,
         webhook_repo: Arc<MockWebhookRepository>,
         client_repo: Arc<MockClientRepository>,
         security_event_repo: Arc<MockSecurityEventRepository>,
@@ -633,6 +724,7 @@ mod tests {
                 user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 role_repo: Arc::new(MockRoleRepository::new()),
                 user_required_action_repo: Arc::new(MockUserRequiredActionRepository::new()),
+                user_attribute_repo: Arc::new(MockUserAttributeRepository::new()),
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
                 client_repo: Arc::new(MockClientRepository::new()),
                 security_event_repo: Arc::new(MockSecurityEventRepository::new()),
@@ -736,6 +828,7 @@ mod tests {
             MockUserRequiredActionRepository,
             MockWebhookRepository,
             MockSecurityEventRepository,
+            MockUserAttributeRepository,
         > {
             use crate::domain::common::policies::FerriskeyPolicy;
 
@@ -753,6 +846,7 @@ mod tests {
                 self.user_role_repo,
                 self.role_repo,
                 self.user_required_action_repo,
+                self.user_attribute_repo,
                 self.webhook_repo,
                 self.security_event_repo,
                 Arc::new(policy),
