@@ -7,6 +7,7 @@ import PageClientCredentialsFeature from './feature/page-client-credentials-feat
 import PageCreateClientFeature from '@/pages/client/feature/page-create-client-feature.tsx'
 import PageClientRolesFeature from './feature/page-client-roles-feature'
 import PageClientScopesFeature from './feature/page-client-scopes-feature'
+import PageClientMaintenanceFeature from './feature/page-client-maintenance-feature'
 
 export default function PageClient() {
   return (
@@ -21,6 +22,7 @@ export default function PageClient() {
         <Route path='/:client_id/credentials' element={<PageClientCredentialsFeature />} />
         <Route path='/:client_id/roles' element={<PageClientRolesFeature />} />
         <Route path='/:client_id/scopes' element={<PageClientScopesFeature />} />
+        <Route path='/:client_id/maintenance' element={<PageClientMaintenanceFeature />} />
       </Route>
     </Routes>
   )

@@ -15,7 +15,7 @@ export default function RealmsSettingsLayout() {
   const tab = useMemo(() => {
     const pathParts = pathname.split('/')
     const lastPart = pathParts[pathParts.length - 1]
-    const validTabs = ['general', 'login', 'tokens', 'smtp', 'email', 'password-policy', 'security', 'webhooks']
+    const validTabs = ['general', 'login', 'tokens', 'smtp', 'email', 'password-policy', 'maintenance', 'security', 'webhooks']
     return validTabs.includes(lastPart) ? lastPart : 'general'
   }, [pathname])
 

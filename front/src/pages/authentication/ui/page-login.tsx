@@ -13,7 +13,7 @@ import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, KeyRound, Mail, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, KeyRound, Mail, ShieldAlert, Wrench } from 'lucide-react'
 
 export type MagicLinkStep = 'idle' | 'form' | 'sent'
 
@@ -94,9 +94,16 @@ export default function PageLogin({
                           </h1>
                         </div>
                         {errorMessage && (
-                          <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
-                            {errorMessage}
-                          </div>
+                          errorMessage.includes('under maintenance') ? (
+                            <div className='rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2'>
+                              <Wrench className='h-4 w-4 mt-0.5 shrink-0' />
+                              <span>{errorMessage.replace(/^.*under maintenance:\s*/i, '')}</span>
+                            </div>
+                          ) : (
+                            <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
+                              {errorMessage}
+                            </div>
+                          )
                         )}
                         <div className='grid gap-3'>
                           <FormField
