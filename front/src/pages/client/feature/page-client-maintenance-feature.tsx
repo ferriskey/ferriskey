@@ -51,36 +51,25 @@ export default function PageClientMaintenanceFeature() {
   const client = clientResponse?.data
 
 
-  const whitelist: Array<{ id: string; user_id?: string; role_id?: string }> =
-    (whitelistResponse as unknown as { data?: Array<{ id: string; user_id?: string; role_id?: string }> })?.data ?? []
-
-
-  const realmWhitelist: Array<{ id: string; user_id?: string; role_id?: string }> =
-    (realmWhitelistResponse as unknown as { data?: Array<{ id: string; user_id?: string; role_id?: string }> })?.data ?? []
+  const whitelist = whitelistResponse?.data ?? []
+  const realmWhitelist = realmWhitelistResponse?.data ?? []
 
   // Track user edits — undefined means "not edited, use server value"
   const [reasonOverride, setReasonOverride] = useState<string | undefined>(undefined)
-  const [strategyOverride, setStrategyOverride] = useState<'terminate' | 'expire' | undefined>(undefined)
+  const [strategyOverride, setStrategyOverride] = useState<'terminate' | 'expire' | undefined>(
+    undefined
+  )
 
   if (!client) return null
 
   const serverReason = client.maintenance_reason ?? ''
-  const serverStrategy = (client.maintenance_session_strategy as 'terminate' | 'expire') ?? 'expire'
+  const serverStrategy =
+    (client.maintenance_session_strategy as 'terminate' | 'expire') ?? 'expire'
   const reason = reasonOverride ?? serverReason
   const strategy = strategyOverride ?? serverStrategy
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const users = ((usersResponse as any)?.data ?? []) as Array<{
-    id: string
-    username: string
-    email: string
-  }>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const roles = ((rolesResponse as any)?.data ?? []) as Array<{
-    id: string
-    name: string
-    description?: string
-  }>
+  const users = usersResponse?.data ?? []
+  const roles = rolesResponse?.data ?? []
 
   const whitelistedUserIds = whitelist.filter((e) => e.user_id).map((e) => e.user_id!)
   const whitelistedRoleIds = whitelist.filter((e) => e.role_id).map((e) => e.role_id!)

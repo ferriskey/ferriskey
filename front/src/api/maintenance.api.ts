@@ -2,6 +2,56 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 
+// Types for maintenance endpoints (not yet in the auto-generated OpenAPI client).
+
+export interface WhitelistEntry {
+  id: string
+  client_id?: string
+  realm_id?: string
+  user_id?: string
+  role_id?: string
+  created_at: string
+}
+
+interface ToggleMaintenanceResponse {
+  message: string
+}
+
+interface WhitelistResponse {
+  data: WhitelistEntry[]
+}
+
+// Cast helpers — the tanstackApi methods are strongly typed to known paths only.
+// These endpoints exist at runtime but aren't yet in the generated type map.
+// We use a generic QueryResult so useQuery can infer the return type.
+
+interface PathVars {
+  path: Record<string, string>
+}
+
+interface QueryResult<T> {
+  queryOptions: { queryKey: unknown[]; queryFn: () => Promise<T> }
+  queryKey: unknown[]
+}
+
+interface MutationResult {
+  mutationOptions: object
+}
+
+const apiGet = window.tanstackApi.get as unknown as <T>(
+  path: string,
+  vars: PathVars
+) => QueryResult<T>
+
+const apiMutation = window.tanstackApi.mutation as unknown as (
+  method: string,
+  path: string
+) => MutationResult
+
+interface MutationVars {
+  path: Record<string, string>
+}
+
 // -- Client maintenance whitelist --
 
 export const useGetClientWhitelist = ({
@@ -9,11 +59,9 @@ export const useGetClientWhitelist = ({
   clientId,
 }: BaseQuery & { clientId?: string }) => {
   return useQuery({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.get as any)(
-      '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist',
-      { path: { realm_name: realm, client_id: clientId! } }
-    ).queryOptions,
+    ...apiGet<WhitelistResponse>('/realms/{realm_name}/clients/{client_id}/maintenance/whitelist', {
+      path: { realm_name: realm, client_id: clientId! },
+    }).queryOptions,
     enabled: !!clientId && !!realm,
   })
 }
@@ -21,23 +69,17 @@ export const useGetClientWhitelist = ({
 export const useToggleMaintenance = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.mutation as any)(
-      'put',
-      '/realms/{realm_name}/clients/{client_id}/maintenance'
-    ).mutationOptions,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: async (data: any, variables: any) => {
-      const keys = window.tanstackApi.get(
-        '/realms/{realm_name}/clients/{client_id}',
-        {
-          path: {
-            client_id: variables.path.client_id,
-            realm_name: variables.path.realm_name,
-          },
-        }
-      ).queryKey
-      toast.success(data.message)
+    ...apiMutation('put', '/realms/{realm_name}/clients/{client_id}/maintenance').mutationOptions,
+    onSuccess: async (data: unknown, variables: unknown) => {
+      const vars = variables as MutationVars
+      const resp = data as ToggleMaintenanceResponse
+      const keys = window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}', {
+        path: {
+          client_id: vars.path.client_id,
+          realm_name: vars.path.realm_name,
+        },
+      }).queryKey
+      toast.success(resp.message)
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -46,17 +88,13 @@ export const useToggleMaintenance = () => {
 export const useAddClientWhitelistEntry = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.mutation as any)(
-      'post',
-      '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist'
-    ).mutationOptions,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: async (_: any, variables: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keys = (window.tanstackApi.get as any)(
+    ...apiMutation('post', '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist')
+      .mutationOptions,
+    onSuccess: async (_data: unknown, variables: unknown) => {
+      const vars = variables as MutationVars
+      const keys = apiGet<WhitelistResponse>(
         '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist',
-        { path: { realm_name: variables.path.realm_name, client_id: variables.path.client_id } }
+        { path: { realm_name: vars.path.realm_name, client_id: vars.path.client_id } }
       ).queryKey
       toast.success('Whitelist entry added')
       await queryClient.invalidateQueries({ queryKey: keys })
@@ -67,17 +105,15 @@ export const useAddClientWhitelistEntry = () => {
 export const useRemoveClientWhitelistEntry = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.mutation as any)(
+    ...apiMutation(
       'delete',
       '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}'
     ).mutationOptions,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: async (_: any, variables: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keys = (window.tanstackApi.get as any)(
+    onSuccess: async (_data: unknown, variables: unknown) => {
+      const vars = variables as MutationVars
+      const keys = apiGet<WhitelistResponse>(
         '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist',
-        { path: { realm_name: variables.path.realm_name, client_id: variables.path.client_id } }
+        { path: { realm_name: vars.path.realm_name, client_id: vars.path.client_id } }
       ).queryKey
       toast.success('Whitelist entry removed')
       await queryClient.invalidateQueries({ queryKey: keys })
@@ -89,28 +125,21 @@ export const useRemoveClientWhitelistEntry = () => {
 
 export const useGetRealmWhitelist = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window.tanstackApi.get as any)(
-      '/realms/{realm_name}/settings/maintenance/whitelist',
-      { path: { realm_name: realm } }
-    ).queryOptions
+    apiGet<WhitelistResponse>('/realms/{realm_name}/settings/maintenance/whitelist', {
+      path: { realm_name: realm },
+    }).queryOptions
   )
 }
 
 export const useAddRealmWhitelistEntry = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.mutation as any)(
-      'post',
-      '/realms/{realm_name}/settings/maintenance/whitelist'
-    ).mutationOptions,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: async (_: any, variables: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keys = (window.tanstackApi.get as any)(
+    ...apiMutation('post', '/realms/{realm_name}/settings/maintenance/whitelist').mutationOptions,
+    onSuccess: async (_data: unknown, variables: unknown) => {
+      const vars = variables as MutationVars
+      const keys = apiGet<WhitelistResponse>(
         '/realms/{realm_name}/settings/maintenance/whitelist',
-        { path: { realm_name: variables.path.realm_name } }
+        { path: { realm_name: vars.path.realm_name } }
       ).queryKey
       toast.success('Realm whitelist entry added')
       await queryClient.invalidateQueries({ queryKey: keys })
@@ -121,17 +150,13 @@ export const useAddRealmWhitelistEntry = () => {
 export const useRemoveRealmWhitelistEntry = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(window.tanstackApi.mutation as any)(
-      'delete',
-      '/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}'
-    ).mutationOptions,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onSuccess: async (_: any, variables: any) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const keys = (window.tanstackApi.get as any)(
+    ...apiMutation('delete', '/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}')
+      .mutationOptions,
+    onSuccess: async (_data: unknown, variables: unknown) => {
+      const vars = variables as MutationVars
+      const keys = apiGet<WhitelistResponse>(
         '/realms/{realm_name}/settings/maintenance/whitelist',
-        { path: { realm_name: variables.path.realm_name } }
+        { path: { realm_name: vars.path.realm_name } }
       ).queryKey
       toast.success('Realm whitelist entry removed')
       await queryClient.invalidateQueries({ queryKey: keys })

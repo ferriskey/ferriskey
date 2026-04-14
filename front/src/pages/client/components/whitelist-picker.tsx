@@ -14,13 +14,13 @@ import { ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
 interface WhitelistItem {
   id: string
   label: string
-  sublabel?: string
+  sublabel?: string | null
 }
 
 interface InheritedEntry {
   id: string
   label: string
-  sublabel?: string
+  sublabel?: string | null
 }
 
 interface WhitelistPickerProps {

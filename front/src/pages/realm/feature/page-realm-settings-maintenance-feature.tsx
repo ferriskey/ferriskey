@@ -20,21 +20,9 @@ export default function PageRealmSettingsMaintenanceFeature() {
   const { mutate: removeEntry } = useRemoveRealmWhitelistEntry()
 
 
-  const whitelist: Array<{ id: string; user_id?: string; role_id?: string }> =
-    (whitelistResponse as unknown as { data?: Array<{ id: string; user_id?: string; role_id?: string }> })?.data ?? []
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const users = ((usersResponse as any)?.data ?? []) as Array<{
-    id: string
-    username: string
-    email: string
-  }>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const roles = ((rolesResponse as any)?.data ?? []) as Array<{
-    id: string
-    name: string
-    description?: string
-  }>
+  const whitelist = whitelistResponse?.data ?? []
+  const users = usersResponse?.data ?? []
+  const roles = rolesResponse?.data ?? []
 
   const whitelistedUserIds = whitelist.filter((e) => e.user_id).map((e) => e.user_id!)
   const whitelistedRoleIds = whitelist.filter((e) => e.role_id).map((e) => e.role_id!)
