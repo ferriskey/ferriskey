@@ -30,9 +30,6 @@ pub struct Model {
     pub refresh_token_lifetime_secs: Option<i32>,
     pub id_token_lifetime_secs: Option<i32>,
     pub temporary_token_lifetime_secs: Option<i32>,
-    pub maintenance_enabled: Option<bool>,
-    pub maintenance_reason: Option<String>,
-    pub maintenance_session_strategy: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -54,9 +51,6 @@ pub enum Column {
     RefreshTokenLifetimeSecs,
     IdTokenLifetimeSecs,
     TemporaryTokenLifetimeSecs,
-    MaintenanceEnabled,
-    MaintenanceReason,
-    MaintenanceSessionStrategy,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -105,11 +99,6 @@ impl ColumnTrait for Column {
             Self::RefreshTokenLifetimeSecs => ColumnType::Integer.def().null(),
             Self::IdTokenLifetimeSecs => ColumnType::Integer.def().null(),
             Self::TemporaryTokenLifetimeSecs => ColumnType::Integer.def().null(),
-            Self::MaintenanceEnabled => ColumnType::Boolean.def().null(),
-            Self::MaintenanceReason => ColumnType::Text.def().null(),
-            Self::MaintenanceSessionStrategy => {
-                ColumnType::String(StringLen::N(50u32)).def().null()
-            }
         }
     }
 }
