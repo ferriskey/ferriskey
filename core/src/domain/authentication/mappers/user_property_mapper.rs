@@ -3,7 +3,8 @@ use serde_json::Value;
 use crate::domain::common::entities::app_errors::CoreError;
 
 use super::super::mapper_engine::{
-    MapperContext, MapperOutput, TokenType, set_claim_at_path, should_apply_to_token,
+    MapperContext, MapperOutput, TokenType, resolve_claim_name, set_claim_at_path,
+    should_apply_to_token,
 };
 
 /// Maps built-in user properties (username, email, firstname, lastname, email_verified)
@@ -38,10 +39,7 @@ impl UserPropertyMapper {
             .and_then(|v| v.as_str())
             .unwrap_or_default();
 
-        let claim_name = config
-            .get("claim.name")
-            .and_then(|v| v.as_str())
-            .unwrap_or(user_attribute);
+        let claim_name = resolve_claim_name(config, user_attribute);
 
         if claim_name.is_empty() {
             return Ok(MapperOutput::default());

@@ -187,6 +187,7 @@ type ApplicationAuthService = AuthServiceImpl<
     OrganizationAttributeRepo,
     MaintenanceWhitelistRepo,
     RealmMaintenanceWhitelistRepo,
+    UserAttributeRepo,
 >;
 
 #[derive(Clone, Debug)]

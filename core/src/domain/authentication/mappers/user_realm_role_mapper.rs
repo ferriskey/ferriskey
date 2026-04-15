@@ -3,7 +3,8 @@ use serde_json::Value;
 use crate::domain::common::entities::app_errors::CoreError;
 
 use super::super::mapper_engine::{
-    MapperContext, MapperOutput, TokenType, set_claim_at_path, should_apply_to_token,
+    MapperContext, MapperOutput, TokenType, resolve_claim_name, set_claim_at_path,
+    should_apply_to_token,
 };
 
 /// Maps user realm roles to token claims.
@@ -31,10 +32,7 @@ impl UserRealmRoleMapper {
             return Ok(MapperOutput::default());
         }
 
-        let claim_name = config
-            .get("claim.name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("realm_access.roles");
+        let claim_name = resolve_claim_name(config, "realm_access.roles");
 
         if claim_name.is_empty() {
             return Ok(MapperOutput::default());

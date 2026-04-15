@@ -238,6 +238,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             organization_attribute.clone(),
             maintenance_whitelist.clone(),
             realm_maintenance_whitelist.clone(),
+            user_attribute.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
