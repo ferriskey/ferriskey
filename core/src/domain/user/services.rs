@@ -629,6 +629,10 @@ where
         identity: Identity,
         input: SetUserAttributesInput,
     ) -> Result<Vec<UserAttribute>, CoreError> {
+        if input.attributes.keys().any(|key| key.trim().is_empty()) {
+            return Err(CoreError::Invalid);
+        }
+
         let realm = self
             .realm_repository
             .get_by_name(input.realm_name)
@@ -642,7 +646,7 @@ where
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
-        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
+        if Into::<Uuid>::into(user.realm_id) != Into::<Uuid>::into(realm.id) {
             return Err(CoreError::NotFound);
         }
 
