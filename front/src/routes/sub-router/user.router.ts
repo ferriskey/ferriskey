@@ -6,9 +6,10 @@ export const USER_URL = (realmName = ':realmName', userId = ':userId') =>
 
 export const USER_OVERVIEW_URL = '/overview'
 export const USER_CREATE_URL = '/create'
+export const USER_ATTRIBUTES_URL = '/attributes'
 
 export type UserRouterParams = {
   realm_name: string
   user_id: string
-  current_view: 'overview' | 'credentials' | 'role-mapping' | 'organizations'
+  current_view: 'overview' | 'credentials' | 'role-mapping' | 'organizations' | 'attributes'
 }

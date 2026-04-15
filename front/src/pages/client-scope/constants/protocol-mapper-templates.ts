@@ -93,7 +93,7 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
         defaultValue: 'email',
       },
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'email',
@@ -119,7 +119,7 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
         defaultValue: 'username',
       },
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'preferred_username',
@@ -147,7 +147,7 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
     defaultName: 'realm roles',
     fields: [
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'roles',
@@ -298,12 +298,12 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         description: 'The name of the user attribute to map.',
       },
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'my-claim',
         defaultValue: '',
-        description: 'Name of the claim as it will appear in the token.',
+        description: 'Name of the claim as it will appear in the token. Use dot notation (e.g. custom.team) for nested claims.',
       },
       CLAIM_JSON_TYPE_FIELD,
       {
@@ -340,7 +340,7 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         description: 'Built-in property name on the user object.',
       },
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'my-claim',
@@ -367,7 +367,7 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         description: 'Leave empty to include roles from all clients.',
       },
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'resource_access.${client_id}.roles',
@@ -393,7 +393,7 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
     defaultName: '',
     fields: [
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'roles',
@@ -482,7 +482,7 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
     defaultName: '',
     fields: [
       {
-        key: 'token.claim.name',
+        key: 'claim.name',
         label: 'Token claim name',
         type: 'text',
         placeholder: 'my-claim',

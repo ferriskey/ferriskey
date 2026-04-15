@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { BaseQuery } from '.'
 
 export interface UserMutateContract<T> {
@@ -153,6 +154,58 @@ export const useAssignUserRole = () => {
       await queryClient.invalidateQueries({
         queryKey: keys,
       })
+    },
+  })
+}
+
+// ─── User Attributes ──────────────────────────────────────────────────────────
+
+export const useGetUserAttributes = ({
+  realm,
+  userId,
+}: BaseQuery & { userId?: string }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/attributes', {
+      path: { realm_name: realm!, user_id: userId! },
+    }).queryOptions,
+    select: (response) => response.data,
+    enabled: !!realm && !!userId,
+  })
+}
+
+export const useSetUserAttributes = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/{user_id}/attributes')
+      .mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/attributes', {
+        path: {
+          realm_name: variables.path.realm_name,
+          user_id: variables.path.user_id,
+        },
+      }).queryKey
+      await queryClient.invalidateQueries({ queryKey: keys })
+    },
+  })
+}
+
+export const useDeleteUserAttribute = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/users/{user_id}/attributes/{key}'
+    ).mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/attributes', {
+        path: {
+          realm_name: variables.path.realm_name,
+          user_id: variables.path.user_id,
+        },
+      }).queryKey
+      toast.success('Attribute deleted')
+      await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
 }

@@ -7,6 +7,7 @@ import PageCredentialFeature from './feature/page-credential-feature'
 import PageUserRoleMappingFeature from './feature/page-user-role-mapping-feature.tsx'
 import PageCreateUserFeature from './feature/page-create-user-feature'
 import PageUserOrganizationsFeature from './feature/page-user-organizations-feature'
+import PageUserAttributesFeature from './feature/page-user-attributes-feature'
 
 export default function PageUser() {
   return (
@@ -21,6 +22,7 @@ export default function PageUser() {
         <Route path='/:user_id/credentials' element={<PageCredentialFeature />} />
         <Route path='/:user_id/role-mapping' element={<PageUserRoleMappingFeature />} />
         <Route path='/:user_id/organizations' element={<PageUserOrganizationsFeature />} />
+        <Route path='/:user_id/attributes' element={<PageUserAttributesFeature />} />
       </Route>
     </Routes>
   )
