@@ -51,8 +51,8 @@ use crate::domain::{
     },
     realm::{entities::RealmId, ports::RealmRepository},
     user::{
-        entities::RequiredAction,
-        ports::{UserRepository, UserRoleRepository},
+        entities::{RequiredAction, UserAttribute},
+        ports::{UserAttributeRepository, UserRepository, UserRoleRepository},
         value_objects::CreateUserRequest,
     },
 };
@@ -83,6 +83,7 @@ pub struct AuthServiceImpl<
     OAR,
     MW,
     RMW,
+    UAR,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -104,6 +105,7 @@ pub struct AuthServiceImpl<
     OAR: OrganizationAttributeRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
+    UAR: UserAttributeRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -125,13 +127,36 @@ pub struct AuthServiceImpl<
     pub(crate) organization_attribute_repository: Arc<OAR>,
     pub(crate) maintenance_whitelist_repository: Arc<MW>,
     pub(crate) realm_maintenance_whitelist_repository: Arc<RMW>,
+    pub(crate) user_attribute_repository: Arc<UAR>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+    AuthServiceImpl<
+        R,
+        C,
+        RU,
+        PLRU,
+        U,
+        UR,
+        CR,
+        H,
+        AS,
+        KS,
+        RT,
+        AT,
+        F,
+        CSM,
+        PM,
+        OM,
+        OR,
+        OAR,
+        MW,
+        RMW,
+        UAR,
+    >
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -153,6 +178,7 @@ where
     OAR: OrganizationAttributeRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
+    UAR: UserAttributeRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -176,6 +202,7 @@ where
         organization_attribute_repository: Arc<OAR>,
         maintenance_whitelist_repository: Arc<MW>,
         realm_maintenance_whitelist_repository: Arc<RMW>,
+        user_attribute_repository: Arc<UAR>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -200,6 +227,7 @@ where
             organization_attribute_repository,
             maintenance_whitelist_repository,
             realm_maintenance_whitelist_repository,
+            user_attribute_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -207,8 +235,30 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
-    AuthServiceImpl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+    AuthServiceImpl<
+        R,
+        C,
+        RU,
+        PLRU,
+        U,
+        UR,
+        CR,
+        H,
+        AS,
+        KS,
+        RT,
+        AT,
+        F,
+        CSM,
+        PM,
+        OM,
+        OR,
+        OAR,
+        MW,
+        RMW,
+        UAR,
+    >
 where
     R: RealmRepository,
     C: ClientRepository,
@@ -230,6 +280,7 @@ where
     OAR: OrganizationAttributeRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
+    UAR: UserAttributeRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -393,6 +444,18 @@ where
             }
         }
 
+        // Load custom user attributes for protocol mappers
+        let raw_user_attributes = self
+            .user_attribute_repository
+            .list_by_user_id(input.user_id)
+            .await
+            .unwrap_or_default();
+
+        let user_attributes: HashMap<String, serde_json::Value> = raw_user_attributes
+            .into_iter()
+            .map(|a: UserAttribute| (a.key, serde_json::Value::String(a.value)))
+            .collect();
+
         // Build mapper context
         let context = MapperContext {
             user_id: input.user_id,
@@ -407,7 +470,7 @@ where
             client_uuid: input.client_uuid,
             realm_name: input.realm_name.clone(),
             realm_id: input.realm_id,
-            user_attributes: HashMap::new(),
+            user_attributes,
             organizations,
         };
 
@@ -1650,7 +1713,8 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW> AuthService
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+    AuthService
     for AuthServiceImpl<
         R,
         C,
@@ -1672,6 +1736,7 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, 
         OAR,
         MW,
         RMW,
+        UAR,
     >
 where
     R: RealmRepository,
@@ -1694,6 +1759,7 @@ where
     OAR: OrganizationAttributeRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
+    UAR: UserAttributeRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
