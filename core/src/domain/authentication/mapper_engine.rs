@@ -195,6 +195,16 @@ const RESERVED_CLAIMS: &[&str] = &[
     "client_id",
 ];
 
+/// Resolve the claim name from config, checking `claim.name` first then `token.claim.name`
+/// as a legacy fallback (some frontends stored mappers under `token.claim.name`).
+pub fn resolve_claim_name<'a>(config: &'a Value, fallback: &'a str) -> &'a str {
+    config
+        .get("claim.name")
+        .or_else(|| config.get("token.claim.name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(fallback)
+}
+
 /// Check if a mapper should apply to the given token type based on its config.
 pub fn should_apply_to_token(config: &Value, token_type: TokenType) -> bool {
     let key = match token_type {
