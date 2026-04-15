@@ -1,26 +1,29 @@
 export namespace Schemas {
   // <Schemas>
-  export type ActorType = "user" | "service_account" | "admin" | "system";
+  export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
   export type MaintenanceWhitelistEntry = {
-    client_id: string;
-    created_at: string;
-    id: string;
-    role_id?: (string | null) | undefined;
-    user_id?: (string | null) | undefined;
-  };
-  export type AddClientWhitelistEntryResponse = { data: MaintenanceWhitelistEntry };
-  export type AddMemberValidator = { user_id: string };
-  export type RealmId = string;
+    client_id: string
+    created_at: string
+    id: string
+    role_id?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+  }
+  export type AddClientWhitelistEntryResponse = { data: MaintenanceWhitelistEntry }
+  export type AddMemberValidator = { user_id: string }
+  export type RealmId = string
   export type RealmMaintenanceWhitelistEntry = {
-    created_at: string;
-    id: string;
-    realm_id: RealmId;
-    role_id?: (string | null) | undefined;
-    user_id?: (string | null) | undefined;
-  };
-  export type AddRealmWhitelistEntryResponse = { data: RealmMaintenanceWhitelistEntry };
-  export type AddWhitelistEntryValidator = Partial<{ role_id: string | null; user_id: string | null }>;
-  export type ValidationError = { field: string; message: string };
+    created_at: string
+    id: string
+    realm_id: RealmId
+    role_id?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+  }
+  export type AddRealmWhitelistEntryResponse = { data: RealmMaintenanceWhitelistEntry }
+  export type AddWhitelistEntryValidator = Partial<{
+    role_id: string | null
+    user_id: string | null
+  }>
+  export type ValidationError = { field: string; message: string }
   export type ApiError =
     | { InternalServerError: string }
     | { UnProcessableEntity: Array<ValidationError> }
@@ -29,762 +32,812 @@ export namespace Schemas {
     | { Forbidden: string }
     | { BadRequest: string }
     | { ServiceUnavailable: string }
-    | { OAuthError: { error: string; error_description: string } };
-  export type ApiErrorResponse = { code: string; message: string; status: number };
-  export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
-  export type AuthResponse = { url: string };
-  export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
-  export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
+    | { OAuthError: { error: string; error_description: string } }
+  export type ApiErrorResponse = { code: string; message: string; status: number }
+  export type AssignRoleResponse = { message: string; realm_name: string; user_id: string }
+  export type AuthResponse = { url: string }
+  export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>
+  export type AuthenticationStatus =
+    | 'Success'
+    | 'RequiresActions'
+    | 'RequiresOtpChallenge'
+    | 'Failed'
   export type AuthenticateResponse = {
-    message?: (string | null) | undefined;
-    required_actions?: (Array<RequiredAction> | null) | undefined;
-    status: AuthenticationStatus;
-    token?: (string | null) | undefined;
-    url?: (string | null) | undefined;
-  };
-  export type AuthenticationAttemptResponse = { login_url: string };
-  export type BulkDeleteUserResponse = { count: number; realm_name: string };
-  export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>;
-  export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string };
-  export type BurnRecoveryCodeResponse = { login_url: string };
-  export type ChallengeOtpRequest = Partial<{ code: string }>;
-  export type ChallengeOtpResponse = { url: string };
-  export type ClientType = "confidential" | "public" | "system";
-  export type MaintenanceSessionStrategy = "terminate" | "expire";
+    message?: (string | null) | undefined
+    required_actions?: (Array<RequiredAction> | null) | undefined
+    status: AuthenticationStatus
+    token?: (string | null) | undefined
+    url?: (string | null) | undefined
+  }
+  export type AuthenticationAttemptResponse = { login_url: string }
+  export type BulkDeleteUserResponse = { count: number; realm_name: string }
+  export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>
+  export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
+  export type BurnRecoveryCodeResponse = { login_url: string }
+  export type ChallengeOtpRequest = Partial<{ code: string }>
+  export type ChallengeOtpResponse = { url: string }
+  export type ClientType = 'confidential' | 'public' | 'system'
+  export type MaintenanceSessionStrategy = 'terminate' | 'expire'
   export type Client = {
-    access_token_lifetime?: (number | null) | undefined;
-    client_id: string;
-    client_type: ClientType;
-    created_at: string;
-    direct_access_grants_enabled: boolean;
-    enabled: boolean;
-    id: string;
-    id_token_lifetime?: (number | null) | undefined;
-    maintenance_enabled: boolean;
-    maintenance_reason?: (string | null) | undefined;
-    maintenance_session_strategy: MaintenanceSessionStrategy;
-    name: string;
-    protocol: string;
-    public_client: boolean;
-    realm_id: RealmId;
-    redirect_uris?: (Array<RedirectUri> | null) | undefined;
-    refresh_token_lifetime?: (number | null) | undefined;
-    secret?: (string | null) | undefined;
-    service_account_enabled: boolean;
-    temporary_token_lifetime?: (number | null) | undefined;
-    updated_at: string;
-  };
-  export type ScopeType = "NONE" | "OPTIONAL" | "DEFAULT";
+    access_token_lifetime?: (number | null) | undefined
+    client_id: string
+    client_type: ClientType
+    created_at: string
+    direct_access_grants_enabled: boolean
+    enabled: boolean
+    id: string
+    id_token_lifetime?: (number | null) | undefined
+    maintenance_enabled: boolean
+    maintenance_reason?: (string | null) | undefined
+    maintenance_session_strategy: MaintenanceSessionStrategy
+    name: string
+    protocol: string
+    public_client: boolean
+    realm_id: RealmId
+    redirect_uris?: (Array<RedirectUri> | null) | undefined
+    refresh_token_lifetime?: (number | null) | undefined
+    secret?: (string | null) | undefined
+    service_account_enabled: boolean
+    temporary_token_lifetime?: (number | null) | undefined
+    updated_at: string
+  }
+  export type ScopeType = 'NONE' | 'OPTIONAL' | 'DEFAULT'
   export type ClientScope = {
-    attributes?: (Array<ClientScopeAttribute> | null) | undefined;
-    created_at: string;
-    default_scope_type: ScopeType;
-    description?: (string | null) | undefined;
-    id: string;
-    name: string;
-    protocol: string;
-    protocol_mappers?: (Array<ProtocolMapper> | null) | undefined;
-    realm_id: RealmId;
-    updated_at: string;
-  };
+    attributes?: (Array<ClientScopeAttribute> | null) | undefined
+    created_at: string
+    default_scope_type: ScopeType
+    description?: (string | null) | undefined
+    id: string
+    name: string
+    protocol: string
+    protocol_mappers?: (Array<ProtocolMapper> | null) | undefined
+    realm_id: RealmId
+    updated_at: string
+  }
   export type ClientScopeAttribute = {
-    id: string;
-    name: string;
-    scope_id: string;
-    value?: (string | null) | undefined;
-  };
-  export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
-  export type ClientScopesResponse = { data: Array<ClientScope> };
-  export type ClientsResponse = { data: Array<Client> };
-  export type FlowId = string;
-  export type FlowStatus = "pending" | "success" | "failure" | "expired";
-  export type FlowStepId = string;
-  export type StepStatus = "success" | "failure" | "skipped";
+    id: string
+    name: string
+    scope_id: string
+    value?: (string | null) | undefined
+  }
+  export type ClientScopeMapping = {
+    client_id: string
+    default_scope_type: ScopeType
+    scope_id: string
+  }
+  export type ClientScopesResponse = { data: Array<ClientScope> }
+  export type ClientsResponse = { data: Array<Client> }
+  export type FlowId = string
+  export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
+  export type FlowStepId = string
+  export type StepStatus = 'success' | 'failure' | 'skipped'
   export type FlowStepName =
-    | "authorize"
-    | "credential_validation"
-    | "mfa_challenge"
-    | "token_exchange"
-    | "idp_redirect"
-    | "idp_callback"
-    | "finalize";
+    | 'authorize'
+    | 'credential_validation'
+    | 'mfa_challenge'
+    | 'token_exchange'
+    | 'idp_redirect'
+    | 'idp_callback'
+    | 'finalize'
   export type CompassFlowStep = {
-    duration_ms?: (number | null) | undefined;
-    error_code?: (string | null) | undefined;
-    error_message?: (string | null) | undefined;
-    flow_id: FlowId;
-    id: FlowStepId;
-    started_at: string;
-    status: StepStatus;
-    step_name: FlowStepName;
-  };
+    duration_ms?: (number | null) | undefined
+    error_code?: (string | null) | undefined
+    error_message?: (string | null) | undefined
+    flow_id: FlowId
+    id: FlowStepId
+    started_at: string
+    status: StepStatus
+    step_name: FlowStepName
+  }
   export type CompassFlow = {
-    client_id?: (string | null) | undefined;
-    completed_at?: (string | null) | undefined;
-    duration_ms?: (number | null) | undefined;
-    grant_type: string;
-    id: FlowId;
-    ip_address?: (string | null) | undefined;
-    realm_id: RealmId;
-    started_at: string;
-    status: FlowStatus;
-    steps: Array<CompassFlowStep>;
-    user_agent?: (string | null) | undefined;
-    user_id?: (string | null) | undefined;
-  };
+    client_id?: (string | null) | undefined
+    completed_at?: (string | null) | undefined
+    duration_ms?: (number | null) | undefined
+    grant_type: string
+    id: FlowId
+    ip_address?: (string | null) | undefined
+    realm_id: RealmId
+    started_at: string
+    status: FlowStatus
+    steps: Array<CompassFlowStep>
+    user_agent?: (string | null) | undefined
+    user_id?: (string | null) | undefined
+  }
   export type CreateClientScopeValidator = Partial<{
-    description: string | null;
-    is_default: boolean;
-    name: string;
-    protocol: string;
-  }>;
+    description: string | null
+    is_default: boolean
+    name: string
+    protocol: string
+  }>
   export type CreateClientValidator = {
-    client_id?: string | undefined;
-    client_type: ClientType;
-    direct_access_grants_enabled?: boolean | undefined;
-    enabled?: boolean | undefined;
-    name?: string | undefined;
-    protocol?: string | undefined;
-    public_client?: boolean | undefined;
-    service_account_enabled?: boolean | undefined;
-  };
-  export type EmailType = "reset_password" | "magic_link" | "email_verification";
+    client_id?: string | undefined
+    client_type: ClientType
+    direct_access_grants_enabled?: boolean | undefined
+    enabled?: boolean | undefined
+    name?: string | undefined
+    protocol?: string | undefined
+    public_client?: boolean | undefined
+    service_account_enabled?: boolean | undefined
+  }
+  export type EmailType = 'reset_password' | 'magic_link' | 'email_verification'
   export type EmailTemplate = {
-    created_at: string;
-    email_type: EmailType;
-    id: string;
-    mjml: string;
-    name: string;
-    realm_id: string;
-    structure: unknown;
-    updated_at: string;
-  };
-  export type CreateEmailTemplateResponse = { data: EmailTemplate };
-  export type CreateEmailTemplateValidator = { email_type: string; name: string; structure: unknown };
+    created_at: string
+    email_type: EmailType
+    id: string
+    mjml: string
+    name: string
+    realm_id: string
+    structure: unknown
+    updated_at: string
+  }
+  export type CreateEmailTemplateResponse = { data: EmailTemplate }
+  export type CreateEmailTemplateValidator = {
+    email_type: string
+    name: string
+    structure: unknown
+  }
   export type CreateIdentityProviderValidator = Partial<{
-    add_read_token_role_on_create: boolean;
-    alias: string;
-    config: unknown;
-    display_name: string | null;
-    enabled: boolean;
-    first_broker_login_flow_alias: string | null;
-    link_only: boolean;
-    post_broker_login_flow_alias: string | null;
-    provider_id: string;
-    store_token: boolean;
-    trust_email: boolean;
-  }>;
+    add_read_token_role_on_create: boolean
+    alias: string
+    config: unknown
+    display_name: string | null
+    enabled: boolean
+    first_broker_login_flow_alias: string | null
+    link_only: boolean
+    post_broker_login_flow_alias: string | null
+    provider_id: string
+    store_token: boolean
+    trust_email: boolean
+  }>
   export type CreateOrganizationValidator = {
-    alias: string;
-    description?: (string | null) | undefined;
-    domain?: (string | null) | undefined;
-    enabled?: boolean | undefined;
-    name: string;
-    redirect_url?: (string | null) | undefined;
-  };
-  export type CreateProtocolMapperValidator = Partial<{ config: unknown; mapper_type: string; name: string }>;
+    alias: string
+    description?: (string | null) | undefined
+    domain?: (string | null) | undefined
+    enabled?: boolean | undefined
+    name: string
+    redirect_url?: (string | null) | undefined
+  }
+  export type CreateProtocolMapperValidator = Partial<{
+    config: unknown
+    mapper_type: string
+    name: string
+  }>
   export type CreateProviderRequest = {
-    config: unknown;
-    enabled: boolean;
-    name: string;
-    priority: number;
-    provider_type: string;
-    sync_enabled: boolean;
-    sync_interval_minutes?: (number | null) | undefined;
-    sync_mode: string;
-  };
-  export type CreateRealmValidator = Partial<{ name: string }>;
-  export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>;
+    config: unknown
+    enabled: boolean
+    name: string
+    priority: number
+    provider_type: string
+    sync_enabled: boolean
+    sync_interval_minutes?: (number | null) | undefined
+    sync_mode: string
+  }
+  export type CreateRealmValidator = Partial<{ name: string }>
+  export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
   export type Role = {
-    client?: (null | Client) | undefined;
-    client_id?: (string | null) | undefined;
-    created_at: string;
-    description?: (string | null) | undefined;
-    id: string;
-    name: string;
-    permissions: Array<string>;
-    realm_id: RealmId;
-    updated_at: string;
-  };
-  export type CreateRoleResponse = { data: Role };
+    client?: (null | Client) | undefined
+    client_id?: (string | null) | undefined
+    created_at: string
+    description?: (string | null) | undefined
+    id: string
+    name: string
+    permissions: Array<string>
+    realm_id: RealmId
+    updated_at: string
+  }
+  export type CreateRoleResponse = { data: Role }
   export type CreateRoleValidator = {
-    description?: (string | null) | undefined;
-    name: string;
-    permissions: Array<string>;
-  };
+    description?: (string | null) | undefined
+    name: string
+    permissions: Array<string>
+  }
   export type RealmSetting = {
-    access_token_lifetime: number;
-    compass_enabled: boolean;
-    default_signing_algorithm?: (string | null) | undefined;
-    email_verification_template_id?: (string | null) | undefined;
-    forgot_password_enabled: boolean;
-    id: string;
-    id_token_lifetime: number;
-    magic_link_enabled: boolean;
-    magic_link_template_id?: (string | null) | undefined;
-    magic_link_ttl: number;
-    passkey_enabled: boolean;
-    realm_id: RealmId;
-    refresh_token_lifetime: number;
-    remember_me_enabled: boolean;
-    reset_password_template_id?: (string | null) | undefined;
-    temporary_token_lifetime: number;
-    updated_at: string;
-    user_registration_enabled: boolean;
-  };
+    access_token_lifetime: number
+    compass_enabled: boolean
+    default_signing_algorithm?: (string | null) | undefined
+    email_verification_template_id?: (string | null) | undefined
+    forgot_password_enabled: boolean
+    id: string
+    id_token_lifetime: number
+    magic_link_enabled: boolean
+    magic_link_template_id?: (string | null) | undefined
+    magic_link_ttl: number
+    passkey_enabled: boolean
+    realm_id: RealmId
+    refresh_token_lifetime: number
+    remember_me_enabled: boolean
+    reset_password_template_id?: (string | null) | undefined
+    temporary_token_lifetime: number
+    updated_at: string
+    user_registration_enabled: boolean
+  }
   export type Realm = {
-    created_at: string;
-    id: RealmId;
-    name: string;
-    settings?: (null | RealmSetting) | undefined;
-    updated_at: string;
-  };
-  export type RequiredAction = "configure_otp" | "verify_email" | "update_password" | "configure_passkey";
+    created_at: string
+    id: RealmId
+    name: string
+    settings?: (null | RealmSetting) | undefined
+    updated_at: string
+  }
+  export type RequiredAction =
+    | 'configure_otp'
+    | 'verify_email'
+    | 'update_password'
+    | 'configure_passkey'
   export type User = {
-    client_id?: (string | null) | undefined;
-    created_at: string;
-    email: string;
-    email_verified: boolean;
-    enabled: boolean;
-    firstname: string;
-    id: string;
-    lastname: string;
-    realm?: (null | Realm) | undefined;
-    realm_id: RealmId;
-    required_actions: Array<RequiredAction>;
-    roles?: (Array<Role> | null) | undefined;
-    updated_at: string;
-    username: string;
-  };
-  export type CreateUserResponse = { data: User };
+    client_id?: (string | null) | undefined
+    created_at: string
+    email: string
+    email_verified: boolean
+    enabled: boolean
+    firstname: string
+    id: string
+    lastname: string
+    realm?: (null | Realm) | undefined
+    realm_id: RealmId
+    required_actions: Array<RequiredAction>
+    roles?: (Array<Role> | null) | undefined
+    updated_at: string
+    username: string
+  }
+  export type CreateUserResponse = { data: User }
   export type CreateUserValidator = Partial<{
-    email: string;
-    email_verified: boolean | null;
-    firstname: string;
-    lastname: string;
-    username: string;
-  }>;
+    email: string
+    email_verified: boolean | null
+    firstname: string
+    lastname: string
+    username: string
+  }>
   export type WebhookTrigger =
-    | "user.created"
-    | "user.updated"
-    | "user.deleted"
-    | "user.role.assigned"
-    | "user.role.unassigned"
-    | "user.bulk_deleted"
-    | "user.credentials.deleted"
-    | "auth.reset_password"
-    | "client.created"
-    | "client.updated"
-    | "client.deleted"
-    | "client.role.created"
-    | "client.role.updated"
-    | "redirect_uri.created"
-    | "redirect_uri.updated"
-    | "redirect_uri.deleted"
-    | "role.created"
-    | "role.updated"
-    | "role.deleted"
-    | "role.permission.updated"
-    | "realm.created"
-    | "realm.updated"
-    | "realm.deleted"
-    | "realm.settings.updated"
-    | "webhook.created"
-    | "webhook.updated"
-    | "webhook.deleted"
-    | "client.maintenance.enabled"
-    | "client.maintenance.disabled";
-  export type WebhookSubscriber = { id: string; name: WebhookTrigger; webhook_id: string };
+    | 'user.created'
+    | 'user.updated'
+    | 'user.deleted'
+    | 'user.role.assigned'
+    | 'user.role.unassigned'
+    | 'user.bulk_deleted'
+    | 'user.credentials.deleted'
+    | 'auth.reset_password'
+    | 'client.created'
+    | 'client.updated'
+    | 'client.deleted'
+    | 'client.role.created'
+    | 'client.role.updated'
+    | 'redirect_uri.created'
+    | 'redirect_uri.updated'
+    | 'redirect_uri.deleted'
+    | 'role.created'
+    | 'role.updated'
+    | 'role.deleted'
+    | 'role.permission.updated'
+    | 'realm.created'
+    | 'realm.updated'
+    | 'realm.deleted'
+    | 'realm.settings.updated'
+    | 'webhook.created'
+    | 'webhook.updated'
+    | 'webhook.deleted'
+    | 'client.maintenance.enabled'
+    | 'client.maintenance.disabled'
+  export type WebhookSubscriber = { id: string; name: WebhookTrigger; webhook_id: string }
   export type Webhook = {
-    created_at: string;
-    description?: (string | null) | undefined;
-    endpoint: string;
-    headers: Record<string, string>;
-    id: string;
-    name?: (string | null) | undefined;
-    subscribers: Array<WebhookSubscriber>;
-    triggered_at?: (string | null) | undefined;
-    updated_at: string;
-  };
-  export type CreateWebhookResponse = { data: Webhook };
+    created_at: string
+    description?: (string | null) | undefined
+    endpoint: string
+    headers: Record<string, string>
+    id: string
+    name?: (string | null) | undefined
+    subscribers: Array<WebhookSubscriber>
+    triggered_at?: (string | null) | undefined
+    updated_at: string
+  }
+  export type CreateWebhookResponse = { data: Webhook }
   export type CreateWebhookValidator = Partial<{
-    description: string | null;
-    endpoint: string;
-    headers: Record<string, string>;
-    name: string | null;
-    subscribers: Array<WebhookTrigger>;
-  }>;
+    description: string | null
+    endpoint: string
+    headers: Record<string, string>
+    name: string | null
+    subscribers: Array<WebhookTrigger>
+  }>
   export type CredentialDataOverview =
     | { Hash: { algorithm: string; hash_iterations: number } }
-    | "WebAuthn"
-    | { Federated: { provider_id: string; provider_type: string } };
+    | 'WebAuthn'
+    | { Federated: { provider_id: string; provider_type: string } }
   export type CredentialOverview = {
-    created_at: string;
-    credential_data: CredentialDataOverview;
-    credential_type: string;
-    id: string;
-    updated_at: string;
-    user_id: string;
-    user_label?: (string | null) | undefined;
-  };
-  export type DeleteClientResponse = { message: string; realm_name: string };
-  export type DeleteClientScopeResponse = { message: string };
-  export type DeleteEmailTemplateResponse = { message: string };
-  export type DeleteIdentityProviderResponse = { count: number };
-  export type DeleteProtocolMapperResponse = { message: string };
-  export type DeleteProviderResponse = { message: string };
-  export type DeleteRealmResponse = string;
-  export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string };
-  export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
-  export type DeleteUserResponse = { count: number };
-  export type DeleteWebhookResponse = { message: string; realm_name: string };
-  export type EventStatus = "success" | "failure";
+    created_at: string
+    credential_data: CredentialDataOverview
+    credential_type: string
+    id: string
+    updated_at: string
+    user_id: string
+    user_label?: (string | null) | undefined
+  }
+  export type DeleteClientResponse = { message: string; realm_name: string }
+  export type DeleteClientScopeResponse = { message: string }
+  export type DeleteEmailTemplateResponse = { message: string }
+  export type DeleteIdentityProviderResponse = { count: number }
+  export type DeleteProtocolMapperResponse = { message: string }
+  export type DeleteProviderResponse = { message: string }
+  export type DeleteRealmResponse = string
+  export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
+  export type DeleteUserAttributeResponse = Record<string, unknown>
+  export type DeleteUserCredentialResponse = {
+    message: string
+    realm_name: string
+    user_id: string
+  }
+  export type DeleteUserResponse = { count: number }
+  export type DeleteWebhookResponse = { message: string; realm_name: string }
+  export type EventStatus = 'success' | 'failure'
   export type FlowStats = {
-    avg_duration_ms?: (number | null) | undefined;
-    failure_count: number;
-    pending_count: number;
-    success_count: number;
-    total: number;
-  };
-  export type ForgotPasswordRequest = { email: string };
-  export type ForgotPasswordResponse = unknown;
-  export type GenerateRecoveryCodesRequest = { amount: number; code_format: string };
-  export type GenerateRecoveryCodesResponse = { codes: Array<string> };
-  export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string };
-  export type GetCertsResponse = { keys: Array<JwkKey> };
-  export type GetClientResponse = { data: Client };
-  export type GetClientRolesResponse = { data: Array<Role> };
-  export type GetClientWhitelistResponse = { data: Array<MaintenanceWhitelistEntry> };
-  export type GetEmailTemplateResponse = { data: EmailTemplate };
-  export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> };
-  export type GetFlowResponse = { data: CompassFlow };
-  export type GetFlowsResponse = { data: Array<CompassFlow> };
+    avg_duration_ms?: (number | null) | undefined
+    failure_count: number
+    pending_count: number
+    success_count: number
+    total: number
+  }
+  export type ForgotPasswordRequest = { email: string }
+  export type ForgotPasswordResponse = unknown
+  export type GenerateRecoveryCodesRequest = { amount: number; code_format: string }
+  export type GenerateRecoveryCodesResponse = { codes: Array<string> }
+  export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string }
+  export type GetCertsResponse = { keys: Array<JwkKey> }
+  export type GetClientResponse = { data: Client }
+  export type GetClientRolesResponse = { data: Array<Role> }
+  export type GetClientWhitelistResponse = { data: Array<MaintenanceWhitelistEntry> }
+  export type GetEmailTemplateResponse = { data: EmailTemplate }
+  export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> }
+  export type GetFlowResponse = { data: CompassFlow }
+  export type GetFlowsResponse = { data: Array<CompassFlow> }
   export type GetOpenIdConfigurationResponse = {
-    authorization_endpoint: string;
-    end_session_endpoint: string;
-    grant_types_supported: Array<string>;
-    introspection_endpoint: string;
-    issuer: string;
-    jwks_uri: string;
-    revocation_endpoint: string;
-    token_endpoint: string;
-    userinfo_endpoint: string;
-  };
-  export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> };
-  export type GetRoleResponse = { data: Role };
-  export type GetRolesResponse = { data: Array<Role> };
+    authorization_endpoint: string
+    end_session_endpoint: string
+    grant_types_supported: Array<string>
+    introspection_endpoint: string
+    issuer: string
+    jwks_uri: string
+    revocation_endpoint: string
+    token_endpoint: string
+    userinfo_endpoint: string
+  }
+  export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> }
+  export type GetRoleResponse = { data: Role }
+  export type GetRolesResponse = { data: Array<Role> }
   export type SecurityEventType =
-    | "login_success"
-    | "login_failure"
-    | "password_reset"
-    | "password_reset_requested"
-    | "password_reset_completed"
-    | "user_created"
-    | "user_deleted"
-    | "role_assigned"
-    | "role_unassigned"
-    | "role_created"
-    | "role_removed"
-    | "client_created"
-    | "client_deleted"
-    | "client_secret_rotated"
-    | "realm_config_changed"
-    | "email_not_sent"
-    | "email_sent"
-    | "client_maintenance_enabled"
-    | "client_maintenance_disabled";
-  export type SecurityEventId = string;
+    | 'login_success'
+    | 'login_failure'
+    | 'password_reset'
+    | 'password_reset_requested'
+    | 'password_reset_completed'
+    | 'user_created'
+    | 'user_deleted'
+    | 'role_assigned'
+    | 'role_unassigned'
+    | 'role_created'
+    | 'role_removed'
+    | 'client_created'
+    | 'client_deleted'
+    | 'client_secret_rotated'
+    | 'realm_config_changed'
+    | 'email_not_sent'
+    | 'email_sent'
+    | 'client_maintenance_enabled'
+    | 'client_maintenance_disabled'
+  export type SecurityEventId = string
   export type SecurityEvent = {
-    actor_id?: (string | null) | undefined;
-    actor_type?: (null | ActorType) | undefined;
-    details?: unknown | undefined;
-    event_type: SecurityEventType;
-    id: SecurityEventId;
-    ip_address?: (string | null) | undefined;
-    realm_id: RealmId;
-    resource?: (string | null) | undefined;
-    status: EventStatus;
-    target_id?: (string | null) | undefined;
-    target_type?: (string | null) | undefined;
-    timestamp: string;
-    trace_id?: (string | null) | undefined;
-    user_agent?: (string | null) | undefined;
-  };
-  export type GetSecurityEventsResponse = { data: Array<SecurityEvent> };
-  export type GetStatsResponse = { data: FlowStats };
-  export type TemplateVariable = { description: string; name: string };
-  export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> };
-  export type GetUserCredentialsResponse = { data: Array<CredentialOverview> };
-  export type GetUserRolesResponse = { data: Array<Role> };
-  export type GetWebhooksResponse = { data: Array<Webhook> };
-  export type GrantType = "authorization_code" | "password" | "client_credentials" | "refresh_token";
+    actor_id?: (string | null) | undefined
+    actor_type?: (null | ActorType) | undefined
+    details?: unknown | undefined
+    event_type: SecurityEventType
+    id: SecurityEventId
+    ip_address?: (string | null) | undefined
+    realm_id: RealmId
+    resource?: (string | null) | undefined
+    status: EventStatus
+    target_id?: (string | null) | undefined
+    target_type?: (string | null) | undefined
+    timestamp: string
+    trace_id?: (string | null) | undefined
+    user_agent?: (string | null) | undefined
+  }
+  export type GetSecurityEventsResponse = { data: Array<SecurityEvent> }
+  export type GetStatsResponse = { data: FlowStats }
+  export type TemplateVariable = { description: string; name: string }
+  export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> }
+  export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
+  export type GetUserRolesResponse = { data: Array<Role> }
+  export type GetWebhooksResponse = { data: Array<Webhook> }
+  export type GrantType = 'authorization_code' | 'password' | 'client_credentials' | 'refresh_token'
   export type IdentityProviderPresentation = {
-    display_name: string;
-    icon: string;
-    id: string;
-    kind: string;
-    login_url: string;
-  };
+    display_name: string
+    icon: string
+    id: string
+    kind: string
+    login_url: string
+  }
   export type IdentityProviderResponse = {
-    add_read_token_role_on_create: boolean;
-    alias: string;
-    config: unknown;
-    display_name?: (string | null) | undefined;
-    enabled: boolean;
-    first_broker_login_flow_alias?: (string | null) | undefined;
-    internal_id: string;
-    link_only: boolean;
-    post_broker_login_flow_alias?: (string | null) | undefined;
-    provider_id: string;
-    store_token: boolean;
-    trust_email: boolean;
-  };
-  export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> };
+    add_read_token_role_on_create: boolean
+    alias: string
+    config: unknown
+    display_name?: (string | null) | undefined
+    enabled: boolean
+    first_broker_login_flow_alias?: (string | null) | undefined
+    internal_id: string
+    link_only: boolean
+    post_broker_login_flow_alias?: (string | null) | undefined
+    provider_id: string
+    store_token: boolean
+    trust_email: boolean
+  }
+  export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> }
   export type IntrospectRequestValidator = Partial<{
-    client_id: string | null;
-    client_secret: string | null;
-    token: string;
-    token_type_hint: string | null;
-  }>;
+    client_id: string | null
+    client_secret: string | null
+    token: string
+    token_type_hint: string | null
+  }>
   export type JwtToken = {
-    access_token: string;
-    expires_in: number;
-    id_token?: (string | null) | undefined;
-    refresh_expires_in: number;
-    refresh_token: string;
-    session_state?: (string | null) | undefined;
-    token_type: string;
-  };
-  export type OrganizationId = string;
+    access_token: string
+    expires_in: number
+    id_token?: (string | null) | undefined
+    refresh_expires_in: number
+    refresh_token: string
+    session_state?: (string | null) | undefined
+    token_type: string
+  }
+  export type OrganizationId = string
   export type OrganizationAttribute = {
-    created_at: string;
-    id: string;
-    key: string;
-    organization_id: OrganizationId;
-    value: string;
-  };
-  export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
+    created_at: string
+    id: string
+    key: string
+    organization_id: OrganizationId
+    value: string
+  }
+  export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> }
   export type Organization = {
-    alias: string;
-    created_at: string;
-    description?: (string | null) | undefined;
-    domain?: (string | null) | undefined;
-    enabled: boolean;
-    id: OrganizationId;
-    name: string;
-    realm_id: RealmId;
-    redirect_url?: (string | null) | undefined;
-    updated_at: string;
-  };
-  export type ListOrganizationsResponse = { data: Array<Organization> };
+    alias: string
+    created_at: string
+    description?: (string | null) | undefined
+    domain?: (string | null) | undefined
+    enabled: boolean
+    id: OrganizationId
+    name: string
+    realm_id: RealmId
+    redirect_url?: (string | null) | undefined
+    updated_at: string
+  }
+  export type ListOrganizationsResponse = { data: Array<Organization> }
   export type ProviderResponse = {
-    config: unknown;
-    created_at: string;
-    enabled: boolean;
-    id: string;
-    last_sync_at?: (string | null) | undefined;
-    last_sync_status?: (string | null) | undefined;
-    name: string;
-    priority: number;
-    provider_type: string;
-    realm_id: string;
-    sync_enabled: boolean;
-    sync_interval_minutes?: (number | null) | undefined;
-    sync_mode: string;
-    updated_at: string;
-  };
-  export type ListProvidersResponse = { data: Array<ProviderResponse> };
+    config: unknown
+    created_at: string
+    enabled: boolean
+    id: string
+    last_sync_at?: (string | null) | undefined
+    last_sync_status?: (string | null) | undefined
+    name: string
+    priority: number
+    provider_type: string
+    realm_id: string
+    sync_enabled: boolean
+    sync_interval_minutes?: (number | null) | undefined
+    sync_mode: string
+    updated_at: string
+  }
+  export type ListProvidersResponse = { data: Array<ProviderResponse> }
   export type LogoutRequestValidator = Partial<{
-    client_id: string | null;
-    id_token_hint: string | null;
-    post_logout_redirect_uri: string | null;
-    state: string | null;
-  }>;
-  export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
-  export type OtpVerifyRequest = { code: string; label: string; secret: string };
-  export type PasskeyAuthenticateResponse = { login_url: string; status: string };
-  export type PasskeyPublicKeyCredential = Record<string, unknown>;
-  export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>;
-  export type PasskeyRequestOptionsRequest = Partial<{ username: string | null }>;
+    client_id: string | null
+    id_token_hint: string | null
+    post_logout_redirect_uri: string | null
+    state: string | null
+  }>
+  export type OrganizationMember = {
+    created_at: string
+    id: string
+    organization_id: OrganizationId
+    user_id: string
+  }
+  export type OtpVerifyRequest = { code: string; label: string; secret: string }
+  export type PasskeyAuthenticateResponse = { login_url: string; status: string }
+  export type PasskeyPublicKeyCredential = Record<string, unknown>
+  export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
+  export type PasskeyRequestOptionsRequest = Partial<{ username: string | null }>
   export type PasswordPolicy = {
-    created_at: string;
-    id: string;
-    max_age_days?: (number | null) | undefined;
-    min_length: number;
-    realm_id: string;
-    require_lowercase: boolean;
-    require_number: boolean;
-    require_special: boolean;
-    require_uppercase: boolean;
-    updated_at: string;
-  };
+    created_at: string
+    id: string
+    max_age_days?: (number | null) | undefined
+    min_length: number
+    realm_id: string
+    require_lowercase: boolean
+    require_number: boolean
+    require_special: boolean
+    require_uppercase: boolean
+    updated_at: string
+  }
   export type Permissions =
-    | "create_client"
-    | "manage_authorization"
-    | "manage_clients"
-    | "manage_events"
-    | "manage_identity_providers"
-    | "manage_realm"
-    | "manage_users"
-    | "manage_roles"
-    | "query_clients"
-    | "query_groups"
-    | "query_realms"
-    | "query_users"
-    | "view_authorization"
-    | "view_clients"
-    | "view_events"
-    | "view_identity_providers"
-    | "view_realm"
-    | "view_users"
-    | "view_roles"
-    | "manage_webhooks"
-    | "query_webhooks"
-    | "view_webhooks"
-    | "manage_client_scopes"
-    | "query_client_scopes"
-    | "view_client_scopes"
-    | "manage_email_templates"
-    | "view_email_templates";
+    | 'create_client'
+    | 'manage_authorization'
+    | 'manage_clients'
+    | 'manage_events'
+    | 'manage_identity_providers'
+    | 'manage_realm'
+    | 'manage_users'
+    | 'manage_roles'
+    | 'query_clients'
+    | 'query_groups'
+    | 'query_realms'
+    | 'query_users'
+    | 'view_authorization'
+    | 'view_clients'
+    | 'view_events'
+    | 'view_identity_providers'
+    | 'view_realm'
+    | 'view_users'
+    | 'view_roles'
+    | 'manage_webhooks'
+    | 'query_webhooks'
+    | 'view_webhooks'
+    | 'manage_client_scopes'
+    | 'query_client_scopes'
+    | 'view_client_scopes'
+    | 'manage_email_templates'
+    | 'view_email_templates'
   export type ProtocolMapper = {
-    client_scope_id: string;
-    config: unknown;
-    created_at: string;
-    id: string;
-    mapper_type: string;
-    name: string;
-  };
-  export type PublicKeyCredential = Record<string, unknown>;
-  export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>;
-  export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>;
+    client_scope_id: string
+    config: unknown
+    created_at: string
+    id: string
+    mapper_type: string
+    name: string
+  }
+  export type PublicKeyCredential = Record<string, unknown>
+  export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
+  export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
-    forgot_password_enabled: boolean;
-    identity_providers: Array<IdentityProviderPresentation>;
-    magic_link_enabled: boolean;
-    magic_link_ttl: number;
-    passkey_enabled: boolean;
-    remember_me_enabled: boolean;
-    user_registration_enabled: boolean;
-  };
+    forgot_password_enabled: boolean
+    identity_providers: Array<IdentityProviderPresentation>
+    magic_link_enabled: boolean
+    magic_link_ttl: number
+    passkey_enabled: boolean
+    remember_me_enabled: boolean
+    user_registration_enabled: boolean
+  }
   export type RedirectUri = {
-    client_id: string;
-    created_at: string;
-    enabled: boolean;
-    id: string;
-    updated_at: string;
-    value: string;
-  };
+    client_id: string
+    created_at: string
+    enabled: boolean
+    id: string
+    updated_at: string
+    value: string
+  }
   export type RegistrationRequest = Partial<{
-    email: string;
-    first_name: string | null;
-    last_name: string | null;
-    password: string;
-    username: string;
-  }>;
-  export type RemoveClientWhitelistEntryResponse = { message: string };
-  export type RemoveRealmWhitelistEntryResponse = { message: string };
-  export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
-  export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
-  export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
+    email: string
+    first_name: string | null
+    last_name: string | null
+    password: string
+    username: string
+  }>
+  export type RemoveClientWhitelistEntryResponse = { message: string }
+  export type RemoveRealmWhitelistEntryResponse = { message: string }
+  export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
+  export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
+  export type ResetPasswordValidator = Partial<{
+    credential_type: string
+    temporary: boolean
+    value: string
+  }>
   export type RevokeTokenRequestValidator = Partial<{
-    client_id: string;
-    token: string;
-    token_type_hint: string | null;
-  }>;
-  export type SendMagicLinkRequest = { email: string };
-  export type SendMagicLinkResponse = { message: string };
-  export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string };
-  export type SmtpEncryption = "tls" | "starttls" | "none";
+    client_id: string
+    token: string
+    token_type_hint: string | null
+  }>
+  export type SendMagicLinkRequest = { email: string }
+  export type SendMagicLinkResponse = { message: string }
+  export type UserAttribute = {
+    created_at: string
+    id: string
+    key: string
+    realm_id: RealmId
+    updated_at: string
+    user_id: string
+    value: string
+  }
+  export type SetUserAttributesResponse = { data: Array<UserAttribute> }
+  export type SetUserAttributesValidator = { attributes: Record<string, string> }
+  export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string }
+  export type SmtpEncryption = 'tls' | 'starttls' | 'none'
   export type SmtpConfig = {
-    created_at: string;
-    encryption: SmtpEncryption;
-    from_email: string;
-    from_name: string;
-    host: string;
-    id: string;
-    port: number;
-    realm_id: string;
-    updated_at: string;
-    username: string;
-  };
+    created_at: string
+    encryption: SmtpEncryption
+    from_email: string
+    from_name: string
+    host: string
+    id: string
+    port: number
+    realm_id: string
+    updated_at: string
+    username: string
+  }
   export type SyncUsersResponse = {
-    completed_at?: (string | null) | undefined;
-    created: number;
-    disabled: number;
-    failed: number;
-    started_at?: (string | null) | undefined;
-    total_processed: number;
-    updated: number;
-  };
-  export type TestConnectionResponse = { details?: unknown | undefined; message: string; success: boolean };
-  export type ToggleMaintenanceResponse = { message: string };
+    completed_at?: (string | null) | undefined
+    created: number
+    disabled: number
+    failed: number
+    started_at?: (string | null) | undefined
+    total_processed: number
+    updated: number
+  }
+  export type TestConnectionResponse = {
+    details?: unknown | undefined
+    message: string
+    success: boolean
+  }
+  export type ToggleMaintenanceResponse = { message: string }
   export type ToggleMaintenanceValidator = {
-    enabled: boolean;
-    reason?: (string | null) | undefined;
-    session_strategy?: (null | MaintenanceSessionStrategy) | undefined;
-  };
+    enabled: boolean
+    reason?: (string | null) | undefined
+    session_strategy?: (null | MaintenanceSessionStrategy) | undefined
+  }
   export type TokenIntrospectionResponse = {
-    active: boolean;
-    aud?: (string | null) | undefined;
-    client_id?: (string | null) | undefined;
-    exp?: (number | null) | undefined;
-    iat?: (number | null) | undefined;
-    iss?: (string | null) | undefined;
-    jti?: (string | null) | undefined;
-    nbf?: (number | null) | undefined;
-    realm?: (string | null) | undefined;
-    scope?: (string | null) | undefined;
-    sub?: (string | null) | undefined;
-    token_type?: (string | null) | undefined;
-    username?: (string | null) | undefined;
-  };
+    active: boolean
+    aud?: (string | null) | undefined
+    client_id?: (string | null) | undefined
+    exp?: (number | null) | undefined
+    iat?: (number | null) | undefined
+    iss?: (string | null) | undefined
+    jti?: (string | null) | undefined
+    nbf?: (number | null) | undefined
+    realm?: (string | null) | undefined
+    scope?: (string | null) | undefined
+    sub?: (string | null) | undefined
+    token_type?: (string | null) | undefined
+    username?: (string | null) | undefined
+  }
   export type TokenRequestValidator = Partial<{
-    client_id: string;
-    client_secret: string | null;
-    code: string | null;
-    grant_type: GrantType;
-    password: string | null;
-    refresh_token: string | null;
-    scope: string | null;
-    username: string | null;
-  }>;
-  export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string };
-  export type UpdateClientResponse = { data: Client };
+    client_id: string
+    client_secret: string | null
+    code: string | null
+    grant_type: GrantType
+    password: string | null
+    refresh_token: string | null
+    scope: string | null
+    username: string | null
+  }>
+  export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string }
+  export type UpdateClientResponse = { data: Client }
   export type UpdateClientScopeValidator = Partial<{
-    description: string | null;
-    is_default: boolean | null;
-    name: string | null;
-    protocol: string | null;
-  }>;
+    description: string | null
+    is_default: boolean | null
+    name: string | null
+    protocol: string | null
+  }>
   export type UpdateClientValidator = Partial<{
-    access_token_lifetime: number | null;
-    client_id: string | null;
-    direct_access_grants_enabled: boolean | null;
-    enabled: boolean | null;
-    id_token_lifetime: number | null;
-    name: string | null;
-    refresh_token_lifetime: number | null;
-    temporary_token_lifetime: number | null;
-  }>;
-  export type UpdateEmailTemplateResponse = { data: EmailTemplate };
-  export type UpdateEmailTemplateValidator = { name: string; structure: unknown };
-  export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse };
+    access_token_lifetime: number | null
+    client_id: string | null
+    direct_access_grants_enabled: boolean | null
+    enabled: boolean | null
+    id_token_lifetime: number | null
+    name: string | null
+    refresh_token_lifetime: number | null
+    temporary_token_lifetime: number | null
+  }>
+  export type UpdateEmailTemplateResponse = { data: EmailTemplate }
+  export type UpdateEmailTemplateValidator = { name: string; structure: unknown }
+  export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse }
   export type UpdateIdentityProviderValidator = Partial<{
-    add_read_token_role_on_create: boolean | null;
-    config: unknown;
-    display_name: string | null;
-    enabled: boolean | null;
-    first_broker_login_flow_alias: string | null;
-    link_only: boolean | null;
-    post_broker_login_flow_alias: string | null;
-    store_token: boolean | null;
-    trust_email: boolean | null;
-  }>;
+    add_read_token_role_on_create: boolean | null
+    config: unknown
+    display_name: string | null
+    enabled: boolean | null
+    first_broker_login_flow_alias: string | null
+    link_only: boolean | null
+    post_broker_login_flow_alias: string | null
+    store_token: boolean | null
+    trust_email: boolean | null
+  }>
   export type UpdateOrganizationValidator = Partial<{
-    alias: string | null;
-    description: string | null;
-    domain: string | null;
-    enabled: boolean | null;
-    name: string | null;
-    redirect_url: string | null;
-  }>;
+    alias: string | null
+    description: string | null
+    domain: string | null
+    enabled: boolean | null
+    name: string | null
+    redirect_url: string | null
+  }>
   export type UpdatePasswordPolicyValidator = Partial<{
-    max_age_days: number | null;
-    min_length: number | null;
-    require_lowercase: boolean | null;
-    require_number: boolean | null;
-    require_special: boolean | null;
-    require_uppercase: boolean | null;
-  }>;
-  export type UpdatePasswordRequest = Partial<{ value: string }>;
-  export type UpdatePasswordResponse = { message: string };
-  export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri };
+    max_age_days: number | null
+    min_length: number | null
+    require_lowercase: boolean | null
+    require_number: boolean | null
+    require_special: boolean | null
+    require_uppercase: boolean | null
+  }>
+  export type UpdatePasswordRequest = Partial<{ value: string }>
+  export type UpdatePasswordResponse = { message: string }
+  export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri }
   export type UpdateProtocolMapperValidator = Partial<{
-    config: unknown;
-    mapper_type: string | null;
-    name: string | null;
-  }>;
+    config: unknown
+    mapper_type: string | null
+    name: string | null
+  }>
   export type UpdateProviderRequest = Partial<{
-    config: unknown;
-    enabled: boolean | null;
-    name: string | null;
-    priority: number | null;
-    provider_type: string | null;
-    sync_enabled: boolean | null;
-    sync_interval_minutes: number | null;
-    sync_mode: string | null;
-  }>;
-  export type UpdateProviderResponse = { data: ProviderResponse };
-  export type UpdateRealmResponse = { data: Realm };
-  export type UpdateRealmSettingResponse = { data: Realm };
+    config: unknown
+    enabled: boolean | null
+    name: string | null
+    priority: number | null
+    provider_type: string | null
+    sync_enabled: boolean | null
+    sync_interval_minutes: number | null
+    sync_mode: string | null
+  }>
+  export type UpdateProviderResponse = { data: ProviderResponse }
+  export type UpdateRealmResponse = { data: Realm }
+  export type UpdateRealmSettingResponse = { data: Realm }
   export type UpdateRealmSettingValidator = Partial<{
-    access_token_lifetime: number | null;
-    compass_enabled: boolean | null;
-    default_signing_algorithm: string | null;
-    email_verification_template_id: string | null;
-    forgot_password_enabled: boolean | null;
-    id_token_lifetime: number | null;
-    magic_link_enabled: boolean | null;
-    magic_link_template_id: string | null;
-    magic_link_ttl: number | null;
-    passkey_enabled: boolean | null;
-    refresh_token_lifetime: number | null;
-    remember_me_enabled: boolean | null;
-    reset_password_template_id: string | null;
-    temporary_token_lifetime: number | null;
-    user_registration_enabled: boolean | null;
-  }>;
-  export type UpdateRealmValidator = { name: string };
-  export type UpdateRedirectUriResponse = { data: RedirectUri };
-  export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>;
-  export type UpdateRolePermissionsResponse = { data: Role };
-  export type UpdateRolePermissionsValidator = { permissions: Array<string> };
-  export type UpdateRoleResponse = { data: Role };
-  export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>;
-  export type UpdateUserResponse = { data: User };
+    access_token_lifetime: number | null
+    compass_enabled: boolean | null
+    default_signing_algorithm: string | null
+    email_verification_template_id: string | null
+    forgot_password_enabled: boolean | null
+    id_token_lifetime: number | null
+    magic_link_enabled: boolean | null
+    magic_link_template_id: string | null
+    magic_link_ttl: number | null
+    passkey_enabled: boolean | null
+    refresh_token_lifetime: number | null
+    remember_me_enabled: boolean | null
+    reset_password_template_id: string | null
+    temporary_token_lifetime: number | null
+    user_registration_enabled: boolean | null
+  }>
+  export type UpdateRealmValidator = { name: string }
+  export type UpdateRedirectUriResponse = { data: RedirectUri }
+  export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
+  export type UpdateRolePermissionsResponse = { data: Role }
+  export type UpdateRolePermissionsValidator = { permissions: Array<string> }
+  export type UpdateRoleResponse = { data: Role }
+  export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
+  export type UpdateUserResponse = { data: User }
   export type UpdateUserValidator = Partial<{
-    email: string;
-    email_verified: boolean | null;
-    enabled: boolean | null;
-    firstname: string;
-    lastname: string;
-    required_actions: Array<string> | null;
-  }>;
-  export type UpdateWebhookResponse = { data: Webhook };
+    email: string
+    email_verified: boolean | null
+    enabled: boolean | null
+    firstname: string
+    lastname: string
+    required_actions: Array<string> | null
+  }>
+  export type UpdateWebhookResponse = { data: Webhook }
   export type UpdateWebhookValidator = Partial<{
-    description: string | null;
-    endpoint: string;
-    headers: Record<string, string>;
-    name: string | null;
-    subscribers: Array<WebhookTrigger>;
-  }>;
-  export type UpsertAttributeValidator = { value: string };
+    description: string | null
+    endpoint: string
+    headers: Record<string, string>
+    name: string | null
+    subscribers: Array<WebhookTrigger>
+  }>
+  export type UpsertAttributeValidator = { value: string }
   export type UpsertSmtpConfigValidator = {
-    encryption: string;
-    from_email: string;
-    from_name: string;
-    host: string;
-    password: string;
-    port: number;
-    username: string;
-  };
+    encryption: string
+    from_email: string
+    from_name: string
+    host: string
+    password: string
+    port: number
+    username: string
+  }
+  export type UserAttributesResponse = { data: Array<UserAttribute> }
   export type UserInfoResponse = {
-    email?: (string | null) | undefined;
-    email_verified?: (boolean | null) | undefined;
-    family_name?: (string | null) | undefined;
-    given_name?: (string | null) | undefined;
-    name?: (string | null) | undefined;
-    preferred_username?: (string | null) | undefined;
-    sub: string;
-  };
-  export type UserPermissionsResponse = { data: Array<Permissions> };
-  export type UserRealmsResponse = { data: Array<Realm> };
-  export type UserResponse = { data: User };
-  export type UsersResponse = { data: Array<User> };
-  export type ValidatePublicKeyResponse = Record<string, unknown>;
-  export type VerifyOtpResponse = { message: string };
-  export type VerifyResetTokenRequest = { token_id: string };
-  export type VerifyResetTokenResponse = { valid: boolean };
+    email?: (string | null) | undefined
+    email_verified?: (boolean | null) | undefined
+    family_name?: (string | null) | undefined
+    given_name?: (string | null) | undefined
+    name?: (string | null) | undefined
+    preferred_username?: (string | null) | undefined
+    sub: string
+  }
+  export type UserPermissionsResponse = { data: Array<Permissions> }
+  export type UserRealmsResponse = { data: Array<Realm> }
+  export type UserResponse = { data: User }
+  export type UsersResponse = { data: Array<User> }
+  export type ValidatePublicKeyResponse = Record<string, unknown>
+  export type VerifyOtpResponse = { message: string }
+  export type VerifyResetTokenRequest = { token_id: string }
+  export type VerifyResetTokenResponse = { valid: boolean }
 
   // </Schemas>
 }
@@ -793,1901 +846,2012 @@ export namespace Endpoints {
   // <Endpoints>
 
   export type get_Get_variables = {
-    method: "GET";
-    path: "/email-templates/variables/{email_type}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/email-templates/variables/{email_type}'
+    requestFormat: 'json'
     parameters: {
-      path: { email_type: string };
-    };
-    responses: { 200: Schemas.GetTemplateVariablesResponse; 400: Schemas.ApiErrorResponse };
-  };
+      path: { email_type: string }
+    }
+    responses: { 200: Schemas.GetTemplateVariablesResponse; 400: Schemas.ApiErrorResponse }
+  }
   export type post_Create_realm = {
-    method: "POST";
-    path: "/realms";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms'
+    requestFormat: 'json'
     parameters: {
-      body: Schemas.CreateRealmValidator;
-    };
+      body: Schemas.CreateRealmValidator
+    }
     responses: {
-      201: Schemas.Realm;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.Realm
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_realm = {
-    method: "GET";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{name}'
+    requestFormat: 'json'
     parameters: {
-      path: { name: string };
-    };
+      path: { name: string }
+    }
     responses: {
-      200: Schemas.Realm;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.Realm
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_realm = {
-    method: "PUT";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{name}'
+    requestFormat: 'json'
     parameters: {
-      path: { name: string };
+      path: { name: string }
 
-      body: Schemas.UpdateRealmValidator;
-    };
+      body: Schemas.UpdateRealmValidator
+    }
     responses: {
-      200: Schemas.UpdateRealmResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateRealmResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_realm = {
-    method: "DELETE";
-    path: "/realms/{name}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{name}'
+    requestFormat: 'json'
     parameters: {
-      path: { name: string };
-    };
+      path: { name: string }
+    }
     responses: {
-      200: Schemas.DeleteRealmResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteRealmResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_login_realm_settings_handler = {
-    method: "GET";
-    path: "/realms/{name}/login-settings";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{name}/login-settings'
+    requestFormat: 'json'
     parameters: {
-      path: { name: string };
-    };
+      path: { name: string }
+    }
     responses: {
-      200: Schemas.RealmLoginSetting;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.RealmLoginSetting
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_realm_setting = {
-    method: "PUT";
-    path: "/realms/{name}/settings";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{name}/settings'
+    requestFormat: 'json'
     parameters: {
-      path: { name: string };
+      path: { name: string }
 
-      body: Schemas.UpdateRealmSettingValidator;
-    };
+      body: Schemas.UpdateRealmSettingValidator
+    }
     responses: {
-      200: Schemas.UpdateRealmSettingResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateRealmSettingResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_openid_configuration = {
-    method: "GET";
-    path: "/realms/{realm_name}/.well-known/openid-configuration";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/.well-known/openid-configuration'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.GetOpenIdConfigurationResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.GetOpenIdConfigurationResponse }
+  }
   export type post_Broker_callback = {
-    method: "POST";
-    path: "/realms/{realm_name}/broker/{alias}/endpoint";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/broker/{alias}/endpoint'
+    requestFormat: 'json'
     parameters: {
       query: {
-        code?: string | undefined;
-        state: string;
-        error?: string | undefined;
-        error_description?: string | undefined;
-      };
-      path: { realm_name: string; alias: string };
-    };
+        code?: string | undefined
+        state: string
+        error?: string | undefined
+        error_description?: string | undefined
+      }
+      path: { realm_name: string; alias: string }
+    }
     responses: {
-      302: unknown;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      502: Schemas.ApiErrorResponse;
-    };
-  };
+      302: unknown
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      502: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Broker_login = {
-    method: "GET";
-    path: "/realms/{realm_name}/broker/{alias}/login";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/broker/{alias}/login'
+    requestFormat: 'json'
     parameters: {
       query: Partial<{
-        client_id: string;
-        redirect_uri: string;
-        response_type: string;
-        scope: string;
-        state: string;
-        nonce: string;
-        session_id: string;
-      }>;
-      path: { realm_name: string; alias: string };
-    };
+        client_id: string
+        redirect_uri: string
+        response_type: string
+        scope: string
+        state: string
+        nonce: string
+        session_id: string
+      }>
+      path: { realm_name: string; alias: string }
+    }
     responses: {
-      302: unknown;
-      400: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      302: unknown
+      400: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_client_scopes = {
-    method: "GET";
-    path: "/realms/{realm_name}/client-scopes";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/client-scopes'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.ClientScopesResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.ClientScopesResponse }
+  }
   export type post_Create_client_scope = {
-    method: "POST";
-    path: "/realms/{realm_name}/client-scopes";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/client-scopes'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateClientScopeValidator;
-    };
-    responses: { 201: Schemas.ClientScope; 400: unknown; 401: unknown; 403: unknown };
-  };
+      body: Schemas.CreateClientScopeValidator
+    }
+    responses: { 201: Schemas.ClientScope; 400: unknown; 401: unknown; 403: unknown }
+  }
   export type get_Get_client_scope = {
-    method: "GET";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string };
-    };
-    responses: { 200: Schemas.ClientScope };
-  };
+      path: { realm_name: string; scope_id: string }
+    }
+    responses: { 200: Schemas.ClientScope }
+  }
   export type delete_Delete_client_scope = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string };
-    };
-    responses: { 200: Schemas.DeleteClientScopeResponse };
-  };
+      path: { realm_name: string; scope_id: string }
+    }
+    responses: { 200: Schemas.DeleteClientScopeResponse }
+  }
   export type patch_Update_client_scope = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'PATCH'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string };
+      path: { realm_name: string; scope_id: string }
 
-      body: Schemas.UpdateClientScopeValidator;
-    };
-    responses: { 200: Schemas.ClientScope };
-  };
+      body: Schemas.UpdateClientScopeValidator
+    }
+    responses: { 200: Schemas.ClientScope }
+  }
   export type post_Create_protocol_mapper = {
-    method: "POST";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string };
+      path: { realm_name: string; scope_id: string }
 
-      body: Schemas.CreateProtocolMapperValidator;
-    };
-    responses: { 201: Schemas.ProtocolMapper; 400: unknown; 401: unknown; 403: unknown };
-  };
+      body: Schemas.CreateProtocolMapperValidator
+    }
+    responses: { 201: Schemas.ProtocolMapper; 400: unknown; 401: unknown; 403: unknown }
+  }
   export type delete_Delete_protocol_mapper = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string; mapper_id: string };
-    };
-    responses: { 200: Schemas.DeleteProtocolMapperResponse };
-  };
+      path: { realm_name: string; scope_id: string; mapper_id: string }
+    }
+    responses: { 200: Schemas.DeleteProtocolMapperResponse }
+  }
   export type patch_Update_protocol_mapper = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}";
-    requestFormat: "json";
+    method: 'PATCH'
+    path: '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; scope_id: string; mapper_id: string };
+      path: { realm_name: string; scope_id: string; mapper_id: string }
 
-      body: Schemas.UpdateProtocolMapperValidator;
-    };
-    responses: { 200: Schemas.ProtocolMapper };
-  };
+      body: Schemas.UpdateProtocolMapperValidator
+    }
+    responses: { 200: Schemas.ProtocolMapper }
+  }
   export type get_Get_clients = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.ClientsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ClientsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_client = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateClientValidator;
-    };
+      body: Schemas.CreateClientValidator
+    }
     responses: {
-      201: Schemas.Client;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.Client
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_realm_whitelist = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/settings/maintenance/whitelist'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.GetRealmWhitelistResponse; 401: Schemas.ApiErrorResponse; 403: Schemas.ApiErrorResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetRealmWhitelistResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Add_realm_whitelist_entry = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/settings/maintenance/whitelist'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.AddWhitelistEntryValidator;
-    };
+      body: Schemas.AddWhitelistEntryValidator
+    }
     responses: {
-      201: Schemas.AddRealmWhitelistEntryResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.AddRealmWhitelistEntryResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Remove_realm_whitelist_entry = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; entry_id: string };
-    };
+      path: { realm_name: string; entry_id: string }
+    }
     responses: {
-      200: Schemas.RemoveRealmWhitelistEntryResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.RemoveRealmWhitelistEntryResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_client = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Schemas.GetClientResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_client = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Schemas.DeleteClientResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type patch_Update_client = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/clients/{client_id}";
-    requestFormat: "json";
+    method: 'PATCH'
+    path: '/realms/{realm_name}/clients/{client_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.UpdateClientValidator;
-    };
+      body: Schemas.UpdateClientValidator
+    }
     responses: {
-      200: Schemas.UpdateClientResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateClientResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_client_client_scopes = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/client-scopes";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/client-scopes'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Array<Schemas.ClientScope>;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Array<Schemas.ClientScope>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Assign_default_scope = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string };
-    };
-    responses: { 200: Schemas.ClientScopeMapping };
-  };
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    responses: { 200: Schemas.ClientScopeMapping }
+  }
   export type delete_Unassign_default_scope = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string };
-    };
-    responses: { 200: unknown };
-  };
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    responses: { 200: unknown }
+  }
   export type put_Toggle_maintenance = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/maintenance";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/maintenance'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.ToggleMaintenanceValidator;
-    };
+      body: Schemas.ToggleMaintenanceValidator
+    }
     responses: {
-      200: Schemas.ToggleMaintenanceResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ToggleMaintenanceResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_client_whitelist = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Schemas.GetClientWhitelistResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetClientWhitelistResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Add_client_whitelist_entry = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.AddWhitelistEntryValidator;
-    };
+      body: Schemas.AddWhitelistEntryValidator
+    }
     responses: {
-      201: Schemas.AddClientWhitelistEntryResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.AddClientWhitelistEntryResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Remove_client_whitelist_entry = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; entry_id: string };
-    };
+      path: { realm_name: string; client_id: string; entry_id: string }
+    }
     responses: {
-      200: Schemas.RemoveClientWhitelistEntryResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.RemoveClientWhitelistEntryResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Assign_optional_scope = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string };
-    };
-    responses: { 200: Schemas.ClientScopeMapping };
-  };
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    responses: { 200: Schemas.ClientScopeMapping }
+  }
   export type delete_Unassign_optional_scope = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; scope_id: string };
-    };
-    responses: { 200: unknown };
-  };
+      path: { realm_name: string; client_id: string; scope_id: string }
+    }
+    responses: { 200: unknown }
+  }
   export type get_Get_post_logout_redirect_uris = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/post-logout-redirects";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
-    responses: { 200: Array<Schemas.RedirectUri> };
-  };
+      path: { realm_name: string; client_id: string }
+    }
+    responses: { 200: Array<Schemas.RedirectUri> }
+  }
   export type post_Create_post_logout_redirect_uri = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/post-logout-redirects";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.CreateRedirectUriValidator;
-    };
-    responses: { 201: Schemas.RedirectUri };
-  };
+      body: Schemas.CreateRedirectUriValidator
+    }
+    responses: { 201: Schemas.RedirectUri }
+  }
   export type put_Update_post_logout_redirect_uri = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string };
+      path: { realm_name: string; client_id: string; uri_id: string }
 
-      body: Schemas.UpdateRedirectUriValidator;
-    };
-    responses: { 200: Schemas.UpdatePostLogoutRedirectUriResponse };
-  };
+      body: Schemas.UpdateRedirectUriValidator
+    }
+    responses: { 200: Schemas.UpdatePostLogoutRedirectUriResponse }
+  }
   export type delete_Delete_post_logout_redirect_uri = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string };
-    };
-    responses: { 200: unknown };
-  };
+      path: { realm_name: string; client_id: string; uri_id: string }
+    }
+    responses: { 200: unknown }
+  }
   export type get_Get_redirect_uris = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/redirects'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Array<Schemas.RedirectUri>;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Array<Schemas.RedirectUri>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_redirect_uri = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/redirects'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.CreateRedirectUriValidator;
-    };
-    responses: { 201: Schemas.RedirectUri };
-  };
+      body: Schemas.CreateRedirectUriValidator
+    }
+    responses: { 201: Schemas.RedirectUri }
+  }
   export type put_Update_redirect_uri = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string };
+      path: { realm_name: string; client_id: string; uri_id: string }
 
-      body: Schemas.UpdateRedirectUriValidator;
-    };
+      body: Schemas.UpdateRedirectUriValidator
+    }
     responses: {
-      200: Schemas.UpdateRedirectUriResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateRedirectUriResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_redirect_uri = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string; uri_id: string };
-    };
+      path: { realm_name: string; client_id: string; uri_id: string }
+    }
     responses: {
-      200: unknown;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_client_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/clients/{client_id}/roles'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
-    };
+      path: { realm_name: string; client_id: string }
+    }
     responses: {
-      200: Schemas.GetClientRolesResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetClientRolesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_client_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/roles'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; client_id: string };
+      path: { realm_name: string; client_id: string }
 
-      body: Schemas.CreateRoleValidator;
-    };
+      body: Schemas.CreateRoleValidator
+    }
     responses: {
-      201: Schemas.Role;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.Role
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_flows = {
-    method: "GET";
-    path: "/realms/{realm_name}/compass/v1/flows";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows'
+    requestFormat: 'json'
     parameters: {
       query: Partial<{
-        client_id: string;
-        user_id: string;
-        grant_type: string;
-        status: string;
-        limit: number;
-        offset: number;
-      }>;
-      path: { realm_name: string };
-    };
+        client_id: string
+        user_id: string
+        grant_type: string
+        status: string
+        limit: number
+        offset: number
+      }>
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetFlowsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetFlowsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_flow = {
-    method: "GET";
-    path: "/realms/{realm_name}/compass/v1/flows/{flow_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/flows/{flow_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; flow_id: string };
-    };
+      path: { realm_name: string; flow_id: string }
+    }
     responses: {
-      200: Schemas.GetFlowResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetFlowResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_stats = {
-    method: "GET";
-    path: "/realms/{realm_name}/compass/v1/stats";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/stats'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetStatsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetStatsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Fetch_templates = {
-    method: "GET";
-    path: "/realms/{realm_name}/email-templates";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/email-templates'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetEmailTemplatesResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetEmailTemplatesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_template = {
-    method: "POST";
-    path: "/realms/{realm_name}/email-templates";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/email-templates'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateEmailTemplateValidator;
-    };
+      body: Schemas.CreateEmailTemplateValidator
+    }
     responses: {
-      201: Schemas.CreateEmailTemplateResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.CreateEmailTemplateResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_template = {
-    method: "GET";
-    path: "/realms/{realm_name}/email-templates/{template_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/email-templates/{template_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; template_id: string };
-    };
+      path: { realm_name: string; template_id: string }
+    }
     responses: {
-      200: Schemas.GetEmailTemplateResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetEmailTemplateResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_template = {
-    method: "PUT";
-    path: "/realms/{realm_name}/email-templates/{template_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/email-templates/{template_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; template_id: string };
+      path: { realm_name: string; template_id: string }
 
-      body: Schemas.UpdateEmailTemplateValidator;
-    };
+      body: Schemas.UpdateEmailTemplateValidator
+    }
     responses: {
-      200: Schemas.UpdateEmailTemplateResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateEmailTemplateResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_template = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/email-templates/{template_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/email-templates/{template_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; template_id: string };
-    };
+      path: { realm_name: string; template_id: string }
+    }
     responses: {
-      200: Schemas.DeleteEmailTemplateResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteEmailTemplateResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_providers = {
-    method: "GET";
-    path: "/realms/{realm_name}/federation/providers";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/federation/providers'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.ListProvidersResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ListProvidersResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_provider = {
-    method: "POST";
-    path: "/realms/{realm_name}/federation/providers";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateProviderRequest;
-    };
+      body: Schemas.CreateProviderRequest
+    }
     responses: {
-      201: Schemas.ProviderResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.ProviderResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_provider = {
-    method: "GET";
-    path: "/realms/{realm_name}/federation/providers/{id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; id: string };
-    };
+      path: { realm_name: string; id: string }
+    }
     responses: {
-      200: Schemas.ProviderResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ProviderResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_provider = {
-    method: "PUT";
-    path: "/realms/{realm_name}/federation/providers/{id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; id: string };
+      path: { realm_name: string; id: string }
 
-      body: Schemas.UpdateProviderRequest;
-    };
+      body: Schemas.UpdateProviderRequest
+    }
     responses: {
-      200: Schemas.UpdateProviderResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateProviderResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_provider = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/federation/providers/{id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/federation/providers/{id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; id: string };
-    };
+      path: { realm_name: string; id: string }
+    }
     responses: {
-      204: Schemas.DeleteProviderResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      204: Schemas.DeleteProviderResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Sync_users = {
-    method: "POST";
-    path: "/realms/{realm_name}/federation/providers/{id}/sync-users";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers/{id}/sync-users'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; id: string };
-    };
-    responses: { 200: Schemas.SyncUsersResponse; 401: unknown; 403: unknown; 404: unknown; 500: unknown };
-  };
+      path: { realm_name: string; id: string }
+    }
+    responses: {
+      200: Schemas.SyncUsersResponse
+      401: unknown
+      403: unknown
+      404: unknown
+      500: unknown
+    }
+  }
   export type post_Test_connection = {
-    method: "POST";
-    path: "/realms/{realm_name}/federation/providers/{id}/test-connection";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/federation/providers/{id}/test-connection'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; id: string };
-    };
-    responses: { 200: Schemas.TestConnectionResponse; 401: unknown; 403: unknown; 404: unknown };
-  };
+      path: { realm_name: string; id: string }
+    }
+    responses: { 200: Schemas.TestConnectionResponse; 401: unknown; 403: unknown; 404: unknown }
+  }
   export type get_List_identity_providers = {
-    method: "GET";
-    path: "/realms/{realm_name}/identity-providers";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/identity-providers'
+    requestFormat: 'json'
     parameters: {
-      query: Partial<{ brief_representation: boolean }>;
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.IdentityProvidersResponse; 401: unknown; 403: unknown; 404: unknown };
-  };
+      query: Partial<{ brief_representation: boolean }>
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.IdentityProvidersResponse; 401: unknown; 403: unknown; 404: unknown }
+  }
   export type post_Create_identity_provider = {
-    method: "POST";
-    path: "/realms/{realm_name}/identity-providers";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/identity-providers'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateIdentityProviderValidator;
-    };
+      body: Schemas.CreateIdentityProviderValidator
+    }
     responses: {
-      201: Schemas.IdentityProviderResponse;
-      400: unknown;
-      401: unknown;
-      403: unknown;
-      404: unknown;
-      409: unknown;
-    };
-  };
+      201: Schemas.IdentityProviderResponse
+      400: unknown
+      401: unknown
+      403: unknown
+      404: unknown
+      409: unknown
+    }
+  }
   export type get_Get_identity_provider = {
-    method: "GET";
-    path: "/realms/{realm_name}/identity-providers/{alias}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/identity-providers/{alias}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; alias: string };
-    };
-    responses: { 200: Schemas.IdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown };
-  };
+      path: { realm_name: string; alias: string }
+    }
+    responses: { 200: Schemas.IdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown }
+  }
   export type put_Update_identity_provider = {
-    method: "PUT";
-    path: "/realms/{realm_name}/identity-providers/{alias}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/identity-providers/{alias}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; alias: string };
+      path: { realm_name: string; alias: string }
 
-      body: Schemas.UpdateIdentityProviderValidator;
-    };
-    responses: { 200: Schemas.UpdateIdentityProviderResponse; 400: unknown; 401: unknown; 403: unknown; 404: unknown };
-  };
+      body: Schemas.UpdateIdentityProviderValidator
+    }
+    responses: {
+      200: Schemas.UpdateIdentityProviderResponse
+      400: unknown
+      401: unknown
+      403: unknown
+      404: unknown
+    }
+  }
   export type delete_Delete_identity_provider = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/identity-providers/{alias}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/identity-providers/{alias}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; alias: string };
-    };
-    responses: { 200: Schemas.DeleteIdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown; 409: unknown };
-  };
+      path: { realm_name: string; alias: string }
+    }
+    responses: {
+      200: Schemas.DeleteIdentityProviderResponse
+      401: unknown
+      403: unknown
+      404: unknown
+      409: unknown
+    }
+  }
   export type post_Authenticate = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/authenticate";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/authenticate'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.AuthenticateRequest;
-    };
+      body: Schemas.AuthenticateRequest
+    }
     responses: {
-      200: Schemas.AuthenticateResponse;
-      400: Schemas.ApiError;
-      401: Schemas.ApiError;
-      500: Schemas.ApiError;
-    };
-  };
+      200: Schemas.AuthenticateResponse
+      400: Schemas.ApiError
+      401: Schemas.ApiError
+      500: Schemas.ApiError
+    }
+  }
   export type post_Burn_recovery_code = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/burn-recovery-code";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/burn-recovery-code'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.BurnRecoveryCodeRequest;
-    };
+      body: Schemas.BurnRecoveryCodeRequest
+    }
     responses: {
-      200: Schemas.BurnRecoveryCodeResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.BurnRecoveryCodeResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Challenge_otp = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/challenge-otp";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/challenge-otp'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.ChallengeOtpRequest;
-    };
+      body: Schemas.ChallengeOtpRequest
+    }
     responses: {
-      200: Schemas.ChallengeOtpResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ChallengeOtpResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Forgot_password = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/forgot-password";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/forgot-password'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.ForgotPasswordRequest;
-    };
-    responses: { 200: Schemas.ForgotPasswordResponse; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      body: Schemas.ForgotPasswordRequest
+    }
+    responses: {
+      200: Schemas.ForgotPasswordResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Generate_recovery_codes = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/generate-recovery-codes";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/generate-recovery-codes'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.GenerateRecoveryCodesRequest;
-    };
+      body: Schemas.GenerateRecoveryCodesRequest
+    }
     responses: {
-      200: Schemas.GenerateRecoveryCodesResponse;
-      400: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GenerateRecoveryCodesResponse
+      400: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Passkey_authenticate = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/passkey-authenticate";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/passkey-authenticate'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.PasskeyPublicKeyCredential;
-    };
+      body: Schemas.PasskeyPublicKeyCredential
+    }
     responses: {
-      200: Schemas.PasskeyAuthenticateResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PasskeyAuthenticateResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Passkey_request_options = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/passkey-request-options";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/passkey-request-options'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.PasskeyRequestOptionsRequest;
-    };
+      body: Schemas.PasskeyRequestOptionsRequest
+    }
     responses: {
-      200: Schemas.PasskeyPublicKeyCredentialRequestOptionsJSON;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PasskeyPublicKeyCredentialRequestOptionsJSON
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Reset_password_with_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/reset-password";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/reset-password'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.ResetPasswordRequest;
-    };
-    responses: { 200: Schemas.JwtToken; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      body: Schemas.ResetPasswordRequest
+    }
+    responses: {
+      200: Schemas.JwtToken
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Send_magic_link = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/send-magic-link";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/send-magic-link'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.SendMagicLinkRequest;
-    };
-    responses: { 200: Schemas.SendMagicLinkResponse; 400: unknown; 500: unknown };
-  };
+      body: Schemas.SendMagicLinkRequest
+    }
+    responses: { 200: Schemas.SendMagicLinkResponse; 400: unknown; 500: unknown }
+  }
   export type get_Setup_otp = {
-    method: "GET";
-    path: "/realms/{realm_name}/login-actions/setup-otp";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/login-actions/setup-otp'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.SetupOtpResponse; 500: Schemas.ApiErrorResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.SetupOtpResponse; 500: Schemas.ApiErrorResponse }
+  }
   export type post_Update_password = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/update-password";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/update-password'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.UpdatePasswordRequest;
-    };
+      body: Schemas.UpdatePasswordRequest
+    }
     responses: {
-      200: Schemas.UpdatePasswordResponse;
-      400: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdatePasswordResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Verify_magic_link = {
-    method: "GET";
-    path: "/realms/{realm_name}/login-actions/verify-magic-link";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/login-actions/verify-magic-link'
+    requestFormat: 'json'
     parameters: {
-      query: { token_id: string; magic_token: string };
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.AuthenticateResponse; 400: unknown; 401: unknown; 404: unknown; 500: unknown };
-  };
+      query: { token_id: string; magic_token: string }
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.AuthenticateResponse
+      400: unknown
+      401: unknown
+      404: unknown
+      500: unknown
+    }
+  }
   export type post_Verify_otp = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/verify-otp";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/verify-otp'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.OtpVerifyRequest;
-    };
-    responses: { 200: Schemas.VerifyOtpResponse; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      body: Schemas.OtpVerifyRequest
+    }
+    responses: {
+      200: Schemas.VerifyOtpResponse
+      400: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Verify_reset_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/verify-reset-token";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/verify-reset-token'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.VerifyResetTokenRequest;
-    };
-    responses: { 200: Schemas.VerifyResetTokenResponse; 401: Schemas.ApiErrorResponse; 404: Schemas.ApiErrorResponse };
-  };
+      body: Schemas.VerifyResetTokenRequest
+    }
+    responses: {
+      200: Schemas.VerifyResetTokenResponse
+      401: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Webauthn_public_key_authenticate = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/webauthn-public-key-authenticate";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.PublicKeyCredential;
-    };
+      body: Schemas.PublicKeyCredential
+    }
     responses: {
-      200: Schemas.AuthenticationAttemptResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.AuthenticationAttemptResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Webauthn_public_key_create = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/webauthn-public-key-create";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-create'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.PublicKeyCredential;
-    };
+      body: Schemas.PublicKeyCredential
+    }
     responses: {
-      200: Schemas.ValidatePublicKeyResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ValidatePublicKeyResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Webauthn_public_key_create_options = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/webauthn-public-key-create-options";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-create-options'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.PublicKeyCredentialCreationOptionsJSON;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PublicKeyCredentialCreationOptionsJSON
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Webauthn_public_key_request_options = {
-    method: "POST";
-    path: "/realms/{realm_name}/login-actions/webauthn-public-key-request-options";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/webauthn-public-key-request-options'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.PublicKeyCredentialRequestOptionsJSON;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PublicKeyCredentialRequestOptionsJSON
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_organizations = {
-    method: "GET";
-    path: "/realms/{realm_name}/organizations";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/organizations'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.ListOrganizationsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ListOrganizationsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_organization = {
-    method: "POST";
-    path: "/realms/{realm_name}/organizations";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/organizations'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateOrganizationValidator;
-    };
+      body: Schemas.CreateOrganizationValidator
+    }
     responses: {
-      201: Schemas.Organization;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      422: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.Organization
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      422: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_organization = {
-    method: "GET";
-    path: "/realms/{realm_name}/organizations/{organization_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/organizations/{organization_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
-    };
+      path: { realm_name: string; organization_id: string }
+    }
     responses: {
-      200: Schemas.Organization;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.Organization
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_organization = {
-    method: "PUT";
-    path: "/realms/{realm_name}/organizations/{organization_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/organizations/{organization_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
+      path: { realm_name: string; organization_id: string }
 
-      body: Schemas.UpdateOrganizationValidator;
-    };
+      body: Schemas.UpdateOrganizationValidator
+    }
     responses: {
-      200: Schemas.Organization;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      422: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.Organization
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      422: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_organization = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/organizations/{organization_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/organizations/{organization_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
-    };
+      path: { realm_name: string; organization_id: string }
+    }
     responses: {
-      204: unknown;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      204: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_attributes = {
-    method: "GET";
-    path: "/realms/{realm_name}/organizations/{organization_id}/attributes";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/organizations/{organization_id}/attributes'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
-    };
+      path: { realm_name: string; organization_id: string }
+    }
     responses: {
-      200: Schemas.ListOrganizationAttributesResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ListOrganizationAttributesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Upsert_attribute = {
-    method: "PUT";
-    path: "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string; key: string };
+      path: { realm_name: string; organization_id: string; key: string }
 
-      body: Schemas.UpsertAttributeValidator;
-    };
+      body: Schemas.UpsertAttributeValidator
+    }
     responses: {
-      200: Schemas.OrganizationAttribute;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      422: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.OrganizationAttribute
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      422: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_attribute = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string; key: string };
-    };
+      path: { realm_name: string; organization_id: string; key: string }
+    }
     responses: {
-      204: unknown;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      204: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_members = {
-    method: "GET";
-    path: "/realms/{realm_name}/organizations/{organization_id}/members";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/organizations/{organization_id}/members'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
-    };
+      path: { realm_name: string; organization_id: string }
+    }
     responses: {
-      200: Array<Schemas.OrganizationMember>;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Array<Schemas.OrganizationMember>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Add_member = {
-    method: "POST";
-    path: "/realms/{realm_name}/organizations/{organization_id}/members";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/organizations/{organization_id}/members'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string };
+      path: { realm_name: string; organization_id: string }
 
-      body: Schemas.AddMemberValidator;
-    };
+      body: Schemas.AddMemberValidator
+    }
     responses: {
-      201: Schemas.OrganizationMember;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      409: Schemas.ApiErrorResponse;
-      422: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.OrganizationMember
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      409: Schemas.ApiErrorResponse
+      422: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Remove_member = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/organizations/{organization_id}/members/{user_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; organization_id: string; user_id: string };
-    };
+      path: { realm_name: string; organization_id: string; user_id: string }
+    }
     responses: {
-      204: unknown;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      204: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_password_policy = {
-    method: "GET";
-    path: "/realms/{realm_name}/password-policy";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/password-policy'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.PasswordPolicy;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PasswordPolicy
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_password_policy = {
-    method: "PUT";
-    path: "/realms/{realm_name}/password-policy";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/password-policy'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.UpdatePasswordPolicyValidator;
-    };
+      body: Schemas.UpdatePasswordPolicyValidator
+    }
     responses: {
-      200: Schemas.PasswordPolicy;
-      400: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.PasswordPolicy
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Auth_handler = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/auth";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/auth'
+    requestFormat: 'json'
     parameters: {
-      query: Partial<{ response_type: string; client_id: string; redirect_uri: string; scope: string; state: string }>;
-      path: { realm_name: string };
-    };
-    responses: { 302: Schemas.AuthResponse; 400: unknown; 401: unknown; 500: unknown };
-  };
+      query: Partial<{
+        response_type: string
+        client_id: string
+        redirect_uri: string
+        scope: string
+        state: string
+      }>
+      path: { realm_name: string }
+    }
+    responses: { 302: Schemas.AuthResponse; 400: unknown; 401: unknown; 500: unknown }
+  }
   export type get_Get_certs = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/certs";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/certs'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetCertsResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetCertsResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_jwks_json = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/jwks.json";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/jwks.json'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetCertsResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetCertsResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Logout_get = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/logout";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/logout'
+    requestFormat: 'json'
     parameters: {
-      query: Partial<{ id_token_hint: string; post_logout_redirect_uri: string; state: string; client_id: string }>;
-      path: { realm_name: string };
-    };
-    responses: { 204: unknown; 307: unknown };
-  };
+      query: Partial<{
+        id_token_hint: string
+        post_logout_redirect_uri: string
+        state: string
+        client_id: string
+      }>
+      path: { realm_name: string }
+    }
+    responses: { 204: unknown; 307: unknown }
+  }
   export type post_Logout_post = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/logout";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/logout'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.LogoutRequestValidator;
-    };
-    responses: { 204: unknown; 307: unknown };
-  };
+      body: Schemas.LogoutRequestValidator
+    }
+    responses: { 204: unknown; 307: unknown }
+  }
   export type post_Registration_handler = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/registrations";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/registrations'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.RegistrationRequest;
-    };
+      body: Schemas.RegistrationRequest
+    }
     responses: {
-      201: Schemas.JwtToken;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.JwtToken
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Revoke_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/revoke";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/revoke'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.RevokeTokenRequestValidator;
-    };
-    responses: { 200: unknown };
-  };
+      body: Schemas.RevokeTokenRequestValidator
+    }
+    responses: { 200: unknown }
+  }
   export type post_Exchange_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/token";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/token'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.TokenRequestValidator;
-    };
+      body: Schemas.TokenRequestValidator
+    }
     responses: {
-      200: Schemas.JwtToken;
-      401: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.JwtToken
+      401: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Introspect_token = {
-    method: "POST";
-    path: "/realms/{realm_name}/protocol/openid-connect/token/introspect";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/token/introspect'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.IntrospectRequestValidator;
-    };
+      body: Schemas.IntrospectRequestValidator
+    }
     responses: {
-      200: Schemas.TokenIntrospectionResponse;
-      401: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.TokenIntrospectionResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_userinfo = {
-    method: "GET";
-    path: "/realms/{realm_name}/protocol/openid-connect/userinfo";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/protocol/openid-connect/userinfo'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown };
-  };
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown }
+  }
   export type get_Get_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/roles";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/roles'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.GetRolesResponse; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetRolesResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_realm_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/roles";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/roles'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateRoleValidator;
-    };
+      body: Schemas.CreateRoleValidator
+    }
     responses: {
-      201: Schemas.CreateRoleResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.CreateRoleResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_role = {
-    method: "GET";
-    path: "/realms/{realm_name}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/roles/{role_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; role_id: string };
-    };
+      path: { realm_name: string; role_id: string }
+    }
     responses: {
-      200: Schemas.GetRoleResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetRoleResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_role = {
-    method: "PUT";
-    path: "/realms/{realm_name}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/roles/{role_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; role_id: string };
+      path: { realm_name: string; role_id: string }
 
-      body: Schemas.UpdateRoleValidator;
-    };
+      body: Schemas.UpdateRoleValidator
+    }
     responses: {
-      200: Schemas.UpdateRoleResponse;
-      400: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateRoleResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_role = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/roles/{role_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; role_id: string };
-    };
-    responses: { 200: Schemas.DeleteRoleResponse; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      path: { realm_name: string; role_id: string }
+    }
+    responses: {
+      200: Schemas.DeleteRoleResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type patch_Update_role_permissions = {
-    method: "PATCH";
-    path: "/realms/{realm_name}/roles/{role_id}/permissions";
-    requestFormat: "json";
+    method: 'PATCH'
+    path: '/realms/{realm_name}/roles/{role_id}/permissions'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; role_id: string };
+      path: { realm_name: string; role_id: string }
 
-      body: Schemas.UpdateRolePermissionsValidator;
-    };
+      body: Schemas.UpdateRolePermissionsValidator
+    }
     responses: {
-      200: Schemas.UpdateRolePermissionsResponse;
-      400: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateRolePermissionsResponse
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_security_events = {
-    method: "GET";
-    path: "/realms/{realm_name}/seawatch/v1/security-events";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/seawatch/v1/security-events'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetSecurityEventsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetSecurityEventsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_smtp_config = {
-    method: "GET";
-    path: "/realms/{realm_name}/smtp-config";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.SmtpConfig;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.SmtpConfig
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Upsert_smtp_config = {
-    method: "PUT";
-    path: "/realms/{realm_name}/smtp-config";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.UpsertSmtpConfigValidator;
-    };
+      body: Schemas.UpsertSmtpConfigValidator
+    }
     responses: {
-      200: Schemas.SmtpConfig;
-      400: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.SmtpConfig
+      400: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_smtp_config = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/smtp-config";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/smtp-config'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 204: unknown; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
-  };
+      path: { realm_name: string }
+    }
+    responses: { 204: unknown; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse }
+  }
   export type get_Get_users = {
-    method: "GET";
-    path: "/realms/{realm_name}/users";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.UsersResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UsersResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_user = {
-    method: "POST";
-    path: "/realms/{realm_name}/users";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/users'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateUserValidator;
-    };
+      body: Schemas.CreateUserValidator
+    }
     responses: {
-      201: Schemas.CreateUserResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      201: Schemas.CreateUserResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_user_realms = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/@me/realms";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/@me/realms'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.UserRealmsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UserRealmsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Bulk_delete_user = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/bulk";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/bulk'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.BulkDeleteUserValidator;
-    };
+      body: Schemas.BulkDeleteUserValidator
+    }
     responses: {
-      200: Schemas.BulkDeleteUserResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.BulkDeleteUserResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_user = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Schemas.UserResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_user = {
-    method: "PUT";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/users/{user_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
+      path: { realm_name: string; user_id: string }
 
-      body: Schemas.UpdateUserValidator;
-    };
+      body: Schemas.UpdateUserValidator
+    }
     responses: {
-      200: Schemas.UpdateUserResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateUserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_user = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/{user_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Schemas.DeleteUserResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteUserResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_user_attributes = {
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/attributes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string }
+    }
+    responses: {
+      200: Schemas.UserAttributesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Set_user_attributes = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/users/{user_id}/attributes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string }
+
+      body: Schemas.SetUserAttributesValidator
+    }
+    responses: {
+      200: Schemas.SetUserAttributesResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type delete_Delete_user_attribute = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/{user_id}/attributes/{key}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string; key: string }
+    }
+    responses: {
+      200: Schemas.DeleteUserAttributeResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_user_credentials = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/credentials";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/credentials'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Schemas.GetUserCredentialsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetUserCredentialsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_user_credential = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string; credential_id: string };
-    };
+      path: { realm_name: string; user_id: string; credential_id: string }
+    }
     responses: {
-      200: Schemas.DeleteUserCredentialResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteUserCredentialResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_user_organizations = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/organizations";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/organizations'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Array<Schemas.OrganizationMember>;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Array<Schemas.OrganizationMember>
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_user_permissions = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/permissions";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/permissions'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Schemas.UserPermissionsResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UserPermissionsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Reset_password = {
-    method: "PUT";
-    path: "/realms/{realm_name}/users/{user_id}/reset-password";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/users/{user_id}/reset-password'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
+      path: { realm_name: string; user_id: string }
 
-      body: Schemas.ResetPasswordValidator;
-    };
+      body: Schemas.ResetPasswordValidator
+    }
     responses: {
-      200: Schemas.ResetPasswordResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.ResetPasswordResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_user_roles = {
-    method: "GET";
-    path: "/realms/{realm_name}/users/{user_id}/roles";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/roles'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string };
-    };
+      path: { realm_name: string; user_id: string }
+    }
     responses: {
-      200: Schemas.GetUserRolesResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetUserRolesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Assign_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/users/{user_id}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/users/{user_id}/roles/{role_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string; role_id: string };
-    };
+      path: { realm_name: string; user_id: string; role_id: string }
+    }
     responses: {
-      200: Schemas.AssignRoleResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.AssignRoleResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Unassign_role = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/users/{user_id}/roles/{role_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/{user_id}/roles/{role_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; user_id: string; role_id: string };
-    };
+      path: { realm_name: string; user_id: string; role_id: string }
+    }
     responses: {
-      200: Schemas.UnassignRoleResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UnassignRoleResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Fetch_webhooks = {
-    method: "GET";
-    path: "/realms/{realm_name}/webhooks";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/webhooks'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
-    };
+      path: { realm_name: string }
+    }
     responses: {
-      200: Schemas.GetWebhooksResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.GetWebhooksResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Create_webhook = {
-    method: "POST";
-    path: "/realms/{realm_name}/webhooks";
-    requestFormat: "json";
+    method: 'POST'
+    path: '/realms/{realm_name}/webhooks'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string };
+      path: { realm_name: string }
 
-      body: Schemas.CreateWebhookValidator;
-    };
+      body: Schemas.CreateWebhookValidator
+    }
     responses: {
-      200: Schemas.CreateWebhookResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.CreateWebhookResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_webhook = {
-    method: "GET";
-    path: "/realms/{realm_name}/webhooks/{webhook_id}";
-    requestFormat: "json";
+    method: 'GET'
+    path: '/realms/{realm_name}/webhooks/{webhook_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; webhook_id: string };
-    };
+      path: { realm_name: string; webhook_id: string }
+    }
     responses: {
-      200: Schemas.Webhook;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.Webhook
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type put_Update_webhook = {
-    method: "PUT";
-    path: "/realms/{realm_name}/webhooks/{webhook_id}";
-    requestFormat: "json";
+    method: 'PUT'
+    path: '/realms/{realm_name}/webhooks/{webhook_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; webhook_id: string };
+      path: { realm_name: string; webhook_id: string }
 
-      body: Schemas.UpdateWebhookValidator;
-    };
+      body: Schemas.UpdateWebhookValidator
+    }
     responses: {
-      200: Schemas.UpdateWebhookResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.UpdateWebhookResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type delete_Delete_webhook = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/webhooks/{webhook_id}";
-    requestFormat: "json";
+    method: 'DELETE'
+    path: '/realms/{realm_name}/webhooks/{webhook_id}'
+    requestFormat: 'json'
     parameters: {
-      path: { realm_name: string; webhook_id: string };
-    };
+      path: { realm_name: string; webhook_id: string }
+    }
     responses: {
-      200: Schemas.DeleteWebhookResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
+      200: Schemas.DeleteWebhookResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
 
   // </Endpoints>
 }
@@ -2695,337 +2859,372 @@ export namespace Endpoints {
 // <EndpointByMethod>
 export type EndpointByMethod = {
   get: {
-    "/email-templates/variables/{email_type}": Endpoints.get_Get_variables;
-    "/realms/{name}": Endpoints.get_Get_realm;
-    "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
-    "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
-    "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
-    "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
-    "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
-    "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
-    "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
-    "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.get_Get_client_whitelist;
-    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
-    "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;
-    "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
-    "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
-    "/realms/{realm_name}/compass/v1/flows/{flow_id}": Endpoints.get_Get_flow;
-    "/realms/{realm_name}/compass/v1/stats": Endpoints.get_Get_stats;
-    "/realms/{realm_name}/email-templates": Endpoints.get_Fetch_templates;
-    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.get_Get_template;
-    "/realms/{realm_name}/federation/providers": Endpoints.get_List_providers;
-    "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
-    "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
-    "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
-    "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
-    "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
-    "/realms/{realm_name}/organizations": Endpoints.get_List_organizations;
-    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.get_Get_organization;
-    "/realms/{realm_name}/organizations/{organization_id}/attributes": Endpoints.get_List_attributes;
-    "/realms/{realm_name}/organizations/{organization_id}/members": Endpoints.get_List_members;
-    "/realms/{realm_name}/password-policy": Endpoints.get_Get_password_policy;
-    "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
-    "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
-    "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
-    "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.get_Logout_get;
-    "/realms/{realm_name}/protocol/openid-connect/userinfo": Endpoints.get_Get_userinfo;
-    "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
-    "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
-    "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
-    "/realms/{realm_name}/smtp-config": Endpoints.get_Get_smtp_config;
-    "/realms/{realm_name}/users": Endpoints.get_Get_users;
-    "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
-    "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
-    "/realms/{realm_name}/users/{user_id}/organizations": Endpoints.get_List_user_organizations;
-    "/realms/{realm_name}/users/{user_id}/permissions": Endpoints.get_Get_user_permissions;
-    "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
-    "/realms/{realm_name}/webhooks": Endpoints.get_Fetch_webhooks;
-    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.get_Get_webhook;
-  };
+    '/email-templates/variables/{email_type}': Endpoints.get_Get_variables
+    '/realms/{name}': Endpoints.get_Get_realm
+    '/realms/{name}/login-settings': Endpoints.get_Get_login_realm_settings_handler
+    '/realms/{realm_name}/.well-known/openid-configuration': Endpoints.get_Get_openid_configuration
+    '/realms/{realm_name}/broker/{alias}/login': Endpoints.get_Broker_login
+    '/realms/{realm_name}/client-scopes': Endpoints.get_Get_client_scopes
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.get_Get_client_scope
+    '/realms/{realm_name}/clients': Endpoints.get_Get_clients
+    '/realms/{realm_name}/clients/settings/maintenance/whitelist': Endpoints.get_Get_realm_whitelist
+    '/realms/{realm_name}/clients/{client_id}': Endpoints.get_Get_client
+    '/realms/{realm_name}/clients/{client_id}/client-scopes': Endpoints.get_Get_client_client_scopes
+    '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist': Endpoints.get_Get_client_whitelist
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
+    '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
+    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
+    '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_flows
+    '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_flow
+    '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_stats
+    '/realms/{realm_name}/email-templates': Endpoints.get_Fetch_templates
+    '/realms/{realm_name}/email-templates/{template_id}': Endpoints.get_Get_template
+    '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.get_Get_provider
+    '/realms/{realm_name}/identity-providers': Endpoints.get_List_identity_providers
+    '/realms/{realm_name}/identity-providers/{alias}': Endpoints.get_Get_identity_provider
+    '/realms/{realm_name}/login-actions/setup-otp': Endpoints.get_Setup_otp
+    '/realms/{realm_name}/login-actions/verify-magic-link': Endpoints.get_Verify_magic_link
+    '/realms/{realm_name}/organizations': Endpoints.get_List_organizations
+    '/realms/{realm_name}/organizations/{organization_id}': Endpoints.get_Get_organization
+    '/realms/{realm_name}/organizations/{organization_id}/attributes': Endpoints.get_List_attributes
+    '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.get_List_members
+    '/realms/{realm_name}/password-policy': Endpoints.get_Get_password_policy
+    '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
+    '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
+    '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
+    '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
+    '/realms/{realm_name}/roles': Endpoints.get_Get_roles
+    '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
+    '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
+    '/realms/{realm_name}/smtp-config': Endpoints.get_Get_smtp_config
+    '/realms/{realm_name}/users': Endpoints.get_Get_users
+    '/realms/{realm_name}/users/@me/realms': Endpoints.get_Get_user_realms
+    '/realms/{realm_name}/users/{user_id}': Endpoints.get_Get_user
+    '/realms/{realm_name}/users/{user_id}/attributes': Endpoints.get_Get_user_attributes
+    '/realms/{realm_name}/users/{user_id}/credentials': Endpoints.get_Get_user_credentials
+    '/realms/{realm_name}/users/{user_id}/organizations': Endpoints.get_List_user_organizations
+    '/realms/{realm_name}/users/{user_id}/permissions': Endpoints.get_Get_user_permissions
+    '/realms/{realm_name}/users/{user_id}/roles': Endpoints.get_Get_user_roles
+    '/realms/{realm_name}/webhooks': Endpoints.get_Fetch_webhooks
+    '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.get_Get_webhook
+  }
   post: {
-    "/realms": Endpoints.post_Create_realm;
-    "/realms/{realm_name}/broker/{alias}/endpoint": Endpoints.post_Broker_callback;
-    "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
-    "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
-    "/realms/{realm_name}/clients": Endpoints.post_Create_client;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
-    "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
-    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
-    "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
-    "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_client_role;
-    "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
-    "/realms/{realm_name}/federation/providers": Endpoints.post_Create_provider;
-    "/realms/{realm_name}/federation/providers/{id}/sync-users": Endpoints.post_Sync_users;
-    "/realms/{realm_name}/federation/providers/{id}/test-connection": Endpoints.post_Test_connection;
-    "/realms/{realm_name}/identity-providers": Endpoints.post_Create_identity_provider;
-    "/realms/{realm_name}/login-actions/authenticate": Endpoints.post_Authenticate;
-    "/realms/{realm_name}/login-actions/burn-recovery-code": Endpoints.post_Burn_recovery_code;
-    "/realms/{realm_name}/login-actions/challenge-otp": Endpoints.post_Challenge_otp;
-    "/realms/{realm_name}/login-actions/forgot-password": Endpoints.post_Forgot_password;
-    "/realms/{realm_name}/login-actions/generate-recovery-codes": Endpoints.post_Generate_recovery_codes;
-    "/realms/{realm_name}/login-actions/passkey-authenticate": Endpoints.post_Passkey_authenticate;
-    "/realms/{realm_name}/login-actions/passkey-request-options": Endpoints.post_Passkey_request_options;
-    "/realms/{realm_name}/login-actions/reset-password": Endpoints.post_Reset_password_with_token;
-    "/realms/{realm_name}/login-actions/send-magic-link": Endpoints.post_Send_magic_link;
-    "/realms/{realm_name}/login-actions/update-password": Endpoints.post_Update_password;
-    "/realms/{realm_name}/login-actions/verify-otp": Endpoints.post_Verify_otp;
-    "/realms/{realm_name}/login-actions/verify-reset-token": Endpoints.post_Verify_reset_token;
-    "/realms/{realm_name}/login-actions/webauthn-public-key-authenticate": Endpoints.post_Webauthn_public_key_authenticate;
-    "/realms/{realm_name}/login-actions/webauthn-public-key-create": Endpoints.post_Webauthn_public_key_create;
-    "/realms/{realm_name}/login-actions/webauthn-public-key-create-options": Endpoints.post_Webauthn_public_key_create_options;
-    "/realms/{realm_name}/login-actions/webauthn-public-key-request-options": Endpoints.post_Webauthn_public_key_request_options;
-    "/realms/{realm_name}/organizations": Endpoints.post_Create_organization;
-    "/realms/{realm_name}/organizations/{organization_id}/members": Endpoints.post_Add_member;
-    "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.post_Logout_post;
-    "/realms/{realm_name}/protocol/openid-connect/registrations": Endpoints.post_Registration_handler;
-    "/realms/{realm_name}/protocol/openid-connect/revoke": Endpoints.post_Revoke_token;
-    "/realms/{realm_name}/protocol/openid-connect/token": Endpoints.post_Exchange_token;
-    "/realms/{realm_name}/protocol/openid-connect/token/introspect": Endpoints.post_Introspect_token;
-    "/realms/{realm_name}/roles": Endpoints.post_Create_realm_role;
-    "/realms/{realm_name}/users": Endpoints.post_Create_user;
-    "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
-    "/realms/{realm_name}/webhooks": Endpoints.post_Create_webhook;
-  };
+    '/realms': Endpoints.post_Create_realm
+    '/realms/{realm_name}/broker/{alias}/endpoint': Endpoints.post_Broker_callback
+    '/realms/{realm_name}/client-scopes': Endpoints.post_Create_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers': Endpoints.post_Create_protocol_mapper
+    '/realms/{realm_name}/clients': Endpoints.post_Create_client
+    '/realms/{realm_name}/clients/settings/maintenance/whitelist': Endpoints.post_Add_realm_whitelist_entry
+    '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist': Endpoints.post_Add_client_whitelist_entry
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_Create_post_logout_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_client_role
+    '/realms/{realm_name}/email-templates': Endpoints.post_Create_template
+    '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
+    '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
+    '/realms/{realm_name}/federation/providers/{id}/test-connection': Endpoints.post_Test_connection
+    '/realms/{realm_name}/identity-providers': Endpoints.post_Create_identity_provider
+    '/realms/{realm_name}/login-actions/authenticate': Endpoints.post_Authenticate
+    '/realms/{realm_name}/login-actions/burn-recovery-code': Endpoints.post_Burn_recovery_code
+    '/realms/{realm_name}/login-actions/challenge-otp': Endpoints.post_Challenge_otp
+    '/realms/{realm_name}/login-actions/forgot-password': Endpoints.post_Forgot_password
+    '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
+    '/realms/{realm_name}/login-actions/passkey-authenticate': Endpoints.post_Passkey_authenticate
+    '/realms/{realm_name}/login-actions/passkey-request-options': Endpoints.post_Passkey_request_options
+    '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
+    '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
+    '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
+    '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
+    '/realms/{realm_name}/login-actions/verify-reset-token': Endpoints.post_Verify_reset_token
+    '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate
+    '/realms/{realm_name}/login-actions/webauthn-public-key-create': Endpoints.post_Webauthn_public_key_create
+    '/realms/{realm_name}/login-actions/webauthn-public-key-create-options': Endpoints.post_Webauthn_public_key_create_options
+    '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
+    '/realms/{realm_name}/organizations': Endpoints.post_Create_organization
+    '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.post_Add_member
+    '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout_post
+    '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
+    '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
+    '/realms/{realm_name}/protocol/openid-connect/token': Endpoints.post_Exchange_token
+    '/realms/{realm_name}/protocol/openid-connect/token/introspect': Endpoints.post_Introspect_token
+    '/realms/{realm_name}/roles': Endpoints.post_Create_realm_role
+    '/realms/{realm_name}/users': Endpoints.post_Create_user
+    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.post_Assign_role
+    '/realms/{realm_name}/webhooks': Endpoints.post_Create_webhook
+  }
   put: {
-    "/realms/{name}": Endpoints.put_Update_realm;
-    "/realms/{name}/settings": Endpoints.put_Update_realm_setting;
-    "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.put_Assign_default_scope;
-    "/realms/{realm_name}/clients/{client_id}/maintenance": Endpoints.put_Toggle_maintenance;
-    "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.put_Assign_optional_scope;
-    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.put_Update_post_logout_redirect_uri;
-    "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.put_Update_redirect_uri;
-    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.put_Update_template;
-    "/realms/{realm_name}/federation/providers/{id}": Endpoints.put_Update_provider;
-    "/realms/{realm_name}/identity-providers/{alias}": Endpoints.put_Update_identity_provider;
-    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.put_Update_organization;
-    "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}": Endpoints.put_Upsert_attribute;
-    "/realms/{realm_name}/password-policy": Endpoints.put_Update_password_policy;
-    "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
-    "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.put_Update_user;
-    "/realms/{realm_name}/users/{user_id}/reset-password": Endpoints.put_Reset_password;
-    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.put_Update_webhook;
-  };
+    '/realms/{name}': Endpoints.put_Update_realm
+    '/realms/{name}/settings': Endpoints.put_Update_realm_setting
+    '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.put_Assign_default_scope
+    '/realms/{realm_name}/clients/{client_id}/maintenance': Endpoints.put_Toggle_maintenance
+    '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.put_Assign_optional_scope
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.put_Update_post_logout_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.put_Update_redirect_uri
+    '/realms/{realm_name}/email-templates/{template_id}': Endpoints.put_Update_template
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.put_Update_provider
+    '/realms/{realm_name}/identity-providers/{alias}': Endpoints.put_Update_identity_provider
+    '/realms/{realm_name}/organizations/{organization_id}': Endpoints.put_Update_organization
+    '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.put_Upsert_attribute
+    '/realms/{realm_name}/password-policy': Endpoints.put_Update_password_policy
+    '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
+    '/realms/{realm_name}/smtp-config': Endpoints.put_Upsert_smtp_config
+    '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
+    '/realms/{realm_name}/users/{user_id}/attributes': Endpoints.put_Set_user_attributes
+    '/realms/{realm_name}/users/{user_id}/reset-password': Endpoints.put_Reset_password
+    '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.put_Update_webhook
+  }
   delete: {
-    "/realms/{name}": Endpoints.delete_Delete_realm;
-    "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope;
-    "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
-    "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope;
-    "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry;
-    "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope;
-    "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.delete_Delete_post_logout_redirect_uri;
-    "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
-    "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
-    "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;
-    "/realms/{realm_name}/identity-providers/{alias}": Endpoints.delete_Delete_identity_provider;
-    "/realms/{realm_name}/organizations/{organization_id}": Endpoints.delete_Delete_organization;
-    "/realms/{realm_name}/organizations/{organization_id}/attributes/{key}": Endpoints.delete_Delete_attribute;
-    "/realms/{realm_name}/organizations/{organization_id}/members/{user_id}": Endpoints.delete_Remove_member;
-    "/realms/{realm_name}/roles/{role_id}": Endpoints.delete_Delete_role;
-    "/realms/{realm_name}/smtp-config": Endpoints.delete_Delete_smtp_config;
-    "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
-    "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
-    "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;
-    "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.delete_Unassign_role;
-    "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.delete_Delete_webhook;
-  };
+    '/realms/{name}': Endpoints.delete_Delete_realm
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.delete_Delete_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}': Endpoints.delete_Delete_protocol_mapper
+    '/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}': Endpoints.delete_Remove_realm_whitelist_entry
+    '/realms/{realm_name}/clients/{client_id}': Endpoints.delete_Delete_client
+    '/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}': Endpoints.delete_Unassign_default_scope
+    '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}': Endpoints.delete_Remove_client_whitelist_entry
+    '/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}': Endpoints.delete_Unassign_optional_scope
+    '/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}': Endpoints.delete_Delete_post_logout_redirect_uri
+    '/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}': Endpoints.delete_Delete_redirect_uri
+    '/realms/{realm_name}/email-templates/{template_id}': Endpoints.delete_Delete_template
+    '/realms/{realm_name}/federation/providers/{id}': Endpoints.delete_Delete_provider
+    '/realms/{realm_name}/identity-providers/{alias}': Endpoints.delete_Delete_identity_provider
+    '/realms/{realm_name}/organizations/{organization_id}': Endpoints.delete_Delete_organization
+    '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.delete_Delete_attribute
+    '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}': Endpoints.delete_Remove_member
+    '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
+    '/realms/{realm_name}/smtp-config': Endpoints.delete_Delete_smtp_config
+    '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user
+    '/realms/{realm_name}/users/{user_id}': Endpoints.delete_Delete_user
+    '/realms/{realm_name}/users/{user_id}/attributes/{key}': Endpoints.delete_Delete_user_attribute
+    '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}': Endpoints.delete_Delete_user_credential
+    '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.delete_Unassign_role
+    '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.delete_Delete_webhook
+  }
   patch: {
-    "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.patch_Update_client_scope;
-    "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.patch_Update_protocol_mapper;
-    "/realms/{realm_name}/clients/{client_id}": Endpoints.patch_Update_client;
-    "/realms/{realm_name}/roles/{role_id}/permissions": Endpoints.patch_Update_role_permissions;
-  };
-};
+    '/realms/{realm_name}/client-scopes/{scope_id}': Endpoints.patch_Update_client_scope
+    '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}': Endpoints.patch_Update_protocol_mapper
+    '/realms/{realm_name}/clients/{client_id}': Endpoints.patch_Update_client
+    '/realms/{realm_name}/roles/{role_id}/permissions': Endpoints.patch_Update_role_permissions
+  }
+}
 
 // </EndpointByMethod>
 
 // <EndpointByMethod.Shorthands>
-export type GetEndpoints = EndpointByMethod["get"];
-export type PostEndpoints = EndpointByMethod["post"];
-export type PutEndpoints = EndpointByMethod["put"];
-export type DeleteEndpoints = EndpointByMethod["delete"];
-export type PatchEndpoints = EndpointByMethod["patch"];
+export type GetEndpoints = EndpointByMethod['get']
+export type PostEndpoints = EndpointByMethod['post']
+export type PutEndpoints = EndpointByMethod['put']
+export type DeleteEndpoints = EndpointByMethod['delete']
+export type PatchEndpoints = EndpointByMethod['patch']
 // </EndpointByMethod.Shorthands>
 
 // <ApiClientTypes>
 export type EndpointParameters = {
-  body?: unknown;
-  query?: Record<string, unknown>;
-  header?: Record<string, unknown>;
-  path?: Record<string, unknown>;
-};
+  body?: unknown
+  query?: Record<string, unknown>
+  header?: Record<string, unknown>
+  path?: Record<string, unknown>
+}
 
-export type MutationMethod = "post" | "put" | "patch" | "delete";
-export type Method = "get" | "head" | "options" | MutationMethod;
+export type MutationMethod = 'post' | 'put' | 'patch' | 'delete'
+export type Method = 'get' | 'head' | 'options' | MutationMethod
 
-type RequestFormat = "json" | "form-data" | "form-url" | "binary" | "text";
+type RequestFormat = 'json' | 'form-data' | 'form-url' | 'binary' | 'text'
 
 export type DefaultEndpoint = {
-  parameters?: EndpointParameters | undefined;
-  responses?: Record<string, unknown>;
-  responseHeaders?: Record<string, unknown>;
-};
+  parameters?: EndpointParameters | undefined
+  responses?: Record<string, unknown>
+  responseHeaders?: Record<string, unknown>
+}
 
 export type Endpoint<TConfig extends DefaultEndpoint = DefaultEndpoint> = {
-  operationId: string;
-  method: Method;
-  path: string;
-  requestFormat: RequestFormat;
-  parameters?: TConfig["parameters"];
+  operationId: string
+  method: Method
+  path: string
+  requestFormat: RequestFormat
+  parameters?: TConfig['parameters']
   meta: {
-    alias: string;
-    hasParameters: boolean;
-    areParametersRequired: boolean;
-  };
-  responses?: TConfig["responses"];
-  responseHeaders?: TConfig["responseHeaders"];
-};
+    alias: string
+    hasParameters: boolean
+    areParametersRequired: boolean
+  }
+  responses?: TConfig['responses']
+  responseHeaders?: TConfig['responseHeaders']
+}
 
 export interface Fetcher {
-  decodePathParams?: (path: string, pathParams: Record<string, string>) => string;
-  encodeSearchParams?: (searchParams: Record<string, unknown> | undefined) => URLSearchParams;
+  decodePathParams?: (path: string, pathParams: Record<string, string>) => string
+  encodeSearchParams?: (searchParams: Record<string, unknown> | undefined) => URLSearchParams
   //
   fetch: (input: {
-    method: Method;
-    url: URL;
-    urlSearchParams?: URLSearchParams | undefined;
-    parameters?: EndpointParameters | undefined;
-    path: string;
-    overrides?: RequestInit;
-    throwOnStatusError?: boolean;
-  }) => Promise<Response>;
-  parseResponseData?: (response: Response) => Promise<unknown>;
+    method: Method
+    url: URL
+    urlSearchParams?: URLSearchParams | undefined
+    parameters?: EndpointParameters | undefined
+    path: string
+    overrides?: RequestInit
+    throwOnStatusError?: boolean
+  }) => Promise<Response>
+  parseResponseData?: (response: Response) => Promise<unknown>
 }
 
 export const successStatusCodes = [
   200, 201, 202, 203, 204, 205, 206, 207, 208, 226, 300, 301, 302, 303, 304, 305, 306, 307, 308,
-] as const;
-export type SuccessStatusCode = (typeof successStatusCodes)[number];
+] as const
+export type SuccessStatusCode = (typeof successStatusCodes)[number]
 
 export const errorStatusCodes = [
-  400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 422, 423, 424,
-  425, 426, 428, 429, 431, 451, 500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511,
-] as const;
-export type ErrorStatusCode = (typeof errorStatusCodes)[number];
+  400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418,
+  421, 422, 423, 424, 425, 426, 428, 429, 431, 451, 500, 501, 502, 503, 504, 505, 506, 507, 508,
+  510, 511,
+] as const
+export type ErrorStatusCode = (typeof errorStatusCodes)[number]
 
 // Taken from https://github.com/unjs/fetchdts/blob/ec4eaeab5d287116171fc1efd61f4a1ad34e4609/src/fetch.ts#L3
-export interface TypedHeaders<TypedHeaderValues extends Record<string, string> | unknown>
-  extends Omit<Headers, "append" | "delete" | "get" | "getSetCookie" | "has" | "set" | "forEach"> {
+export interface TypedHeaders<
+  TypedHeaderValues extends Record<string, string> | unknown,
+> extends Omit<Headers, 'append' | 'delete' | 'get' | 'getSetCookie' | 'has' | 'set' | 'forEach'> {
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/append) */
   append: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
     name: Name,
-    value: Lowercase<Name> extends keyof TypedHeaderValues ? TypedHeaderValues[Lowercase<Name>] : string,
-  ) => void;
+    value: Lowercase<Name> extends keyof TypedHeaderValues
+      ? TypedHeaderValues[Lowercase<Name>]
+      : string
+  ) => void
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/delete) */
-  delete: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(name: Name) => void;
+  delete: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name
+  ) => void
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/get) */
   get: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
-    name: Name,
-  ) => (Lowercase<Name> extends keyof TypedHeaderValues ? TypedHeaderValues[Lowercase<Name>] : string) | null;
+    name: Name
+  ) =>
+    | (Lowercase<Name> extends keyof TypedHeaderValues
+        ? TypedHeaderValues[Lowercase<Name>]
+        : string)
+    | null
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/getSetCookie) */
-  getSetCookie: () => string[];
+  getSetCookie: () => string[]
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/has) */
-  has: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(name: Name) => boolean;
+  has: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
+    name: Name
+  ) => boolean
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Headers/set) */
   set: <Name extends Extract<keyof TypedHeaderValues, string> | (string & {})>(
     name: Name,
-    value: Lowercase<Name> extends keyof TypedHeaderValues ? TypedHeaderValues[Lowercase<Name>] : string,
-  ) => void;
+    value: Lowercase<Name> extends keyof TypedHeaderValues
+      ? TypedHeaderValues[Lowercase<Name>]
+      : string
+  ) => void
   forEach: (
     callbackfn: (
       value: TypedHeaderValues[keyof TypedHeaderValues] | (string & {}),
       key: Extract<keyof TypedHeaderValues, string> | (string & {}),
-      parent: TypedHeaders<TypedHeaderValues>,
+      parent: TypedHeaders<TypedHeaderValues>
     ) => void,
-    thisArg?: any,
-  ) => void;
+    thisArg?: any
+  ) => void
 }
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/Response */
-export interface TypedSuccessResponse<TSuccess, TStatusCode, THeaders>
-  extends Omit<Response, "ok" | "status" | "json" | "headers"> {
-  ok: true;
-  status: TStatusCode;
-  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>;
-  data: TSuccess;
+export interface TypedSuccessResponse<TSuccess, TStatusCode, THeaders> extends Omit<
+  Response,
+  'ok' | 'status' | 'json' | 'headers'
+> {
+  ok: true
+  status: TStatusCode
+  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>
+  data: TSuccess
   /** [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/Response/json) */
-  json: () => Promise<TSuccess>;
+  json: () => Promise<TSuccess>
 }
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/Response */
-export interface TypedErrorResponse<TData, TStatusCode, THeaders>
-  extends Omit<Response, "ok" | "status" | "json" | "headers"> {
-  ok: false;
-  status: TStatusCode;
-  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>;
-  data: TData;
+export interface TypedErrorResponse<TData, TStatusCode, THeaders> extends Omit<
+  Response,
+  'ok' | 'status' | 'json' | 'headers'
+> {
+  ok: false
+  status: TStatusCode
+  headers: never extends THeaders ? Headers : TypedHeaders<THeaders>
+  data: TData
   /** [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/Response/json) */
-  json: () => Promise<TData>;
+  json: () => Promise<TData>
 }
 
-export type TypedApiResponse<TAllResponses extends Record<string | number, unknown> = {}, THeaders = {}> = {
+export type TypedApiResponse<
+  TAllResponses extends Record<string | number, unknown> = {},
+  THeaders = {},
+> = {
   [K in keyof TAllResponses]: K extends string
     ? K extends `${infer TStatusCode extends number}`
       ? TStatusCode extends SuccessStatusCode
-        ? TypedSuccessResponse<TAllResponses[K], TStatusCode, K extends keyof THeaders ? THeaders[K] : never>
-        : TypedErrorResponse<TAllResponses[K], TStatusCode, K extends keyof THeaders ? THeaders[K] : never>
+        ? TypedSuccessResponse<
+            TAllResponses[K],
+            TStatusCode,
+            K extends keyof THeaders ? THeaders[K] : never
+          >
+        : TypedErrorResponse<
+            TAllResponses[K],
+            TStatusCode,
+            K extends keyof THeaders ? THeaders[K] : never
+          >
       : never
     : K extends number
       ? K extends SuccessStatusCode
         ? TypedSuccessResponse<TAllResponses[K], K, K extends keyof THeaders ? THeaders[K] : never>
         : TypedErrorResponse<TAllResponses[K], K, K extends keyof THeaders ? THeaders[K] : never>
-      : never;
-}[keyof TAllResponses];
+      : never
+}[keyof TAllResponses]
 
 export type SafeApiResponse<TEndpoint> = TEndpoint extends { responses: infer TResponses }
   ? TResponses extends Record<string, unknown>
-    ? TypedApiResponse<TResponses, TEndpoint extends { responseHeaders: infer THeaders } ? THeaders : never>
+    ? TypedApiResponse<
+        TResponses,
+        TEndpoint extends { responseHeaders: infer THeaders } ? THeaders : never
+      >
     : never
-  : never;
+  : never
 
 export type InferResponseByStatus<TEndpoint, TStatusCode> = Extract<
   SafeApiResponse<TEndpoint>,
   { status: TStatusCode }
->;
+>
 
 type RequiredKeys<T> = {
-  [P in keyof T]-?: undefined extends T[P] ? never : P;
-}[keyof T];
+  [P in keyof T]-?: undefined extends T[P] ? never : P
+}[keyof T]
 
-type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T];
-type NotNever<T> = [T] extends [never] ? false : true;
+type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [config: T]
+type NotNever<T> = [T] extends [never] ? false : true
 
 // </ApiClientTypes>
 
 // <TypedStatusError>
 export class TypedStatusError<TData = unknown> extends Error {
-  response: TypedErrorResponse<TData, ErrorStatusCode, unknown>;
-  status: number;
+  response: TypedErrorResponse<TData, ErrorStatusCode, unknown>
+  status: number
   constructor(response: TypedErrorResponse<TData, ErrorStatusCode, unknown>) {
-    super(`HTTP ${response.status}: ${response.statusText}`);
-    this.name = "TypedStatusError";
-    this.response = response;
-    this.status = response.status;
+    super(`HTTP ${response.status}: ${response.statusText}`)
+    this.name = 'TypedStatusError'
+    this.response = response
+    this.status = response.status
   }
 }
 // </TypedStatusError>
 
 // <ApiClient>
 export class ApiClient {
-  baseUrl: string = "";
-  successStatusCodes = successStatusCodes;
-  errorStatusCodes = errorStatusCodes;
+  baseUrl: string = ''
+  successStatusCodes = successStatusCodes
+  errorStatusCodes = errorStatusCodes
 
   constructor(public fetcher: Fetcher) {}
 
   setBaseUrl(baseUrl: string) {
-    this.baseUrl = baseUrl;
-    return this;
+    this.baseUrl = baseUrl
+    return this
   }
 
   /**
@@ -3035,52 +3234,54 @@ export class ApiClient {
   defaultDecodePathParams = (url: string, params: Record<string, string>): string => {
     return url
       .replace(/{(\w+)}/g, (_, key: string) => params[key] || `{${key}}`)
-      .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`);
-  };
+      .replace(/:([a-zA-Z0-9_]+)/g, (_, key: string) => params[key] || `:${key}`)
+  }
 
   /** Uses URLSearchParams, skips null/undefined values */
-  defaultEncodeSearchParams = (queryParams: Record<string, unknown> | undefined): URLSearchParams | undefined => {
-    if (!queryParams) return;
+  defaultEncodeSearchParams = (
+    queryParams: Record<string, unknown> | undefined
+  ): URLSearchParams | undefined => {
+    if (!queryParams) return
 
-    const searchParams = new URLSearchParams();
+    const searchParams = new URLSearchParams()
     Object.entries(queryParams).forEach(([key, value]) => {
       if (value != null) {
         // Skip null/undefined values
         if (Array.isArray(value)) {
-          value.forEach((val) => val != null && searchParams.append(key, String(val)));
+          value.forEach((val) => val != null && searchParams.append(key, String(val)))
         } else {
-          searchParams.append(key, String(value));
+          searchParams.append(key, String(value))
         }
       }
-    });
+    })
 
-    return searchParams;
-  };
+    return searchParams
+  }
 
   defaultParseResponseData = async (response: Response): Promise<unknown> => {
-    const contentType = response.headers.get("content-type") ?? "";
-    if (contentType.startsWith("text/")) {
-      return await response.text();
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.startsWith('text/')) {
+      return await response.text()
     }
 
-    if (contentType === "application/octet-stream") {
-      return await response.arrayBuffer();
+    if (contentType === 'application/octet-stream') {
+      return await response.arrayBuffer()
     }
 
     if (
-      contentType.includes("application/json") ||
-      (contentType.includes("application/") && contentType.includes("json")) ||
-      contentType === "*/*"
+      contentType.includes('application/json') ||
+      (contentType.includes('application/') && contentType.includes('json')) ||
+      contentType === '*/*'
     ) {
       try {
-        return await response.json();
+        return await response.json()
       } catch {
-        return undefined;
+        return undefined
       }
     }
 
-    return;
-  };
+    return
+  }
 
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
@@ -3088,11 +3289,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
@@ -3103,13 +3308,13 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   get<Path extends keyof GetEndpoints, _TEndpoint extends GetEndpoints[Path]>(
     path: Path,
     ...params: MaybeOptionalArg<any>
   ): Promise<any> {
-    return this.request("get", path, ...params);
+    return this.request('get', path, ...params)
   }
   // </ApiClient.get>
 
@@ -3119,11 +3324,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
     path: Path,
@@ -3134,13 +3343,13 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   post<Path extends keyof PostEndpoints, _TEndpoint extends PostEndpoints[Path]>(
     path: Path,
     ...params: MaybeOptionalArg<any>
   ): Promise<any> {
-    return this.request("post", path, ...params);
+    return this.request('post', path, ...params)
   }
   // </ApiClient.post>
 
@@ -3150,11 +3359,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   put<Path extends keyof PutEndpoints, TEndpoint extends PutEndpoints[Path]>(
     path: Path,
@@ -3165,13 +3378,13 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   put<Path extends keyof PutEndpoints, _TEndpoint extends PutEndpoints[Path]>(
     path: Path,
     ...params: MaybeOptionalArg<any>
   ): Promise<any> {
-    return this.request("put", path, ...params);
+    return this.request('put', path, ...params)
   }
   // </ApiClient.put>
 
@@ -3181,11 +3394,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   delete<Path extends keyof DeleteEndpoints, TEndpoint extends DeleteEndpoints[Path]>(
     path: Path,
@@ -3196,13 +3413,13 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   delete<Path extends keyof DeleteEndpoints, _TEndpoint extends DeleteEndpoints[Path]>(
     path: Path,
     ...params: MaybeOptionalArg<any>
   ): Promise<any> {
-    return this.request("delete", path, ...params);
+    return this.request('delete', path, ...params)
   }
   // </ApiClient.delete>
 
@@ -3212,11 +3429,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   patch<Path extends keyof PatchEndpoints, TEndpoint extends PatchEndpoints[Path]>(
     path: Path,
@@ -3227,13 +3448,13 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   patch<Path extends keyof PatchEndpoints, _TEndpoint extends PatchEndpoints[Path]>(
     path: Path,
     ...params: MaybeOptionalArg<any>
   ): Promise<any> {
-    return this.request("patch", path, ...params);
+    return this.request('patch', path, ...params)
   }
   // </ApiClient.patch>
 
@@ -3251,11 +3472,15 @@ export class ApiClient {
     ...params: MaybeOptionalArg<
       TEndpoint extends { parameters: infer UParams }
         ? NotNever<UParams> extends true
-          ? UParams & { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
+          ? UParams & {
+              overrides?: RequestInit
+              withResponse?: false
+              throwOnStatusError?: boolean
+            }
           : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: false; throwOnStatusError?: boolean }
     >
-  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"]>;
+  ): Promise<Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>['data']>
 
   request<
     TMethod extends keyof EndpointByMethod,
@@ -3271,34 +3496,36 @@ export class ApiClient {
           : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
         : { overrides?: RequestInit; withResponse?: true; throwOnStatusError?: boolean }
     >
-  ): Promise<SafeApiResponse<TEndpoint>>;
+  ): Promise<SafeApiResponse<TEndpoint>>
 
   request<
     TMethod extends keyof EndpointByMethod,
     TPath extends keyof EndpointByMethod[TMethod],
     TEndpoint extends EndpointByMethod[TMethod][TPath],
   >(method: TMethod, path: TPath, ...params: MaybeOptionalArg<any>): Promise<any> {
-    const requestParams = params[0];
-    const withResponse = requestParams?.withResponse;
+    const requestParams = params[0]
+    const withResponse = requestParams?.withResponse
     const {
       withResponse: _,
       throwOnStatusError = withResponse ? false : true,
       overrides,
       ...fetchParams
-    } = requestParams || {};
+    } = requestParams || {}
 
-    const parametersToSend: EndpointParameters = {};
-    if (requestParams?.body !== undefined) (parametersToSend as any).body = requestParams.body;
-    if (requestParams?.query !== undefined) (parametersToSend as any).query = requestParams.query;
-    if (requestParams?.header !== undefined) (parametersToSend as any).header = requestParams.header;
-    if (requestParams?.path !== undefined) (parametersToSend as any).path = requestParams.path;
+    const parametersToSend: EndpointParameters = {}
+    if (requestParams?.body !== undefined) (parametersToSend as any).body = requestParams.body
+    if (requestParams?.query !== undefined) (parametersToSend as any).query = requestParams.query
+    if (requestParams?.header !== undefined) (parametersToSend as any).header = requestParams.header
+    if (requestParams?.path !== undefined) (parametersToSend as any).path = requestParams.path
 
     const resolvedPath = (this.fetcher.decodePathParams ?? this.defaultDecodePathParams)(
       this.baseUrl + (path as string),
-      (parametersToSend.path ?? {}) as Record<string, string>,
-    );
-    const url = new URL(resolvedPath);
-    const urlSearchParams = (this.fetcher.encodeSearchParams ?? this.defaultEncodeSearchParams)(parametersToSend.query);
+      (parametersToSend.path ?? {}) as Record<string, string>
+    )
+    const url = new URL(resolvedPath)
+    const urlSearchParams = (this.fetcher.encodeSearchParams ?? this.defaultEncodeSearchParams)(
+      parametersToSend.query
+    )
 
     const promise = this.fetcher
       .fetch({
@@ -3311,26 +3538,31 @@ export class ApiClient {
         throwOnStatusError,
       })
       .then(async (response) => {
-        const data = await (this.fetcher.parseResponseData ?? this.defaultParseResponseData)(response);
+        const data = await (this.fetcher.parseResponseData ?? this.defaultParseResponseData)(
+          response
+        )
         const typedResponse = Object.assign(response, {
           data: data,
           json: () => Promise.resolve(data),
-        }) as SafeApiResponse<TEndpoint>;
+        }) as SafeApiResponse<TEndpoint>
 
         if (throwOnStatusError && errorStatusCodes.includes(response.status as never)) {
-          throw new TypedStatusError(typedResponse as never);
+          throw new TypedStatusError(typedResponse as never)
         }
 
-        return withResponse ? typedResponse : data;
-      });
+        return withResponse ? typedResponse : data
+      })
 
-    return promise as Extract<InferResponseByStatus<TEndpoint, SuccessStatusCode>, { data: {} }>["data"];
+    return promise as Extract<
+      InferResponseByStatus<TEndpoint, SuccessStatusCode>,
+      { data: {} }
+    >['data']
   }
   // </ApiClient.request>
 }
 
 export function createApiClient(fetcher: Fetcher, baseUrl?: string) {
-  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? "");
+  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? '')
 }
 
 /**

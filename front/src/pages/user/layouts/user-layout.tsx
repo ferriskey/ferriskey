@@ -24,6 +24,7 @@ export default function UserLayout() {
     { key: 'credentials', label: 'Credentials', path: `${baseUrl}/credentials` },
     { key: 'role-mapping', label: 'Role Mapping', path: `${baseUrl}/role-mapping` },
     { key: 'organizations', label: 'Organizations', path: `${baseUrl}/organizations` },
+    { key: 'attributes', label: 'Attributes', path: `${baseUrl}/attributes` },
   ]
 
   return (
