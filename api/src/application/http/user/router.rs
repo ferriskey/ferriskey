@@ -13,13 +13,16 @@ use super::handlers::{
     create_user::{__path_create_user, create_user},
     delete_credential::{__path_delete_user_credential, delete_user_credential},
     delete_user::{__path_delete_user, delete_user},
+    delete_user_attribute::{__path_delete_user_attribute, delete_user_attribute},
     get_credentials::{__path_get_user_credentials, get_user_credentials},
     get_user::{__path_get_user, get_user},
+    get_user_attributes::{__path_get_user_attributes, get_user_attributes},
     get_user_permissions::{__path_get_user_permissions, get_user_permissions},
     get_user_roles::{__path_get_user_roles, get_user_roles},
     get_users::{__path_get_users, get_users},
     list_user_organizations::{__path_list_user_organizations, list_user_organizations},
     reset_password::{__path_reset_password, reset_password},
+    set_user_attributes::{__path_set_user_attributes, set_user_attributes},
     unassign_role::{__path_unassign_role, unassign_role},
     update_user::{__path_update_user, update_user},
 };
@@ -40,6 +43,9 @@ use super::handlers::{
     unassign_role,
     get_user_permissions,
     list_user_organizations,
+    get_user_attributes,
+    set_user_attributes,
+    delete_user_attribute,
 ))]
 pub struct UserApiDoc;
 
@@ -142,6 +148,20 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(list_user_organizations),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/attributes",
+                state.args.server.root_path
+            ),
+            get(get_user_attributes).put(set_user_attributes),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/attributes/{{key}}",
+                state.args.server.root_path
+            ),
+            delete(delete_user_attribute),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

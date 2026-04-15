@@ -84,6 +84,7 @@ use crate::{
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
         user::{
             repositories::{
+                user_attribute_repository::PostgresUserAttributeRepository,
                 user_required_action_repository::PostgresUserRequiredActionRepository,
                 user_role_repository::PostgresUserRoleRepository,
             },
@@ -108,6 +109,7 @@ type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherReposito
 type AuthSessionRepo = PostgresAuthSessionRepository;
 type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
+type UserAttributeRepo = PostgresUserAttributeRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 type AccessTokenRepo = PostgresAccessTokenRepository;
@@ -242,6 +244,7 @@ pub struct ApplicationService {
         UserRequiredActionRepo,
         WebhookRepo,
         SecurityEventRepo,
+        UserAttributeRepo,
     >,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service:

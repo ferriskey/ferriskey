@@ -87,6 +87,7 @@ use crate::{
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
         user::{
             repositories::{
+                user_attribute_repository::PostgresUserAttributeRepository,
                 user_required_action_repository::PostgresUserRequiredActionRepository,
                 user_role_repository::PostgresUserRoleRepository,
             },
@@ -151,6 +152,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
     let user_required_action =
         Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
+    let user_attribute = Arc::new(PostgresUserAttributeRepository::new(postgres.get_db()));
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
     let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
@@ -311,6 +313,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user_role.clone(),
             role.clone(),
             user_required_action.clone(),
+            user_attribute.clone(),
             webhook.clone(),
             security_event.clone(),
             policy.clone(),

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 pub struct UpdateUserInput {
@@ -51,4 +53,21 @@ pub struct CreateUserInput {
 pub struct GetUserInput {
     pub realm_name: String,
     pub user_id: Uuid,
+}
+
+pub struct GetUserAttributesInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+}
+
+pub struct SetUserAttributesInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+    pub attributes: HashMap<String, String>,
+}
+
+pub struct DeleteUserAttributeInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+    pub key: String,
 }

@@ -8,6 +8,17 @@ use uuid::Uuid;
 
 use crate::generate_uuid_v7;
 use crate::realm::{Realm, RealmId};
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+pub struct UserAttribute {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub realm_id: RealmId,
+    pub key: String,
+    pub value: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
 use crate::role::entities::Role;
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]

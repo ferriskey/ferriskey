@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -10,8 +12,10 @@ use crate::domain::{
     role::entities::Role,
     user::{
         entities::{
-            AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, GetUserInput, RequiredAction,
-            RequiredActionError, ResetPasswordInput, UnassignRoleInput, UpdateUserInput, User,
+            AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, DeleteUserAttributeInput,
+            GetUserAttributesInput, GetUserInput, RequiredAction, RequiredActionError,
+            ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateUserInput, User,
+            UserAttribute,
         },
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
@@ -70,6 +74,24 @@ pub trait UserService: Send + Sync {
         identity: Identity,
         input: GetUserPermissionsInput,
     ) -> impl Future<Output = Result<Vec<Permissions>, CoreError>> + Send;
+
+    fn get_user_attributes(
+        &self,
+        identity: Identity,
+        input: GetUserAttributesInput,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn set_user_attributes(
+        &self,
+        identity: Identity,
+        input: SetUserAttributesInput,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn delete_user_attribute(
+        &self,
+        identity: Identity,
+        input: DeleteUserAttributeInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -219,4 +241,25 @@ pub trait UserRoleRepository: Send + Sync {
         user_id: Uuid,
         role_id: Uuid,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait UserAttributeRepository: Send + Sync {
+    fn list_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn upsert_many(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+        attributes: HashMap<String, String>,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn delete_by_key(
+        &self,
+        user_id: Uuid,
+        key: String,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
