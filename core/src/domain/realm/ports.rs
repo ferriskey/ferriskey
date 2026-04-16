@@ -117,7 +117,7 @@ pub trait RealmRepository: Send + Sync {
 
     fn get_by_name(
         &self,
-        name: String,
+        name: &str,
     ) -> impl Future<Output = Result<Option<Realm>, CoreError>> + Send;
 
     fn get_by_id(
@@ -132,7 +132,7 @@ pub trait RealmRepository: Send + Sync {
         realm_name: String,
         name: String,
     ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
-    fn delete_by_name(&self, name: String) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_by_name(&self, name: &str) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn create_realm_settings(
         &self,

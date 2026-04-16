@@ -730,7 +730,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -810,7 +810,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -1091,7 +1091,7 @@ where
     async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -1386,7 +1386,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InvalidRealm)?;

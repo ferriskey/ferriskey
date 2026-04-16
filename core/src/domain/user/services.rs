@@ -133,7 +133,7 @@ where
     ) -> Result<u64, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -181,7 +181,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -244,7 +244,7 @@ where
     ) -> Result<User, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -306,7 +306,7 @@ where
     ) -> Result<Vec<User>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -330,7 +330,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -384,7 +384,7 @@ where
     ) -> Result<u64, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -434,7 +434,7 @@ where
     ) -> Result<User, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -489,7 +489,7 @@ where
     async fn get_user(&self, identity: Identity, input: GetUserInput) -> Result<User, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -511,7 +511,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -565,7 +565,7 @@ where
     ) -> Result<Vec<Permissions>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -604,7 +604,7 @@ where
     ) -> Result<Vec<UserAttribute>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -635,7 +635,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -662,7 +662,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 

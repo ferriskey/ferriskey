@@ -292,7 +292,7 @@ where
     ) -> Result<Realm, CoreError> {
         let realm_master = self
             .realm_repository
-            .get_by_name("master".to_string())
+            .get_by_name("master")
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -456,7 +456,7 @@ where
 
         let realm_master = self
             .realm_repository
-            .get_by_name("master".to_string())
+            .get_by_name("master")
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -518,13 +518,13 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name.clone())
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
         let realm_master = self
             .realm_repository
-            .get_by_name("master".into())
+            .get_by_name("master")
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -552,7 +552,7 @@ where
             .await?;
 
         self.realm_repository
-            .delete_by_name(input.realm_name)
+            .delete_by_name(&input.realm_name)
             .await?;
 
         self.client_repository.delete_by_id(client.id).await?;
@@ -575,7 +575,7 @@ where
     ) -> Result<Realm, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -603,7 +603,7 @@ where
     ) -> Result<RealmSetting, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -638,7 +638,7 @@ where
 
         let realm = user.realm.clone().ok_or(CoreError::InternalServerError)?;
         self.realm_repository
-            .get_by_name(realm.name)
+            .get_by_name(&realm.name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -701,7 +701,7 @@ where
     ) -> Result<Realm, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name.clone())
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -745,7 +745,7 @@ where
     ) -> Result<Realm, CoreError> {
         let mut realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -801,7 +801,7 @@ where
     async fn get_login_settings(&self, realm_name: String) -> Result<RealmLoginSetting, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -884,7 +884,7 @@ where
     ) -> Result<SmtpConfig, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -914,7 +914,7 @@ where
     ) -> Result<SmtpConfig, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -955,7 +955,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -1036,7 +1036,7 @@ mod tests {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(mockall::predicate::eq("master".to_string()))
+                .with(mockall::predicate::eq("master"))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(Some(master_realm)) }));
             self
@@ -1047,7 +1047,7 @@ mod tests {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(mockall::predicate::eq("master".to_string()))
+                .with(mockall::predicate::eq("master"))
                 .times(2)
                 .returning(move |_| {
                     let realm = master_realm_clone.clone();

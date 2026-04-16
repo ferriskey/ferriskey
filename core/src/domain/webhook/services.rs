@@ -71,7 +71,7 @@ where
     ) -> Result<Vec<Webhook>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -97,7 +97,7 @@ where
     ) -> Result<Vec<Webhook>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -123,7 +123,7 @@ where
     ) -> Result<Option<Webhook>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -149,7 +149,7 @@ where
     ) -> Result<Webhook, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -194,7 +194,7 @@ where
     ) -> Result<Webhook, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -239,7 +239,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;

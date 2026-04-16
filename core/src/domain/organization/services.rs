@@ -77,7 +77,7 @@ where
         realm_name: String,
     ) -> Result<crate::domain::realm::entities::Realm, CoreError> {
         self.realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)
