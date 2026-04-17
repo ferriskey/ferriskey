@@ -1,7 +1,7 @@
 import { GrantType } from '@/api/core.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
 import {
@@ -26,13 +26,18 @@ export default function PageCallbackFeature() {
   const { mutateAsync: exchangeToken } = useTokenMutation()
   const hasStartedExchange = useRef(false)
 
+  // Read sessionStorage once at mount to avoid a React StrictMode double-render
+  // causing the value to be missing on the second render after the first effect
+  // removes it.
+  const [expectedState] = useState(() => sessionStorage.getItem('oauth_state'))
+
   const callbackValidationError = useMemo(() => {
     return validateCallbackParams({
       code,
       returnedState: state,
-      expectedState: sessionStorage.getItem('oauth_state'),
+      expectedState,
     })
-  }, [code, state])
+  }, [code, state, expectedState])
 
   useEffect(() => {
     if (callbackValidationError) {

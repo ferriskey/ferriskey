@@ -635,7 +635,7 @@ where
                 nonce: broker_session.nonce.clone(),
                 user_id: Some(user.id),
                 code: Some(authorization_code.clone()),
-                authenticated: true,
+                authenticated: false,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
