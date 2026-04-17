@@ -1,0 +1,23 @@
+[package]
+name = "ferriskey-benchmarks"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-security = { path = "../libs/ferriskey-security" }
+ferriskey-domain = { path = "../libs/ferriskey-domain" }
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+uuid = { version = "1.20.0", features = ["v4"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+divan = { package = "codspeed-divan-compat", version = "*" }
+
+[[bench]]
+name = "token"
+harness = false
+
+[[bench]]
+name = "realm"
+harness = false
