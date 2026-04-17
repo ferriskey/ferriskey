@@ -31,4 +31,5 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v4
         with:
+          mode: walltime
           run: cargo codspeed build -p ferriskey-benchmarks && cargo codspeed run -p ferriskey-benchmarks
