@@ -191,6 +191,8 @@ impl Permissions {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::Permissions;
 
     #[test]
