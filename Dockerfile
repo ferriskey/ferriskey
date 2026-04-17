@@ -21,10 +21,14 @@ COPY core/Cargo.toml ./core/
 COPY api/Cargo.toml ./api/
 COPY operator/Cargo.toml ./operator/
 COPY client/Cargo.toml ./client/
+COPY benchmarks/Cargo.toml ./benchmarks/
 
 RUN \
   mkdir -p api/src core/src entity/src operator/src client/src \
-  libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src libs/ferriskey-migrate/src libs/ferriskey-organization/src && \
+  libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src libs/ferriskey-migrate/src libs/ferriskey-organization/src \
+  benchmarks/benches && \
+  echo "fn main() {}" > benchmarks/benches/token.rs && \
+  echo "fn main() {}" > benchmarks/benches/realm.rs && \
   touch libs/maskass/src/lib.rs && \
   touch libs/ferriskey-domain/src/lib.rs && \
   touch libs/ferriskey-security/src/lib.rs && \
@@ -56,6 +60,7 @@ COPY core core
 COPY api api
 COPY operator operator
 COPY client client
+COPY benchmarks benchmarks
 
 RUN \
   touch libs/maskass/src/lib.rs && \
