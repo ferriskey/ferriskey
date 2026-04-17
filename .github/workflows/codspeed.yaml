@@ -25,6 +25,9 @@ jobs:
       - name: Install OpenSSL dev
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
 
+      - name: Install cargo-codspeed
+        run: cargo install cargo-codspeed --locked
+
       - name: Cache Rust build
         uses: actions/cache@v4
         with:
