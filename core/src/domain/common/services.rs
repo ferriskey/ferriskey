@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use url::Url;
 
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 
@@ -359,13 +360,75 @@ where
             }
         }
 
-        let admin_redirect_patterns = vec![
-            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
-        ];
+        let configured_base_url = config
+            .base_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .and_then(|url_str| {
+                match Url::parse(url_str) {
+                    Ok(url) => {
+                        // Validate that it has a scheme (http or https) and a host
+                        if (url.scheme() == "http" || url.scheme() == "https")
+                            && url.host().is_some()
+                        {
+                            Some(url)
+                        } else {
+                            tracing::warn!(
+                                "Invalid base_url: must have http/https scheme and host - {}",
+                                url_str
+                            );
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to parse base_url '{}' as URL: {}", url_str, e);
+                        None
+                    }
+                }
+            });
+
+        let admin_redirect_uris: Vec<String> = if let Some(base_url) = configured_base_url {
+            let base_url_str = base_url.as_str().trim_end_matches('/').to_string();
+            vec![
+                format!(
+                    "{}/realms/{}/authentication/callback",
+                    base_url_str, config.master_realm_name
+                ),
+                format!(
+                    "{}/realms/{}/authentication/login",
+                    base_url_str, config.master_realm_name
+                ),
+            ]
+        } else {
+            // Fallback to localhost defaults for backward compatibility
+            vec![
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:3000/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:3000/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/callback",
+                    config.master_realm_name
+                ),
+                format!(
+                    "http://localhost:5173/realms/{}/authentication/login",
+                    config.master_realm_name
+                ),
+            ]
+        };
 
         let existing_uris = self
             .redirect_uri_repository
@@ -373,28 +436,88 @@ where
             .await
             .unwrap_or_default();
 
-        for pattern in admin_redirect_patterns {
-            let pattern_exists = existing_uris.iter().any(|uri| uri.value == pattern);
+        let callback_path = format!(
+            "/realms/{}/authentication/callback",
+            config.master_realm_name
+        );
+        let login_path = format!("/realms/{}/authentication/login", config.master_realm_name);
 
-            if !pattern_exists {
+        for existing_uri in existing_uris.iter() {
+            let matches_path = match Url::parse(&existing_uri.value) {
+                Ok(url) => {
+                    let path = url.path();
+                    path == callback_path || path == login_path
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to parse existing URI '{}' for path matching: {}",
+                        existing_uri.value,
+                        e
+                    );
+                    false
+                }
+            };
+
+            if admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
+                && !existing_uri.enabled
+            {
                 match self
                     .redirect_uri_repository
-                    .create_redirect_uri(client.id, pattern.to_string(), true)
+                    .update_enabled(existing_uri.id, true)
                     .await
                 {
                     Ok(_) => {
-                        tracing::info!("redirect uri created for client {:}", client.id);
+                        tracing::info!("Re-enabled admin redirect URI: {}", existing_uri.value)
+                    }
+                    Err(e) => tracing::error!(
+                        "Failed to re-enable redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            } else if !admin_redirect_uris.contains(&existing_uri.value)
+                && matches_path
+                && existing_uri.enabled
+            {
+                match self
+                    .redirect_uri_repository
+                    .update_enabled(existing_uri.id, false)
+                    .await
+                {
+                    Ok(_) => tracing::info!(
+                        "Disabled obsolete admin redirect URI: {}",
+                        existing_uri.value
+                    ),
+                    Err(e) => tracing::error!(
+                        "Failed to disable obsolete redirect URI {}: {}",
+                        existing_uri.value,
+                        e
+                    ),
+                }
+            }
+        }
+
+        for uri in admin_redirect_uris {
+            let uri_exists = existing_uris
+                .iter()
+                .any(|existing_uri| existing_uri.value == uri);
+
+            if !uri_exists {
+                match self
+                    .redirect_uri_repository
+                    .create_redirect_uri(client.id, uri.to_string(), true)
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("Created admin redirect URI: {}", uri);
                     }
                     Err(e) => {
-                        tracing::error!(
-                            "failed to create redirect uri for client {:}: {}",
-                            client.id,
-                            e
-                        );
+                        tracing::error!("Failed to create admin redirect URI {}: {}", uri, e);
                     }
                 }
             } else {
-                tracing::info!("admin redirect URI already exists: {}", pattern);
+                tracing::info!("admin redirect URI already exists: {}", uri);
             }
         }
 

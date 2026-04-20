@@ -9,22 +9,41 @@ use crate::application::url::FullUrl;
 use axum::{
     Form,
     extract::{Path, State},
-    http::{HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{
+        HeaderValue, StatusCode,
+        header::{AUTHORIZATION, SET_COOKIE},
+    },
     response::IntoResponse,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
+use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::entities::JwtToken;
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use tracing::{instrument, warn};
 
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
+fn try_parse_basic_client_credentials(headers: &axum::http::HeaderMap) -> Option<(String, String)> {
+    let value = headers.get(AUTHORIZATION)?.to_str().ok()?;
+    let prefix = "Basic ";
+    if value.len() < prefix.len() || !value[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        return None;
+    }
+    let value = &value[prefix.len()..];
+
+    let decoded = general_purpose::STANDARD.decode(value).ok()?;
+    let decoded = String::from_utf8(decoded).ok()?;
+
+    let (client_id, client_secret) = decoded.split_once(':')?;
+    Some((client_id.to_string(), client_secret.to_string()))
+}
+
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/token",
     tag = "auth",
     summary = "Exchange token",
-    description = "Exchanges a token for a JWT token. This endpoint allows clients to exchange various types of tokens (like authorization codes, refresh tokens, etc.) for a JWT token.",
+    description = "Exchanges authorization grants for JWT tokens. Supports authorization code, client credentials, and refresh token grants. PKCE is required for authorization code grant. HTTP Basic authentication is supported for confidential clients.",
     request_body = TokenRequestValidator,
     params(
       ("realm_name" = String, Path, description = "Realm name")
@@ -37,31 +56,42 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
     )
 )]
 #[instrument(
-    skip(state, payload),
+    skip(state, payload, headers),
     fields(
         realm_name = %realm_name,
         client_id = %payload.client_id,
         grant_type = ?payload.grant_type,
         has_client_secret = payload.client_secret.is_some(),
-        has_username = payload.username.is_some(),
-        has_password = payload.password.is_some(),
         has_code = payload.code.is_some(),
-        has_refresh_token = payload.refresh_token.is_some()
+        has_refresh_token = payload.refresh_token.is_some(),
+        has_code_verifier = payload.code_verifier.is_some()
     )
 )]
 pub async fn exchange_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    headers: axum::http::HeaderMap,
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<impl IntoResponse, ApiError> {
     let grant_type = payload.grant_type.clone();
-    let client_id = payload.client_id.clone();
-    let has_client_secret = payload.client_secret.is_some();
-    let has_username = payload.username.is_some();
-    let has_password = payload.password.is_some();
+    let payload_client_id = payload.client_id.clone();
+
+    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
+        Some((basic_client_id, basic_client_secret)) => {
+            // HTTP Basic authentication takes precedence
+            (basic_client_id, Some(basic_client_secret))
+        }
+        None => {
+            // Fall back to client_secret_post (form body)
+            (payload_client_id.clone(), payload.client_secret.clone())
+        }
+    };
+
+    let has_client_secret = client_secret.is_some();
     let has_code = payload.code.is_some();
     let has_refresh_token = payload.refresh_token.is_some();
+    let has_code_verifier = payload.code_verifier.is_some();
 
     let is_secure = base_url.starts_with("https://");
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
@@ -69,28 +99,26 @@ pub async fn exchange_token(
         .service
         .exchange_token(ExchangeTokenInput {
             realm_name,
-            client_id: payload.client_id,
-            client_secret: payload.client_secret,
+            client_id,
+            client_secret,
             code: payload.code,
-            username: payload.username,
-            password: payload.password,
             refresh_token: payload.refresh_token,
             base_url,
             grant_type: payload.grant_type,
             scope: payload.scope,
+            code_verifier: payload.code_verifier,
         })
         .await
     {
         Ok(token) => token,
         Err(error) => {
             warn!(
-                client_id = %client_id,
+                client_id = %payload_client_id,
                 grant_type = ?grant_type,
                 has_client_secret,
-                has_username,
-                has_password,
                 has_code,
                 has_refresh_token,
+                has_code_verifier,
                 error = ?error,
                 "Token exchange failed"
             );

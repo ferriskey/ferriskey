@@ -19,6 +19,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub userinfo_endpoint: String,
     pub jwks_uri: String,
     pub grant_types_supported: Vec<String>,
+    pub code_challenge_methods_supported: Vec<String>,
 }
 
 #[utoipa::path(
@@ -73,7 +74,7 @@ pub async fn get_openid_configuration(
             "authorization_code".to_string(),
             "refresh_token".to_string(),
             "client_credentials".to_string(),
-            "password".to_string(),
         ],
+        code_challenge_methods_supported: vec!["S256".to_string()],
     }))
 }

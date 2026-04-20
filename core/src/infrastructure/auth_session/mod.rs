@@ -26,12 +26,6 @@ impl AuthSessionRepository for AuthSessionRepoAny {
         }
     }
 
-    async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthenticationError> {
-        match self {
-            AuthSessionRepoAny::Postgres(repo) => repo.get_by_code(code).await,
-        }
-    }
-
     async fn update_code_and_user_id(
         &self,
         session_code: Uuid,

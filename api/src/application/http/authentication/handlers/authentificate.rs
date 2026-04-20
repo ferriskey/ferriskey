@@ -21,6 +21,7 @@ use validator::Validate;
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
     client_id: String,
+    code_verifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
@@ -155,6 +156,40 @@ pub async fn authenticate(
         )
     };
     let result = state.service.authenticate(authenticate_params).await?;
+
+    let mut identity_cookie_value: Option<HeaderValue> = None;
+    let is_secure = base_url.starts_with("https://");
+    if result.status == AuthenticationStepStatus::Success
+        && let Some(code) = result.authorization_code.clone()
+        && let Ok(jwt_token) = state
+            .service
+            .exchange_token(ExchangeTokenInput {
+                realm_name: realm_name.clone(),
+                client_id: query.client_id.clone(),
+                client_secret: None,
+                code: Some(code),
+                refresh_token: None,
+                base_url: base_url.clone(),
+                grant_type: GrantType::Code,
+                scope: None,
+                code_verifier: query.code_verifier.clone(),
+            })
+            .await
+    {
+        let mut identity_cookie =
+            Cookie::build(("FERRISKEY_IDENTITY", jwt_token.access_token().to_string()))
+                .path("/")
+                .http_only(true)
+                .same_site(SameSite::Lax);
+
+        if is_secure {
+            identity_cookie = identity_cookie.secure(true);
+        }
+
+        let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
+            .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+        identity_cookie_value = Some(cookie_value);
+    }
 
     let response: AuthenticateResponse = result.into();
     Ok((StatusCode::OK, axum::Json(response)).into_response())
