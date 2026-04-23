@@ -37,7 +37,7 @@ pub async fn get_userinfo(
     Extension(identity): Extension<Identity>,
     OptionalToken(jwt): OptionalToken,
 ) -> Result<Response<UserInfoResponse>, ApiError> {
-    let jwt = jwt.ok_or(ApiError::Unauthorized("not authorized".to_string()))?;
+    let jwt = jwt.ok_or(ApiError::Unauthorized("not authorized".into()))?;
     let user_info = state
         .service
         .get_userinfo(

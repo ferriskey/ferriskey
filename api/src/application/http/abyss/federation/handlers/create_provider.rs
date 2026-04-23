@@ -55,8 +55,9 @@ pub async fn create_provider(
         s => FederationType::Custom(s.to_string()),
     };
 
-    let _sync_mode = SyncMode::from_str(&payload.sync_mode)
-        .map_err(|_| ApiError::BadRequest(format!("Invalid sync mode: {}", payload.sync_mode)))?;
+    let _sync_mode = SyncMode::from_str(&payload.sync_mode).map_err(|_| {
+        ApiError::BadRequest(format!("Invalid sync mode: {}", payload.sync_mode).into())
+    })?;
 
     // 2. Construct Core Request
     let sync_settings = serde_json::json!({

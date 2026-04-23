@@ -130,7 +130,7 @@ pub async fn reset_password_with_token(
     }
 
     let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
 
     Ok((
         StatusCode::OK,

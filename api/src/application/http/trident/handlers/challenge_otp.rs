@@ -50,7 +50,7 @@ pub async fn challenge_otp(
 ) -> Result<Response<ChallengeOtpResponse>, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
-        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))? // Ou un type d'erreur 401/403
+        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))? // Ou un type d'erreur 401/403
         .value()
         .to_string();
 
@@ -64,7 +64,7 @@ pub async fn challenge_otp(
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
 
     let response = ChallengeOtpResponse {
         url: result.login_url,

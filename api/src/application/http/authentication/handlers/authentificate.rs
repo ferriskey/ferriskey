@@ -118,12 +118,12 @@ pub async fn authenticate(
 ) -> Result<impl IntoResponse, ApiError> {
     let session_code = match cookie.get("FERRISKEY_SESSION") {
         Some(cookie) => cookie,
-        None => return Err(ApiError::Unauthorized("Missing session cookie".to_string())),
+        None => return Err(ApiError::Unauthorized("Missing session cookie".into())),
     };
     let session_code = session_code.value().to_string();
 
     let session_code = Uuid::parse_str(&session_code)
-        .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".to_string()))?;
+        .map_err(|_| ApiError::BadRequest("Invalid session code in cookie".into()))?;
 
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
@@ -139,11 +139,11 @@ pub async fn authenticate(
         let username = payload
             .username
             .clone()
-            .ok_or_else(|| ApiError::BadRequest("username is required".to_string()))?;
+            .ok_or_else(|| ApiError::BadRequest("username is required".into()))?;
         let password = payload
             .password
             .clone()
-            .ok_or_else(|| ApiError::BadRequest("password is required".to_string()))?;
+            .ok_or_else(|| ApiError::BadRequest("password is required".into()))?;
 
         AuthenticateInput::with_user_credentials(
             realm_name.clone(),

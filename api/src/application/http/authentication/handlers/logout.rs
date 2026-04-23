@@ -50,9 +50,9 @@ fn clear_session_cookies_headers(base_url: &str) -> Result<HeaderMap, ApiError> 
     }
 
     let clear_session_cookie_value = HeaderValue::from_str(&clear_session_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
     let clear_identity_cookie_value = HeaderValue::from_str(&clear_identity_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
 
     let mut headers = HeaderMap::new();
     headers.append(SET_COOKIE, clear_session_cookie_value);

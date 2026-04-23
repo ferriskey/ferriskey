@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use axum::{
     Json,
     extract::{Form, FromRequest, Request, rejection::FormRejection},
@@ -19,31 +21,34 @@ pub struct ApiErrorData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ValidationError {
-    pub message: String,
-    pub field: String,
+    pub message: Cow<'static, str>,
+    pub field: Cow<'static, str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ToSchema)]
 pub enum ApiError {
-    InternalServerError(String),
+    InternalServerError(Cow<'static, str>),
     UnProcessableEntity(Vec<ValidationError>),
-    NotFound(String),
-    Unauthorized(String),
-    Forbidden(String),
-    BadRequest(String),
-    ServiceUnavailable(String),
+    NotFound(Cow<'static, str>),
+    Unauthorized(Cow<'static, str>),
+    Forbidden(Cow<'static, str>),
+    BadRequest(Cow<'static, str>),
+    ServiceUnavailable(Cow<'static, str>),
     /// RFC 6749 §5.2 OAuth2 error response
     OAuthError {
-        error: String,
-        error_description: String,
+        error: Cow<'static, str>,
+        error_description: Cow<'static, str>,
     },
 }
 
 impl ApiError {
-    pub fn validation_error(message: &str, field: &str) -> Self {
+    pub fn validation_error(
+        message: impl Into<Cow<'static, str>>,
+        field: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self::UnProcessableEntity(vec![ValidationError {
-            message: message.to_string(),
-            field: field.to_string(),
+            message: message.into(),
+            field: field.into(),
         }])
     }
 
@@ -66,7 +71,7 @@ where
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state)
             .await
-            .map_err(|err| ApiError::BadRequest(format!("Unexpected payload: {err}")))?;
+            .map_err(|err| ApiError::BadRequest(format!("Unexpected payload: {err}").into()))?;
 
         value.validate()?;
 
@@ -79,11 +84,11 @@ impl From<anyhow::Error> for ApiError {
         match e {
             e if e.to_string().contains("validation error") => {
                 Self::UnProcessableEntity(vec![ValidationError {
-                    message: e.to_string(),
-                    field: "unknown".to_string(),
+                    message: e.to_string().into(),
+                    field: "unknown".into(),
                 }])
             }
-            _ => Self::InternalServerError(e.to_string()),
+            _ => Self::InternalServerError(e.to_string().into()),
         }
     }
 }
@@ -97,13 +102,12 @@ impl From<validator::ValidationErrors> for ApiError {
             for error in error_msgs {
                 let message = error
                     .message
-                    .as_ref()
-                    .map(|cow| cow.to_string())
-                    .unwrap_or_else(|| format!("Validation failed on {field}"));
+                    .clone()
+                    .unwrap_or_else(|| Cow::Owned(format!("Validation failed on {field}")));
 
                 validation_errors.push(ValidationError {
                     message,
-                    field: field.to_string(),
+                    field: field.clone(),
                 });
             }
         }
@@ -115,29 +119,27 @@ impl From<validator::ValidationErrors> for ApiError {
 impl From<AuthenticationError> for ApiError {
     fn from(error: AuthenticationError) -> Self {
         match error {
-            AuthenticationError::NotFound => Self::NotFound("Token not found".to_string()),
-            AuthenticationError::Invalid => Self::Unauthorized("Invalid client".to_string()),
+            AuthenticationError::NotFound => Self::NotFound("Token not found".into()),
+            AuthenticationError::Invalid => Self::Unauthorized("Invalid client".into()),
             AuthenticationError::InternalServerError => {
-                Self::InternalServerError("Internal server error".to_string())
+                Self::InternalServerError("Internal server error".into())
             }
-            AuthenticationError::InvalidClient => Self::NotFound("Client not found".to_string()),
-            AuthenticationError::InvalidPassword => {
-                Self::Unauthorized("Invalid password".to_string())
-            }
-            AuthenticationError::InvalidRealm => Self::Unauthorized("Realm not found".to_string()),
-            AuthenticationError::InvalidState => Self::Unauthorized("Invalid state".to_string()),
-            AuthenticationError::InvalidUser => Self::Unauthorized("User not found".to_string()),
+            AuthenticationError::InvalidClient => Self::NotFound("Client not found".into()),
+            AuthenticationError::InvalidPassword => Self::Unauthorized("Invalid password".into()),
+            AuthenticationError::InvalidRealm => Self::Unauthorized("Realm not found".into()),
+            AuthenticationError::InvalidState => Self::Unauthorized("Invalid state".into()),
+            AuthenticationError::InvalidUser => Self::Unauthorized("User not found".into()),
             AuthenticationError::ServiceAccountNotFound => {
-                Self::NotFound("Service account not found".to_string())
+                Self::NotFound("Service account not found".into())
             }
             AuthenticationError::InvalidRefreshToken => {
-                Self::Unauthorized("Invalid refresh token".to_string())
+                Self::Unauthorized("Invalid refresh token".into())
             }
             AuthenticationError::InvalidClientSecret => {
-                Self::Unauthorized("Invalid client secret".to_string())
+                Self::Unauthorized("Invalid client secret".into())
             }
             AuthenticationError::InvalidRequest => {
-                Self::Unauthorized("Invalid authorization request".to_string())
+                Self::Unauthorized("Invalid authorization request".into())
             }
         }
     }
@@ -146,17 +148,15 @@ impl From<AuthenticationError> for ApiError {
 impl From<JwtError> for ApiError {
     fn from(error: JwtError) -> Self {
         match error {
-            JwtError::InvalidToken => Self::Unauthorized("Invalid token".to_string()),
-            JwtError::ValidationError(e) => Self::InternalServerError(e),
-            JwtError::ExpirationError(e) => Self::InternalServerError(e),
-            JwtError::GenerationError(e) => Self::InternalServerError(e),
-            JwtError::HashingError(e) => Self::InternalServerError(e),
-            JwtError::ExpiredToken => Self::InternalServerError("Token expired".to_string()),
-            JwtError::InvalidKey(e) => Self::InternalServerError(e),
-            JwtError::ParsingError(e) => Self::InternalServerError(e),
-            JwtError::RealmKeyNotFound => {
-                Self::InternalServerError("Realm key not found".to_string())
-            }
+            JwtError::InvalidToken => Self::Unauthorized("Invalid token".into()),
+            JwtError::ValidationError(e) => Self::InternalServerError(e.into()),
+            JwtError::ExpirationError(e) => Self::InternalServerError(e.into()),
+            JwtError::GenerationError(e) => Self::InternalServerError(e.into()),
+            JwtError::HashingError(e) => Self::InternalServerError(e.into()),
+            JwtError::ExpiredToken => Self::InternalServerError("Token expired".into()),
+            JwtError::InvalidKey(e) => Self::InternalServerError(e.into()),
+            JwtError::ParsingError(e) => Self::InternalServerError(e.into()),
+            JwtError::RealmKeyNotFound => Self::InternalServerError("Realm key not found".into()),
         }
     }
 }
@@ -164,12 +164,12 @@ impl From<JwtError> for ApiError {
 impl From<WebhookError> for ApiError {
     fn from(error: WebhookError) -> Self {
         match error {
-            WebhookError::Forbidden => Self::Unauthorized("Invalid webhook".to_string()),
-            WebhookError::NotFound => Self::NotFound("Webhook not found".to_string()),
+            WebhookError::Forbidden => Self::Unauthorized("Invalid webhook".into()),
+            WebhookError::NotFound => Self::NotFound("Webhook not found".into()),
             WebhookError::InternalServerError => {
-                Self::InternalServerError("Internal server error".to_string())
+                Self::InternalServerError("Internal server error".into())
             }
-            WebhookError::RealmNotFound => Self::InternalServerError("Realm not found".to_string()),
+            WebhookError::RealmNotFound => Self::InternalServerError("Realm not found".into()),
         }
     }
 }
@@ -215,7 +215,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_NOT_FOUND".to_string(),
                     status: 404,
-                    message,
+                    message: message.into(),
                 }),
             )
                 .into_response(),
@@ -224,7 +224,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_UNAUTHORIZED".to_string(),
                     status: 401,
-                    message,
+                    message: message.into(),
                 }),
             )
                 .into_response(),
@@ -233,7 +233,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_FORBIDDEN".to_string(),
                     status: 403,
-                    message,
+                    message: message.into(),
                 }),
             )
                 .into_response(),
@@ -242,7 +242,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_BAD_REQUEST".to_string(),
                     status: 400,
-                    message,
+                    message: message.into(),
                 }),
             )
                 .into_response(),
@@ -251,7 +251,7 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_SERVICE_UNAVAILABLE".to_string(),
                     status: 503,
-                    message,
+                    message: message.into(),
                 }),
             )
                 .into_response(),
@@ -261,8 +261,8 @@ impl IntoResponse for ApiError {
             } => (
                 StatusCode::BAD_REQUEST,
                 Json(OAuth2ErrorResponse {
-                    error,
-                    error_description,
+                    error: error.into(),
+                    error_description: error_description.into(),
                 }),
             )
                 .into_response(),

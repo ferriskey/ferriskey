@@ -20,7 +20,7 @@ pub async fn health_live(
         .service
         .health()
         .await
-        .map_err(|e| ApiError::ServiceUnavailable(e.to_string()))?;
+        .map_err(|e| ApiError::ServiceUnavailable(e.to_string().into()))?;
 
     Ok(Response::OK(HealthLiveResponse {
         message: "Service is live".to_string(),

@@ -6,223 +6,223 @@ use crate::application::http::server::api_entities::api_error::ApiError;
 impl From<CoreError> for ApiError {
     fn from(error: CoreError) -> Self {
         match error {
-            CoreError::NotFound => Self::NotFound("Resource not found".to_string()),
-            CoreError::AlreadyExists => Self::BadRequest("Resource already exists".to_string()),
+            CoreError::NotFound => Self::NotFound("Resource not found".into()),
+            CoreError::AlreadyExists => Self::BadRequest("Resource already exists".into()),
             CoreError::EmailAlreadyExists => {
-                Self::BadRequest("Email already exists in this realm".to_string())
+                Self::BadRequest("Email already exists in this realm".into())
             }
-            CoreError::Invalid => Self::BadRequest("Invalid resource".to_string()),
+            CoreError::Invalid => Self::BadRequest("Invalid resource".into()),
             CoreError::InvalidRequiredAction(action) => {
                 let allowed = RequiredAction::allowed_values().join(", ");
                 Self::BadRequest(format!(
                     "Invalid required action: {}. Allowed values: {}",
                     action, allowed
-                ))
+                ).into())
             }
-            CoreError::Forbidden(msg) => Self::Forbidden(msg),
+            CoreError::Forbidden(msg) => Self::Forbidden(msg.into()),
             CoreError::InternalServerError => {
-                        Self::InternalServerError("Internal server error".to_string())
+                        Self::InternalServerError("Internal server error".into())
                     }
-            CoreError::RedirectUriNotFound => Self::NotFound("Redirect URI not found".to_string()),
-            CoreError::InvalidRedirectUri => Self::BadRequest("Invalid redirect URI".to_string()),
-            CoreError::InvalidClient => Self::Unauthorized("Invalid client".to_string()),
-            CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".to_string()),
-            CoreError::InvalidUser => Self::Unauthorized("Invalid user".to_string()),
-            CoreError::InvalidPassword => Self::Unauthorized("Invalid password".to_string()),
-            CoreError::InvalidState => Self::BadRequest("Invalid state".to_string()),
+            CoreError::RedirectUriNotFound => Self::NotFound("Redirect URI not found".into()),
+            CoreError::InvalidRedirectUri => Self::BadRequest("Invalid redirect URI".into()),
+            CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
+            CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
+            CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),
+            CoreError::InvalidPassword => Self::Unauthorized("Invalid password".into()),
+            CoreError::InvalidState => Self::BadRequest("Invalid state".into()),
             CoreError::InvalidRefreshToken => {
-                        Self::Unauthorized("Invalid refresh token".to_string())
+                        Self::Unauthorized("Invalid refresh token".into())
                     }
             CoreError::InvalidClientSecret => {
-                        Self::Unauthorized("Invalid client secret".to_string())
+                        Self::Unauthorized("Invalid client secret".into())
                     }
             CoreError::InvalidRequest => {
-                        Self::BadRequest("Invalid authorization request".to_string())
+                        Self::BadRequest("Invalid authorization request".into())
                     }
             CoreError::ServiceAccountNotFound => {
-                        Self::NotFound("Service account not found".to_string())
+                        Self::NotFound("Service account not found".into())
                     }
             CoreError::HashPasswordError(msg) => {
-                        Self::InternalServerError(format!("Hash password error: {}", msg))
+                        Self::InternalServerError(format!("Hash password error: {}", msg).into())
                     }
             CoreError::VerifyPasswordError(msg) => {
-                        Self::InternalServerError(format!("Verify password error: {}", msg))
+                        Self::InternalServerError(format!("Verify password error: {}", msg).into())
                     }
             CoreError::DeletePasswordCredentialError => {
-                        Self::InternalServerError("Failed to delete password credential".to_string())
+                        Self::InternalServerError("Failed to delete password credential".into())
                     }
             CoreError::CreateCredentialError => {
-                        Self::InternalServerError("Failed to create credential".to_string())
+                        Self::InternalServerError("Failed to create credential".into())
                     }
             CoreError::GetPasswordCredentialError => {
-                        Self::InternalServerError("Failed to get password credential".to_string())
+                        Self::InternalServerError("Failed to get password credential".into())
                     }
             CoreError::GetUserCredentialsError => {
-                        Self::InternalServerError("Failed to get user credentials".to_string())
+                        Self::InternalServerError("Failed to get user credentials".into())
                     }
             CoreError::DeleteCredentialError => {
-                        Self::InternalServerError("Failed to delete credential".to_string())
+                        Self::InternalServerError("Failed to delete credential".into())
                     }
             CoreError::TokenGenerationError(msg) => {
-                        Self::InternalServerError(format!("Token generation error: {}", msg))
+                        Self::InternalServerError(format!("Token generation error: {}", msg).into())
                     }
             CoreError::TokenValidationError(msg) => {
-                        Self::Unauthorized(format!("Token validation error: {}", msg))
+                        Self::Unauthorized(format!("Token validation error: {}", msg).into())
                     }
             CoreError::TokenParsingError(msg) => {
-                        Self::BadRequest(format!("Token parsing error: {}", msg))
+                        Self::BadRequest(format!("Token parsing error: {}", msg).into())
                     }
             CoreError::TokenExpirationError(msg) => {
-                        Self::Unauthorized(format!("Token expiration error: {}", msg))
+                        Self::Unauthorized(format!("Token expiration error: {}", msg).into())
                     }
             CoreError::RealmKeyNotFound => {
-                        Self::InternalServerError("Realm key not found".to_string())
+                        Self::InternalServerError("Realm key not found".into())
                     }
-            CoreError::InvalidToken => Self::Unauthorized("Invalid token".to_string()),
-            CoreError::ExpiredToken => Self::Unauthorized("Expired token".to_string()),
-            CoreError::InvalidKey(msg) => Self::BadRequest(format!("Invalid key: {}", msg)),
-            CoreError::SessionNotFound => Self::NotFound("Session not found".to_string()),
-            CoreError::SessionExpired => Self::Unauthorized("Session expired".to_string()),
-            CoreError::InvalidSession => Self::Unauthorized("Invalid session".to_string()),
+            CoreError::InvalidToken => Self::Unauthorized("Invalid token".into()),
+            CoreError::ExpiredToken => Self::Unauthorized("Expired token".into()),
+            CoreError::InvalidKey(msg) => Self::BadRequest(format!("Invalid key: {}", msg).into()),
+            CoreError::SessionNotFound => Self::NotFound("Session not found".into()),
+            CoreError::SessionExpired => Self::Unauthorized("Session expired".into()),
+            CoreError::InvalidSession => Self::Unauthorized("Invalid session".into()),
             CoreError::SessionCreateError => {
-                        Self::InternalServerError("Failed to create session".to_string())
+                        Self::InternalServerError("Failed to create session".into())
                     }
             CoreError::SessionDeleteError => {
-                        Self::InternalServerError("Failed to delete session".to_string())
+                        Self::InternalServerError("Failed to delete session".into())
                     }
             CoreError::InvalidTotpSecretFormat => {
-                        Self::BadRequest("Invalid TOTP secret format".to_string())
+                        Self::BadRequest("Invalid TOTP secret format".into())
                     }
             CoreError::TotpGenerationFailed(msg) => {
-                        Self::InternalServerError(format!("TOTP generation failed: {}", msg))
+                        Self::InternalServerError(format!("TOTP generation failed: {}", msg).into())
                     }
             CoreError::TotpVerificationFailed(msg) => {
-                        Self::Unauthorized(format!("TOTP verification failed: {}", msg))
+                        Self::Unauthorized(format!("TOTP verification failed: {}", msg).into())
                     }
             CoreError::CannotDeleteMasterRealm => {
-                        Self::Forbidden("Cannot delete master realm".to_string())
+                        Self::Forbidden("Cannot delete master realm".into())
                     }
-            CoreError::WebhookNotFound => Self::NotFound("Webhook not found".to_string()),
-            CoreError::WebhookForbidden => Self::Forbidden("Webhook forbidden".to_string()),
+            CoreError::WebhookNotFound => Self::NotFound("Webhook not found".into()),
+            CoreError::WebhookForbidden => Self::Forbidden("Webhook forbidden".into()),
             CoreError::FailedWebhookNotification(msg) => {
-                        Self::InternalServerError(format!("Failed to notify webhook: {}", msg))
+                        Self::InternalServerError(format!("Failed to notify webhook: {}", msg).into())
                     }
             CoreError::WebhookRealmNotFound => {
-                        Self::NotFound("Realm not found for webhook".to_string())
+                        Self::NotFound("Realm not found for webhook".into())
                     }
             CoreError::CreateClientError => {
-                        Self::InternalServerError("Failed to create client".to_string())
+                        Self::InternalServerError("Failed to create client".into())
                     }
-            CoreError::ServiceUnavailable(msg) => Self::ServiceUnavailable(msg),
-            CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg),
-            CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg),
+            CoreError::ServiceUnavailable(msg) => Self::ServiceUnavailable(msg.into()),
+            CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg.into()),
+            CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg.into()),
             CoreError::AuthorizationCodeStorageFailed => {
-                Self::InternalServerError(String::new())
+                Self::InternalServerError("".into())
             },
             CoreError::AuthSessionExpectedState => {
-                Self::InternalServerError(String::new())
+                Self::InternalServerError("".into())
             },
             CoreError::WebAuthnMissingChallenge => {
-                Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".to_string())
+                Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".into())
             },
             CoreError::WebAuthnCredentialNotFound => {
-                Self::BadRequest("Missing webauthn credential for the provided id. Have you created a webauthn credential first ?".to_string())
+                Self::BadRequest("Missing webauthn credential for the provided id. Have you created a webauthn credential first ?".into())
             }
             CoreError::WebAuthnChallengeFailed => {
-                Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".to_string())
+                Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".into())
             }
             CoreError::MagicLinkNotEnabled => {
-                Self::BadRequest("Magic link authentication is not enabled for this realm".to_string())
+                Self::BadRequest("Magic link authentication is not enabled for this realm".into())
             }
             CoreError::InvalidMagicLink => {
-                Self::Unauthorized("Invalid magic link token".to_string())
+                Self::Unauthorized("Invalid magic link token".into())
             }
             CoreError::MagicLinkExpired => {
-                Self::Unauthorized("Magic link has expired".to_string())
+                Self::Unauthorized("Magic link has expired".into())
             }
             CoreError::MagicLinkAlreadyUsed => {
-                Self::BadRequest("Magic link has already been used".to_string())
+                Self::BadRequest("Magic link has already been used".into())
             }
             CoreError::ProviderNotFound => {
-                Self::NotFound("Provider not found".to_string())
+                Self::NotFound("Provider not found".into())
             }
             CoreError::ProviderNameAlreadyExists => {
-                Self::BadRequest("Provider name already exists".to_string())
+                Self::BadRequest("Provider name already exists".into())
             }
             CoreError::InvalidProviderConfiguration(msg) => {
-                Self::BadRequest(format!("Invalid provider configuration: {}", msg))
+                Self::BadRequest(format!("Invalid provider configuration: {}", msg).into())
             }
             CoreError::ProviderDisabled => {
-                Self::Forbidden("Provider is disabled".to_string())
+                Self::Forbidden("Provider is disabled".into())
             }
             CoreError::InvalidProviderUrl => {
-                Self::BadRequest("Invalid provider URL".to_string())
+                Self::BadRequest("Invalid provider URL".into())
             },
-            CoreError::External(msg) => Self::ServiceUnavailable(format!("External service error: {}", msg)),
-            CoreError::Database(msg) => Self::InternalServerError(format!("Database error: {}", msg)),
-            CoreError::Configuration(msg) => Self::InternalServerError(format!("Configuration error: {}", msg)),
-            CoreError::FederationAuthenticationFailed(msg) => Self::Unauthorized(format!("Federation authentication error: {}", msg)),
+            CoreError::External(msg) => Self::ServiceUnavailable(format!("External service error: {}", msg).into()),
+            CoreError::Database(msg) => Self::InternalServerError(format!("Database error: {}", msg).into()),
+            CoreError::Configuration(msg) => Self::InternalServerError(format!("Configuration error: {}", msg).into()),
+            CoreError::FederationAuthenticationFailed(msg) => Self::Unauthorized(format!("Federation authentication error: {}", msg).into()),
 
             // Broker (SSO) errors
             CoreError::BrokerSessionNotFound => {
-                Self::BadRequest("Invalid or expired SSO session".to_string())
+                Self::BadRequest("Invalid or expired SSO session".into())
             }
             CoreError::BrokerSessionExpired => {
-                Self::BadRequest("SSO session expired, please try again".to_string())
+                Self::BadRequest("SSO session expired, please try again".into())
             }
             CoreError::InvalidBrokerState => {
-                Self::BadRequest("Invalid state parameter".to_string())
+                Self::BadRequest("Invalid state parameter".into())
             }
             CoreError::IdpTokenExchangeFailed(msg) => {
-                Self::ServiceUnavailable(format!("Identity provider error: {}", msg))
+                Self::ServiceUnavailable(format!("Identity provider error: {}", msg).into())
             }
             CoreError::IdpUserInfoFailed(msg) => {
-                Self::ServiceUnavailable(format!("Failed to retrieve user info: {}", msg))
+                Self::ServiceUnavailable(format!("Failed to retrieve user info: {}", msg).into())
             }
             CoreError::IdpAuthenticationFailed(msg) => {
-                Self::Unauthorized(format!("Identity provider authentication failed: {}", msg))
+                Self::Unauthorized(format!("Identity provider authentication failed: {}", msg).into())
             }
             CoreError::UserLinkingFailed(msg) => {
-                Self::InternalServerError(format!("User linking failed: {}", msg))
+                Self::InternalServerError(format!("User linking failed: {}", msg).into())
             }
             CoreError::LinkOnlyUserNotFound => {
-                Self::Forbidden("No existing account found for linking".to_string())
+                Self::Forbidden("No existing account found for linking".into())
             }
             CoreError::LinkNotFound => {
-                Self::NotFound("Identity provider link not found".to_string())
+                Self::NotFound("Identity provider link not found".into())
             }
             CoreError::InvalidIdToken => {
-                Self::BadRequest("Invalid ID token from identity provider".to_string())
+                Self::BadRequest("Invalid ID token from identity provider".into())
             }
             CoreError::MissingAuthorizationCode => {
-                Self::BadRequest("Missing authorization code from identity provider".to_string())
+                Self::BadRequest("Missing authorization code from identity provider".into())
             }
             CoreError::UserNotFound => {
-                Self::NotFound("User not found".to_string())
+                Self::NotFound("User not found".into())
             }
             CoreError::ClientNotFound => {
-                Self::NotFound("Client not found".to_string())
+                Self::NotFound("Client not found".into())
             }
             CoreError::HintsNotFound => {
-                Self::NotFound("Account hints not found".to_string())
+                Self::NotFound("Account hints not found".into())
             }
             CoreError::InvalidScope(description) => Self::OAuthError {
-                error: "invalid_scope".to_string(),
-                error_description: description,
+                error: "invalid_scope".into(),
+                error_description: description.into(),
             },
-            CoreError::UserDisabled => Self::Forbidden("User account is disabled".to_string()),
-            CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason),
+            CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
+            CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason.into()),
             CoreError::EmailTemplateNotFound => {
-                Self::NotFound("Email template not found".to_string())
+                Self::NotFound("Email template not found".into())
             }
             CoreError::NoActiveEmailTemplate(email_type) => {
-                Self::NotFound(format!("No active email template for type: {email_type}"))
+                Self::NotFound(format!("No active email template for type: {email_type}").into())
             }
             CoreError::InvalidEmailTemplateStructure(msg) => {
-                Self::BadRequest(format!("Invalid email template structure: {msg}"))
+                Self::BadRequest(format!("Invalid email template structure: {msg}").into())
             }
             CoreError::EmailTemplateRenderError(msg) => {
-                Self::InternalServerError(format!("Email template render error: {msg}"))
+                Self::InternalServerError(format!("Email template render error: {msg}").into())
             }
         }
     }

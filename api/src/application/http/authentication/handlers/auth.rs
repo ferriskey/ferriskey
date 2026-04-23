@@ -184,7 +184,7 @@ pub async fn auth_handler(
     }
 
     let session_cookie_value = HeaderValue::from_str(&session_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
 
     let mut headers = HeaderMap::new();
     headers.insert(SET_COOKIE, session_cookie_value);
@@ -202,7 +202,7 @@ pub async fn auth_handler(
         }
 
         let clear_identity_cookie_value = HeaderValue::from_str(&clear_identity_cookie.to_string())
-            .map_err(|_| ApiError::InternalServerError("Invalid cookie header".to_string()))?;
+            .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
         headers.append(SET_COOKIE, clear_identity_cookie_value);
     }
 
@@ -217,7 +217,7 @@ pub async fn auth_handler(
 
     let axum_response = response_builder
         .body(axum::body::Body::empty())
-        .map_err(|_| ApiError::InternalServerError("Failed to build response".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?;
 
     Ok(axum_response.into_response())
 }

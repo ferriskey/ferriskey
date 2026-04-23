@@ -55,7 +55,7 @@ pub async fn add_realm_whitelist_entry(
             .map_err(ApiError::from)?,
         _ => {
             return Err(ApiError::BadRequest(
-                "Exactly one of user_id or role_id must be provided".to_string(),
+                "Exactly one of user_id or role_id must be provided".into(),
             ));
         }
     };
