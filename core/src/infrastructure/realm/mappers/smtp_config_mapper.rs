@@ -16,7 +16,10 @@ impl From<Model> for SmtpConfig {
             password: value.password,
             from_email: value.from_email,
             from_name: value.from_name,
-            encryption: value.encryption.parse().unwrap(),
+            encryption: value
+                .encryption
+                .parse()
+                .expect("invariant: SmtpEncryption FromStr is infallible"),
             created_at,
             updated_at,
         }
