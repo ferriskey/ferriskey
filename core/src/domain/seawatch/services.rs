@@ -65,7 +65,7 @@ where
     ) -> Result<Vec<SecurityEvent>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;

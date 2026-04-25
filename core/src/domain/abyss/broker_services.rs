@@ -345,7 +345,7 @@ where
     ) -> Result<BrokerLoginOutput, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name.clone())
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 

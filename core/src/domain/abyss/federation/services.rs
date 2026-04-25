@@ -84,7 +84,7 @@ where
     ) -> Result<FederationProvider, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
         let realm_id = realm.id;
@@ -111,7 +111,7 @@ where
     ) -> Result<FederationProvider, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -145,7 +145,7 @@ where
     ) -> Result<FederationProvider, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -178,7 +178,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -213,7 +213,7 @@ where
     ) -> Result<Vec<FederationProvider>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 

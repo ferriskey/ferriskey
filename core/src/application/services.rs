@@ -363,7 +363,7 @@ impl ApplicationService {
         let realm = self
             .realm_service
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -383,7 +383,7 @@ impl ApplicationService {
         let realm = self
             .realm_service
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 

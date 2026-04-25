@@ -105,7 +105,7 @@ where
     ) -> Result<InitializationResult, CoreError> {
         let realm = match self
             .realm_repository
-            .get_by_name(config.master_realm_name.clone())
+            .get_by_name(&config.master_realm_name)
             .await
         {
             Ok(Some(realm)) => {

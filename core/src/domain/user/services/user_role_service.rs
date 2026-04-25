@@ -69,7 +69,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;

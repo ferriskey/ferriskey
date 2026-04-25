@@ -87,7 +87,7 @@ where
     ) -> Result<Role, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
@@ -141,7 +141,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -182,7 +182,7 @@ where
     ) -> Result<Role, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -206,7 +206,7 @@ where
     ) -> Result<Vec<Role>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -230,7 +230,7 @@ where
     ) -> Result<Vec<Role>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -253,7 +253,7 @@ where
     ) -> Result<Role, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -299,7 +299,7 @@ where
     ) -> Result<Role, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?;
@@ -392,7 +392,7 @@ mod tests {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(eq(realm_name.to_string()))
+                .with(eq(realm_name))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
 
@@ -403,7 +403,7 @@ mod tests {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(eq(realm_name.to_string()))
+                .with(eq(realm_name))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(None) }));
 

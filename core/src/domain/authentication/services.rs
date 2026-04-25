@@ -1299,7 +1299,7 @@ where
     ) -> Result<AuthenticationResult, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -1764,7 +1764,7 @@ where
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -1852,7 +1852,7 @@ where
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -1889,7 +1889,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .instrument(info_span!("auth.exchange_token.realm_lookup"))
             .await?
             .ok_or(CoreError::InvalidRealm)?;
@@ -2064,7 +2064,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name.clone())
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -2096,7 +2096,7 @@ where
     ) -> Result<JwtToken, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -2188,7 +2188,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -2259,7 +2259,7 @@ where
     async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -2313,7 +2313,7 @@ where
     async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(input.realm_name)
+            .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 

@@ -41,7 +41,7 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realms)
     }
 
-    async fn get_by_name(&self, name: String) -> Result<Option<Realm>, CoreError> {
+    async fn get_by_name(&self, name: &str) -> Result<Option<Realm>, CoreError> {
         info_span!("Fetching realm by name", name = name);
         let realm_model = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(name))
@@ -126,7 +126,7 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(updated_realm)
     }
 
-    async fn delete_by_name(&self, name: String) -> Result<(), CoreError> {
+    async fn delete_by_name(&self, name: &str) -> Result<(), CoreError> {
         let res = RealmEntity::delete_many()
             .filter(crate::entity::realms::Column::Name.eq(name))
             .exec(&self.db)
