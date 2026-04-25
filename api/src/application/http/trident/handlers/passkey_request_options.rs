@@ -71,7 +71,7 @@ pub async fn passkey_request_options(
 ) -> Result<Response<PasskeyRequestOptionsResponse>, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
-        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))?
+        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))?
         .value()
         .to_string();
 

@@ -51,7 +51,7 @@ pub async fn setup_otp(
         .service
         .setup_otp(identity, SetupOtpInput { issuer })
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
 
     let response = SetupOtpResponse {
         issuer: format!("{base_url}/realms/{realm_name}"),

@@ -71,7 +71,7 @@ pub async fn update_provider(
         let mode_str = payload.sync_mode.clone().unwrap_or("LinkOnly".to_string()); // Clone because we consume payload
 
         let _ = SyncMode::from_str(&mode_str)
-            .map_err(|_| ApiError::BadRequest(format!("Invalid sync mode: {}", mode_str)))?;
+            .map_err(|_| ApiError::BadRequest(format!("Invalid sync mode: {}", mode_str).into()))?;
 
         let interval = payload.sync_interval_minutes; // Option<i32>
 

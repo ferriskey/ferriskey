@@ -66,7 +66,7 @@ pub async fn webauthn_public_key_request_options(
 ) -> Result<Response<RequestOptionsResponse>, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
-        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".to_string()))? // Ou un type d'erreur 401/403
+        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))? // Ou un type d'erreur 401/403
         .value()
         .to_string();
 

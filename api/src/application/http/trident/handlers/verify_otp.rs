@@ -53,7 +53,7 @@ pub async fn verify_otp(
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string()))?;
+        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
 
     Ok(Response::OK(VerifyOtpResponse {
         message: result.message,

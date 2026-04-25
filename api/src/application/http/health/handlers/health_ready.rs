@@ -13,7 +13,7 @@ pub async fn health_ready(
         .service
         .readness()
         .await
-        .map_err(|e| ApiError::ServiceUnavailable(e.to_string()))?;
+        .map_err(|e| ApiError::ServiceUnavailable(e.to_string().into()))?;
 
     let status = readness.status.clone();
     let overall_status = match status.as_str() {
