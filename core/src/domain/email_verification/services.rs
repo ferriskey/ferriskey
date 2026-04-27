@@ -157,6 +157,23 @@ where
 
         let user = self.user_repository.get_by_id(user_id).await?;
 
+        let template_id = realm
+            .settings
+            .as_ref()
+            .and_then(|s| s.email_verification_template_id)
+            .ok_or(CoreError::EmailVerificationTemplateNotConfigured)?;
+
+        let smtp_config = self
+            .smtp_config_repository
+            .get_by_realm_id(realm.id)
+            .await?
+            .ok_or_else(|| {
+                warn!("SMTP not configured for realm {}", realm.name);
+                CoreError::ServiceUnavailable(
+                    "Email delivery is not configured for this realm".to_string(),
+                )
+            })?;
+
         // Generate token (UUID v4 as raw token, SHA-256 hash for storage)
         let raw_token = Uuid::new_v4().to_string();
         let token_hash = generate_token_hash(&raw_token);
@@ -182,77 +199,45 @@ where
             base_url, realm_name, raw_token
         );
 
-        // Get template_id
-        let template_id = realm
-            .settings
-            .as_ref()
-            .and_then(|s| s.email_verification_template_id);
-
-        if let Some(tid) = template_id {
-            match self.smtp_config_repository.get_by_realm_id(realm.id).await {
-                Ok(Some(smtp_config)) => {
-                    let expiration_label = if ttl_hours == 1 {
-                        "1 hour".to_string()
-                    } else {
-                        format!("{} hours", ttl_hours)
-                    };
-
-                    let body = format!(
-                        "Click the link below to verify your email address:\n{}\n\nThis link expires in {}.\n\nIf you did not register for this account, please ignore this email.",
-                        verification_link, expiration_label
-                    );
-
-                    let html_body = self
-                        .render_email_template(
-                            tid,
-                            &user,
-                            &[
-                                ("verification_link", verification_link.as_str()),
-                                ("expiration", expiration_label.as_str()),
-                            ],
-                        )
-                        .await
-                        .ok();
-
-                    match self
-                        .email_port
-                        .send_email(
-                            &smtp_config,
-                            &user.email,
-                            "Verify your email address",
-                            &body,
-                            html_body,
-                        )
-                        .await
-                    {
-                        Ok(()) => {
-                            tracing::info!(
-                                "Verification email sent to {} for user {}",
-                                user.email,
-                                user.id
-                            );
-                        }
-                        Err(e) => {
-                            warn!("Failed to send verification email: {}", e);
-                        }
-                    }
-                }
-                Ok(None) => {
-                    warn!("SMTP not configured for realm {}", realm.name);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to fetch SMTP configuration for realm {}: {}",
-                        realm.name, e
-                    );
-                }
-            }
+        let expiration_label = if ttl_hours == 1 {
+            "1 hour".to_string()
         } else {
-            warn!(
-                "No email verification template configured for realm {}",
-                realm.name
-            );
-        }
+            format!("{} hours", ttl_hours)
+        };
+
+        let body = format!(
+            "Click the link below to verify your email address:\n{}\n\nThis link expires in {}.\n\nIf you did not register for this account, please ignore this email.",
+            verification_link, expiration_label
+        );
+
+        let html_body = self
+            .render_email_template(
+                template_id,
+                &user,
+                &[
+                    ("verification_link", verification_link.as_str()),
+                    ("expiration", expiration_label.as_str()),
+                ],
+            )
+            .await
+            .ok();
+
+        self.email_port
+            .send_email(
+                &smtp_config,
+                &user.email,
+                "Verify your email address",
+                &body,
+                html_body,
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to send verification email: {}", e))?;
+
+        tracing::info!(
+            "Verification email sent to {} for user {}",
+            user.email,
+            user.id
+        );
 
         Ok(())
     }
@@ -795,37 +780,16 @@ mod tests {
             Box::pin(async move { Ok(u) })
         });
 
-        let mut evrt = MockEmailVerificationTokenRepository::new();
-        evrt.expect_create().returning(|_| {
-            let token = EmailVerificationToken {
-                id: Uuid::new_v4(),
-                user_id: Uuid::new_v4(),
-                realm_id: Uuid::new_v4().into(),
-                token_hash: "hash".to_string(),
-                expires_at: Utc::now() + Duration::hours(24),
-                created_at: Utc::now(),
-                used_at: None,
-            };
-            Box::pin(async move { Ok(token) })
-        });
-
-        // SMTP repo is still called even when template_id is None (match on tuple)
-        let mut smtp_repo = MockSmtpConfigRepository::new();
-        smtp_repo
-            .expect_get_by_realm_id()
-            .returning(|_| Box::pin(async move { Ok(None) }));
-
         let service = build_service(
-            evrt,
+            MockEmailVerificationTokenRepository::new(),
             user_repo,
             realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
-            smtp_repo,
+            MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
         );
 
-        // Should succeed even without template (just logs warning)
         let result = service
             .send_verification_email(
                 Uuid::new_v4(),
@@ -834,7 +798,10 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok());
+        assert!(matches!(
+            result,
+            Err(CoreError::EmailVerificationTemplateNotConfigured)
+        ));
     }
 
     #[tokio::test]
@@ -861,29 +828,13 @@ mod tests {
             Box::pin(async move { Ok(u) })
         });
 
-        let mut evrt = MockEmailVerificationTokenRepository::new();
-        evrt.expect_create().returning(|_| {
-            Box::pin(async move {
-                Ok(EmailVerificationToken {
-                    id: Uuid::new_v4(),
-                    user_id: Uuid::new_v4(),
-                    realm_id: Uuid::new_v4().into(),
-                    token_hash: "hash".to_string(),
-                    expires_at: Utc::now() + Duration::hours(24),
-                    created_at: Utc::now(),
-                    used_at: None,
-                })
-            })
-        });
-
-        // SMTP repo returns None (no config)
         let mut smtp_repo = MockSmtpConfigRepository::new();
         smtp_repo
             .expect_get_by_realm_id()
             .returning(|_| Box::pin(async move { Ok(None) }));
 
         let service = build_service(
-            evrt,
+            MockEmailVerificationTokenRepository::new(),
             user_repo,
             realm_repo,
             MockUserRequiredActionRepository::new(),
@@ -892,7 +843,6 @@ mod tests {
             MockEmailTemplateRepository::new(),
         );
 
-        // Should succeed even without SMTP (just logs warning)
         let result = service
             .send_verification_email(
                 Uuid::new_v4(),
@@ -901,7 +851,7 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(CoreError::ServiceUnavailable(_))));
     }
 
     #[tokio::test]
@@ -1003,7 +953,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_verification_email_send_failure_is_non_fatal() {
+    async fn test_send_verification_email_send_failure_propagates() {
         let mut realm = test_realm();
         let template = test_template(&realm);
         let smtp_config = test_smtp_config(&realm);
@@ -1071,7 +1021,6 @@ mod tests {
             et_repo,
         );
 
-        // Email send failure should NOT propagate - it's fire-and-forget
         let result = service
             .send_verification_email(
                 Uuid::new_v4(),
@@ -1080,6 +1029,6 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(CoreError::InternalServerError)));
     }
 }
