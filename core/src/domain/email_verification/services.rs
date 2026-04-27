@@ -151,7 +151,7 @@ where
     ) -> Result<(), CoreError> {
         let realm = self
             .realm_repository
-            .get_by_name(realm_name.clone())
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
@@ -266,7 +266,7 @@ where
 
         let realm = self
             .realm_repository
-            .get_by_name(realm_name)
+            .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
