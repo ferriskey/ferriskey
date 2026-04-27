@@ -58,6 +58,7 @@ export function LoginForm({
                     type='email'
                     placeholder='m@example.com'
                     required
+                    autoFocus
                   />
                 </div>
                 <div className='grid gap-3'>
