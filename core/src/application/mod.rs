@@ -212,6 +212,17 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         user_role.clone(),
     ));
 
+    let email_verification_service = EmailVerificationServiceImpl::new(
+        email_verification_token_repo,
+        user.clone(),
+        realm.clone(),
+        user_required_action.clone(),
+        email_port.clone(),
+        smtp_config.clone(),
+        email_template.clone(),
+        mjml_renderer.clone(),
+    );
+
     let app = ApplicationService {
         maintenance_service: MaintenanceServiceImpl::new(
             realm.clone(),
@@ -245,6 +256,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             maintenance_whitelist.clone(),
             realm_maintenance_whitelist.clone(),
             user_attribute.clone(),
+            email_verification_service.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
@@ -405,16 +417,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         flow_recorder,
         db: postgres.get_db(),
-        email_verification_service: EmailVerificationServiceImpl::new(
-            email_verification_token_repo,
-            user.clone(),
-            realm.clone(),
-            user_required_action.clone(),
-            email_port.clone(),
-            smtp_config.clone(),
-            email_template.clone(),
-            mjml_renderer.clone(),
-        ),
+        email_verification_service,
     };
 
     Ok(app)

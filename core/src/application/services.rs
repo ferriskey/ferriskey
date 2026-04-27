@@ -157,6 +157,16 @@ type ApplicationTridentService = TridentServiceImpl<
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;
 type RealmMaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::realm_maintenance_whitelist_repository::PostgresRealmMaintenanceWhitelistRepository;
+type ApplicationEmailVerificationService = EmailVerificationServiceImpl<
+    EmailVerificationTokenRepo,
+    UserRepo,
+    RealmRepo,
+    UserRequiredActionRepo,
+    EmailPortImpl,
+    SmtpConfigRepo,
+    EmailTemplateRepo,
+    MjmlRenderer,
+>;
 
 type ApplicationMaintenanceService = MaintenanceServiceImpl<
     RealmRepo,
@@ -192,6 +202,7 @@ type ApplicationAuthService = AuthServiceImpl<
     MaintenanceWhitelistRepo,
     RealmMaintenanceWhitelistRepo,
     UserAttributeRepo,
+    ApplicationEmailVerificationService,
 >;
 
 #[derive(Clone, Debug)]
@@ -346,16 +357,7 @@ pub struct ApplicationService {
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
-    pub email_verification_service: EmailVerificationServiceImpl<
-        EmailVerificationTokenRepo,
-        UserRepo,
-        RealmRepo,
-        UserRequiredActionRepo,
-        EmailPortImpl,
-        SmtpConfigRepo,
-        EmailTemplateRepo,
-        MjmlRenderer,
-    >,
+    pub email_verification_service: ApplicationEmailVerificationService,
 }
 
 impl CoreService for ApplicationService {

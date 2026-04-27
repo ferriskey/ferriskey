@@ -44,7 +44,7 @@ pub struct PendingVerificationResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
+#[serde(tag = "status", content = "data", rename_all = "snake_case")]
 pub enum RegistrationResponse {
     Authenticated(JwtToken),
     PendingVerification(PendingVerificationResponse),
@@ -165,8 +165,44 @@ mod tests {
             user_id,
         });
 
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("Please verify your email"));
-        assert!(json.contains(&user_id.to_string()));
+        let json = serde_json::to_value(&response).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "status": "pending_verification",
+                "data": {
+                    "message": "Please verify your email",
+                    "user_id": user_id,
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_registration_response_authenticated_serialization() {
+        let response = RegistrationResponse::Authenticated(JwtToken::new(
+            "access-token".to_string(),
+            "Bearer".to_string(),
+            "refresh-token".to_string(),
+            300,
+            600,
+            None,
+            None,
+        ));
+
+        let json = serde_json::to_value(&response).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "status": "authenticated",
+                "data": {
+                    "access_token": "access-token",
+                    "token_type": "Bearer",
+                    "refresh_token": "refresh-token",
+                    "expires_in": 300,
+                    "refresh_expires_in": 600,
+                }
+            })
+        );
     }
 }
