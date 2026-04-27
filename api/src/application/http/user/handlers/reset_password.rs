@@ -68,7 +68,7 @@ pub async fn reset_password(
             },
         )
         .await
-        .map_err(|_| ApiError::InternalServerError("Internal server error".to_string()))?;
+        .map_err(|_| ApiError::InternalServerError("Internal server error".into()))?;
 
     Ok(Response::OK(ResetPasswordResponse {
         message: "Password reset successfully".to_string(),

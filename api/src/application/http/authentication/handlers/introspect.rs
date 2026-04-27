@@ -64,12 +64,12 @@ pub async fn introspect_token(
     let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
         Some(creds) => creds,
         None => {
-            let client_id = payload.client_id.ok_or_else(|| {
-                ApiError::Unauthorized("Missing client authentication".to_string())
-            })?;
-            let client_secret = payload.client_secret.ok_or_else(|| {
-                ApiError::Unauthorized("Missing client authentication".to_string())
-            })?;
+            let client_id = payload
+                .client_id
+                .ok_or_else(|| ApiError::Unauthorized("Missing client authentication".into()))?;
+            let client_secret = payload
+                .client_secret
+                .ok_or_else(|| ApiError::Unauthorized("Missing client authentication".into()))?;
 
             (client_id, client_secret)
         }

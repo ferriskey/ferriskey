@@ -59,7 +59,7 @@ pub async fn registration_handler(
     let settings = state.service.get_login_settings(realm_name.clone()).await?;
 
     if !settings.user_registration_enabled {
-        return Err(ApiError::Forbidden("registration disabled".to_string()));
+        return Err(ApiError::Forbidden("registration disabled".into()));
     }
 
     let url = root_scoped_base_url(&url, &state.args.server.root_path);
