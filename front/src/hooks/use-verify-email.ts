@@ -1,32 +1,48 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useSearchParams, useParams } from 'react-router'
+import { TypedStatusError } from '@/api/api.client'
+import { useVerifyEmailMutation } from '@/api/auth.api'
 
 type VerifyState = 'loading' | 'success' | 'error' | 'expired'
 
 export function useVerifyEmail() {
   const [searchParams] = useSearchParams()
   const { realm_name } = useParams()
-  const hasFetched = useRef(false)
+  const submittedKey = useRef<string | null>(null)
+  const { mutate, isSuccess, isError, error, reset } = useVerifyEmailMutation()
 
   const token = searchParams.get('token')
-  const initialState: VerifyState = token && realm_name ? 'loading' : 'error'
-  const [state, setState] = useState<VerifyState>(initialState)
+  const requestKey = token && realm_name ? `${realm_name}:${token}` : null
 
   useEffect(() => {
-    if (!token || !realm_name || hasFetched.current) return
-    hasFetched.current = true
+    if (!requestKey || !token || !realm_name) {
+      submittedKey.current = null
+      reset()
+      return
+    }
 
-    const apiUrl = window.apiUrl || ''
-    fetch(
-      `${apiUrl}/realms/${encodeURIComponent(realm_name)}/login-actions/verify-email?token=${encodeURIComponent(token)}`
-    )
-      .then((res) => {
-        if (res.ok) return setState('success')
-        if (res.status === 400 || res.status === 410) return setState('expired')
-        setState('error')
-      })
-      .catch(() => setState('error'))
-  }, [token, realm_name])
+    if (submittedKey.current === requestKey) return
+
+    submittedKey.current = requestKey
+    mutate({
+      path: { realm_name },
+      body: { token },
+    })
+  }, [mutate, realm_name, requestKey, reset, token])
+
+  const state = useMemo<VerifyState>(() => {
+    if (!token || !realm_name) return 'error'
+    if (isSuccess) return 'success'
+    if (isError) {
+      if (error instanceof TypedStatusError && (error.status === 400 || error.status === 410)) {
+        return 'expired'
+      }
+
+      return 'error'
+    }
+
+    return 'loading'
+  }, [error, isError, isSuccess, realm_name, token])
 
   return { state, realm_name }
 }

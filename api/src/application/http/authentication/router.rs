@@ -83,7 +83,7 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/login-actions/verify-email"),
-            get(verify_email_handler),
+            post(verify_email_handler),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),

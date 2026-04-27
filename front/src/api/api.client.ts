@@ -841,6 +841,7 @@ export namespace Schemas {
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
   export type ValidatePublicKeyResponse = Record<string, unknown>
+  export type VerifyEmailRequest = { token: string }
   export type VerifyEmailResult = { user_id: string; verified: boolean }
   export type VerifyOtpResponse = { message: string }
   export type VerifyResetTokenRequest = { token_id: string }
@@ -2366,15 +2367,16 @@ export namespace Endpoints {
     }
     responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown }
   }
-  export type get_Verify_email_handler = {
-    method: 'GET'
+  export type post_Verify_email_handler = {
+    method: 'POST'
     path: '/realms/{realm_name}/login-actions/verify-email'
     requestFormat: 'json'
     parameters: {
       path: { realm_name: string }
-      query: { token: string }
+
+      body: Schemas.VerifyEmailRequest
     }
-    responses: { 200: Schemas.VerifyEmailResult; 400: unknown }
+    responses: { 200: Schemas.VerifyEmailResult; 400: Schemas.ApiErrorResponse; 422: unknown }
   }
   export type get_Get_roles = {
     method: 'GET'
@@ -2912,7 +2914,6 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.get_Logout_get
     '/realms/{realm_name}/protocol/openid-connect/userinfo': Endpoints.get_Get_userinfo
-    '/realms/{realm_name}/login-actions/verify-email': Endpoints.get_Verify_email_handler
     '/realms/{realm_name}/roles': Endpoints.get_Get_roles
     '/realms/{realm_name}/roles/{role_id}': Endpoints.get_Get_role
     '/realms/{realm_name}/seawatch/v1/security-events': Endpoints.get_Get_security_events
@@ -2954,6 +2955,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
     '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
+    '/realms/{realm_name}/login-actions/verify-email': Endpoints.post_Verify_email_handler
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
     '/realms/{realm_name}/login-actions/verify-reset-token': Endpoints.post_Verify_reset_token
     '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate
