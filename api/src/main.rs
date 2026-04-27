@@ -176,6 +176,7 @@ async fn main() -> Result<(), anyhow::Error> {
             admin_username: args.admin.username.clone(),
             default_client_id: "security-admin-console".to_string(),
             master_realm_name: "master".to_string(),
+            base_url: Some(args.webapp_url.clone()),
         })
         .await?;
 

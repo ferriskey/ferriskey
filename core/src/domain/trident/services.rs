@@ -1788,6 +1788,22 @@ mod tests {
         template_renderer: Arc<NoopTemplateRenderer>,
     }
 
+    type TridentTestService = TridentServiceImpl<
+        MockCredentialRepository,
+        MockRecoveryCodeRepository,
+        MockAuthSessionRepository,
+        MockHasherRepository,
+        MockUserRequiredActionRepository,
+        MockMagicLinkRepository,
+        MockUserRepository,
+        MockRealmRepository,
+        MockEmailPort,
+        MockSmtpConfigRepository,
+        MockPasswordResetTokenRepository,
+        MockSecurityEventRepository,
+        MockWebhookRepository,
+    >;
+
     impl TridentTestBuilder {
         fn new() -> Self {
             Self {
@@ -1809,25 +1825,7 @@ mod tests {
             }
         }
 
-        fn build(
-            self,
-        ) -> TridentServiceImpl<
-            MockCredentialRepository,
-            MockRecoveryCodeRepository,
-            MockAuthSessionRepository,
-            MockHasherRepository,
-            MockUserRequiredActionRepository,
-            MockMagicLinkRepository,
-            MockUserRepository,
-            MockRealmRepository,
-            MockEmailPort,
-            MockSmtpConfigRepository,
-            MockPasswordResetTokenRepository,
-            MockSecurityEventRepository,
-            MockWebhookRepository,
-            MockEmailTemplateRepository,
-            NoopTemplateRenderer,
-        > {
+        fn build(self) -> TridentTestService {
             TridentServiceImpl::new(
                 self.credential_repo,
                 self.recovery_code_repo,

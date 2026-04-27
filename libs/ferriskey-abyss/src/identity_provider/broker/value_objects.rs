@@ -189,6 +189,12 @@ pub struct BrokerCallbackOutput {
 
     /// OAuth client ID related to this broker authentication
     pub client_id: String,
+
+    /// Realm ID for token generation
+    pub realm_id: Uuid,
+
+    /// Original PKCE code verifier (if PKCE was used)
+    pub code_verifier: Option<String>,
 }
 
 /// User info extracted from IdP tokens
