@@ -225,10 +225,10 @@ impl From<CoreError> for ApiError {
                 Self::InternalServerError(format!("Email template render error: {msg}").into())
             }
             CoreError::InvalidOrExpiredToken => {
-                Self::BadRequest("Invalid or expired email verification token".to_string())
+                Self::BadRequest("Invalid or expired email verification token".into())
             }
             CoreError::EmailVerificationTemplateNotConfigured => {
-                Self::BadRequest("Email verification template is not configured for this realm".to_string())
+                Self::BadRequest("Email verification template is not configured for this realm".into())
             }
         }
     }
