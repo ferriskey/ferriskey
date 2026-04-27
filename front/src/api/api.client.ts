@@ -235,7 +235,9 @@ export namespace Schemas {
     access_token_lifetime: number
     compass_enabled: boolean
     default_signing_algorithm?: (string | null) | undefined
+    email_verification_enabled: boolean
     email_verification_template_id?: (string | null) | undefined
+    email_verification_ttl_hours: number
     forgot_password_enabled: boolean
     id: string
     id_token_lifetime: number
@@ -551,6 +553,7 @@ export namespace Schemas {
     require_uppercase: boolean
     updated_at: string
   }
+  export type PendingVerificationResponse = { message: string; user_id: string }
   export type Permissions =
     | 'create_client'
     | 'manage_authorization'
@@ -616,6 +619,7 @@ export namespace Schemas {
   }>
   export type RemoveClientWhitelistEntryResponse = { message: string }
   export type RemoveRealmWhitelistEntryResponse = { message: string }
+  export type RegistrationResponse = JwtToken | PendingVerificationResponse
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
@@ -773,7 +777,9 @@ export namespace Schemas {
     access_token_lifetime: number | null
     compass_enabled: boolean | null
     default_signing_algorithm: string | null
+    email_verification_enabled: boolean | null
     email_verification_template_id: string | null
+    email_verification_ttl_hours: number | null
     forgot_password_enabled: boolean | null
     id_token_lifetime: number | null
     magic_link_enabled: boolean | null
@@ -835,6 +841,8 @@ export namespace Schemas {
   export type UserResponse = { data: User }
   export type UsersResponse = { data: Array<User> }
   export type ValidatePublicKeyResponse = Record<string, unknown>
+  export type VerifyEmailRequest = { token: string }
+  export type VerifyEmailResult = { user_id: string; verified: boolean }
   export type VerifyOtpResponse = { message: string }
   export type VerifyResetTokenRequest = { token_id: string }
   export type VerifyResetTokenResponse = { valid: boolean }
@@ -2301,7 +2309,7 @@ export namespace Endpoints {
       body: Schemas.RegistrationRequest
     }
     responses: {
-      201: Schemas.JwtToken
+      201: Schemas.RegistrationResponse
       400: Schemas.ApiErrorResponse
       401: Schemas.ApiErrorResponse
       403: Schemas.ApiErrorResponse
@@ -2358,6 +2366,17 @@ export namespace Endpoints {
       path: { realm_name: string }
     }
     responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown }
+  }
+  export type post_Verify_email_handler = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/verify-email'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.VerifyEmailRequest
+    }
+    responses: { 200: Schemas.VerifyEmailResult; 400: Schemas.ApiErrorResponse; 422: unknown }
   }
   export type get_Get_roles = {
     method: 'GET'
@@ -2936,6 +2955,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
     '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password
+    '/realms/{realm_name}/login-actions/verify-email': Endpoints.post_Verify_email_handler
     '/realms/{realm_name}/login-actions/verify-otp': Endpoints.post_Verify_otp
     '/realms/{realm_name}/login-actions/verify-reset-token': Endpoints.post_Verify_reset_token
     '/realms/{realm_name}/login-actions/webauthn-public-key-authenticate': Endpoints.post_Webauthn_public_key_authenticate

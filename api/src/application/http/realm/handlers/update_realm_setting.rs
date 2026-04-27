@@ -65,6 +65,8 @@ pub async fn update_realm_setting(
                 reset_password_template_id: payload.reset_password_template_id,
                 magic_link_template_id: payload.magic_link_template_id,
                 email_verification_template_id: payload.email_verification_template_id,
+                email_verification_enabled: payload.email_verification_enabled,
+                email_verification_ttl_hours: payload.email_verification_ttl_hours,
             },
         )
         .await

@@ -16,6 +16,7 @@ use super::handlers::{
     revoke::{__path_revoke_token, revoke_token},
     token::{__path_exchange_token, exchange_token},
     userinfo::{__path_get_userinfo, get_userinfo},
+    verify_email::{__path_verify_email_handler, verify_email_handler},
 };
 use crate::application::{auth::auth, http::server::app_state::AppState};
 
@@ -32,6 +33,7 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
     revoke_token,
     get_openid_configuration,
     registration_handler,
+    verify_email_handler,
     get_userinfo,
 ))]
 pub struct AuthenticationApiDoc;
@@ -78,6 +80,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),
             post(authenticate),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/verify-email"),
+            post(verify_email_handler),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),

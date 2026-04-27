@@ -7,6 +7,8 @@ import PageRegisterFeature from './feature/page-register-feature'
 import PageForgotPasswordFeature from './feature/page-forgot-password-feature'
 import PageResetPasswordFeature from './feature/page-reset-password-feature'
 import PageMagicLinkVerifyFeature from './feature/page-magic-link-verify-feature'
+import PageCheckYourEmail from './feature/page-check-your-email'
+import PageVerifyEmail from './feature/page-verify-email'
 
 export default function PageAuthentication() {
   return (
@@ -19,6 +21,8 @@ export default function PageAuthentication() {
       <Route path='/forgot-password' element={<PageForgotPasswordFeature />} />
       <Route path='/reset-password' element={<PageResetPasswordFeature />} />
       <Route path='/magic-link' element={<PageMagicLinkVerifyFeature />} />
+      <Route path='/check-your-email' element={<PageCheckYourEmail />} />
+      <Route path='/verify-email' element={<PageVerifyEmail />} />
     </Routes>
   )
 }

@@ -66,6 +66,8 @@ pub struct RealmSetting {
     pub reset_password_template_id: Option<Uuid>,
     pub magic_link_template_id: Option<Uuid>,
     pub email_verification_template_id: Option<Uuid>,
+    pub email_verification_enabled: bool,
+    pub email_verification_ttl_hours: i64,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -91,6 +93,8 @@ impl RealmSetting {
             reset_password_template_id: None,
             magic_link_template_id: None,
             email_verification_template_id: None,
+            email_verification_enabled: false,
+            email_verification_ttl_hours: 24,
             updated_at: now,
         }
     }

@@ -14,6 +14,7 @@ pub use super::compass_flows::Entity as CompassFlows;
 pub use super::credentials::Entity as Credentials;
 pub use super::data_migrations::Entity as DataMigrations;
 pub use super::email_templates::Entity as EmailTemplates;
+pub use super::email_verification_tokens::Entity as EmailVerificationTokens;
 pub use super::identity_provider_links::Entity as IdentityProviderLinks;
 pub use super::identity_providers::Entity as IdentityProviders;
 pub use super::jwt_keys::Entity as JwtKeys;

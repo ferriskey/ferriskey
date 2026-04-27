@@ -10,8 +10,8 @@ use crate::{
             ports::AuthService,
             value_objects::{
                 EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput,
-                Identity, IntrospectTokenInput, RegisterUserInput, RevokeTokenInput,
-                UserInfoResponse,
+                Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
+                RevokeTokenInput, UserInfoResponse,
             },
         },
         common::entities::app_errors::CoreError,
@@ -59,7 +59,7 @@ impl AuthService for ApplicationService {
         &self,
         url: String,
         input: RegisterUserInput,
-    ) -> Result<JwtToken, CoreError> {
+    ) -> Result<RegisterUserOutput, CoreError> {
         self.auth_service.register_user(url, input).await
     }
 
