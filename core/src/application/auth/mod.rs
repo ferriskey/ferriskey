@@ -15,12 +15,9 @@ use crate::{
             },
         },
         common::entities::app_errors::CoreError,
-        email_verification::ports::EmailVerificationService,
         jwt::entities::JwkKey,
-        user::ports::UserRepository,
     },
 };
-use tracing::warn;
 
 impl AuthService for ApplicationService {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
@@ -63,33 +60,7 @@ impl AuthService for ApplicationService {
         url: String,
         input: RegisterUserInput,
     ) -> Result<RegisterUserOutput, CoreError> {
-        let realm_name = input.realm_name.clone();
-        let output = self.auth_service.register_user(url.clone(), input).await?;
-
-        if let RegisterUserOutput::PendingVerification { user_id, .. } = &output
-            && let Err(err) = self
-                .email_verification_service
-                .send_verification_email(*user_id, realm_name, url)
-                .await
-        {
-            // Avoid leaving behind an unverified user that can no longer re-register.
-            if let Err(cleanup_err) = self
-                .auth_service
-                .user_repository
-                .delete_user(*user_id)
-                .await
-            {
-                warn!(
-                    user_id = %user_id,
-                    error = %cleanup_err,
-                    "Failed to roll back user after verification email delivery error"
-                );
-            }
-
-            return Err(err);
-        }
-
-        Ok(output)
+        self.auth_service.register_user(url, input).await
     }
 
     async fn get_userinfo(

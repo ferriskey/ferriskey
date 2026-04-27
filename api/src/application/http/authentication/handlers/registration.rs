@@ -211,4 +211,32 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn test_registration_response_authenticated_serialization() {
+        let response = RegistrationResponse::Authenticated(JwtToken::new(
+            "access-token".to_string(),
+            "Bearer".to_string(),
+            "refresh-token".to_string(),
+            300,
+            600,
+            None,
+            None,
+        ));
+
+        let json = serde_json::to_value(&response).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "status": "authenticated",
+                "data": {
+                    "access_token": "access-token",
+                    "token_type": "Bearer",
+                    "refresh_token": "refresh-token",
+                    "expires_in": 300,
+                    "refresh_expires_in": 600,
+                }
+            })
+        );
+    }
 }
