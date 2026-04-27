@@ -66,28 +66,27 @@ impl AuthService for ApplicationService {
         let realm_name = input.realm_name.clone();
         let output = self.auth_service.register_user(url.clone(), input).await?;
 
-        if let RegisterUserOutput::PendingVerification { user_id, .. } = &output {
-            if let Err(err) = self
+        if let RegisterUserOutput::PendingVerification { user_id, .. } = &output
+            && let Err(err) = self
                 .email_verification_service
                 .send_verification_email(*user_id, realm_name, url)
                 .await
+        {
+            // Avoid leaving behind an unverified user that can no longer re-register.
+            if let Err(cleanup_err) = self
+                .auth_service
+                .user_repository
+                .delete_user(*user_id)
+                .await
             {
-                // Avoid leaving behind an unverified user that can no longer re-register.
-                if let Err(cleanup_err) = self
-                    .auth_service
-                    .user_repository
-                    .delete_user(*user_id)
-                    .await
-                {
-                    warn!(
-                        user_id = %user_id,
-                        error = %cleanup_err,
-                        "Failed to roll back user after verification email delivery error"
-                    );
-                }
-
-                return Err(err);
+                warn!(
+                    user_id = %user_id,
+                    error = %cleanup_err,
+                    "Failed to roll back user after verification email delivery error"
+                );
             }
+
+            return Err(err);
         }
 
         Ok(output)
