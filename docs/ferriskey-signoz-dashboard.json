@@ -1,0 +1,662 @@
+{
+  "description": "FerrisKey operational dashboard for SigNoz. Uses OpenTelemetry traces and logs emitted by the API service name `ferriskey_server`. Import from SigNoz: Dashboards -> New dashboard -> Import JSON.",
+  "dotMigrated": true,
+  "layout": [
+    { "h": 1, "i": "row-traffic", "moved": false, "static": false, "w": 12, "x": 0, "y": 0 },
+    { "h": 5, "i": "request-rate", "moved": false, "static": false, "w": 4, "x": 0, "y": 1 },
+    { "h": 5, "i": "p95-latency", "moved": false, "static": false, "w": 4, "x": 4, "y": 1 },
+    { "h": 5, "i": "log-rate", "moved": false, "static": false, "w": 4, "x": 8, "y": 1 },
+    { "h": 8, "i": "route-throughput", "moved": false, "static": false, "w": 6, "x": 0, "y": 6 },
+    { "h": 8, "i": "route-latency", "moved": false, "static": false, "w": 6, "x": 6, "y": 6 },
+    { "h": 1, "i": "row-failures", "moved": false, "static": false, "w": 12, "x": 0, "y": 14 },
+    { "h": 7, "i": "status-distribution", "moved": false, "static": false, "w": 4, "x": 0, "y": 15 },
+    { "h": 7, "i": "slow-endpoints", "moved": false, "static": false, "w": 4, "x": 4, "y": 15 },
+    { "h": 7, "i": "log-severity", "moved": false, "static": false, "w": 4, "x": 8, "y": 15 },
+    { "h": 8, "i": "span-errors", "moved": false, "static": false, "w": 6, "x": 0, "y": 22 },
+    { "h": 8, "i": "recent-logs", "moved": false, "static": false, "w": 6, "x": 6, "y": 22 }
+  ],
+  "panelMap": {},
+  "tags": [
+    "ferriskey",
+    "otel",
+    "traces",
+    "logs"
+  ],
+  "title": "FerrisKey API - Logs and Traces",
+  "uploadedGrafana": false,
+  "variables": {},
+  "version": "v4",
+  "widgets": [
+    {
+      "description": "",
+      "id": "row-traffic",
+      "panelTypes": "row",
+      "title": "Traffic, latency and application log volume"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "Server spans per second for the FerrisKey API.",
+      "fillSpans": false,
+      "id": "request-rate",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [],
+              "having": [],
+              "legend": "requests/sec",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-request-rate",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Request Rate",
+      "yAxisUnit": "reqps"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "P95 duration for inbound server spans.",
+      "fillSpans": false,
+      "id": "p95-latency",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+              "aggregateOperator": "p95",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [],
+              "having": [],
+              "legend": "p95 latency",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "p95"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-p95-latency",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "P95 Latency",
+      "yAxisUnit": "ns"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "Application logs per second for FerrisKey.",
+      "fillSpans": false,
+      "id": "log-rate",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "count",
+              "dataSource": "logs",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "log-service-filter", "key": { "dataType": "string", "id": "service.name--string--resource--false", "isColumn": false, "key": "service.name", "type": "resource" }, "op": "=", "value": "ferriskey_server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [],
+              "having": [],
+              "legend": "logs/sec",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "reduceTo": "sum",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-log-rate",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [{ "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Log Rate",
+      "yAxisUnit": "short"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "Request rate grouped by FerrisKey's current tracing span fields: method and uri.",
+      "fillSpans": false,
+      "id": "route-throughput",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" },
+                  { "id": "method-exists", "key": { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" }, "op": "exists", "value": "" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" },
+                { "dataType": "string", "id": "uri--string--tag--true", "isColumn": true, "isJSON": false, "key": "uri", "type": "tag" }
+              ],
+              "having": [],
+              "legend": "{{method}} {{uri}}",
+              "limit": null,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-route-throughput",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" },
+        { "dataType": "string", "id": "uri--string--tag--true", "isColumn": true, "isJSON": false, "key": "uri", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "HTTP Throughput by Route",
+      "yAxisUnit": "reqps"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "P95 latency grouped by FerrisKey's current tracing span fields: method and uri.",
+      "fillSpans": false,
+      "id": "route-latency",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+              "aggregateOperator": "p95",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" },
+                  { "id": "method-exists", "key": { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" }, "op": "exists", "value": "" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" },
+                { "dataType": "string", "id": "uri--string--tag--true", "isColumn": true, "isJSON": false, "key": "uri", "type": "tag" }
+              ],
+              "having": [],
+              "legend": "{{method}} {{uri}}",
+              "limit": null,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "p95"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-route-latency",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "method--string--tag--true", "isColumn": true, "isJSON": false, "key": "method", "type": "tag" },
+        { "dataType": "string", "id": "uri--string--tag--true", "isColumn": true, "isJSON": false, "key": "uri", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "HTTP P95 Latency by Route",
+      "yAxisUnit": "ns"
+    },
+    {
+      "description": "",
+      "id": "row-failures",
+      "panelTypes": "row",
+      "title": "Failures, slow paths and logs"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "HTTP status code counts from server spans.",
+      "fillSpans": false,
+      "id": "status-distribution",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" },
+                  { "id": "server-span-filter", "key": { "dataType": "string", "id": "spanKind--string--tag--true", "isColumn": true, "isJSON": false, "key": "spanKind", "type": "tag" }, "op": "=", "value": "Server" },
+                  { "id": "status-exists", "key": { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }, "op": "exists", "value": "" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [{ "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }],
+              "having": [],
+              "legend": "spans",
+              "limit": null,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "sum",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-status-distribution",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" },
+        { "dataType": "string", "id": "httpRoute--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpRoute", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "HTTP Status Distribution",
+      "yAxisUnit": "short"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": { "A": "ns" },
+      "description": "Slowest server span names by average duration.",
+      "fillSpans": false,
+      "id": "slow-endpoints",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+              "aggregateOperator": "avg",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "service-filter", "key": { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }, "op": "=", "value": "ferriskey_server" },
+                  { "id": "server-span-filter", "key": { "dataType": "string", "id": "spanKind--string--tag--true", "isColumn": true, "isJSON": false, "key": "spanKind", "type": "tag" }, "op": "=", "value": "Server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+                { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+                { "dataType": "string", "id": "httpRoute--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpRoute", "type": "tag" }
+              ],
+              "having": [],
+              "legend": "avg duration",
+              "limit": 10,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "avg"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-slow-endpoints",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpRoute--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpRoute", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Slowest Endpoints",
+      "yAxisUnit": "ns"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "Log counts grouped by severity.",
+      "fillSpans": false,
+      "id": "log-severity",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "count",
+              "dataSource": "logs",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "log-service-filter", "key": { "dataType": "string", "id": "service.name--string--resource--false", "isColumn": false, "key": "service.name", "type": "resource" }, "op": "=", "value": "ferriskey_server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [{ "dataType": "string", "id": "severity_text--string----true", "isColumn": true, "isJSON": false, "key": "severity_text", "type": "" }],
+              "having": [],
+              "legend": "logs",
+              "limit": null,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "sum",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-log-severity",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }, { "dataType": "string", "name": "severity_text", "type": "" }],
+      "selectedTracesFields": [{ "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Log Severity",
+      "yAxisUnit": "short"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "SigNoz APM error-rate metric grouped by operation.",
+      "fillSpans": false,
+      "id": "span-errors",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "float64", "id": "signoz_calls_total--float64--Sum--true", "isColumn": true, "isJSON": false, "key": "signoz_calls_total", "type": "Sum" },
+              "aggregateOperator": "rate",
+              "dataSource": "metrics",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "metric-service-filter", "key": { "dataType": "string", "id": "service.name--string--tag--false", "isColumn": false, "isJSON": false, "key": "service.name", "type": "tag" }, "op": "=", "value": "ferriskey_server" },
+                  { "id": "metric-error-filter", "key": { "dataType": "string", "id": "status.code--string--tag--false", "isColumn": false, "isJSON": false, "key": "status.code", "type": "tag" }, "op": "=", "value": "STATUS_CODE_ERROR" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                { "dataType": "string", "id": "operation--string--tag--false", "isColumn": false, "isJSON": false, "key": "operation", "type": "tag" },
+                { "dataType": "string", "id": "status.code--string--tag--false", "isColumn": false, "isJSON": false, "key": "status.code", "type": "tag" }
+              ],
+              "having": [],
+              "legend": "errors/sec",
+              "limit": 20,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-span-errors",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "body", "type": "" }, { "dataType": "string", "name": "timestamp", "type": "" }],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "APM Error Rate",
+      "yAxisUnit": "reqps"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "Recent application log lines for FerrisKey.",
+      "fillSpans": false,
+      "id": "recent-logs",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "list",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": { "dataType": "", "id": "------false", "isColumn": false, "isJSON": false, "key": "", "type": "" },
+              "aggregateOperator": "noop",
+              "dataSource": "logs",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  { "id": "log-service-filter", "key": { "dataType": "string", "id": "service.name--string--resource--false", "isColumn": false, "key": "service.name", "type": "resource" }, "op": "=", "value": "ferriskey_server" }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [],
+              "having": [],
+              "legend": "",
+              "limit": 50,
+              "orderBy": [],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "rate"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "id": "query-recent-logs",
+        "promql": [{ "disabled": false, "legend": "", "name": "A", "query": "" }],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [{ "dataType": "string", "name": "timestamp", "type": "" }, { "dataType": "string", "name": "severity_text", "type": "" }, { "dataType": "string", "name": "body", "type": "" }],
+      "selectedTracesFields": [{ "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" }],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Recent Logs",
+      "yAxisUnit": "short"
+    }
+  ]
+}
