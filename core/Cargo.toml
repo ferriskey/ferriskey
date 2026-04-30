@@ -63,3 +63,8 @@ p256 = { version = "0.13.2", features = ["ecdsa"] }
 signature = "2.2.0"
 sha2 = "0.10.9"
 webauthn-rs = { version = "0.5.2", features = ["danger-allow-state-serialisation", "danger-credential-internals", "conditional-ui"] }
+divan = { version = "4.5.0", package = "codspeed-divan-compat" }
+
+[[bench]]
+name = "permissions"
+harness = false
