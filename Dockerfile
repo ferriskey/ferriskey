@@ -1,77 +1,25 @@
-FROM rust:1.91.1-bookworm AS rust-build
+FROM rust:1.95.0-bookworm AS chef
 
 WORKDIR /usr/local/src/ferriskey
 
-RUN cargo install sqlx-cli --no-default-features --features postgres
+RUN cargo install cargo-chef --version 0.1.77 --locked && \
+    cargo install sqlx-cli --version 0.8.6 --no-default-features --features postgres --locked
 
-COPY Cargo.toml Cargo.lock ./
-COPY libs/maskass/Cargo.toml ./libs/maskass/
-COPY libs/ferriskey-domain/Cargo.toml ./libs/ferriskey-domain/
-COPY libs/ferriskey-security/Cargo.toml ./libs/ferriskey-security/
-COPY libs/ferriskey-trident/Cargo.toml ./libs/ferriskey-trident/
-COPY libs/ferriskey-abyss/Cargo.toml ./libs/ferriskey-abyss/
-COPY libs/ferriskey-aegis/Cargo.toml ./libs/ferriskey-aegis/
-COPY libs/ferriskey-mail/Cargo.toml ./libs/ferriskey-mail/
-COPY libs/ferriskey-compass/Cargo.toml ./libs/ferriskey-compass/
-COPY libs/ferriskey-migrate/Cargo.toml ./libs/ferriskey-migrate/
-COPY libs/ferriskey-organization/Cargo.toml ./libs/ferriskey-organization/
+# ── Planner: analyse the workspace and produce recipe.json ────────────────────
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-COPY core/Cargo.toml ./core/
+# ── Builder: cook deps first (cached), then build real source ─────────────────
+FROM chef AS builder
 
-COPY api/Cargo.toml ./api/
-COPY operator/Cargo.toml ./operator/
-COPY client/Cargo.toml ./client/
+COPY --from=planner /usr/local/src/ferriskey/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-RUN \
-  mkdir -p api/src core/src entity/src operator/src client/src \
-  libs/maskass/src libs/ferriskey-domain/src libs/ferriskey-security/src libs/ferriskey-trident/src libs/ferriskey-abyss/src libs/ferriskey-aegis/src libs/ferriskey-mail/src libs/ferriskey-compass/src libs/ferriskey-migrate/src libs/ferriskey-organization/src && \
-  touch libs/maskass/src/lib.rs && \
-  touch libs/ferriskey-domain/src/lib.rs && \
-  touch libs/ferriskey-security/src/lib.rs && \
-  touch libs/ferriskey-trident/src/lib.rs && \
-  touch libs/ferriskey-abyss/src/lib.rs && \
-  touch libs/ferriskey-aegis/src/lib.rs && \
-  touch libs/ferriskey-mail/src/lib.rs && \
-  touch libs/ferriskey-compass/src/lib.rs && \
-  touch libs/ferriskey-migrate/src/lib.rs && \
-  touch libs/ferriskey-organization/src/lib.rs && \
-  touch core/src/lib.rs && \
-  touch client/src/lib.rs && \
-  echo "fn main() {}" > operator/src/main.rs && \
-  echo "fn main() {}" > api/src/main.rs && \
-  cargo build --release
+COPY . .
+RUN cargo build --release
 
-COPY libs/maskass libs/maskass
-COPY libs/ferriskey-domain libs/ferriskey-domain
-COPY libs/ferriskey-security libs/ferriskey-security
-COPY libs/ferriskey-trident libs/ferriskey-trident
-COPY libs/ferriskey-abyss libs/ferriskey-abyss
-COPY libs/ferriskey-aegis libs/ferriskey-aegis
-COPY libs/ferriskey-mail libs/ferriskey-mail
-COPY libs/ferriskey-compass libs/ferriskey-compass
-COPY libs/ferriskey-migrate libs/ferriskey-migrate
-COPY libs/ferriskey-organization libs/ferriskey-organization
-
-COPY core core
-COPY api api
-COPY operator operator
-COPY client client
-
-RUN \
-  touch libs/maskass/src/lib.rs && \
-  touch libs/ferriskey-domain/src/lib.rs && \
-  touch libs/ferriskey-security/src/lib.rs && \
-  touch libs/ferriskey-trident/src/lib.rs && \
-  touch libs/ferriskey-abyss/src/lib.rs && \
-  touch libs/ferriskey-aegis/src/lib.rs && \
-  touch libs/ferriskey-mail/src/lib.rs && \
-  touch libs/ferriskey-compass/src/lib.rs && \
-  touch libs/ferriskey-migrate/src/lib.rs && \
-  touch libs/ferriskey-organization/src/lib.rs && \
-  touch core/src/lib.rs && \
-  touch operator/src/main.rs && \
-  cargo build --release
-
+# ── Shared runtime base ───────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runtime
 
 RUN \
@@ -94,24 +42,27 @@ RUN \
 
 USER ferriskey
 
+# ── API image ─────────────────────────────────────────────────────────────────
 FROM runtime AS api
 
-COPY --from=rust-build /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
-COPY --from=rust-build /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
-COPY --from=rust-build /usr/local/cargo/bin/sqlx /usr/local/bin/
+COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
+COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
+COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
 
 EXPOSE 80
 
 ENTRYPOINT ["ferriskey-api"]
 
+# ── Operator image ────────────────────────────────────────────────────────────
 FROM runtime AS operator
 
-COPY --from=rust-build /usr/local/src/ferriskey/target/release/ferriskey-operator /usr/local/bin/
+COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-operator /usr/local/bin/
 
 EXPOSE 80
 
 ENTRYPOINT ["ferriskey-operator"]
 
+# ── Frontend build ────────────────────────────────────────────────────────────
 FROM node:20.14.0-alpine AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
@@ -132,6 +83,7 @@ COPY front/ .
 
 RUN pnpm run build
 
+# ── Frontend runtime ──────────────────────────────────────────────────────────
 FROM nginx:1.28.0-alpine3.21-slim AS webapp
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
