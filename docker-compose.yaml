@@ -10,7 +10,10 @@ services:
       - 5432:5432
     volumes:
       # Postgres 18+ images are designed to mount /var/lib/postgresql (major-version subdirs inside).
-      - pgdata:/var/lib/postgresql
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql
+        volume: {}
     healthcheck:
       test:
         - CMD-SHELL
@@ -114,5 +117,7 @@ services:
       - 5555:80
     profiles:
       - registry
+
 volumes:
   pgdata:
+    name: ferriskey_pgdata

@@ -1,26 +1,31 @@
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Heading } from '@/components/ui/heading'
+import { Card, CardContent } from '@/components/ui/card'
 import { InputText } from '@/components/ui/input-text'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle, Copy, Shield, Smartphone } from 'lucide-react'
+import { CheckCircle, Copy, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { Skeleton } from '@/components/ui/skeleton'
 import { VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { useFormContext } from 'react-hook-form'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
+import '../page-login.css'
 
 export interface ConfigureOtpProps {
   secret?: string
   qrCodeUrl?: string
   handleSubmit: (values: VerifyOtpSchema) => void
+  handleCancel?: () => void
 }
 
-export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: ConfigureOtpProps) {
+export default function ConfigureOtp({
+  secret,
+  qrCodeUrl,
+  handleSubmit,
+  handleCancel,
+}: ConfigureOtpProps) {
   const [secretCopied, setSecretCopied] = useState<boolean>(false)
   const form = useFormContext<VerifyOtpSchema>()
 
@@ -28,244 +33,200 @@ export default function ConfigureOtp({ secret, qrCodeUrl, handleSubmit }: Config
     if (!secret) return
     navigator.clipboard.writeText(secret)
     setSecretCopied(true)
-
     setTimeout(() => setSecretCopied(false), 2000)
   }
 
-  const formIsValid = form.formState.isValid
-
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900'>
-      <div className='container mx-auto px-4 py-8'>
-        <div className='max-w-4xl mx-auto'>
-          {/* Header */}
-          <div className='text-center mb-8'>
-            <div className='flex justify-center mb-4'>
-              <div className='p-3 bg-primary dark:bg-primary/30 rounded-full'>
-                <Shield className='h-8 w-8 text-[#19323C] dark:text-white' />
-              </div>
-            </div>
-            <Heading size={2} className='mb-2 text-center'>
-              Enable Two-Factor Authentication
-            </Heading>
-            <p className='text-muted-foreground text-lg'>
-              Secure your account with an additional layer of protection
-            </p>
-          </div>
-
-          <div className='grid gap-8 md:grid-cols-2'>
-            {/* Left Column - Setup Instructions */}
-            <div className='space-y-6'>
-              {/* Step 1 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='flex items-center gap-2'>
-                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
-                      1
-                    </div>
-                    Download an Authenticator App
-                  </CardTitle>
-                  <CardDescription>
-                    Install a TOTP authenticator app on your mobile device
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className='grid grid-cols-2 gap-3'>
-                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
-                      <Smartphone className='h-5 w-5 text-gray-600' />
-                      <span className='text-sm font-medium'>Google Authenticator</span>
-                    </div>
-                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
-                      <Smartphone className='h-5 w-5 text-gray-600' />
-                      <span className='text-sm font-medium'>Authy</span>
-                    </div>
-                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
-                      <Smartphone className='h-5 w-5 text-gray-600' />
-                      <span className='text-sm font-medium'>Microsoft Authenticator</span>
-                    </div>
-                    <div className='flex items-center gap-2 p-3 border rounded-lg'>
-                      <Smartphone className='h-5 w-5 text-gray-600' />
-                      <span className='text-sm font-medium'>1Password</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Step 2 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='flex items-center gap-2'>
-                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
-                      2
-                    </div>
-                    Scan QR Code or Enter Secret
-                  </CardTitle>
-                  <CardDescription>
-                    Use your authenticator app to scan the QR code or manually enter the secret
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-4'>
-                  {/* QR Code */}
-                  <div className='flex justify-center p-4 bg-white dark:bg-gray-800 rounded-lg border'>
-                    {qrCodeUrl ? (
-                      <QRCodeSVG
-                        value={qrCodeUrl}
-                        size={160}
-                        bgColor='transparent'
-                        fgColor='currentColor'
-                      />
-                    ) : (
-                      <Skeleton className='h-40 w-40' />
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Manual Entry */}
-                  <div className='space-y-2'>
-                    <p className='text-sm font-medium'>Can't scan? Enter this secret manually:</p>
-                    <div className='flex items-center gap-2'>
-                      {secret ? (
-                        <code className='flex-1 p-2 bg-muted rounded text-sm break-all font-mono'>
-                          {secret}
-                        </code>
-                      ) : (
-                        <Skeleton className='h-8 w-full' />
-                      )}
-                      <Button variant='outline' size='sm' onClick={copySecret} className='shrink-0'>
-                        {secretCopied ? (
-                          <CheckCircle className='h-4 w-4 text-green-500' />
-                        ) : (
-                          <Copy className='h-4 w-4' />
-                        )}
-                      </Button>
-                    </div>
-                    {secretCopied && (
-                      <p className='text-sm text-green-600 dark:text-green-400'>
-                        Secret copied to clipboard!
+    <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
+        <div className='flex flex-col gap-6'>
+          <Card className='login-card overflow-hidden border p-0 shadow-sm'>
+            <CardContent className='grid gap-0 p-0'>
+              <form onSubmit={form.handleSubmit(handleSubmit)}>
+                <div className='p-6 md:p-10'>
+                  <div className='flex flex-col gap-7'>
+                    <div className='space-y-2'>
+                      <div className='flex items-center gap-3'>
+                        <img
+                          src='/logo_ferriskey.png'
+                          alt='FerrisKey'
+                          className='h-7 w-7 object-contain'
+                        />
+                        <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                          FerrisKey
+                        </p>
+                      </div>
+                      <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                        Enable two-factor authentication
+                      </h1>
+                      <p className='text-sm text-muted-foreground'>
+                        Secure your account with an additional layer of protection using a TOTP
+                        authenticator app.
                       </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Column - Verification */}
-            <div className='space-y-6'>
-              {/* Step 3 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='flex items-center gap-2'>
-                    <div className='w-6 h-6 bg-[#19323C] text-white rounded-full flex items-center justify-center text-sm font-semibold'>
-                      3
                     </div>
-                    Verify Setup
-                  </CardTitle>
-                  <CardDescription>
-                    Enter the 6-digit code from your authenticator app to verify the setup
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-4'>
-                  <div className='space-y-4'>
-                    <div>
+
+                    <Step number={1} title='Install an authenticator app'>
+                      <p className='text-sm text-muted-foreground'>
+                        Use Google Authenticator, Authy, Microsoft Authenticator, 1Password or any
+                        other TOTP app on your device.
+                      </p>
+                    </Step>
+
+                    <Separator />
+
+                    <Step number={2} title='Scan the QR code'>
+                      <div className='flex justify-center rounded-lg border bg-background p-4'>
+                        {qrCodeUrl ? (
+                          <QRCodeSVG
+                            value={qrCodeUrl}
+                            size={160}
+                            bgColor='transparent'
+                            fgColor='currentColor'
+                          />
+                        ) : (
+                          <Skeleton className='h-40 w-40' />
+                        )}
+                      </div>
+                      <div className='space-y-2'>
+                        <p className='text-xs text-muted-foreground'>
+                          Can't scan? Enter this secret manually:
+                        </p>
+                        <div className='flex items-center gap-2'>
+                          {secret ? (
+                            <code className='flex-1 break-all rounded-md bg-muted p-2 font-mono text-xs'>
+                              {secret}
+                            </code>
+                          ) : (
+                            <Skeleton className='h-8 w-full' />
+                          )}
+                          <Button
+                            type='button'
+                            variant='outline'
+                            size='sm'
+                            onClick={copySecret}
+                            className='shrink-0'
+                          >
+                            {secretCopied ? (
+                              <CheckCircle className='h-4 w-4 text-green-500' />
+                            ) : (
+                              <Copy className='h-4 w-4' />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </Step>
+
+                    <Separator />
+
+                    <Step number={3} title='Verify and name your device'>
+                      <div className='flex flex-col items-center gap-3'>
+                        <FormField
+                          control={form.control}
+                          name='pin'
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <InputOTP
+                                  {...field}
+                                  maxLength={6}
+                                  pattern={REGEXP_ONLY_DIGITS}
+                                >
+                                  <div className='flex items-center gap-1 sm:gap-3'>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={0} />
+                                    </InputOTPGroup>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={1} />
+                                    </InputOTPGroup>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={2} />
+                                    </InputOTPGroup>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={3} />
+                                    </InputOTPGroup>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={4} />
+                                    </InputOTPGroup>
+                                    <InputOTPGroup>
+                                      <InputOTPSlot className='h-10 w-9 sm:h-11 sm:w-11' index={5} />
+                                    </InputOTPGroup>
+                                  </div>
+                                </InputOTP>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={form.control}
-                        name='pin'
+                        name='deviceName'
                         render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <InputOTP {...field} maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
-                                <div className='flex w-full items-center justify-between'>
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={0} />
-                                  </InputOTPGroup>
-
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={1} />
-                                  </InputOTPGroup>
-
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={2} />
-                                  </InputOTPGroup>
-
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={3} />
-                                  </InputOTPGroup>
-
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={4} />
-                                  </InputOTPGroup>
-
-                                  <InputOTPGroup>
-                                    <InputOTPSlot className='w-11 h-11' index={5} />
-                                  </InputOTPGroup>
-                                </div>
-                              </InputOTP>
-                            </FormControl>
-                          </FormItem>
+                          <InputText
+                            label='Device name (optional)'
+                            name='deviceName'
+                            value={field.value}
+                            onChange={field.onChange}
+                            className='w-full'
+                          />
                         )}
                       />
-                    </div>
+                      <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
+                        <ShieldCheck className='mt-0.5 h-4 w-4 shrink-0' />
+                        <span>
+                          Save your backup codes in a secure place — you'll need them if you lose
+                          your device.
+                        </span>
+                      </div>
+                    </Step>
 
-                    <FormField
-                      control={form.control}
-                      name='deviceName'
-                      render={({ field }) => (
-                        <InputText
-                          label='Device Name (Optional)'
-                          name='deviceName'
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
+                    <div className='flex flex-col gap-2'>
+                      <Button
+                        type='submit'
+                        className='w-full rounded-lg py-5 text-sm'
+                        disabled={!form.formState.isValid}
+                      >
+                        Enable two-factor authentication
+                      </Button>
+                      {handleCancel && (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          className='w-full rounded-lg py-5 text-sm'
+                          onClick={handleCancel}
+                        >
+                          Cancel
+                        </Button>
                       )}
-                    />
+                    </div>
                   </div>
-
-                  <Alert>
-                    <Shield className='h-4 w-4' />
-                    <AlertDescription>
-                      Save your backup codes in a secure location. You can use them to recover
-                      access if you lose your device.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className='space-y-3'>
-                    <Button
-                      className='w-full'
-                      size='lg'
-                      disabled={!formIsValid}
-                      onClick={form.handleSubmit(handleSubmit)}
-                    >
-                      <Shield className='mr-2 h-4 w-4' />
-                      Enable Two-Factor Authentication
-                    </Button>
-
-                    <Button variant='outline' className='w-full'>
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Security Tips */}
-              <Card className='border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20'>
-                <CardHeader>
-                  <CardTitle className='text-yellow-800 dark:text-yellow-200 flex items-center gap-2'>
-                    <Shield className='h-5 w-5' />
-                    Security Tips
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className='space-y-2 text-sm text-yellow-700 dark:text-yellow-300'>
-                  <p>• Keep your authenticator app updated</p>
-                  <p>• Store backup codes in a secure location</p>
-                  <p>• Don't share your secret key with anyone</p>
-                  <p>• Use a unique device name for easy identification</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
+    </div>
+  )
+}
+
+function Step({
+  number,
+  title,
+  children,
+}: {
+  number: number
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className='space-y-3'>
+      <div className='flex items-center gap-3'>
+        <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground'>
+          {number}
+        </div>
+        <h2 className='text-sm font-semibold text-foreground'>{title}</h2>
+      </div>
+      <div className='space-y-3 sm:pl-9'>{children}</div>
     </div>
   )
 }
