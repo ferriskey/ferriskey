@@ -223,7 +223,10 @@ impl From<CoreError> for ApiError {
             }
             CoreError::EmailTemplateRenderError(msg) => {
                 Self::InternalServerError(format!("Email template render error: {msg}").into())
-            }
+            },
+            CoreError::PortalConfigNotFound => {
+                Self::NotFound("Portal config not found".into())
+            },
         }
     }
 }

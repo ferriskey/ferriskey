@@ -43,6 +43,9 @@ pub enum Permissions {
 
     ManageEmailTemplates = 1 << 25, // 1 << 25
     ViewEmailTemplates = 1 << 26,   // 1 << 26
+
+    ManagePortal = 1 << 27, // 1 << 27
+    ViewPortal = 1 << 28,   // 1 << 28
 }
 
 impl Permissions {
@@ -75,6 +78,8 @@ impl Permissions {
             Self::ViewClientScopes,
             Self::ManageEmailTemplates,
             Self::ViewEmailTemplates,
+            Self::ManagePortal,
+            Self::ViewPortal,
         ];
 
         all_permissions
@@ -113,6 +118,8 @@ impl Permissions {
             Self::ViewClientScopes => "view_client_scopes".to_string(),
             Self::ManageEmailTemplates => "manage_email_templates".to_string(),
             Self::ViewEmailTemplates => "view_email_templates".to_string(),
+            Self::ManagePortal => "manage_portal".to_string(),
+            Self::ViewPortal => "view_portal".to_string(),
         }
     }
 
@@ -170,6 +177,8 @@ impl Permissions {
             "view_client_scopes" => Some(Self::ViewClientScopes),
             "manage_email_templates" => Some(Self::ManageEmailTemplates),
             "view_email_templates" => Some(Self::ViewEmailTemplates),
+            "manage_portal" => Some(Self::ManagePortal),
+            "view_portal" => Some(Self::ViewPortal),
             _ => None,
         }
     }
@@ -191,6 +200,8 @@ impl Permissions {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::Permissions;
 
     #[test]

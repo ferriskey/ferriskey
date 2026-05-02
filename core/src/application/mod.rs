@@ -24,6 +24,7 @@ use crate::{
         maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
+        portal::services::PortalServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -67,6 +68,7 @@ use crate::{
             organization_member_repository::PostgresOrganizationMemberRepository,
             organization_repository::PostgresOrganizationRepository,
         },
+        portal::repositories::portal_repository::PostgresPortalRepository,
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
@@ -113,6 +115,7 @@ pub mod mail;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
+pub mod portal;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
@@ -178,6 +181,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
+    let portal = Arc::new(PostgresPortalRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
     let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
     let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
@@ -320,6 +324,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        portal_service: PortalServiceImpl::new(realm.clone(), portal.clone(), policy.clone()),
         email_template_service: EmailTemplateServiceImpl::new(
             realm.clone(),
             email_template.clone(),

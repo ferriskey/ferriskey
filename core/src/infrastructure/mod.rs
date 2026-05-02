@@ -11,6 +11,7 @@ pub mod identity_provider;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
+pub mod portal;
 pub mod realm;
 pub mod recovery_code;
 pub mod repositories;

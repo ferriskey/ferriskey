@@ -273,6 +273,9 @@ pub enum CoreError {
 
     #[error("Email template rendering failed: {0}")]
     EmailTemplateRenderError(String),
+
+    #[error("Portal config not found")]
+    PortalConfigNotFound,
 }
 
 impl From<AuthenticationError> for CoreError {

@@ -13,6 +13,7 @@ pub mod jwt;
 pub mod maintenance;
 pub mod organization;
 pub mod password_policy;
+pub mod portal;
 pub mod realm;
 pub mod role;
 pub mod seawatch;

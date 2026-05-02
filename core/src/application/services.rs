@@ -26,6 +26,7 @@ use crate::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
             service::PasswordPolicyService,
         },
+        portal::services::PortalServiceImpl,
         realm::{
             ports::RealmRepository,
             services::{MailServiceImpl, RealmServiceImpl},
@@ -65,6 +66,7 @@ use crate::{
             organization_member_repository::PostgresOrganizationMemberRepository,
             organization_repository::PostgresOrganizationRepository,
         },
+        portal::repositories::portal_repository::PostgresPortalRepository,
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
@@ -130,6 +132,7 @@ type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
+type PortalRepo = PostgresPortalRepository;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
@@ -328,6 +331,8 @@ pub struct ApplicationService {
         EmailTemplateRepo,
         MjmlRenderer,
     >,
+    pub(crate) portal_service:
+        PortalServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, PortalRepo>,
     pub(crate) password_policy_service:
         PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
     pub(crate) organization_service: OrganizationServiceImpl<

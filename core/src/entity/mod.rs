@@ -27,6 +27,7 @@ pub mod password_policy;
 pub mod password_reset_tokens;
 pub mod post_logout_redirect_uris;
 pub mod realm_maintenance_whitelist;
+pub mod realm_portal_configs;
 pub mod realm_settings;
 pub mod realms;
 pub mod redirect_uris;
