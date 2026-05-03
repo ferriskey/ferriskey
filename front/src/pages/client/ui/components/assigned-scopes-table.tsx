@@ -12,7 +12,10 @@ import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useAssignScope, useUnassignScope } from '@/api/client.api'
 import { Link } from 'react-router-dom'
-import { CLIENT_SCOPES_URL } from '@/routes/sub-router/client-scope.router'
+import {
+  CLIENT_SCOPE_DETAILS_URL,
+  CLIENT_SCOPE_URL,
+} from '@/routes/sub-router/client-scope.router'
 import { Schemas } from '@/api/api.client'
 
 interface AssignedScopesTableProps {
@@ -121,7 +124,7 @@ export default function AssignedScopesTable({ realm, clientId, scopes, isLoading
               <TableRow key={scope.id}>
                 <TableCell>
                   <Link
-                    to={`${CLIENT_SCOPES_URL(realm)}/${scope.id}`}
+                    to={`${CLIENT_SCOPE_URL(realm, scope.id)}${CLIENT_SCOPE_DETAILS_URL}`}
                     className='hover:underline'
                   >
                     {scope.name}

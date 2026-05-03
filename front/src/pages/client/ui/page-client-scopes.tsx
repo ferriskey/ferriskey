@@ -9,7 +9,10 @@ import EffectiveScopesPreview from './components/effective-scopes-preview'
 import { OverviewList } from '@/components/ui/overview-list'
 import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
-import { CLIENT_SCOPES_URL } from '@/routes/sub-router/client-scope.router'
+import {
+  CLIENT_SCOPE_DETAILS_URL,
+  CLIENT_SCOPE_URL,
+} from '@/routes/sub-router/client-scope.router'
 import { Schemas } from '@/api/api.client'
 
 export default function PageClientScopes() {
@@ -47,7 +50,7 @@ export default function PageClientScopes() {
               <div className='flex items-center gap-4 flex-1 min-w-0'>
                 <div className='flex flex-col gap-1 truncate'>
                   <Link
-                    to={`${CLIENT_SCOPES_URL(realm_name)}/${scope.id}`}
+                    to={`${CLIENT_SCOPE_URL(realm_name, scope.id)}${CLIENT_SCOPE_DETAILS_URL}`}
                     className='font-medium hover:underline truncate'
                   >
                     {scope.name}
