@@ -1,9 +1,35 @@
+import { useState } from 'react'
 import { InputText } from '@/components/ui/input-text'
+import { Copy, Check } from 'lucide-react'
 import { Schemas } from '@/api/api.client.ts'
 import Client = Schemas.Client
 
 export interface PageClientCredentialsProps {
   client: Client
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      type='button'
+      onClick={handleCopy}
+      className='shrink-0 min-h-[52px] w-11 flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:border-ring hover:text-foreground'
+    >
+      {copied ? (
+        <Check className='h-4 w-4 text-emerald-500' />
+      ) : (
+        <Copy className='h-4 w-4' />
+      )}
+    </button>
+  )
 }
 
 export default function PageClientCredentials({ client }: PageClientCredentialsProps) {
@@ -23,13 +49,15 @@ export default function PageClientCredentials({ client }: PageClientCredentialsP
               The unique identifier used to authenticate this client.
             </p>
           </div>
-          <div className='w-1/2'>
+          <div className='w-1/2 flex items-center gap-2'>
             <InputText
               label='Client ID'
               name='client_id'
               value={client.client_id}
+              className='flex-1'
               disabled
             />
+            <CopyButton value={client.client_id} />
           </div>
         </div>
 
@@ -41,15 +69,17 @@ export default function PageClientCredentials({ client }: PageClientCredentialsP
               The secret used for confidential client authentication.
             </p>
           </div>
-          <div className='w-1/2'>
+          <div className='w-1/2 flex items-center gap-2'>
             <InputText
               label='Client Secret'
               name='client_secret'
               type='password'
               value={client.secret ?? ''}
+              className='flex-1'
               disabled
               togglePasswordVisibility={true}
             />
+            <CopyButton value={client.secret ?? ''} />
           </div>
         </div>
       </div>
