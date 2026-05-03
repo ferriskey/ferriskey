@@ -266,12 +266,12 @@ export namespace Schemas {
   export type User = {
     client_id?: (string | null) | undefined
     created_at: string
-    email: string
+    email?: (string | null) | undefined
     email_verified: boolean
     enabled: boolean
-    firstname: string
+    firstname?: (string | null) | undefined
     id: string
-    lastname: string
+    lastname?: (string | null) | undefined
     realm?: (null | Realm) | undefined
     realm_id: RealmId
     required_actions: Array<RequiredAction>

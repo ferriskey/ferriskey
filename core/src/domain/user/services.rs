@@ -895,9 +895,9 @@ mod tests {
         let input = CreateUserInput {
             realm_name: "test-realm".to_string(),
             username: "new_user".to_string(),
-            firstname: "New".to_string(),
-            lastname: "User".to_string(),
-            email: "test@example.com".to_string(),
+            firstname: Some("New".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("test@example.com".to_string()),
             email_verified: Some(false),
         };
 
@@ -935,9 +935,9 @@ mod tests {
         let input = CreateUserInput {
             realm_name: "test-realm".to_string(),
             username: "new_user".to_string(),
-            firstname: "New".to_string(),
-            lastname: "User".to_string(),
-            email: "unique@example.com".to_string(),
+            firstname: Some("New".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("unique@example.com".to_string()),
             email_verified: Some(false),
         };
 
@@ -945,7 +945,7 @@ mod tests {
 
         assert!(result.is_ok());
         let created_user = result.unwrap();
-        assert_eq!(created_user.email, "unique@example.com");
+        assert_eq!(created_user.email, Some("unique@example.com".to_string()));
     }
 
     #[tokio::test]
@@ -976,9 +976,9 @@ mod tests {
         let input = UpdateUserInput {
             realm_name: "test-realm".to_string(),
             user_id: user_to_update.id,
-            firstname: "Updated".to_string(),
-            lastname: "User".to_string(),
-            email: "taken@example.com".to_string(), // Email belongs to another user
+            firstname: Some("Updated".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("taken@example.com".to_string()), // Email belongs to another user
             email_verified: Some(true),
             enabled: true,
             required_actions: None,
@@ -1009,7 +1009,7 @@ mod tests {
         );
 
         let update_user_id = user_to_update.id;
-        user_to_update.firstname = "Updated".to_string();
+        user_to_update.firstname = Some("Updated".to_string());
 
         // Keeping own email doesn't violate the constraint
         let service = UserServiceTestBuilder::new()
@@ -1022,9 +1022,9 @@ mod tests {
         let input = UpdateUserInput {
             realm_name: "test-realm".to_string(),
             user_id: update_user_id,
-            firstname: "Updated".to_string(),
-            lastname: "User".to_string(),
-            email: "myemail@example.com".to_string(), // Same email as before
+            firstname: Some("Updated".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("myemail@example.com".to_string()), // Same email as before
             email_verified: Some(true),
             enabled: true,
             required_actions: None,
@@ -1034,8 +1034,8 @@ mod tests {
 
         assert!(result.is_ok());
         let updated_user = result.unwrap();
-        assert_eq!(updated_user.email, "myemail@example.com");
-        assert_eq!(updated_user.firstname, "Updated");
+        assert_eq!(updated_user.email, Some("myemail@example.com".to_string()));
+        assert_eq!(updated_user.firstname, Some("Updated".to_string()));
     }
 
     #[tokio::test]
@@ -1057,7 +1057,7 @@ mod tests {
         );
 
         let update_user_id = user_to_update.id;
-        user_to_update.email = "newemail@example.com".to_string();
+        user_to_update.email = Some("newemail@example.com".to_string());
 
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
@@ -1069,9 +1069,9 @@ mod tests {
         let input = UpdateUserInput {
             realm_name: "test-realm".to_string(),
             user_id: update_user_id,
-            firstname: "Test".to_string(),
-            lastname: "User".to_string(),
-            email: "newemail@example.com".to_string(), // New unique email
+            firstname: Some("Test".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("newemail@example.com".to_string()), // New unique email
             email_verified: Some(true),
             enabled: true,
             required_actions: None,
@@ -1081,6 +1081,6 @@ mod tests {
 
         assert!(result.is_ok());
         let updated_user = result.unwrap();
-        assert_eq!(updated_user.email, "newemail@example.com");
+        assert_eq!(updated_user.email, Some("newemail@example.com".to_string()));
     }
 }

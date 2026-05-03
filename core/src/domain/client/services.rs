@@ -189,9 +189,9 @@ where
                     realm_id,
                     client_id: Some(client.id),
                     username: service_account_username,
-                    firstname: "Service".to_string(),
-                    lastname: "Account".to_string(),
-                    email: service_account_email,
+                    firstname: Some("Service".to_string()),
+                    lastname: Some("Account".to_string()),
+                    email: Some(service_account_email),
                     email_verified: true,
                     enabled: true,
                 })

@@ -5,9 +5,9 @@ use uuid::Uuid;
 pub struct UpdateUserInput {
     pub realm_name: String,
     pub user_id: Uuid,
-    pub firstname: String,
-    pub lastname: String,
-    pub email: String,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub email: Option<String>,
     pub email_verified: Option<bool>,
     pub enabled: bool,
     pub required_actions: Option<Vec<String>>,
@@ -44,9 +44,9 @@ pub struct BulkDeleteUsersInput {
 pub struct CreateUserInput {
     pub realm_name: String,
     pub username: String,
-    pub firstname: String,
-    pub lastname: String,
-    pub email: String,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub email: Option<String>,
     pub email_verified: Option<bool>,
 }
 

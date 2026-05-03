@@ -22,17 +22,14 @@ pub struct CreateUserValidator {
     #[serde(default)]
     pub username: String,
 
-    #[validate(length(min = 1, message = "firstname is required"))]
     #[serde(default)]
-    pub firstname: String,
+    pub firstname: Option<String>,
 
-    #[validate(length(min = 1, message = "lastname is required"))]
     #[serde(default)]
-    pub lastname: String,
+    pub lastname: Option<String>,
 
-    #[validate(length(min = 1, message = "email is required"))]
     #[serde(default)]
-    pub email: String,
+    pub email: Option<String>,
 
     #[serde(default)]
     pub email_verified: Option<bool>,
@@ -46,17 +43,14 @@ pub struct BulkDeleteUserValidator {
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct UpdateUserValidator {
-    #[validate(length(min = 1, message = "firstname is required"))]
     #[serde(default)]
-    pub firstname: String,
+    pub firstname: Option<String>,
 
-    #[validate(length(min = 1, message = "lastname is required"))]
     #[serde(default)]
-    pub lastname: String,
+    pub lastname: Option<String>,
 
-    #[validate(length(min = 1, message = "email is required"))]
     #[serde(default)]
-    pub email: String,
+    pub email: Option<String>,
 
     #[serde(default)]
     pub email_verified: Option<bool>,

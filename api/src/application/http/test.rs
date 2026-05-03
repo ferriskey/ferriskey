@@ -82,11 +82,12 @@ impl UserBuilder {
             realm_id: RealmId::default(), // Sera remplacé lors de la création
             client_id: None,
             username: self.username.unwrap_or_else(|| format!("user-{id}")),
-            firstname: self.firstname.unwrap_or_else(|| "Test".to_string()),
-            lastname: self.lastname.unwrap_or_else(|| "User".to_string()),
-            email: self
-                .email
-                .unwrap_or_else(|| format!("test-{id}@example.com")),
+            firstname: Some(self.firstname.unwrap_or_else(|| "Test".to_string())),
+            lastname: Some(self.lastname.unwrap_or_else(|| "User".to_string())),
+            email: Some(
+                self.email
+                    .unwrap_or_else(|| format!("test-{id}@example.com")),
+            ),
             email_verified: self.email_verified.unwrap_or(true),
             enabled: self.enabled.unwrap_or(true),
             roles: Some(self.roles),

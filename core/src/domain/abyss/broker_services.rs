@@ -242,9 +242,9 @@ where
                 realm_id,
                 client_id: None,
                 username,
-                firstname: user_info.given_name.clone().unwrap_or_default(),
-                lastname: user_info.family_name.clone().unwrap_or_default(),
-                email: user_info.email.clone().unwrap_or_default(),
+                firstname: user_info.given_name.clone(),
+                lastname: user_info.family_name.clone(),
+                email: user_info.email.clone(),
                 email_verified: user_info.email_verified.unwrap_or(false) && idp.trust_email,
                 enabled: true,
             })

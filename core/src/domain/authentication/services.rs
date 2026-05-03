@@ -825,10 +825,10 @@ where
                 base_url: params.base_url,
                 client_id: params.client_id.clone(),
                 client_uuid: auth_session.client_id,
-                email: user.email.clone(),
+                email: user.email.clone().unwrap_or_default(),
                 email_verified: user.email_verified,
-                firstname: user.firstname.clone(),
-                lastname: user.lastname.clone(),
+                firstname: user.firstname.clone().unwrap_or_default(),
+                lastname: user.lastname.clone().unwrap_or_default(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -951,10 +951,10 @@ where
                 base_url: params.base_url,
                 client_id: params.client_id,
                 client_uuid: client.id,
-                email: user.email.clone(),
+                email: user.email.clone().unwrap_or_default(),
                 email_verified: user.email_verified,
-                firstname: user.firstname.clone(),
-                lastname: user.lastname.clone(),
+                firstname: user.firstname.clone().unwrap_or_default(),
+                lastname: user.lastname.clone().unwrap_or_default(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -1051,10 +1051,10 @@ where
                 base_url: params.base_url,
                 client_id: params.client_id,
                 client_uuid: client.id,
-                email: user.email.clone(),
+                email: user.email.clone().unwrap_or_default(),
                 email_verified: user.email_verified,
-                firstname: user.firstname.clone(),
-                lastname: user.lastname.clone(),
+                firstname: user.firstname.clone().unwrap_or_default(),
+                lastname: user.lastname.clone().unwrap_or_default(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -1121,10 +1121,10 @@ where
                 base_url: params.base_url,
                 client_id: params.client_id,
                 client_uuid: client.id,
-                email: user.email.clone(),
+                email: user.email.clone().unwrap_or_default(),
                 email_verified: user.email_verified,
-                firstname: user.firstname.clone(),
-                lastname: user.lastname.clone(),
+                firstname: user.firstname.clone().unwrap_or_default(),
+                lastname: user.lastname.clone().unwrap_or_default(),
                 realm_id: params.realm_id,
                 realm_name: params.realm_name,
                 user_id: user.id,
@@ -1509,7 +1509,7 @@ This is a server error that should be investigated. Do not forward back this mes
             vec![format!("{}-realm", realm.name), "account".to_string()],
             ClaimsTyp::Temporary,
             client_id.clone(),
-            Some(user.email.clone()),
+            user.email.clone(),
             Some(auth_session.scope),
             access_lifetime,
         );
@@ -2100,14 +2100,14 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
-        let firstname: String = input.first_name.unwrap_or_else(|| "FirstName".to_string());
-        let lastname: String = input.last_name.unwrap_or_else(|| "LastName".to_string());
+        let firstname = input.first_name;
+        let lastname = input.last_name;
 
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
                 client_id: None,
-                email: input.email,
+                email: Some(input.email),
                 email_verified: true,
                 enabled: true,
                 firstname,
@@ -2163,14 +2163,18 @@ where
         };
 
         if scopes.contains(&"profile".to_string()) {
-            response.name = Some(format!("{} {}", user.firstname, user.lastname));
-            response.given_name = Some(user.firstname.clone());
-            response.family_name = Some(user.lastname.clone());
+            response.name = Some(format!(
+                "{} {}",
+                user.firstname.as_deref().unwrap_or(""),
+                user.lastname.as_deref().unwrap_or("")
+            ));
+            response.given_name = user.firstname.clone();
+            response.family_name = user.lastname.clone();
             response.preferred_username = Some(user.username.clone());
         }
 
         if scopes.contains(&"email".to_string()) {
-            response.email = Some(user.email.clone());
+            response.email = user.email.clone();
             response.email_verified = Some(user.email_verified);
         }
 
@@ -2432,7 +2436,7 @@ where
             vec![format!("{}-realm", realm.name), "account".to_string()],
             ClaimsTyp::Bearer,
             "".to_string(),
-            Some(user.email.clone()),
+            user.email.clone(),
             None,
             lifetimes.access_token,
         );

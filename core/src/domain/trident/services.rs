@@ -312,9 +312,18 @@ where
         let html = self.template_renderer.render_to_html(&template.mjml)?;
 
         let mut variables = std::collections::HashMap::new();
-        variables.insert("user.first_name".to_string(), user.firstname.clone());
-        variables.insert("user.last_name".to_string(), user.lastname.clone());
-        variables.insert("user.email".to_string(), user.email.clone());
+        variables.insert(
+            "user.first_name".to_string(),
+            user.firstname.clone().unwrap_or_default(),
+        );
+        variables.insert(
+            "user.last_name".to_string(),
+            user.lastname.clone().unwrap_or_default(),
+        );
+        variables.insert(
+            "user.email".to_string(),
+            user.email.clone().unwrap_or_default(),
+        );
         for (key, value) in extra_vars {
             variables.insert(key.to_string(), value.to_string());
         }
@@ -553,7 +562,12 @@ where
         };
 
         let (ccr, pr) = webauthn
-            .start_passkey_registration(user.id, &user.email, &user.username, credentials)
+            .start_passkey_registration(
+                user.id,
+                user.email.as_deref().unwrap_or(""),
+                &user.username,
+                credentials,
+            )
             .map_err(|e| {
                 error!("Failed to generate webauthn challenge: {e:?}");
                 CoreError::InternalServerError
@@ -941,7 +955,10 @@ where
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
-            error!("invalid OTP code for user: {}", user.email);
+            error!(
+                "invalid OTP code for user: {}",
+                user.email.as_deref().unwrap_or("")
+            );
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
             ));
@@ -977,7 +994,8 @@ where
         };
 
         let secret = generate_secret()?;
-        let otpauth_uri = generate_otpauth_uri(&input.issuer, &user.email, &secret);
+        let otpauth_uri =
+            generate_otpauth_uri(&input.issuer, user.email.as_deref().unwrap_or(""), &secret);
 
         Ok(SetupOtpOutput {
             otpauth_uri,
@@ -1184,7 +1202,7 @@ where
                     .email_port
                     .send_email(
                         &smtp_config,
-                        &user.email,
+                        user.email.as_deref().unwrap_or(""),
                         "Your magic link",
                         &body,
                         html_body,
@@ -1493,7 +1511,7 @@ where
                     .email_port
                     .send_email(
                         &smtp_config,
-                        &user.email,
+                        user.email.as_deref().unwrap_or(""),
                         "Reset your password",
                         &body,
                         html_body,

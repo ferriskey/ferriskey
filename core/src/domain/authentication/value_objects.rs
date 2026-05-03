@@ -184,11 +184,15 @@ impl UserInfoResponse {
     pub fn from_user(user: &User) -> Self {
         Self {
             sub: user.id.to_string(),
-            email: Some(user.email.to_string()),
+            email: user.email.clone(),
             email_verified: Some(user.email_verified),
-            family_name: Some(user.firstname.to_string()),
-            given_name: Some(user.lastname.to_string()),
-            name: Some(format!("{} {}", user.firstname, user.lastname)),
+            family_name: user.lastname.clone(),
+            given_name: user.firstname.clone(),
+            name: Some(format!(
+                "{} {}",
+                user.firstname.as_deref().unwrap_or(""),
+                user.lastname.as_deref().unwrap_or("")
+            )),
             preferred_username: Some(user.username.to_string()),
         }
     }
