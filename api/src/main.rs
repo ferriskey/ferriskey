@@ -218,12 +218,12 @@ async fn main() -> Result<(), anyhow::Error> {
         let tls_cfg = RustlsConfig::from_pem_file(tls.cert.clone(), tls.key.clone()).await?;
         info!("listening on {addr}");
         axum_server::bind_rustls(addr, tls_cfg)
-            .serve(router.into_make_service())
+            .serve(router.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
     } else {
         info!("listening on {addr}");
         axum_server::bind(addr)
-            .serve(router.into_make_service())
+            .serve(router.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
     }
     Ok(())
