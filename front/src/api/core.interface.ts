@@ -104,9 +104,9 @@ export interface User {
   realm_id: string
   client_id: string
   username: string
-  firstname: string
-  lastname: string
-  email: string
+  firstname?: string
+  lastname?: string
+  email?: string
   email_verified: boolean
   enabled: boolean
   roles: Role[]

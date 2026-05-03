@@ -491,27 +491,21 @@ where
                     SyncMode::Force => true, // Always update in Force mode
                     SyncMode::Import | SyncMode::LinkOnly => {
                         // Check if attributes have changed
-                        user.email != ldap_user.email.clone().unwrap_or_default()
-                            || user.firstname != ldap_user.first_name.clone().unwrap_or_default()
-                            || user.lastname != ldap_user.last_name.clone().unwrap_or_default()
+                        user.email.as_deref().unwrap_or("")
+                            != ldap_user.email.as_deref().unwrap_or("")
+                            || user.firstname.as_deref().unwrap_or("")
+                                != ldap_user.first_name.as_deref().unwrap_or("")
+                            || user.lastname.as_deref().unwrap_or("")
+                                != ldap_user.last_name.as_deref().unwrap_or("")
                     }
                 };
 
                 if needs_update && mode != SyncMode::LinkOnly {
                     // Update user attributes
                     let update_request = UpdateUserRequest {
-                        email: ldap_user
-                            .email
-                            .clone()
-                            .unwrap_or_else(|| user.email.clone()),
-                        firstname: ldap_user
-                            .first_name
-                            .clone()
-                            .unwrap_or_else(|| user.firstname.clone()),
-                        lastname: ldap_user
-                            .last_name
-                            .clone()
-                            .unwrap_or_else(|| user.lastname.clone()),
+                        email: ldap_user.email.clone().or(user.email.clone()),
+                        firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
+                        lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
                         enabled: true, // Re-enable if was disabled
                         email_verified: user.email_verified,
                         required_actions: None,
@@ -546,9 +540,9 @@ where
                 let create_request = CreateUserRequest {
                     realm_id: provider.realm_id.into(),
                     username: ldap_user.username.clone(),
-                    email: ldap_user.email.clone().unwrap_or_default(),
-                    firstname: ldap_user.first_name.clone().unwrap_or_default(),
-                    lastname: ldap_user.last_name.clone().unwrap_or_default(),
+                    email: ldap_user.email.clone(),
+                    firstname: ldap_user.first_name.clone(),
+                    lastname: ldap_user.last_name.clone(),
                     enabled: true,
                     email_verified: false,
                     client_id: None,
@@ -596,27 +590,21 @@ where
                     SyncMode::Force => true, // Always update in Force mode
                     SyncMode::Import | SyncMode::LinkOnly => {
                         // Check if attributes have changed
-                        user.email != ldap_user.email.clone().unwrap_or_default()
-                            || user.firstname != ldap_user.first_name.clone().unwrap_or_default()
-                            || user.lastname != ldap_user.last_name.clone().unwrap_or_default()
+                        user.email.as_deref().unwrap_or("")
+                            != ldap_user.email.as_deref().unwrap_or("")
+                            || user.firstname.as_deref().unwrap_or("")
+                                != ldap_user.first_name.as_deref().unwrap_or("")
+                            || user.lastname.as_deref().unwrap_or("")
+                                != ldap_user.last_name.as_deref().unwrap_or("")
                     }
                 };
 
                 if needs_update && mode != SyncMode::LinkOnly {
                     // Update user attributes
                     let update_request = UpdateUserRequest {
-                        email: ldap_user
-                            .email
-                            .clone()
-                            .unwrap_or_else(|| user.email.clone()),
-                        firstname: ldap_user
-                            .first_name
-                            .clone()
-                            .unwrap_or_else(|| user.firstname.clone()),
-                        lastname: ldap_user
-                            .last_name
-                            .clone()
-                            .unwrap_or_else(|| user.lastname.clone()),
+                        email: ldap_user.email.clone().or(user.email.clone()),
+                        firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
+                        lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
                         enabled: true, // Re-enable if was disabled
                         email_verified: user.email_verified,
                         required_actions: None,
@@ -668,18 +656,9 @@ where
 
                         // Update user attributes from LDAP
                         let update_request = UpdateUserRequest {
-                            email: ldap_user
-                                .email
-                                .clone()
-                                .unwrap_or_else(|| user.email.clone()),
-                            firstname: ldap_user
-                                .first_name
-                                .clone()
-                                .unwrap_or_else(|| user.firstname.clone()),
-                            lastname: ldap_user
-                                .last_name
-                                .clone()
-                                .unwrap_or_else(|| user.lastname.clone()),
+                            email: ldap_user.email.clone().or(user.email.clone()),
+                            firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
+                            lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
                             enabled: true,
                             email_verified: user.email_verified,
                             required_actions: None,
@@ -698,9 +677,9 @@ where
                         let create_request = CreateUserRequest {
                             realm_id: provider.realm_id.into(),
                             username: ldap_user.username.clone(),
-                            email: ldap_user.email.clone().unwrap_or_default(),
-                            firstname: ldap_user.first_name.clone().unwrap_or_default(),
-                            lastname: ldap_user.last_name.clone().unwrap_or_default(),
+                            email: ldap_user.email.clone(),
+                            firstname: ldap_user.first_name.clone(),
+                            lastname: ldap_user.last_name.clone(),
                             enabled: true,
                             email_verified: false,
                             client_id: None,

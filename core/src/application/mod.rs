@@ -534,9 +534,9 @@ mod tests {
                 realm_id: realm.id,
                 client_id: None,
                 username: "test-user".to_string(),
-                firstname: "Test".to_string(),
-                lastname: "User".to_string(),
-                email: "test-user@example.com".to_string(),
+                firstname: Some("Test".to_string()),
+                lastname: Some("User".to_string()),
+                email: Some("test-user@example.com".to_string()),
                 email_verified: true,
                 enabled: true,
             })

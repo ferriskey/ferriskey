@@ -28,9 +28,9 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<Uuid>,
     pub username: String,
-    pub firstname: String,
-    pub lastname: String,
-    pub email: String,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub email: Option<String>,
     pub email_verified: bool,
     pub enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,9 +46,9 @@ pub struct UserConfig {
     pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub username: String,
-    pub firstname: String,
-    pub lastname: String,
-    pub email: String,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub email: Option<String>,
     pub email_verified: bool,
     pub enabled: bool,
 }
