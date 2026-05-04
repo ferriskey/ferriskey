@@ -100,7 +100,21 @@ function SmtpConfigForm({
                 <p className='text-sm text-muted-foreground mt-0.5'>SMTP server port (e.g. 587, 465, 25).</p>
               </div>
               <div className='w-1/2'>
-                <InputText label='Port' type='number' {...field} value={String(field.value)} error={form.formState.errors.port?.message} />
+                <InputText
+                  label='Port'
+                  type='number'
+                  {...field}
+                  onBlur={() => {
+                    if (typeof field.value !== 'number' || Number.isNaN(field.value)) {
+                      const fallback = form.formState.defaultValues?.port
+                      if (typeof fallback === 'number') {
+                        field.onChange(fallback)
+                      }
+                    }
+                    field.onBlur()
+                  }}
+                  error={form.formState.errors.port?.message}
+                />
               </div>
             </div>
           )}

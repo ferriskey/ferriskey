@@ -9,6 +9,7 @@ export interface InputTextProps {
   type?: 'text' | 'number' | 'password' | 'email'
   className?: string
   onChange?: (value: string | number | undefined) => void
+  onBlur?: () => void
   error?: string
   disabled?: boolean
   autoComplete?: string
@@ -21,6 +22,7 @@ export function InputText({
   label,
   value = '',
   onChange,
+  onBlur,
   type = 'text',
   error,
   className = '',
@@ -30,7 +32,8 @@ export function InputText({
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
   const inputRef = useRef<HTMLDivElement>(null)
-  const currentValue = value
+  const currentValue =
+    typeof value === 'number' && Number.isNaN(value) ? '' : value
   const [currentType, setCurrentType] = useState<string>(type)
 
   const hasFocus = focused
@@ -78,15 +81,17 @@ export function InputText({
                 if (!onChange) return
 
                 if (type === 'number') {
-                  const val = e.currentTarget.valueAsNumber
-                  onChange(Number.isNaN(val) ? undefined : val)
+                  onChange(e.currentTarget.valueAsNumber)
                   return
                 }
 
                 onChange(e.currentTarget.value)
               }}
               onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
+              onBlur={() => {
+                setFocused(false)
+                onBlur?.()
+              }}
             />
 
             {String(currentValue).length > 0 && type === 'password' && (
