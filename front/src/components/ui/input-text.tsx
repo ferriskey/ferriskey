@@ -9,6 +9,7 @@ export interface InputTextProps {
   type?: 'text' | 'number' | 'password' | 'email'
   className?: string
   onChange?: (value: string | number | undefined) => void
+  onBlur?: () => void
   error?: string
   disabled?: boolean
   autoComplete?: string
@@ -21,6 +22,7 @@ export function InputText({
   label,
   value = '',
   onChange,
+  onBlur,
   type = 'text',
   error,
   className = '',
@@ -86,7 +88,10 @@ export function InputText({
                 onChange(e.currentTarget.value)
               }}
               onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
+              onBlur={() => {
+                setFocused(false)
+                onBlur?.()
+              }}
             />
 
             {String(currentValue).length > 0 && type === 'password' && (
