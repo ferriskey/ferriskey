@@ -54,6 +54,7 @@ jobs:
           - api
           - operator
           - webapp
+          - standalone
     steps:
       - name: checkout
         uses: actions/checkout@v5
@@ -131,6 +132,7 @@ jobs:
           - api
           - operator
           - webapp
+          - standalone
     steps:
       - name: set up builx
         uses: docker/setup-buildx-action@v3
