@@ -30,7 +30,8 @@ export function InputText({
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
   const inputRef = useRef<HTMLDivElement>(null)
-  const currentValue = value
+  const currentValue =
+    typeof value === 'number' && Number.isNaN(value) ? '' : value
   const [currentType, setCurrentType] = useState<string>(type)
 
   const hasFocus = focused
@@ -78,8 +79,7 @@ export function InputText({
                 if (!onChange) return
 
                 if (type === 'number') {
-                  const val = e.currentTarget.valueAsNumber
-                  onChange(Number.isNaN(val) ? undefined : val)
+                  onChange(e.currentTarget.valueAsNumber)
                   return
                 }
 
