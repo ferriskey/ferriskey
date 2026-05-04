@@ -389,10 +389,11 @@ mod tests {
         }
 
         fn with_successful_realm_lookup(mut self, realm_name: &str, realm: Realm) -> Self {
+            let name = realm_name.to_string();
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(eq(realm_name))
+                .with(eq(name))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
 
@@ -400,10 +401,11 @@ mod tests {
         }
 
         fn with_missing_realm_lookup(mut self, realm_name: &str) -> Self {
+            let name = realm_name.to_string();
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_get_by_name()
-                .with(eq(realm_name))
+                .with(eq(name))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(None) }));
 
