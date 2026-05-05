@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::authentication::entities::JwtToken;
 use crate::domain::jwt::entities::JwtClaim;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::user::entities::User;
@@ -63,6 +64,15 @@ pub struct RegisterUserInput {
     pub email: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub session_code: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct RegisterUserOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<JwtToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 pub struct GenerateTokensForUserInput {

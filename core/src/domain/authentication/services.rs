@@ -37,7 +37,8 @@ use crate::domain::{
         value_objects::{
             AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
             GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RevokeTokenInput, UserInfoResponse,
+            IntrospectTokenInput, RegisterUserInput, RegisterUserOutput, RevokeTokenInput,
+            UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -2093,7 +2094,7 @@ where
         &self,
         url: String,
         input: RegisterUserInput,
-    ) -> Result<JwtToken, CoreError> {
+    ) -> Result<RegisterUserOutput, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
@@ -2129,13 +2130,40 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        self.generate_tokens_for_user(GenerateTokensForUserInput {
-            user_id: user.id,
-            realm_id: realm.id.into(),
-            base_url: url,
-            client_id: None,
+        // If the registration happened inside an active OIDC authorization flow
+        // (a FERRISKEY_SESSION cookie was present), resume that flow by
+        // finalizing the auth session and returning the redirect URL back to
+        // the original client, mirroring the behavior of the login handler.
+        if let Some(session_code) = input.session_code
+            && let Ok(auth_session) = self
+                .auth_session_repository
+                .get_by_session_code(session_code)
+                .await
+            && auth_session.expires_at >= Utc::now()
+            && !(auth_session.user_id.is_some() && auth_session.authenticated)
+        {
+            let output = self
+                .finalize_authentication(user.id, session_code, auth_session)
+                .await?;
+            return Ok(RegisterUserOutput {
+                token: None,
+                url: output.redirect_url,
+            });
+        }
+
+        let token = self
+            .generate_tokens_for_user(GenerateTokensForUserInput {
+                user_id: user.id,
+                realm_id: realm.id.into(),
+                base_url: url,
+                client_id: None,
+            })
+            .await?;
+
+        Ok(RegisterUserOutput {
+            token: Some(token),
+            url: None,
         })
-        .await
     }
 
     async fn get_userinfo(
