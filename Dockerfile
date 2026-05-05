@@ -81,7 +81,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY front/ .
 
-RUN pnpm run build
+RUN VITE_API_URL="" pnpm run build
 
 # ── Frontend runtime ──────────────────────────────────────────────────────────
 FROM nginx:1.28.0-alpine3.21-slim AS webapp
@@ -91,3 +91,31 @@ COPY front/nginx.conf /etc/nginx/conf.d/default.conf
 COPY front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 RUN chmod +x /docker-entrypoint.d/docker-entrypoint.sh
+
+# ── Standalone image (API + Frontend, single container) ───────────────────────
+FROM debian:bookworm-slim AS standalone
+
+# hadolint ignore=DL3008
+RUN \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates=20230311+deb12u1 \
+    libssl3=3.0.17-1~deb12u2 \
+    nginx \
+    supervisor && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -f /etc/nginx/sites-enabled/default
+
+COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
+COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
+COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
+COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+
+COPY front/nginx-standalone.conf /etc/nginx/conf.d/default.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/ferriskey.conf
+COPY docker/standalone-entrypoint.sh /standalone-entrypoint.sh
+RUN chmod +x /standalone-entrypoint.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/standalone-entrypoint.sh"]

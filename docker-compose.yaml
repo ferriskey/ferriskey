@@ -118,6 +118,44 @@ services:
     profiles:
       - registry
 
+  standalone-build:
+    build:
+      context: .
+      target: standalone
+    environment:
+      DATABASE_HOST: db
+      DATABASE_NAME: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_USER: ferriskey
+      SERVER_ROOT_PATH: /api
+      ALLOWED_ORIGINS: http://localhost:8090
+      WEBAPP_URL: http://localhost:8090
+    ports:
+      - 8090:80
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - standalone
+
+  standalone-registry:
+    image: ghcr.io/ferriskey/ferriskey-standalone
+    environment:
+      DATABASE_HOST: db
+      DATABASE_NAME: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_USER: ferriskey
+      SERVER_ROOT_PATH: /api
+      ALLOWED_ORIGINS: http://localhost:8090
+      WEBAPP_URL: http://localhost:8090
+    ports:
+      - 8090:80
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - standalone-registry
+
 volumes:
   pgdata:
     name: ferriskey_pgdata
