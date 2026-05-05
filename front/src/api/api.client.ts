@@ -614,6 +614,10 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type RegisterUserOutput = {
+    token?: JwtToken | null
+    url?: string | null
+  }
   export type RemoveClientWhitelistEntryResponse = { message: string }
   export type RemoveRealmWhitelistEntryResponse = { message: string }
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
@@ -2301,7 +2305,7 @@ export namespace Endpoints {
       body: Schemas.RegistrationRequest
     }
     responses: {
-      201: Schemas.JwtToken
+      201: Schemas.RegisterUserOutput
       400: Schemas.ApiErrorResponse
       401: Schemas.ApiErrorResponse
       403: Schemas.ApiErrorResponse
