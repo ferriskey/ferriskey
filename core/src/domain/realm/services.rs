@@ -1195,6 +1195,57 @@ mod tests {
             self
         }
 
+        fn with_security_admin_console_client(mut self, new_realm_id: RealmId) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_create_client()
+                .withf(move |req| {
+                    req.client_id == "security-admin-console" && req.realm_id == new_realm_id
+                })
+                .times(1)
+                .return_once(move |req| {
+                    Box::pin(async move {
+                        Ok(crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id: req.realm_id,
+                                name: req.name.clone(),
+                                client_id: req.client_id.clone(),
+                                secret: req.secret.clone(),
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: false,
+                                service_account_enabled: false,
+                                client_type: req.client_type.clone(),
+                                direct_access_grants_enabled: Some(false),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
+                            },
+                        ))
+                    })
+                });
+            self
+        }
+
+        fn with_redirect_uris(mut self) -> Self {
+            Arc::get_mut(&mut self.redirect_uri_repo)
+                .unwrap()
+                .expect_create_redirect_uri()
+                .withf(|_, _, _| true)
+                .times(4)
+                .returning(|client_id, value, enabled| {
+                    Box::pin(async move {
+                        Ok(
+                            ferriskey_domain::client::entities::redirect_uri::RedirectUri::new(
+                                client_id, value, enabled,
+                            ),
+                        )
+                    })
+                });
+            self
+        }
+
         fn with_role_creation(mut self, master_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.role_repo)
                 .unwrap()
@@ -1404,6 +1455,8 @@ mod tests {
             .with_admin_cli_client(new_realm.id)
             .with_ferriskey_account_client(new_realm.id)
             .with_seed_default_scopes(new_realm.id)
+            .with_security_admin_console_client(new_realm.id)
+            .with_redirect_uris()
             .build();
 
         let created_realm = service.create_realm(identity, input).await?;
@@ -1459,6 +1512,8 @@ mod tests {
             .with_admin_cli_client(new_realm.id)
             .with_ferriskey_account_client(new_realm.id)
             .with_seed_default_scopes(new_realm.id)
+            .with_security_admin_console_client(new_realm.id)
+            .with_redirect_uris()
             .with_system_client(master_realm.id)
             .with_admin_role_creation(master_realm.id)
             .with_assign_role()
