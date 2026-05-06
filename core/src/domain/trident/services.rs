@@ -1078,6 +1078,29 @@ where
           "algorithm": "HmacSha256",
         });
 
+        let existing_credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        for cred in existing_credentials
+            .iter()
+            .filter(|c| c.credential_type == CredentialType::Otp)
+        {
+            self.credential_repository
+                .delete_by_id(cred.id)
+                .await
+                .map_err(|e| {
+                    error!(
+                        user_id = %user.id,
+                        credential_id = %cred.id,
+                        "Failed to delete existing OTP credential before re-enrollment: {e:?}"
+                    );
+                    CoreError::DeleteCredentialError
+                })?;
+        }
+
         self.credential_repository
             .create_custom_credential(
                 user.id,
