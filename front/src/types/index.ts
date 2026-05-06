@@ -1,11 +1,5 @@
 // Central export for all application types
-export type {
-  PageHomeData,
-  HomeMetrics,
-  ChartDataItem,
-  HomeChartConfig,
-  QuickAccessItem,
-} from './home.types'
+export type { PageHomeData, QuickAccessItem } from './home.types'
 export type {
   Client,
   User,
