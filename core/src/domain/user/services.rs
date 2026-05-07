@@ -36,6 +36,17 @@ use serde_json::json;
 
 pub mod user_role_service;
 
+fn normalize_optional_email(email: Option<String>) -> Option<String> {
+    email.and_then(|e| {
+        let trimmed = e.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
 #[derive(Clone, Debug)]
 pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
 where
@@ -259,7 +270,7 @@ where
             .update_user(
                 input.user_id,
                 UpdateUserRequest {
-                    email: input.email,
+                    email: normalize_optional_email(input.email),
                     email_verified: input.email_verified.unwrap_or(false),
                     enabled: input.enabled,
                     firstname: input.firstname,
@@ -452,7 +463,7 @@ where
                 username: input.username,
                 firstname: input.firstname,
                 lastname: input.lastname,
-                email: input.email,
+                email: normalize_optional_email(input.email),
                 email_verified: input.email_verified.unwrap_or(false),
                 enabled: true,
             })
