@@ -6,7 +6,7 @@ import { createApiClient } from './api/api.client'
 import { TanstackQueryApiClient } from './api/api.tanstack'
 import { useGetConfig } from './api/config.api'
 import './App.css'
-import Layout from './components/layout/layout'
+import LayoutSwitch from './components/layout/layout-switch'
 import { useTheme } from './components/theme-provider'
 import { Toaster } from './components/ui/sonner'
 import { BasicSpinner } from './components/ui/spinner'
@@ -25,6 +25,8 @@ import PageEmailTemplate from './pages/email-template/page-email-template'
 import PageUserFederation from './pages/user-federation/page-user-federation'
 import PageUser from './pages/user/page-user'
 import PageOrganization from './pages/organization/page-organization'
+import PageActivity from './pages/activity/page-activity'
+import PageUserManagement from './pages/user-management/page-user-management'
 
 declare global {
   interface Window {
@@ -248,8 +250,10 @@ function AppRoutes() {
         <Route path='realms/:realm_name'>
           <Route path='authentication/*' element={<PageAuthentication />} />
 
-          <Route element={<Layout />}>
+          <Route element={<LayoutSwitch />}>
             <Route path='overview/*' element={<PageOverview />} />
+            <Route path='activity/*' element={<PageActivity />} />
+            <Route path='user-management/*' element={<PageUserManagement />} />
 
             <Route path='clients/*' element={<PageClient />} />
             <Route path='client-scopes/*' element={<PageClientScope />} />

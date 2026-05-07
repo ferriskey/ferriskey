@@ -12,8 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { BadgeCheck, LogOut, Sun, Moon, Laptop, Check } from 'lucide-react'
+import { BadgeCheck, LogOut, Sun, Moon, Laptop, Check, LayoutGrid, Settings2 } from 'lucide-react'
 import { useTheme } from './theme-provider'
+import useUiModeStore from '@/store/ui-mode.store'
 
 function getInitials(username?: string): string {
   if (!username) return '??'
@@ -28,6 +29,8 @@ export function TopBar() {
   const { realm_name } = useParams<RouterParams>()
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const mode = useUiModeStore((s) => s.mode)
+  const setMode = useUiModeStore((s) => s.setMode)
 
   return (
     <header className='sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background px-6'>
@@ -90,6 +93,20 @@ export function TopBar() {
               <DropdownMenuItem className='rounded-none'>
                 <BadgeCheck />
                 Account
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>Panel mode</DropdownMenuLabel>
+              <DropdownMenuItem className='rounded-none' onClick={() => setMode('product')}>
+                <LayoutGrid className='mr-2 h-4 w-4' />
+                Product
+                {mode === 'product' && <Check className='ml-auto h-4 w-4' />}
+              </DropdownMenuItem>
+              <DropdownMenuItem className='rounded-none' onClick={() => setMode('admin')}>
+                <Settings2 className='mr-2 h-4 w-4' />
+                Admin
+                {mode === 'admin' && <Check className='ml-auto h-4 w-4' />}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
