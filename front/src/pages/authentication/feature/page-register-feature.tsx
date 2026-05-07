@@ -65,20 +65,25 @@ export default function PageRegisterFeature() {
   useEffect(() => {
     if (!data) return
 
-    if (data.url) {
-      window.location.href = data.url
+    if (data.status === 'redirect') {
+      window.location.href = data.data.url
       return
     }
 
-    if (data.token) {
+    if (data.status === 'authenticated') {
       setAuthTokens(
-        data.token.access_token,
-        data.token.refresh_token,
-        data.token.id_token ?? null
+        data.data.access_token,
+        data.data.refresh_token,
+        data.data.id_token ?? null
       )
       navigate(`/realms/${realm_name}/overview`, { replace: true })
+    } else {
+      navigate(`/realms/${realm_name}/authentication/check-your-email`, {
+        replace: true,
+        state: { email: form.getValues('email') },
+      })
     }
-  }, [data, setAuthTokens, navigate, realm_name])
+  }, [data, setAuthTokens, navigate, realm_name, form])
 
   return <PageRegister form={form} onSubmit={onSubmit} backToLogin={backToLogin} />
 }

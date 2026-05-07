@@ -159,6 +159,8 @@ pub trait RealmRepository: Send + Sync {
         reset_password_template_id: Option<Option<Uuid>>,
         magic_link_template_id: Option<Option<Uuid>>,
         email_verification_template_id: Option<Option<Uuid>>,
+        email_verification_enabled: Option<bool>,
+        email_verification_ttl_hours: Option<i64>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -210,6 +212,8 @@ pub struct UpdateRealmSettingInput {
     pub reset_password_template_id: Option<Option<Uuid>>,
     pub magic_link_template_id: Option<Option<Uuid>>,
     pub email_verification_template_id: Option<Option<Uuid>>,
+    pub email_verification_enabled: Option<bool>,
+    pub email_verification_ttl_hours: Option<i64>,
 }
 
 pub struct DeleteRealmInput {

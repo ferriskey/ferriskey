@@ -20,6 +20,7 @@ use crate::{
         compass::services::CompassServiceImpl,
         credential::services::CredentialServiceImpl,
         email_template::services::EmailTemplateServiceImpl,
+        email_verification::services::EmailVerificationServiceImpl,
         health::services::HealthServiceImpl,
         maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
@@ -76,6 +77,7 @@ use crate::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
+            email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
@@ -185,6 +187,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let organization_member =
         Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
+    let email_verification_token_repo = Arc::new(PostgresEmailVerificationTokenRepository::new(
+        postgres.get_db(),
+    ));
 
     let maintenance_whitelist = Arc::new(PostgresMaintenanceWhitelistRepository::new(
         postgres.get_db(),
@@ -206,6 +211,17 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         client.clone(),
         user_role.clone(),
     ));
+
+    let email_verification_service = EmailVerificationServiceImpl::new(
+        email_verification_token_repo,
+        user.clone(),
+        realm.clone(),
+        user_required_action.clone(),
+        email_port.clone(),
+        smtp_config.clone(),
+        email_template.clone(),
+        mjml_renderer.clone(),
+    );
 
     let app = ApplicationService {
         maintenance_service: MaintenanceServiceImpl::new(
@@ -236,9 +252,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             organization_member.clone(),
             organization.clone(),
             organization_attribute.clone(),
+            user_required_action.clone(),
             maintenance_whitelist.clone(),
             realm_maintenance_whitelist.clone(),
             user_attribute.clone(),
+            email_verification_service.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
@@ -399,6 +417,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         flow_recorder,
         db: postgres.get_db(),
+        email_verification_service,
     };
 
     Ok(app)

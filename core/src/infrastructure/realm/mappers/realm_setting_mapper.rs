@@ -24,6 +24,8 @@ impl From<Model> for RealmSetting {
             reset_password_template_id: value.reset_password_template_id,
             magic_link_template_id: value.magic_link_template_id,
             email_verification_template_id: value.email_verification_template_id,
+            email_verification_enabled: value.email_verification_enabled,
+            email_verification_ttl_hours: value.email_verification_ttl_hours as i64,
             updated_at,
         }
     }

@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::authentication::entities::JwtToken;
 use crate::domain::jwt::entities::JwtClaim;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::user::entities::User;
-use crate::domain::{authentication::entities::GrantType, user::entities::RequiredAction};
+use crate::domain::{
+    authentication::entities::{GrantType, JwtToken},
+    user::entities::RequiredAction,
+};
 
 pub use ferriskey_domain::auth::{Identity, IdentityKind};
 
@@ -68,11 +70,14 @@ pub struct RegisterUserInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct RegisterUserOutput {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub token: Option<JwtToken>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
+#[serde(tag = "status", content = "data", rename_all = "snake_case")]
+pub enum RegisterUserOutput {
+    /// Normal registration - returns JWT tokens
+    Authenticated(JwtToken),
+    /// Registration completed inside an OIDC flow - redirect to the original client
+    Redirect { url: String },
+    /// Email verification required - no tokens
+    PendingVerification { message: String, user_id: Uuid },
 }
 
 pub struct GenerateTokensForUserInput {

@@ -45,6 +45,7 @@ use crate::domain::{
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
+    email_verification::ports::EmailVerificationService,
     jwt::{
         JwtError,
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
@@ -53,7 +54,10 @@ use crate::domain::{
     realm::{entities::RealmId, ports::RealmRepository},
     user::{
         entities::{RequiredAction, UserAttribute},
-        ports::{UserAttributeRepository, UserRepository, UserRoleRepository},
+        ports::{
+            UserAttributeRepository, UserRepository, UserRequiredActionRepository,
+            UserRoleRepository,
+        },
         value_objects::CreateUserRequest,
     },
 };
@@ -82,9 +86,11 @@ pub struct AuthServiceImpl<
     OM,
     OR,
     OAR,
+    URA,
     MW,
     RMW,
     UAR,
+    EV,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -104,9 +110,11 @@ pub struct AuthServiceImpl<
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
+    EV: EmailVerificationService,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -126,15 +134,17 @@ pub struct AuthServiceImpl<
     pub(crate) organization_member_repository: Arc<OM>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) organization_attribute_repository: Arc<OAR>,
+    pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) maintenance_whitelist_repository: Arc<MW>,
     pub(crate) realm_maintenance_whitelist_repository: Arc<RMW>,
     pub(crate) user_attribute_repository: Arc<UAR>,
+    pub(crate) email_verification_service: EV,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
     AuthServiceImpl<
         R,
         C,
@@ -154,9 +164,11 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, 
         OM,
         OR,
         OAR,
+        URA,
         MW,
         RMW,
         UAR,
+        EV,
     >
 where
     R: RealmRepository,
@@ -177,9 +189,11 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
+    EV: EmailVerificationService,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -201,9 +215,11 @@ where
         organization_member_repository: Arc<OM>,
         organization_repository: Arc<OR>,
         organization_attribute_repository: Arc<OAR>,
+        user_required_action_repository: Arc<URA>,
         maintenance_whitelist_repository: Arc<MW>,
         realm_maintenance_whitelist_repository: Arc<RMW>,
         user_attribute_repository: Arc<UAR>,
+        email_verification_service: EV,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -226,9 +242,11 @@ where
             organization_member_repository,
             organization_repository,
             organization_attribute_repository,
+            user_required_action_repository,
             maintenance_whitelist_repository,
             realm_maintenance_whitelist_repository,
             user_attribute_repository,
+            email_verification_service,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -236,7 +254,7 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
     AuthServiceImpl<
         R,
         C,
@@ -256,9 +274,11 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, 
         OM,
         OR,
         OAR,
+        URA,
         MW,
         RMW,
         UAR,
+        EV,
     >
 where
     R: RealmRepository,
@@ -279,9 +299,11 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
+    EV: EmailVerificationService,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -1714,7 +1736,7 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, RMW, UAR>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
     AuthService
     for AuthServiceImpl<
         R,
@@ -1735,9 +1757,11 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, MW, 
         OM,
         OR,
         OAR,
+        URA,
         MW,
         RMW,
         UAR,
+        EV,
     >
 where
     R: RealmRepository,
@@ -1758,9 +1782,11 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
+    EV: EmailVerificationService,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -2104,12 +2130,18 @@ where
         let firstname = input.first_name;
         let lastname = input.last_name;
 
+        let email_verification_enabled = realm
+            .settings
+            .as_ref()
+            .map(|s| s.email_verification_enabled)
+            .unwrap_or(false);
+
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
                 client_id: None,
                 email: Some(input.email),
-                email_verified: true,
+                email_verified: !email_verification_enabled,
                 enabled: true,
                 firstname,
                 lastname,
@@ -2130,6 +2162,39 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
+        if email_verification_enabled {
+            // Add verify_email required action
+            self.user_required_action_repository
+                .add_required_action(user.id, RequiredAction::VerifyEmail)
+                .await
+                .map_err(|e| {
+                    tracing::error!(user_id = %user.id, error = %e, "Failed to add VerifyEmail required action");
+                    CoreError::InternalServerError
+                })?;
+
+            if let Err(err) = self
+                .email_verification_service
+                .send_verification_email(user.id, input.realm_name, url)
+                .await
+            {
+                // Avoid leaving behind an unverified user that can no longer re-register.
+                if let Err(cleanup_err) = self.user_repository.delete_user(user.id).await {
+                    warn!(
+                        user_id = %user.id,
+                        error = %cleanup_err,
+                        "Failed to roll back user after verification email delivery error"
+                    );
+                }
+
+                return Err(err);
+            }
+
+            return Ok(RegisterUserOutput::PendingVerification {
+                message: "Please check your email to verify your account.".to_string(),
+                user_id: user.id,
+            });
+        }
+
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
         // finalizing the auth session and returning the redirect URL back to
@@ -2145,10 +2210,8 @@ where
             let output = self
                 .finalize_authentication(user.id, session_code, auth_session)
                 .await?;
-            return Ok(RegisterUserOutput {
-                token: None,
-                url: output.redirect_url,
-            });
+            let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
+            return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
         let token = self
@@ -2160,10 +2223,7 @@ where
             })
             .await?;
 
-        Ok(RegisterUserOutput {
-            token: Some(token),
-            url: None,
-        })
+        Ok(RegisterUserOutput::Authenticated(token))
     }
 
     async fn get_userinfo(

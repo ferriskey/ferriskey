@@ -4,6 +4,7 @@ import type { PostEndpoints, Schemas } from './api.client'
 const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/token'
 const LOGOUT_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/logout'
 const REVOKE_TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/revoke'
+const VERIFY_EMAIL_PATH: keyof PostEndpoints = '/realms/{realm_name}/login-actions/verify-email'
 
 type PostParameters<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
   parameters: infer Parameters
@@ -159,6 +160,12 @@ export const useRegistrationMutation = () => {
       'post',
       '/realms/{realm_name}/protocol/openid-connect/registrations'
     ).mutationOptions,
+  })
+}
+
+export const useVerifyEmailMutation = () => {
+  return useMutation({
+    ...window.tanstackApi.mutation('post', VERIFY_EMAIL_PATH).mutationOptions,
   })
 }
 

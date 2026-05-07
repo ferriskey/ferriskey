@@ -2,6 +2,7 @@ pub mod access_token_repository;
 pub mod argon2_hasher;
 pub mod auth_session_repository;
 pub mod credential_repository;
+pub mod email_verification_token_repository;
 pub mod keystore_repository;
 pub mod magic_link_repository;
 pub mod password_policy_repository;

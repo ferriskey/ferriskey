@@ -539,7 +539,7 @@ where
             if let Some(c) = &input.code {
                 parts.push(format!("code={}", c));
             }
-            parts.push(format!("state={}", &input.state));
+            parts.push(format!("state={}", input.state));
             if let Some(e) = &input.error {
                 parts.push(format!("error={}", e));
             }
