@@ -2210,9 +2210,8 @@ where
             let output = self
                 .finalize_authentication(user.id, session_code, auth_session)
                 .await?;
-            return Ok(RegisterUserOutput::Redirect {
-                url: output.redirect_url,
-            });
+            let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
+            return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
         let token = self

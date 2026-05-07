@@ -120,9 +120,18 @@ where
         let html = self.template_renderer.render_to_html(&template.mjml)?;
 
         let mut variables = HashMap::new();
-        variables.insert("user.first_name".to_string(), user.firstname.clone());
-        variables.insert("user.last_name".to_string(), user.lastname.clone());
-        variables.insert("user.email".to_string(), user.email.clone());
+        variables.insert(
+            "user.first_name".to_string(),
+            user.firstname.clone().unwrap_or_default(),
+        );
+        variables.insert(
+            "user.last_name".to_string(),
+            user.lastname.clone().unwrap_or_default(),
+        );
+        variables.insert(
+            "user.email".to_string(),
+            user.email.clone().unwrap_or_default(),
+        );
         for (key, value) in extra_vars {
             variables.insert(key.to_string(), value.to_string());
         }
@@ -156,6 +165,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         let user = self.user_repository.get_by_id(user_id).await?;
+        let user_email = user.email.as_deref().ok_or(CoreError::InvalidUser)?;
 
         let template_id = realm
             .settings
@@ -225,7 +235,7 @@ where
         self.email_port
             .send_email(
                 &smtp_config,
-                &user.email,
+                user_email,
                 "Verify your email address",
                 &body,
                 html_body,
@@ -235,7 +245,7 @@ where
 
         tracing::info!(
             "Verification email sent to {} for user {}",
-            user.email,
+            user_email,
             user.id
         );
 
@@ -365,9 +375,9 @@ mod tests {
             realm_id: realm.id,
             client_id: None,
             username: "testuser".to_string(),
-            firstname: "Test".to_string(),
-            lastname: "User".to_string(),
-            email: "test@example.com".to_string(),
+            firstname: Some("Test".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("test@example.com".to_string()),
             email_verified: false,
             enabled: true,
         })
