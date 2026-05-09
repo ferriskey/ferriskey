@@ -6,7 +6,7 @@ interface Props {
   description: string
 }
 
-export default function PageActivityComingSoon({ title, description }: Props) {
+export default function ConsoleComingSoon({ title, description }: Props) {
   return (
     <div className='flex flex-col gap-8 p-8 md:p-12'>
       <div className='flex flex-col gap-3'>
@@ -26,8 +26,8 @@ export default function PageActivityComingSoon({ title, description }: Props) {
         </div>
         <p className='text-sm font-medium'>We&apos;re building this</p>
         <p className='text-xs text-muted-foreground max-w-md'>
-          This view is part of the FerrisKey product roadmap. Drop feedback in our discussions to
-          shape what ships first.
+          This view is part of the Console roadmap. Drop feedback in our discussions to shape what
+          ships first.
         </p>
       </div>
     </div>

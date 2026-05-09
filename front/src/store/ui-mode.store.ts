@@ -1,23 +1,22 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type UiMode = 'admin' | 'product'
+export type UiMode = 'admin' | 'console'
 
 interface State {
-  mode: UiMode
+  lastVisited: { admin: string | null; console: string | null }
 }
 
 interface Actions {
-  setMode: (mode: UiMode) => void
-  toggleMode: () => void
+  setLastVisited: (mode: UiMode, path: string) => void
 }
 
 const useUiModeStore = create<State & Actions>()(
   persist(
     (set, get) => ({
-      mode: 'admin',
-      setMode: (mode) => set({ mode }),
-      toggleMode: () => set({ mode: get().mode === 'admin' ? 'product' : 'admin' }),
+      lastVisited: { admin: null, console: null },
+      setLastVisited: (mode, path) =>
+        set({ lastVisited: { ...get().lastVisited, [mode]: path } }),
     }),
     { name: 'ferriskey:ui-mode' },
   ),

@@ -1,6 +1,6 @@
+import ConsoleComingSoon from '@/components/console-coming-soon'
 import { Navigate, Route, Routes } from 'react-router'
 import PageLiveActivityFeature from './feature/page-live-activity-feature'
-import PageActivityComingSoon from './ui/page-activity-coming-soon'
 
 export default function PageActivity() {
   return (
@@ -10,7 +10,7 @@ export default function PageActivity() {
       <Route
         path='logs'
         element={
-          <PageActivityComingSoon
+          <ConsoleComingSoon
             title='Logs & events'
             description='Searchable feed of authentication events, errors and admin actions.'
           />
@@ -19,7 +19,7 @@ export default function PageActivity() {
       <Route
         path='sessions'
         element={
-          <PageActivityComingSoon
+          <ConsoleComingSoon
             title='Sessions'
             description='Active user sessions across devices, with revocation controls.'
           />
@@ -28,7 +28,7 @@ export default function PageActivity() {
       <Route
         path='messages'
         element={
-          <PageActivityComingSoon
+          <ConsoleComingSoon
             title='Message delivery'
             description='Outbound transactional emails and webhook deliveries.'
           />

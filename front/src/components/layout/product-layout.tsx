@@ -12,7 +12,8 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 import useRealmStore from '@/store/realm.store'
-import useUiModeStore from '@/store/ui-mode.store'
+import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
+import { useTrackLastVisited } from '@/hooks/use-track-last-visited'
 import {
   BadgeCheck,
   Check,
@@ -45,8 +46,9 @@ export default function ProductLayout() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const { setUserRealms, userRealms } = useRealmStore()
-  const setMode = useUiModeStore((s) => s.setMode)
-  const mode = useUiModeStore((s) => s.mode)
+  const switchMode = useSwitchMode()
+  useTrackLastVisited()
+  const mode = deriveModeFromPath(pathname)
 
   const { data: userRealmsResponse } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
 
@@ -142,12 +144,12 @@ export default function ProductLayout() {
                 <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>
                   Panel mode
                 </DropdownMenuLabel>
-                <DropdownMenuItem className='rounded-md' onClick={() => setMode('product')}>
+                <DropdownMenuItem className='rounded-md' onClick={() => switchMode('console')}>
                   <LayoutGrid className='mr-2 h-4 w-4' />
-                  Product
-                  {mode === 'product' && <Check className='ml-auto h-4 w-4' />}
+                  Console
+                  {mode === 'console' && <Check className='ml-auto h-4 w-4' />}
                 </DropdownMenuItem>
-                <DropdownMenuItem className='rounded-md' onClick={() => setMode('admin')}>
+                <DropdownMenuItem className='rounded-md' onClick={() => switchMode('admin')}>
                   <Settings2 className='mr-2 h-4 w-4' />
                   Admin
                   {mode === 'admin' && <Check className='ml-auto h-4 w-4' />}
