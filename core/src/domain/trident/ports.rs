@@ -7,6 +7,7 @@ use crate::domain::{
     common::entities::app_errors::CoreError,
     crypto::HashResult,
     trident::entities::{MfaRecoveryCode, TotpSecret},
+    user::entities::RequiredAction,
 };
 
 pub use webauthn_rs::prelude::{
@@ -89,7 +90,9 @@ pub struct ChallengeOtpInput {
 }
 
 pub struct ChallengeOtpOutput {
-    pub login_url: String,
+    pub login_url: Option<String>,
+    pub required_actions: Vec<RequiredAction>,
+    pub temporary_token: Option<String>,
 }
 
 pub struct SetupOtpInput {

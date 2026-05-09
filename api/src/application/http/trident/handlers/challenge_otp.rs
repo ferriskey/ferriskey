@@ -9,6 +9,7 @@ use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
+use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
@@ -20,9 +21,12 @@ pub struct ChallengeOtpRequest {
     pub code: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChallengeOtpResponse {
-    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub required_actions: Vec<RequiredAction>,
 }
 
 #[utoipa::path(
@@ -68,6 +72,7 @@ pub async fn challenge_otp(
 
     let response = ChallengeOtpResponse {
         url: result.login_url,
+        required_actions: result.required_actions,
     };
 
     Ok(Response::OK(response))
