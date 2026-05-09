@@ -56,7 +56,7 @@ export namespace Schemas {
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
   export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpRequest = Partial<{ code: string }>
-  export type ChallengeOtpResponse = { url: string }
+  export type ChallengeOtpResponse = Partial<{ url: string; required_actions: Array<string> }>
   export type ClientType = 'confidential' | 'public' | 'system'
   export type MaintenanceSessionStrategy = 'terminate' | 'expire'
   export type Client = {

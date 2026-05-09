@@ -964,6 +964,20 @@ where
             ));
         }
 
+        let required_actions = self
+            .user_required_action_repository
+            .get_required_actions(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        if !required_actions.is_empty() {
+            return Ok(ChallengeOtpOutput {
+                login_url: None,
+                required_actions,
+                temporary_token: None,
+            });
+        }
+
         let authorization_code = generate_random_string();
 
         self.auth_session_repository
@@ -980,7 +994,11 @@ where
             auth_session.redirect_uri, authorization_code, current_state
         );
 
-        Ok(ChallengeOtpOutput { login_url })
+        Ok(ChallengeOtpOutput {
+            login_url: Some(login_url),
+            required_actions: Vec::new(),
+            temporary_token: None,
+        })
     }
 
     async fn setup_otp(

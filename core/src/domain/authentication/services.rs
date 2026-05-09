@@ -1248,14 +1248,6 @@ where
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
-        if !auth_result.required_actions.is_empty() {
-            return Ok(AuthenticateOutput::requires_actions(
-                auth_result.user_id,
-                auth_result.required_actions,
-                auth_result.token.ok_or(CoreError::InternalServerError)?,
-            ));
-        }
-
         let has_otp_credentials = auth_result.credentials.iter().any(|cred| cred == "otp");
         let needs_configure_otp = auth_result
             .required_actions
@@ -1276,6 +1268,14 @@ where
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
+            ));
+        }
+
+        if !auth_result.required_actions.is_empty() {
+            return Ok(AuthenticateOutput::requires_actions(
+                auth_result.user_id,
+                auth_result.required_actions,
+                auth_result.token.ok_or(CoreError::InternalServerError)?,
             ));
         }
 

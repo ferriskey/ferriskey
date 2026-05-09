@@ -49,8 +49,22 @@ export default function PageOtpChallengeFeature() {
   useEffect(() => {
     if (!challengeOtpData) return
 
-    window.location.href = challengeOtpData.url
-  }, [challengeOtpData])
+    if (
+      challengeOtpData.required_actions &&
+      challengeOtpData.required_actions.length > 0 &&
+      token
+    ) {
+      const firstRequiredAction = challengeOtpData.required_actions[0]
+      navigate(
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${token}`
+      )
+      return
+    }
+
+    if (challengeOtpData.url) {
+      window.location.href = challengeOtpData.url
+    }
+  }, [challengeOtpData, navigate, realm_name, token])
 
   useEffect(() => {
     if (error) {
