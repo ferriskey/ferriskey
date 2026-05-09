@@ -1,6 +1,6 @@
 import { useGetUsers } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
-import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
+import { IDENTITY_CREATE_URL, IDENTITY_URL } from '@/routes/sub-router/user-management.router'
 import { useNavigate, useParams } from 'react-router'
 import PageIdentities from '../ui/page-identities'
 
@@ -11,12 +11,12 @@ export default function PageIdentitiesFeature() {
 
   const handleSelect = (userId: string) => {
     if (!realm_name) return
-    navigate(`${USER_URL(realm_name, userId)}${USER_OVERVIEW_URL}`)
+    navigate(IDENTITY_URL(realm_name, userId))
   }
 
   const handleCreate = () => {
     if (!realm_name) return
-    navigate(`/realms/${realm_name}/users/create`)
+    navigate(IDENTITY_CREATE_URL(realm_name))
   }
 
   return (

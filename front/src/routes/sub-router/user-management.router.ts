@@ -6,6 +6,12 @@ export const USER_MANAGEMENT_URL = (realmName = ':realmName') =>
 export const IDENTITIES_URL = (realmName = ':realmName') =>
   `${USER_MANAGEMENT_URL(realmName)}/identities`
 
+export const IDENTITY_CREATE_URL = (realmName = ':realmName') =>
+  `${IDENTITIES_URL(realmName)}/create`
+
+export const IDENTITY_URL = (realmName = ':realmName', userId = ':user_id') =>
+  `${IDENTITIES_URL(realmName)}/${userId}`
+
 export const UM_ORGANIZATIONS_URL = (realmName = ':realmName') =>
   `${USER_MANAGEMENT_URL(realmName)}/organizations`
 
