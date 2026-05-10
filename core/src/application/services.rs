@@ -31,6 +31,7 @@ use crate::{
             ports::RealmRepository,
             services::{MailServiceImpl, RealmServiceImpl},
         },
+        realm_branding::services::RealmBrandingServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -80,6 +81,7 @@ use crate::{
             magic_link_repository::PostgresMagicLinkRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
+            realm_branding_repository::PostgresRealmBrandingRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
@@ -132,6 +134,7 @@ type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
+type RealmBrandingRepo = PostgresRealmBrandingRepository;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
@@ -343,6 +346,9 @@ pub struct ApplicationService {
         EmailTemplateRepo,
         MjmlRenderer,
     >,
+    #[allow(dead_code)]
+    pub(crate) realm_branding_service:
+        RealmBrandingServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, RealmBrandingRepo>,
     pub(crate) password_policy_service:
         PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
     pub(crate) organization_service: OrganizationServiceImpl<
