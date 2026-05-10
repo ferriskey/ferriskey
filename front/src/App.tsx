@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { fetcher } from './api'
 import { createApiClient } from './api/api.client'
 import { TanstackQueryApiClient } from './api/api.tanstack'
@@ -142,10 +142,13 @@ function isUnresolvedApiUrl(value: unknown) {
   return trimmed.length === 0 || trimmed.includes('${')
 }
 
+function realmFromPath(pathname: string): string {
+  const match = pathname.match(/^\/realms\/([^/]+)/)
+  return match?.[1] ?? 'master'
+}
+
 function App() {
-  const { realm_name } = useParams()
   const [apiUrlSetup, setApiUrlSetup] = useState<boolean>(false)
-  const defaultRealm = realm_name ?? 'master'
 
   useEffect(() => {
     const init = async () => {
@@ -197,16 +200,18 @@ function App() {
     )
   }
 
-  return <AppRoutes defaultRealm={defaultRealm} />
+  return <AppRoutes />
 }
 
-function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
+function AppRoutes() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
   const { setConfig } = useConfig()
   const { theme } = useTheme()
   const { data: responseConfig } = useGetConfig()
+
+  const currentRealm = useMemo(() => realmFromPath(pathname), [pathname])
 
   useEffect(() => {
     if (responseConfig) {
@@ -230,12 +235,12 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
       return
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
-        navigate(`/realms/${defaultRealm}/authentication/login`, { replace: true })
+        navigate(`/realms/${currentRealm}/authentication/login`, { replace: true })
       }
     } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback') && !pathname.includes('/required-action')) {
-      navigate(`/realms/${defaultRealm}/overview`, { replace: true })
+      navigate(`/realms/${currentRealm}/overview`, { replace: true })
     }
-  }, [isAuthenticated, isLoading, authenticateRoute, pathname, defaultRealm, navigate])
+  }, [isAuthenticated, isLoading, authenticateRoute, pathname, currentRealm, navigate])
 
   return (
     <>
@@ -271,8 +276,8 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
               <Navigate
                 to={
                   isAuthenticated
-                    ? `/realms/${defaultRealm}/overview`
-                    : `/realms/${defaultRealm}/authentication/login`
+                    ? `/realms/${currentRealm}/overview`
+                    : `/realms/${currentRealm}/authentication/login`
                 }
                 replace
               />
@@ -290,8 +295,8 @@ function AppRoutes({ defaultRealm }: { defaultRealm: string }) {
               <Navigate
                 to={
                   isAuthenticated
-                    ? `/realms/${defaultRealm}/overview`
-                    : `/realms/${defaultRealm}/authentication/login`
+                    ? `/realms/${currentRealm}/overview`
+                    : `/realms/${currentRealm}/authentication/login`
                 }
                 replace
               />

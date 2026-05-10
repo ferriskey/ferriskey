@@ -28,13 +28,13 @@ export default function UpdatePasswordFeature() {
   })
 
   const handleClick = form.handleSubmit((payload) => {
+    if (!token) return
     updatePassword({
-      path: {
-        realm_name: realm_name ?? 'master',
-      },
-      body: {
+      realm: realm_name ?? 'master',
+      data: {
         value: payload.password,
       },
+      token,
     })
   })
 
