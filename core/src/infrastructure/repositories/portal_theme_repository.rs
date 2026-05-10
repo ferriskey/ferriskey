@@ -14,10 +14,7 @@ use crate::{
             ports::PortalThemeRepository,
         },
     },
-    entity::realm_branding::{
-        ActiveModel as PortalThemeActiveModel, Column as PortalThemeColumn,
-        Entity as PortalThemeEntity, Model as PortalThemeModel,
-    },
+    entity::portal_themes::{ActiveModel, Column, Entity, Model},
 };
 
 #[derive(Debug, Clone)]
@@ -31,7 +28,7 @@ impl PostgresPortalThemeRepository {
     }
 }
 
-fn model_to_domain(model: PortalThemeModel) -> Result<PortalTheme, CoreError> {
+fn model_to_domain(model: Model) -> Result<PortalTheme, CoreError> {
     let config: PortalThemeConfig = serde_json::from_value(model.config).map_err(|e| {
         error!("failed to deserialize portal theme config: {e}");
         CoreError::InternalServerError
@@ -48,8 +45,8 @@ fn model_to_domain(model: PortalThemeModel) -> Result<PortalTheme, CoreError> {
 
 impl PortalThemeRepository for PostgresPortalThemeRepository {
     async fn get_by_realm(&self, realm_id: Uuid) -> Result<Option<PortalTheme>, CoreError> {
-        let model = PortalThemeEntity::find()
-            .filter(PortalThemeColumn::RealmId.eq(realm_id))
+        let model = Entity::find()
+            .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -71,7 +68,7 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
             CoreError::InternalServerError
         })?;
 
-        let model = PortalThemeActiveModel {
+        let model = ActiveModel {
             id: Set(generate_uuid_v7()),
             realm_id: Set(realm_id),
             config: Set(config_json),
@@ -79,10 +76,10 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
             updated_at: Set(now),
         };
 
-        PortalThemeEntity::insert(model)
+        Entity::insert(model)
             .on_conflict(
-                OnConflict::column(PortalThemeColumn::RealmId)
-                    .update_columns([PortalThemeColumn::Config, PortalThemeColumn::UpdatedAt])
+                OnConflict::column(Column::RealmId)
+                    .update_columns([Column::Config, Column::UpdatedAt])
                     .to_owned(),
             )
             .exec(&self.db)
@@ -92,8 +89,8 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
                 CoreError::InternalServerError
             })?;
 
-        let stored = PortalThemeEntity::find()
-            .filter(PortalThemeColumn::RealmId.eq(realm_id))
+        let stored = Entity::find()
+            .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
