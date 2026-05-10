@@ -4,7 +4,7 @@ use crate::domain::{
 
 /// MJML renderer that converts builder JSON structure into MJML,
 /// then MJML into HTML using the `mrml` crate.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MjmlTemplateRenderer;
 
 impl MjmlTemplateRenderer {
