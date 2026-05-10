@@ -26,10 +26,10 @@ export default function PageCallbackFeature() {
   const { mutateAsync: exchangeToken } = useTokenMutation()
   const hasStartedExchange = useRef(false)
 
-  // Read sessionStorage once at mount to avoid a React StrictMode double-render
+  // Read localStorage once at mount to avoid a React StrictMode double-render
   // causing the value to be missing on the second render after the first effect
   // removes it.
-  const [expectedState] = useState(() => sessionStorage.getItem('oauth_state'))
+  const [expectedState] = useState(() => localStorage.getItem('oauth_state'))
 
   const callbackValidationError = useMemo(() => {
     return validateCallbackParams({
@@ -41,7 +41,7 @@ export default function PageCallbackFeature() {
 
   useEffect(() => {
     if (callbackValidationError) {
-      sessionStorage.removeItem('oauth_state')
+      localStorage.removeItem('oauth_state')
       document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
       navigate(buildLoginErrorRedirect(realm_name, callbackValidationError), { replace: true })
       return
@@ -52,7 +52,7 @@ export default function PageCallbackFeature() {
     }
 
     hasStartedExchange.current = true
-    sessionStorage.removeItem('oauth_state')
+    localStorage.removeItem('oauth_state')
 
     void exchangeToken({
       realm: realm_name ?? 'master',
