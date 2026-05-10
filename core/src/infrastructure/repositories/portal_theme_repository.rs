@@ -9,35 +9,35 @@ use uuid::Uuid;
 use crate::{
     domain::{
         common::{entities::app_errors::CoreError, generate_uuid_v7},
-        realm_branding::{
-            entities::{BrandingConfig, RealmBranding},
-            ports::RealmBrandingRepository,
+        portal_theme::{
+            entities::{PortalTheme, PortalThemeConfig},
+            ports::PortalThemeRepository,
         },
     },
     entity::realm_branding::{
-        ActiveModel as RealmBrandingActiveModel, Column as RealmBrandingColumn,
-        Entity as RealmBrandingEntity, Model as RealmBrandingModel,
+        ActiveModel as PortalThemeActiveModel, Column as PortalThemeColumn,
+        Entity as PortalThemeEntity, Model as PortalThemeModel,
     },
 };
 
 #[derive(Debug, Clone)]
-pub struct PostgresRealmBrandingRepository {
+pub struct PostgresPortalThemeRepository {
     pub db: DatabaseConnection,
 }
 
-impl PostgresRealmBrandingRepository {
+impl PostgresPortalThemeRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 }
 
-fn model_to_domain(model: RealmBrandingModel) -> Result<RealmBranding, CoreError> {
-    let config: BrandingConfig = serde_json::from_value(model.config).map_err(|e| {
-        error!("failed to deserialize branding config: {e}");
+fn model_to_domain(model: PortalThemeModel) -> Result<PortalTheme, CoreError> {
+    let config: PortalThemeConfig = serde_json::from_value(model.config).map_err(|e| {
+        error!("failed to deserialize portal theme config: {e}");
         CoreError::InternalServerError
     })?;
 
-    Ok(RealmBranding {
+    Ok(PortalTheme {
         id: model.id,
         realm_id: model.realm_id.into(),
         config,
@@ -46,14 +46,14 @@ fn model_to_domain(model: RealmBrandingModel) -> Result<RealmBranding, CoreError
     })
 }
 
-impl RealmBrandingRepository for PostgresRealmBrandingRepository {
-    async fn get_by_realm(&self, realm_id: Uuid) -> Result<Option<RealmBranding>, CoreError> {
-        let model = RealmBrandingEntity::find()
-            .filter(RealmBrandingColumn::RealmId.eq(realm_id))
+impl PortalThemeRepository for PostgresPortalThemeRepository {
+    async fn get_by_realm(&self, realm_id: Uuid) -> Result<Option<PortalTheme>, CoreError> {
+        let model = PortalThemeEntity::find()
+            .filter(PortalThemeColumn::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
-                error!("failed to fetch realm branding: {e}");
+                error!("failed to fetch portal theme: {e}");
                 CoreError::InternalServerError
             })?;
 
@@ -63,15 +63,15 @@ impl RealmBrandingRepository for PostgresRealmBrandingRepository {
     async fn upsert(
         &self,
         realm_id: Uuid,
-        config: BrandingConfig,
-    ) -> Result<RealmBranding, CoreError> {
+        config: PortalThemeConfig,
+    ) -> Result<PortalTheme, CoreError> {
         let now = Utc::now().naive_utc();
         let config_json = serde_json::to_value(&config).map_err(|e| {
-            error!("failed to serialize branding config: {e}");
+            error!("failed to serialize portal theme config: {e}");
             CoreError::InternalServerError
         })?;
 
-        let model = RealmBrandingActiveModel {
+        let model = PortalThemeActiveModel {
             id: Set(generate_uuid_v7()),
             realm_id: Set(realm_id),
             config: Set(config_json),
@@ -79,25 +79,25 @@ impl RealmBrandingRepository for PostgresRealmBrandingRepository {
             updated_at: Set(now),
         };
 
-        RealmBrandingEntity::insert(model)
+        PortalThemeEntity::insert(model)
             .on_conflict(
-                OnConflict::column(RealmBrandingColumn::RealmId)
-                    .update_columns([RealmBrandingColumn::Config, RealmBrandingColumn::UpdatedAt])
+                OnConflict::column(PortalThemeColumn::RealmId)
+                    .update_columns([PortalThemeColumn::Config, PortalThemeColumn::UpdatedAt])
                     .to_owned(),
             )
             .exec(&self.db)
             .await
             .map_err(|e| {
-                error!("failed to upsert realm branding: {e}");
+                error!("failed to upsert portal theme: {e}");
                 CoreError::InternalServerError
             })?;
 
-        let stored = RealmBrandingEntity::find()
-            .filter(RealmBrandingColumn::RealmId.eq(realm_id))
+        let stored = PortalThemeEntity::find()
+            .filter(PortalThemeColumn::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
-                error!("failed to fetch upserted realm branding: {e}");
+                error!("failed to fetch upserted portal theme: {e}");
                 CoreError::InternalServerError
             })?
             .ok_or(CoreError::InternalServerError)?;

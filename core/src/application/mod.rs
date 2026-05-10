@@ -25,8 +25,8 @@ use crate::{
         maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
+        portal_theme::services::PortalThemeServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
-        realm_branding::services::RealmBrandingServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -83,8 +83,8 @@ use crate::{
             magic_link_repository::PostgresMagicLinkRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
+            portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
-            realm_branding_repository::PostgresRealmBrandingRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
@@ -117,8 +117,8 @@ pub mod mail;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
+pub mod portal_theme;
 pub mod realm;
-pub mod realm_branding;
 pub mod role;
 pub mod seawatch;
 pub mod trident;
@@ -184,7 +184,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
-    let realm_branding = Arc::new(PostgresRealmBrandingRepository::new(postgres.get_db()));
+    let portal_theme = Arc::new(PostgresPortalThemeRepository::new(postgres.get_db()));
     let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
     let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
         postgres.get_db(),
@@ -348,9 +348,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             mjml_renderer.clone(),
             policy.clone(),
         ),
-        realm_branding_service: RealmBrandingServiceImpl::new(
+        portal_theme_service: PortalThemeServiceImpl::new(
             realm.clone(),
-            realm_branding.clone(),
+            portal_theme.clone(),
             policy.clone(),
         ),
         core_service: CoreServiceImpl::new(

@@ -7,6 +7,6 @@ pub mod keystore_repository;
 pub mod magic_link_repository;
 pub mod password_policy_repository;
 pub mod password_reset_token_repository;
+pub mod portal_theme_repository;
 pub mod random_bytes_recovery_code;
-pub mod realm_branding_repository;
 pub mod refresh_token_repository;

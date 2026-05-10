@@ -4,16 +4,16 @@ use axum::{
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    realm_branding::{
-        entities::RealmBranding,
-        ports::{RealmBrandingService, UpdateBrandingInput},
+    portal_theme::{
+        entities::PortalTheme,
+        ports::{PortalThemeService, UpdateThemeInput},
     },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::application::http::{
-    realm_branding::validators::UpdateBrandingValidator,
+    portal_theme::validators::UpdateThemeValidator,
     server::{
         api_entities::{
             api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -24,39 +24,39 @@ use crate::application::http::{
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct UpdateBrandingResponse {
-    pub data: RealmBranding,
+pub struct UpdateThemeResponse {
+    pub data: PortalTheme,
 }
 
 #[utoipa::path(
     put,
     path = "",
-    tag = "realm-branding",
-    summary = "Update realm branding",
-    description = "Upserts the branding configuration for the realm. Requires manage_realm permission.",
+    tag = "portal-theme",
+    summary = "Update portal theme",
+    description = "Upserts the portal theme configuration for the realm. Requires manage_realm permission.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
     ),
-    request_body = UpdateBrandingValidator,
+    request_body = UpdateThemeValidator,
     responses(
-        (status = 200, description = "Branding configuration updated successfully", body = UpdateBrandingResponse),
+        (status = 200, description = "Theme configuration updated successfully", body = UpdateThemeResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn update_branding(
+pub async fn update_theme(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<UpdateBrandingValidator>,
-) -> Result<Response<UpdateBrandingResponse>, ApiError> {
-    let branding = state
+    ValidateJson(payload): ValidateJson<UpdateThemeValidator>,
+) -> Result<Response<UpdateThemeResponse>, ApiError> {
+    let theme = state
         .service
-        .update_branding(
+        .update_theme(
             identity,
-            UpdateBrandingInput {
+            UpdateThemeInput {
                 realm_name,
                 config: payload.config,
             },
@@ -64,5 +64,5 @@ pub async fn update_branding(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::Updated(UpdateBrandingResponse { data: branding }))
+    Ok(Response::Updated(UpdateThemeResponse { data: theme }))
 }

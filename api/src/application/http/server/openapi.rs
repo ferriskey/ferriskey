@@ -8,8 +8,8 @@ use crate::application::http::{
     email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc},
     maintenance::router::MaintenanceApiDoc,
     organization::router::OrganizationApiDoc,
+    portal_theme::router::PortalThemeApiDoc,
     realm::router::RealmApiDoc,
-    realm_branding::router::RealmBrandingApiDoc,
     role::router::RoleApiDoc,
     seawatch::router::SeawatchApiDoc,
     trident::router::TridentApiDoc,
@@ -38,7 +38,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = AegisApiDoc),
         (path = "/realms/{realm_name}", api = CompassApiDoc),
         (path = "/realms/{realm_name}/email-templates", api = EmailTemplateApiDoc),
-        (path = "/realms/{realm_name}/branding", api = RealmBrandingApiDoc),
+        (path = "/realms/{realm_name}/portal/theme", api = PortalThemeApiDoc),
         (path = "/email-templates/variables", api = EmailTemplateVariablesApiDoc),
         (path = "/realms/{realm_name}/organizations", api = OrganizationApiDoc),
         (path = "/realms/{realm_name}/clients", api = MaintenanceApiDoc)

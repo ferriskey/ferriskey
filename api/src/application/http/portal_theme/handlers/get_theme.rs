@@ -4,9 +4,9 @@ use axum::{
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    realm_branding::{
-        entities::BrandingConfig,
-        ports::{GetBrandingInput, RealmBrandingService},
+    portal_theme::{
+        entities::PortalThemeConfig,
+        ports::{GetThemeInput, PortalThemeService},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -21,36 +21,36 @@ use crate::application::http::server::{
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct GetBrandingResponse {
-    pub data: BrandingConfig,
+pub struct GetThemeResponse {
+    pub data: PortalThemeConfig,
 }
 
 #[utoipa::path(
     get,
     path = "",
-    tag = "realm-branding",
-    summary = "Get realm branding",
-    description = "Retrieves the branding configuration for the realm. Requires manage_realm permission. Falls back to defaults when no configuration is stored.",
+    tag = "portal-theme",
+    summary = "Get portal theme",
+    description = "Retrieves the portal theme configuration for the realm. Requires manage_realm permission. Falls back to defaults when no configuration is stored.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
     ),
     responses(
-        (status = 200, description = "Branding configuration retrieved successfully", body = GetBrandingResponse),
+        (status = 200, description = "Theme configuration retrieved successfully", body = GetThemeResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn get_branding(
+pub async fn get_theme(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<GetBrandingResponse>, ApiError> {
+) -> Result<Response<GetThemeResponse>, ApiError> {
     let config = state
         .service
-        .get_branding(identity, GetBrandingInput { realm_name })
+        .get_theme(identity, GetThemeInput { realm_name })
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(GetBrandingResponse { data: config }))
+    Ok(Response::OK(GetThemeResponse { data: config }))
 }

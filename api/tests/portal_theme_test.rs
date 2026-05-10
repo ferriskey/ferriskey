@@ -1,9 +1,9 @@
-/// Integration test for the realm branding HTTP endpoints.
+/// Integration test for the portal theme HTTP endpoints.
 ///
 /// This test requires a running PostgreSQL instance.  It is marked `#[ignore]`
 /// so it does not block regular `cargo test` runs.  Run it explicitly with:
 ///
-///   cargo test -p ferriskey-api --test realm_branding_test -- --ignored
+///   cargo test -p ferriskey-api --test portal_theme_test -- --ignored
 ///
 /// All assertions are bundled into a single test because `axum-prometheus`
 /// installs a process-global metrics recorder, which prevents building more
@@ -52,14 +52,14 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn realm_branding_endpoints_full_lifecycle() {
+    async fn portal_theme_endpoints_full_lifecycle() {
         let db_host = env_or("DATABASE_HOST", "localhost");
         let db_port = env_u16_or("DATABASE_PORT", 5432);
         let db_name = env_or("DATABASE_NAME", "ferriskey");
         let db_user = env_or("DATABASE_USER", "ferriskey");
         let db_password = env_or("DATABASE_PASSWORD", "ferriskey");
 
-        let schema = format!("branding_test_{}", Uuid::new_v4().simple());
+        let schema = format!("portal_theme_test_{}", Uuid::new_v4().simple());
 
         let admin_url = format!(
             "postgres://{}:{}@{}:{}/{}",
@@ -130,7 +130,7 @@ mod tests {
 
         // --- Admin endpoint requires auth.
         let unauth = server
-            .get(&format!("/realms/{}/branding", realm_name))
+            .get(&format!("/realms/{}/portal/theme", realm_name))
             .await;
         assert_ne!(
             unauth.status_code(),
@@ -158,28 +158,24 @@ mod tests {
             .expect("access_token in response")
             .to_string();
 
-        // --- GET branding returns defaults when nothing has been stored.
+        // --- GET theme returns defaults when nothing has been stored.
         let initial_get = server
-            .get(&format!("/realms/{}/branding", realm_name))
+            .get(&format!("/realms/{}/portal/theme", realm_name))
             .add_header("Authorization", auth_header(&token))
             .await;
         assert_eq!(initial_get.status_code(), 200);
         let initial_body: Value = initial_get.json();
         assert!(initial_body["data"]["colors"]["primaryButton"].is_string());
         assert!(initial_body["data"]["fonts"]["baseSize"].is_number());
-        assert!(initial_body["data"]["widget"]["headerAlignment"].is_string());
+        assert!(initial_body["data"]["borders"]["buttonRadius"].is_number());
 
         // --- PUT then GET round-trips a partial config.
         let put_response = server
-            .put(&format!("/realms/{}/branding", realm_name))
+            .put(&format!("/realms/{}/portal/theme", realm_name))
             .add_header("Authorization", auth_header(&token))
             .json(&json!({
                 "config": {
-                    "colors": { "primaryButton": "#ff00aa" },
-                    "widget": {
-                        "logoUrl": "https://example.test/logo.png",
-                        "logoHeight": 80
-                    }
+                    "colors": { "primaryButton": "#ff00aa" }
                 }
             }))
             .await;
@@ -191,21 +187,16 @@ mod tests {
         );
 
         let after_put_get = server
-            .get(&format!("/realms/{}/branding", realm_name))
+            .get(&format!("/realms/{}/portal/theme", realm_name))
             .add_header("Authorization", auth_header(&token))
             .await;
         assert_eq!(after_put_get.status_code(), 200);
         let after_put_body: Value = after_put_get.json();
         assert_eq!(after_put_body["data"]["colors"]["primaryButton"], "#ff00aa");
-        assert_eq!(
-            after_put_body["data"]["widget"]["logoUrl"],
-            "https://example.test/logo.png"
-        );
-        assert_eq!(after_put_body["data"]["widget"]["logoHeight"], 80);
 
         // --- A second PUT overwrites the existing row (no duplicate inserted).
         let overwrite = server
-            .put(&format!("/realms/{}/branding", realm_name))
+            .put(&format!("/realms/{}/portal/theme", realm_name))
             .add_header("Authorization", auth_header(&token))
             .json(&json!({ "config": { "colors": { "primaryButton": "#222222" } } }))
             .await;
@@ -214,20 +205,20 @@ mod tests {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM realm_branding")
             .fetch_one(&pool)
             .await
-            .expect("count branding rows");
+            .expect("count theme rows");
         assert_eq!(
             count.0, 1,
             "upsert must update in place rather than insert duplicates"
         );
 
-        // --- Login settings endpoint embeds the saved branding config (no auth required).
+        // --- Login settings endpoint embeds the saved theme config (no auth required).
         let login_settings = server
             .get(&format!("/realms/{}/login-settings", realm_name))
             .await;
         assert_eq!(login_settings.status_code(), 200);
         let login_body: Value = login_settings.json();
         assert_eq!(
-            login_body["data"]["branding"]["colors"]["primaryButton"],
+            login_body["data"]["theme"]["colors"]["primaryButton"],
             "#222222"
         );
 
@@ -236,7 +227,7 @@ mod tests {
         assert_eq!(openapi_response.status_code(), 200);
         let openapi_body: Value = openapi_response.json();
         let paths = &openapi_body["paths"];
-        assert!(paths["/realms/{realm_name}/branding"].is_object());
+        assert!(paths["/realms/{realm_name}/portal/theme"].is_object());
 
         // --- Cleanup.
         admin_pool

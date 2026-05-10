@@ -1,9 +1,9 @@
-use ferriskey_core::domain::realm_branding::entities::BrandingConfig;
+use ferriskey_core::domain::portal_theme::entities::PortalThemeConfig;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-pub struct UpdateBrandingValidator {
-    pub config: BrandingConfig,
+pub struct UpdateThemeValidator {
+    pub config: PortalThemeConfig,
 }

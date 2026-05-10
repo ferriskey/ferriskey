@@ -7,65 +7,65 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    realm::ports::RealmRepository,
-    realm_branding::{
-        entities::{BrandingConfig, RealmBranding},
+    portal_theme::{
+        entities::{PortalTheme, PortalThemeConfig},
         ports::{
-            GetBrandingInput, RealmBrandingPolicy, RealmBrandingRepository, RealmBrandingService,
-            UpdateBrandingInput,
+            GetThemeInput, PortalThemePolicy, PortalThemeRepository, PortalThemeService,
+            UpdateThemeInput,
         },
     },
+    realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
 #[derive(Clone, Debug)]
-pub struct RealmBrandingServiceImpl<R, U, C, UR, RB>
+pub struct PortalThemeServiceImpl<R, U, C, UR, PT>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
-    RB: RealmBrandingRepository,
+    PT: PortalThemeRepository,
 {
     pub(crate) realm_repository: Arc<R>,
-    pub(crate) realm_branding_repository: Arc<RB>,
+    pub(crate) portal_theme_repository: Arc<PT>,
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, RB> RealmBrandingServiceImpl<R, U, C, UR, RB>
+impl<R, U, C, UR, PT> PortalThemeServiceImpl<R, U, C, UR, PT>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
-    RB: RealmBrandingRepository,
+    PT: PortalThemeRepository,
 {
     pub fn new(
         realm_repository: Arc<R>,
-        realm_branding_repository: Arc<RB>,
+        portal_theme_repository: Arc<PT>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
             realm_repository,
-            realm_branding_repository,
+            portal_theme_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, RB> RealmBrandingService for RealmBrandingServiceImpl<R, U, C, UR, RB>
+impl<R, U, C, UR, PT> PortalThemeService for PortalThemeServiceImpl<R, U, C, UR, PT>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
-    RB: RealmBrandingRepository,
+    PT: PortalThemeRepository,
 {
-    async fn get_branding(
+    async fn get_theme(
         &self,
         identity: Identity,
-        input: GetBrandingInput,
-    ) -> Result<BrandingConfig, CoreError> {
+        input: GetThemeInput,
+    ) -> Result<PortalThemeConfig, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
@@ -73,23 +73,23 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_branding(&identity, &realm).await,
+            self.policy.can_view_theme(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
         let stored = self
-            .realm_branding_repository
+            .portal_theme_repository
             .get_by_realm(realm.id.into())
             .await?;
 
         Ok(stored.map(|b| b.config).unwrap_or_default())
     }
 
-    async fn update_branding(
+    async fn update_theme(
         &self,
         identity: Identity,
-        input: UpdateBrandingInput,
-    ) -> Result<RealmBranding, CoreError> {
+        input: UpdateThemeInput,
+    ) -> Result<PortalTheme, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
@@ -97,19 +97,16 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_manage_branding(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        self.realm_branding_repository
+        self.portal_theme_repository
             .upsert(realm.id.into(), input.config)
             .await
     }
 
-    async fn get_public_branding(
-        &self,
-        input: GetBrandingInput,
-    ) -> Result<BrandingConfig, CoreError> {
+    async fn get_public_theme(&self, input: GetThemeInput) -> Result<PortalThemeConfig, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
@@ -117,7 +114,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         let stored = self
-            .realm_branding_repository
+            .portal_theme_repository
             .get_by_realm(realm.id.into())
             .await?;
 
@@ -130,8 +127,8 @@ mod tests {
     use super::*;
     use crate::domain::{
         client::ports::MockClientRepository,
+        portal_theme::ports::MockPortalThemeRepository,
         realm::{entities::Realm, ports::MockRealmRepository},
-        realm_branding::ports::MockRealmBrandingRepository,
         role::entities::Role,
         user::{
             entities::User,
@@ -198,8 +195,8 @@ mod tests {
         }
     }
 
-    fn stored_branding(realm: &Realm, config: BrandingConfig) -> RealmBranding {
-        RealmBranding {
+    fn stored_theme(realm: &Realm, config: PortalThemeConfig) -> PortalTheme {
+        PortalTheme {
             id: Uuid::new_v4(),
             realm_id: realm.id,
             config,
@@ -212,13 +209,13 @@ mod tests {
         realm_repo: MockRealmRepository,
         user_repo: MockUserRepository,
         user_role_repo: MockUserRoleRepository,
-        branding_repo: MockRealmBrandingRepository,
-    ) -> RealmBrandingServiceImpl<
+        theme_repo: MockPortalThemeRepository,
+    ) -> PortalThemeServiceImpl<
         MockRealmRepository,
         MockUserRepository,
         MockClientRepository,
         MockUserRoleRepository,
-        MockRealmBrandingRepository,
+        MockPortalThemeRepository,
     > {
         let client_repo = MockClientRepository::new();
         let policy = Arc::new(FerriskeyPolicy::new(
@@ -226,11 +223,11 @@ mod tests {
             Arc::new(client_repo),
             Arc::new(user_role_repo),
         ));
-        RealmBrandingServiceImpl::new(Arc::new(realm_repo), Arc::new(branding_repo), policy)
+        PortalThemeServiceImpl::new(Arc::new(realm_repo), Arc::new(theme_repo), policy)
     }
 
     #[tokio::test]
-    async fn update_branding_forbidden_when_policy_denies() {
+    async fn update_theme_forbidden_when_policy_denies() {
         let realm = test_realm();
         let user = test_user(&realm);
 
@@ -255,16 +252,16 @@ mod tests {
             Box::pin(async move { Ok(vec![empty_role(&r)]) })
         });
 
-        let branding_repo = MockRealmBrandingRepository::new();
+        let theme_repo = MockPortalThemeRepository::new();
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .update_branding(
+            .update_theme(
                 Identity::User(user),
-                UpdateBrandingInput {
+                UpdateThemeInput {
                     realm_name: realm.name.clone(),
-                    config: BrandingConfig::default(),
+                    config: PortalThemeConfig::default(),
                 },
             )
             .await;
@@ -273,10 +270,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_branding_upserts_when_allowed() {
+    async fn update_theme_upserts_when_allowed() {
         let realm = test_realm();
         let user = test_user(&realm);
-        let mut new_config = BrandingConfig::default();
+        let mut new_config = PortalThemeConfig::default();
         new_config.colors.primary_button = "#ff00aa".to_string();
 
         let mut realm_repo = MockRealmRepository::new();
@@ -300,21 +297,21 @@ mod tests {
             Box::pin(async move { Ok(vec![admin_role(&r)]) })
         });
 
-        let mut branding_repo = MockRealmBrandingRepository::new();
+        let mut theme_repo = MockPortalThemeRepository::new();
         let realm_for_repo = realm.clone();
-        branding_repo
+        theme_repo
             .expect_upsert()
             .returning(move |_realm_id, config| {
-                let stored = stored_branding(&realm_for_repo, config);
+                let stored = stored_theme(&realm_for_repo, config);
                 Box::pin(async move { Ok(stored) })
             });
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .update_branding(
+            .update_theme(
                 Identity::User(user),
-                UpdateBrandingInput {
+                UpdateThemeInput {
                     realm_name: realm.name.clone(),
                     config: new_config.clone(),
                 },
@@ -326,7 +323,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_branding_returns_default_when_repo_empty() {
+    async fn get_theme_returns_default_when_repo_empty() {
         let realm = test_realm();
         let user = test_user(&realm);
 
@@ -351,32 +348,32 @@ mod tests {
             Box::pin(async move { Ok(vec![admin_role(&r)]) })
         });
 
-        let mut branding_repo = MockRealmBrandingRepository::new();
-        branding_repo
+        let mut theme_repo = MockPortalThemeRepository::new();
+        theme_repo
             .expect_get_by_realm()
             .returning(|_| Box::pin(async { Ok(None) }));
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .get_branding(
+            .get_theme(
                 Identity::User(user),
-                GetBrandingInput {
+                GetThemeInput {
                     realm_name: realm.name.clone(),
                 },
             )
             .await
             .expect("get should succeed");
 
-        assert_eq!(result, BrandingConfig::default());
+        assert_eq!(result, PortalThemeConfig::default());
     }
 
     #[tokio::test]
-    async fn get_branding_returns_stored_config() {
+    async fn get_theme_returns_stored_config() {
         let realm = test_realm();
         let user = test_user(&realm);
-        let mut stored_config = BrandingConfig::default();
-        stored_config.widget.logo_height = 80;
+        let mut stored_config = PortalThemeConfig::default();
+        stored_config.borders.button_radius = 12;
 
         let mut realm_repo = MockRealmRepository::new();
         let realm_clone = realm.clone();
@@ -399,20 +396,20 @@ mod tests {
             Box::pin(async move { Ok(vec![admin_role(&r)]) })
         });
 
-        let mut branding_repo = MockRealmBrandingRepository::new();
+        let mut theme_repo = MockPortalThemeRepository::new();
         let realm_for_repo = realm.clone();
         let stored_clone = stored_config.clone();
-        branding_repo.expect_get_by_realm().returning(move |_| {
-            let stored = stored_branding(&realm_for_repo, stored_clone.clone());
+        theme_repo.expect_get_by_realm().returning(move |_| {
+            let stored = stored_theme(&realm_for_repo, stored_clone.clone());
             Box::pin(async move { Ok(Some(stored)) })
         });
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .get_branding(
+            .get_theme(
                 Identity::User(user),
-                GetBrandingInput {
+                GetThemeInput {
                     realm_name: realm.name.clone(),
                 },
             )
@@ -423,7 +420,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_public_branding_skips_policy_and_returns_default_when_empty() {
+    async fn get_public_theme_skips_policy_and_returns_default_when_empty() {
         let realm = test_realm();
 
         let mut realm_repo = MockRealmRepository::new();
@@ -436,27 +433,27 @@ mod tests {
         let user_repo = MockUserRepository::new();
         let user_role_repo = MockUserRoleRepository::new();
 
-        let mut branding_repo = MockRealmBrandingRepository::new();
-        branding_repo
+        let mut theme_repo = MockPortalThemeRepository::new();
+        theme_repo
             .expect_get_by_realm()
             .returning(|_| Box::pin(async { Ok(None) }));
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .get_public_branding(GetBrandingInput {
+            .get_public_theme(GetThemeInput {
                 realm_name: realm.name.clone(),
             })
             .await
             .expect("public get should succeed");
 
-        assert_eq!(result, BrandingConfig::default());
+        assert_eq!(result, PortalThemeConfig::default());
     }
 
     #[tokio::test]
-    async fn get_public_branding_returns_stored_config_without_auth() {
+    async fn get_public_theme_returns_stored_config_without_auth() {
         let realm = test_realm();
-        let mut stored_config = BrandingConfig::default();
+        let mut stored_config = PortalThemeConfig::default();
         stored_config.colors.primary_button = "#abcdef".to_string();
 
         let mut realm_repo = MockRealmRepository::new();
@@ -469,18 +466,18 @@ mod tests {
         let user_repo = MockUserRepository::new();
         let user_role_repo = MockUserRoleRepository::new();
 
-        let mut branding_repo = MockRealmBrandingRepository::new();
+        let mut theme_repo = MockPortalThemeRepository::new();
         let realm_for_repo = realm.clone();
         let stored_clone = stored_config.clone();
-        branding_repo.expect_get_by_realm().returning(move |_| {
-            let stored = stored_branding(&realm_for_repo, stored_clone.clone());
+        theme_repo.expect_get_by_realm().returning(move |_| {
+            let stored = stored_theme(&realm_for_repo, stored_clone.clone());
             Box::pin(async move { Ok(Some(stored)) })
         });
 
-        let service = build_service(realm_repo, user_repo, user_role_repo, branding_repo);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
-            .get_public_branding(GetBrandingInput {
+            .get_public_theme(GetThemeInput {
                 realm_name: realm.name.clone(),
             })
             .await

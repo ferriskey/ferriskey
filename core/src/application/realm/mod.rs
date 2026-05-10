@@ -3,6 +3,7 @@ use crate::{
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
+        portal_theme::ports::{GetThemeInput, PortalThemeService},
         realm::{
             entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
             ports::{
@@ -10,7 +11,6 @@ use crate::{
                 GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
             },
         },
-        realm_branding::ports::{GetBrandingInput, RealmBrandingService},
     },
 };
 
@@ -46,9 +46,9 @@ impl RealmService for ApplicationService {
             .realm_service
             .get_login_settings(realm_name.clone())
             .await?;
-        settings.branding = self
-            .realm_branding_service
-            .get_public_branding(GetBrandingInput { realm_name })
+        settings.theme = self
+            .portal_theme_service
+            .get_public_theme(GetThemeInput { realm_name })
             .await?;
         Ok(settings)
     }
