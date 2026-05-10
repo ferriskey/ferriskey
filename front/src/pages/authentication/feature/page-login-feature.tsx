@@ -71,7 +71,7 @@ export default function PageLoginFeature() {
 
   const getOAuthParams = useCallback(() => {
     const state = crypto.randomUUID()
-    sessionStorage.setItem('oauth_state', state)
+    localStorage.setItem(`oauth_state:${state}`, state)
     const { clientId, redirectUri } = getAuthParamsFromUrl()
 
     return {
@@ -191,7 +191,7 @@ export default function PageLoginFeature() {
       resetAuthenticate()
 
       const { clientId: cId, redirectUri: rUri } = getAuthParamsFromUrl()
-      const newState = sessionStorage.getItem('oauth_state') ?? crypto.randomUUID()
+      const newState = new URLSearchParams(query).get('state') ?? crypto.randomUUID()
 
       navigate(
         `/realms/${realm}/authentication/login?client_id=${cId}&redirect_uri=${rUri}&state=${newState}`,
