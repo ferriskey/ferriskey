@@ -61,7 +61,7 @@ pub struct RealmLoginSetting {
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
     pub passkey_enabled: bool,
-    pub branding: crate::domain::realm_branding::entities::BrandingConfig,
+    pub theme: crate::domain::portal_theme::entities::PortalThemeConfig,
 }
 
 impl From<RealmSetting> for RealmLoginSetting {
@@ -74,7 +74,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl,
             passkey_enabled: value.passkey_enabled,
-            branding: crate::domain::realm_branding::entities::BrandingConfig::default(),
+            theme: crate::domain::portal_theme::entities::PortalThemeConfig::default(),
         }
     }
 }

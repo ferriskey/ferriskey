@@ -5,19 +5,19 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, Policy},
     },
+    portal_theme::ports::PortalThemePolicy,
     realm::entities::Realm,
-    realm_branding::ports::RealmBrandingPolicy,
     role::entities::permission::Permissions,
     user::ports::{UserRepository, UserRoleRepository},
 };
 
-impl<U, C, UR> RealmBrandingPolicy for FerriskeyPolicy<U, C, UR>
+impl<U, C, UR> PortalThemePolicy for FerriskeyPolicy<U, C, UR>
 where
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
 {
-    async fn can_view_branding(
+    async fn can_view_theme(
         &self,
         identity: &Identity,
         target_realm: &Realm,
@@ -34,7 +34,7 @@ where
         ))
     }
 
-    async fn can_manage_branding(
+    async fn can_manage_theme(
         &self,
         identity: &Identity,
         target_realm: &Realm,
