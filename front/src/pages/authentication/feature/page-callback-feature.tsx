@@ -26,10 +26,12 @@ export default function PageCallbackFeature() {
   const { mutateAsync: exchangeToken } = useTokenMutation()
   const hasStartedExchange = useRef(false)
 
-  // Read localStorage once at mount to avoid a React StrictMode double-render
+  // Read storage once at mount to avoid a React StrictMode double-render
   // causing the value to be missing on the second render after the first effect
-  // removes it.
-  const [expectedState] = useState(() => localStorage.getItem('oauth_state'))
+  // removes it. Keyed by the returned state so concurrent flows don't collide.
+  const [expectedState] = useState(() =>
+    state ? localStorage.getItem(`oauth_state:${state}`) : null
+  )
 
   const callbackValidationError = useMemo(() => {
     return validateCallbackParams({
@@ -41,7 +43,7 @@ export default function PageCallbackFeature() {
 
   useEffect(() => {
     if (callbackValidationError) {
-      localStorage.removeItem('oauth_state')
+      if (state) localStorage.removeItem(`oauth_state:${state}`)
       document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
       navigate(buildLoginErrorRedirect(realm_name, callbackValidationError), { replace: true })
       return
@@ -52,7 +54,7 @@ export default function PageCallbackFeature() {
     }
 
     hasStartedExchange.current = true
-    localStorage.removeItem('oauth_state')
+    if (state) localStorage.removeItem(`oauth_state:${state}`)
 
     void exchangeToken({
       realm: realm_name ?? 'master',
@@ -71,7 +73,7 @@ export default function PageCallbackFeature() {
         document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
         navigate(buildLoginErrorRedirect(realm_name, message), { replace: true })
       })
-  }, [callbackValidationError, code, exchangeToken, navigate, realm_name, setAuthTokens])
+  }, [callbackValidationError, code, exchangeToken, navigate, realm_name, setAuthTokens, state])
 
   return <PageCallback code={code} setup={setup} />
 }
