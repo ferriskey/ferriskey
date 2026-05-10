@@ -4,7 +4,6 @@ import {
   useGetOrganizationMembers,
   useUpdateOrganization,
 } from '@/api/organization.api'
-import { RouterParams } from '@/routes/router'
 import { UM_ORGANIZATIONS_URL } from '@/routes/sub-router/user-management.router'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -12,8 +11,9 @@ import PageOrganizationDetail, {
   OrganizationDetailValues,
 } from '../ui/page-organization-detail'
 
-interface Params extends RouterParams {
-  organization_id: string
+type Params = {
+  realm_name?: string
+  organization_id?: string
 }
 
 export default function PageOrganizationDetailFeature() {

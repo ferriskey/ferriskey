@@ -1,6 +1,5 @@
 import { useCreateClient } from '@/api/client.api'
 import { useCreateRedirectUri } from '@/api/redirect_uris.api'
-import { RouterParams } from '@/routes/router'
 import {
   APPLICATIONS_URL,
   APPLICATION_CREATE_URL,
@@ -11,8 +10,9 @@ import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import PageCreateApplication, { CreateApplicationValues } from '../ui/page-create-application'
 
-interface RouteParams extends RouterParams {
-  type: ApplicationType
+type RouteParams = {
+  realm_name?: string
+  type?: ApplicationType
 }
 
 const VALID_TYPES: ApplicationType[] = ['native', 'spa', 'web', 'm2m']

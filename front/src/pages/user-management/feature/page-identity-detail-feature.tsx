@@ -12,7 +12,7 @@ export default function PageIdentityDetailFeature() {
   const navigate = useNavigate()
   const { data: userResponse, isLoading } = useGetUser({ realm: realm_name, userId: user_id })
   const { data: credentialsResponse } = useGetUserCredentials({ realm: realm_name, userId: user_id })
-  const { data: rolesResponse } = useGetUserRoles({ realm: realm_name, userId: user_id })
+  const { data: rolesResponse } = useGetUserRoles({ realm: realm_name, userId: user_id ?? '' })
   const { data: allRolesResponse } = useGetRoles({ realm: realm_name ?? 'master' })
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
   const { mutateAsync: deleteUser, isPending: isDeleting } = useBulkDeleteUser()
@@ -30,7 +30,6 @@ export default function PageIdentityDetailFeature() {
       {
         path: { realm_name, user_id },
         body: {
-          username: userResponse.data.username,
           firstname: values.firstname || undefined,
           lastname: values.lastname || undefined,
           email: values.email || undefined,

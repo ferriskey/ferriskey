@@ -1,12 +1,12 @@
 import { useDeleteRole, useGetRole, useUpdateRole, useUpdateRolePermissions } from '@/api/role.api'
-import { RouterParams } from '@/routes/router'
 import { UM_ROLES_URL } from '@/routes/sub-router/user-management.router'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import PageRoleDetail, { RoleDetailValues } from '../ui/page-role-detail'
 
-interface Params extends RouterParams {
-  role_id: string
+type Params = {
+  realm_name?: string
+  role_id?: string
 }
 
 export default function PageRoleDetailFeature() {
