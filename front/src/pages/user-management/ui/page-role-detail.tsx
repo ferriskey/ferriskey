@@ -20,8 +20,8 @@ import Role = Schemas.Role
 
 const roleDetailSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
-  description: z.string().trim().optional().default(''),
-  permissions: z.array(z.string()).default([]),
+  description: z.string().trim(),
+  permissions: z.array(z.string()),
 })
 
 type RoleDetailSchema = z.infer<typeof roleDetailSchema>
@@ -148,7 +148,7 @@ function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDele
   const handleSave = handleSubmit((values) => {
     onSave({
       name: values.name.trim(),
-      description: (values.description ?? '').trim(),
+      description: values.description.trim(),
       permissions: values.permissions,
     })
   })

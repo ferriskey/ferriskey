@@ -25,8 +25,8 @@ const createOrganizationSchema = z.object({
     .trim()
     .min(1, 'Alias is required')
     .regex(/^[a-z0-9_-]+$/, 'Only lowercase letters, numbers, hyphens and underscores.'),
-  domain: z.string().trim().optional().default(''),
-  description: z.string().trim().optional().default(''),
+  domain: z.string().trim(),
+  description: z.string().trim(),
 })
 
 type CreateOrganizationSchema = z.infer<typeof createOrganizationSchema>
@@ -58,8 +58,8 @@ export default function PageCreateOrganization({ onCancel, onSubmit, isSubmittin
     onSubmit({
       name: values.name.trim(),
       alias: values.alias.trim(),
-      domain: (values.domain ?? '').trim(),
-      description: (values.description ?? '').trim(),
+      domain: values.domain.trim(),
+      description: values.description.trim(),
     })
   })
 

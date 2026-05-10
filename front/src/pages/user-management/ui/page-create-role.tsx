@@ -137,9 +137,9 @@ const PERMISSION_GROUPS: { label: string; permissions: Permissions[] }[] = [
 const createRoleSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required'),
-    description: z.string().trim().optional().default(''),
+    description: z.string().trim(),
     presetKey: z.enum(['viewer', 'editor', 'admin', 'custom']),
-    customPerms: z.array(z.nativeEnum(Permissions)).default([]),
+    customPerms: z.array(z.nativeEnum(Permissions)),
   })
   .superRefine((values, ctx) => {
     if (values.presetKey === 'custom' && values.customPerms.length === 0) {
@@ -189,8 +189,8 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
 
     onSubmit({
       name: values.name.trim(),
-      description: (values.description ?? '').trim(),
-      permissions: permissions.map((p) => p.toString()),
+      description: values.description.trim(),
+      permissions: permissions.map((p: Permissions) => p.toString()),
     })
   })
 
