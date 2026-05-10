@@ -1,5 +1,6 @@
 import {
   Activity,
+  Boxes,
   Fingerprint,
   Globe,
   Inbox,
@@ -15,7 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 
-export type ProductSectionKey = 'activity' | 'users' | 'auth' | 'branding'
+export type ProductSectionKey = 'activity' | 'users' | 'applications' | 'auth' | 'branding'
 
 export interface ProductSubItem {
   label: string
@@ -102,6 +103,22 @@ export const productSections: ProductSection[] = [
         icon: ShieldUser,
         to: (r) => `${consolePath(r)}/user-management/roles`,
         match: (p, r) => startsWith(p, `${consolePath(r)}/user-management/roles`),
+      },
+    ],
+  },
+  {
+    key: 'applications',
+    label: 'Applications',
+    icon: Boxes,
+    to: (r) => `${consolePath(r)}/applications`,
+    match: (p, r) => startsWith(p, `${consolePath(r)}/applications`),
+    subItems: [
+      {
+        label: 'All applications',
+        description: 'Mobile, SPA, web, M2M',
+        icon: Boxes,
+        to: (r) => `${consolePath(r)}/applications`,
+        match: (p, r) => startsWith(p, `${consolePath(r)}/applications`),
       },
     ],
   },

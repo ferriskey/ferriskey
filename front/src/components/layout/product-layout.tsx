@@ -211,40 +211,42 @@ export default function ProductLayout() {
       </nav>
 
       {/* Main split: vertical sub-nav + outlet */}
-      <div className='flex flex-1 min-h-0'>
+      <div className='flex flex-1 min-h-0 items-stretch'>
         {activeSection && activeSection.subItems.length > 0 && (
-          <aside className='w-60 shrink-0 border-r border-border bg-muted/20 p-3'>
-            <ul className='flex flex-col gap-1'>
-              {activeSection.subItems.map((item) => {
-                const isActive = item.match(pathname, activeRealm)
-                return (
-                  <li key={item.label}>
-                    <NavLink
-                      to={item.to(activeRealm)}
-                      className={`group flex items-start gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <item.icon
-                        className={`h-4 w-4 mt-0.5 shrink-0 ${
-                          isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+          <aside className='w-60 shrink-0 border-r border-border bg-muted/20'>
+            <div className='sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto p-3'>
+              <ul className='flex flex-col gap-1'>
+                {activeSection.subItems.map((item) => {
+                  const isActive = item.match(pathname, activeRealm)
+                  return (
+                    <li key={item.label}>
+                      <NavLink
+                        to={item.to(activeRealm)}
+                        className={`group flex items-start gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground hover:bg-muted'
                         }`}
-                      />
-                      <div className='flex flex-col min-w-0'>
-                        <span className='font-medium truncate'>{item.label}</span>
-                        {item.description && (
-                          <span className='text-xs text-muted-foreground truncate'>
-                            {item.description}
-                          </span>
-                        )}
-                      </div>
-                    </NavLink>
-                  </li>
-                )
-              })}
-            </ul>
+                      >
+                        <item.icon
+                          className={`h-4 w-4 mt-0.5 shrink-0 ${
+                            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                          }`}
+                        />
+                        <div className='flex flex-col min-w-0'>
+                          <span className='font-medium truncate'>{item.label}</span>
+                          {item.description && (
+                            <span className='text-xs text-muted-foreground truncate'>
+                              {item.description}
+                            </span>
+                          )}
+                        </div>
+                      </NavLink>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           </aside>
         )}
 

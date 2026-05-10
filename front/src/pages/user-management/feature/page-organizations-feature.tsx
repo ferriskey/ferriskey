@@ -1,10 +1,9 @@
 import { useGetOrganizations } from '@/api/organization.api'
 import { RouterParams } from '@/routes/router'
 import {
-  ORGANIZATION_OVERVIEW_URL,
-  ORGANIZATION_URL,
-} from '@/routes/sub-router/organization.router'
-import { UM_ORGANIZATION_CREATE_URL } from '@/routes/sub-router/user-management.router'
+  UM_ORGANIZATION_CREATE_URL,
+  UM_ORGANIZATION_URL,
+} from '@/routes/sub-router/user-management.router'
 import { useNavigate, useParams } from 'react-router'
 import PageOrganizations from '../ui/page-organizations'
 
@@ -15,7 +14,7 @@ export default function PageOrganizationsFeature() {
 
   const handleSelect = (organizationId: string) => {
     if (!realm_name) return
-    navigate(`${ORGANIZATION_URL(realm_name, organizationId)}${ORGANIZATION_OVERVIEW_URL}`)
+    navigate(UM_ORGANIZATION_URL(realm_name, organizationId))
   }
 
   const handleCreate = () => {

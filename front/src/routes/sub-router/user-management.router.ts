@@ -18,8 +18,16 @@ export const UM_ORGANIZATIONS_URL = (realmName = ':realmName') =>
 export const UM_ORGANIZATION_CREATE_URL = (realmName = ':realmName') =>
   `${UM_ORGANIZATIONS_URL(realmName)}/create`
 
+export const UM_ORGANIZATION_URL = (
+  realmName = ':realmName',
+  organizationId = ':organization_id',
+) => `${UM_ORGANIZATIONS_URL(realmName)}/${organizationId}`
+
 export const UM_ROLES_URL = (realmName = ':realmName') =>
   `${USER_MANAGEMENT_URL(realmName)}/roles`
 
 export const UM_ROLE_CREATE_URL = (realmName = ':realmName') =>
   `${UM_ROLES_URL(realmName)}/create`
+
+export const UM_ROLE_URL = (realmName = ':realmName', roleId = ':role_id') =>
+  `${UM_ROLES_URL(realmName)}/${roleId}`

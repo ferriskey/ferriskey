@@ -84,12 +84,16 @@ interface Props {
   identity: User | null
   credentials: CredentialOverview[]
   roles: Role[]
+  availableRoles: Role[]
   isLoading: boolean
   isUpdating: boolean
   isDeleting: boolean
+  isMutatingRoles: boolean
   onBack: () => void
   onSave: (values: IdentityProfileValues) => void
   onDelete: () => void
+  onAssignRole: (roleId: string) => void
+  onUnassignRole: (roleId: string) => void
 }
 
 const initials = (u: User) => {
@@ -216,11 +220,15 @@ function IdentityDetailLoaded({
   identity,
   credentials,
   roles,
+  availableRoles,
   isUpdating,
   isDeleting,
+  isMutatingRoles,
   onBack,
   onSave,
   onDelete,
+  onAssignRole,
+  onUnassignRole,
 }: LoadedProps) {
   const [firstname, setFirstname] = useState(identity.firstname ?? '')
   const [lastname, setLastname] = useState(identity.lastname ?? '')
@@ -508,26 +516,13 @@ function IdentityDetailLoaded({
 
       {/* Roles */}
       <Section title='Roles' description='Permissions granted to this identity through its roles.'>
-        {roles.length === 0 ? (
-          <p className='text-sm text-muted-foreground rounded-md border border-dashed border-border bg-muted/20 p-6 text-center'>
-            No roles assigned.
-          </p>
-        ) : (
-          <div className='flex flex-wrap gap-2'>
-            {roles.map((r) => (
-              <span
-                key={r.id}
-                className='inline-flex items-center gap-1.5 rounded-md border border-border bg-card/40 px-2.5 py-1 text-sm'
-              >
-                <ShieldUser className='h-3.5 w-3.5 text-primary' />
-                <span className='font-medium'>{r.name}</span>
-                {(r.permissions?.length ?? 0) > 0 && (
-                  <span className='text-xs text-muted-foreground'>· {r.permissions?.length}</span>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
+        <RolesEditor
+          assigned={roles}
+          available={availableRoles}
+          isMutating={isMutatingRoles}
+          onAssign={onAssignRole}
+          onUnassign={onUnassignRole}
+        />
       </Section>
 
       {/* Account info */}
@@ -676,6 +671,137 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     <div className='flex flex-col gap-0.5'>
       <dt className='text-xs text-muted-foreground'>{label}</dt>
       <dd className='text-sm'>{value}</dd>
+    </div>
+  )
+}
+
+interface RolesEditorProps {
+  assigned: Role[]
+  available: Role[]
+  isMutating: boolean
+  onAssign: (roleId: string) => void
+  onUnassign: (roleId: string) => void
+}
+
+function RolesEditor({ assigned, available, isMutating, onAssign, onUnassign }: RolesEditorProps) {
+  const [picking, setPicking] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const assignedIds = useMemo(() => new Set(assigned.map((r) => r.id)), [assigned])
+  const candidates = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return available
+      .filter((r) => !assignedIds.has(r.id))
+      .filter((r) => {
+        if (!q) return true
+        const hay = [r.name, r.description].filter(Boolean).join(' ').toLowerCase()
+        return hay.includes(q)
+      })
+  }, [available, assignedIds, query])
+
+  return (
+    <div className='flex flex-col gap-3'>
+      {/* Assigned chips */}
+      {assigned.length === 0 ? (
+        <p className='text-sm text-muted-foreground rounded-md border border-dashed border-border bg-muted/20 p-6 text-center'>
+          No roles assigned.
+        </p>
+      ) : (
+        <div className='flex flex-wrap gap-2'>
+          {assigned.map((r) => (
+            <span
+              key={r.id}
+              className='inline-flex items-center gap-1.5 rounded-md border border-border bg-card/40 pl-2.5 pr-1 py-1 text-sm'
+            >
+              <ShieldUser className='h-3.5 w-3.5 text-primary' />
+              <span className='font-medium'>{r.name}</span>
+              {(r.permissions?.length ?? 0) > 0 && (
+                <span className='text-xs text-muted-foreground'>· {r.permissions?.length}</span>
+              )}
+              <button
+                type='button'
+                onClick={() => onUnassign(r.id)}
+                disabled={isMutating}
+                aria-label={`Remove role ${r.name}`}
+                className='inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40'
+              >
+                <X className='h-3 w-3' />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Add role */}
+      {!picking ? (
+        <button
+          type='button'
+          onClick={() => setPicking(true)}
+          disabled={isMutating}
+          className='inline-flex items-center gap-1.5 rounded-md border border-dashed border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors self-start disabled:opacity-40'
+        >
+          <Plus className='h-3 w-3' />
+          Assign role
+        </button>
+      ) : (
+        <div className='rounded-md border border-border bg-card/40'>
+          <div className='flex items-center justify-between gap-2 border-b border-border p-2'>
+            <input
+              autoFocus
+              type='search'
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Search roles…'
+              className='flex-1 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground'
+            />
+            <button
+              type='button'
+              onClick={() => {
+                setPicking(false)
+                setQuery('')
+              }}
+              className='rounded text-muted-foreground hover:text-foreground transition-colors'
+            >
+              <X className='h-3.5 w-3.5' />
+            </button>
+          </div>
+          <div className='max-h-64 overflow-y-auto p-1'>
+            {candidates.length === 0 ? (
+              <p className='text-xs text-muted-foreground p-3 text-center'>
+                {available.length === assigned.length
+                  ? 'All roles are already assigned.'
+                  : 'No roles match your search.'}
+              </p>
+            ) : (
+              candidates.map((r) => (
+                <button
+                  key={r.id}
+                  type='button'
+                  onClick={() => {
+                    onAssign(r.id)
+                    setQuery('')
+                  }}
+                  disabled={isMutating}
+                  className='flex w-full items-start gap-3 rounded-md p-2 text-left hover:bg-muted/60 transition-colors disabled:opacity-40'
+                >
+                  <ShieldUser className='h-4 w-4 mt-0.5 shrink-0 text-primary' />
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-sm font-medium truncate'>{r.name}</span>
+                      <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                        {r.client_id ? 'client' : 'realm'} · {r.permissions?.length ?? 0} perms
+                      </span>
+                    </div>
+                    {r.description && (
+                      <p className='text-xs text-muted-foreground truncate'>{r.description}</p>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -26,6 +26,7 @@ function explicitMap(pathname: string, toMode: UiMode, realm: string): string | 
     }
     if (after === '/organizations') return `${root}/console/user-management/organizations`
     if (after === '/roles' || after === '/roles/overview') return `${root}/console/user-management/roles`
+    if (after.startsWith('/clients')) return `${root}/console/applications`
     if (after.startsWith('/compass') || after.startsWith('/seawatch')) {
       return `${root}/console/activity/logs`
     }
@@ -47,6 +48,7 @@ function explicitMap(pathname: string, toMode: UiMode, realm: string): string | 
   if (after.startsWith('/console/user-management/identities')) return `${root}/users/overview`
   if (after.startsWith('/console/user-management/organizations')) return `${root}/organizations`
   if (after.startsWith('/console/user-management/roles')) return `${root}/roles/overview`
+  if (after.startsWith('/console/applications')) return `${root}/clients/overview`
   if (after.startsWith('/console/authentication/identity-providers')) {
     return `${root}/identity-providers`
   }

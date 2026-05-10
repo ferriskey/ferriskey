@@ -1,7 +1,6 @@
 import { useGetRoles } from '@/api/role.api'
 import { RouterParams } from '@/routes/router'
-import { ROLE_OVERVIEW_URL, ROLE_URL } from '@/routes/sub-router/role.router'
-import { UM_ROLE_CREATE_URL } from '@/routes/sub-router/user-management.router'
+import { UM_ROLE_CREATE_URL, UM_ROLE_URL } from '@/routes/sub-router/user-management.router'
 import { useNavigate, useParams } from 'react-router'
 import PageRoles from '../ui/page-roles'
 
@@ -12,7 +11,7 @@ export default function PageRolesFeature() {
 
   const handleSelect = (roleId: string) => {
     if (!realm_name) return
-    navigate(`${ROLE_URL(realm_name, roleId)}${ROLE_OVERVIEW_URL}`)
+    navigate(UM_ROLE_URL(realm_name, roleId))
   }
 
   const handleCreate = () => {

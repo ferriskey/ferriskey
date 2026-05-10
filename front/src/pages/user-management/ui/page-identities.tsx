@@ -1,6 +1,5 @@
 import { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
-import { isServiceAccount } from '@/utils'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -63,7 +62,6 @@ const initials = (u: User) => {
 }
 
 const displayName = (u: User) => {
-  if (isServiceAccount(u)) return 'Service account'
   const full = [u.firstname, u.lastname].filter(Boolean).join(' ')
   return full || u.username
 }
@@ -240,7 +238,6 @@ export default function PageIdentities({ identities, isLoading, onSelect, onCrea
         ) : (
           <div className='divide-y divide-border'>
             {filtered.map((u) => {
-              const sa = isServiceAccount(u)
               const pendingCount = u.required_actions?.length ?? 0
               const rolesCount = u.roles?.length ?? 0
               return (
@@ -251,18 +248,11 @@ export default function PageIdentities({ identities, isLoading, onSelect, onCrea
                 >
                   {/* Identity */}
                   <div className='flex items-center gap-3 min-w-0'>
-                    <div className={`h-9 w-9 rounded-md flex items-center justify-center text-xs font-semibold ${sa ? 'bg-violet-500/10 text-violet-500' : 'bg-primary/10 text-primary'}`}>
-                      {sa ? 'S' : initials(u)}
+                    <div className='h-9 w-9 rounded-md flex items-center justify-center text-xs font-semibold bg-primary/10 text-primary'>
+                      {initials(u)}
                     </div>
                     <div className='min-w-0 flex-1'>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-sm font-medium truncate'>{displayName(u)}</span>
-                        {sa && (
-                          <span className='text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-500 border border-violet-500/30 uppercase tracking-wide'>
-                            Service
-                          </span>
-                        )}
-                      </div>
+                      <span className='text-sm font-medium truncate block'>{displayName(u)}</span>
                       <p className='text-xs text-muted-foreground truncate'>@{u.username}</p>
                     </div>
                   </div>

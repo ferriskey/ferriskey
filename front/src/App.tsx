@@ -28,6 +28,7 @@ import PageUser from './pages/user/page-user'
 import PageOrganization from './pages/organization/page-organization'
 import PageActivity from './pages/activity/page-activity'
 import PageUserManagement from './pages/user-management/page-user-management'
+import PageConsoleApplications from './pages/console-applications/page-console-applications'
 import PageConsoleAuthentication from './pages/console-authentication/page-console-authentication'
 import PageConsoleBranding from './pages/console-branding/page-console-branding'
 
@@ -273,6 +274,7 @@ function AppRoutes() {
             <Route index element={<Navigate to='activity/live' replace />} />
             <Route path='activity/*' element={<PageActivity />} />
             <Route path='user-management/*' element={<PageUserManagement />} />
+            <Route path='applications/*' element={<PageConsoleApplications />} />
             <Route path='authentication/*' element={<PageConsoleAuthentication />} />
             <Route path='branding/*' element={<PageConsoleBranding />} />
           </Route>
