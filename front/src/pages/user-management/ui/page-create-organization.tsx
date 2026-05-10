@@ -1,5 +1,8 @@
 import { ArrowLeft, Building2, Globe } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 interface Props {
   onCancel: () => void
@@ -15,24 +18,55 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9-_]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+const createOrganizationSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  alias: z
+    .string()
+    .trim()
+    .min(1, 'Alias is required')
+    .regex(/^[a-z0-9_-]+$/, 'Only lowercase letters, numbers, hyphens and underscores.'),
+  domain: z.string().trim().optional().default(''),
+  description: z.string().trim().optional().default(''),
+})
+
+type CreateOrganizationSchema = z.infer<typeof createOrganizationSchema>
+
 export default function PageCreateOrganization({ onCancel, onSubmit, isSubmitting }: Props) {
-  const [name, setName] = useState('')
-  const [aliasOverride, setAliasOverride] = useState<string | null>(null)
-  const [domain, setDomain] = useState('')
-  const [description, setDescription] = useState('')
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isValid, dirtyFields },
+  } = useForm<CreateOrganizationSchema>({
+    resolver: zodResolver(createOrganizationSchema),
+    defaultValues: { name: '', alias: '', domain: '', description: '' },
+    mode: 'onChange',
+  })
 
-  const alias = aliasOverride ?? slugify(name)
-  const aliasValid = useMemo(() => /^[a-z0-9_-]+$/.test(alias), [alias])
-  const canSubmit = name.trim().length > 0 && alias.trim().length > 0 && aliasValid && !isSubmitting
+  const name = watch('name')
+  const alias = watch('alias')
+  const aliasDirty = Boolean(dirtyFields.alias)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSubmit) return
-    onSubmit({ name: name.trim(), alias: alias.trim(), domain: domain.trim(), description: description.trim() })
-  }
+  // Auto-derive alias from name until the user manually edits the alias field.
+  useEffect(() => {
+    if (aliasDirty) return
+    setValue('alias', slugify(name ?? ''), { shouldValidate: true })
+  }, [name, aliasDirty, setValue])
+
+  const submit = handleSubmit((values) => {
+    onSubmit({
+      name: values.name.trim(),
+      alias: values.alias.trim(),
+      domain: (values.domain ?? '').trim(),
+      description: (values.description ?? '').trim(),
+    })
+  })
+
+  const submitDisabled = !isValid || isSubmitting
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-8 p-8 md:p-12 max-w-2xl'>
+    <form onSubmit={submit} className='flex flex-col gap-8 p-8 md:p-12 max-w-2xl'>
       {/* Header */}
       <div>
         <button
@@ -62,11 +96,11 @@ export default function PageCreateOrganization({ onCancel, onSubmit, isSubmittin
           label='Name'
           required
           hint='How users see this organization (e.g. "Acme Inc.").'
+          error={errors.name?.message}
         >
           <input
             type='text'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            {...register('name')}
             placeholder='Acme Inc.'
             autoFocus
             className='w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
@@ -77,12 +111,11 @@ export default function PageCreateOrganization({ onCancel, onSubmit, isSubmittin
           label='Alias'
           required
           hint='Lowercase identifier used in URLs and APIs. Auto-derived from the name.'
-          error={!aliasValid && alias.length > 0 ? 'Only lowercase letters, numbers, hyphens and underscores.' : undefined}
+          error={errors.alias?.message && (alias?.length ?? 0) > 0 ? errors.alias.message : undefined}
         >
           <input
             type='text'
-            value={alias}
-            onChange={(e) => setAliasOverride(e.target.value)}
+            {...register('alias')}
             placeholder='acme'
             className='w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
           />
@@ -92,23 +125,27 @@ export default function PageCreateOrganization({ onCancel, onSubmit, isSubmittin
           label='Domain'
           optional
           hint='Optional. Used to auto-route users with matching email to this organization.'
+          error={errors.domain?.message}
         >
           <div className='relative'>
             <Globe className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground' />
             <input
               type='text'
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
+              {...register('domain')}
               placeholder='acme.com'
               className='w-full rounded-md border border-border bg-background pl-9 pr-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
             />
           </div>
         </Field>
 
-        <Field label='Description' optional hint='Internal note to remember what this organization is about.'>
+        <Field
+          label='Description'
+          optional
+          hint='Internal note to remember what this organization is about.'
+          error={errors.description?.message}
+        >
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            {...register('description')}
             rows={3}
             placeholder='Customer in the SaaS plan, kicked-off Q1 2026.'
             className='w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
@@ -127,7 +164,7 @@ export default function PageCreateOrganization({ onCancel, onSubmit, isSubmittin
         </button>
         <button
           type='submit'
-          disabled={!canSubmit}
+          disabled={submitDisabled}
           className='rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
         >
           {isSubmitting ? 'Creating…' : 'Create organization'}

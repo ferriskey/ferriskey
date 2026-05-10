@@ -1,6 +1,9 @@
 import { Permissions } from '@/api/core.interface'
 import { ArrowLeft, Check, Eye, Pencil, Settings2, ShieldUser } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 export interface CreateRoleValues {
   name: string
@@ -131,40 +134,70 @@ const PERMISSION_GROUPS: { label: string; permissions: Permissions[] }[] = [
   },
 ]
 
+const createRoleSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required'),
+    description: z.string().trim().optional().default(''),
+    presetKey: z.enum(['viewer', 'editor', 'admin', 'custom']),
+    customPerms: z.array(z.nativeEnum(Permissions)).default([]),
+  })
+  .superRefine((values, ctx) => {
+    if (values.presetKey === 'custom' && values.customPerms.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['customPerms'],
+        message: 'Pick at least one permission.',
+      })
+    }
+  })
+
+type CreateRoleSchema = z.infer<typeof createRoleSchema>
+
 export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Props) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [presetKey, setPresetKey] = useState<PresetKey>('viewer')
-  const [customPerms, setCustomPerms] = useState<Set<Permissions>>(new Set())
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { isValid },
+  } = useForm<CreateRoleSchema>({
+    resolver: zodResolver(createRoleSchema),
+    defaultValues: { name: '', description: '', presetKey: 'viewer', customPerms: [] },
+    mode: 'onChange',
+  })
+
+  const presetKey = watch('presetKey')
+  const customPerms = watch('customPerms')
 
   const effectivePerms = useMemo<Permissions[]>(() => {
-    if (presetKey === 'custom') return Array.from(customPerms)
+    if (presetKey === 'custom') return customPerms
     return presets.find((p) => p.key === presetKey)?.permissions ?? []
   }, [presetKey, customPerms])
 
   const togglePerm = (perm: Permissions) => {
-    setCustomPerms((prev) => {
-      const next = new Set(prev)
-      if (next.has(perm)) next.delete(perm)
-      else next.add(perm)
-      return next
-    })
+    const next = customPerms.includes(perm)
+      ? customPerms.filter((p) => p !== perm)
+      : [...customPerms, perm]
+    setValue('customPerms', next, { shouldValidate: true, shouldDirty: true })
   }
 
-  const canSubmit = name.trim().length > 0 && effectivePerms.length > 0 && !isSubmitting
+  const submit = handleSubmit((values) => {
+    const permissions =
+      values.presetKey === 'custom'
+        ? values.customPerms
+        : (presets.find((p) => p.key === values.presetKey)?.permissions ?? [])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSubmit) return
     onSubmit({
-      name: name.trim(),
-      description: description.trim(),
-      permissions: effectivePerms.map((p) => p.toString()),
+      name: values.name.trim(),
+      description: (values.description ?? '').trim(),
+      permissions: permissions.map((p) => p.toString()),
     })
-  }
+  })
+
+  const submitDisabled = !isValid || isSubmitting
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-8 p-8 md:p-12 max-w-3xl'>
+    <form onSubmit={submit} className='flex flex-col gap-8 p-8 md:p-12 max-w-3xl'>
       {/* Header */}
       <div>
         <button
@@ -193,8 +226,7 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
         <Field label='Name' required hint='How this role appears when assigning it to identities.'>
           <input
             type='text'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            {...register('name')}
             placeholder='Customer Support'
             autoFocus
             className='w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
@@ -202,8 +234,7 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
         </Field>
         <Field label='Description' optional hint='Short summary of what this role can do.'>
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            {...register('description')}
             rows={2}
             placeholder='Can read customer data and reset passwords.'
             className='w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
@@ -227,7 +258,7 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
               <button
                 key={p.key}
                 type='button'
-                onClick={() => setPresetKey(p.key)}
+                onClick={() => setValue('presetKey', p.key, { shouldValidate: true, shouldDirty: true })}
                 className={`relative flex flex-col items-start gap-3 rounded-md border bg-card/40 p-4 text-left transition ${
                   active ? 'border-primary ring-1 ring-primary/40 bg-primary/[0.04]' : 'border-border hover:border-primary/30 hover:bg-muted/40'
                 }`}
@@ -262,9 +293,9 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
             <div>
               <h3 className='text-sm font-semibold'>Custom permissions</h3>
               <p className='text-xs text-muted-foreground mt-0.5'>
-                {customPerms.size === 0
+                {customPerms.length === 0
                   ? 'Pick at least one permission to enable this role.'
-                  : `${customPerms.size} permission${customPerms.size > 1 ? 's' : ''} selected.`}
+                  : `${customPerms.length} permission${customPerms.length > 1 ? 's' : ''} selected.`}
               </p>
             </div>
           </div>
@@ -276,7 +307,7 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
                 </p>
                 <div className='flex flex-wrap gap-2'>
                   {group.permissions.map((perm) => {
-                    const checked = customPerms.has(perm)
+                    const checked = customPerms.includes(perm)
                     return (
                       <button
                         key={perm}
@@ -317,7 +348,7 @@ export default function PageCreateRole({ onCancel, onSubmit, isSubmitting }: Pro
           </button>
           <button
             type='submit'
-            disabled={!canSubmit}
+            disabled={submitDisabled}
             className='rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
           >
             {isSubmitting ? 'Creating…' : 'Create role'}

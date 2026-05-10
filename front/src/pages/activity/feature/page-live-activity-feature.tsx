@@ -10,7 +10,6 @@ export default function PageLiveActivityFeature() {
   const { data: flowsData, isLoading: isLoadingFlows } = useGetFlows({
     realm: realm_name,
     status: 'success',
-    limit: 1000,
   })
 
   return (

@@ -20,12 +20,14 @@ function explicitMap(pathname: string, toMode: UiMode, realm: string): string | 
   const after = pathname.startsWith(root) ? pathname.slice(root.length) : pathname
 
   if (toMode === 'console') {
-    if (after === '/overview' || after.startsWith('/overview/')) return `${root}/console/activity/live`
+    if (after === '/overview' || after.startsWith('/overview/'))
+      return `${root}/console/activity/live`
     if (after === '/users' || after === '/users/overview') {
       return `${root}/console/user-management/identities`
     }
     if (after === '/organizations') return `${root}/console/user-management/organizations`
-    if (after === '/roles' || after === '/roles/overview') return `${root}/console/user-management/roles`
+    if (after === '/roles' || after === '/roles/overview')
+      return `${root}/console/user-management/roles`
     if (after.startsWith('/clients')) return `${root}/console/applications`
     if (after.startsWith('/compass') || after.startsWith('/seawatch')) {
       return `${root}/console/activity/logs`
@@ -73,9 +75,10 @@ export function useSwitchMode() {
     setLastVisited(currentMode, location.pathname)
 
     const remembered = lastVisited[newMode]
+    const rememberedForRealm = remembered?.replace(/^\/realms\/[^/]+/, `/realms/${realm}`) ?? null
     const fallbackDefault = newMode === 'console' ? consoleDefault(realm) : adminDefault(realm)
     const target =
-      remembered ?? explicitMap(location.pathname, newMode, realm) ?? fallbackDefault
+      rememberedForRealm ?? explicitMap(location.pathname, newMode, realm) ?? fallbackDefault
 
     if (target !== location.pathname) navigate(target, { replace: true })
   }

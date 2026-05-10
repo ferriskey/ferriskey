@@ -11,9 +11,20 @@ import {
   ShieldUser,
   Trash2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 import Role = Schemas.Role
+
+const roleDetailSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  description: z.string().trim().optional().default(''),
+  permissions: z.array(z.string()).default([]),
+})
+
+type RoleDetailSchema = z.infer<typeof roleDetailSchema>
 
 export interface RoleDetailValues {
   name: string
@@ -102,37 +113,45 @@ interface LoadedProps extends Omit<Props, 'role'> {
 }
 
 function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDelete }: LoadedProps) {
-  const [name, setName] = useState(role.name)
-  const [description, setDescription] = useState(role.description ?? '')
-  const [perms, setPerms] = useState<Set<string>>(new Set(role.permissions ?? []))
+  const defaultValues = {
+    name: role.name,
+    description: role.description ?? '',
+    permissions: role.permissions ?? [],
+  }
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { isDirty, isValid },
+  } = useForm<RoleDetailSchema>({
+    resolver: zodResolver(roleDetailSchema),
+    defaultValues,
+    mode: 'onChange',
+  })
+
+  const permissions = watch('permissions')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const isClientScope = !!role.client_id
-  const initialPerms = useMemo(() => new Set(role.permissions ?? []), [role.permissions])
-  const permsChanged =
-    perms.size !== initialPerms.size || Array.from(perms).some((p) => !initialPerms.has(p))
-  const profileChanged = name !== role.name || description !== (role.description ?? '')
-  const dirty = profileChanged || permsChanged
-  const canSave = dirty && name.trim().length > 0 && !isUpdating
+  const canSave = isDirty && isValid && !isUpdating
 
   const togglePerm = (perm: string) => {
-    setPerms((prev) => {
-      const next = new Set(prev)
-      if (next.has(perm)) next.delete(perm)
-      else next.add(perm)
-      return next
-    })
+    const next = permissions.includes(perm)
+      ? permissions.filter((p) => p !== perm)
+      : [...permissions, perm]
+    setValue('permissions', next, { shouldValidate: true, shouldDirty: true })
   }
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSave) return
+  const handleSave = handleSubmit((values) => {
     onSave({
-      name: name.trim(),
-      description: description.trim(),
-      permissions: Array.from(perms),
+      name: values.name.trim(),
+      description: (values.description ?? '').trim(),
+      permissions: values.permissions,
     })
-  }
+  })
 
   return (
     <div className='flex flex-col gap-8 p-8 md:p-12 max-w-4xl'>
@@ -183,16 +202,14 @@ function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDele
             <Field label='Name' required>
               <input
                 type='text'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                {...register('name')}
                 placeholder='Customer Support'
                 className='w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
               />
             </Field>
             <Field label='Description' optional>
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                {...register('description')}
                 rows={2}
                 placeholder='Can read customer data and reset passwords.'
                 className='w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
@@ -204,7 +221,7 @@ function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDele
         {/* Permissions */}
         <Section
           title='Permissions'
-          description={`${perms.size} permission${perms.size === 1 ? '' : 's'} selected. Toggle each chip to grant or revoke.`}
+          description={`${permissions.length} permission${permissions.length === 1 ? '' : 's'} selected. Toggle each chip to grant or revoke.`}
         >
           <div className='flex flex-col gap-4'>
             {PERMISSION_GROUPS.map((group) => (
@@ -214,7 +231,7 @@ function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDele
                 </p>
                 <div className='flex flex-wrap gap-2'>
                   {group.permissions.map((perm) => {
-                    const checked = perms.has(perm)
+                    const checked = permissions.includes(perm)
                     return (
                       <button
                         type='button'
@@ -241,18 +258,14 @@ function RoleDetailLoaded({ role, isUpdating, isDeleting, onBack, onSave, onDele
         <div className='flex items-center justify-between gap-3 pt-4 border-t border-border'>
           <p className='text-xs text-muted-foreground'>
             Will grant{' '}
-            <span className='font-semibold text-foreground tabular-nums'>{perms.size}</span>{' '}
-            permission{perms.size === 1 ? '' : 's'}.
+            <span className='font-semibold text-foreground tabular-nums'>{permissions.length}</span>{' '}
+            permission{permissions.length === 1 ? '' : 's'}.
           </p>
           <div className='flex items-center gap-2'>
             <button
               type='button'
-              onClick={() => {
-                setName(role.name)
-                setDescription(role.description ?? '')
-                setPerms(new Set(role.permissions ?? []))
-              }}
-              disabled={!dirty || isUpdating}
+              onClick={() => reset(defaultValues)}
+              disabled={!isDirty || isUpdating}
               className='rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
             >
               Reset

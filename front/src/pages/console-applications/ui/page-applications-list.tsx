@@ -55,13 +55,10 @@ export default function PageApplicationsList({ applications, isLoading, onCreate
 
   const stats = useMemo(() => {
     const total = applications.length
-    const counts = APPLICATION_TYPES.reduce<Record<ApplicationType, number>>(
-      (acc, t) => {
-        acc[t.key] = 0
-        return acc
-      },
-      { native: 0, spa: 0, web: 0, m2m: 0 },
-    )
+    const counts = APPLICATION_TYPES.reduce<Record<ApplicationType, number>>((acc, t) => {
+      acc[t.key] = 0
+      return acc
+    }, {} as Record<ApplicationType, number>)
     for (const c of applications) counts[inferApplicationType(c)] += 1
     return { total, ...counts }
   }, [applications])
@@ -106,9 +103,8 @@ export default function PageApplicationsList({ applications, isLoading, onCreate
       <div className='grid grid-cols-2 lg:grid-cols-5 gap-3'>
         <button
           onClick={() => setTypeFilter('all')}
-          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${
-            typeFilter === 'all' ? 'border-primary ring-1 ring-primary/30' : 'border-border hover:border-primary/30'
-          }`}
+          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${typeFilter === 'all' ? 'border-primary ring-1 ring-primary/30' : 'border-border hover:border-primary/30'
+            }`}
         >
           <div className='h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center'>
             <Boxes className='h-4 w-4 text-primary' />
@@ -127,9 +123,8 @@ export default function PageApplicationsList({ applications, isLoading, onCreate
             <button
               key={t.key}
               onClick={() => setTypeFilter(t.key)}
-              className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${
-                active ? `${tone.border} ring-1 ${tone.border.replace('border-', 'ring-')}` : 'border-border hover:border-primary/30'
-              }`}
+              className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${active ? `${tone.border} ring-1 ${tone.border.replace('border-', 'ring-')}` : 'border-border hover:border-primary/30'
+                }`}
             >
               <div className={`h-9 w-9 rounded-md flex items-center justify-center ${tone.bg}`}>
                 <t.icon className={`h-4 w-4 ${tone.fg}`} />
@@ -152,11 +147,10 @@ export default function PageApplicationsList({ applications, isLoading, onCreate
             <button
               key={f.key}
               onClick={() => setStatusFilter(f.key)}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                statusFilter === f.key
-                  ? 'bg-primary/10 text-primary border-primary/40'
-                  : 'bg-transparent text-foreground border-border hover:bg-muted'
-              }`}
+              className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${statusFilter === f.key
+                ? 'bg-primary/10 text-primary border-primary/40'
+                : 'bg-transparent text-foreground border-border hover:bg-muted'
+                }`}
             >
               {f.label}
             </button>

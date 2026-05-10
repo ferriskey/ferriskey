@@ -31,6 +31,7 @@ import { useEffect } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { useTheme } from '../theme-provider'
 import { findActiveSection, productSections } from './product-nav-config'
+import { toast } from 'sonner'
 
 function getInitials(username?: string): string {
   if (!username) return '??'
@@ -50,11 +51,14 @@ export default function ProductLayout() {
   useTrackLastVisited()
   const mode = deriveModeFromPath(pathname)
 
-  const { data: userRealmsResponse } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
+  const { data: userRealmsResponse, error: realmsError } = useGetUserRealmsQuery({ realm: realm_name ?? 'master' })
 
   useEffect(() => {
     if (userRealmsResponse) setUserRealms(userRealmsResponse.data)
-  }, [userRealmsResponse, setUserRealms])
+    if (realmsError) {
+      toast.error('Failed to load available tenants.')
+    }
+  }, [userRealmsResponse, realmsError, setUserRealms])
 
   const activeRealm = realm_name ?? 'master'
   const activeSection = findActiveSection(pathname, activeRealm)
@@ -194,11 +198,10 @@ export default function ProductLayout() {
             <NavLink
               key={s.key}
               to={s.to(activeRealm)}
-              className={`relative inline-flex items-center gap-2 px-4 text-sm font-medium transition-colors ${
-                isActive
+              className={`relative inline-flex items-center gap-2 px-4 text-sm font-medium transition-colors ${isActive
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               <s.icon className='h-4 w-4' />
               {s.label}
@@ -222,16 +225,14 @@ export default function ProductLayout() {
                     <li key={item.label}>
                       <NavLink
                         to={item.to(activeRealm)}
-                        className={`group flex items-start gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                          isActive
+                        className={`group flex items-start gap-3 rounded-md px-3 py-2 text-sm transition-colors ${isActive
                             ? 'bg-primary/10 text-primary'
                             : 'text-foreground hover:bg-muted'
-                        }`}
+                          }`}
                       >
                         <item.icon
-                          className={`h-4 w-4 mt-0.5 shrink-0 ${
-                            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                          }`}
+                          className={`h-4 w-4 mt-0.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                            }`}
                         />
                         <div className='flex flex-col min-w-0'>
                           <span className='font-medium truncate'>{item.label}</span>
