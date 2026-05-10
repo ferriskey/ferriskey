@@ -118,6 +118,7 @@ pub mod maintenance;
 pub mod migrate;
 pub mod organization;
 pub mod realm;
+pub mod realm_branding;
 pub mod role;
 pub mod seawatch;
 pub mod trident;
