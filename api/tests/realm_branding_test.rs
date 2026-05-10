@@ -220,21 +220,23 @@ mod tests {
             "upsert must update in place rather than insert duplicates"
         );
 
-        // --- Public endpoint serves the saved config without authentication.
-        let public_response = server
-            .get(&format!("/realms/{}/branding/public", realm_name))
+        // --- Login settings endpoint embeds the saved branding config (no auth required).
+        let login_settings = server
+            .get(&format!("/realms/{}/login-settings", realm_name))
             .await;
-        assert_eq!(public_response.status_code(), 200);
-        let public_body: Value = public_response.json();
-        assert_eq!(public_body["data"]["colors"]["primaryButton"], "#222222");
+        assert_eq!(login_settings.status_code(), 200);
+        let login_body: Value = login_settings.json();
+        assert_eq!(
+            login_body["data"]["branding"]["colors"]["primaryButton"],
+            "#222222"
+        );
 
-        // --- OpenAPI exposes the new endpoints.
+        // --- OpenAPI exposes the admin endpoint.
         let openapi_response = server.get("/api-docs/openapi.json").await;
         assert_eq!(openapi_response.status_code(), 200);
         let openapi_body: Value = openapi_response.json();
         let paths = &openapi_body["paths"];
         assert!(paths["/realms/{realm_name}/branding"].is_object());
-        assert!(paths["/realms/{realm_name}/branding/public"].is_object());
 
         // --- Cleanup.
         admin_pool

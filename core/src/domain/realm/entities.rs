@@ -52,7 +52,7 @@ impl std::str::FromStr for SmtpEncryption {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct RealmLoginSetting {
     pub user_registration_enabled: bool,
     pub forgot_password_enabled: bool,
@@ -61,6 +61,7 @@ pub struct RealmLoginSetting {
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
     pub passkey_enabled: bool,
+    pub branding: crate::domain::realm_branding::entities::BrandingConfig,
 }
 
 impl From<RealmSetting> for RealmLoginSetting {
@@ -73,6 +74,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl,
             passkey_enabled: value.passkey_enabled,
+            branding: crate::domain::realm_branding::entities::BrandingConfig::default(),
         }
     }
 }

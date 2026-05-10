@@ -10,6 +10,7 @@ use crate::{
                 GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
             },
         },
+        realm_branding::ports::{GetBrandingInput, RealmBrandingService},
     },
 };
 
@@ -41,7 +42,15 @@ impl RealmService for ApplicationService {
     }
 
     async fn get_login_settings(&self, realm_name: String) -> Result<RealmLoginSetting, CoreError> {
-        self.realm_service.get_login_settings(realm_name).await
+        let mut settings = self
+            .realm_service
+            .get_login_settings(realm_name.clone())
+            .await?;
+        settings.branding = self
+            .realm_branding_service
+            .get_public_branding(GetBrandingInput { realm_name })
+            .await?;
+        Ok(settings)
     }
 
     async fn get_realm_by_name(
