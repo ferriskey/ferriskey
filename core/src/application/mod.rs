@@ -26,6 +26,7 @@ use crate::{
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
         realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm_branding::services::RealmBrandingServiceImpl,
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         trident::services::TridentServiceImpl,
@@ -83,6 +84,7 @@ use crate::{
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
+            realm_branding_repository::PostgresRealmBrandingRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
@@ -181,6 +183,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
+    let realm_branding = Arc::new(PostgresRealmBrandingRepository::new(postgres.get_db()));
     let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
     let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
         postgres.get_db(),
@@ -342,6 +345,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             email_template.clone(),
             mjml_renderer.clone(),
+            policy.clone(),
+        ),
+        realm_branding_service: RealmBrandingServiceImpl::new(
+            realm.clone(),
+            realm_branding.clone(),
             policy.clone(),
         ),
         core_service: CoreServiceImpl::new(
