@@ -9,7 +9,7 @@ use crate::domain::{
     realm::entities::SmtpConfig,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SmtpEmailPort;
 
 impl SmtpEmailPort {
