@@ -48,12 +48,14 @@ pub enum Relation {
     Clients,
     CompassFlows,
     EmailTemplates,
+    EmailVerificationTokens,
     IdentityProviders,
     JwtKeys,
     MagicLinks,
     Organizations,
     PasswordPolicy,
     PasswordResetTokens,
+    PortalThemes,
     RealmMaintenanceWhitelist,
     RealmSettings,
     Roles,
@@ -90,6 +92,9 @@ impl RelationTrait for Relation {
             Self::Clients => Entity::has_many(super::clients::Entity).into(),
             Self::CompassFlows => Entity::has_many(super::compass_flows::Entity).into(),
             Self::EmailTemplates => Entity::has_many(super::email_templates::Entity).into(),
+            Self::EmailVerificationTokens => {
+                Entity::has_many(super::email_verification_tokens::Entity).into()
+            }
             Self::IdentityProviders => Entity::has_many(super::identity_providers::Entity).into(),
             Self::JwtKeys => Entity::has_many(super::jwt_keys::Entity).into(),
             Self::MagicLinks => Entity::has_many(super::magic_links::Entity).into(),
@@ -98,6 +103,7 @@ impl RelationTrait for Relation {
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
             }
+            Self::PortalThemes => Entity::has_one(super::portal_themes::Entity).into(),
             Self::RealmMaintenanceWhitelist => {
                 Entity::has_many(super::realm_maintenance_whitelist::Entity).into()
             }
@@ -158,6 +164,12 @@ impl Related<super::email_templates::Entity> for Entity {
     }
 }
 
+impl Related<super::email_verification_tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::EmailVerificationTokens.def()
+    }
+}
+
 impl Related<super::identity_providers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::IdentityProviders.def()
@@ -191,6 +203,12 @@ impl Related<super::password_policy::Entity> for Entity {
 impl Related<super::password_reset_tokens::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PasswordResetTokens.def()
+    }
+}
+
+impl Related<super::portal_themes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PortalThemes.def()
     }
 }
 
