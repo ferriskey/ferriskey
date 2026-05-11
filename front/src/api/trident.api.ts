@@ -91,9 +91,25 @@ export const useVerifyMagicLink = () => {
   })
 }
 
+export interface UpdatePasswordRequest {
+  data: { value: string }
+  token: string
+}
+
 export const useUpdatePassword = () => {
   return useMutation({
-    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/login-actions/update-password')
-      .mutationOptions,
+    mutationFn: async ({ realm, data, token }: BaseQuery & UpdatePasswordRequest) => {
+      const response = await window.axios.post(
+        `/realms/${realm}/login-actions/update-password`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      return response.data
+    },
   })
 }
