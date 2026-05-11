@@ -19,6 +19,12 @@ export default function UpdatePasswordFeature() {
   const navigate = useNavigate()
   const token = searchParams.get('client_data')
 
+  useEffect(() => {
+    if (!token) {
+      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
+    }
+  }, [token, navigate, realm_name])
+
   const form = useForm<UpdatePasswordSchema>({
     resolver: zodResolver(updatePasswordSchema),
     defaultValues: {
