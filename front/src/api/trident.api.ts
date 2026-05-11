@@ -1,57 +1,43 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BaseQuery } from '.'
-import {
-  ChallengeOtpRequest,
-  ChallengeOtpResponse,
-  OtpVerifyRequest,
-  SetupOtpResponse,
-  VerifyOtpResponse,
-} from './api.interface'
+import type { Schemas } from './api.client'
 
 export const useSetupOtp = ({ realm, token }: BaseQuery & { token?: string | null }) => {
   return useQuery({
     queryKey: ['setup-otp'],
-    queryFn: async (): Promise<SetupOtpResponse> => {
-      const response = await window.axios.get<SetupOtpResponse>(
-        `/realms/${realm}/login-actions/setup-otp`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      return response.data
+    queryFn: async (): Promise<Schemas.SetupOtpResponse> => {
+      return window.tanstackApi.client.get('/realms/{realm_name}/login-actions/setup-otp', {
+        path: { realm_name: realm ?? 'master' },
+        header: {
+          Authorization: `Bearer ${token}`,
+        },
+      } as never)
     },
     enabled: !!token,
   })
 }
 
 export interface VerifyOtpRequest {
-  data: OtpVerifyRequest
+  data: Schemas.OtpVerifyRequest
   token: string
 }
 
 export const useVerifyOtp = () => {
   return useMutation({
     mutationFn: async ({ realm, data, token }: BaseQuery & VerifyOtpRequest) => {
-      const response = await window.axios.post<VerifyOtpResponse>(
-        `/realms/${realm}/login-actions/verify-otp`,
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      return response.data
+      return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/verify-otp', {
+        path: { realm_name: realm ?? 'master' },
+        body: data,
+        header: {
+          Authorization: `Bearer ${token}`,
+        },
+      } as never) as Promise<Schemas.VerifyOtpResponse>
     },
   })
 }
 
 export interface MutationChallengeOtpRequest {
-  data: ChallengeOtpRequest
+  data: Schemas.ChallengeOtpRequest
   token: string
 }
 
@@ -61,18 +47,14 @@ export const useChallengeOtp = () => {
       realm,
       data,
       token,
-    }: BaseQuery & MutationChallengeOtpRequest): Promise<ChallengeOtpResponse> => {
-      const response = await window.axios.post<ChallengeOtpResponse>(
-        `/realms/${realm}/login-actions/challenge-otp`,
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      return response.data
+    }: BaseQuery & MutationChallengeOtpRequest): Promise<Schemas.ChallengeOtpResponse> => {
+      return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/challenge-otp', {
+        path: { realm_name: realm ?? 'master' },
+        body: data,
+        header: {
+          Authorization: `Bearer ${token}`,
+        },
+      } as never) as Promise<Schemas.ChallengeOtpResponse>
     },
   })
 }
@@ -92,24 +74,20 @@ export const useVerifyMagicLink = () => {
 }
 
 export interface UpdatePasswordRequest {
-  data: { value: string }
+  data: Schemas.UpdatePasswordRequest
   token: string
 }
 
 export const useUpdatePassword = () => {
   return useMutation({
     mutationFn: async ({ realm, data, token }: BaseQuery & UpdatePasswordRequest) => {
-      const response = await window.axios.post(
-        `/realms/${realm}/login-actions/update-password`,
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      return response.data
+      return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/update-password', {
+        path: { realm_name: realm ?? 'master' },
+        body: data,
+        header: {
+          Authorization: `Bearer ${token}`,
+        },
+      } as never) as Promise<Schemas.UpdatePasswordResponse>
     },
   })
 }
