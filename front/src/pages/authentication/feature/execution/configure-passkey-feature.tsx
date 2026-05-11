@@ -57,7 +57,7 @@ export default function ConfigurePasskeyFeature() {
       )
 
       // Step 2: Create credential with browser
-      const credential = await startRegistration((optionsRes as { publicKey: unknown }).publicKey)
+      const credential = await startRegistration((optionsRes as { publicKey: Record<string, unknown> }).publicKey)
 
       // Step 3: Send credential to server
       await window.tanstackApi.client.post(
