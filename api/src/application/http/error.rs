@@ -1,5 +1,6 @@
-use ferriskey_core::domain::common::entities::app_errors::CoreError;
-use ferriskey_core::domain::user::entities::RequiredAction;
+use ferriskey_core::domain::{
+    common::entities::app_errors::CoreError, user::entities::RequiredAction,
+};
 
 use crate::application::http::server::api_entities::api_error::ApiError;
 
@@ -10,6 +11,9 @@ impl From<CoreError> for ApiError {
             CoreError::AlreadyExists => Self::BadRequest("Resource already exists".into()),
             CoreError::EmailAlreadyExists => {
                 Self::BadRequest("Email already exists in this realm".into())
+            }
+            CoreError::UsernameAlreadyExists => {
+                Self::BadRequest("Username already exists in this realm".into())
             }
             CoreError::Invalid => Self::BadRequest("Invalid resource".into()),
             CoreError::InvalidRequiredAction(action) => {
@@ -231,5 +235,20 @@ impl From<CoreError> for ApiError {
                 Self::BadRequest("Email verification template is not configured for this realm".into())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_username_conflict_to_bad_request() {
+        let error = ApiError::from(CoreError::UsernameAlreadyExists);
+
+        assert_eq!(
+            error,
+            ApiError::BadRequest("Username already exists in this realm".into())
+        );
     }
 }

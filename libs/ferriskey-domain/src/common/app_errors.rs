@@ -13,6 +13,9 @@ pub enum CoreError {
     #[error("Email already exists in this realm")]
     EmailAlreadyExists,
 
+    #[error("Username already exists in this realm")]
+    UsernameAlreadyExists,
+
     #[error("Invalid resource")]
     Invalid,
 
