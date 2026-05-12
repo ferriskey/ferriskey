@@ -15,7 +15,7 @@ use crate::domain::{
         },
         value_objects::{
             AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
-            RegisterUserOutput,
+            RegisterUserOutput, RegisterUserUrlContext,
         },
     },
     common::entities::app_errors::CoreError,
@@ -138,7 +138,7 @@ pub trait AuthService: Send + Sync {
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
     fn register_user(
         &self,
-        url: String,
+        url_context: RegisterUserUrlContext,
         input: RegisterUserInput,
     ) -> impl Future<Output = Result<RegisterUserOutput, CoreError>> + Send;
     fn get_userinfo(

@@ -4,7 +4,7 @@ use ferriskey_core::domain::{
     authentication::{
         entities::JwtToken,
         ports::AuthService,
-        value_objects::{RegisterUserInput, RegisterUserOutput},
+        value_objects::{RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext},
     },
     realm::ports::RealmService,
 };
@@ -14,16 +14,14 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::auth::root_scoped_base_url;
-use crate::application::{
-    http::server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
+use crate::application::http::server::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
     },
-    url::FullUrl,
+    app_state::AppState,
 };
+use crate::application::url::FullUrl;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegistrationRequest {
@@ -57,6 +55,21 @@ pub enum RegistrationResponse {
     PendingVerification(PendingVerificationResponse),
 }
 
+fn registration_verification_base_url(webapp_url: &str) -> String {
+    webapp_url.trim_end_matches('/').to_string()
+}
+
+fn registration_url_context(
+    webapp_url: &str,
+    request_base_url: &str,
+    root_path: &str,
+) -> RegisterUserUrlContext {
+    RegisterUserUrlContext {
+        issuer_base_url: root_scoped_base_url(request_base_url, root_path),
+        verification_base_url: registration_verification_base_url(webapp_url),
+    }
+}
+
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/registrations",
@@ -78,7 +91,7 @@ pub enum RegistrationResponse {
 pub async fn registration_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, url): FullUrl,
+    FullUrl(_, base_url): FullUrl,
     cookie: CookieManager,
     ValidateJson(req): ValidateJson<RegistrationRequest>,
 ) -> Result<Response<RegistrationResponse>, ApiError> {
@@ -92,11 +105,15 @@ pub async fn registration_handler(
         .get("FERRISKEY_SESSION")
         .and_then(|c| Uuid::parse_str(c.value()).ok());
 
-    let base_url = root_scoped_base_url(&url, &state.args.server.root_path);
+    let url_context = registration_url_context(
+        &state.args.webapp_url,
+        &base_url,
+        &state.args.server.root_path,
+    );
     let output = state
         .service
         .register_user(
-            base_url.clone(),
+            url_context,
             RegisterUserInput {
                 email: req.email,
                 first_name: req.first_name,
@@ -127,8 +144,9 @@ pub async fn registration_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json;
+
+    use super::*;
 
     #[test]
     fn test_registration_request_deserialization() {
@@ -237,6 +255,31 @@ mod tests {
                     "refresh_expires_in": 600,
                 }
             })
+        );
+    }
+
+    #[test]
+    fn registration_verification_base_url_uses_webapp_url() {
+        let base_url = registration_verification_base_url("http://localhost:3000/");
+
+        assert_eq!(base_url, "http://localhost:3000");
+    }
+
+    #[test]
+    fn registration_url_context_separates_issuer_and_verification_bases() {
+        let context = registration_url_context(
+            "https://account.longcipher.com/",
+            "https://ferriskey-api.longcipher.com",
+            "/auth",
+        );
+
+        assert_eq!(
+            context.issuer_base_url,
+            "https://ferriskey-api.longcipher.com/auth"
+        );
+        assert_eq!(
+            context.verification_base_url,
+            "https://account.longcipher.com"
         );
     }
 }
