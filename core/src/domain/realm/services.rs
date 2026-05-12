@@ -653,8 +653,11 @@ where
 
             let client_roles = user_roles
                 .iter()
-                .filter(|role| role.client.is_some())
-                .filter(|role| role.client.as_ref().unwrap().name == client_name)
+                .filter(|role| {
+                    role.client
+                        .as_ref()
+                        .is_some_and(|c| c.name == client_name)
+                })
                 .collect::<Vec<_>>();
 
             let mut permissions = HashSet::new();
@@ -934,7 +937,10 @@ where
             password: input.password,
             from_email: input.from_email,
             from_name: input.from_name,
-            encryption: input.encryption.parse().unwrap(),
+            encryption: input
+                .encryption
+                .parse()
+                .expect("invariant: SmtpEncryption FromStr is infallible"),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
