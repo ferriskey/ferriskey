@@ -1,0 +1,238 @@
+# -- Override the name of the release.
+nameOverride: ~
+
+crds:
+  # -- Install the FerrisKeyCluster CRD as part of this chart.
+  # Set to `false` if you manage CRDs externally (e.g. via GitOps or a separate CRD chart).
+  install: true
+  # -- Keep the CRD on chart uninstall by annotating it with `helm.sh/resource-policy: keep`.
+  # Strongly recommended in production to avoid accidental data loss.
+  keep: true
+
+rbac:
+  # -- Create the ClusterRole and ClusterRoleBinding required by the operator.
+  # Set to `false` if you manage RBAC externally.
+  create: true
+
+common:
+  # -- Common annotations for all workloads.
+  annotations: {}
+  # -- Common labels for all workloads.
+  labels: {}
+
+  # -- Common annotations for all pods.
+  podAnnotations: {}
+  # -- Common labels for all pods.
+  podLabels: {}
+
+  image:
+    # -- Default pull policy for all images.
+    pullPolicy: IfNotPresent
+    # -- Default tag for all images. Defaults to the chart's appVersion.
+    tag: ~
+
+  # -- Common image pull secrets for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- (int) Default revision history limit for all workloads.
+  revisionHistoryLimit: ~
+
+  # -- Common environment variables for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Common environment variables from sources for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Common volume mounts for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Common volumes for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Common affinity for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Common tolerations for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Common topology spread constraints for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Common DNS config for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Common host aliases for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+
+  # -- Common init containers for all pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Default runtime class name for all pods.
+  runtimeClassName: ~
+  # -- Default scheduler name for all pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Common annotations on all service accounts.
+    annotations: {}
+    # -- Common labels on all service accounts.
+    labels: {}
+    # -- (bool) Automount service account token by default for all service accounts.
+    automountServiceAccountToken: ~
+
+operator:
+  # -- Annotations on the operator workload.
+  annotations: {}
+  # -- Labels on the operator workload.
+  labels: {}
+
+  # -- Annotations on the operator pods.
+  podAnnotations: {}
+  # -- Labels on the operator pods.
+  podLabels: {}
+
+  image:
+    # -- Repository for the operator image.
+    repository: ghcr.io/ferriskey/ferriskey-operator
+    # -- Tag for the operator image. Defaults to the chart's appVersion.
+    tag: ~
+    # -- Pull policy for the operator image.
+    pullPolicy: ~
+
+  # -- Image pull secrets for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#localobjectreference-v1-core
+  imagePullSecrets: []
+
+  # -- Number of replicas for the operator.
+  # Operators should run as a single replica. Scale via leader election, not replicas.
+  replicas: 1
+
+  # -- (int) Revision history limit for the operator workload.
+  revisionHistoryLimit: ~
+
+  # -- Arguments for the operator container.
+  args: []
+  # -- Command for the operator container.
+  command: []
+
+  # -- Environment variables for the operator container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core
+  env: []
+  # -- Environment variables from sources for the operator container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
+  envFrom: []
+
+  # -- Volume mounts for the operator container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core
+  volumeMounts: []
+  # -- Volumes for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volume-v1-core
+  volumes: []
+
+  # -- Resources for the operator container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#resourcerequirements-v1-core
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+  # -- Security context for the operator container.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+
+  # -- Liveness probe for the operator container.
+  # Uses a process-level check since the operator does not expose an HTTP health endpoint.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#probe-v1-core
+  livenessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - kill -0 1
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # -- Affinity for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#affinity-v1-core
+  affinity: {}
+  # -- Node name for the operator pods.
+  nodeName: ~
+  # -- Node selector for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#nodeselector-v1-core
+  nodeSelector: {}
+  # -- Tolerations for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#toleration-v1-core
+  tolerations: []
+  # -- Topology spread constraints for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core
+  topologySpreadConstraints: []
+
+  # -- Security context for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podsecuritycontext-v1-core
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- (bool) Use host's IPC namespace for the operator pods.
+  hostIPC: ~
+  # -- (bool) Use host's network namespace for the operator pods.
+  hostNetwork: ~
+  # -- (bool) Use host's PID namespace for the operator pods.
+  hostPID: ~
+  # -- (bool) Use host's user namespace for the operator pods.
+  hostUsers: ~
+
+  # -- DNS config for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core
+  dnsConfig: {}
+  # -- Host aliases for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#hostalias-v1-core
+  hostAliases: []
+
+  # -- Init containers for the operator pods.
+  # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#container-v1-core
+  initContainers: []
+
+  # -- Preemption policy for the operator pods.
+  preemptionPolicy: ~
+  # -- (int) Priority for the operator pods.
+  priority: ~
+  # -- Priority class name for the operator pods.
+  priorityClassName: ~
+
+  # -- Runtime class name for the operator pods.
+  runtimeClassName: ~
+  # -- Scheduler name for the operator pods.
+  schedulerName: ~
+
+  serviceAccount:
+    # -- Create a service account for the operator.
+    create: true
+    # -- Name of the service account. Defaults to the operator workload name.
+    name: ~
+    # -- Annotations on the operator service account.
+    annotations: {}
+    # -- Labels on the operator service account.
+    labels: {}
+    # -- Automount the service account token.
+    # Must be true — the operator needs the token to call the Kubernetes API.
+    automountServiceAccountToken: true

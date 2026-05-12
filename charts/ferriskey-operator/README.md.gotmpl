@@ -1,0 +1,78 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Overview
+
+The Ferriskey Operator manages `FerrisKeyCluster` instances declaratively through a Kubernetes Custom Resource Definition (CRD). This chart deploys the operator itself — the CRD, the operator Deployment, and the required RBAC resources.
+
+To deploy a Ferriskey cluster once the operator is running, create a `FerrisKeyCluster` resource:
+
+```yaml
+apiVersion: ferriskey.rs/v1alpha1
+kind: FerrisKeyCluster
+metadata:
+  name: my-ferriskey
+  namespace: ferriskey
+spec:
+  name: my-ferriskey
+  replicas: 1
+  version: "0.6.0"
+  api:
+    apiUrl: "https://api.iam.example.com"
+    webappUrl: "https://iam.example.com"
+    allowedOrigins:
+      - "https://iam.example.com"
+  database:
+    secretRef:
+      name: ferriskey-db-credentials
+    databaseName: ferriskey
+    sslMode: require
+```
+
+The database secret must contain the fields `host`, `port`, `user`, and `password`.
+
+## Installation
+
+```sh
+helm install ferriskey-operator oci://ghcr.io/ferriskey/charts/ferriskey-operator \
+  --namespace ferriskey-system \
+  --create-namespace
+```
+
+## CRD Management
+
+By default (`crds.install: true`), the CRD is installed as part of this chart and annotated with `helm.sh/resource-policy: keep` (`crds.keep: true`) to prevent accidental deletion on `helm uninstall`.
+
+If you manage CRDs externally (e.g. via GitOps or a separate CRD chart), set:
+
+```yaml
+crds:
+  install: false
+```
+
+## RBAC
+
+By default (`rbac.create: true`), the chart creates a `ClusterRole` and `ClusterRoleBinding` granting the operator the permissions it needs to manage `FerrisKeyCluster` resources across all namespaces.
+
+If you manage RBAC externally, set:
+
+```yaml
+rbac:
+  create: false
+```
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
