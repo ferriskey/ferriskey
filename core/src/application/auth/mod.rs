@@ -11,7 +11,7 @@ use crate::{
             value_objects::{
                 EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput,
                 Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
-                RevokeTokenInput, UserInfoResponse,
+                RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
             },
         },
         common::entities::app_errors::CoreError,
@@ -57,10 +57,10 @@ impl AuthService for ApplicationService {
 
     async fn register_user(
         &self,
-        url: String,
+        url_context: RegisterUserUrlContext,
         input: RegisterUserInput,
     ) -> Result<RegisterUserOutput, CoreError> {
-        self.auth_service.register_user(url, input).await
+        self.auth_service.register_user(url_context, input).await
     }
 
     async fn get_userinfo(

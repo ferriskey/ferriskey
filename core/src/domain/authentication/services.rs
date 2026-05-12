@@ -37,8 +37,8 @@ use crate::domain::{
         value_objects::{
             AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
             GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RegisterUserOutput, RevokeTokenInput,
-            UserInfoResponse,
+            IntrospectTokenInput, RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext,
+            RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -1248,6 +1248,14 @@ where
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
+        if !auth_result.required_actions.is_empty() {
+            return Ok(AuthenticateOutput::requires_actions(
+                auth_result.user_id,
+                auth_result.required_actions,
+                auth_result.token.ok_or(CoreError::InternalServerError)?,
+            ));
+        }
+
         let has_otp_credentials = auth_result.credentials.iter().any(|cred| cred == "otp");
         let needs_configure_otp = auth_result
             .required_actions
@@ -1268,14 +1276,6 @@ where
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
-            ));
-        }
-
-        if !auth_result.required_actions.is_empty() {
-            return Ok(AuthenticateOutput::requires_actions(
-                auth_result.user_id,
-                auth_result.required_actions,
-                auth_result.token.ok_or(CoreError::InternalServerError)?,
             ));
         }
 
@@ -2118,9 +2118,14 @@ where
 
     async fn register_user(
         &self,
-        url: String,
+        url_context: RegisterUserUrlContext,
         input: RegisterUserInput,
     ) -> Result<RegisterUserOutput, CoreError> {
+        let RegisterUserUrlContext {
+            issuer_base_url,
+            verification_base_url,
+        } = url_context;
+
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
@@ -2174,7 +2179,7 @@ where
 
             if let Err(err) = self
                 .email_verification_service
-                .send_verification_email(user.id, input.realm_name, url)
+                .send_verification_email(user.id, input.realm_name, verification_base_url)
                 .await
             {
                 // Avoid leaving behind an unverified user that can no longer re-register.
@@ -2218,7 +2223,7 @@ where
             .generate_tokens_for_user(GenerateTokensForUserInput {
                 user_id: user.id,
                 realm_id: realm.id.into(),
-                base_url: url,
+                base_url: issuer_base_url,
                 client_id: None,
             })
             .await?;

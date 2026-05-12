@@ -69,6 +69,12 @@ pub struct RegisterUserInput {
     pub session_code: Option<Uuid>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RegisterUserUrlContext {
+    pub issuer_base_url: String,
+    pub verification_base_url: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "status", content = "data", rename_all = "snake_case")]
 pub enum RegisterUserOutput {
