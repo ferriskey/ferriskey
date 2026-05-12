@@ -1,6 +1,5 @@
-import { authStore } from '@/store/auth.store'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { RedirectUri } from './core.interface'
+import type { Schemas } from './api.client'
 
 export interface CreateRedirectUriMutate {
   realmName: string
@@ -14,22 +13,13 @@ export const useCreateRedirectUri = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ realmName, clientId, payload }: CreateRedirectUriMutate) => {
-      const accessToken = authStore.getState().accessToken
-
-      const response = await window.axios.post<RedirectUri>(
-        `/realms/${realmName}/clients/${clientId}/redirects`,
-        {
+      return window.tanstackApi.client.post('/realms/{realm_name}/clients/{client_id}/redirects', {
+        path: { realm_name: realmName, client_id: clientId },
+        body: {
           value: payload.value,
           enabled: true,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      return response.data
+      }) as Promise<Schemas.RedirectUri>
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -49,18 +39,9 @@ export const useDeleteRedirectUri = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ realmName, clientId, redirectUriId }: DeleteRedirectUriMutate) => {
-      const accessToken = authStore.getState().accessToken
-
-      const response = await window.axios.delete(
-        `/realms/${realmName}/clients/${clientId}/redirects/${redirectUriId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      )
-
-      return response.data
+      return window.tanstackApi.client.delete('/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}', {
+        path: { realm_name: realmName, client_id: clientId, uri_id: redirectUriId },
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

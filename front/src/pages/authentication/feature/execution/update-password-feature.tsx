@@ -19,6 +19,12 @@ export default function UpdatePasswordFeature() {
   const navigate = useNavigate()
   const token = searchParams.get('client_data')
 
+  useEffect(() => {
+    if (!token) {
+      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
+    }
+  }, [token, navigate, realm_name])
+
   const form = useForm<UpdatePasswordSchema>({
     resolver: zodResolver(updatePasswordSchema),
     defaultValues: {
@@ -28,13 +34,13 @@ export default function UpdatePasswordFeature() {
   })
 
   const handleClick = form.handleSubmit((payload) => {
+    if (!token) return
     updatePassword({
-      path: {
-        realm_name: realm_name ?? 'master',
-      },
-      body: {
+      realm: realm_name ?? 'master',
+      data: {
         value: payload.password,
       },
+      token,
     })
   })
 
