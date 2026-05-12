@@ -243,7 +243,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn maps_username_conflict_to_bad_request() {
+    fn maps_username_already_exists_to_bad_request() {
         let error = ApiError::from(CoreError::UsernameAlreadyExists);
 
         assert_eq!(
