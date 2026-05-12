@@ -48,20 +48,25 @@ export default function ConfigurePasskeyFeature() {
     setIsLoading(true)
     try {
       // Step 1: Get creation options
-      const optionsRes = await window.axios.post(
-        `/realms/${realm_name}/login-actions/webauthn-public-key-create-options`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
+      const optionsRes = await window.tanstackApi.client.post(
+        '/realms/{realm_name}/login-actions/webauthn-public-key-create-options',
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          header: { Authorization: `Bearer ${token}` },
+        } as never,
       )
 
       // Step 2: Create credential with browser
-      const credential = await startRegistration(optionsRes.data.publicKey)
+      const credential = await startRegistration((optionsRes as { publicKey: Record<string, unknown> }).publicKey)
 
       // Step 3: Send credential to server
-      await window.axios.post(
-        `/realms/${realm_name}/login-actions/webauthn-public-key-create`,
-        credential,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await window.tanstackApi.client.post(
+        '/realms/{realm_name}/login-actions/webauthn-public-key-create',
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          body: credential,
+          header: { Authorization: `Bearer ${token}` },
+        } as never,
       )
 
       setIsSuccess(true)

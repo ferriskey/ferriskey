@@ -11,7 +11,7 @@ import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useGetLoginSettings } from '@/api/realm.api'
 import { usePasskeyRequestOptionsMutation, usePasskeyAuthenticateMutation } from '@/api/passkey.api'
 import { useSendMagicLink } from '@/api/trident.api'
-import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication } from '@/lib/webauthn'
+import { isWebAuthnAvailable, isConditionalMediationAvailable, startAuthentication, startConditionalAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@/lib/webauthn'
 import { magicLinkSchema, MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schema'
 
 const authenticateSchema = z.object({
@@ -128,7 +128,7 @@ export default function PageLoginFeature() {
         if (aborted) return
 
         const assertion = await startConditionalAuthentication(
-          response.publicKey,
+          response.publicKey as PublicKeyCredentialRequestOptionsJSON,
           abortController.signal
         )
 
@@ -268,7 +268,7 @@ export default function PageLoginFeature() {
       {
         onSuccess: async (response) => {
           try {
-            const assertion = await startAuthentication(response.publicKey)
+            const assertion = await startAuthentication(response.publicKey as PublicKeyCredentialRequestOptionsJSON)
             authenticatePasskey(
               { realm: realm_name, data: assertion },
               {
