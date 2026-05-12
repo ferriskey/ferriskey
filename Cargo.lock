@@ -1673,6 +1673,7 @@ dependencies = [
  "mockall 0.13.1",
  "rand 0.9.2",
  "reqwest 0.12.24",
+ "rustls",
  "schemars 1.1.0",
  "serde",
  "serde_json",
@@ -4389,9 +4390,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.35"
+version = "0.23.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "533f54bc6a7d4f647e46ad909549eda97bf5afc1585190ef692b4286b198bd8f"
+checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
 dependencies = [
  "aws-lc-rs",
  "log",
