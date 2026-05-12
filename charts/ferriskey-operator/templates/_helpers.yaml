@@ -18,7 +18,7 @@ app.kubernetes.io/part-of: ferriskey
 {{- end -}}
 
 {{- define "ferriskey-operator.operator.labels" -}}
-{{- $labels := merge .Values.common.labels .Values.operator.labels -}}
+{{- $labels := merge (default (dict) .Values.common.labels) (default (dict) .Values.operator.labels) -}}
 {{- include "ferriskey-operator.global.labels" . }}
 app.kubernetes.io/name: ferriskey-operator
 app.kubernetes.io/component: operator
@@ -28,7 +28,7 @@ app.kubernetes.io/component: operator
 {{- end -}}
 
 {{- define "ferriskey-operator.operator.podLabels" -}}
-{{- $labels := merge .Values.common.podLabels .Values.operator.podLabels -}}
+{{- $labels := merge (default (dict) .Values.common.podLabels) (default (dict) .Values.operator.podLabels) -}}
 {{- include "ferriskey-operator.global.podLabels" . }}
 app.kubernetes.io/name: ferriskey-operator
 app.kubernetes.io/component: operator
