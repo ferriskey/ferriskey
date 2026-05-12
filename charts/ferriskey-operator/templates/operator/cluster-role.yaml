@@ -26,10 +26,13 @@ rules:
     resources: ["jobs"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
-  # The operator manages FerrisKeyCluster custom resources, their status, and finalizers
+  # The operator manages FerrisKeyCluster custom resources, their status, and finalizers.
+  # create and delete are intentionally omitted — FerrisKeyCluster instances are
+  # user-managed. The operator only reconciles (watches, reads, patches status,
+  # and manages the finalizer field).
   - apiGroups: ["ferriskey.rs"]
     resources: ["ferriskeyclusters", "ferriskeyclusters/status", "ferriskeyclusters/finalizers"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch", "update", "patch"]
 
   # The operator may inspect CRDs to verify they are installed
   - apiGroups: ["apiextensions.k8s.io"]

@@ -41,7 +41,7 @@ app.kubernetes.io/component: operator
 {{- if .Values.operator.serviceAccount.create -}}
 {{ .Values.operator.serviceAccount.name | default (include "ferriskey-operator.operator.name" .) }}
 {{- else -}}
-default
+{{ .Values.operator.serviceAccount.name | default "default" }}
 {{- end -}}
 {{- end -}}
 

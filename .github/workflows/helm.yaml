@@ -36,7 +36,7 @@ jobs:
           tag_version="${tag//ferriskey-/}"
           chart_version="$(yq .version charts/ferriskey/Chart.yaml)"
           if [ "$tag_version" != "$chart_version" ]; then
-            echo "Tag version `$tag_version` does not match chart version `$chart_version`"
+            echo "Tag version '${tag_version}' does not match chart version '${chart_version}'"
             exit 1
           fi
           echo "version=$tag_version" >> "$GITHUB_OUTPUT"
@@ -67,7 +67,7 @@ jobs:
           tag_version="${tag//ferriskey-operator-/}"
           chart_version="$(yq .version charts/ferriskey-operator/Chart.yaml)"
           if [ "$tag_version" != "$chart_version" ]; then
-            echo "Tag version `$tag_version` does not match chart version `$chart_version`"
+            echo "Tag version '${tag_version}' does not match chart version '${chart_version}'"
             exit 1
           fi
           echo "version=$tag_version" >> "$GITHUB_OUTPUT"
