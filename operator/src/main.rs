@@ -7,7 +7,7 @@ async fn main() -> anyhow::Result<()> {
     // Install aws-lc-rs as the default before any TLS connection is attempted.
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
-        .expect("failed to install rustls crypto provider");
+        .map_err(|_| anyhow::anyhow!("failed to install rustls crypto provider"))?;
 
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
