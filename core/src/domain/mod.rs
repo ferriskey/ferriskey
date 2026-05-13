@@ -14,6 +14,7 @@ pub mod jwt;
 pub mod maintenance;
 pub mod organization;
 pub mod password_policy;
+pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
 pub mod role;
