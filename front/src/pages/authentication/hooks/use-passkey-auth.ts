@@ -9,6 +9,7 @@ import {
   isWebAuthnAvailable,
   startAuthentication,
   startConditionalAuthentication,
+  type PublicKeyCredentialRequestOptionsJSON,
 } from '@/lib/webauthn'
 
 type Options = {
@@ -48,7 +49,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
         if (aborted) return
 
         const assertion = await startConditionalAuthentication(
-          response.publicKey,
+          response.publicKey as PublicKeyCredentialRequestOptionsJSON,
           abortController.signal
         )
 
@@ -100,7 +101,9 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
       {
         onSuccess: async (response) => {
           try {
-            const assertion = await startAuthentication(response.publicKey)
+            const assertion = await startAuthentication(
+              response.publicKey as PublicKeyCredentialRequestOptionsJSON
+            )
             authenticatePasskey(
               { realm: realm_name, data: assertion },
               {
