@@ -1,13 +1,13 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, DbErr,
-    EntityTrait, ModelTrait, QueryFilter,
+    EntityTrait, ModelTrait, QueryFilter, SqlErr,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     common::entities::app_errors::CoreError,
+    realm::entities::RealmId,
     user::{
         entities::{RequiredAction, User, UserConfig},
         ports::UserRepository,
@@ -15,18 +15,36 @@ use crate::domain::{
     },
 };
 
-/// Check if a database error is a unique constraint violation for email
-fn is_email_unique_violation(err: &DbErr) -> bool {
-    match err {
-        DbErr::Query(runtime_err) => {
-            let err_str = runtime_err.to_string().to_lowercase();
-            // PostgreSQL unique violation error code is 23505
-            // The constraint name contains "unique_email_per_realm"
-            err_str.contains("unique_email_per_realm")
-                || (err_str.contains("23505") && err_str.contains("email"))
-                || (err_str.contains("duplicate key") && err_str.contains("email"))
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UserUniqueViolation {
+    Email,
+    Username,
+}
+
+fn classify_user_unique_violation_message(message: &str) -> Option<UserUniqueViolation> {
+    let err_str = message.to_lowercase();
+
+    if err_str.contains("unique_username_realm_id")
+        || err_str.contains("key (username")
+        || err_str.contains("username, realm_id")
+    {
+        Some(UserUniqueViolation::Username)
+    } else if err_str.contains("unique_email_per_realm")
+        || err_str.contains("key (email")
+        || err_str.contains("email, realm_id")
+    {
+        Some(UserUniqueViolation::Email)
+    } else {
+        None
+    }
+}
+
+fn classify_user_unique_violation(err: &DbErr) -> Option<UserUniqueViolation> {
+    match err.sql_err()? {
+        SqlErr::UniqueConstraintViolation(message) => {
+            classify_user_unique_violation_message(&message)
         }
-        _ => false,
+        _ => None,
     }
 }
 
@@ -68,14 +86,18 @@ impl UserRepository for PostgresUserRepository {
             updated_at: Set(user.updated_at.naive_utc()),
         };
 
-        let t = model.insert(&self.db).await.map_err(|e| {
-            if is_email_unique_violation(&e) {
-                CoreError::EmailAlreadyExists
-            } else {
-                error!("error creating user: {:?}", e);
-                CoreError::InternalServerError
-            }
-        })?;
+        let t =
+            model
+                .insert(&self.db)
+                .await
+                .map_err(|e| match classify_user_unique_violation(&e) {
+                    Some(UserUniqueViolation::Email) => CoreError::EmailAlreadyExists,
+                    Some(UserUniqueViolation::Username) => CoreError::UsernameAlreadyExists,
+                    None => {
+                        error!("error creating user: {:?}", e);
+                        CoreError::InternalServerError
+                    }
+                })?;
 
         let user = t.into();
 
@@ -253,15 +275,52 @@ impl UserRepository for PostgresUserRepository {
         active_model.email_verified = Set(dto.email_verified);
         active_model.enabled = Set(dto.enabled);
 
-        let updated_user = active_model.update(&self.db).await.map_err(|e| {
-            if is_email_unique_violation(&e) {
-                CoreError::EmailAlreadyExists
-            } else {
-                error!("error updating user: {:?}", e);
-                CoreError::InternalServerError
-            }
-        })?;
+        let updated_user =
+            active_model.update(&self.db).await.map_err(
+                |e| match classify_user_unique_violation(&e) {
+                    Some(UserUniqueViolation::Email) => CoreError::EmailAlreadyExists,
+                    Some(UserUniqueViolation::Username) => CoreError::UsernameAlreadyExists,
+                    None => {
+                        error!("error updating user: {:?}", e);
+                        CoreError::InternalServerError
+                    }
+                },
+            )?;
 
         Ok(updated_user.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{UserUniqueViolation, classify_user_unique_violation_message};
+
+    #[test]
+    fn classifies_username_unique_constraint_violation() {
+        let message =
+            r#"ERROR: duplicate key value violates unique constraint "unique_username_realm_id""#;
+
+        assert_eq!(
+            classify_user_unique_violation_message(message),
+            Some(UserUniqueViolation::Username)
+        );
+    }
+
+    #[test]
+    fn classifies_email_unique_constraint_violation() {
+        let message =
+            r#"ERROR: duplicate key value violates unique constraint "unique_email_per_realm""#;
+
+        assert_eq!(
+            classify_user_unique_violation_message(message),
+            Some(UserUniqueViolation::Email)
+        );
+    }
+
+    #[test]
+    fn ignores_unknown_unique_constraint_violation() {
+        let message = r#"ERROR: duplicate key value violates unique constraint "users_pkey""#;
+
+        assert_eq!(classify_user_unique_violation_message(message), None);
     }
 }

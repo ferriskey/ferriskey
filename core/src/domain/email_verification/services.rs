@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration as StdDuration;
 
 use chrono::{Duration, Utc};
 use sha2::{Digest, Sha256};
+use tokio::time::timeout;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -21,6 +23,11 @@ fn generate_token_hash(token: &str) -> String {
     hasher.update(token.as_bytes());
     format!("{:x}", hasher.finalize())
 }
+
+#[cfg(not(test))]
+const EMAIL_DELIVERY_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+#[cfg(test)]
+const EMAIL_DELIVERY_TIMEOUT: StdDuration = StdDuration::from_millis(10);
 
 #[derive(Debug)]
 pub struct EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
@@ -232,16 +239,29 @@ where
             .await
             .ok();
 
-        self.email_port
-            .send_email(
+        let delivery = timeout(
+            EMAIL_DELIVERY_TIMEOUT,
+            self.email_port.send_email(
                 &smtp_config,
                 user_email,
                 "Verify your email address",
                 &body,
                 html_body,
-            )
-            .await
-            .inspect_err(|e| warn!("Failed to send verification email: {}", e))?;
+            ),
+        )
+        .await;
+
+        match delivery {
+            Ok(result) => {
+                result.inspect_err(|e| warn!("Failed to send verification email: {}", e))?
+            }
+            Err(_) => {
+                warn!(user_id = %user.id, "Verification email delivery timed out");
+                return Err(CoreError::ServiceUnavailable(
+                    "Verification email delivery timed out".to_string(),
+                ));
+            }
+        }
 
         tracing::info!(
             "Verification email sent to {} for user {}",
@@ -322,6 +342,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{future, time::Duration as StdDuration};
+
     use super::*;
     use crate::domain::{
         common::{email::MockEmailPort, entities::app_errors::CoreError},
@@ -1040,5 +1062,91 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::InternalServerError)));
+    }
+
+    #[tokio::test]
+    async fn test_send_verification_email_times_out_when_email_port_hangs() {
+        let mut realm = test_realm();
+        let template = test_template(&realm);
+        let smtp_config = test_smtp_config(&realm);
+
+        let mut settings = RealmSetting::new(realm.id, Some("RS256".to_string()));
+        settings.email_verification_template_id = Some(template.id);
+        realm.settings = Some(settings);
+
+        let user = test_user(&realm);
+        let realm_clone = realm.clone();
+        let template_clone = template.clone();
+        let smtp_clone = smtp_config.clone();
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut evrt = MockEmailVerificationTokenRepository::new();
+        evrt.expect_create().returning(|_| {
+            Box::pin(async move {
+                Ok(EmailVerificationToken {
+                    id: Uuid::new_v4(),
+                    user_id: Uuid::new_v4(),
+                    realm_id: Uuid::new_v4().into(),
+                    token_hash: "hash".to_string(),
+                    expires_at: Utc::now() + Duration::hours(24),
+                    created_at: Utc::now(),
+                    used_at: None,
+                })
+            })
+        });
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo.expect_get_by_id().returning(move |_| {
+            let t = template_clone.clone();
+            Box::pin(async move { Ok(Some(t)) })
+        });
+
+        let mut smtp_repo = MockSmtpConfigRepository::new();
+        smtp_repo.expect_get_by_realm_id().returning(move |_| {
+            let s = smtp_clone.clone();
+            Box::pin(async move { Ok(Some(s)) })
+        });
+
+        let mut email_port = MockEmailPort::new();
+        email_port
+            .expect_send_email()
+            .returning(|_, _, _, _, _| Box::pin(future::pending()));
+
+        let service = build_service(
+            evrt,
+            user_repo,
+            realm_repo,
+            MockUserRequiredActionRepository::new(),
+            email_port,
+            smtp_repo,
+            et_repo,
+        );
+
+        let result = tokio::time::timeout(
+            StdDuration::from_millis(50),
+            service.send_verification_email(
+                Uuid::new_v4(),
+                "test-realm".to_string(),
+                "http://localhost".to_string(),
+            ),
+        )
+        .await;
+
+        assert!(matches!(
+            result,
+            Ok(Err(CoreError::ServiceUnavailable(message)))
+                if message.contains("Verification email delivery timed out")
+        ));
     }
 }
