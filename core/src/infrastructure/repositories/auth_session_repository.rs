@@ -249,6 +249,35 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session)
     }
 
+    /// Stamps a fresh authorization code onto an existing auth session and resets
+    /// the `authenticated` flag to `false`.
+    ///
+    /// # RFC 6749 semantics
+    ///
+    /// The OAuth 2.0 Authorization Code flow (RFC 6749 §4.1) separates two
+    /// distinct moments:
+    ///
+    /// * **§4.1.2 – Authorization Response**: the authorization server issues a
+    ///   short-lived, single-use authorization code and redirects the client.
+    ///   At this point the code has *not* yet been exchanged.
+    ///
+    /// * **§4.1.3 – Access Token Request**: the client presents the code to the
+    ///   token endpoint in exchange for tokens.  Only after a successful exchange
+    ///   should the code be considered "used".
+    ///
+    /// RFC 6749 §10.5 further requires that the authorization server ensure codes
+    /// "cannot be used more than once".  Ferriskey implements this invariant with
+    /// the `authenticated` column: `false` means the code is ready to be
+    /// exchanged; `true` means it has already been exchanged (or revoked) and
+    /// must be rejected by the token endpoint.
+    ///
+    /// This function is called during the brokered SSO callback (RFC 8414 / OIDC
+    /// Core §3.1) when Ferriskey reuses an existing `auth_session` that already
+    /// has a user linked.  A fresh code is generated for the downstream client,
+    /// therefore `authenticated` **must** be reset to `false` so that the token
+    /// endpoint will accept the exchange.  Leaving `authenticated = true` here
+    /// causes `authorization_code()` to reject the brand-new code immediately
+    /// with `CoreError::InvalidToken`, breaking the entire brokered login flow.
     async fn update_code(
         &self,
         session_code: Uuid,
@@ -259,9 +288,12 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 crate::entity::auth_sessions::Column::Code,
                 Expr::value(code),
             )
+            // Reset to false: this code has not yet been exchanged for tokens.
+            // See RFC 6749 §4.1.2 (code issuance) vs §4.1.3 (code exchange) and
+            // the `authenticated` invariant described in the doc-comment above.
             .col_expr(
                 crate::entity::auth_sessions::Column::Authenticated,
-                Expr::value(true),
+                Expr::value(false),
             )
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
             .exec_with_returning(&self.db)
@@ -318,5 +350,173 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             })?;
 
         Ok(())
+    }
+}
+
+/// Integration tests for `PostgresAuthSessionRepository`.
+///
+/// These tests require a running PostgreSQL instance and are skipped during
+/// regular `cargo test` runs.  Execute them explicitly with:
+///
+/// ```text
+/// cargo test -p ferriskey-core -- --ignored
+/// ```
+///
+/// Environment variables (defaults shown):
+/// ```text
+/// DATABASE_URL = postgres://ferriskey:ferriskey@localhost:5432/ferriskey
+/// ```
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+    use uuid::Uuid;
+
+    use crate::domain::authentication::{
+        entities::{AuthSession, AuthSessionParams},
+        ports::AuthSessionRepository as _,
+    };
+    use crate::domain::realm::entities::RealmId;
+
+    async fn setup() -> (PostgresAuthSessionRepository, Uuid, Uuid) {
+        let base_url = std::env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string());
+
+        let schema = format!("auth_session_test_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let schema_url = format!("{}?options=-c search_path={}", base_url, schema);
+        let schema_pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("migrations")
+            .run(&schema_pool)
+            .await
+            .expect("run migrations");
+
+        let realm_id = Uuid::new_v4();
+        let client_id = Uuid::new_v4();
+
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("test-realm-{realm_id}"))
+        .execute(&schema_pool)
+        .await
+        .expect("insert test realm");
+
+        sqlx::query(
+            "INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, \
+             public_client, service_account_enabled, client_type, created_at, updated_at) \
+             VALUES ($1, $2, 'test-client', 'test-client', TRUE, 'openid-connect', \
+             TRUE, FALSE, 'public', NOW(), NOW())",
+        )
+        .bind(client_id)
+        .bind(realm_id)
+        .execute(&schema_pool)
+        .await
+        .expect("insert test client");
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+        (PostgresAuthSessionRepository::new(db), realm_id, client_id)
+    }
+
+    fn make_session(realm_id: Uuid, client_id: Uuid, authenticated: bool) -> AuthSession {
+        AuthSession::new(AuthSessionParams {
+            realm_id: RealmId::new(realm_id),
+            client_id,
+            redirect_uri: "http://localhost/callback".into(),
+            response_type: "code".into(),
+            scope: "openid".into(),
+            state: None,
+            nonce: None,
+            user_id: None,
+            code: None,
+            authenticated,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
+            compass_flow_id: None,
+        })
+    }
+
+    /// A freshly-issued authorization code must have `authenticated = false`.
+    ///
+    /// RFC 6749 §4.1.2 defines code issuance (step D of the flow); the code has
+    /// not been exchanged yet so it must not be pre-marked as used.
+    ///
+    /// Regression: `update_code` was previously setting `authenticated = true`,
+    /// causing the token endpoint to reject the brand-new code immediately with
+    /// `CoreError::InvalidToken` — breaking every brokered SSO login where
+    /// Ferriskey reused an existing `auth_session` row.
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_code_resets_authenticated_to_false() {
+        let (repo, realm_id, client_id) = setup().await;
+
+        // Start with an already-consumed session (authenticated = true).
+        let session = make_session(realm_id, client_id, true);
+        let created = repo.create(&session).await.expect("create session");
+        assert!(created.authenticated, "pre-condition");
+
+        let updated = repo
+            .update_code(created.id, "fresh-auth-code".into())
+            .await
+            .expect("update_code");
+
+        assert!(
+            !updated.authenticated,
+            "update_code must reset authenticated to false (RFC 6749 §4.1.2)"
+        );
+        assert_eq!(updated.code, Some("fresh-auth-code".into()));
+    }
+
+    /// `update_code` must reset `authenticated` on every call so a session can
+    /// be reused across multiple brokered SSO login cycles.
+    ///
+    /// RFC 6749 §10.5 requires single-use per code, not per session: after a
+    /// successful exchange (`authenticated = true`) a subsequent `update_code`
+    /// must produce a fresh, exchangeable code.
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_code_enables_reuse_across_login_cycles() {
+        let (repo, realm_id, client_id) = setup().await;
+
+        let session = make_session(realm_id, client_id, false);
+        let created = repo.create(&session).await.expect("create session");
+
+        // First SSO callback — issues code for first login.
+        let after_first = repo
+            .update_code(created.id, "code-round-1".into())
+            .await
+            .expect("first update_code");
+        assert!(!after_first.authenticated, "ready for first exchange");
+
+        // Token exchange marks the code as used (RFC 6749 §4.1.3).
+        repo.update_authenticated(created.id, true)
+            .await
+            .expect("mark used");
+
+        // Second SSO callback — reuses the session for a new login cycle.
+        let after_second = repo
+            .update_code(created.id, "code-round-2".into())
+            .await
+            .expect("second update_code");
+
+        assert!(
+            !after_second.authenticated,
+            "update_code must reset authenticated to false on reuse (RFC 6749 §10.5)"
+        );
+        assert_eq!(after_second.code, Some("code-round-2".into()));
     }
 }
