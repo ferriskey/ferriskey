@@ -1,0 +1,16 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ferriskey-operator.operator.clusterRoleBindingName" . }}
+  labels:
+    {{- include "ferriskey-operator.operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "ferriskey-operator.operator.clusterRoleName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ferriskey-operator.operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
