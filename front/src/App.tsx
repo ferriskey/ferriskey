@@ -22,6 +22,7 @@ import PageRealm from './pages/realm/page-realm'
 import PageRole from './pages/role/page-role'
 import PageSeawatch from './pages/seawatch/page-seawatch'
 import PageEmailTemplate from './pages/email-template/page-email-template'
+import PagePortalTheme from './pages/portal-theme/page-portal-theme'
 import PageUserFederation from './pages/user-federation/page-user-federation'
 import PageUser from './pages/user/page-user'
 import PageOrganization from './pages/organization/page-organization'
@@ -260,6 +261,7 @@ function AppRoutes() {
             <Route path='compass/*' element={<PageCompass />} />
             <Route path='identity-providers/*' element={<PageIdentityProviders />} />
             <Route path='email-templates/*' element={<PageEmailTemplate />} />
+            <Route path='portal/*' element={<PagePortalTheme />} />
             <Route path='user-federation/*' element={<PageUserFederation />} />
             <Route path='organizations/*' element={<PageOrganization />} />
           </Route>
