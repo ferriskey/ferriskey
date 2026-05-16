@@ -135,6 +135,10 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 Expr::value(code),
             )
             .col_expr(
+                crate::entity::auth_sessions::Column::Authenticated,
+                Expr::value(false),
+            )
+            .col_expr(
                 crate::entity::auth_sessions::Column::UserId,
                 Expr::value(user_id),
             )
@@ -393,7 +397,8 @@ mod tests {
             .await
             .expect("create test schema");
 
-        let schema_url = format!("{}?options=-c search_path={}", base_url, schema);
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
         let schema_pool = sqlx::PgPool::connect(&schema_url)
             .await
             .expect("connect schema pool");
@@ -518,5 +523,33 @@ mod tests {
             "update_code must reset authenticated to false on reuse (RFC 6749 §10.5)"
         );
         assert_eq!(after_second.code, Some("code-round-2".into()));
+    }
+
+    /// `update_code_and_user_id` must also reset `authenticated` to `false`.
+    ///
+    /// This path is taken when Ferriskey simultaneously stamps a fresh code and
+    /// binds a user to the session (e.g. direct-grant flows).  The same RFC 6749
+    /// §4.1.2 invariant applies: the code has not been exchanged yet.
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_code_and_user_id_resets_authenticated_to_false() {
+        let (repo, realm_id, client_id) = setup().await;
+
+        let session = make_session(realm_id, client_id, true);
+        let created = repo.create(&session).await.expect("create session");
+        assert!(created.authenticated, "pre-condition");
+
+        let user_id = Uuid::new_v4();
+        let updated = repo
+            .update_code_and_user_id(created.id, "fresh-code-with-user".into(), user_id)
+            .await
+            .expect("update_code_and_user_id");
+
+        assert!(
+            !updated.authenticated,
+            "update_code_and_user_id must reset authenticated to false (RFC 6749 §4.1.2)"
+        );
+        assert_eq!(updated.code, Some("fresh-code-with-user".into()));
+        assert_eq!(updated.user_id, Some(user_id));
     }
 }
