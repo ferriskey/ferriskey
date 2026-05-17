@@ -8,6 +8,7 @@ use crate::application::http::{
     email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc},
     maintenance::router::MaintenanceApiDoc,
     organization::router::OrganizationApiDoc,
+    portal_layouts::router::{PortalLayoutsApiDoc, PortalLayoutsPublicApiDoc},
     portal_theme::router::PortalThemeApiDoc,
     realm::router::RealmApiDoc,
     role::router::RoleApiDoc,
@@ -39,6 +40,8 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = CompassApiDoc),
         (path = "/realms/{realm_name}/email-templates", api = EmailTemplateApiDoc),
         (path = "/realms/{realm_name}/portal/theme", api = PortalThemeApiDoc),
+        (path = "/realms/{realm_name}/portal-layouts", api = PortalLayoutsApiDoc),
+        (path = "/realms/{realm_name}/portal-layouts/public", api = PortalLayoutsPublicApiDoc),
         (path = "/email-templates/variables", api = EmailTemplateVariablesApiDoc),
         (path = "/realms/{realm_name}/organizations", api = OrganizationApiDoc),
         (path = "/realms/{realm_name}/clients", api = MaintenanceApiDoc)

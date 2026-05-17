@@ -119,6 +119,7 @@ pub mod mail;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
+pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
 pub mod role;
