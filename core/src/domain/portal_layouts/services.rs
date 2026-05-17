@@ -73,7 +73,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_layouts(&identity, &realm).await,
+            self.policy.can_manage_layouts(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -92,7 +92,7 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         ensure_policy(
-            self.policy.can_view_layouts(&identity, &realm).await,
+            self.policy.can_manage_layouts(&identity, &realm).await,
             "insufficient permissions",
         )?;
 

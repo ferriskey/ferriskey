@@ -98,12 +98,6 @@ pub trait PortalLayoutsRepository: Send + Sync {
 }
 
 pub trait PortalLayoutsPolicy: Send + Sync {
-    fn can_view_layouts(
-        &self,
-        identity: &Identity,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-
     fn can_manage_layouts(
         &self,
         identity: &Identity,
