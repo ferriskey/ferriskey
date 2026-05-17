@@ -61,8 +61,9 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Realms,
     PortalLayouts,
+    RealmSettings,
+    Realms,
 }
 
 impl ColumnTrait for Column {
@@ -90,27 +91,34 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Realms => Entity::belongs_to(super::realms::Entity)
-                .from(Column::RealmId)
-                .to(super::realms::Column::Id)
-                .into(),
             Self::PortalLayouts => Entity::belongs_to(super::portal_layouts::Entity)
                 .from(Column::LayoutId)
                 .to(super::portal_layouts::Column::Id)
                 .into(),
+            Self::RealmSettings => Entity::has_many(super::realm_settings::Entity).into(),
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
         }
-    }
-}
-
-impl Related<super::realms::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Realms.def()
     }
 }
 
 impl Related<super::portal_layouts::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PortalLayouts.def()
+    }
+}
+
+impl Related<super::realm_settings::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RealmSettings.def()
+    }
+}
+
+impl Related<super::realms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Realms.def()
     }
 }
 

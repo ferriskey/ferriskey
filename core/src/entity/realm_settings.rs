@@ -78,8 +78,8 @@ pub enum Relation {
     EmailTemplates3,
     EmailTemplates2,
     EmailTemplates1,
-    Realms,
     PortalThemes,
+    Realms,
 }
 
 impl ColumnTrait for Column {
@@ -126,27 +126,27 @@ impl RelationTrait for Relation {
                 .from(Column::ResetPasswordTemplateId)
                 .to(super::email_templates::Column::Id)
                 .into(),
-            Self::Realms => Entity::belongs_to(super::realms::Entity)
-                .from(Column::RealmId)
-                .to(super::realms::Column::Id)
-                .into(),
             Self::PortalThemes => Entity::belongs_to(super::portal_themes::Entity)
                 .from(Column::PortalThemeId)
                 .to(super::portal_themes::Column::Id)
                 .into(),
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
         }
-    }
-}
-
-impl Related<super::realms::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Realms.def()
     }
 }
 
 impl Related<super::portal_themes::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PortalThemes.def()
+    }
+}
+
+impl Related<super::realms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Realms.def()
     }
 }
 

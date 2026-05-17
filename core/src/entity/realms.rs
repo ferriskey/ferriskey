@@ -105,7 +105,7 @@ impl RelationTrait for Relation {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
             }
             Self::PortalLayouts => Entity::has_one(super::portal_layouts::Entity).into(),
-            Self::PortalThemes => Entity::has_one(super::portal_themes::Entity).into(),
+            Self::PortalThemes => Entity::has_many(super::portal_themes::Entity).into(),
             Self::RealmMaintenanceWhitelist => {
                 Entity::has_many(super::realm_maintenance_whitelist::Entity).into()
             }

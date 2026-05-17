@@ -47,6 +47,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    PortalThemes,
     Realms,
 }
 
@@ -68,11 +69,18 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::PortalThemes => Entity::has_many(super::portal_themes::Entity).into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::portal_themes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PortalThemes.def()
     }
 }
 
