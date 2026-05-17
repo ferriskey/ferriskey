@@ -33,6 +33,7 @@ pub struct Model {
     pub email_verification_template_id: Option<Uuid>,
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i32,
+    pub portal_theme_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -57,6 +58,7 @@ pub enum Column {
     EmailVerificationTemplateId,
     EmailVerificationEnabled,
     EmailVerificationTtlHours,
+    PortalThemeId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -76,6 +78,7 @@ pub enum Relation {
     EmailTemplates3,
     EmailTemplates2,
     EmailTemplates1,
+    PortalThemes,
     Realms,
 }
 
@@ -103,6 +106,7 @@ impl ColumnTrait for Column {
             Self::EmailVerificationTemplateId => ColumnType::Uuid.def().null(),
             Self::EmailVerificationEnabled => ColumnType::Boolean.def(),
             Self::EmailVerificationTtlHours => ColumnType::Integer.def(),
+            Self::PortalThemeId => ColumnType::Uuid.def().null(),
         }
     }
 }
@@ -122,11 +126,21 @@ impl RelationTrait for Relation {
                 .from(Column::ResetPasswordTemplateId)
                 .to(super::email_templates::Column::Id)
                 .into(),
+            Self::PortalThemes => Entity::belongs_to(super::portal_themes::Entity)
+                .from(Column::PortalThemeId)
+                .to(super::portal_themes::Column::Id)
+                .into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::portal_themes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PortalThemes.def()
     }
 }
 
