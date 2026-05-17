@@ -15,18 +15,36 @@ impl EntityName for Entity {
 pub struct Model {
     pub id: Uuid,
     pub realm_id: Uuid,
-    pub config: Json,
+    pub design_tokens: Json,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+    pub name: String,
+    pub layout_id: Option<Uuid>,
+    pub page_login: Json,
+    pub page_register: Json,
+    pub page_totp: Json,
+    pub page_forgot_password: Json,
+    pub page_reset_password: Json,
+    pub page_magic_link_verify: Json,
+    pub page_verify_email: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
     RealmId,
-    Config,
+    DesignTokens,
     CreatedAt,
     UpdatedAt,
+    Name,
+    LayoutId,
+    PageLogin,
+    PageRegister,
+    PageTotp,
+    PageForgotPassword,
+    PageResetPassword,
+    PageMagicLinkVerify,
+    PageVerifyEmail,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -44,6 +62,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Realms,
+    PortalLayouts,
 }
 
 impl ColumnTrait for Column {
@@ -51,10 +70,19 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::RealmId => ColumnType::Uuid.def().unique(),
-            Self::Config => ColumnType::JsonBinary.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::DesignTokens => ColumnType::JsonBinary.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::Name => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::LayoutId => ColumnType::Uuid.def().null(),
+            Self::PageLogin => ColumnType::JsonBinary.def(),
+            Self::PageRegister => ColumnType::JsonBinary.def(),
+            Self::PageTotp => ColumnType::JsonBinary.def(),
+            Self::PageForgotPassword => ColumnType::JsonBinary.def(),
+            Self::PageResetPassword => ColumnType::JsonBinary.def(),
+            Self::PageMagicLinkVerify => ColumnType::JsonBinary.def(),
+            Self::PageVerifyEmail => ColumnType::JsonBinary.def(),
         }
     }
 }
@@ -66,6 +94,10 @@ impl RelationTrait for Relation {
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
+            Self::PortalLayouts => Entity::belongs_to(super::portal_layouts::Entity)
+                .from(Column::LayoutId)
+                .to(super::portal_layouts::Column::Id)
+                .into(),
         }
     }
 }
@@ -73,6 +105,12 @@ impl RelationTrait for Relation {
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
+    }
+}
+
+impl Related<super::portal_layouts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PortalLayouts.def()
     }
 }
 

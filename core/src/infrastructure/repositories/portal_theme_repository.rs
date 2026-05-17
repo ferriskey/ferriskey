@@ -29,7 +29,7 @@ impl PostgresPortalThemeRepository {
 }
 
 fn model_to_domain(model: Model) -> Result<PortalTheme, CoreError> {
-    let config: PortalThemeConfig = serde_json::from_value(model.config).map_err(|e| {
+    let config: PortalThemeConfig = serde_json::from_value(model.design_tokens).map_err(|e| {
         error!("failed to deserialize portal theme config: {e}");
         CoreError::InternalServerError
     })?;
@@ -71,15 +71,16 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
         let model = ActiveModel {
             id: Set(generate_uuid_v7()),
             realm_id: Set(realm_id),
-            config: Set(config_json),
+            design_tokens: Set(config_json),
             created_at: Set(now),
             updated_at: Set(now),
+            ..Default::default()
         };
 
         Entity::insert(model)
             .on_conflict(
                 OnConflict::column(Column::RealmId)
-                    .update_columns([Column::Config, Column::UpdatedAt])
+                    .update_columns([Column::DesignTokens, Column::UpdatedAt])
                     .to_owned(),
             )
             .exec(&self.db)
