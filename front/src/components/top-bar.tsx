@@ -12,8 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { BadgeCheck, LogOut, Sun, Moon, Laptop, Check } from 'lucide-react'
+import { BadgeCheck, LogOut, Sun, Moon, Laptop, Check, LayoutGrid, Settings2 } from 'lucide-react'
 import { useTheme } from './theme-provider'
+import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
+import { useTrackLastVisited } from '@/hooks/use-track-last-visited'
+import { useLocation } from 'react-router'
 
 function getInitials(username?: string): string {
   if (!username) return '??'
@@ -28,6 +31,9 @@ export function TopBar() {
   const { realm_name } = useParams<RouterParams>()
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const switchMode = useSwitchMode()
+  useTrackLastVisited()
+  const mode = deriveModeFromPath(useLocation().pathname)
 
   return (
     <header className='sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background px-6'>
@@ -90,6 +96,20 @@ export function TopBar() {
               <DropdownMenuItem className='rounded-none'>
                 <BadgeCheck />
                 Account
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>Panel mode</DropdownMenuLabel>
+              <DropdownMenuItem className='rounded-none' onClick={() => switchMode('console')}>
+                <LayoutGrid className='mr-2 h-4 w-4' />
+                Console
+                {mode === 'console' && <Check className='ml-auto h-4 w-4' />}
+              </DropdownMenuItem>
+              <DropdownMenuItem className='rounded-none' onClick={() => switchMode('admin')}>
+                <Settings2 className='mr-2 h-4 w-4' />
+                Admin
+                {mode === 'admin' && <Check className='ml-auto h-4 w-4' />}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

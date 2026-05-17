@@ -7,6 +7,7 @@ import { TanstackQueryApiClient } from './api/api.tanstack'
 import { useGetConfig } from './api/config.api'
 import './App.css'
 import Layout from './components/layout/layout'
+import ProductLayout from './components/layout/product-layout'
 import { useTheme } from './components/theme-provider'
 import { Toaster } from './components/ui/sonner'
 import { BasicSpinner } from './components/ui/spinner'
@@ -26,6 +27,11 @@ import PagePortalTheme from './pages/portal-theme/page-portal-theme'
 import PageUserFederation from './pages/user-federation/page-user-federation'
 import PageUser from './pages/user/page-user'
 import PageOrganization from './pages/organization/page-organization'
+import PageActivity from './pages/activity/page-activity'
+import PageUserManagement from './pages/user-management/page-user-management'
+import PageConsoleApplications from './pages/console-applications/page-console-applications'
+import PageConsoleAuthentication from './pages/console-authentication/page-console-authentication'
+import PageConsoleBranding from './pages/console-branding/page-console-branding'
 
 declare global {
   interface Window {
@@ -221,10 +227,9 @@ function AppRoutes() {
   }, [responseConfig, setConfig])
 
   const authenticateRoute = useMemo(() => {
-    if (pathname.includes('authentication')) {
-      return true
-    }
-    return false
+    // Public auth flow lives at /realms/:realm/authentication/* — NOT under /console/.
+    // We match the dedicated segment to avoid catching the console "Authentication" tab.
+    return /\/realms\/[^/]+\/authentication(\/|$)/.test(pathname)
   }, [pathname])
 
   useEffect(() => {
@@ -249,9 +254,9 @@ function AppRoutes() {
         <Route path='realms/:realm_name'>
           <Route path='authentication/*' element={<PageAuthentication />} />
 
+          {/* Admin (IAM) — bare paths under realm */}
           <Route element={<Layout />}>
             <Route path='overview/*' element={<PageOverview />} />
-
             <Route path='clients/*' element={<PageClient />} />
             <Route path='client-scopes/*' element={<PageClientScope />} />
             <Route path='users/*' element={<PageUser />} />
@@ -264,6 +269,16 @@ function AppRoutes() {
             <Route path='portal/*' element={<PagePortalTheme />} />
             <Route path='user-federation/*' element={<PageUserFederation />} />
             <Route path='organizations/*' element={<PageOrganization />} />
+          </Route>
+
+          {/* Console (CIAM) — under /console prefix */}
+          <Route path='console' element={<ProductLayout />}>
+            <Route index element={<Navigate to='activity/live' replace />} />
+            <Route path='activity/*' element={<PageActivity />} />
+            <Route path='user-management/*' element={<PageUserManagement />} />
+            <Route path='applications/*' element={<PageConsoleApplications />} />
+            <Route path='authentication/*' element={<PageConsoleAuthentication />} />
+            <Route path='branding/*' element={<PageConsoleBranding />} />
           </Route>
         </Route>
 
