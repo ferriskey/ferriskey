@@ -24,6 +24,7 @@ pub use super::organization_members::Entity as OrganizationMembers;
 pub use super::organizations::Entity as Organizations;
 pub use super::password_policy::Entity as PasswordPolicy;
 pub use super::password_reset_tokens::Entity as PasswordResetTokens;
+pub use super::portal_layouts::Entity as PortalLayouts;
 pub use super::portal_themes::Entity as PortalThemes;
 pub use super::post_logout_redirect_uris::Entity as PostLogoutRedirectUris;
 pub use super::realm_maintenance_whitelist::Entity as RealmMaintenanceWhitelist;

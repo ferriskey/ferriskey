@@ -26,6 +26,7 @@ pub mod organization_members;
 pub mod organizations;
 pub mod password_policy;
 pub mod password_reset_tokens;
+pub mod portal_layouts;
 pub mod portal_themes;
 pub mod post_logout_redirect_uris;
 pub mod realm_maintenance_whitelist;

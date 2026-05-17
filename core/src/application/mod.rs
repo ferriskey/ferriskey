@@ -25,6 +25,7 @@ use crate::{
         maintenance::services::MaintenanceServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
+        portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
@@ -83,6 +84,7 @@ use crate::{
             magic_link_repository::PostgresMagicLinkRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
+            portal_layouts_repository::PostgresPortalLayoutsRepository,
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
@@ -185,6 +187,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
     let portal_theme = Arc::new(PostgresPortalThemeRepository::new(postgres.get_db()));
+    let portal_layouts = Arc::new(PostgresPortalLayoutsRepository::new(postgres.get_db()));
     let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
     let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
         postgres.get_db(),
@@ -351,6 +354,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         portal_theme_service: PortalThemeServiceImpl::new(
             realm.clone(),
             portal_theme.clone(),
+            policy.clone(),
+        ),
+        portal_layouts_service: PortalLayoutsServiceImpl::new(
+            realm.clone(),
+            portal_layouts.clone(),
             policy.clone(),
         ),
         core_service: CoreServiceImpl::new(
