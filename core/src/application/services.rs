@@ -27,6 +27,7 @@ use crate::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
             service::PasswordPolicyService,
         },
+        portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
         realm::{
             ports::RealmRepository,
@@ -80,6 +81,7 @@ use crate::{
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
+            portal_layouts_repository::PostgresPortalLayoutsRepository,
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
@@ -135,6 +137,7 @@ type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_r
 type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
 type PortalThemeRepo = PostgresPortalThemeRepository;
+type PortalLayoutsRepo = PostgresPortalLayoutsRepository;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
@@ -349,6 +352,9 @@ pub struct ApplicationService {
     #[allow(dead_code)]
     pub(crate) portal_theme_service:
         PortalThemeServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, PortalThemeRepo>,
+    #[allow(dead_code)]
+    pub(crate) portal_layouts_service:
+        PortalLayoutsServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, PortalLayoutsRepo>,
     pub(crate) password_policy_service:
         PasswordPolicyService<PasswordPolicyRepo, UserRepo, ClientRepo, UserRoleRepo>,
     pub(crate) organization_service: OrganizationServiceImpl<
