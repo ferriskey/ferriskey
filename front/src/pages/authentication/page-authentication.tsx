@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Outlet, Route, Routes } from 'react-router-dom'
 import PageLoginFeature from './feature/page-login-feature'
 import PageCallbackFeature from './feature/page-callback-feature'
 import PageRequiredActionFeature from './feature/page-required-action-feature'
@@ -9,20 +9,29 @@ import PageResetPasswordFeature from './feature/page-reset-password-feature'
 import PageMagicLinkVerifyFeature from './feature/page-magic-link-verify-feature'
 import PageCheckYourEmail from './feature/page-check-your-email'
 import PageVerifyEmail from './feature/page-verify-email'
+import { PortalLayoutWrapper } from './components/portal-layout-wrapper'
 
 export default function PageAuthentication() {
   return (
     <Routes>
-      <Route path='/login' element={<PageLoginFeature />} />
-      <Route path='/register' element={<PageRegisterFeature />} />
-      <Route path='/callback' element={<PageCallbackFeature />} />
-      <Route path='/required-action' element={<PageRequiredActionFeature />} />
-      <Route path='/otp' element={<PageOtpChallengeFeature />} />
-      <Route path='/forgot-password' element={<PageForgotPasswordFeature />} />
-      <Route path='/reset-password' element={<PageResetPasswordFeature />} />
-      <Route path='/magic-link' element={<PageMagicLinkVerifyFeature />} />
-      <Route path='/check-your-email' element={<PageCheckYourEmail />} />
-      <Route path='/verify-email' element={<PageVerifyEmail />} />
+      <Route
+        element={
+          <PortalLayoutWrapper>
+            <Outlet />
+          </PortalLayoutWrapper>
+        }
+      >
+        <Route path='/login' element={<PageLoginFeature />} />
+        <Route path='/register' element={<PageRegisterFeature />} />
+        <Route path='/callback' element={<PageCallbackFeature />} />
+        <Route path='/required-action' element={<PageRequiredActionFeature />} />
+        <Route path='/otp' element={<PageOtpChallengeFeature />} />
+        <Route path='/forgot-password' element={<PageForgotPasswordFeature />} />
+        <Route path='/reset-password' element={<PageResetPasswordFeature />} />
+        <Route path='/magic-link' element={<PageMagicLinkVerifyFeature />} />
+        <Route path='/check-your-email' element={<PageCheckYourEmail />} />
+        <Route path='/verify-email' element={<PageVerifyEmail />} />
+      </Route>
     </Routes>
   )
 }
