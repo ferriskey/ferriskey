@@ -25,15 +25,17 @@ impl PostgresPortalLayoutsRepository {
     }
 }
 
-fn model_to_domain(model: Model) -> PortalLayout {
-    PortalLayout {
-        id: model.id,
-        realm_id: model.realm_id.into(),
-        name: model.name,
-        tree: model.tree,
-        is_default: model.is_default,
-        created_at: Utc.from_utc_datetime(&model.created_at),
-        updated_at: Utc.from_utc_datetime(&model.updated_at),
+impl From<Model> for PortalLayout {
+    fn from(model: Model) -> Self {
+        Self {
+            id: model.id,
+            realm_id: model.realm_id.into(),
+            name: model.name,
+            tree: model.tree,
+            is_default: model.is_default,
+            created_at: Utc.from_utc_datetime(&model.created_at),
+            updated_at: Utc.from_utc_datetime(&model.updated_at),
+        }
     }
 }
 
@@ -49,7 +51,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(models.into_iter().map(model_to_domain).collect())
+        Ok(models.into_iter().map(PortalLayout::from).collect())
     }
 
     async fn get_by_id(
@@ -66,7 +68,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(model_to_domain))
+        Ok(model.map(PortalLayout::from))
     }
 
     async fn get_default(&self, realm_id: Uuid) -> Result<Option<PortalLayout>, CoreError> {
@@ -80,7 +82,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(model_to_domain))
+        Ok(model.map(PortalLayout::from))
     }
 
     async fn create(
@@ -109,7 +111,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model_to_domain(inserted))
+        Ok(inserted.into())
     }
 
     async fn update(
@@ -139,7 +141,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(model_to_domain(updated))
+        Ok(updated.into())
     }
 
     async fn set_default(
@@ -192,7 +194,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(model_to_domain(updated))
+        Ok(updated.into())
     }
 
     async fn delete(&self, realm_id: Uuid, layout_id: Uuid) -> Result<(), CoreError> {
