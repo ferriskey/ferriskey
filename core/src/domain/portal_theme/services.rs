@@ -10,9 +10,11 @@ use crate::domain::{
     portal_theme::{
         entities::{PortalTheme, PortalThemeConfig},
         ports::{
-            GetThemeInput, PortalThemePolicy, PortalThemeRepository, PortalThemeService,
-            UpdateThemeInput,
+            CreateThemeInput, GetThemeByIdInput, GetThemeInput, ListThemesInput, PortalThemePolicy,
+            PortalThemeRepository, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
+            UpdateThemePageInput,
         },
+        validation::validate_tree,
     },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
@@ -120,6 +122,190 @@ where
 
         Ok(stored.map(|b| b.config).unwrap_or_default())
     }
+
+    async fn list_themes(
+        &self,
+        identity: Identity,
+        input: ListThemesInput,
+    ) -> Result<Vec<PortalTheme>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.portal_theme_repository
+            .list_by_realm(realm.id.into())
+            .await
+    }
+
+    async fn get_theme_by_id(
+        &self,
+        identity: Identity,
+        input: GetThemeByIdInput,
+    ) -> Result<PortalTheme, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.portal_theme_repository
+            .get_by_id(realm.id.into(), input.theme_id)
+            .await?
+            .ok_or(CoreError::NotFound)
+    }
+
+    async fn create_theme(
+        &self,
+        identity: Identity,
+        input: CreateThemeInput,
+    ) -> Result<PortalTheme, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_manage_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.portal_theme_repository
+            .create(realm.id.into(), input.name, input.layout_id, input.config)
+            .await
+    }
+
+    async fn update_theme_metadata(
+        &self,
+        identity: Identity,
+        input: UpdateThemeMetadataInput,
+    ) -> Result<PortalTheme, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_manage_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.portal_theme_repository
+            .update_metadata(
+                realm.id.into(),
+                input.theme_id,
+                input.name,
+                input.layout_id,
+                input.config,
+            )
+            .await
+    }
+
+    async fn update_theme_page(
+        &self,
+        identity: Identity,
+        input: UpdateThemePageInput,
+    ) -> Result<PortalTheme, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_manage_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        validate_tree(input.page_type, &input.tree).map_err(|missing| {
+            CoreError::PortalThemePageInvalid(
+                serde_json::to_string(&missing).unwrap_or_else(|_| "{}".to_string()),
+            )
+        })?;
+
+        self.portal_theme_repository
+            .update_page(realm.id.into(), input.theme_id, input.page_type, input.tree)
+            .await
+    }
+
+    async fn activate_theme(
+        &self,
+        identity: Identity,
+        input: GetThemeByIdInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_manage_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.portal_theme_repository
+            .activate(realm.id.into(), input.theme_id)
+            .await
+    }
+
+    async fn delete_theme(
+        &self,
+        identity: Identity,
+        input: GetThemeByIdInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_manage_theme(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        if let Some(active) = self
+            .portal_theme_repository
+            .get_active(realm.id.into())
+            .await?
+            && active.id == input.theme_id
+        {
+            return Err(CoreError::PortalThemeActive);
+        }
+
+        self.portal_theme_repository
+            .delete(realm.id.into(), input.theme_id)
+            .await
+    }
+
+    async fn get_active_theme(
+        &self,
+        input: ListThemesInput,
+    ) -> Result<Option<PortalTheme>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        self.portal_theme_repository
+            .get_active(realm.id.into())
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -199,7 +385,10 @@ mod tests {
         PortalTheme {
             id: Uuid::new_v4(),
             realm_id: realm.id,
+            name: "Default".to_string(),
+            layout_id: None,
             config,
+            pages: Default::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -484,5 +673,52 @@ mod tests {
             .expect("public get should succeed");
 
         assert_eq!(result, stored_config);
+    }
+
+    #[tokio::test]
+    async fn update_theme_page_rejects_tree_missing_required_blocks() {
+        use crate::domain::portal_theme::entities::PortalPageType;
+        use serde_json::json;
+
+        let realm = test_realm();
+        let user = test_user(&realm);
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        let user_clone = user.clone();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user_clone.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        let realm_for_roles = realm.clone();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let r = realm_for_roles.clone();
+            Box::pin(async move { Ok(vec![admin_role(&r)]) })
+        });
+
+        let theme_repo = MockPortalThemeRepository::new();
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
+
+        let result = service
+            .update_theme_page(
+                Identity::User(user),
+                UpdateThemePageInput {
+                    realm_name: realm.name.clone(),
+                    theme_id: Uuid::new_v4(),
+                    page_type: PortalPageType::Login,
+                    tree: json!([{ "type": "email_input" }]),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::PortalThemePageInvalid(_))));
     }
 }

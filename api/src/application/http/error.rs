@@ -234,6 +234,12 @@ impl From<CoreError> for ApiError {
             CoreError::EmailVerificationTemplateNotConfigured => {
                 Self::BadRequest("Email verification template is not configured for this realm".into())
             }
+            CoreError::PortalThemePageInvalid(details) => {
+                Self::validation_error(details, "tree")
+            }
+            CoreError::PortalThemeActive => {
+                Self::BadRequest("Portal theme is currently active and cannot be deleted".into())
+            }
         }
     }
 }

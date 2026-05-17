@@ -282,6 +282,12 @@ pub enum CoreError {
 
     #[error("Email verification template is not configured for this realm")]
     EmailVerificationTemplateNotConfigured,
+
+    #[error("Portal theme page tree is missing required blocks: {0}")]
+    PortalThemePageInvalid(String),
+
+    #[error("Portal theme is currently active and cannot be deleted")]
+    PortalThemeActive,
 }
 
 impl From<AuthenticationError> for CoreError {
