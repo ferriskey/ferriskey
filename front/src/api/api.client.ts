@@ -1,5 +1,4 @@
 export namespace Schemas {
-  export const _emission_fix = true
   // <Schemas>
   export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
   export type MaintenanceWhitelistEntry = {
@@ -56,7 +55,15 @@ export namespace Schemas {
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string }
   export type BurnRecoveryCodeResponse = { login_url: string }
   export type ChallengeOtpRequest = Partial<{ code: string }>
-  export type ChallengeOtpResponse = Partial<{ url: string; required_actions: Array<string> }>
+  export type RequiredAction =
+    | 'configure_otp'
+    | 'verify_email'
+    | 'update_password'
+    | 'configure_passkey'
+  export type ChallengeOtpResponse = Partial<{
+    required_actions: Array<RequiredAction>
+    url: string | null
+  }>
   export type ClientType = 'confidential' | 'public' | 'system'
   export type MaintenanceSessionStrategy = 'terminate' | 'expire'
   export type Client = {
@@ -261,11 +268,6 @@ export namespace Schemas {
     settings?: (null | RealmSetting) | undefined
     updated_at: string
   }
-  export type RequiredAction =
-    | 'configure_otp'
-    | 'verify_email'
-    | 'update_password'
-    | 'configure_passkey'
   export type User = {
     client_id?: (string | null) | undefined
     created_at: string
@@ -284,10 +286,10 @@ export namespace Schemas {
   }
   export type CreateUserResponse = { data: User }
   export type CreateUserValidator = Partial<{
-    email: string
+    email: string | null
     email_verified: boolean | null
-    firstname: string
-    lastname: string
+    firstname: string | null
+    lastname: string | null
     username: string
   }>
   export type WebhookTrigger =
@@ -445,6 +447,46 @@ export namespace Schemas {
   export type GetStatsResponse = { data: FlowStats }
   export type TemplateVariable = { description: string; name: string }
   export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> }
+  export type ThemeShadow = 'none' | 'small' | 'large'
+  export type ThemeBorders = Partial<{
+    buttonBorderWeight: number
+    buttonRadius: number
+    inputBorderWeight: number
+    inputRadius: number
+    widgetBorderWeight: number
+    widgetRadius: number
+    widgetShadow: ThemeShadow
+  }>
+  export type ThemeColors = Partial<{
+    bodyText: string
+    error: string
+    links: string
+    pageBackground: string
+    primaryButton: string
+    primaryButtonLabel: string
+    secondaryButton: string
+    secondaryButtonLabel: string
+    widgetBackground: string
+  }>
+  export type ThemeFontStyle = { sizePct: number; weight: number }
+  export type ThemeLinkStyle = 'normal' | 'underline'
+  export type ThemeFontLinkStyle = { sizePct: number; style: ThemeLinkStyle; weight: number }
+  export type ThemeFonts = Partial<{
+    baseSize: number
+    body: ThemeFontStyle
+    buttons: ThemeFontStyle
+    inputLabels: ThemeFontStyle
+    links: ThemeFontLinkStyle
+    subtitle: ThemeFontStyle
+    title: ThemeFontStyle
+    url: string | null
+  }>
+  export type PortalThemeConfig = Partial<{
+    borders: ThemeBorders
+    colors: ThemeColors
+    fonts: ThemeFonts
+  }>
+  export type GetThemeResponse = { data: PortalThemeConfig }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
   export type GetWebhooksResponse = { data: Array<Webhook> }
@@ -583,6 +625,13 @@ export namespace Schemas {
     | 'view_client_scopes'
     | 'manage_email_templates'
     | 'view_email_templates'
+  export type PortalTheme = {
+    config: PortalThemeConfig
+    created_at: string
+    id: string
+    realm_id: RealmId
+    updated_at: string
+  }
   export type ProtocolMapper = {
     client_scope_id: string
     config: unknown
@@ -601,8 +650,10 @@ export namespace Schemas {
     magic_link_ttl: number
     passkey_enabled: boolean
     remember_me_enabled: boolean
+    theme: PortalThemeConfig
     user_registration_enabled: boolean
   }
+  export type RedirectRegistrationResponse = { url: string }
   export type RedirectUri = {
     client_id: string
     created_at: string
@@ -618,13 +669,12 @@ export namespace Schemas {
     password: string
     username: string
   }>
+  export type RegistrationResponse =
+    | { data: JwtToken; status: 'authenticated' }
+    | { data: RedirectRegistrationResponse; status: 'redirect' }
+    | { data: PendingVerificationResponse; status: 'pending_verification' }
   export type RemoveClientWhitelistEntryResponse = { message: string }
   export type RemoveRealmWhitelistEntryResponse = { message: string }
-  export type RedirectRegistrationResponse = { url: string }
-  export type RegistrationResponse =
-    | { status: 'authenticated'; data: JwtToken }
-    | { status: 'redirect'; data: RedirectRegistrationResponse }
-    | { status: 'pending_verification'; data: PendingVerificationResponse }
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
@@ -804,13 +854,15 @@ export namespace Schemas {
   export type UpdateRolePermissionsValidator = { permissions: Array<string> }
   export type UpdateRoleResponse = { data: Role }
   export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
+  export type UpdateThemeResponse = { data: PortalTheme }
+  export type UpdateThemeValidator = { config: PortalThemeConfig }
   export type UpdateUserResponse = { data: User }
   export type UpdateUserValidator = Partial<{
-    email: string
+    email: string | null
     email_verified: boolean | null
     enabled: boolean | null
-    firstname: string
-    lastname: string
+    firstname: string | null
+    lastname: string | null
     required_actions: Array<string> | null
   }>
   export type UpdateWebhookResponse = { data: Webhook }
@@ -1915,6 +1967,17 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type post_Verify_email_handler = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/verify-email'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.VerifyEmailRequest
+    }
+    responses: { 200: Schemas.VerifyEmailResult; 400: Schemas.ApiErrorResponse; 422: unknown }
+  }
   export type get_Verify_magic_link = {
     method: 'GET'
     path: '/realms/{realm_name}/login-actions/verify-magic-link'
@@ -2234,6 +2297,37 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_Get_theme = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal/theme'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetThemeResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Update_theme = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/portal/theme'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.UpdateThemeValidator
+    }
+    responses: {
+      200: Schemas.UpdateThemeResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Auth_handler = {
     method: 'GET'
     path: '/realms/{realm_name}/protocol/openid-connect/auth'
@@ -2371,17 +2465,6 @@ export namespace Endpoints {
       path: { realm_name: string }
     }
     responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown }
-  }
-  export type post_Verify_email_handler = {
-    method: 'POST'
-    path: '/realms/{realm_name}/login-actions/verify-email'
-    requestFormat: 'json'
-    parameters: {
-      path: { realm_name: string }
-
-      body: Schemas.VerifyEmailRequest
-    }
-    responses: { 200: Schemas.VerifyEmailResult; 400: Schemas.ApiErrorResponse; 422: unknown }
   }
   export type get_Get_roles = {
     method: 'GET'
@@ -2914,6 +2997,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}/attributes': Endpoints.get_List_attributes
     '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.get_List_members
     '/realms/{realm_name}/password-policy': Endpoints.get_Get_password_policy
+    '/realms/{realm_name}/portal/theme': Endpoints.get_Get_theme
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
     '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
@@ -2993,6 +3077,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}': Endpoints.put_Update_organization
     '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.put_Upsert_attribute
     '/realms/{realm_name}/password-policy': Endpoints.put_Update_password_policy
+    '/realms/{realm_name}/portal/theme': Endpoints.put_Update_theme
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
     '/realms/{realm_name}/smtp-config': Endpoints.put_Upsert_smtp_config
     '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
