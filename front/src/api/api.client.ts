@@ -205,6 +205,17 @@ export namespace Schemas {
     name: string
     redirect_url?: (string | null) | undefined
   }
+  export type PortalLayout = {
+    created_at: string
+    id: string
+    is_default: boolean
+    name: string
+    realm_id: RealmId
+    tree: Record<string, unknown>
+    updated_at: string
+  }
+  export type CreatePortalLayoutResponse = { data: PortalLayout }
+  export type CreatePortalLayoutValidator = { name: string; tree: unknown }
   export type CreateProtocolMapperValidator = Partial<{
     config: unknown
     mapper_type: string
@@ -359,6 +370,7 @@ export namespace Schemas {
   export type DeleteClientScopeResponse = { message: string }
   export type DeleteEmailTemplateResponse = { message: string }
   export type DeleteIdentityProviderResponse = { count: number }
+  export type DeletePortalLayoutResponse = { message: string }
   export type DeleteProtocolMapperResponse = { message: string }
   export type DeleteProviderResponse = { message: string }
   export type DeleteRealmResponse = string
@@ -403,6 +415,8 @@ export namespace Schemas {
     token_endpoint: string
     userinfo_endpoint: string
   }
+  export type GetPortalLayoutResponse = { data: PortalLayout }
+  export type GetPublicDefaultPortalLayoutResponse = Partial<{ data: null | PortalLayout }>
   export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> }
   export type GetRoleResponse = { data: Role }
   export type GetRolesResponse = { data: Array<Role> }
@@ -550,6 +564,7 @@ export namespace Schemas {
     updated_at: string
   }
   export type ListOrganizationsResponse = { data: Array<Organization> }
+  export type ListPortalLayoutsResponse = { data: Array<PortalLayout> }
   export type ProviderResponse = {
     config: unknown
     created_at: string
@@ -689,6 +704,7 @@ export namespace Schemas {
   }>
   export type SendMagicLinkRequest = { email: string }
   export type SendMagicLinkResponse = { message: string }
+  export type SetDefaultPortalLayoutResponse = { data: PortalLayout }
   export type UserAttribute = {
     created_at: string
     id: string
@@ -809,6 +825,8 @@ export namespace Schemas {
   }>
   export type UpdatePasswordRequest = Partial<{ value: string }>
   export type UpdatePasswordResponse = { message: string }
+  export type UpdatePortalLayoutResponse = { data: PortalLayout }
+  export type UpdatePortalLayoutValidator = { name: string; tree: unknown }
   export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri }
   export type UpdateProtocolMapperValidator = Partial<{
     config: unknown
@@ -2297,6 +2315,113 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_List_layouts = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal-layouts'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.ListPortalLayoutsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type post_Create_layout = {
+    method: 'POST'
+    path: '/realms/{realm_name}/portal-layouts'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.CreatePortalLayoutValidator
+    }
+    responses: {
+      201: Schemas.CreatePortalLayoutResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_public_default_layout = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal-layouts/public/default'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetPublicDefaultPortalLayoutResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_layout = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal-layouts/{layout_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; layout_id: string }
+    }
+    responses: {
+      200: Schemas.GetPortalLayoutResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Update_layout = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/portal-layouts/{layout_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; layout_id: string }
+
+      body: Schemas.UpdatePortalLayoutValidator
+    }
+    responses: {
+      200: Schemas.UpdatePortalLayoutResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type delete_Delete_layout = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/portal-layouts/{layout_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; layout_id: string }
+    }
+    responses: {
+      200: Schemas.DeletePortalLayoutResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Set_default_layout = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/portal-layouts/{layout_id}/default'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; layout_id: string }
+    }
+    responses: {
+      200: Schemas.SetDefaultPortalLayoutResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_theme = {
     method: 'GET'
     path: '/realms/{realm_name}/portal/theme'
@@ -2997,6 +3122,9 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}/attributes': Endpoints.get_List_attributes
     '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.get_List_members
     '/realms/{realm_name}/password-policy': Endpoints.get_Get_password_policy
+    '/realms/{realm_name}/portal-layouts': Endpoints.get_List_layouts
+    '/realms/{realm_name}/portal-layouts/public/default': Endpoints.get_Get_public_default_layout
+    '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.get_Get_layout
     '/realms/{realm_name}/portal/theme': Endpoints.get_Get_theme
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
@@ -3053,6 +3181,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/webauthn-public-key-request-options': Endpoints.post_Webauthn_public_key_request_options
     '/realms/{realm_name}/organizations': Endpoints.post_Create_organization
     '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.post_Add_member
+    '/realms/{realm_name}/portal-layouts': Endpoints.post_Create_layout
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout_post
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
@@ -3077,6 +3206,8 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}': Endpoints.put_Update_organization
     '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.put_Upsert_attribute
     '/realms/{realm_name}/password-policy': Endpoints.put_Update_password_policy
+    '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.put_Update_layout
+    '/realms/{realm_name}/portal-layouts/{layout_id}/default': Endpoints.put_Set_default_layout
     '/realms/{realm_name}/portal/theme': Endpoints.put_Update_theme
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
     '/realms/{realm_name}/smtp-config': Endpoints.put_Upsert_smtp_config
@@ -3102,6 +3233,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}': Endpoints.delete_Delete_organization
     '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.delete_Delete_attribute
     '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}': Endpoints.delete_Remove_member
+    '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.delete_Delete_layout
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
     '/realms/{realm_name}/smtp-config': Endpoints.delete_Delete_smtp_config
     '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user
