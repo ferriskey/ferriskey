@@ -22,6 +22,7 @@ pub struct ActiveThemeQuery {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ActiveThemeResponse {
+    pub theme_id: Option<Uuid>,
     pub design_tokens: PortalThemeConfig,
     pub layout_id: Option<Uuid>,
     pub page_tree: serde_json::Value,
@@ -54,13 +55,15 @@ pub async fn get_active_theme(
         .await
         .map_err(ApiError::from)?;
 
-    let (design_tokens, layout_id, page_tree) = match active {
+    let (theme_id, design_tokens, layout_id, page_tree) = match active {
         Some(theme) => (
+            Some(theme.id),
             theme.config,
             theme.layout_id,
             theme.pages.get(query.page_type).clone(),
         ),
         None => (
+            None,
             PortalThemeConfig::default(),
             None,
             serde_json::Value::Array(vec![]),
@@ -68,6 +71,7 @@ pub async fn get_active_theme(
     };
 
     Ok(Response::OK(ActiveThemeResponse {
+        theme_id,
         design_tokens,
         layout_id,
         page_tree,

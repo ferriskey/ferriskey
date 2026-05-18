@@ -82,4 +82,11 @@ impl PortalLayoutsService for ApplicationService {
             .get_public_default_layout(input)
             .await
     }
+
+    async fn get_public_layout(
+        &self,
+        input: GetLayoutInput,
+    ) -> Result<Option<PortalLayout>, CoreError> {
+        self.portal_layouts_service.get_public_layout(input).await
+    }
 }

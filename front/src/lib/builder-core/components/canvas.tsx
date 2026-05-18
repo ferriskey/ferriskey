@@ -42,7 +42,7 @@ function SortableNode({ node }: SortableNodeProps) {
 
   const renderedChildren =
     node.children.length > 0 ? (
-      <DroppableChildren>{node.children}</DroppableChildren>
+      <DroppableChildren parentId={node.id}>{node.children}</DroppableChildren>
     ) : componentDef?.isContainer ? (
       <EmptyDropZone parentId={node.id} />
     ) : null
@@ -109,15 +109,20 @@ function FallbackNode({
 
 interface DroppableChildrenProps {
   children: BuilderNode[]
+  /** null = canvas root. Used by the trailing zone to know where to append. */
+  parentId: string | null
 }
 
-function DroppableChildren({ children }: DroppableChildrenProps) {
+function DroppableChildren({ children, parentId }: DroppableChildrenProps) {
   return (
-    <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-      {children.map((child) => (
-        <SortableNode key={child.id} node={child} />
-      ))}
-    </SortableContext>
+    <>
+      <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+        {children.map((child) => (
+          <SortableNode key={child.id} node={child} />
+        ))}
+      </SortableContext>
+      <AppendDropZone parentId={parentId} />
+    </>
   )
 }
 
@@ -130,11 +135,37 @@ function EmptyDropZone({ parentId }: { parentId: string }) {
   return (
     <div
       ref={setNodeRef}
-      className={`my-1 rounded border border-dashed py-4 text-center text-xs text-muted-foreground transition-colors ${
-        isOver ? 'border-primary bg-primary/5' : 'border-border/50'
+      className={`m-1 rounded border border-dashed py-3 text-center text-[11px] text-muted-foreground/70 transition-colors ${
+        isOver ? 'border-primary bg-primary/5 text-primary' : 'border-border/60'
       }`}
     >
       Drop components here
+    </div>
+  )
+}
+
+/**
+ * Trailing target rendered after each container's existing children (and at
+ * the end of the canvas root). Lets users append a new block without having
+ * to aim above/below an existing child — critical for flex/grid containers
+ * where the "between children" zones are narrow.
+ */
+function AppendDropZone({ parentId }: { parentId: string | null }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: parentId === null ? 'append-root' : `append-${parentId}`,
+    data: { parentId },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mt-1 rounded border border-dashed text-center text-[11px] transition-all ${
+        isOver
+          ? 'border-primary bg-primary/5 py-3 text-primary opacity-100'
+          : 'border-transparent py-1 text-muted-foreground/0 hover:border-border/40 hover:py-2 hover:text-muted-foreground/60'
+      }`}
+    >
+      + Drop here to append
     </div>
   )
 }
@@ -173,11 +204,7 @@ export function Canvas({ maxWidth = 600 }: CanvasProps) {
             Drag components here to start building
           </div>
         ) : (
-          <SortableContext items={tree.map((n) => n.id)} strategy={verticalListSortingStrategy}>
-            {tree.map((node) => (
-              <SortableNode key={node.id} node={node} />
-            ))}
-          </SortableContext>
+          <DroppableChildren parentId={null}>{tree}</DroppableChildren>
         )}
       </div>
     </div>

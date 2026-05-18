@@ -50,6 +50,7 @@ export namespace Schemas {
     design_tokens: PortalThemeConfig
     layout_id?: (string | null) | undefined
     page_tree: unknown
+    theme_id?: (string | null) | undefined
   }
   export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
   export type MaintenanceWhitelistEntry = {
@@ -494,6 +495,7 @@ export namespace Schemas {
   }
   export type GetPortalLayoutResponse = { data: PortalLayout }
   export type GetPublicDefaultPortalLayoutResponse = Partial<{ data: null | PortalLayout }>
+  export type GetPublicPortalLayoutResponse = Partial<{ data: null | PortalLayout }>
   export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> }
   export type GetRoleResponse = { data: Role }
   export type GetRolesResponse = { data: Array<Role> }
@@ -2410,6 +2412,19 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_Get_public_layout = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal-layouts/public/{layout_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; layout_id: string }
+    }
+    responses: {
+      200: Schemas.GetPublicPortalLayoutResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_layout = {
     method: 'GET'
     path: '/realms/{realm_name}/portal-layouts/{layout_id}'
@@ -3332,6 +3347,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/password-policy': Endpoints.get_Get_password_policy
     '/realms/{realm_name}/portal-layouts': Endpoints.get_List_layouts
     '/realms/{realm_name}/portal-layouts/public/default': Endpoints.get_Get_public_default_layout
+    '/realms/{realm_name}/portal-layouts/public/{layout_id}': Endpoints.get_Get_public_layout
     '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.get_Get_layout
     '/realms/{realm_name}/portal/active': Endpoints.get_Get_active_theme
     '/realms/{realm_name}/portal/page-requirements': Endpoints.get_Get_page_requirements

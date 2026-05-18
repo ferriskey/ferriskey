@@ -48,6 +48,11 @@ pub trait PortalLayoutsService: Send + Sync {
         &self,
         input: ListLayoutsInput,
     ) -> impl Future<Output = Result<Option<PortalLayout>, CoreError>> + Send;
+
+    fn get_public_layout(
+        &self,
+        input: GetLayoutInput,
+    ) -> impl Future<Output = Result<Option<PortalLayout>, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

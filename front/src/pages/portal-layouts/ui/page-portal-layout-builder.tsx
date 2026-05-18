@@ -3,11 +3,11 @@ import {
   BuilderProvider,
   BuilderShell,
   Canvas,
-  ComponentLibrary,
   ConfigPanel,
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
+import { LayoutComponentLibrary } from '../components/layout-component-library'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
 
@@ -95,7 +95,7 @@ export default function PagePortalLayoutBuilder({
         <BuilderShell>
           <div className='flex min-w-0 flex-1 overflow-hidden'>
             <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
-              <ComponentLibrary />
+              <LayoutComponentLibrary />
             </div>
 
             <div
@@ -103,8 +103,22 @@ export default function PagePortalLayoutBuilder({
               style={cssVars}
             >
               <div
-                className='shrink-0 self-start rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                style={{ width: VIEWPORT_WIDTHS[viewport] }}
+                className='shrink-0 self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                // `transform` establishes a new containing block so any
+                // `position: fixed` descendant stays trapped inside the
+                // preview frame instead of escaping to the browser viewport.
+                // `containerType: size` lets us substitute vw/vh inside the
+                // canvas with cqw/cqh so viewport-relative widths follow the
+                // device frame, not the browser window.
+                style={{
+                  width: VIEWPORT_WIDTHS[viewport],
+                  transform: 'translate(0, 0)',
+                  // `inline-size` only contains the width axis so the frame
+                  // can still grow vertically with its content. `size` would
+                  // collapse the frame to 0 height since we don't set one.
+                  containerType: 'inline-size',
+                  containerName: 'portal-preview',
+                }}
               >
                 <Canvas maxWidth={VIEWPORT_WIDTHS[viewport]} />
               </div>

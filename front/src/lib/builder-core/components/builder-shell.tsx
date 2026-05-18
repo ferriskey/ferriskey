@@ -100,9 +100,16 @@ export function BuilderShell({ children }: BuilderShellProps) {
     let targetIndex = 0
 
     if (overData?.parentId !== undefined) {
-      // Dropped on an empty zone or canvas root
+      // Dropped on an empty zone, a container's trailing "+" zone, or canvas
+      // root — append to the end of that parent's children. Appending is the
+      // intuitive default; without it, dropping on a flex/grid silently
+      // re-prepended to the realm root which surprised everyone.
       targetParentId = overData.parentId
-      targetIndex = 0
+      const siblings =
+        targetParentId === null
+          ? tree
+          : (findNode(tree, targetParentId)?.children ?? [])
+      targetIndex = siblings.length
     } else if (overData?.node) {
       // Dropped on another sortable node — insert as sibling
       const overNode = overData.node
