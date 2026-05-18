@@ -30,7 +30,7 @@ pub struct CreateThemeResponse {
 
 #[utoipa::path(
     post,
-    path = "",
+    path = "/portal/themes",
     tag = "portal-theme",
     summary = "Create a portal theme",
     description = "Creates a new portal theme in the realm with empty page trees. Requires manage_realm permission.",

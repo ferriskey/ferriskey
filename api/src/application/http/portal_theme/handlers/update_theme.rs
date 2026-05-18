@@ -30,7 +30,7 @@ pub struct UpdateThemeResponse {
 
 #[utoipa::path(
     put,
-    path = "",
+    path = "/portal/theme",
     tag = "portal-theme",
     summary = "Update portal theme",
     description = "Upserts the portal theme configuration for the realm. Requires manage_realm permission.",

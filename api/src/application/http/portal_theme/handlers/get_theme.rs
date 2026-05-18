@@ -27,7 +27,7 @@ pub struct GetThemeResponse {
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/portal/theme",
     tag = "portal-theme",
     summary = "Get portal theme",
     description = "Retrieves the portal theme configuration for the realm. Requires manage_realm permission. Falls back to defaults when no configuration is stored.",

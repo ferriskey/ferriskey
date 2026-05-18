@@ -31,7 +31,7 @@ pub struct UpdateThemePageResponse {
 
 #[utoipa::path(
     put,
-    path = "/{theme_id}/pages/{page_type}",
+    path = "/portal/themes/{theme_id}/pages/{page_type}",
     tag = "portal-theme",
     summary = "Update a portal page tree",
     description = "Replaces the JSONB component tree for a single page type. The submitted tree must contain every required block type for the page; otherwise 422 is returned.",

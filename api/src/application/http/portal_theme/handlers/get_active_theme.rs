@@ -4,7 +4,7 @@ use ferriskey_core::domain::portal_theme::{
     ports::{ListThemesInput, PortalThemeService},
 };
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::application::http::server::{
@@ -15,7 +15,7 @@ use crate::application::http::server::{
     app_state::AppState,
 };
 
-#[derive(Debug, Deserialize, IntoParams)]
+#[derive(Debug, Deserialize)]
 pub struct ActiveThemeQuery {
     pub page_type: PortalPageType,
 }
@@ -35,7 +35,7 @@ pub struct ActiveThemeResponse {
     description = "Public endpoint used by the portal renderer. Returns the realm's active theme design tokens, the referenced layout ID (if any), and the JSONB component tree for the requested page type. Callers fetch the layout itself via the public portal-layouts endpoint. Falls back to defaults / empty trees when nothing is configured.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
-        ActiveThemeQuery,
+        ("page_type" = PortalPageType, Query, description = "Portal page type"),
     ),
     responses(
         (status = 200, description = "Active theme bundle retrieved successfully", body = ActiveThemeResponse),

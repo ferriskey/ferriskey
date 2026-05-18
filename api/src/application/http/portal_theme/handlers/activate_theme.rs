@@ -25,7 +25,7 @@ pub struct ActivateThemeResponse {
 
 #[utoipa::path(
     post,
-    path = "/{theme_id}/activate",
+    path = "/portal/themes/{theme_id}/activate",
     tag = "portal-theme",
     summary = "Activate a portal theme",
     description = "Marks the given theme as the realm's active theme. Stored in realm_settings.portal_theme_id.",
