@@ -1,4 +1,5 @@
 export { createPortalAdapter } from './adapter'
+export { generateBreakpointCss, BREAKPOINT_WIDTHS } from './breakpoints'
 export {
   portalComponents,
   getDefaultNode,

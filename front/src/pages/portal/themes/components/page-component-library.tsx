@@ -1,10 +1,15 @@
 import { useDraggable } from '@dnd-kit/core'
+import { useState } from 'react'
 import {
   LAYOUT_ONLY_BLOCK_TYPES,
   REQUIRED_BLOCK_TYPES,
   portalComponents,
 } from '@/lib/builder-portal'
-import type { ComponentDefinition } from '@/lib/builder-core'
+import { ComponentTree, type ComponentDefinition } from '@/lib/builder-core'
+import {
+  SidebarTabs,
+  type SidebarTab,
+} from '@/pages/portal-layouts/components/sidebar-tabs'
 
 interface Props {
   /** Block types the API requires for the currently-edited page. */
@@ -12,6 +17,7 @@ interface Props {
 }
 
 export function PageComponentLibrary({ requiredTypes }: Props) {
+  const [tab, setTab] = useState<SidebarTab>('components')
   const generic = portalComponents.filter(
     (c) => !REQUIRED_BLOCK_TYPES.has(c.type) && !LAYOUT_ONLY_BLOCK_TYPES.has(c.type),
   )
@@ -20,18 +26,25 @@ export function PageComponentLibrary({ requiredTypes }: Props) {
     .filter((c): c is ComponentDefinition => Boolean(c))
 
   return (
-    <div className='flex flex-col gap-4 p-2'>
-      <Section title='Components'>
-        {generic.map((def) => (
-          <DraggableComponent key={def.type} definition={def} />
-        ))}
-      </Section>
-      {required.length > 0 && (
-        <Section title='Required for this page'>
-          {required.map((def) => (
-            <DraggableComponent key={def.type} definition={def} />
-          ))}
-        </Section>
+    <div className='flex flex-col'>
+      <SidebarTabs current={tab} onChange={setTab} />
+      {tab === 'components' ? (
+        <div className='flex flex-col gap-4 p-2'>
+          <Section title='Components'>
+            {generic.map((def) => (
+              <DraggableComponent key={def.type} definition={def} />
+            ))}
+          </Section>
+          {required.length > 0 && (
+            <Section title='Required for this page'>
+              {required.map((def) => (
+                <DraggableComponent key={def.type} definition={def} />
+              ))}
+            </Section>
+          )}
+        </div>
+      ) : (
+        <ComponentTree />
       )}
     </div>
   )

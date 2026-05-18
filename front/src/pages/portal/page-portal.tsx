@@ -1,14 +1,14 @@
-import { Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { LayoutTemplate, Palette } from 'lucide-react'
-import type { RouterParams } from '@/routes/router'
-import { PORTAL_THEMES_URL } from '@/routes/sub-router/portal-theme.router'
-import { PORTAL_LAYOUTS_URL } from '@/routes/sub-router/portal-layouts.router'
 import { cn } from '@/lib/utils'
-import PagePortalLayouts from '../portal-layouts/page-portal-layouts'
+import type { RouterParams } from '@/routes/router'
+import { PORTAL_LAYOUTS_URL } from '@/routes/sub-router/portal-layouts.router'
+import { PORTAL_THEMES_URL } from '@/routes/sub-router/portal-theme.router'
+import { LayoutTemplate, Palette } from 'lucide-react'
+import { Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import PagePortalBuilderDemo from '../portal-builder-demo/page-portal-builder-demo'
+import PagePortalLayouts from '../portal-layouts/page-portal-layouts'
 import PagePortalThemeBuilderFeature from '../portal-theme/feature/page-portal-theme-builder-feature'
-import PageThemesListFeature from './themes/feature/page-themes-list-feature'
 import PageThemeBuilderFeature from './themes/feature/page-theme-builder-feature'
+import PageThemesListFeature from './themes/feature/page-themes-list-feature'
 
 export default function PagePortal() {
   return (
@@ -55,8 +55,11 @@ function PortalShell() {
 
   return (
     <div className='flex h-full flex-col'>
-      <div className='flex items-center gap-2 border-b border-border px-6 py-2'>
-        <h1 className='mr-4 text-lg font-semibold'>Portail</h1>
+      {/* Match the RealmSwitcher row's rendered height — the
+          `SidebarMenuButton size="lg"` ends up ~44px once `py-3` is added
+          to the `text-sm` content's 20px line box. */}
+      <div className='flex h-10 shrink-0 items-center gap-2 border-b border-border px-6 text-sm'>
+        <h1 className='mr-4 font-semibold'>Portail</h1>
         <nav className='flex items-center gap-1'>
           {tabs.map(({ id, label, Icon, to, isActive }) => (
             <button
@@ -67,7 +70,7 @@ function PortalShell() {
                 'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
                 isActive
                   ? 'bg-sidebar-primary/15 text-sidebar-primary'
-                  : 'text-muted-foreground hover:bg-muted',
+                  : 'text-muted-foreground hover:bg-muted'
               )}
             >
               <Icon className='h-4 w-4' />

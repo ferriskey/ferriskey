@@ -31,10 +31,18 @@ function SortableNode({ node }: SortableNodeProps) {
     },
   })
 
+  // Mirror item-positioning props (currently `order`) on the wrapper that
+  // dnd-kit registers as the real flex/grid item. Without this, the user's
+  // base `order` value lives on the inner block (which isn't a grid item)
+  // and has no visual effect in the editor — even though it works fine at
+  // runtime where there's no wrapper. Per-breakpoint overrides flow through
+  // the `[data-sortable-id]` selector in `generateBreakpointCss`.
+  const orderProp = (node.props.order as string) || ''
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
+    order: orderProp ? Number(orderProp) : undefined,
   }
 
   const componentDef = adapter.components.find((c) => c.type === node.type)

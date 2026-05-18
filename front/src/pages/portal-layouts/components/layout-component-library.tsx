@@ -1,12 +1,15 @@
 import { useDraggable } from '@dnd-kit/core'
+import { useState } from 'react'
 import {
   LAYOUT_ONLY_BLOCK_TYPES,
   REQUIRED_BLOCK_TYPES,
   portalComponents,
 } from '@/lib/builder-portal'
-import type { ComponentDefinition } from '@/lib/builder-core'
+import { ComponentTree, type ComponentDefinition } from '@/lib/builder-core'
+import { SidebarTabs, type SidebarTab } from './sidebar-tabs'
 
 export function LayoutComponentLibrary() {
+  const [tab, setTab] = useState<SidebarTab>('components')
   // Layouts only host generic decoration blocks. The page-specific required
   // blocks (email_input, password_input, totp_input, submit_button) live in
   // page trees, never in a layout, so we strip them out here. `page-content`
@@ -18,18 +21,25 @@ export function LayoutComponentLibrary() {
   const required = portalComponents.filter((c) => LAYOUT_ONLY_BLOCK_TYPES.has(c.type))
 
   return (
-    <div className='flex flex-col gap-4 p-2'>
-      <Section title='Components'>
-        {generic.map((def) => (
-          <DraggableComponent key={def.type} definition={def} />
-        ))}
-      </Section>
-      {required.length > 0 && (
-        <Section title='Required for this layout'>
-          {required.map((def) => (
-            <DraggableComponent key={def.type} definition={def} />
-          ))}
-        </Section>
+    <div className='flex flex-col'>
+      <SidebarTabs current={tab} onChange={setTab} />
+      {tab === 'components' ? (
+        <div className='flex flex-col gap-4 p-2'>
+          <Section title='Components'>
+            {generic.map((def) => (
+              <DraggableComponent key={def.type} definition={def} />
+            ))}
+          </Section>
+          {required.length > 0 && (
+            <Section title='Required for this layout'>
+              {required.map((def) => (
+                <DraggableComponent key={def.type} definition={def} />
+              ))}
+            </Section>
+          )}
+        </div>
+      ) : (
+        <ComponentTree />
       )}
     </div>
   )

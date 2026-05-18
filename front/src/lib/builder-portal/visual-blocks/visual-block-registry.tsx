@@ -12,6 +12,7 @@ import {
   inputFieldStyle,
   inputHelperStyle,
   inputLabelStyle,
+  orderStyle,
   resolveInputName,
   resolveInputType,
   textStyle,
@@ -164,6 +165,7 @@ function BoxBlock({
   return (
     <div
       key={node.id}
+      data-fk-id={node.id}
       // `position: relative` lets the floating label anchor here. If the
       // node's own `position` prop is set (e.g. div with `fixed`), it
       // overrides this via the spread below.
@@ -189,6 +191,7 @@ function EditableHeading({ node, isSelected }: { node: BuilderNode; isSelected: 
   if (isSelected) {
     return (
       <Tag
+        data-fk-id={node.id}
         style={style}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
@@ -200,7 +203,7 @@ function EditableHeading({ node, isSelected }: { node: BuilderNode; isSelected: 
       </Tag>
     )
   }
-  return <Tag style={style}>{node.content ?? ''}</Tag>
+  return <Tag data-fk-id={node.id} style={style}>{node.content ?? ''}</Tag>
 }
 
 function EditableText({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
@@ -210,6 +213,7 @@ function EditableText({ node, isSelected }: { node: BuilderNode; isSelected: boo
   if (isSelected) {
     return (
       <p
+        data-fk-id={node.id}
         style={style}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
@@ -221,12 +225,15 @@ function EditableText({ node, isSelected }: { node: BuilderNode; isSelected: boo
       </p>
     )
   }
-  return <p style={style}>{node.content ?? ''}</p>
+  return <p data-fk-id={node.id} style={style}>{node.content ?? ''}</p>
 }
 
 function ImageBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: imageJustify(node) }}>
+    <div
+      data-fk-id={node.id}
+      style={{ display: 'flex', justifyContent: imageJustify(node), ...orderStyle(node) }}
+    >
       <img
         src={(node.props.src as string) || ''}
         alt={(node.props.alt as string) || ''}
@@ -241,11 +248,13 @@ function SpacerBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
   const width = (node.props.width as string) || '100%'
   return (
     <div
+      data-fk-id={node.id}
       style={{
         ...chromeStyle(isSelected),
         height,
         width,
         position: 'relative',
+        ...orderStyle(node),
       }}
     >
       {isSelected && (
@@ -272,7 +281,10 @@ function SpacerBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
 
 function DividerBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
   return (
-    <div style={{ ...chromeStyle(isSelected), display: 'flex', justifyContent: 'center' }}>
+    <div
+      data-fk-id={node.id}
+      style={{ ...chromeStyle(isSelected), display: 'flex', justifyContent: 'center', ...orderStyle(node) }}
+    >
       <hr
         style={{
           width: (node.props.width as string) || '100%',
@@ -296,6 +308,7 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
   // the label when selected.
   return (
     <a
+      data-fk-id={node.id}
       href='#'
       style={style}
       onClick={(e) => {
@@ -321,7 +334,10 @@ function InputBlock({ node, isSelected }: { node: BuilderNode; isSelected: boole
   const helperText = (node.props.helperText as string) ?? ''
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div
+      data-fk-id={node.id}
+      style={{ display: 'flex', flexDirection: 'column', gap: 6, ...orderStyle(node) }}
+    >
       {label ? <label style={inputLabelStyle()}>{label}</label> : null}
       <input
         type={resolveInputType(node)}

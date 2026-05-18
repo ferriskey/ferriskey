@@ -1,5 +1,6 @@
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { BuilderNode } from '../../builder-core'
+import { findNodePath, useBuilderContext, type BuilderNode } from '../../builder-core'
 import { ConfigSection } from './config-section'
 import { ColorField, SelectField, TextField } from './shared-fields'
 
@@ -23,7 +24,88 @@ function IdentitySection({ node, onUpdate }: { node: BuilderNode; onUpdate: OnUp
   )
 }
 
+/**
+ * Universal "Flex / Grid item" section. CSS `order` only takes effect when
+ * this node's parent is a flex/grid container, so we only surface the
+ * section in that context. The Up / Down buttons decrement / increment the
+ * `order` prop at whatever breakpoint the user is editing — so the cascade
+ * + per-bp routing already in place mean you can have base order=0, md
+ * order=2, xl order=-1, etc.
+ */
+function ItemSection({ node, onUpdate }: { node: BuilderNode; onUpdate: OnUpdate }) {
+  const { tree } = useBuilderContext()
+  const path = findNodePath(tree, node.id)
+  const parent = path.length >= 2 ? path[path.length - 2] : null
+
+  // `container` is always flex; legacy `flex`/`grid` block types coerce.
+  // For a real `div`, look at the declared display prop.
+  const parentDisplay = parent
+    ? parent.type === 'container' || parent.type === 'flex'
+      ? 'flex'
+      : parent.type === 'grid'
+        ? 'grid'
+        : ((parent.props.display as string) ?? '')
+    : ''
+  if (parentDisplay !== 'flex' && parentDisplay !== 'grid') return null
+
+  // `node.props.order` here is the *effective* cascaded value at the editing
+  // breakpoint (config-panel.tsx merges base ← sm ← md ← ... up to the
+  // active bp before passing it in), so the buttons act on what the user is
+  // actually seeing. The write is then routed by the parent ConfigPanel to
+  // the editing bp's override layer.
+  const rawOrder = (node.props.order as string) ?? ''
+  const currentOrder = rawOrder === '' ? 0 : Number(rawOrder)
+  const setOrder = (next: number) => onUpdate({ props: { order: String(next) } })
+
+  return (
+    <ConfigSection title='Flex / Grid item' defaultOpen>
+      <div className='flex items-center gap-1.5 pb-2'>
+        <button
+          type='button'
+          onClick={() => setOrder(currentOrder - 1)}
+          className='flex h-7 flex-1 items-center justify-center gap-1 rounded-md border border-border bg-background text-xs text-muted-foreground transition-colors hover:bg-muted'
+          title='Move earlier (order − 1)'
+        >
+          <ChevronUp size={14} /> Earlier
+        </button>
+        <button
+          type='button'
+          onClick={() => setOrder(currentOrder + 1)}
+          className='flex h-7 flex-1 items-center justify-center gap-1 rounded-md border border-border bg-background text-xs text-muted-foreground transition-colors hover:bg-muted'
+          title='Move later (order + 1)'
+        >
+          <ChevronDown size={14} /> Later
+        </button>
+      </div>
+      <p className='-mt-1 pb-1 text-[10px] leading-tight text-muted-foreground'>
+        Adjusts the CSS <code>order</code> of this item at the active
+        breakpoint — siblings with smaller <code>order</code> render first.
+        Default is <code>0</code>; use negatives to move ahead of un-ordered
+        siblings.
+      </p>
+      <TextField
+        label='Order'
+        value={rawOrder}
+        onChange={(v) => onUpdate({ props: { order: v } })}
+      />
+    </ConfigSection>
+  )
+}
+
 export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): ReactNode {
+  const item = <ItemSection node={node} onUpdate={onUpdate} />
+  // page-content has no real config and shouldn't show the Order field —
+  // it's slotted by the runtime layout, never a flex/grid item the admin
+  // arranges.
+  return (
+    <>
+      {renderPortalConfigPanelInner(node, onUpdate)}
+      {node.type !== 'page-content' && item}
+    </>
+  )
+}
+
+function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): ReactNode {
   const updateProp = (key: string, value: string) => onUpdate({ props: { [key]: value } })
   const identity = <IdentitySection node={node} onUpdate={onUpdate} />
 
@@ -230,6 +312,16 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
                   { label: 'Column dense', value: 'column dense' },
                 ]}
                 onChange={(v) => updateProp('autoFlow', v)}
+                allowEmpty={false}
+              />
+              <SelectField
+                label='Direction'
+                value={(node.props.gridDirection as string) || 'ltr'}
+                options={[
+                  { label: 'Left to right', value: 'ltr' },
+                  { label: 'Right to left (reverse columns)', value: 'rtl' },
+                ]}
+                onChange={(v) => updateProp('gridDirection', v)}
                 allowEmpty={false}
               />
             </ConfigSection>

@@ -5,7 +5,7 @@ import { useGetActivePortalTheme } from '@/api/portal-theme.api'
 import { useGetPublicPortalLayout } from '@/api/portal-layouts.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
-import { treeToReactNode } from '@/lib/builder-portal'
+import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
 import { mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import type { Schemas } from '@/api/api.client'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
@@ -61,6 +61,15 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     onSubmit(new FormData(event.currentTarget))
   }
 
+  // Collect responsive overrides from both the page tree and the layout tree
+  // (each node's id is unique across them) into a single <style> block.
+  const breakpointCss = [
+    generateBreakpointCss(pageTree),
+    generateBreakpointCss(layoutTree),
+  ]
+    .filter(Boolean)
+    .join('\n')
+
   const pageContent: ReactNode =
     pageTree.length > 0 ? (
       <form onSubmit={handleSubmit}>
@@ -70,12 +79,22 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
       <>{children}</>
     )
 
+  const responsiveStyle = breakpointCss ? (
+    <style dangerouslySetInnerHTML={{ __html: breakpointCss }} />
+  ) : null
+
   if (layoutTree.length === 0) {
-    return <div style={cssVars}>{pageContent}</div>
+    return (
+      <div style={cssVars}>
+        {responsiveStyle}
+        {pageContent}
+      </div>
+    )
   }
 
   return (
     <div style={cssVars}>
+      {responsiveStyle}
       {treeToReactNode(layoutTree, { runtime: true, pageContent })}
     </div>
   )

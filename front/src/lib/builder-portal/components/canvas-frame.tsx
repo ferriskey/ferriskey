@@ -12,6 +12,12 @@ interface Props {
   height?: number | string
   /** Inline CSS variables injected into the iframe body (theme tokens). */
   cssVars: CSSProperties
+  /**
+   * Optional CSS string (typically `generateBreakpointCss(tree)`) injected
+   * into the iframe head. The iframe's real width drives which `@media`
+   * rules fire, matching what the live portal will do.
+   */
+  responsiveCss?: string
   /** Rendered into the iframe document via React portal. */
   children: ReactNode
   /**
@@ -43,6 +49,7 @@ export function CanvasFrame({
   width,
   height = 720,
   cssVars,
+  responsiveCss,
   children,
   onRectChange,
 }: Props) {
@@ -102,7 +109,7 @@ export function CanvasFrame({
     >
       <FrameContextConsumer>
         {(ctx: FrameContextProps) => (
-          <FrameBody ctx={ctx} cssVars={cssVars}>
+          <FrameBody ctx={ctx} cssVars={cssVars} responsiveCss={responsiveCss}>
             {children}
           </FrameBody>
         )}
@@ -119,10 +126,12 @@ export function CanvasFrame({
 function FrameBody({
   ctx,
   cssVars,
+  responsiveCss,
   children,
 }: {
   ctx: FrameContextProps
   cssVars: CSSProperties
+  responsiveCss?: string
   children: ReactNode
 }) {
   useEffect(() => {
@@ -135,6 +144,24 @@ function FrameBody({
       if (typeof v === 'string') body.style.setProperty(k, v)
     }
   }, [ctx.document, cssVars])
+
+  // Sync the responsive `@media` rules into a dedicated <style> tag in the
+  // iframe head. Re-runs whenever the user edits a breakpoint override.
+  // We re-append on every update so the style stays AFTER the cloned parent
+  // stylesheets (which the sync useEffect re-appends later); equal-specificity
+  // !important rules from later-in-cascade sheets would otherwise win.
+  useEffect(() => {
+    const doc = ctx.document
+    if (!doc) return
+    const head = doc.head
+    let style = head.querySelector<HTMLStyleElement>('style[data-fk-responsive]')
+    if (!style) {
+      style = doc.createElement('style')
+      style.dataset.fkResponsive = '1'
+    }
+    style.textContent = responsiveCss ?? ''
+    head.appendChild(style)
+  }, [ctx.document, responsiveCss])
 
   // Mirror every stylesheet (link + style) from the parent into the iframe
   // head, and re-sync whenever the parent's head changes (Vite injects CSS

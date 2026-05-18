@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -15,9 +16,15 @@ import {
   Canvas,
   ConfigPanel,
   SelectionBreadcrumb,
+  useEditingBreakpoint,
+  type Breakpoint,
   type BuilderNode,
 } from '@/lib/builder-core'
-import { createPortalAdapter, treeToReactNode } from '@/lib/builder-portal'
+import {
+  createPortalAdapter,
+  generateBreakpointCss,
+  treeToReactNode,
+} from '@/lib/builder-portal'
 import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
 import type { Schemas } from '@/api/api.client'
 import { useGetPortalPageRequirements } from '@/api/portal-theme.api'
@@ -56,6 +63,16 @@ const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
   desktop: 800,
 }
 
+// Smallest device whose width activates a given Tailwind breakpoint —
+// clicking a bp tab in the config panel switches the preview to this device
+// so the user immediately sees the layer they're editing.
+const BREAKPOINT_TO_VIEWPORT: Record<Breakpoint, Viewport> = {
+  sm: 'iphone',
+  md: 'tablet',
+  lg: 'desktop',
+  xl: 'desktop',
+}
+
 function parseTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) return tree as BuilderNode[]
   if (tree && typeof tree === 'object' && Array.isArray((tree as { children?: unknown }).children)) {
@@ -87,9 +104,16 @@ export default function PageTreeEditor({
 }: Props) {
   const adapter = useMemo(() => createPortalAdapter(), [])
   const [tree, setTree] = useState<BuilderNode[]>(() => parseTree(initialTree))
-  const [viewport, setViewport] = useState<Viewport>('desktop')
+  // Mobile-first preview default: open at iPhone so the base layer is the
+  // narrowest viewport the admin's design has to survive at.
+  const [viewport, setViewport] = useState<Viewport>('iphone')
   const iframeRectRef = useRef<DOMRect | null>(null)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
+  // Stable callback so the bridge below only fires on real bp changes,
+  // not on every parent re-render.
+  const handleBreakpointChange = useCallback((bp: Breakpoint | null) => {
+    if (bp) setViewport(BREAKPOINT_TO_VIEWPORT[bp])
+  }, [])
 
   const { data: reqs } = useGetPortalPageRequirements({ realm })
   const requirements = useMemo(() => {
@@ -123,6 +147,7 @@ export default function PageTreeEditor({
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={handleChange}>
+      <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
       <BuilderShell getIframeRect={getIframeRect}>
         <div className='grid h-full w-full min-w-0 grid-cols-[220px_1fr_320px] overflow-hidden'>
           <aside className='flex min-h-0 flex-col border-r border-border'>
@@ -177,6 +202,12 @@ export default function PageTreeEditor({
                   width={viewportWidth}
                   height={VIEWPORT_HEIGHTS[viewport]}
                   cssVars={cssVars}
+                  responsiveCss={[
+                    generateBreakpointCss(tree),
+                    layoutTree ? generateBreakpointCss(layoutTree) : '',
+                  ]
+                    .filter(Boolean)
+                    .join('\n')}
                   onRectChange={(rect) => {
                     iframeRectRef.current = rect
                   }}
@@ -258,4 +289,21 @@ function ViewportButton({
       {children}
     </button>
   )
+}
+
+/**
+ * Bridges the BreakpointContext (set by the config panel's bp tabs) with the
+ * page tree editor's device viewport state. When the user clicks `md`, the
+ * preview jumps to Tablet so the layer they're editing is actually visible.
+ */
+function BreakpointToDeviceSync({
+  onBreakpointChange,
+}: {
+  onBreakpointChange: (bp: Breakpoint | null) => void
+}) {
+  const { current } = useEditingBreakpoint()
+  useEffect(() => {
+    onBreakpointChange(current)
+  }, [current, onBreakpointChange])
+  return null
 }
