@@ -146,6 +146,9 @@ importers:
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
+      react-frame-component:
+        specifier: ^5.3.2
+        version: 5.3.2(prop-types@15.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-hook-form:
         specifier: ^7.71.2
         version: 7.71.2(react@19.2.4)
@@ -3300,6 +3303,13 @@ packages:
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
     peerDependencies:
       react: ^19.2.4
+
+  react-frame-component@5.3.2:
+    resolution: {integrity: sha512-ce0/9xAnnkLDY6zxnTegP3Yjchw5z9aEaz0qKEGecrdnh3nAnQ5kehO84sNeLj3wQPB5ZM0OoVVQDQilhaE/5Q==}
+    peerDependencies:
+      prop-types: ^15.8.1 || ^16.0.0 || ^17.0.0 || ^18.0.0
+      react: '>= 16.8 || ^17.0.0 || ^18.0.0 || ^19.0.0'
+      react-dom: '>= 16.8 || ^17.0.0 || ^18.0.0 || ^19.0.0'
 
   react-hook-form@7.71.2:
     resolution: {integrity: sha512-1CHvcDYzuRUNOflt4MOq3ZM46AronNJtQ1S7tnX6YN4y72qhgiUItpacZUAQ0TyWYci3yz1X+rXaSxiuEm86PA==}
@@ -7060,6 +7070,12 @@ snapshots:
     dependencies:
       react: 19.2.4
       scheduler: 0.27.0
+
+  react-frame-component@5.3.2(prop-types@15.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+    dependencies:
+      prop-types: 15.8.1
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   react-hook-form@7.71.2(react@19.2.4):
     dependencies:

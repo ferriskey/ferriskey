@@ -7,16 +7,28 @@ import {
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
+import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
 import { LayoutComponentLibrary } from '../components/layout-component-library'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
-import { useState, type CSSProperties } from 'react'
+import { useCallback, useRef, useState, type CSSProperties } from 'react'
 
 type Viewport = 'desktop' | 'tablet' | 'mobile'
 
-const VIEWPORT_WIDTHS: Record<Viewport, number> = {
-  desktop: 1024,
+// Desktop fills the editor surface and relies on the outer p-5 padding to
+// reveal a strip of dots on each side. Tablet/mobile use fixed device widths
+// centered inside the dotted area.
+const VIEWPORT_WIDTHS: Record<Viewport, number | string> = {
+  desktop: '100%',
   tablet: 768,
   mobile: 375,
+}
+
+// Heights drive what `100vh` resolves to inside the iframe — they let the
+// canvas mount target fill a device-shaped viewport.
+const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
+  desktop: 800,
+  tablet: 1024,
+  mobile: 812,
 }
 
 interface Props {
@@ -45,6 +57,8 @@ export default function PagePortalLayoutBuilder({
   onBack,
 }: Props) {
   const [viewport, setViewport] = useState<Viewport>('desktop')
+  const iframeRectRef = useRef<DOMRect | null>(null)
+  const getIframeRect = useCallback(() => iframeRectRef.current, [])
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
@@ -92,35 +106,47 @@ export default function PagePortalLayoutBuilder({
           </Button>
         </header>
 
-        <BuilderShell>
+        <BuilderShell getIframeRect={getIframeRect}>
           <div className='flex min-w-0 flex-1 overflow-hidden'>
             <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
               <LayoutComponentLibrary />
             </div>
 
             <div
-              className='flex min-w-0 flex-1 justify-center overflow-auto bg-muted/30 p-6'
-              style={cssVars}
+              className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
+              style={{
+                backgroundColor: '#f8f9fa',
+                backgroundImage:
+                  'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }}
             >
               <div
-                className='shrink-0 self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                // `transform` establishes a new containing block so any
-                // `position: fixed` descendant stays trapped inside the
-                // preview frame instead of escaping to the browser viewport.
-                // `containerType: size` lets us substitute vw/vh inside the
-                // canvas with cqw/cqh so viewport-relative widths follow the
-                // device frame, not the browser window.
+                className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                // Desktop fills the available width so the iframe can resolve
+                // its own `width: 100%` against a concrete pixel value;
+                // tablet/mobile take the iframe's fixed width via `w-auto`.
                 style={{
-                  width: VIEWPORT_WIDTHS[viewport],
-                  transform: 'translate(0, 0)',
-                  // `inline-size` only contains the width axis so the frame
-                  // can still grow vertically with its content. `size` would
-                  // collapse the frame to 0 height since we don't set one.
-                  containerType: 'inline-size',
-                  containerName: 'portal-preview',
+                  width: viewport === 'desktop' ? '100%' : 'auto',
+                  flexShrink: 0,
                 }}
               >
-                <Canvas maxWidth={VIEWPORT_WIDTHS[viewport]} />
+                <CanvasFrame
+                  width={VIEWPORT_WIDTHS[viewport]}
+                  height={VIEWPORT_HEIGHTS[viewport]}
+                  cssVars={cssVars}
+                  onRectChange={(rect) => {
+                    iframeRectRef.current = rect
+                  }}
+                >
+                  <Canvas
+                    maxWidth={
+                      typeof VIEWPORT_WIDTHS[viewport] === 'number'
+                        ? (VIEWPORT_WIDTHS[viewport] as number)
+                        : 1600
+                    }
+                  />
+                </CanvasFrame>
               </div>
             </div>
 

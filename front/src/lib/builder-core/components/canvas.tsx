@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils'
-import { useDroppable } from '@dnd-kit/core'
+import { useDndContext, useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useBuilderContext } from '../context'
@@ -58,7 +57,11 @@ function SortableNode({ node }: SortableNodeProps) {
     <div ref={setNodeRef} style={style} data-sortable-id={node.id} {...attributes}>
       {showBefore && <DropIndicatorLine />}
       <div
-        className={cn('relative cursor-pointer', isSelected && 'z-40')}
+        // No `position: relative` here — it would establish a containing
+        // block, trapping every `position: absolute` descendant of the user's
+        // tree inside this tiny click wrapper instead of letting it resolve
+        // against the iframe viewport like it does in the live portal.
+        className='cursor-pointer'
         onClick={(e) => {
           e.stopPropagation()
           selectNode(node.id)
@@ -146,15 +149,22 @@ function EmptyDropZone({ parentId }: { parentId: string }) {
 
 /**
  * Trailing target rendered after each container's existing children (and at
- * the end of the canvas root). Lets users append a new block without having
- * to aim above/below an existing child — critical for flex/grid containers
- * where the "between children" zones are narrow.
+ * the end of the canvas root). Only visible while a drag is in progress —
+ * otherwise it would occupy a flex/grid slot in the parent and skew the
+ * positioning of the user's real blocks (e.g., a centered slot would no
+ * longer sit at the visual center because this zone takes up the second
+ * slot in the centering group).
  */
 function AppendDropZone({ parentId }: { parentId: string | null }) {
+  const { active } = useDndContext()
   const { setNodeRef, isOver } = useDroppable({
     id: parentId === null ? 'append-root' : `append-${parentId}`,
     data: { parentId },
   })
+
+  // No drag in progress → render nothing so the zone doesn't participate in
+  // the parent's flex/grid/block flow.
+  if (!active) return null
 
   return (
     <div
@@ -162,7 +172,7 @@ function AppendDropZone({ parentId }: { parentId: string | null }) {
       className={`mt-1 rounded border border-dashed text-center text-[11px] transition-all ${
         isOver
           ? 'border-primary bg-primary/5 py-3 text-primary opacity-100'
-          : 'border-transparent py-1 text-muted-foreground/0 hover:border-border/40 hover:py-2 hover:text-muted-foreground/60'
+          : 'border-border/40 py-2 text-muted-foreground/60'
       }`}
     >
       + Drop here to append
@@ -184,23 +194,18 @@ export function Canvas({ maxWidth = 600 }: CanvasProps) {
 
   return (
     <div
-      className='flex min-h-full flex-1 items-start justify-center p-6'
-      style={{
-        backgroundColor: '#f8f9fa',
-        backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
-        backgroundSize: '20px 20px',
-      }}
+      className='flex min-h-full flex-1 items-start justify-center'
       onClick={() => selectNode(null)}
     >
       <div
         ref={setNodeRef}
-        className={`min-h-[400px] rounded-lg bg-white shadow-sm transition-all duration-200 ${
+        className={`min-h-screen transition-all duration-200 ${
           isOver ? 'ring-2 ring-primary ring-dashed' : ''
         }`}
         style={{ width: '100%', maxWidth }}
       >
         {tree.length === 0 ? (
-          <div className='flex h-full min-h-[400px] items-center justify-center text-sm text-muted-foreground'>
+          <div className='flex h-full min-h-screen items-center justify-center text-sm text-muted-foreground'>
             Drag components here to start building
           </div>
         ) : (

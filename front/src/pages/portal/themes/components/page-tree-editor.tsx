@@ -1,6 +1,7 @@
 import {
   useCallback,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -16,6 +17,7 @@ import {
   type BuilderNode,
 } from '@/lib/builder-core'
 import { createPortalAdapter, treeToReactNode } from '@/lib/builder-portal'
+import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
 import type { Schemas } from '@/api/api.client'
 import { useGetPortalPageRequirements } from '@/api/portal-theme.api'
 import { cn } from '@/lib/utils'
@@ -35,10 +37,21 @@ interface Props {
 
 type Viewport = 'desktop' | 'tablet' | 'mobile'
 
-const VIEWPORT_WIDTHS: Record<Viewport, number | '100%'> = {
+// Desktop fills the editor surface and relies on the outer p-5 padding to
+// reveal a strip of dots on each side. Tablet/mobile use fixed device widths
+// centered inside the dotted area.
+const VIEWPORT_WIDTHS: Record<Viewport, number | string> = {
   desktop: '100%',
   tablet: 768,
   mobile: 375,
+}
+
+// Heights drive what `100vh` resolves to inside the iframe — they let the
+// canvas mount target fill a device-shaped viewport.
+const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
+  desktop: 800,
+  tablet: 1024,
+  mobile: 812,
 }
 
 function parseTree(tree: unknown): BuilderNode[] {
@@ -73,6 +86,8 @@ export default function PageTreeEditor({
   const adapter = useMemo(() => createPortalAdapter(), [])
   const [tree, setTree] = useState<BuilderNode[]>(() => parseTree(initialTree))
   const [viewport, setViewport] = useState<Viewport>('desktop')
+  const iframeRectRef = useRef<DOMRect | null>(null)
+  const getIframeRect = useCallback(() => iframeRectRef.current, [])
 
   const { data: reqs } = useGetPortalPageRequirements({ realm })
   const requirements = useMemo(() => {
@@ -106,7 +121,7 @@ export default function PageTreeEditor({
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={handleChange}>
-      <BuilderShell>
+      <BuilderShell getIframeRect={getIframeRect}>
         <div className='grid h-full w-full min-w-0 grid-cols-[220px_1fr_320px] overflow-hidden'>
           <aside className='flex min-h-0 flex-col border-r border-border'>
             <ScrollArea className='h-full'>
@@ -138,32 +153,38 @@ export default function PageTreeEditor({
             </header>
 
             <div
-              className='flex min-w-0 flex-1 justify-center overflow-auto bg-muted/30 p-6'
-              style={cssVars}
+              className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
+              style={{
+                backgroundColor: '#f8f9fa',
+                backgroundImage:
+                  'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }}
             >
               <div
-                className='shrink-0 self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                // `transform` traps `position: fixed` children inside the
-                // preview frame instead of letting them escape to the viewport.
-                // `containerType: size` lets us substitute vw/vh inside the
-                // canvas with cqw/cqh so viewport-relative widths follow the
-                // device frame, not the browser window.
+                className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                // Desktop fills the available width so the iframe can resolve
+                // its own `width: 100%` against a concrete pixel value;
+                // tablet/mobile take the iframe's fixed width via `w-auto`.
                 style={{
-                  width: viewportWidth,
-                  maxWidth: '100%',
-                  transform: 'translate(0, 0)',
-                  // `inline-size` only contains the width axis so the frame
-                  // can still grow vertically with its content. `size` would
-                  // collapse the frame to 0 height since we don't set one.
-                  containerType: 'inline-size',
-                  containerName: 'portal-preview',
+                  width: viewport === 'desktop' ? '100%' : 'auto',
+                  flexShrink: 0,
                 }}
               >
-                {hasLayout
-                  ? treeToReactNode(layoutTree!, {
-                      pageContent: <Canvas maxWidth={canvasMaxWidth} />,
-                    })
-                  : <Canvas maxWidth={canvasMaxWidth} />}
+                <CanvasFrame
+                  width={viewportWidth}
+                  height={VIEWPORT_HEIGHTS[viewport]}
+                  cssVars={cssVars}
+                  onRectChange={(rect) => {
+                    iframeRectRef.current = rect
+                  }}
+                >
+                  {hasLayout
+                    ? treeToReactNode(layoutTree!, {
+                        pageContent: <Canvas maxWidth={canvasMaxWidth} />,
+                      })
+                    : <Canvas maxWidth={canvasMaxWidth} />}
+                </CanvasFrame>
               </div>
             </div>
           </main>

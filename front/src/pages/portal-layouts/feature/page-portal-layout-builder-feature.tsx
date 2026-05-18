@@ -8,7 +8,7 @@ import {
 import { useGetPortalTheme } from '@/api/portal-theme.api'
 import { BasicSpinner } from '@/components/ui/spinner'
 import type { BuilderNode } from '@/lib/builder-core'
-import { createPortalAdapter, getDefaultNode } from '@/lib/builder-portal'
+import { createPortalAdapter } from '@/lib/builder-portal'
 import { defaultTheme, mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import {
   PORTAL_LAYOUT_BUILDER_URL,
@@ -17,45 +17,11 @@ import {
 } from '@/routes/sub-router/portal-layouts.router'
 import PagePortalLayoutBuilder from '../ui/page-portal-layout-builder'
 
+// A new layout starts with an empty tree — the admin builds the whole thing
+// from scratch. The `page-content` slot lives in the "Required for this
+// layout" section of the component library if/when they want to add it.
 function seedTree(): BuilderNode[] {
-  const shell = getDefaultNode('container')
-  const card = getDefaultNode('container')
-  const pageContent = getDefaultNode('page-content')
-
-  return [
-    {
-      id: 'layout-shell',
-      ...shell,
-      props: {
-        ...shell.props,
-        direction: 'column',
-        align: 'center',
-        gap: '0px',
-        padding: '40px 16px',
-      },
-      children: [
-        {
-          id: 'layout-card',
-          ...card,
-          props: {
-            ...card.props,
-            direction: 'column',
-            gap: '24px',
-            padding: '40px',
-            backgroundColor: 'var(--fk-color-widget-bg, #ffffff)',
-            borderRadius: 'var(--fk-radius-widget, 12px)',
-            width: '440px',
-          },
-          children: [
-            {
-              id: 'layout-page-content',
-              ...pageContent,
-            },
-          ],
-        },
-      ],
-    },
-  ]
+  return []
 }
 
 function parseTree(tree: unknown): BuilderNode[] {

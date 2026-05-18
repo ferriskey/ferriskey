@@ -349,8 +349,12 @@ export function buttonStyle(node: BuilderNode): CSSProperties {
  */
 export function resolveInputType(node: BuilderNode): string {
   switch (node.type) {
+    // `email_input` is used as the identifier field on login flows where the
+    // realm may accept a username, an email, or both — so we render `text`
+    // and let the backend validate. Browser-level `type=email` would block
+    // submission for plain usernames.
     case 'email_input':
-      return 'email'
+      return 'text'
     case 'password_input':
       return 'password'
     case 'totp_input':

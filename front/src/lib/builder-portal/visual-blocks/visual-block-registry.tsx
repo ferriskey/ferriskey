@@ -38,43 +38,8 @@ function chromeStyle(isSelected: boolean): CSSProperties {
   }
 }
 
-/**
- * Rewrites width-axis viewport units (`vw`, `svw`, `lvw`, `dvw`, `vi`) into
- * their container-query equivalents (`cqw`, `cqi`) so they resolve against
- * the device preview frame instead of the browser viewport. The frame sets
- * `container-type: inline-size; container-name: portal-preview`.
- *
- * Height-axis units (`vh`, `vb`) and the cross-axis units (`vmin`, `vmax`)
- * are left untouched because the frame is not size-contained on the block
- * axis — we don't fix a height, so `cqh` would resolve to 0. They keep
- * meaning "browser viewport" in the canvas, same as in the runtime portal.
- */
-const VIEWPORT_UNIT_RE = /([\d.]+)(s|l|d)?(vw|vi)\b/g
-
-function rewriteViewportUnits(value: string): string {
-  return value.replace(VIEWPORT_UNIT_RE, (_match, num, _scale, axis) => {
-    const map: Record<string, string> = { vw: 'cqw', vi: 'cqi' }
-    return `${num}${map[axis] ?? axis}`
-  })
-}
-
-function previewStyle(style: CSSProperties): CSSProperties {
-  const out: CSSProperties = {}
-  for (const key of Object.keys(style) as (keyof CSSProperties)[]) {
-    const value = style[key]
-    if (typeof value === 'string') {
-      // Assigning string to a possibly-non-string CSSProperty key — React
-      // accepts strings on all style props at runtime.
-      ;(out as Record<string, unknown>)[key as string] = rewriteViewportUnits(value)
-    } else if (value !== undefined) {
-      ;(out as Record<string, unknown>)[key as string] = value
-    }
-  }
-  return out
-}
-
 function mergeStyles(base: CSSProperties, isSelected: boolean): CSSProperties {
-  return { ...previewStyle(base), ...chromeStyle(isSelected) }
+  return { ...base, ...chromeStyle(isSelected) }
 }
 
 /**
@@ -272,8 +237,8 @@ function ImageBlock({ node, isSelected }: { node: BuilderNode; isSelected: boole
 }
 
 function SpacerBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
-  const height = rewriteViewportUnits((node.props.height as string) || '16px')
-  const width = rewriteViewportUnits((node.props.width as string) || '100%')
+  const height = (node.props.height as string) || '16px'
+  const width = (node.props.width as string) || '100%'
   return (
     <div
       style={{
@@ -310,9 +275,9 @@ function DividerBlock({ node, isSelected }: { node: BuilderNode; isSelected: boo
     <div style={{ ...chromeStyle(isSelected), display: 'flex', justifyContent: 'center' }}>
       <hr
         style={{
-          width: rewriteViewportUnits((node.props.width as string) || '100%'),
+          width: (node.props.width as string) || '100%',
           border: 'none',
-          borderTop: `${rewriteViewportUnits((node.props.thickness as string) || '1px')} solid ${
+          borderTop: `${(node.props.thickness as string) || '1px'} solid ${
             (node.props.color as string) || '#e5e7eb'
           }`,
           margin: 0,
@@ -377,7 +342,11 @@ function PageContentSlot({ isSelected }: { node: BuilderNode; isSelected: boolea
     <div
       style={{
         ...chromeStyle(isSelected),
+        // Plain block-flow placeholder. Layout (centering, sizing) is up to
+        // the slot's parent in the user's tree — matching the runtime
+        // `<div data-portal-page-content>` exactly.
         minHeight: 120,
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

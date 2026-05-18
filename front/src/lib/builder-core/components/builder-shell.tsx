@@ -4,11 +4,12 @@ import {
   pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Active } from '@dnd-kit/core'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
@@ -28,6 +29,14 @@ export function useDropIndicator() {
 
 interface BuilderShellProps {
   children: ReactNode
+  /**
+   * Bounding rect of an iframe whose document hosts droppables registered
+   * with this DndContext. When set, collision detection translates every
+   * iframe-inside droppable rect into parent-window coordinates so dnd-kit
+   * can match it against the parent's pointer events. Pass `null` (default)
+   * when there is no iframe canvas.
+   */
+  getIframeRect?: () => DOMRect | null
 }
 
 /**
@@ -35,10 +44,14 @@ interface BuilderShellProps {
  * This is the main layout shell — the consumer provides children
  * (Canvas, ComponentLibrary, ConfigPanel) in whatever layout they want.
  */
-export function BuilderShell({ children }: BuilderShellProps) {
+export function BuilderShell({ children, getIframeRect }: BuilderShellProps) {
   const { addNode, moveNode, tree } = useBuilderContext()
   const [activeItem, setActiveItem] = useState<Active | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
+  const getIframeRectRef = useRef(getIframeRect)
+  useEffect(() => {
+    getIframeRectRef.current = getIframeRect
+  }, [getIframeRect])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -46,6 +59,46 @@ export function BuilderShell({ children }: BuilderShellProps) {
         distance: 5,
       },
     }),
+  )
+
+  /**
+   * Collision detection that's aware of a child iframe.
+   *
+   * When the canvas is rendered inside an iframe, droppables registered
+   * inside it report their bounding rects in iframe-local coordinates. The
+   * pointer events captured by the parent's PointerSensor (the iframe sets
+   * `pointer-events: none` during drag) are in parent-window coordinates.
+   * Without translation these would never overlap. We offset every iframe-
+   * inside droppable's rect by the iframe's position in the parent so both
+   * sides agree on a single coordinate space.
+   */
+  const collisionDetection = useMemo<CollisionDetection>(
+    () => (args) => {
+      const offset = getIframeRectRef.current?.()
+      if (!offset) return pointerWithin(args)
+
+      const adjusted: typeof args.droppableRects = new Map()
+      args.droppableRects.forEach((rect, id) => {
+        const container = args.droppableContainers.find((c) => c.id === id)
+        const el = container?.node?.current as HTMLElement | null | undefined
+        const isInIframe = el?.ownerDocument && el.ownerDocument !== document
+        if (isInIframe) {
+          adjusted.set(id, {
+            top: rect.top + offset.top,
+            bottom: rect.bottom + offset.top,
+            left: rect.left + offset.left,
+            right: rect.right + offset.left,
+            width: rect.width,
+            height: rect.height,
+          })
+        } else {
+          adjusted.set(id, rect)
+        }
+      })
+
+      return pointerWithin({ ...args, droppableRects: adjusted })
+    },
+    [],
   )
 
   function handleDragStart(event: DragStartEvent) {
@@ -142,7 +195,7 @@ export function BuilderShell({ children }: BuilderShellProps) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
