@@ -77,7 +77,10 @@ pub fn portal_theme_routes(state: AppState) -> Router<AppState> {
             put(update_theme_page),
         )
         .route(
-            &format!("{}/portal/page-requirements", state.args.server.root_path),
+            &format!(
+                "{}/realms/{{realm_name}}/portal/page-requirements",
+                state.args.server.root_path
+            ),
             get(get_page_requirements),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));

@@ -25,7 +25,7 @@ pub struct DeleteThemeResponse {
 
 #[utoipa::path(
     delete,
-    path = "/{theme_id}",
+    path = "/portal/themes/{theme_id}",
     tag = "portal-theme",
     summary = "Delete a portal theme",
     description = "Deletes a portal theme. Refuses (400) when the theme is currently active for the realm.",

@@ -5,12 +5,14 @@ export type ThemeFontStyle = Schemas.ThemeFontStyle
 export type ThemeFontLinkStyle = Schemas.ThemeFontLinkStyle
 export type ThemeFonts = Required<NonNullable<Schemas.ThemeFonts>>
 export type ThemeBorders = Required<NonNullable<Schemas.ThemeBorders>>
+export type ThemeSpacing = Required<NonNullable<Schemas.ThemeSpacing>>
 export type ThemeShadow = Schemas.ThemeShadow
 
 export type PortalThemeConfig = {
   colors: ThemeColors
   fonts: ThemeFonts
   borders: ThemeBorders
+  spacing: ThemeSpacing
 }
 
 export const defaultTheme: PortalThemeConfig = {
@@ -44,6 +46,11 @@ export const defaultTheme: PortalThemeConfig = {
     widgetBorderWeight: 0,
     widgetShadow: 'small',
   },
+  spacing: {
+    widgetPadding: 24,
+    fieldGap: 16,
+    sectionGap: 24,
+  },
 }
 
 export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined): PortalThemeConfig {
@@ -51,6 +58,7 @@ export function mergeWithDefaults(partial: Schemas.PortalThemeConfig | undefined
     colors: { ...defaultTheme.colors, ...(partial?.colors ?? {}) },
     fonts: { ...defaultTheme.fonts, ...(partial?.fonts ?? {}) },
     borders: { ...defaultTheme.borders, ...(partial?.borders ?? {}) },
+    spacing: { ...defaultTheme.spacing, ...(partial?.spacing ?? {}) },
   }
 }
 
@@ -61,7 +69,7 @@ const SHADOW_TO_CSS: Record<ThemeShadow, string> = {
 }
 
 export function themeToCssVars(theme: PortalThemeConfig): Record<string, string> {
-  const { colors, fonts, borders } = theme
+  const { colors, fonts, borders, spacing } = theme
 
   return {
     '--fk-color-primary-button': colors.primaryButton,
@@ -96,5 +104,9 @@ export function themeToCssVars(theme: PortalThemeConfig): Record<string, string>
     '--fk-radius-widget': `${borders.widgetRadius}px`,
     '--fk-border-widget': `${borders.widgetBorderWeight}px`,
     '--fk-shadow-widget': SHADOW_TO_CSS[borders.widgetShadow],
+
+    '--fk-spacing-widget-padding': `${spacing.widgetPadding}px`,
+    '--fk-spacing-field-gap': `${spacing.fieldGap}px`,
+    '--fk-spacing-section-gap': `${spacing.sectionGap}px`,
   }
 }

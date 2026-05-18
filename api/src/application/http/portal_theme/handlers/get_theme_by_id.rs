@@ -28,7 +28,7 @@ pub struct GetThemeByIdResponse {
 
 #[utoipa::path(
     get,
-    path = "/{theme_id}",
+    path = "/portal/themes/{theme_id}",
     tag = "portal-theme",
     summary = "Get a portal theme",
     description = "Retrieves a single portal theme, including design tokens, layout reference, and all seven page trees.",

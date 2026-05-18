@@ -1,5 +1,56 @@
 export namespace Schemas {
   // <Schemas>
+  export type ActivateThemeResponse = { message: string }
+  export type ThemeShadow = 'none' | 'small' | 'large'
+  export type ThemeBorders = Partial<{
+    buttonBorderWeight: number
+    buttonRadius: number
+    inputBorderWeight: number
+    inputRadius: number
+    widgetBorderWeight: number
+    widgetRadius: number
+    widgetShadow: ThemeShadow
+  }>
+  export type ThemeColors = Partial<{
+    bodyText: string
+    error: string
+    links: string
+    pageBackground: string
+    primaryButton: string
+    primaryButtonLabel: string
+    secondaryButton: string
+    secondaryButtonLabel: string
+    widgetBackground: string
+  }>
+  export type ThemeFontStyle = { sizePct: number; weight: number }
+  export type ThemeLinkStyle = 'normal' | 'underline'
+  export type ThemeFontLinkStyle = { sizePct: number; style: ThemeLinkStyle; weight: number }
+  export type ThemeFonts = Partial<{
+    baseSize: number
+    body: ThemeFontStyle
+    buttons: ThemeFontStyle
+    inputLabels: ThemeFontStyle
+    links: ThemeFontLinkStyle
+    subtitle: ThemeFontStyle
+    title: ThemeFontStyle
+    url: string | null
+  }>
+  export type ThemeSpacing = Partial<{
+    fieldGap: number
+    sectionGap: number
+    widgetPadding: number
+  }>
+  export type PortalThemeConfig = Partial<{
+    borders: ThemeBorders
+    colors: ThemeColors
+    fonts: ThemeFonts
+    spacing: ThemeSpacing
+  }>
+  export type ActiveThemeResponse = {
+    design_tokens: PortalThemeConfig
+    layout_id?: (string | null) | undefined
+    page_tree: unknown
+  }
   export type ActorType = 'user' | 'service_account' | 'admin' | 'system'
   export type MaintenanceWhitelistEntry = {
     client_id: string
@@ -250,6 +301,31 @@ export namespace Schemas {
     name: string
     permissions: Array<string>
   }
+  export type PortalThemePages = Partial<{
+    forgotPassword: unknown
+    login: unknown
+    magicLinkVerify: unknown
+    register: unknown
+    resetPassword: unknown
+    totp: unknown
+    verifyEmail: unknown
+  }>
+  export type PortalTheme = {
+    config: PortalThemeConfig
+    created_at: string
+    id: string
+    layout_id?: (string | null) | undefined
+    name: string
+    pages: PortalThemePages
+    realm_id: RealmId
+    updated_at: string
+  }
+  export type CreateThemeResponse = { data: PortalTheme }
+  export type CreateThemeValidator = {
+    config?: PortalThemeConfig | undefined
+    layout_id?: (string | null) | undefined
+    name: string
+  }
   export type RealmSetting = {
     access_token_lifetime: number
     compass_enabled: boolean
@@ -375,6 +451,7 @@ export namespace Schemas {
   export type DeleteProviderResponse = { message: string }
   export type DeleteRealmResponse = string
   export type DeleteRoleResponse = { message: string; realm_name: string; role_id: string }
+  export type DeleteThemeResponse = { message: string }
   export type DeleteUserAttributeResponse = Record<string, unknown>
   export type DeleteUserCredentialResponse = {
     message: string
@@ -461,45 +538,7 @@ export namespace Schemas {
   export type GetStatsResponse = { data: FlowStats }
   export type TemplateVariable = { description: string; name: string }
   export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> }
-  export type ThemeShadow = 'none' | 'small' | 'large'
-  export type ThemeBorders = Partial<{
-    buttonBorderWeight: number
-    buttonRadius: number
-    inputBorderWeight: number
-    inputRadius: number
-    widgetBorderWeight: number
-    widgetRadius: number
-    widgetShadow: ThemeShadow
-  }>
-  export type ThemeColors = Partial<{
-    bodyText: string
-    error: string
-    links: string
-    pageBackground: string
-    primaryButton: string
-    primaryButtonLabel: string
-    secondaryButton: string
-    secondaryButtonLabel: string
-    widgetBackground: string
-  }>
-  export type ThemeFontStyle = { sizePct: number; weight: number }
-  export type ThemeLinkStyle = 'normal' | 'underline'
-  export type ThemeFontLinkStyle = { sizePct: number; style: ThemeLinkStyle; weight: number }
-  export type ThemeFonts = Partial<{
-    baseSize: number
-    body: ThemeFontStyle
-    buttons: ThemeFontStyle
-    inputLabels: ThemeFontStyle
-    links: ThemeFontLinkStyle
-    subtitle: ThemeFontStyle
-    title: ThemeFontStyle
-    url: string | null
-  }>
-  export type PortalThemeConfig = Partial<{
-    borders: ThemeBorders
-    colors: ThemeColors
-    fonts: ThemeFonts
-  }>
+  export type GetThemeByIdResponse = { data: PortalTheme }
   export type GetThemeResponse = { data: PortalThemeConfig }
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
@@ -582,6 +621,7 @@ export namespace Schemas {
     updated_at: string
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
+  export type ListThemesResponse = { data: Array<PortalTheme> }
   export type LogoutRequestValidator = Partial<{
     client_id: string | null
     id_token_hint: string | null
@@ -595,6 +635,16 @@ export namespace Schemas {
     user_id: string
   }
   export type OtpVerifyRequest = { code: string; label: string; secret: string }
+  export type PortalPageType =
+    | 'login'
+    | 'register'
+    | 'totp'
+    | 'forgot_password'
+    | 'reset_password'
+    | 'magic_link_verify'
+    | 'verify_email'
+  export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> }
+  export type PageRequirementsResponse = { data: Array<PageRequirement> }
   export type PasskeyAuthenticateResponse = { login_url: string; status: string }
   export type PasskeyPublicKeyCredential = Record<string, unknown>
   export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
@@ -640,13 +690,6 @@ export namespace Schemas {
     | 'view_client_scopes'
     | 'manage_email_templates'
     | 'view_email_templates'
-  export type PortalTheme = {
-    config: PortalThemeConfig
-    created_at: string
-    id: string
-    realm_id: RealmId
-    updated_at: string
-  }
   export type ProtocolMapper = {
     client_scope_id: string
     config: unknown
@@ -872,6 +915,14 @@ export namespace Schemas {
   export type UpdateRolePermissionsValidator = { permissions: Array<string> }
   export type UpdateRoleResponse = { data: Role }
   export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
+  export type UpdateThemeMetadataResponse = { data: PortalTheme }
+  export type UpdateThemeMetadataValidator = {
+    config?: PortalThemeConfig | undefined
+    layout_id?: (string | null) | undefined
+    name: string
+  }
+  export type UpdateThemePageResponse = { data: PortalTheme }
+  export type UpdateThemePageValidator = { tree: unknown }
   export type UpdateThemeResponse = { data: PortalTheme }
   export type UpdateThemeValidator = { config: PortalThemeConfig }
   export type UpdateUserResponse = { data: User }
@@ -2422,6 +2473,38 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_Get_active_theme = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal/active'
+    requestFormat: 'json'
+    parameters: {
+      query: {
+        page_type:
+          | 'login'
+          | 'register'
+          | 'totp'
+          | 'forgot_password'
+          | 'reset_password'
+          | 'magic_link_verify'
+          | 'verify_email'
+      }
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.ActiveThemeResponse
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_page_requirements = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal/page-requirements'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: { 200: Schemas.PageRequirementsResponse; 500: Schemas.ApiErrorResponse }
+  }
   export type get_Get_theme = {
     method: 'GET'
     path: '/realms/{realm_name}/portal/theme'
@@ -2450,6 +2533,131 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse
       401: Schemas.ApiErrorResponse
       403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_List_themes = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal/themes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.ListThemesResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type post_Create_theme = {
+    method: 'POST'
+    path: '/realms/{realm_name}/portal/themes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.CreateThemeValidator
+    }
+    responses: {
+      201: Schemas.CreateThemeResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_theme_by_id = {
+    method: 'GET'
+    path: '/realms/{realm_name}/portal/themes/{theme_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; theme_id: string }
+    }
+    responses: {
+      200: Schemas.GetThemeByIdResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Update_theme_metadata = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/portal/themes/{theme_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; theme_id: string }
+
+      body: Schemas.UpdateThemeMetadataValidator
+    }
+    responses: {
+      200: Schemas.UpdateThemeMetadataResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type delete_Delete_theme = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/portal/themes/{theme_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; theme_id: string }
+    }
+    responses: {
+      200: Schemas.DeleteThemeResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type post_Activate_theme = {
+    method: 'POST'
+    path: '/realms/{realm_name}/portal/themes/{theme_id}/activate'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; theme_id: string }
+    }
+    responses: {
+      200: Schemas.ActivateThemeResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type put_Update_theme_page = {
+    method: 'PUT'
+    path: '/realms/{realm_name}/portal/themes/{theme_id}/pages/{page_type}'
+    requestFormat: 'json'
+    parameters: {
+      path: {
+        realm_name: string
+        theme_id: string
+        page_type:
+          | 'login'
+          | 'register'
+          | 'totp'
+          | 'forgot_password'
+          | 'reset_password'
+          | 'magic_link_verify'
+          | 'verify_email'
+      }
+
+      body: Schemas.UpdateThemePageValidator
+    }
+    responses: {
+      200: Schemas.UpdateThemePageResponse
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      422: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
     }
   }
@@ -3125,7 +3333,11 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/portal-layouts': Endpoints.get_List_layouts
     '/realms/{realm_name}/portal-layouts/public/default': Endpoints.get_Get_public_default_layout
     '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.get_Get_layout
+    '/realms/{realm_name}/portal/active': Endpoints.get_Get_active_theme
+    '/realms/{realm_name}/portal/page-requirements': Endpoints.get_Get_page_requirements
     '/realms/{realm_name}/portal/theme': Endpoints.get_Get_theme
+    '/realms/{realm_name}/portal/themes': Endpoints.get_List_themes
+    '/realms/{realm_name}/portal/themes/{theme_id}': Endpoints.get_Get_theme_by_id
     '/realms/{realm_name}/protocol/openid-connect/auth': Endpoints.get_Auth_handler
     '/realms/{realm_name}/protocol/openid-connect/certs': Endpoints.get_Get_certs
     '/realms/{realm_name}/protocol/openid-connect/jwks.json': Endpoints.get_Get_jwks_json
@@ -3182,6 +3394,8 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations': Endpoints.post_Create_organization
     '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.post_Add_member
     '/realms/{realm_name}/portal-layouts': Endpoints.post_Create_layout
+    '/realms/{realm_name}/portal/themes': Endpoints.post_Create_theme
+    '/realms/{realm_name}/portal/themes/{theme_id}/activate': Endpoints.post_Activate_theme
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout_post
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token
@@ -3209,6 +3423,8 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.put_Update_layout
     '/realms/{realm_name}/portal-layouts/{layout_id}/default': Endpoints.put_Set_default_layout
     '/realms/{realm_name}/portal/theme': Endpoints.put_Update_theme
+    '/realms/{realm_name}/portal/themes/{theme_id}': Endpoints.put_Update_theme_metadata
+    '/realms/{realm_name}/portal/themes/{theme_id}/pages/{page_type}': Endpoints.put_Update_theme_page
     '/realms/{realm_name}/roles/{role_id}': Endpoints.put_Update_role
     '/realms/{realm_name}/smtp-config': Endpoints.put_Upsert_smtp_config
     '/realms/{realm_name}/users/{user_id}': Endpoints.put_Update_user
@@ -3234,6 +3450,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}/attributes/{key}': Endpoints.delete_Delete_attribute
     '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}': Endpoints.delete_Remove_member
     '/realms/{realm_name}/portal-layouts/{layout_id}': Endpoints.delete_Delete_layout
+    '/realms/{realm_name}/portal/themes/{theme_id}': Endpoints.delete_Delete_theme
     '/realms/{realm_name}/roles/{role_id}': Endpoints.delete_Delete_role
     '/realms/{realm_name}/smtp-config': Endpoints.delete_Delete_smtp_config
     '/realms/{realm_name}/users/bulk': Endpoints.delete_Bulk_delete_user

@@ -31,7 +31,7 @@ pub struct UpdateThemeMetadataResponse {
 
 #[utoipa::path(
     put,
-    path = "/{theme_id}",
+    path = "/portal/themes/{theme_id}",
     tag = "portal-theme",
     summary = "Update portal theme metadata",
     description = "Updates a portal theme's name, layout reference, and design tokens. Page trees are managed via /pages/{page_type}.",
