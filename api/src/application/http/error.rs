@@ -240,6 +240,12 @@ impl From<CoreError> for ApiError {
             CoreError::PortalThemeActive => {
                 Self::BadRequest("Portal theme is currently active and cannot be deleted".into())
             }
+            CoreError::PortalLayoutDefault => Self::BadRequest(
+                "Portal layout is the realm default and cannot be deleted".into(),
+            ),
+            CoreError::PortalLayoutInUse => Self::BadRequest(
+                "Portal layout is referenced by one or more themes and cannot be deleted".into(),
+            ),
         }
     }
 }

@@ -1,2 +1,11 @@
+pub mod activate_theme;
+pub mod create_theme;
+pub mod delete_theme;
+pub mod get_active_theme;
+pub mod get_page_requirements;
 pub mod get_theme;
+pub mod get_theme_by_id;
+pub mod list_themes;
 pub mod update_theme;
+pub mod update_theme_metadata;
+pub mod update_theme_page;

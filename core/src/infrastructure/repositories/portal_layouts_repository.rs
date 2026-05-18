@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
-    TransactionTrait,
+    ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, TransactionTrait,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -213,5 +213,21 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         }
 
         Ok(())
+    }
+
+    async fn is_used_by_themes(&self, realm_id: Uuid, layout_id: Uuid) -> Result<bool, CoreError> {
+        use crate::entity::portal_themes;
+
+        let count = portal_themes::Entity::find()
+            .filter(portal_themes::Column::RealmId.eq(realm_id))
+            .filter(portal_themes::Column::LayoutId.eq(layout_id))
+            .count(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to count themes using portal layout: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(count > 0)
     }
 }
