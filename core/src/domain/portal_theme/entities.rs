@@ -8,9 +8,62 @@ use uuid::Uuid;
 pub struct PortalTheme {
     pub id: Uuid,
     pub realm_id: RealmId,
+    pub name: String,
+    pub layout_id: Option<Uuid>,
     pub config: PortalThemeConfig,
+    pub pages: PortalThemePages,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortalPageType {
+    Login,
+    Register,
+    Totp,
+    ForgotPassword,
+    ResetPassword,
+    MagicLinkVerify,
+    VerifyEmail,
+}
+
+impl PortalPageType {
+    pub const ALL: [PortalPageType; 7] = [
+        PortalPageType::Login,
+        PortalPageType::Register,
+        PortalPageType::Totp,
+        PortalPageType::ForgotPassword,
+        PortalPageType::ResetPassword,
+        PortalPageType::MagicLinkVerify,
+        PortalPageType::VerifyEmail,
+    ];
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PortalThemePages {
+    pub login: serde_json::Value,
+    pub register: serde_json::Value,
+    pub totp: serde_json::Value,
+    pub forgot_password: serde_json::Value,
+    pub reset_password: serde_json::Value,
+    pub magic_link_verify: serde_json::Value,
+    pub verify_email: serde_json::Value,
+}
+
+impl PortalThemePages {
+    pub fn get(&self, page_type: PortalPageType) -> &serde_json::Value {
+        match page_type {
+            PortalPageType::Login => &self.login,
+            PortalPageType::Register => &self.register,
+            PortalPageType::Totp => &self.totp,
+            PortalPageType::ForgotPassword => &self.forgot_password,
+            PortalPageType::ResetPassword => &self.reset_password,
+            PortalPageType::MagicLinkVerify => &self.magic_link_verify,
+            PortalPageType::VerifyEmail => &self.verify_email,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -19,6 +72,25 @@ pub struct PortalThemeConfig {
     pub colors: ThemeColors,
     pub fonts: ThemeFonts,
     pub borders: ThemeBorders,
+    pub spacing: ThemeSpacing,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ThemeSpacing {
+    pub widget_padding: u32,
+    pub field_gap: u32,
+    pub section_gap: u32,
+}
+
+impl Default for ThemeSpacing {
+    fn default() -> Self {
+        Self {
+            widget_padding: 24,
+            field_gap: 16,
+            section_gap: 24,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
