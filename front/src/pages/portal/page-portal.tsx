@@ -54,7 +54,11 @@ function PortalShell() {
   ]
 
   return (
-    <div className='flex h-full flex-col'>
+    // `min-h-0 flex-1` instead of `h-full`: this div is a flex child of the
+    // SidebarInset, which already hosts the TopBar (h-14) above us. `h-full`
+    // would resolve to 100% of the inset and push total content past the
+    // viewport bottom, leaving a 56px scrollable strip on the page.
+    <div className='flex min-h-0 flex-1 flex-col'>
       {/* Match the RealmSwitcher row's rendered height — the
           `SidebarMenuButton size="lg"` ends up ~44px once `py-3` is added
           to the `text-sm` content's 20px line box. */}
@@ -79,7 +83,10 @@ function PortalShell() {
           ))}
         </nav>
       </div>
-      <div className='flex-1 overflow-auto'>
+      {/* `min-h-0` lets this flex child shrink below content size; pair
+          with `overflow-hidden` so the route (e.g. the builder, which fills
+          its parent with `h-full`) can't push the page into scroll. */}
+      <div className='min-h-0 flex-1 overflow-hidden'>
         <Outlet />
       </div>
     </div>

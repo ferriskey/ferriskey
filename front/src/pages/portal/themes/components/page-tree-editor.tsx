@@ -43,31 +43,34 @@ interface Props {
   leftRailNav: ReactNode
 }
 
-// Device viewports pinned to Tailwind's responsive breakpoint thresholds so
-// what you see in the preview matches which `sm:` / `md:` / `lg:` / `xl:`
-// utilities the realm's CSS will activate at runtime.
-//   iphone  → sm  (640px) — sm:* utilities just kick in
-//   tablet  → md  (768px) — sm:* + md:* utilities
-//   desktop → xl  (1280px) — sm:* + md:* + lg:* + xl:* utilities
+// Device presets sized to real hardware so the previews actually feel like
+// the device they're labelled — matched to Firefox's device-inspector
+// profiles for consistency with the in-browser DevTools "Responsive Design
+// Mode". Tailwind's responsive thresholds still drive the cascade:
+//   iphone  402×874   — below sm (640), so only the BASE layer applies.
+//   tablet  768×1024  — md+ kicks in (sm fires too, since 768 ≥ 640).
+//   desktop 1280×800  — xl+ kicks in.
 type Viewport = 'iphone' | 'tablet' | 'desktop'
 
 const VIEWPORT_WIDTHS: Record<Viewport, number> = {
-  iphone: 640,
+  iphone: 402,
   tablet: 768,
   desktop: 1280,
 }
 
 const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
-  iphone: 1136,
+  iphone: 874,
   tablet: 1024,
   desktop: 800,
 }
 
 // Smallest device whose width activates a given Tailwind breakpoint —
 // clicking a bp tab in the config panel switches the preview to this device
-// so the user immediately sees the layer they're editing.
+// so the user immediately sees the layer they're editing. `sm` (640) is now
+// previewed on the tablet (768) since the iphone preset sits below the sm
+// threshold; tablet still fires `sm:` utilities.
 const BREAKPOINT_TO_VIEWPORT: Record<Breakpoint, Viewport> = {
-  sm: 'iphone',
+  sm: 'tablet',
   md: 'tablet',
   lg: 'desktop',
   xl: 'desktop',
@@ -243,7 +246,7 @@ function ViewportSwitcher({
       <ViewportButton
         active={viewport === 'iphone'}
         onClick={() => onChange('iphone')}
-        label='iPhone — 640 (Tailwind sm)'
+        label='iPhone — 402 (base, below Tailwind sm)'
       >
         <Smartphone size={14} />
       </ViewportButton>
