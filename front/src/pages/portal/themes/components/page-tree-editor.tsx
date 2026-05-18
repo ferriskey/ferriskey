@@ -14,6 +14,7 @@ import {
   BuilderShell,
   Canvas,
   ConfigPanel,
+  SelectionBreadcrumb,
   type BuilderNode,
 } from '@/lib/builder-core'
 import { createPortalAdapter, treeToReactNode } from '@/lib/builder-portal'
@@ -35,23 +36,24 @@ interface Props {
   leftRailNav: ReactNode
 }
 
-type Viewport = 'desktop' | 'tablet' | 'mobile'
+// Device viewports pinned to Tailwind's responsive breakpoint thresholds so
+// what you see in the preview matches which `sm:` / `md:` / `lg:` / `xl:`
+// utilities the realm's CSS will activate at runtime.
+//   iphone  → sm  (640px) — sm:* utilities just kick in
+//   tablet  → md  (768px) — sm:* + md:* utilities
+//   desktop → xl  (1280px) — sm:* + md:* + lg:* + xl:* utilities
+type Viewport = 'iphone' | 'tablet' | 'desktop'
 
-// Desktop fills the editor surface and relies on the outer p-5 padding to
-// reveal a strip of dots on each side. Tablet/mobile use fixed device widths
-// centered inside the dotted area.
-const VIEWPORT_WIDTHS: Record<Viewport, number | string> = {
-  desktop: '100%',
+const VIEWPORT_WIDTHS: Record<Viewport, number> = {
+  iphone: 640,
   tablet: 768,
-  mobile: 375,
+  desktop: 1280,
 }
 
-// Heights drive what `100vh` resolves to inside the iframe — they let the
-// canvas mount target fill a device-shaped viewport.
 const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
-  desktop: 800,
+  iphone: 1136,
   tablet: 1024,
-  mobile: 812,
+  desktop: 800,
 }
 
 function parseTree(tree: unknown): BuilderNode[] {
@@ -151,6 +153,9 @@ export default function PageTreeEditor({
               </div>
               <ViewportSwitcher viewport={viewport} onChange={setViewport} />
             </header>
+            <div className='border-b border-border bg-muted/30'>
+              <SelectionBreadcrumb />
+            </div>
 
             <div
               className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
@@ -163,11 +168,8 @@ export default function PageTreeEditor({
             >
               <div
                 className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                // Desktop fills the available width so the iframe can resolve
-                // its own `width: 100%` against a concrete pixel value;
-                // tablet/mobile take the iframe's fixed width via `w-auto`.
                 style={{
-                  width: viewport === 'desktop' ? '100%' : 'auto',
+                  width: 'auto',
                   flexShrink: 0,
                 }}
               >
@@ -208,25 +210,25 @@ function ViewportSwitcher({
   return (
     <div className='flex items-center gap-1 rounded-md border border-border p-0.5'>
       <ViewportButton
-        active={viewport === 'desktop'}
-        onClick={() => onChange('desktop')}
-        label='Desktop'
+        active={viewport === 'iphone'}
+        onClick={() => onChange('iphone')}
+        label='iPhone — 640 (Tailwind sm)'
       >
-        <Monitor size={14} />
+        <Smartphone size={14} />
       </ViewportButton>
       <ViewportButton
         active={viewport === 'tablet'}
         onClick={() => onChange('tablet')}
-        label='Tablet'
+        label='Tablet — 768 (Tailwind md)'
       >
         <Tablet size={14} />
       </ViewportButton>
       <ViewportButton
-        active={viewport === 'mobile'}
-        onClick={() => onChange('mobile')}
-        label='Mobile'
+        active={viewport === 'desktop'}
+        onClick={() => onChange('desktop')}
+        label='Desktop — 1280 (Tailwind xl)'
       >
-        <Smartphone size={14} />
+        <Monitor size={14} />
       </ViewportButton>
     </div>
   )

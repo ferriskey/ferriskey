@@ -4,6 +4,7 @@ import {
   BuilderShell,
   Canvas,
   ConfigPanel,
+  SelectionBreadcrumb,
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
@@ -12,23 +13,24 @@ import { LayoutComponentLibrary } from '../components/layout-component-library'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
 import { useCallback, useRef, useState, type CSSProperties } from 'react'
 
-type Viewport = 'desktop' | 'tablet' | 'mobile'
+// Device viewports pinned to Tailwind's responsive breakpoint thresholds so
+// what you see in the preview matches which `sm:` / `md:` / `lg:` / `xl:`
+// utilities the realm's CSS will activate at runtime.
+//   iphone  → sm  (640px)
+//   tablet  → md  (768px)
+//   desktop → xl  (1280px)
+type Viewport = 'iphone' | 'tablet' | 'desktop'
 
-// Desktop fills the editor surface and relies on the outer p-5 padding to
-// reveal a strip of dots on each side. Tablet/mobile use fixed device widths
-// centered inside the dotted area.
-const VIEWPORT_WIDTHS: Record<Viewport, number | string> = {
-  desktop: '100%',
+const VIEWPORT_WIDTHS: Record<Viewport, number> = {
+  iphone: 640,
   tablet: 768,
-  mobile: 375,
+  desktop: 1280,
 }
 
-// Heights drive what `100vh` resolves to inside the iframe — they let the
-// canvas mount target fill a device-shaped viewport.
 const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
-  desktop: 800,
+  iphone: 1136,
   tablet: 1024,
-  mobile: 812,
+  desktop: 800,
 }
 
 interface Props {
@@ -78,25 +80,25 @@ export default function PagePortalLayoutBuilder({
 
           <div className='flex items-center gap-1 rounded-md border border-border p-0.5'>
             <ViewportButton
-              active={viewport === 'desktop'}
-              onClick={() => setViewport('desktop')}
-              label='Desktop'
+              active={viewport === 'iphone'}
+              onClick={() => setViewport('iphone')}
+              label='iPhone — 640 (Tailwind sm)'
             >
-              <Monitor size={14} />
+              <Smartphone size={14} />
             </ViewportButton>
             <ViewportButton
               active={viewport === 'tablet'}
               onClick={() => setViewport('tablet')}
-              label='Tablet'
+              label='Tablet — 768 (Tailwind md)'
             >
               <Tablet size={14} />
             </ViewportButton>
             <ViewportButton
-              active={viewport === 'mobile'}
-              onClick={() => setViewport('mobile')}
-              label='Mobile'
+              active={viewport === 'desktop'}
+              onClick={() => setViewport('desktop')}
+              label='Desktop — 1280 (Tailwind xl)'
             >
-              <Smartphone size={14} />
+              <Monitor size={14} />
             </ViewportButton>
           </div>
 
@@ -107,6 +109,9 @@ export default function PagePortalLayoutBuilder({
         </header>
 
         <BuilderShell getIframeRect={getIframeRect}>
+          <div className='border-b border-border bg-muted/30'>
+            <SelectionBreadcrumb />
+          </div>
           <div className='flex min-w-0 flex-1 overflow-hidden'>
             <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
               <LayoutComponentLibrary />
@@ -123,11 +128,8 @@ export default function PagePortalLayoutBuilder({
             >
               <div
                 className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                // Desktop fills the available width so the iframe can resolve
-                // its own `width: 100%` against a concrete pixel value;
-                // tablet/mobile take the iframe's fixed width via `w-auto`.
                 style={{
-                  width: viewport === 'desktop' ? '100%' : 'auto',
+                  width: 'auto',
                   flexShrink: 0,
                 }}
               >

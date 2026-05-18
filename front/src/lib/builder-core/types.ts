@@ -7,6 +7,13 @@ import type { ReactNode } from 'react'
 export interface BuilderNode {
   id: string
   type: string
+  /**
+   * Author-defined display name for this node (e.g. "Hero", "Sidebar nav").
+   * Optional — when unset the block's component label is used in the
+   * breadcrumb and config panel. Has no effect at runtime; purely an editing
+   * affordance.
+   */
+  name?: string
   props: Record<string, unknown>
   styles: Record<string, unknown>
   children: BuilderNode[]
@@ -47,7 +54,7 @@ export interface BuilderAdapter {
   /** Render the configuration panel for the selected node */
   renderConfigPanel(
     node: BuilderNode,
-    onUpdate: (updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>) => void,
+    onUpdate: (updates: Partial<Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content'>>) => void,
   ): ReactNode
 
   /** Render a preview of the full tree (e.g. as HTML string for an iframe) */
@@ -79,8 +86,11 @@ export interface BuilderActions {
   removeNode(nodeId: string): void
   /** Move a node to a new parent/position */
   moveNode(nodeId: string, newParentId: string | null, newIndex: number): void
-  /** Update a node's props, styles, or content */
-  updateNode(nodeId: string, updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>): void
+  /** Update a node's name, props, styles, or content */
+  updateNode(
+    nodeId: string,
+    updates: Partial<Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content'>>,
+  ): void
   /** Select a node (or null to deselect) */
   selectNode(nodeId: string | null): void
   /** Replace the entire tree */

@@ -170,7 +170,7 @@ function BoxBlock({
       style={{ position: 'relative', ...mergeStyles(style, isSelected) }}
       className='group/box'
     >
-      <BlockLabel label={label} visible={isSelected} />
+      <BlockLabel label={node.name?.trim() || label} visible={isSelected} />
       <span
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
         className='hidden group-hover/box:block'

@@ -22,4 +22,7 @@ export { BuilderShell } from './components/builder-shell'
 export { PresetLibrary } from './components/preset-library'
 
 // Utils
-export { findNode, generateNodeId, regenerateIds } from './utils'
+export { findNode, findNodePath, generateNodeId, regenerateIds } from './utils'
+
+// Breadcrumb (selection navigation)
+export { SelectionBreadcrumb } from './components/selection-breadcrumb'

@@ -3,15 +3,35 @@ import type { BuilderNode } from '../../builder-core'
 import { ConfigSection } from './config-section'
 import { ColorField, SelectField, TextField } from './shared-fields'
 
-type OnUpdate = (updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>) => void
+type OnUpdate = (
+  updates: Partial<Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content'>>,
+) => void
+
+/**
+ * Universal "Identity" section shown above every block's specific config.
+ * Lets the author name the node so it's easy to spot in the breadcrumb.
+ */
+function IdentitySection({ node, onUpdate }: { node: BuilderNode; onUpdate: OnUpdate }) {
+  return (
+    <ConfigSection title='Identity'>
+      <TextField
+        label='Name'
+        value={node.name ?? ''}
+        onChange={(v) => onUpdate({ name: v })}
+      />
+    </ConfigSection>
+  )
+}
 
 export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): ReactNode {
   const updateProp = (key: string, value: string) => onUpdate({ props: { [key]: value } })
+  const identity = <IdentitySection node={node} onUpdate={onUpdate} />
 
   switch (node.type) {
     case 'container':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Layout'>
             <SelectField
               label='Direction'
@@ -67,6 +87,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
             : (node.props.display as string) || 'block'
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Display'>
             <SelectField
               label='Display'
@@ -294,6 +315,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
     case 'heading':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Typography'>
             <SelectField
               label='Level'
@@ -338,6 +360,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
     case 'text':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Typography'>
             <ColorField label='Color' value={node.props.color as string} onChange={(v) => updateProp('color', v)} />
             <TextField label='Font size' value={node.props.fontSize as string} onChange={(v) => updateProp('fontSize', v)} />
@@ -371,6 +394,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
     case 'image':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Source'>
             <TextField label='URL' value={node.props.src as string} onChange={(v) => updateProp('src', v)} />
             <TextField label='Alt' value={node.props.alt as string} onChange={(v) => updateProp('alt', v)} />
@@ -417,6 +441,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
     case 'button':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Action'>
             <TextField label='Link URL' value={node.props.href as string} onChange={(v) => updateProp('href', v)} />
           </ConfigSection>
@@ -451,6 +476,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
       // Only visual style is configurable.
       return (
         <div className='flex flex-col'>
+          {identity}
           <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
             Submit action is locked — this button always submits the page's form.
           </div>
@@ -491,6 +517,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
             : 'TOTP input — the HTML type is text and the field name is locked to totp.'
       return (
         <div className='flex flex-col'>
+          {identity}
           <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
             {lockedHint}
           </div>
@@ -514,6 +541,7 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
     case 'input':
       return (
         <div className='flex flex-col'>
+          {identity}
           <ConfigSection title='Field'>
             <TextField label='Label' value={node.props.label as string} onChange={(v) => updateProp('label', v)} />
             <TextField
@@ -543,14 +571,22 @@ export function renderPortalConfigPanel(node: BuilderNode, onUpdate: OnUpdate): 
 
     case 'page-content':
       return (
-        <div className='text-xs text-muted-foreground'>
-          The page content slot is replaced at runtime by the page using this layout. No configuration needed.
+        <div className='flex flex-col'>
+          {identity}
+          <div className='px-3 py-2 text-xs text-muted-foreground'>
+            The page content slot is replaced at runtime by the page using this layout. No configuration needed.
+          </div>
         </div>
       )
 
     default:
       return (
-        <div className='text-xs text-muted-foreground'>No configuration for {node.type}</div>
+        <div className='flex flex-col'>
+          {identity}
+          <div className='px-3 py-2 text-xs text-muted-foreground'>
+            No configuration for {node.type}
+          </div>
+        </div>
       )
   }
 }

@@ -90,11 +90,12 @@ export function BuilderProvider({
   const updateNode = useCallback(
     (
       nodeId: string,
-      updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>,
+      updates: Partial<Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content'>>,
     ) => {
       setTree(
         updateNodeInTree(tree, nodeId, (node) => ({
           ...node,
+          ...(updates.name !== undefined && { name: updates.name }),
           ...(updates.props && { props: { ...node.props, ...updates.props } }),
           ...(updates.styles && {
             styles: { ...node.styles, ...updates.styles },
