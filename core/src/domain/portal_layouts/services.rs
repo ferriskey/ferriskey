@@ -185,8 +185,27 @@ where
             "insufficient permissions",
         )?;
 
+        let realm_uuid: uuid::Uuid = realm.id.into();
+        let layout = self
+            .layouts_repository
+            .get_by_id(realm_uuid, input.layout_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if layout.is_default {
+            return Err(CoreError::PortalLayoutDefault);
+        }
+
+        if self
+            .layouts_repository
+            .is_used_by_themes(realm_uuid, input.layout_id)
+            .await?
+        {
+            return Err(CoreError::PortalLayoutInUse);
+        }
+
         self.layouts_repository
-            .delete(realm.id.into(), input.layout_id)
+            .delete(realm_uuid, input.layout_id)
             .await
     }
 
@@ -573,6 +592,114 @@ mod tests {
 
         assert_eq!(result.id, layout_id);
         assert_eq!(result.name, "Renamed");
+    }
+
+    #[tokio::test]
+    async fn delete_layout_refuses_when_layout_is_default() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let layout = stored_layout(&realm, "Default", true);
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        let layout_clone = layout.clone();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = layout_clone.clone();
+            Box::pin(async move { Ok(Some(l)) })
+        });
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            user_repo_returning(user.clone()),
+            user_role_repo_returning(vec![admin_role(&realm)]),
+            layouts_repo,
+        );
+
+        let result = service
+            .delete_layout(
+                Identity::User(user),
+                GetLayoutInput {
+                    realm_name: realm.name.clone(),
+                    layout_id: layout.id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::PortalLayoutDefault)));
+    }
+
+    #[tokio::test]
+    async fn delete_layout_refuses_when_referenced_by_themes() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let layout = stored_layout(&realm, "Shared", false);
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        let layout_clone = layout.clone();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = layout_clone.clone();
+            Box::pin(async move { Ok(Some(l)) })
+        });
+        layouts_repo
+            .expect_is_used_by_themes()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            user_repo_returning(user.clone()),
+            user_role_repo_returning(vec![admin_role(&realm)]),
+            layouts_repo,
+        );
+
+        let result = service
+            .delete_layout(
+                Identity::User(user),
+                GetLayoutInput {
+                    realm_name: realm.name.clone(),
+                    layout_id: layout.id,
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::PortalLayoutInUse)));
+    }
+
+    #[tokio::test]
+    async fn delete_layout_succeeds_when_not_default_and_unused() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let layout = stored_layout(&realm, "Spare", false);
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        let layout_clone = layout.clone();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = layout_clone.clone();
+            Box::pin(async move { Ok(Some(l)) })
+        });
+        layouts_repo
+            .expect_is_used_by_themes()
+            .returning(|_, _| Box::pin(async { Ok(false) }));
+        layouts_repo
+            .expect_delete()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            user_repo_returning(user.clone()),
+            user_role_repo_returning(vec![admin_role(&realm)]),
+            layouts_repo,
+        );
+
+        let result = service
+            .delete_layout(
+                Identity::User(user),
+                GetLayoutInput {
+                    realm_name: realm.name.clone(),
+                    layout_id: layout.id,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok());
     }
 
     #[tokio::test]

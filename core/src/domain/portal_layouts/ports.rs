@@ -95,6 +95,12 @@ pub trait PortalLayoutsRepository: Send + Sync {
         realm_id: Uuid,
         layout_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn is_used_by_themes(
+        &self,
+        realm_id: Uuid,
+        layout_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait PortalLayoutsPolicy: Send + Sync {

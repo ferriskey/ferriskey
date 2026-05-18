@@ -288,6 +288,12 @@ pub enum CoreError {
 
     #[error("Portal theme is currently active and cannot be deleted")]
     PortalThemeActive,
+
+    #[error("Portal layout is the realm default and cannot be deleted")]
+    PortalLayoutDefault,
+
+    #[error("Portal layout is referenced by one or more themes and cannot be deleted")]
+    PortalLayoutInUse,
 }
 
 impl From<AuthenticationError> for CoreError {
