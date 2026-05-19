@@ -443,6 +443,17 @@ export namespace Schemas {
     user_id: string
     user_label?: (string | null) | undefined
   }
+  export type DailyActivityStats = {
+    avg_login_duration_ms?: (number | null) | undefined
+    date: string
+    expired_logins: number
+    login_failures: number
+    logins: number
+    pending_logins: number
+    signups: number
+    total_flows: number
+    unique_login_users: number
+  }
   export type DeleteClientResponse = { message: string; realm_name: string }
   export type DeleteClientScopeResponse = { message: string }
   export type DeleteEmailTemplateResponse = { message: string }
@@ -478,6 +489,7 @@ export namespace Schemas {
   export type GetClientResponse = { data: Client }
   export type GetClientRolesResponse = { data: Array<Role> }
   export type GetClientWhitelistResponse = { data: Array<MaintenanceWhitelistEntry> }
+  export type GetDailyActivityStatsResponse = { data: Array<DailyActivityStats> }
   export type GetEmailTemplateResponse = { data: EmailTemplate }
   export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> }
   export type GetFlowResponse = { data: CompassFlow }
@@ -1566,6 +1578,28 @@ export namespace Endpoints {
     }
     responses: {
       201: Schemas.Role
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Get_daily_activity_stats = {
+    method: 'GET'
+    path: '/realms/{realm_name}/compass/v1/activity/daily'
+    requestFormat: 'json'
+    parameters: {
+      query: Partial<{
+        from: string
+        to: string
+        client_id: string
+        user_id: string
+        grant_type: string
+      }>
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.GetDailyActivityStatsResponse
+      400: Schemas.ApiErrorResponse
       401: Schemas.ApiErrorResponse
       403: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
@@ -3329,6 +3363,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.get_Get_post_logout_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.get_Get_redirect_uris
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.get_Get_client_roles
+    '/realms/{realm_name}/compass/v1/activity/daily': Endpoints.get_Get_daily_activity_stats
     '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_flows
     '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_flow
     '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_stats

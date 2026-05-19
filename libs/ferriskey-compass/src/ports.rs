@@ -10,7 +10,9 @@ use uuid::Uuid;
 
 use crate::{
     entities::{CompassFlow, CompassFlowStep, FlowStatus},
-    value_objects::{FetchFlowsInput, FlowFilter, FlowStats},
+    value_objects::{
+        DailyActivityStats, DailyActivityStatsFilter, FetchFlowsInput, FlowFilter, FlowStats,
+    },
 };
 
 pub trait CompassService: Send + Sync {
@@ -32,6 +34,13 @@ pub trait CompassService: Send + Sync {
         identity: Identity,
         realm_name: String,
     ) -> impl Future<Output = Result<FlowStats, CoreError>> + Send;
+
+    fn get_daily_activity_stats(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        filter: DailyActivityStatsFilter,
+    ) -> impl Future<Output = Result<Vec<DailyActivityStats>, CoreError>> + Send;
 }
 
 pub trait CompassPolicy: Send + Sync {
@@ -81,6 +90,12 @@ pub trait CompassFlowRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<FlowStats, CoreError>> + Send;
+
+    fn get_daily_activity_stats(
+        &self,
+        realm_id: RealmId,
+        filter: DailyActivityStatsFilter,
+    ) -> impl Future<Output = Result<Vec<DailyActivityStats>, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

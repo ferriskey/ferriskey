@@ -50,3 +50,32 @@ export const useGetStats = ({ realm }: BaseQuery) => {
     enabled: !!realm,
   })
 }
+
+export const useGetDailyActivityStats = ({
+  realm,
+  from,
+  to,
+  clientId,
+  userId,
+  grantType,
+}: BaseQuery & {
+  from?: string
+  to?: string
+  clientId?: string
+  userId?: string
+  grantType?: string
+}) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/compass/v1/activity/daily', {
+      path: { realm_name: realm! },
+      query: {
+        from,
+        to,
+        client_id: clientId,
+        user_id: userId,
+        grant_type: grantType,
+      },
+    }).queryOptions,
+    enabled: !!realm,
+  })
+}
