@@ -1,7 +1,3 @@
-import { Bell, Search } from 'lucide-react'
-import { useParams } from 'react-router'
-import { useAuth } from '@/hooks/use-auth'
-import { RouterParams } from '@/routes/router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -12,11 +8,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { BadgeCheck, LogOut, Sun, Moon, Laptop, Check, LayoutGrid, Settings2 } from 'lucide-react'
-import { useTheme } from './theme-provider'
+import { useAuth } from '@/hooks/use-auth'
 import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
 import { useTrackLastVisited } from '@/hooks/use-track-last-visited'
-import { useLocation } from 'react-router'
+import { RouterParams } from '@/routes/router'
+import {
+  BadgeCheck,
+  Bell,
+  Check,
+  Laptop,
+  LayoutGrid,
+  LogOut,
+  Moon,
+  Search,
+  Settings2,
+  Sun,
+} from 'lucide-react'
+import { useLocation, useParams } from 'react-router'
+import { useTheme } from './theme-provider'
 
 function getInitials(username?: string): string {
   if (!username) return '??'
@@ -36,7 +45,7 @@ export function TopBar() {
   const mode = deriveModeFromPath(useLocation().pathname)
 
   return (
-    <header className='sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-border bg-background px-6'>
+    <header className='sticky top-0 z-10 flex h-15 items-center gap-4 border-b border-border bg-background px-6'>
       {/* Search */}
       <div className='flex flex-1 items-center gap-2 rounded-none border border-input bg-muted/40 px-3 max-w-sm focus-within:border-sidebar-primary transition-colors'>
         <Search className='size-3.5 shrink-0 text-muted-foreground' />
@@ -100,7 +109,9 @@ export function TopBar() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>Panel mode</DropdownMenuLabel>
+              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>
+                Panel mode
+              </DropdownMenuLabel>
               <DropdownMenuItem className='rounded-none' onClick={() => switchMode('console')}>
                 <LayoutGrid className='mr-2 h-4 w-4' />
                 Console
@@ -114,7 +125,9 @@ export function TopBar() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>Theme</DropdownMenuLabel>
+              <DropdownMenuLabel className='font-normal text-xs text-muted-foreground px-2 py-1'>
+                Theme
+              </DropdownMenuLabel>
               <DropdownMenuItem className='rounded-none' onClick={() => setTheme('light')}>
                 <Sun className='mr-2 h-4 w-4' />
                 Light

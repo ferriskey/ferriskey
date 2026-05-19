@@ -1,15 +1,37 @@
 import {
+  AtSign,
   Box,
+  CheckSquare,
   Heading as HeadingIcon,
   Image as ImageIcon,
+  KeyRound,
   LayoutTemplate,
+  LockKeyhole,
   Minus,
   MousePointerClick,
   MoveVertical,
+  Square,
   TextCursorInput,
   Type,
 } from 'lucide-react'
 import type { BuilderNode, ComponentDefinition } from '../builder-core'
+
+const ALL_CHILDREN = [
+  'container',
+  'div',
+  'heading',
+  'text',
+  'image',
+  'spacer',
+  'divider',
+  'button',
+  'input',
+  'email_input',
+  'password_input',
+  'totp_input',
+  'submit_button',
+  'page-content',
+]
 
 export const portalComponents: ComponentDefinition[] = [
   {
@@ -17,22 +39,59 @@ export const portalComponents: ComponentDefinition[] = [
     label: 'Container',
     icon: <Box size={14} />,
     isContainer: true,
-    allowedChildren: [
-      'container',
-      'heading',
-      'text',
-      'image',
-      'spacer',
-      'divider',
-      'button',
-      'input',
-      'page-content',
-    ],
+    allowedChildren: ALL_CHILDREN,
     defaultProps: {
       direction: 'column',
       align: 'stretch',
       gap: '12px',
       padding: '16px',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'div',
+    label: 'Div',
+    icon: <Square size={14} />,
+    isContainer: true,
+    allowedChildren: ALL_CHILDREN,
+    defaultProps: {
+      // Display switches between block / flex / grid layouts.
+      display: 'block',
+      // Position / positioning offsets.
+      position: 'static',
+      top: '',
+      right: '',
+      bottom: '',
+      left: '',
+      zIndex: '',
+      // Size.
+      width: '',
+      height: '',
+      minWidth: '',
+      maxWidth: '',
+      minHeight: '',
+      maxHeight: '',
+      // Spacing — no default padding so a fresh Div is a truly empty box.
+      padding: '',
+      margin: '',
+      gap: '',
+      // Visual.
+      backgroundColor: '',
+      borderRadius: '',
+      overflow: 'visible',
+      // Flex props (used when display === 'flex').
+      direction: 'row',
+      wrap: 'nowrap',
+      justifyContent: 'flex-start',
+      alignItems: 'stretch',
+      alignContent: 'stretch',
+      // Grid props (used when display === 'grid').
+      templateColumns: 'repeat(2, 1fr)',
+      templateRows: '',
+      columnGap: '',
+      rowGap: '',
+      justifyItems: 'stretch',
+      autoFlow: 'row',
     },
     defaultStyles: {},
   },
@@ -120,12 +179,72 @@ export const portalComponents: ComponentDefinition[] = [
     defaultProps: {},
     defaultStyles: {},
   },
+  {
+    type: 'email_input',
+    label: 'Email input',
+    icon: <AtSign size={14} />,
+    defaultProps: {
+      label: 'Email',
+      placeholder: 'you@example.com',
+      type: 'text',
+      name: 'email',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'password_input',
+    label: 'Password input',
+    icon: <LockKeyhole size={14} />,
+    defaultProps: {
+      label: 'Password',
+      placeholder: '',
+      type: 'password',
+      name: 'password',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'totp_input',
+    label: 'TOTP input',
+    icon: <KeyRound size={14} />,
+    defaultProps: {
+      label: 'One-time code',
+      placeholder: '123 456',
+      type: 'text',
+      name: 'totp',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'submit_button',
+    label: 'Submit button',
+    icon: <CheckSquare size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'primary',
+      fullWidth: 'true',
+      submit: 'true',
+    },
+    defaultStyles: {},
+  },
 ]
+
+/** Block types that are specialized for a portal page (not generic layout). */
+export const REQUIRED_BLOCK_TYPES = new Set([
+  'email_input',
+  'password_input',
+  'totp_input',
+  'submit_button',
+])
+
+/** Block types that only make sense in a layout tree, never in a page tree. */
+export const LAYOUT_ONLY_BLOCK_TYPES = new Set(['page-content'])
 
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   heading: 'Welcome',
   text: 'Sign in to your account.',
   button: 'Continue',
+  submit_button: 'Continue',
 }
 
 export function getDefaultNode(type: string): Omit<BuilderNode, 'id'> {
@@ -135,6 +254,6 @@ export function getDefaultNode(type: string): Omit<BuilderNode, 'id'> {
     props: { ...(def?.defaultProps ?? {}) },
     styles: { ...(def?.defaultStyles ?? {}) },
     children: [],
-    content: def?.hasContent ? DEFAULT_CONTENT[type] ?? '' : undefined,
+    content: def?.hasContent ? (DEFAULT_CONTENT[type] ?? '') : undefined,
   }
 }

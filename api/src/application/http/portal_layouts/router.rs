@@ -4,6 +4,7 @@ use super::handlers::get_layout::{__path_get_layout, get_layout};
 use super::handlers::get_public_default_layout::{
     __path_get_public_default_layout, get_public_default_layout,
 };
+use super::handlers::get_public_layout::{__path_get_public_layout, get_public_layout};
 use super::handlers::list_layouts::{__path_list_layouts, list_layouts};
 use super::handlers::set_default_layout::{__path_set_default_layout, set_default_layout};
 use super::handlers::update_layout::{__path_update_layout, update_layout};
@@ -23,7 +24,7 @@ use utoipa::OpenApi;
 pub struct PortalLayoutsApiDoc;
 
 #[derive(OpenApi)]
-#[openapi(paths(get_public_default_layout))]
+#[openapi(paths(get_public_default_layout, get_public_layout))]
 pub struct PortalLayoutsPublicApiDoc;
 
 pub fn portal_layouts_routes(state: AppState) -> Router<AppState> {
@@ -51,13 +52,21 @@ pub fn portal_layouts_routes(state: AppState) -> Router<AppState> {
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 
-    let public_routes = Router::new().route(
-        &format!(
-            "{}/realms/{{realm_name}}/portal-layouts/public/default",
-            state.args.server.root_path
-        ),
-        get(get_public_default_layout),
-    );
+    let public_routes = Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal-layouts/public/default",
+                state.args.server.root_path
+            ),
+            get(get_public_default_layout),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal-layouts/public/{{layout_id}}",
+                state.args.server.root_path
+            ),
+            get(get_public_layout),
+        );
 
     admin_routes.merge(public_routes)
 }

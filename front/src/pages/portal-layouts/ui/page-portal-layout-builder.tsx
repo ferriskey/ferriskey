@@ -3,20 +3,50 @@ import {
   BuilderProvider,
   BuilderShell,
   Canvas,
-  ComponentLibrary,
   ConfigPanel,
+  SelectionBreadcrumb,
+  useEditingBreakpoint,
+  type Breakpoint,
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
+import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
+import { generateBreakpointCss } from '@/lib/builder-portal'
+import { LayoutComponentLibrary } from '../components/layout-component-library'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
-import { useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
-type Viewport = 'desktop' | 'tablet' | 'mobile'
+// Device presets sized to real hardware so the previews actually feel like
+// the device they're labelled — matched to Firefox's device-inspector
+// profiles for consistency with the in-browser DevTools "Responsive Design
+// Mode". Tailwind's responsive thresholds still drive the cascade:
+//   iphone  402×874   — below sm (640), so only the BASE layer applies.
+//   tablet  768×1024  — md+ kicks in (sm fires too, since 768 ≥ 640).
+//   desktop 1280×800  — xl+ kicks in.
+type Viewport = 'iphone' | 'tablet' | 'desktop'
 
 const VIEWPORT_WIDTHS: Record<Viewport, number> = {
-  desktop: 1024,
+  iphone: 402,
   tablet: 768,
-  mobile: 375,
+  desktop: 1280,
+}
+
+const VIEWPORT_HEIGHTS: Record<Viewport, number> = {
+  iphone: 874,
+  tablet: 1024,
+  desktop: 800,
+}
+
+// Smallest device whose width activates a given Tailwind breakpoint —
+// clicking a bp tab in the config panel switches the preview to this device
+// so the user immediately sees the layer they're editing. `sm` (640) is now
+// previewed on the tablet (768) since the iphone preset sits below the sm
+// threshold; tablet still fires `sm:` utilities.
+const BREAKPOINT_TO_VIEWPORT: Record<Breakpoint, Viewport> = {
+  sm: 'tablet',
+  md: 'tablet',
+  lg: 'desktop',
+  xl: 'desktop',
 }
 
 interface Props {
@@ -44,11 +74,25 @@ export default function PagePortalLayoutBuilder({
   onSave,
   onBack,
 }: Props) {
-  const [viewport, setViewport] = useState<Viewport>('desktop')
+  // Mobile-first preview default: open at iPhone so the base layer is the
+  // narrowest viewport the admin's design has to survive at.
+  const [viewport, setViewport] = useState<Viewport>('iphone')
+  const iframeRectRef = useRef<DOMRect | null>(null)
+  const getIframeRect = useCallback(() => iframeRectRef.current, [])
+  // Stable callback identity so the bridge below only fires when the editing
+  // bp actually changes — not on every parent re-render (which would snap
+  // the viewport back and override the user's manual device choice).
+  const handleBreakpointChange = useCallback((bp: Breakpoint | null) => {
+    if (bp) setViewport(BREAKPOINT_TO_VIEWPORT[bp])
+  }, [])
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
-      <div className='flex h-[calc(100vh-3rem)] w-full min-w-0 flex-col overflow-hidden'>
+      <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
+      {/* `h-full` plays off the PortalShell's `min-h-0 flex-1 overflow-hidden`
+          wrapper: the builder fills exactly what's left between the TopBar
+          and the Portail sub-nav, no page-level scroll. */}
+      <div className='flex h-full w-full min-w-0 flex-col overflow-hidden'>
         <header className='flex items-center gap-3 border-b border-border px-4 py-2'>
           <Button variant='ghost' size='icon' onClick={onBack}>
             <ArrowLeft size={16} />
@@ -64,25 +108,25 @@ export default function PagePortalLayoutBuilder({
 
           <div className='flex items-center gap-1 rounded-md border border-border p-0.5'>
             <ViewportButton
-              active={viewport === 'desktop'}
-              onClick={() => setViewport('desktop')}
-              label='Desktop'
+              active={viewport === 'iphone'}
+              onClick={() => setViewport('iphone')}
+              label='iPhone — 402 (base, below Tailwind sm)'
             >
-              <Monitor size={14} />
+              <Smartphone size={14} />
             </ViewportButton>
             <ViewportButton
               active={viewport === 'tablet'}
               onClick={() => setViewport('tablet')}
-              label='Tablet'
+              label='Tablet — 768 (Tailwind md)'
             >
               <Tablet size={14} />
             </ViewportButton>
             <ViewportButton
-              active={viewport === 'mobile'}
-              onClick={() => setViewport('mobile')}
-              label='Mobile'
+              active={viewport === 'desktop'}
+              onClick={() => setViewport('desktop')}
+              label='Desktop — 1280 (Tailwind xl)'
             >
-              <Smartphone size={14} />
+              <Monitor size={14} />
             </ViewportButton>
           </div>
 
@@ -92,21 +136,48 @@ export default function PagePortalLayoutBuilder({
           </Button>
         </header>
 
-        <BuilderShell>
+        <BuilderShell getIframeRect={getIframeRect}>
+          <div className='border-b border-border bg-muted/30'>
+            <SelectionBreadcrumb />
+          </div>
           <div className='flex min-w-0 flex-1 overflow-hidden'>
             <div className='w-56 shrink-0 overflow-y-auto border-r border-border'>
-              <ComponentLibrary />
+              <LayoutComponentLibrary />
             </div>
 
             <div
-              className='flex min-w-0 flex-1 justify-center overflow-auto bg-muted/30 p-6'
-              style={cssVars}
+              className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
+              style={{
+                backgroundColor: '#f8f9fa',
+                backgroundImage:
+                  'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }}
             >
               <div
-                className='shrink-0 self-start rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
-                style={{ width: VIEWPORT_WIDTHS[viewport] }}
+                className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                style={{
+                  width: 'auto',
+                  flexShrink: 0,
+                }}
               >
-                <Canvas maxWidth={VIEWPORT_WIDTHS[viewport]} />
+                <CanvasFrame
+                  width={VIEWPORT_WIDTHS[viewport]}
+                  height={VIEWPORT_HEIGHTS[viewport]}
+                  cssVars={cssVars}
+                  responsiveCss={generateBreakpointCss(tree)}
+                  onRectChange={(rect) => {
+                    iframeRectRef.current = rect
+                  }}
+                >
+                  <Canvas
+                    maxWidth={
+                      typeof VIEWPORT_WIDTHS[viewport] === 'number'
+                        ? (VIEWPORT_WIDTHS[viewport] as number)
+                        : 1600
+                    }
+                  />
+                </CanvasFrame>
               </div>
             </div>
 
@@ -143,4 +214,21 @@ function ViewportButton({
       {children}
     </button>
   )
+}
+
+/**
+ * Bridges the BreakpointContext (set by the config panel's bp tabs) with the
+ * layout builder's device viewport state. When the user clicks `md`, the
+ * preview jumps to Tablet so the layer they're editing is actually visible.
+ */
+function BreakpointToDeviceSync({
+  onBreakpointChange,
+}: {
+  onBreakpointChange: (bp: Breakpoint | null) => void
+}) {
+  const { current } = useEditingBreakpoint()
+  useEffect(() => {
+    onBreakpointChange(current)
+  }, [current, onBreakpointChange])
+  return null
 }

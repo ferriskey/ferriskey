@@ -1,5 +1,11 @@
 export { createPortalAdapter } from './adapter'
-export { portalComponents, getDefaultNode } from './components'
+export { generateBreakpointCss, BREAKPOINT_WIDTHS } from './breakpoints'
+export {
+  portalComponents,
+  getDefaultNode,
+  REQUIRED_BLOCK_TYPES,
+  LAYOUT_ONLY_BLOCK_TYPES,
+} from './components'
 export { treeToReactNode } from './renderer'
 export { PortalPreview } from './preview'
 export type {

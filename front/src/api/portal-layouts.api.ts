@@ -31,6 +31,18 @@ export const useGetPublicDefaultPortalLayout = ({ realm = 'master' }: BaseQuery)
   })
 }
 
+export const useGetPublicPortalLayout = ({
+  realm = 'master',
+  layoutId,
+}: BaseQuery & { layoutId: string }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/portal-layouts/public/{layout_id}', {
+      path: { realm_name: realm, layout_id: layoutId },
+    }).queryOptions,
+    enabled: !!realm && !!layoutId,
+  })
+}
+
 export const useCreatePortalLayout = () => {
   const queryClient = useQueryClient()
   return useMutation({

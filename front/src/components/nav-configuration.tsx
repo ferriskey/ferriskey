@@ -1,4 +1,4 @@
-import { Database, LayoutTemplate, Link2, Palette, Settings, Shield } from 'lucide-react'
+import { Database, Link2, Palette, Settings, Shield } from 'lucide-react'
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -9,8 +9,7 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { REALM_SETTINGS_URL, REALM_URL, RouterParams } from '@/routes/router'
 import { IDENTITY_PROVIDERS_OVERVIEW_URL } from '@/routes/sub-router/identity-providers.router'
-import { PORTAL_LAYOUTS_URL } from '@/routes/sub-router/portal-layouts.router'
-import { PORTAL_THEME_URL } from '@/routes/sub-router/portal-theme.router'
+import { PORTAL_THEMES_URL, PORTAL_URL } from '@/routes/sub-router/portal-theme.router'
 import { USER_FEDERATION_URL } from '@/routes/sub-router/user-federation.router'
 import { cn } from '@/lib/utils'
 
@@ -46,17 +45,10 @@ export function NavConfiguration() {
           </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <SidebarMenuItem onClick={() => handleClick(PORTAL_THEME_URL(realm_name))} className={navItem(isActive(PORTAL_THEME_URL(realm_name)))}>
-          <SidebarMenuButton isActive={isActive(PORTAL_THEME_URL(realm_name))} className={btnClass(isActive(PORTAL_THEME_URL(realm_name)))}>
+        <SidebarMenuItem onClick={() => handleClick(PORTAL_THEMES_URL(realm_name))} className={navItem(isActive(PORTAL_URL(realm_name)))}>
+          <SidebarMenuButton isActive={isActive(PORTAL_URL(realm_name))} className={btnClass(isActive(PORTAL_URL(realm_name)))}>
             <Palette />
-            <span>Portal Theme</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-
-        <SidebarMenuItem onClick={() => handleClick(PORTAL_LAYOUTS_URL(realm_name))} className={navItem(isActive(PORTAL_LAYOUTS_URL(realm_name)))}>
-          <SidebarMenuButton isActive={isActive(PORTAL_LAYOUTS_URL(realm_name))} className={btnClass(isActive(PORTAL_LAYOUTS_URL(realm_name)))}>
-            <LayoutTemplate />
-            <span>Portal Layouts</span>
+            <span>Portail</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
 

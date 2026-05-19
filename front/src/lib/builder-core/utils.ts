@@ -23,6 +23,19 @@ export function findNode(
 }
 
 /**
+ * Return the ancestor chain from the tree root down to (and including) the
+ * node with `nodeId`. Empty if not found.
+ */
+export function findNodePath(tree: BuilderNode[], nodeId: string): BuilderNode[] {
+  for (const node of tree) {
+    if (node.id === nodeId) return [node]
+    const sub = findNodePath(node.children, nodeId)
+    if (sub.length > 0) return [node, ...sub]
+  }
+  return []
+}
+
+/**
  * Deep clone a tree, applying a transform to a specific node.
  */
 export function updateNodeInTree(

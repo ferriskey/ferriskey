@@ -221,6 +221,21 @@ where
 
         self.layouts_repository.get_default(realm.id.into()).await
     }
+
+    async fn get_public_layout(
+        &self,
+        input: GetLayoutInput,
+    ) -> Result<Option<PortalLayout>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        self.layouts_repository
+            .get_by_id(realm.id.into(), input.layout_id)
+            .await
+    }
 }
 
 #[cfg(test)]

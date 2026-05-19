@@ -12,6 +12,7 @@ import type {
   BuilderNode,
   BuilderState,
 } from './types'
+import { BreakpointProvider } from './breakpoint-context'
 import {
   generateNodeId,
   insertNodeInTree,
@@ -90,17 +91,51 @@ export function BuilderProvider({
   const updateNode = useCallback(
     (
       nodeId: string,
-      updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>,
+      updates: Partial<
+        Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content' | 'breakpoints'>
+      >,
     ) => {
       setTree(
-        updateNodeInTree(tree, nodeId, (node) => ({
-          ...node,
-          ...(updates.props && { props: { ...node.props, ...updates.props } }),
-          ...(updates.styles && {
-            styles: { ...node.styles, ...updates.styles },
-          }),
-          ...(updates.content !== undefined && { content: updates.content }),
-        })),
+        updateNodeInTree(tree, nodeId, (node) => {
+          // Merge breakpoint overrides per-bp so callers send only the
+          // changed key for the changed breakpoint.
+          let nextBreakpoints = node.breakpoints
+          if (updates.breakpoints) {
+            const merged: Record<string, Record<string, unknown>> = {
+              ...(node.breakpoints ?? {}),
+            }
+            for (const [bp, override] of Object.entries(updates.breakpoints)) {
+              if (override === undefined) {
+                delete merged[bp]
+              } else {
+                merged[bp] = {
+                  ...(node.breakpoints?.[bp as 'sm' | 'md' | 'lg' | 'xl'] ?? {}),
+                  ...override,
+                }
+                // Strip empty-string overrides so the resolver falls back to
+                // the base value (treating "" as "no override").
+                for (const k of Object.keys(merged[bp])) {
+                  if (merged[bp][k] === '') delete merged[bp][k]
+                }
+                if (Object.keys(merged[bp]).length === 0) delete merged[bp]
+              }
+            }
+            nextBreakpoints =
+              Object.keys(merged).length > 0
+                ? (merged as BuilderNode['breakpoints'])
+                : undefined
+          }
+          return {
+            ...node,
+            ...(updates.name !== undefined && { name: updates.name }),
+            ...(updates.props && { props: { ...node.props, ...updates.props } }),
+            ...(updates.styles && {
+              styles: { ...node.styles, ...updates.styles },
+            }),
+            ...(updates.content !== undefined && { content: updates.content }),
+            ...(updates.breakpoints !== undefined && { breakpoints: nextBreakpoints }),
+          }
+        }),
       )
     },
     [tree, setTree],
@@ -136,7 +171,9 @@ export function BuilderProvider({
   )
 
   return (
-    <BuilderContext.Provider value={value}>{children}</BuilderContext.Provider>
+    <BuilderContext.Provider value={value}>
+      <BreakpointProvider>{children}</BreakpointProvider>
+    </BuilderContext.Provider>
   )
 }
 

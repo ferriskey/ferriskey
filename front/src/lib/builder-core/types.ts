@@ -4,10 +4,33 @@ import type { ReactNode } from 'react'
  * A node in the builder tree. Renderer-agnostic.
  * The `type` field is opaque to the core — only the adapter knows what types exist.
  */
+/**
+ * Responsive breakpoints supported by the builder. Anchored to Tailwind's
+ * default min-width thresholds — admins write `@media (min-width: 768px)`
+ * (or `md:` prefixes) and the editor previews at those exact widths.
+ */
+export type Breakpoint = 'sm' | 'md' | 'lg' | 'xl'
+export const BREAKPOINTS: readonly Breakpoint[] = ['sm', 'md', 'lg', 'xl'] as const
+
 export interface BuilderNode {
   id: string
   type: string
+  /**
+   * Author-defined display name for this node (e.g. "Hero", "Sidebar nav").
+   * Optional — when unset the block's component label is used in the
+   * breadcrumb and config panel. Has no effect at runtime; purely an editing
+   * affordance.
+   */
+  name?: string
   props: Record<string, unknown>
+  /**
+   * Per-breakpoint prop overrides. Keys are min-width breakpoint names
+   * (sm/md/lg/xl). At a given viewport, the resolved props are
+   * `{ ...props, ...breakpoints.sm, ...breakpoints.md, ...breakpoints.lg,
+   * ...breakpoints.xl }` — but only for breakpoints whose min-width is met.
+   * Rendered as `@media (min-width: …)` rules in the output CSS.
+   */
+  breakpoints?: Partial<Record<Breakpoint, Record<string, unknown>>>
   styles: Record<string, unknown>
   children: BuilderNode[]
   content?: string
@@ -47,7 +70,11 @@ export interface BuilderAdapter {
   /** Render the configuration panel for the selected node */
   renderConfigPanel(
     node: BuilderNode,
-    onUpdate: (updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>) => void,
+    onUpdate: (
+      updates: Partial<
+        Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content' | 'breakpoints'>
+      >,
+    ) => void,
   ): ReactNode
 
   /** Render a preview of the full tree (e.g. as HTML string for an iframe) */
@@ -79,8 +106,13 @@ export interface BuilderActions {
   removeNode(nodeId: string): void
   /** Move a node to a new parent/position */
   moveNode(nodeId: string, newParentId: string | null, newIndex: number): void
-  /** Update a node's props, styles, or content */
-  updateNode(nodeId: string, updates: Partial<Pick<BuilderNode, 'props' | 'styles' | 'content'>>): void
+  /** Update a node's name, props, styles, content or breakpoint overrides */
+  updateNode(
+    nodeId: string,
+    updates: Partial<
+      Pick<BuilderNode, 'name' | 'props' | 'styles' | 'content' | 'breakpoints'>
+    >,
+  ): void
   /** Select a node (or null to deselect) */
   selectNode(nodeId: string | null): void
   /** Replace the entire tree */
