@@ -8,10 +8,11 @@ pub struct TokenRequestValidator {
     #[serde(default)]
     pub grant_type: GrantType,
 
-    #[validate(length(min = 1, message = "client_id is required"))]
+    // Used by `client_secret_post`
     #[serde(default)]
-    pub client_id: String,
+    pub client_id: Option<String>,
 
+    // Used by `client_secret_post`
     #[serde(default)]
     pub client_secret: Option<String>,
 

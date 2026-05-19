@@ -19,6 +19,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub userinfo_endpoint: String,
     pub jwks_uri: String,
     pub grant_types_supported: Vec<String>,
+    pub token_endpoint_auth_methods_supported: Vec<String>,
 }
 
 #[utoipa::path(
@@ -74,6 +75,10 @@ pub async fn get_openid_configuration(
             "refresh_token".to_string(),
             "client_credentials".to_string(),
             "password".to_string(),
+        ],
+        token_endpoint_auth_methods_supported: vec![
+            "client_secret_basic".to_string(),
+            "client_secret_post".to_string(),
         ],
     }))
 }
