@@ -1,7 +1,7 @@
 use ferriskey_compass::{
     entities::CompassFlow,
     ports::CompassService,
-    value_objects::{FetchFlowsInput, FlowStats},
+    value_objects::{DailyActivityStats, DailyActivityStatsFilter, FetchFlowsInput, FlowStats},
 };
 use uuid::Uuid;
 
@@ -36,5 +36,16 @@ impl CompassService for ApplicationService {
         realm_name: String,
     ) -> Result<FlowStats, CoreError> {
         self.compass_service.get_stats(identity, realm_name).await
+    }
+
+    async fn get_daily_activity_stats(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        filter: DailyActivityStatsFilter,
+    ) -> Result<Vec<DailyActivityStats>, CoreError> {
+        self.compass_service
+            .get_daily_activity_stats(identity, realm_name, filter)
+            .await
     }
 }

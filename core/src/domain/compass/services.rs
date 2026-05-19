@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ferriskey_compass::{
     entities::CompassFlow,
     ports::{CompassFlowRepository, CompassFlowStepRepository, CompassPolicy, CompassService},
-    value_objects::{FetchFlowsInput, FlowStats},
+    value_objects::{DailyActivityStats, DailyActivityStatsFilter, FetchFlowsInput, FlowStats},
 };
 use uuid::Uuid;
 
@@ -146,6 +146,33 @@ where
         )?;
 
         let stats = self.flow_repository.get_stats(realm_id).await?;
+
+        Ok(stats)
+    }
+
+    async fn get_daily_activity_stats(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        filter: DailyActivityStatsFilter,
+    ) -> Result<Vec<DailyActivityStats>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_view_flows(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let stats = self
+            .flow_repository
+            .get_daily_activity_stats(realm_id, filter)
+            .await?;
 
         Ok(stats)
     }

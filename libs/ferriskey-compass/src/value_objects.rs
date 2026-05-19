@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -42,4 +42,26 @@ pub struct FlowStats {
     pub failure_count: i64,
     pub pending_count: i64,
     pub avg_duration_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DailyActivityStatsFilter {
+    pub from_date: NaiveDate,
+    pub to_date: NaiveDate,
+    pub client_id: Option<String>,
+    pub user_id: Option<Uuid>,
+    pub grant_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct DailyActivityStats {
+    pub date: String,
+    pub signups: i64,
+    pub logins: i64,
+    pub login_failures: i64,
+    pub pending_logins: i64,
+    pub expired_logins: i64,
+    pub total_flows: i64,
+    pub unique_login_users: i64,
+    pub avg_login_duration_ms: Option<f64>,
 }

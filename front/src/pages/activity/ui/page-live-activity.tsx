@@ -11,39 +11,33 @@ import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 
-import CompassFlow = Schemas.CompassFlow
-import User = Schemas.User
+import DailyActivityStats = Schemas.DailyActivityStats
 
-type Range = '24h' | '7d' | '30d'
+type Range = '7d' | '30d' | '90d'
 
 const rangeLabels: Record<Range, string> = {
-  '24h': 'Last 24 hours',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
 }
 
-const rangeWindows: Record<Range, { ms: number; bucketMs: number; labelFmt: (d: Date) => string }> = {
-  '24h': {
-    ms: 24 * 60 * 60 * 1000,
-    bucketMs: 60 * 60 * 1000,
-    labelFmt: (d) =>
-      d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }),
-  },
+const rangeWindows: Record<Range, { days: number; labelFmt: (d: Date) => string }> = {
   '7d': {
-    ms: 7 * 24 * 60 * 60 * 1000,
-    bucketMs: 24 * 60 * 60 * 1000,
+    days: 7,
     labelFmt: (d) => d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }),
   },
   '30d': {
-    ms: 30 * 24 * 60 * 60 * 1000,
-    bucketMs: 24 * 60 * 60 * 1000,
+    days: 30,
+    labelFmt: (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+  },
+  '90d': {
+    days: 90,
     labelFmt: (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   },
 }
 
 interface Props {
-  users: User[]
-  flows: CompassFlow[]
+  dailyActivity: DailyActivityStats[]
   isLoading: boolean
 }
 
@@ -72,47 +66,27 @@ function RangeSelect({ value, onChange }: RangeSelectProps) {
 }
 
 function buildSeries({
-  users,
-  flows,
+  dailyActivity,
   range,
 }: {
-  users: User[]
-  flows: CompassFlow[]
+  dailyActivity: DailyActivityStats[]
   range: Range
 }) {
-  const { ms, bucketMs, labelFmt } = rangeWindows[range]
-  const now = Date.now()
-  const start = now - ms
+  const { days, labelFmt } = rangeWindows[range]
+  const visible = dailyActivity.slice(-days)
+  const buckets = visible.map((day) => {
+    const date = new Date(`${day.date}T00:00:00`)
 
-  const buckets: { date: number; label: string; signups: number; logins: number }[] = []
-  const firstBucket = Math.floor(start / bucketMs) * bucketMs
-  for (let t = firstBucket; t <= now; t += bucketMs) {
-    buckets.push({ date: t, label: labelFmt(new Date(t)), signups: 0, logins: 0 })
-  }
+    return {
+      date: date.getTime(),
+      label: labelFmt(date),
+      signups: day.signups,
+      logins: day.logins,
+    }
+  })
 
-  const indexFor = (ts: number) => {
-    if (ts < firstBucket || ts > now) return -1
-    return Math.floor((ts - firstBucket) / bucketMs)
-  }
-
-  let totalSignups = 0
-  for (const u of users) {
-    const ts = new Date(u.created_at).getTime()
-    if (Number.isNaN(ts) || ts < start) continue
-    totalSignups += 1
-    const i = indexFor(ts)
-    if (i >= 0 && i < buckets.length) buckets[i].signups += 1
-  }
-
-  let totalLogins = 0
-  for (const f of flows) {
-    if (f.status !== 'success') continue
-    const ts = new Date(f.started_at).getTime()
-    if (Number.isNaN(ts) || ts < start) continue
-    totalLogins += 1
-    const i = indexFor(ts)
-    if (i >= 0 && i < buckets.length) buckets[i].logins += 1
-  }
+  const totalSignups = visible.reduce((sum, day) => sum + day.signups, 0)
+  const totalLogins = visible.reduce((sum, day) => sum + day.logins, 0)
 
   return { buckets, totalSignups, totalLogins }
 }
@@ -128,22 +102,22 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export default function PageLiveActivity({ users, flows, isLoading }: Props) {
-  const [signupsRange, setSignupsRange] = useState<Range>('24h')
-  const [loginsRange, setLoginsRange] = useState<Range>('24h')
-  const [combinedRange, setCombinedRange] = useState<Range>('24h')
+export default function PageLiveActivity({ dailyActivity, isLoading }: Props) {
+  const [signupsRange, setSignupsRange] = useState<Range>('7d')
+  const [loginsRange, setLoginsRange] = useState<Range>('7d')
+  const [combinedRange, setCombinedRange] = useState<Range>('7d')
 
   const signupsSeries = useMemo(
-    () => buildSeries({ users, flows: [], range: signupsRange }),
-    [users, signupsRange],
+    () => buildSeries({ dailyActivity, range: signupsRange }),
+    [dailyActivity, signupsRange],
   )
   const loginsSeries = useMemo(
-    () => buildSeries({ users: [], flows, range: loginsRange }),
-    [flows, loginsRange],
+    () => buildSeries({ dailyActivity, range: loginsRange }),
+    [dailyActivity, loginsRange],
   )
   const combinedSeries = useMemo(
-    () => buildSeries({ users, flows, range: combinedRange }),
-    [users, flows, combinedRange],
+    () => buildSeries({ dailyActivity, range: combinedRange }),
+    [dailyActivity, combinedRange],
   )
 
   return (
