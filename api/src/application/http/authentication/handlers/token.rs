@@ -1,4 +1,5 @@
 use super::auth::root_scoped_base_url;
+use crate::application::http::authentication::basic_auth::try_parse_basic_client_credentials;
 use crate::application::http::server::api_entities::api_error::ApiError;
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::{
@@ -9,7 +10,7 @@ use crate::application::url::FullUrl;
 use axum::{
     Form,
     extract::{Path, State},
-    http::{HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
@@ -37,12 +38,10 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
     )
 )]
 #[instrument(
-    skip(state, payload),
+    skip(state, payload, headers),
     fields(
         realm_name = %realm_name,
-        client_id = %payload.client_id,
         grant_type = ?payload.grant_type,
-        has_client_secret = payload.client_secret.is_some(),
         has_username = payload.username.is_some(),
         has_password = payload.password.is_some(),
         has_code = payload.code.is_some(),
@@ -53,11 +52,19 @@ pub async fn exchange_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    headers: HeaderMap,
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
+        Some((id, sec)) => (id, Some(sec)),
+        None => (
+            payload.client_id.clone().unwrap_or_default(),
+            payload.client_secret.clone(),
+        ),
+    };
+
     let grant_type = payload.grant_type.clone();
-    let client_id = payload.client_id.clone();
-    let has_client_secret = payload.client_secret.is_some();
+    let has_client_secret = client_secret.is_some();
     let has_username = payload.username.is_some();
     let has_password = payload.password.is_some();
     let has_code = payload.code.is_some();
@@ -69,8 +76,8 @@ pub async fn exchange_token(
         .service
         .exchange_token(ExchangeTokenInput {
             realm_name,
-            client_id: payload.client_id,
-            client_secret: payload.client_secret,
+            client_id: client_id.clone(),
+            client_secret,
             code: payload.code,
             username: payload.username,
             password: payload.password,
