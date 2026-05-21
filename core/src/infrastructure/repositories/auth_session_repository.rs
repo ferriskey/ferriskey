@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    prelude::Expr, ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    prelude::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
