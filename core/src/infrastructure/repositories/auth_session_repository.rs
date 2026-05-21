@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    prelude::Expr,
+    prelude::Expr, ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
+    EntityTrait, QueryFilter,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -384,8 +384,9 @@ mod tests {
     use crate::domain::realm::entities::RealmId;
 
     async fn setup() -> (PostgresAuthSessionRepository, Uuid, Uuid) {
-        let base_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string());
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
 
         let schema = format!("auth_session_test_{}", Uuid::new_v4().simple());
 
