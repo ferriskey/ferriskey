@@ -144,13 +144,6 @@ export const productSections: ProductSection[] = [
         match: (p, r) => startsWith(p, `${consolePath(r)}/authentication/identity-providers`),
       },
       {
-        label: 'User federation',
-        description: 'External directories',
-        icon: Users,
-        to: (r) => `${consolePath(r)}/authentication/user-federation`,
-        match: (p, r) => startsWith(p, `${consolePath(r)}/authentication/user-federation`),
-      },
-      {
         label: 'Password policy',
         description: 'Strength requirements',
         icon: KeyRound,

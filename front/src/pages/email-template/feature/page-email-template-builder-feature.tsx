@@ -6,8 +6,10 @@ import {
 } from '@/api/email-template.api'
 import type { BuilderNode } from '@/lib/builder-core'
 import { type EmailTemplatePreset, createMjmlAdapter } from '@/lib/builder-mjml'
-import type { EmailTemplateRouterParams } from '@/routes/sub-router/email-template.router'
-import { REALM_SETTINGS_URL } from '@/routes/router'
+import {
+  EMAIL_TEMPLATES_URL,
+  type EmailTemplateRouterParams,
+} from '@/routes/sub-router/email-template.router'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageEmailTemplateBuilder from '../ui/page-email-template-builder'
@@ -107,7 +109,7 @@ function BuilderFeatureInner({
         },
         {
           onSuccess: () => {
-            navigate(`${REALM_SETTINGS_URL(realmName)}/email`)
+            navigate(EMAIL_TEMPLATES_URL(realmName))
           },
         },
       )
@@ -125,7 +127,7 @@ function BuilderFeatureInner({
   }
 
   const handleBack = () => {
-    navigate(`${REALM_SETTINGS_URL(realmName)}/email`)
+    navigate(EMAIL_TEMPLATES_URL(realmName))
   }
 
   return (

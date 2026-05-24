@@ -240,7 +240,7 @@ export function Canvas({ maxWidth = 600, fillHeight = true }: CanvasProps) {
 
   return (
     <div
-      className='flex min-h-full flex-1 items-start justify-center'
+      className='flex min-h-full flex-1 items-start justify-center p-6'
       onClick={() => selectNode(null)}
     >
       {emptyState}

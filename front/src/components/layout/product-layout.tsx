@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 import useRealmStore from '@/store/realm.store'
 import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
+import { cn } from '@/lib/utils'
 import { useTrackLastVisited } from '@/hooks/use-track-last-visited'
 import {
   BadgeCheck,
@@ -66,13 +67,13 @@ export default function ProductLayout() {
   return (
     <div className='min-h-screen bg-background flex flex-col'>
       {/* Top Bar — breadcrumb + profile */}
-      <header className='sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-background px-6'>
-        <Link to={`/realms/${activeRealm}/overview`} className='flex items-center gap-2'>
+      <header className='sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-3 border-b border-border bg-background px-3 sm:px-6'>
+        <Link to={`/realms/${activeRealm}/overview`} className='flex items-center gap-2 shrink-0'>
           <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-5 w-5' />
-          <span className='text-sm font-semibold tracking-tight'>FerrisKey</span>
+          <span className='hidden sm:inline text-sm font-semibold tracking-tight'>FerrisKey</span>
         </Link>
 
-        <ChevronRight className='h-4 w-4 text-muted-foreground/60' />
+        <ChevronRight className='hidden sm:block h-4 w-4 text-muted-foreground/60' />
 
         {/* Realm switcher */}
         <DropdownMenu>
@@ -103,8 +104,10 @@ export default function ProductLayout() {
 
         {activeSection && (
           <>
-            <ChevronRight className='h-4 w-4 text-muted-foreground/60' />
-            <span className='text-sm text-muted-foreground'>{activeSection.label}</span>
+            <ChevronRight className='hidden md:block h-4 w-4 text-muted-foreground/60' />
+            <span className='hidden md:inline text-sm text-muted-foreground truncate'>
+              {activeSection.label}
+            </span>
           </>
         )}
 
@@ -191,14 +194,14 @@ export default function ProductLayout() {
       </header>
 
       {/* Horizontal section nav */}
-      <nav className='sticky top-12 z-10 flex h-12 items-stretch gap-1 border-b border-border bg-background px-6'>
+      <nav className='sticky top-12 z-10 flex h-12 items-stretch gap-1 border-b border-border bg-background px-3 sm:px-6 overflow-x-auto scrollbar-none'>
         {productSections.map((s) => {
           const isActive = activeSection?.key === s.key
           return (
             <NavLink
               key={s.key}
               to={s.to(activeRealm)}
-              className={`relative inline-flex items-center gap-2 px-4 text-sm font-medium transition-colors ${isActive
+              className={`relative inline-flex shrink-0 items-center gap-2 px-3 sm:px-4 text-sm font-medium transition-colors ${isActive
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -213,10 +216,34 @@ export default function ProductLayout() {
         })}
       </nav>
 
+      {/* Mobile sub-nav (chrome band, sticky just below section nav) */}
+      {activeSection && activeSection.subItems.length > 0 && (
+        <div className='md:hidden sticky top-24 z-10 flex items-stretch gap-1 border-b border-border bg-background px-3 py-2 overflow-x-auto scrollbar-none'>
+          {activeSection.subItems.map((item) => {
+            const isActive = item.match(pathname, activeRealm)
+            return (
+              <NavLink
+                key={item.label}
+                to={item.to(activeRealm)}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-transparent text-foreground border-border hover:bg-muted',
+                )}
+              >
+                <item.icon className='h-3.5 w-3.5' />
+                {item.label}
+              </NavLink>
+            )
+          })}
+        </div>
+      )}
+
       {/* Main split: vertical sub-nav + outlet */}
       <div className='flex flex-1 min-h-0 items-stretch'>
         {activeSection && activeSection.subItems.length > 0 && (
-          <aside className='w-60 shrink-0 border-r border-border bg-muted/20'>
+          <aside className='hidden md:block w-60 shrink-0 border-r border-border bg-muted/20'>
             <div className='sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto p-3'>
               <ul className='flex flex-col gap-1'>
                 {activeSection.subItems.map((item) => {
