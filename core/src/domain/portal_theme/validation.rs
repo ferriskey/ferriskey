@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::domain::portal_theme::entities::PortalPageType;
@@ -41,7 +41,7 @@ pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str]
         .unwrap_or(&[])
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct MissingBlocks {
     pub page_type: PortalPageType,
     pub missing: Vec<String>,
