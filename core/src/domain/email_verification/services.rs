@@ -13,7 +13,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::email_template::entities::interpolate_variables;
 use crate::domain::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
 use crate::domain::realm::ports::{RealmRepository, SmtpConfigRepository};
-use crate::domain::user::entities::RequiredAction;
+use crate::domain::user::entities::{RequiredAction, RequiredActionError};
 use crate::domain::user::ports::{UserRepository, UserRequiredActionRepository};
 
 use super::ports::*;
@@ -288,8 +288,35 @@ where
         let token_record = self
             .email_verification_token_repository
             .find_valid_by_hash(&token_hash, realm.id.into())
-            .await?
-            .ok_or(CoreError::InvalidOrExpiredToken)?;
+            .await?;
+
+        // If no valid token found, check if it was already used (idempotency)
+        let token_record = match token_record {
+            Some(t) => t,
+            None => {
+                // Check if token exists but was already used
+                if let Some(used_token) = self
+                    .email_verification_token_repository
+                    .find_by_hash(&token_hash, realm.id.into())
+                    .await?
+                {
+                    // Token was found but already used - check if user's email is verified
+                    let user = self.user_repository.get_by_id(used_token.user_id).await?;
+                    if user.email_verified {
+                        // Email already verified, return success (idempotent)
+                        tracing::info!(
+                            user_id = %user.id,
+                            "Email verification token already used, user email already verified"
+                        );
+                        return Ok(VerifyEmailResult {
+                            user_id: user.id,
+                            verified: true,
+                        });
+                    }
+                }
+                return Err(CoreError::InvalidOrExpiredToken);
+            }
+        };
 
         if !token_record.is_valid() {
             return Err(CoreError::InvalidOrExpiredToken);
@@ -314,24 +341,26 @@ where
             .await?;
 
         // Remove verify_email required action (best-effort, user is already verified)
+        // NotFound is OK - it means the action wasn't there in the first place
         if let Err(e) = self
             .user_required_action_repository
             .remove_required_action(token_record.user_id, RequiredAction::VerifyEmail)
             .await
+            && !matches!(e, RequiredActionError::NotFound)
         {
             warn!("Failed to remove VerifyEmail required action: {}", e);
         }
 
-        // Mark token as used only after user update succeeds
-        self.email_verification_token_repository
-            .mark_used(token_record.id)
-            .await?;
-
-        // Clean up other tokens for this user
-        let _ = self
+        // Mark token as used (best-effort, user is already verified)
+        // We keep tokens marked as used for idempotency - if the client retries,
+        // we can check that the token was already used and the email is verified.
+        if let Err(e) = self
             .email_verification_token_repository
-            .delete_by_user_id(token_record.user_id)
-            .await;
+            .mark_used(token_record.id)
+            .await
+        {
+            warn!("Failed to mark verification token as used: {}", e);
+        }
 
         Ok(VerifyEmailResult {
             user_id: token_record.user_id,

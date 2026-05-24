@@ -503,6 +503,7 @@ export namespace Schemas {
     jwks_uri: string
     revocation_endpoint: string
     token_endpoint: string
+    token_endpoint_auth_methods_supported: Array<string>
     userinfo_endpoint: string
   }
   export type GetPortalLayoutResponse = { data: PortalLayout }
@@ -716,6 +717,7 @@ export namespace Schemas {
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
+    email_verification_enabled: boolean
     forgot_password_enabled: boolean
     identity_providers: Array<IdentityProviderPresentation>
     magic_link_enabled: boolean
@@ -823,7 +825,7 @@ export namespace Schemas {
     username?: (string | null) | undefined
   }
   export type TokenRequestValidator = Partial<{
-    client_id: string
+    client_id: string | null
     client_secret: string | null
     code: string | null
     grant_type: GrantType

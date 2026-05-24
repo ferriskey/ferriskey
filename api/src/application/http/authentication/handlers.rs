@@ -5,6 +5,7 @@ pub mod introspect;
 pub mod logout;
 pub mod openid_configuration;
 pub mod registration;
+pub mod resend_verification_email;
 pub mod revoke;
 pub mod token;
 pub mod userinfo;

@@ -28,6 +28,14 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
         realm_id: Uuid,
     ) -> impl std::future::Future<Output = Result<Option<EmailVerificationToken>, CoreError>> + Send;
 
+    /// Find a token by hash, regardless of whether it's been used or expired.
+    /// Used for idempotency checks when a token was already processed.
+    fn find_by_hash(
+        &self,
+        token_hash: &str,
+        realm_id: Uuid,
+    ) -> impl std::future::Future<Output = Result<Option<EmailVerificationToken>, CoreError>> + Send;
+
     fn mark_used(
         &self,
         id: Uuid,

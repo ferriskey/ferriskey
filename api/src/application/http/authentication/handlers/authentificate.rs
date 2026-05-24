@@ -12,8 +12,10 @@ use ferriskey_core::domain::authentication::entities::{
     AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::email_verification::ports::EmailVerificationService;
 use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
@@ -155,6 +157,30 @@ pub async fn authenticate(
         )
     };
     let result = state.service.authenticate(authenticate_params).await?;
+
+    // If user has VerifyEmail required action, automatically send verification email
+    if result.status == AuthenticationStepStatus::RequiresActions
+        && result
+            .required_actions
+            .contains(&RequiredAction::VerifyEmail)
+    {
+        let verification_base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+
+        if let Err(e) = state
+            .service
+            .email_verification_service
+            .send_verification_email(result.user_id, realm_name.clone(), verification_base_url)
+            .await
+        {
+            // Log the error but don't fail the authentication - user can still use resend button
+            warn!(
+                user_id = %result.user_id,
+                realm = %realm_name,
+                error = %e,
+                "Failed to send verification email during authentication"
+            );
+        }
+    }
 
     let response: AuthenticateResponse = result.into();
     Ok((StatusCode::OK, axum::Json(response)).into_response())

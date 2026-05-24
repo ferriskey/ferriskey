@@ -5,6 +5,7 @@ const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-co
 const LOGOUT_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/logout'
 const REVOKE_TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/revoke'
 const VERIFY_EMAIL_PATH: keyof PostEndpoints = '/realms/{realm_name}/login-actions/verify-email'
+const RESEND_VERIFICATION_EMAIL_PATH = '/realms/{realm_name}/login-actions/resend-verification-email'
 
 type PostParameters<Path extends keyof PostEndpoints> = PostEndpoints[Path] extends {
   parameters: infer Parameters
@@ -216,6 +217,47 @@ export const useLogoutMutation = () => {
           client_id: params.data?.client_id,
         },
       })
+    },
+  })
+}
+
+export interface ResendVerificationEmailPayload {
+  realm: string
+  token: string
+}
+
+export interface ResendVerificationEmailResponse {
+  message: string
+}
+
+export const useResendVerificationEmailMutation = () => {
+  return useMutation({
+    mutationFn: async (params: ResendVerificationEmailPayload): Promise<ResendVerificationEmailResponse> => {
+      const url = `${window.apiUrl}${RESEND_VERIFICATION_EMAIL_PATH.replace('{realm_name}', params.realm)}`
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${params.token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorBody = await response.json()
+          if (errorBody.message) {
+            errorMessage = errorBody.message
+          }
+        } catch {
+          // Keep default error message when body is not JSON.
+        }
+        throw new Error(errorMessage)
+      }
+
+      return (await response.json()) as ResendVerificationEmailResponse
     },
   })
 }

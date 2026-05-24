@@ -92,6 +92,24 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
         Ok(model.map(EmailVerificationToken::from))
     }
 
+    async fn find_by_hash(
+        &self,
+        token_hash: &str,
+        realm_id: Uuid,
+    ) -> Result<Option<EmailVerificationToken>, CoreError> {
+        let model = EvtEntity::find()
+            .filter(EvtColumn::TokenHash.eq(token_hash))
+            .filter(EvtColumn::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to find email verification token by hash: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(model.map(EmailVerificationToken::from))
+    }
+
     async fn mark_used(&self, id: Uuid) -> Result<(), CoreError> {
         let active_model = EvtActiveModel {
             id: Set(id),
