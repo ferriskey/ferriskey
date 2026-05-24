@@ -107,8 +107,16 @@ export default function PageEmailTemplateBuilder({
             </div>
 
             {/* Visual Canvas */}
-            <div className='flex-1 overflow-y-auto'>
-              <Canvas maxWidth={viewportWidth} />
+            <div
+              className='flex-1 overflow-y-auto'
+              style={{
+                backgroundColor: 'var(--color-muted)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--color-border) 1px, transparent 1px)',
+                backgroundSize: '16px 16px',
+              }}
+            >
+              <Canvas maxWidth={viewportWidth} canvasClassName='bg-background shadow-lg rounded-lg' />
             </div>
 
             {/* Right Panel: Config */}

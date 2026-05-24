@@ -1,5 +1,6 @@
 import ConsoleComingSoon from '@/components/console-coming-soon'
 import { Navigate, Route, Routes } from 'react-router'
+import PageIdentityProviders from '@/pages/identity-providers/page-identity-providers'
 
 export default function PageConsoleAuthentication() {
   return (
@@ -14,24 +15,7 @@ export default function PageConsoleAuthentication() {
           />
         }
       />
-      <Route
-        path='identity-providers'
-        element={
-          <ConsoleComingSoon
-            title='Identity providers'
-            description='Let customers sign in with social accounts and enterprise SSO.'
-          />
-        }
-      />
-      <Route
-        path='user-federation'
-        element={
-          <ConsoleComingSoon
-            title='User federation'
-            description='Sync identities from external directories like LDAP or SCIM.'
-          />
-        }
-      />
+      <Route path='identity-providers/*' element={<PageIdentityProviders />} />
       <Route
         path='password-policy'
         element={
