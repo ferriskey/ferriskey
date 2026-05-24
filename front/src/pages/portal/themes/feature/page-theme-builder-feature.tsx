@@ -11,18 +11,63 @@ import {
 } from '@/api/portal-theme.api'
 import { useGetPortalLayouts } from '@/api/portal-layouts.api'
 import type { RouterParams } from '@/routes/router'
-import { PORTAL_THEMES_URL } from '@/routes/sub-router/portal-theme.router'
+import {
+  PORTAL_THEMES_URL,
+  PORTAL_THEME_BUILDER_PAGE_URL,
+  PORTAL_THEME_BUILDER_SECTION_URL,
+  type PortalThemeBuilderSection,
+} from '@/routes/sub-router/portal-theme.router'
 import { PortalThemeProvider } from '@/pages/portal-theme/context/portal-theme-context'
 import PageThemeBuilder from '../ui/page-theme-builder'
 import type { Schemas } from '@/api/api.client'
 
 type PageType = Schemas.PortalPageType
 
+const PAGE_TYPES = new Set<PageType>([
+  'login',
+  'register',
+  'totp',
+  'forgot_password',
+  'reset_password',
+  'magic_link_verify',
+  'verify_email',
+])
+
+const SECTIONS = new Set<PortalThemeBuilderSection>(['theme', 'layout'])
+
+export type BuilderTab =
+  | { kind: 'section'; section: PortalThemeBuilderSection }
+  | { kind: 'page'; pageType: PageType }
+
+function resolveTab(
+  section: string | undefined,
+  pageType: string | undefined,
+): BuilderTab {
+  if (pageType && PAGE_TYPES.has(pageType as PageType)) {
+    return { kind: 'page', pageType: pageType as PageType }
+  }
+  if (section && SECTIONS.has(section as PortalThemeBuilderSection)) {
+    return { kind: 'section', section: section as PortalThemeBuilderSection }
+  }
+  return { kind: 'section', section: 'theme' }
+}
+
 export default function PageThemeBuilderFeature() {
-  const { realm_name, theme_id } = useParams<RouterParams & { theme_id: string }>()
+  const { realm_name, theme_id, section, page_type } = useParams<
+    RouterParams & { theme_id: string; section?: string; page_type?: string }
+  >()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
   const themeId = theme_id ?? ''
+  const activeTab = resolveTab(section, page_type)
+
+  const handleTabChange = (tab: BuilderTab) => {
+    if (tab.kind === 'page') {
+      navigate(PORTAL_THEME_BUILDER_PAGE_URL(realm, themeId, tab.pageType))
+    } else {
+      navigate(PORTAL_THEME_BUILDER_SECTION_URL(realm, themeId, tab.section))
+    }
+  }
 
   const { data: themeData, isLoading } = useGetPortalThemeById({ realm, themeId })
   const { data: layoutsData } = useGetPortalLayouts({ realm })
@@ -109,7 +154,9 @@ export default function PageThemeBuilderFeature() {
         isSavingPage={isSavingPage}
         isActivating={isActivating}
         realm={realm}
+        activeTab={activeTab}
         onBack={handleBack}
+        onTabChange={handleTabChange}
         onSaveTheme={handleSaveTheme}
         onActivate={handleActivate}
       />

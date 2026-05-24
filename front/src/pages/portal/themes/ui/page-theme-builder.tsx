@@ -18,6 +18,7 @@ import { FontsPanel } from '@/pages/portal-theme/components/panels/fonts-panel'
 import { BordersPanel } from '@/pages/portal-theme/components/panels/borders-panel'
 import { usePortalThemeContext } from '@/pages/portal-theme/context/portal-theme-context'
 import { themeToCssVars } from '@/pages/portal-theme/lib/theme'
+import type { BuilderTab } from '../feature/page-theme-builder-feature'
 import PageTreeEditor from '../components/page-tree-editor'
 
 type PageType = Schemas.PortalPageType
@@ -32,8 +33,6 @@ const PAGE_TYPES: { id: PageType; label: string }[] = [
   { id: 'verify_email', label: 'Verify email' },
 ]
 
-type Tab = 'theme' | 'layout' | PageType
-
 interface Props {
   theme: Schemas.PortalTheme
   layouts: Schemas.PortalLayout[]
@@ -41,7 +40,9 @@ interface Props {
   isSavingPage: boolean
   isActivating: boolean
   realm: string
+  activeTab: BuilderTab
   onBack: () => void
+  onTabChange: (tab: BuilderTab) => void
   onSaveTheme: (
     name: string,
     layoutId: string | null,
@@ -58,11 +59,12 @@ export default function PageThemeBuilder({
   isSavingPage,
   isActivating,
   realm,
+  activeTab,
   onBack,
+  onTabChange,
   onSaveTheme,
   onActivate,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('theme')
   const [name, setName] = useState(theme.name)
   const [layoutId, setLayoutId] = useState<string | null>(theme.layout_id ?? null)
   const [pageOverrides, setPageOverrides] = useState<Partial<Record<PageType, BuilderNode[]>>>({})
@@ -112,17 +114,22 @@ export default function PageThemeBuilder({
       </header>
 
       {(() => {
+        const isSectionActive = (s: 'theme' | 'layout') =>
+          activeTab.kind === 'section' && activeTab.section === s
+        const isPageActive = (p: PageType) =>
+          activeTab.kind === 'page' && activeTab.pageType === p
+
         const nav = (
           <nav className='flex flex-col gap-1 p-2'>
             <NavButton
-              active={activeTab === 'theme'}
-              onClick={() => setActiveTab('theme')}
+              active={isSectionActive('theme')}
+              onClick={() => onTabChange({ kind: 'section', section: 'theme' })}
               icon={<Palette size={14} />}
               label='Theme'
             />
             <NavButton
-              active={activeTab === 'layout'}
-              onClick={() => setActiveTab('layout')}
+              active={isSectionActive('layout')}
+              onClick={() => onTabChange({ kind: 'section', section: 'layout' })}
               icon={<LayoutTemplate size={14} />}
               label='Layout'
             />
@@ -132,29 +139,27 @@ export default function PageThemeBuilder({
             {PAGE_TYPES.map(({ id, label }) => (
               <NavButton
                 key={id}
-                active={activeTab === id}
-                onClick={() => setActiveTab(id)}
+                active={isPageActive(id)}
+                onClick={() => onTabChange({ kind: 'page', pageType: id })}
                 label={label}
               />
             ))}
           </nav>
         )
 
-        const isPageTab = PAGE_TYPES.some((p) => p.id === activeTab)
-
-        if (isPageTab) {
+        if (activeTab.kind === 'page') {
           // Page tree editor owns its own grid (rail + main + config); we
           // pass the nav so the same left column holds both rails.
           return (
             <PageTreeEditor
-              key={activeTab as PageType}
+              key={activeTab.pageType}
               realm={realm}
-              pageType={activeTab as PageType}
-              initialTree={readPageTree(theme, activeTab as PageType)}
+              pageType={activeTab.pageType}
+              initialTree={readPageTree(theme, activeTab.pageType)}
               layoutTree={layoutTree}
               cssVars={cssVars}
               onTreeChange={(tree) =>
-                setPageOverrides((prev) => ({ ...prev, [activeTab as PageType]: tree }))
+                setPageOverrides((prev) => ({ ...prev, [activeTab.pageType]: tree }))
               }
               leftRailNav={nav}
             />
@@ -167,8 +172,8 @@ export default function PageThemeBuilder({
               <ScrollArea className='h-full'>{nav}</ScrollArea>
             </aside>
             <main className='overflow-hidden'>
-              {activeTab === 'theme' && <ThemeTokensTab cssVars={cssVars} />}
-              {activeTab === 'layout' && (
+              {activeTab.section === 'theme' && <ThemeTokensTab cssVars={cssVars} />}
+              {activeTab.section === 'layout' && (
                 <LayoutTab layouts={layouts} layoutId={layoutId} onChange={setLayoutId} />
               )}
             </main>
