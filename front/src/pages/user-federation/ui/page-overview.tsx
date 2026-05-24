@@ -148,7 +148,16 @@ export default function PageOverview({
       return hay.includes(q)
     })
     list = [...list]
-    if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name))
+
+    if (sort === 'name') {
+      list.sort((a, b) => a.name.localeCompare(b.name))
+    } else if (sort === 'recent') {
+      list.sort((a, b) => {
+        if (a.lastSync === 'Never') return 1
+        if (b.lastSync === 'Never') return -1
+        return new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime()
+      })
+    }
     return list
   }, [providers, query, typeFilter, statusFilter, sort])
 
@@ -175,11 +184,10 @@ export default function PageOverview({
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
         <button
           onClick={() => setTypeFilter('all')}
-          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${
-            typeFilter === 'all'
-              ? 'border-primary ring-1 ring-primary/30'
-              : 'border-border hover:border-primary/30'
-          }`}
+          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${typeFilter === 'all'
+            ? 'border-primary ring-1 ring-primary/30'
+            : 'border-border hover:border-primary/30'
+            }`}
         >
           <div className='h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center'>
             <Database className='h-4 w-4 text-primary' />
@@ -198,11 +206,10 @@ export default function PageOverview({
             <button
               key={t.key}
               onClick={() => setTypeFilter(t.key)}
-              className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${
-                active
-                  ? `${tone.border} ring-1 ${tone.border.replace('border-', 'ring-')}`
-                  : 'border-border hover:border-primary/30'
-              }`}
+              className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${active
+                ? `${tone.border} ring-1 ${tone.border.replace('border-', 'ring-')}`
+                : 'border-border hover:border-primary/30'
+                }`}
             >
               <div className={`h-9 w-9 rounded-md flex items-center justify-center ${tone.bg}`}>
                 <t.icon className={`h-4 w-4 ${tone.fg}`} />
@@ -221,11 +228,10 @@ export default function PageOverview({
             setTypeFilter('all')
             setStatusFilter('active')
           }}
-          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${
-            statusFilter === 'active' && typeFilter === 'all'
-              ? 'border-emerald-500/40 ring-1 ring-emerald-500/40'
-              : 'border-border hover:border-primary/30'
-          }`}
+          className={`flex items-center gap-3 rounded-md border bg-card/40 px-4 py-3 text-left transition ${statusFilter === 'active' && typeFilter === 'all'
+            ? 'border-emerald-500/40 ring-1 ring-emerald-500/40'
+            : 'border-border hover:border-primary/30'
+            }`}
         >
           <div className='h-9 w-9 rounded-md bg-emerald-500/10 flex items-center justify-center'>
             <CheckCircle2 className='h-4 w-4 text-emerald-500' />
@@ -246,11 +252,10 @@ export default function PageOverview({
             <button
               key={f.key}
               onClick={() => setStatusFilter(f.key)}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                statusFilter === f.key
-                  ? 'bg-primary/10 text-primary border-primary/40'
-                  : 'bg-transparent text-foreground border-border hover:bg-muted'
-              }`}
+              className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors border ${statusFilter === f.key
+                ? 'bg-primary/10 text-primary border-primary/40'
+                : 'bg-transparent text-foreground border-border hover:bg-muted'
+                }`}
             >
               {f.label}
             </button>
@@ -350,6 +355,14 @@ export default function PageOverview({
                 key={prov.id}
                 onClick={() => onViewProvider(prov.id, prov.type)}
                 className='group flex flex-col gap-4 rounded-md border border-border bg-card/40 p-5 text-left transition hover:border-primary/30 hover:bg-muted/40 hover:shadow-sm cursor-pointer'
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onViewProvider(prov.id, prov.type)
+                  }
+                }}
+                role='button'
+                tabIndex={0}
               >
                 <div className='flex items-start gap-3'>
                   <div

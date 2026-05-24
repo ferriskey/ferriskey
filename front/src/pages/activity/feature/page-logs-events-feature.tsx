@@ -66,8 +66,9 @@ export default function PageLogsEventsFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { data, isLoading, isError } = useGetSecurityEvents({ realm: realm_name })
 
-  const isMocked = !data?.data?.length
-  const events = isMocked ? mockSecurityEvents : data!.data
+  const apiEvents = data?.data ?? []
+  const isMocked = isError && apiEvents.length === 0
+  const events = isMocked ? mockSecurityEvents : apiEvents
 
   return (
     <PageLogsEvents

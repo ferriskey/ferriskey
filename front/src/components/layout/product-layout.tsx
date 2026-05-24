@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 import useRealmStore from '@/store/realm.store'
 import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
+import { cn } from '@/lib/utils'
 import { useTrackLastVisited } from '@/hooks/use-track-last-visited'
 import {
   BadgeCheck,
@@ -224,11 +225,12 @@ export default function ProductLayout() {
               <NavLink
                 key={item.label}
                 to={item.to(activeRealm)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors ${
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors',
                   isActive
                     ? 'bg-primary/10 text-primary border-primary/40'
-                    : 'bg-transparent text-foreground border-border hover:bg-muted'
-                }`}
+                    : 'bg-transparent text-foreground border-border hover:bg-muted',
+                )}
               >
                 <item.icon className='h-3.5 w-3.5' />
                 {item.label}

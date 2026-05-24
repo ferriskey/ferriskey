@@ -118,7 +118,11 @@ export default function PageEmailTemplateList({
     })
     list = [...list]
     if (sort === 'recent')
-      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      list.sort(
+        (a, b) =>
+          new Date(b.updated_at || b.created_at).getTime() -
+          new Date(a.updated_at || a.created_at).getTime(),
+      )
     if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name))
     return list
   }, [templates, query, typeFilter, sort])
