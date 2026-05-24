@@ -46,6 +46,29 @@ export default function PageRealmSettingsLogin({ form, hasChanges, handleSubmit 
 
           <FormField
             control={form.control}
+            name='emailVerification'
+            render={({ field }) => (
+              <div className='flex items-center justify-between py-4 border-t'>
+                <div className='w-1/3'>
+                  <p className='text-sm font-medium'>Email Verification</p>
+                  <p className='text-sm text-muted-foreground mt-0.5'>Require users to verify their email address before they can sign in.</p>
+                </div>
+                <div className='w-1/2'>
+                  <FormItem className='flex flex-row items-center gap-3'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                      {field.value ? 'Enabled' : 'Disabled'}
+                    </FormLabel>
+                  </FormItem>
+                </div>
+              </div>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name='forgotPassword'
             render={({ field }) => (
               <div className='flex items-center justify-between py-4 border-t'>
