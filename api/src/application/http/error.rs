@@ -1,8 +1,10 @@
 use ferriskey_core::domain::{
-    common::entities::app_errors::CoreError, user::entities::RequiredAction,
+    common::entities::app_errors::CoreError, portal_theme::validation::MissingBlocks,
+    user::entities::RequiredAction,
 };
+use serde_json::{from_str, to_string};
 
-use crate::application::http::server::api_entities::api_error::ApiError;
+use crate::application::http::server::api_entities::api_error::{ApiError, ValidationError};
 
 impl From<CoreError> for ApiError {
     fn from(error: CoreError) -> Self {
@@ -236,6 +238,25 @@ impl From<CoreError> for ApiError {
             }
             CoreError::PortalThemePageInvalid(details) => {
                 Self::validation_error(details, "tree")
+            }
+            CoreError::PortalThemeInvalidForActivation(details) => {
+                // `details` is a JSON-encoded `Vec<MissingBlocks>` — one entry
+                // per page that failed validation. Surface them as individual
+                // ValidationErrors so the client can render them per page.
+                match from_str::<Vec<MissingBlocks>>(&details) {
+                    Ok(items) => Self::validation_errors(
+                        items
+                            .into_iter()
+                            .map(|item| ValidationError {
+                                field: format!("tree.{:?}", item.page_type).into(),
+                                message: to_string(&item)
+                                    .unwrap_or_default()
+                                    .into(),
+                            })
+                            .collect(),
+                    ),
+                    Err(_) => Self::validation_error(details, "tree"),
+                }
             }
             CoreError::PortalThemeActive => {
                 Self::BadRequest("Portal theme is currently active and cannot be deleted".into())

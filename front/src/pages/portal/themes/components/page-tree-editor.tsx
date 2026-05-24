@@ -17,6 +17,7 @@ import {
   ConfigPanel,
   SelectionBreadcrumb,
   useEditingBreakpoint,
+  useSelectedNode,
   type Breakpoint,
   type BuilderNode,
 } from '@/lib/builder-core'
@@ -24,6 +25,7 @@ import {
   createPortalAdapter,
   generateBreakpointCss,
   treeToReactNode,
+  useIframeFit,
 } from '@/lib/builder-portal'
 import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
 import type { Schemas } from '@/api/api.client'
@@ -111,7 +113,9 @@ export default function PageTreeEditor({
   // narrowest viewport the admin's design has to survive at.
   const [viewport, setViewport] = useState<Viewport>('iphone')
   const iframeRectRef = useRef<DOMRect | null>(null)
+  const iframeScaleRef = useRef<number>(1)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
+  const getIframeScale = useCallback(() => iframeScaleRef.current, [])
   // Stable callback so the bridge below only fires on real bp changes,
   // not on every parent re-render.
   const handleBreakpointChange = useCallback((bp: Breakpoint | null) => {
@@ -145,14 +149,29 @@ export default function PageTreeEditor({
 
   const hasLayout = layoutTree && layoutTree.length > 0
   const viewportWidth = VIEWPORT_WIDTHS[viewport]
+  const viewportHeight = VIEWPORT_HEIGHTS[viewport]
   // Numeric width is also passed to <Canvas /> so blocks know the renderable width.
   const canvasMaxWidth = typeof viewportWidth === 'number' ? viewportWidth : 1600
+
+  // Shrink the iframe to fit the canvas area when the device preset would
+  // otherwise overflow. The iframe's internal viewport stays at the device
+  // size so `@media` queries keep firing as expected.
+  const { containerRef: canvasAreaRef, scale: iframeScale } = useIframeFit({
+    width: viewportWidth,
+    height: viewportHeight,
+    padding: 20, // matches the `p-5` padding on the canvas area
+  })
+  // Keep the ref in sync so BuilderShell's collision detection picks up the
+  // current scale on every drag check.
+  useEffect(() => {
+    iframeScaleRef.current = iframeScale
+  }, [iframeScale])
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={handleChange}>
       <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
-      <BuilderShell getIframeRect={getIframeRect}>
-        <div className='grid h-full w-full min-w-0 grid-cols-[220px_1fr_320px] overflow-hidden'>
+      <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
+        <EditorGrid>
           <aside className='flex min-h-0 flex-col border-r border-border'>
             <ScrollArea className='h-full'>
               <div className='flex flex-col gap-3'>
@@ -186,7 +205,8 @@ export default function PageTreeEditor({
             </div>
 
             <div
-              className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
+              ref={canvasAreaRef}
+              className='flex min-w-0 flex-1 items-start justify-center overflow-hidden p-5'
               style={{
                 backgroundColor: '#f8f9fa',
                 backgroundImage:
@@ -194,43 +214,89 @@ export default function PageTreeEditor({
                 backgroundSize: '20px 20px',
               }}
             >
+              {/* Outer box reserves the *scaled* visual footprint so the
+                  iframe centers correctly and never pushes the layout into a
+                  scroll. The inner `<CanvasFrame>` keeps its device-size
+                  width/height; we shrink it visually via `transform: scale`. */}
               <div
-                className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                className='flex-shrink-0 self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
                 style={{
-                  width: 'auto',
-                  flexShrink: 0,
+                  width: viewportWidth * iframeScale,
+                  height: viewportHeight * iframeScale,
                 }}
               >
-                <CanvasFrame
-                  width={viewportWidth}
-                  height={VIEWPORT_HEIGHTS[viewport]}
-                  cssVars={cssVars}
-                  responsiveCss={[
-                    generateBreakpointCss(tree),
-                    layoutTree ? generateBreakpointCss(layoutTree) : '',
-                  ]
-                    .filter(Boolean)
-                    .join('\n')}
-                  onRectChange={(rect) => {
-                    iframeRectRef.current = rect
+                <div
+                  style={{
+                    width: viewportWidth,
+                    height: viewportHeight,
+                    transform: `scale(${iframeScale})`,
+                    transformOrigin: 'top left',
                   }}
                 >
-                  {hasLayout
-                    ? treeToReactNode(layoutTree!, {
-                        pageContent: <Canvas maxWidth={canvasMaxWidth} />,
-                      })
-                    : <Canvas maxWidth={canvasMaxWidth} />}
-                </CanvasFrame>
+                  <CanvasFrame
+                    width={viewportWidth}
+                    height={viewportHeight}
+                    cssVars={cssVars}
+                    responsiveCss={[
+                      generateBreakpointCss(tree),
+                      layoutTree ? generateBreakpointCss(layoutTree) : '',
+                    ]
+                      .filter(Boolean)
+                      .join('\n')}
+                    onRectChange={(rect) => {
+                      iframeRectRef.current = rect
+                    }}
+                  >
+                    {hasLayout
+                      ? treeToReactNode(layoutTree!, {
+                          // Inline mode: the layout's `<page-content>` slot
+                          // controls vertical alignment, so the canvas
+                          // should not stretch — mirrors how the runtime
+                          // injects a `<form>` block here.
+                          pageContent: (
+                            <Canvas maxWidth={canvasMaxWidth} fillHeight={false} />
+                          ),
+                        })
+                      : <Canvas maxWidth={canvasMaxWidth} />}
+                  </CanvasFrame>
+                </div>
               </div>
             </div>
           </main>
 
-          <aside className='min-h-0 overflow-y-auto border-l border-border'>
-            <ConfigPanel />
-          </aside>
-        </div>
+          <ConditionalConfigSidebar />
+        </EditorGrid>
       </BuilderShell>
     </BuilderProvider>
+  )
+}
+
+/**
+ * Two-or-three-column grid driven by selection: the right config rail only
+ * occupies space while a node is selected, so the canvas reclaims it whenever
+ * the user clicks away. Must live inside `BuilderProvider`.
+ */
+function EditorGrid({ children }: { children: ReactNode }) {
+  const selected = useSelectedNode()
+  return (
+    <div
+      className='grid h-full w-full min-w-0 overflow-hidden'
+      style={{
+        gridTemplateColumns: selected ? '220px 1fr 320px' : '220px 1fr',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ConditionalConfigSidebar() {
+  const selected = useSelectedNode()
+  if (!selected) return null
+  return (
+    <aside className='min-h-0 overflow-y-auto border-l border-border'>
+      <ConfigPanel />
+    </aside>
   )
 }
 

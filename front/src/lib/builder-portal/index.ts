@@ -8,6 +8,7 @@ export {
 } from './components'
 export { treeToReactNode } from './renderer'
 export { PortalPreview } from './preview'
+export { useIframeFit } from './use-iframe-fit'
 export type {
   PortalNodeType,
   PortalContainerProps,

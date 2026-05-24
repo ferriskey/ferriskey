@@ -37,6 +37,14 @@ interface BuilderShellProps {
    * when there is no iframe canvas.
    */
   getIframeRect?: () => DOMRect | null
+  /**
+   * Current visual scale factor applied to the iframe element (e.g. via
+   * `transform: scale(...)`). Droppable rects reported from inside the iframe
+   * are in unscaled iframe-document coordinates, so the collision check
+   * multiplies them by this scale before adding the iframe's parent-window
+   * offset. Defaults to 1 (no scaling).
+   */
+  getIframeScale?: () => number
 }
 
 /**
@@ -44,14 +52,22 @@ interface BuilderShellProps {
  * This is the main layout shell — the consumer provides children
  * (Canvas, ComponentLibrary, ConfigPanel) in whatever layout they want.
  */
-export function BuilderShell({ children, getIframeRect }: BuilderShellProps) {
+export function BuilderShell({
+  children,
+  getIframeRect,
+  getIframeScale,
+}: BuilderShellProps) {
   const { addNode, moveNode, tree } = useBuilderContext()
   const [activeItem, setActiveItem] = useState<Active | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
   const getIframeRectRef = useRef(getIframeRect)
+  const getIframeScaleRef = useRef(getIframeScale)
   useEffect(() => {
     getIframeRectRef.current = getIframeRect
   }, [getIframeRect])
+  useEffect(() => {
+    getIframeScaleRef.current = getIframeScale
+  }, [getIframeScale])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -76,6 +92,7 @@ export function BuilderShell({ children, getIframeRect }: BuilderShellProps) {
     () => (args) => {
       const offset = getIframeRectRef.current?.()
       if (!offset) return pointerWithin(args)
+      const scale = getIframeScaleRef.current?.() ?? 1
 
       const adjusted: typeof args.droppableRects = new Map()
       args.droppableRects.forEach((rect, id) => {
@@ -83,13 +100,16 @@ export function BuilderShell({ children, getIframeRect }: BuilderShellProps) {
         const el = container?.node?.current as HTMLElement | null | undefined
         const isInIframe = el?.ownerDocument && el.ownerDocument !== document
         if (isInIframe) {
+          // Inner rect lives in unscaled iframe-document coords; multiply by
+          // the iframe's visual scale before adding the parent-window offset
+          // so pointer/rect overlap is computed in a single coordinate space.
           adjusted.set(id, {
-            top: rect.top + offset.top,
-            bottom: rect.bottom + offset.top,
-            left: rect.left + offset.left,
-            right: rect.right + offset.left,
-            width: rect.width,
-            height: rect.height,
+            top: rect.top * scale + offset.top,
+            bottom: rect.bottom * scale + offset.top,
+            left: rect.left * scale + offset.left,
+            right: rect.right * scale + offset.left,
+            width: rect.width * scale,
+            height: rect.height * scale,
           })
         } else {
           adjusted.set(id, rect)

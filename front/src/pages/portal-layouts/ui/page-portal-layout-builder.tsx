@@ -6,12 +6,13 @@ import {
   ConfigPanel,
   SelectionBreadcrumb,
   useEditingBreakpoint,
+  useSelectedNode,
   type Breakpoint,
   type BuilderAdapter,
   type BuilderNode,
 } from '@/lib/builder-core'
 import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
-import { generateBreakpointCss } from '@/lib/builder-portal'
+import { generateBreakpointCss, useIframeFit } from '@/lib/builder-portal'
 import { LayoutComponentLibrary } from '../components/layout-component-library'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -78,13 +79,28 @@ export default function PagePortalLayoutBuilder({
   // narrowest viewport the admin's design has to survive at.
   const [viewport, setViewport] = useState<Viewport>('iphone')
   const iframeRectRef = useRef<DOMRect | null>(null)
+  const iframeScaleRef = useRef<number>(1)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
+  const getIframeScale = useCallback(() => iframeScaleRef.current, [])
   // Stable callback identity so the bridge below only fires when the editing
   // bp actually changes — not on every parent re-render (which would snap
   // the viewport back and override the user's manual device choice).
   const handleBreakpointChange = useCallback((bp: Breakpoint | null) => {
     if (bp) setViewport(BREAKPOINT_TO_VIEWPORT[bp])
   }, [])
+
+  const viewportWidth = VIEWPORT_WIDTHS[viewport]
+  const viewportHeight = VIEWPORT_HEIGHTS[viewport]
+  // Shrink the iframe to fit the available canvas area; keeps the iframe's
+  // internal viewport at the device size so `@media` rules still apply.
+  const { containerRef: canvasAreaRef, scale: iframeScale } = useIframeFit({
+    width: viewportWidth,
+    height: viewportHeight,
+    padding: 20,
+  })
+  useEffect(() => {
+    iframeScaleRef.current = iframeScale
+  }, [iframeScale])
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
@@ -136,7 +152,7 @@ export default function PagePortalLayoutBuilder({
           </Button>
         </header>
 
-        <BuilderShell getIframeRect={getIframeRect}>
+        <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
           <div className='border-b border-border bg-muted/30'>
             <SelectionBreadcrumb />
           </div>
@@ -146,7 +162,8 @@ export default function PagePortalLayoutBuilder({
             </div>
 
             <div
-              className='flex min-w-0 flex-1 justify-center overflow-auto p-5'
+              ref={canvasAreaRef}
+              className='flex min-w-0 flex-1 items-start justify-center overflow-hidden p-5'
               style={{
                 backgroundColor: '#f8f9fa',
                 backgroundImage:
@@ -154,40 +171,58 @@ export default function PagePortalLayoutBuilder({
                 backgroundSize: '20px 20px',
               }}
             >
+              {/* Outer box reserves the *scaled* visual footprint so layout
+                  math matches what's drawn; the inner div shrinks the iframe
+                  via `transform: scale` while keeping its device-size box. */}
               <div
-                className='self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
+                className='flex-shrink-0 self-start overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-all duration-200'
                 style={{
-                  width: 'auto',
-                  flexShrink: 0,
+                  width: viewportWidth * iframeScale,
+                  height: viewportHeight * iframeScale,
                 }}
               >
-                <CanvasFrame
-                  width={VIEWPORT_WIDTHS[viewport]}
-                  height={VIEWPORT_HEIGHTS[viewport]}
-                  cssVars={cssVars}
-                  responsiveCss={generateBreakpointCss(tree)}
-                  onRectChange={(rect) => {
-                    iframeRectRef.current = rect
+                <div
+                  style={{
+                    width: viewportWidth,
+                    height: viewportHeight,
+                    transform: `scale(${iframeScale})`,
+                    transformOrigin: 'top left',
                   }}
                 >
-                  <Canvas
-                    maxWidth={
-                      typeof VIEWPORT_WIDTHS[viewport] === 'number'
-                        ? (VIEWPORT_WIDTHS[viewport] as number)
-                        : 1600
-                    }
-                  />
-                </CanvasFrame>
+                  <CanvasFrame
+                    width={viewportWidth}
+                    height={viewportHeight}
+                    cssVars={cssVars}
+                    responsiveCss={generateBreakpointCss(tree)}
+                    onRectChange={(rect) => {
+                      iframeRectRef.current = rect
+                    }}
+                  >
+                    <Canvas maxWidth={viewportWidth} />
+                  </CanvasFrame>
+                </div>
               </div>
             </div>
 
-            <div className='w-80 shrink-0 overflow-y-auto border-l border-border'>
-              <ConfigPanel />
-            </div>
+            <ConditionalConfigSidebar />
           </div>
         </BuilderShell>
       </div>
     </BuilderProvider>
+  )
+}
+
+/**
+ * Right config rail — only mounted when a node is selected so the canvas
+ * gets the full width whenever the user clicks empty space.
+ */
+function ConditionalConfigSidebar() {
+  const selected = useSelectedNode()
+  if (!selected) return null
+  return (
+    <div className='w-80 shrink-0 overflow-y-auto border-l border-border'>
+      <ConfigPanel />
+    </div>
   )
 }
 

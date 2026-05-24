@@ -13,8 +13,14 @@ import PageThemesListFeature from './themes/feature/page-themes-list-feature'
 export default function PagePortal() {
   return (
     <Routes>
-      {/* Theme builder takes the full viewport — outside the sub-nav shell. */}
+      {/* Theme builder takes the full viewport — outside the sub-nav shell.
+          Every tab is addressable: /themes/:id (default), /:tab, /pages/:type. */}
       <Route path='/themes/:theme_id' element={<PageThemeBuilderFeature />} />
+      <Route path='/themes/:theme_id/:section' element={<PageThemeBuilderFeature />} />
+      <Route
+        path='/themes/:theme_id/pages/:page_type'
+        element={<PageThemeBuilderFeature />}
+      />
 
       {/* Legacy single-theme editor + sandbox demo (kept until cleanup PR). */}
       <Route path='/theme' element={<PagePortalThemeBuilderFeature />} />

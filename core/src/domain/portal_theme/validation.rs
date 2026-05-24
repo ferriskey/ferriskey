@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::domain::portal_theme::entities::PortalPageType;
@@ -41,7 +41,7 @@ pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str]
         .unwrap_or(&[])
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct MissingBlocks {
     pub page_type: PortalPageType,
     pub missing: Vec<String>,
@@ -67,6 +67,27 @@ pub fn validate_tree(
         Ok(())
     } else {
         Err(MissingBlocks { page_type, missing })
+    }
+}
+
+/// Validate every page in the supplied collection. Iterates `PortalPageType::ALL`
+/// and aggregates each failure, so a single call surfaces every invalid page
+/// at once (vs. having the caller validate page-by-page and stop at the first
+/// error). Used when activating a theme — partial validation would hide pages
+/// that also block activation.
+pub fn validate_pages(
+    pages: impl Fn(PortalPageType) -> serde_json::Value,
+) -> Result<(), Vec<MissingBlocks>> {
+    let failures: Vec<MissingBlocks> = PortalPageType::ALL
+        .iter()
+        .copied()
+        .filter_map(|pt| validate_tree(pt, &pages(pt)).err())
+        .collect();
+
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures)
     }
 }
 
