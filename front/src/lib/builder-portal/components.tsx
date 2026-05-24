@@ -2,6 +2,7 @@ import {
   AtSign,
   Box,
   CheckSquare,
+  Globe,
   Heading as HeadingIcon,
   Image as ImageIcon,
   KeyRound,
@@ -30,6 +31,7 @@ const ALL_CHILDREN = [
   'password_input',
   'totp_input',
   'submit_button',
+  'identity_providers',
   'page-content',
 ]
 
@@ -227,6 +229,18 @@ export const portalComponents: ComponentDefinition[] = [
     },
     defaultStyles: {},
   },
+  {
+    type: 'identity_providers',
+    label: 'Identity providers',
+    icon: <Globe size={14} />,
+    defaultProps: {
+      // Separator label displayed above the list ("Or continue with").
+      separatorLabel: 'Or continue with',
+      // Localizable button label prefix; the provider's display name is appended.
+      buttonLabel: 'Continue with',
+    },
+    defaultStyles: {},
+  },
 ]
 
 /** Block types that are specialized for a portal page (not generic layout). */
@@ -235,6 +249,7 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'password_input',
   'totp_input',
   'submit_button',
+  'identity_providers',
 ])
 
 /** Block types that only make sense in a layout tree, never in a page tree. */

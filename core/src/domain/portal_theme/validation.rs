@@ -9,7 +9,12 @@ use crate::domain::portal_theme::entities::PortalPageType;
 pub const REQUIRED_BLOCKS: &[(PortalPageType, &[&str])] = &[
     (
         PortalPageType::Login,
-        &["email_input", "password_input", "submit_button"],
+        &[
+            "email_input",
+            "password_input",
+            "submit_button",
+            "identity_providers",
+        ],
     ),
     (
         PortalPageType::Register,
@@ -121,7 +126,8 @@ mod tests {
             { "type": "container", "children": [
                 { "type": "email_input" },
                 { "type": "password_input" },
-                { "type": "submit_button" }
+                { "type": "submit_button" },
+                { "type": "identity_providers" }
             ]}
         ]);
         assert!(validate_tree(PortalPageType::Login, &tree).is_ok());
@@ -162,7 +168,8 @@ mod tests {
             vec![
                 "email_input".to_string(),
                 "password_input".to_string(),
-                "submit_button".to_string()
+                "submit_button".to_string(),
+                "identity_providers".to_string()
             ]
         );
     }
