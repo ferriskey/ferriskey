@@ -1,12 +1,11 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { LayoutTemplate, Pencil, Plus, Star, Trash2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react'
+import { PortalOverviewHeader } from '@/pages/portal/components/portal-overview-header'
 
 interface PortalLayoutListItem {
   id: string
   name: string
-  is_default: boolean
   created_at: string
   updated_at: string
 }
@@ -16,8 +15,20 @@ interface Props {
   isLoading: boolean
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onSetDefault: (id: string) => void
   onCreate: () => void
+}
+
+function LayoutAvatar({ name }: { name: string }) {
+  return (
+    <div
+      className='h-10 w-10 rounded-md flex items-center justify-center shrink-0'
+      style={{ backgroundColor: '#F97316' }}
+    >
+      <span className='text-base font-bold text-white'>
+        {name?.[0]?.toUpperCase() || 'L'}
+      </span>
+    </div>
+  )
 }
 
 export default function PagePortalLayoutsList({
@@ -25,66 +36,67 @@ export default function PagePortalLayoutsList({
   isLoading,
   onEdit,
   onDelete,
-  onSetDefault,
   onCreate,
 }: Props) {
   return (
-    <div className='flex flex-col gap-4 p-6'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-2xl font-semibold'>Portal Layouts</h1>
-          <p className='text-sm text-muted-foreground'>
-            Design the layout shared across your authentication portal pages
-          </p>
-        </div>
-        <Button onClick={onCreate}>
-          <Plus size={16} />
-          New Layout
-        </Button>
-      </div>
+    <div className='flex flex-col gap-6 p-8'>
+      <PortalOverviewHeader
+        activeTab='layouts'
+        primaryAction={{ label: 'New Layout', onClick: onCreate }}
+      />
 
-      {isLoading ? (
-        <div className='flex items-center justify-center py-12 text-sm text-muted-foreground'>
-          Loading layouts...
+      <div>
+        <div className='flex items-center justify-between mb-3'>
+          <h2 className='text-base font-semibold'>Layouts ({layouts.length})</h2>
         </div>
-      ) : layouts.length === 0 ? (
-        <Card>
-          <CardContent className='flex flex-col items-center justify-center gap-3 py-12'>
-            <LayoutTemplate size={40} className='text-muted-foreground' />
-            <p className='text-sm text-muted-foreground'>
-              No portal layouts yet. Create one to get started.
-            </p>
-            <Button variant='outline' onClick={onCreate}>
-              <Plus size={16} />
-              Create Layout
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className='grid gap-3'>
-          {layouts.map((layout) => (
-            <Card key={layout.id}>
-              <CardHeader className='flex flex-row items-center justify-between pb-2'>
+
+        <div className='-mx-8 border-t border-b overflow-hidden'>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className='flex items-center justify-between px-8 py-4 border-b last:border-b-0'
+              >
                 <div className='flex items-center gap-3'>
-                  <CardTitle className='text-base'>{layout.name}</CardTitle>
-                  {layout.is_default && (
-                    <Badge variant='outline' className='gap-1'>
-                      <Star size={12} />
-                      Default
-                    </Badge>
-                  )}
+                  <Skeleton className='h-10 w-10 rounded-md' />
+                  <div className='space-y-2'>
+                    <Skeleton className='h-4 w-40' />
+                    <Skeleton className='h-3 w-32' />
+                  </div>
                 </div>
+                <Skeleton className='h-6 w-20 rounded-md' />
+              </div>
+            ))
+          ) : layouts.length === 0 ? (
+            <div className='flex flex-col items-center justify-center gap-3 py-16'>
+              <LayoutTemplate size={40} className='text-muted-foreground' />
+              <p className='text-sm text-muted-foreground'>
+                No portal layouts yet. Create one to get started.
+              </p>
+              <Button variant='outline' onClick={onCreate}>
+                <Plus size={16} />
+                Create layout
+              </Button>
+            </div>
+          ) : (
+            layouts.map((layout) => (
+              <div
+                key={layout.id}
+                className='flex items-center justify-between px-8 py-4 border-b last:border-b-0 hover:bg-muted/40 transition-colors'
+              >
+                <div className='flex items-center gap-4'>
+                  <LayoutAvatar name={layout.name} />
+                  <div>
+                    <div className='flex items-center gap-2.5'>
+                      <span className='text-base font-medium'>{layout.name}</span>
+                    </div>
+                    <div className='text-sm text-muted-foreground mt-0.5'>
+                      layout_id: {layout.id}
+                    </div>
+                  </div>
+                </div>
+
                 <div className='flex items-center gap-1'>
-                  {!layout.is_default && (
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      title='Set as default'
-                      onClick={() => onSetDefault(layout.id)}
-                    >
-                      <Star size={14} />
-                    </Button>
-                  )}
                   <Button
                     variant='ghost'
                     size='icon'
@@ -103,11 +115,11 @@ export default function PagePortalLayoutsList({
                     <Trash2 size={14} />
                   </Button>
                 </div>
-              </CardHeader>
-            </Card>
-          ))}
+              </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

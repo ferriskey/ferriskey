@@ -75,9 +75,7 @@ export default function PagePortalLayoutBuilder({
   onSave,
   onBack,
 }: Props) {
-  // Mobile-first preview default: open at iPhone so the base layer is the
-  // narrowest viewport the admin's design has to survive at.
-  const [viewport, setViewport] = useState<Viewport>('iphone')
+  const [viewport, setViewport] = useState<Viewport>('desktop')
   const iframeRectRef = useRef<DOMRect | null>(null)
   const iframeScaleRef = useRef<number>(1)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
