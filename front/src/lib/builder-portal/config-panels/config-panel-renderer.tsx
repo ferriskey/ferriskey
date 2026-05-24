@@ -661,6 +661,28 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'identity_providers':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            Identity providers — the list is populated at runtime from the realm's configured providers. Only the labels are editable.
+          </div>
+          <ConfigSection title='Labels'>
+            <TextField
+              label='Separator label'
+              value={node.props.separatorLabel as string}
+              onChange={(v) => updateProp('separatorLabel', v)}
+            />
+            <TextField
+              label='Button label prefix'
+              value={node.props.buttonLabel as string}
+              onChange={(v) => updateProp('buttonLabel', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'page-content':
       return (
         <div className='flex flex-col'>

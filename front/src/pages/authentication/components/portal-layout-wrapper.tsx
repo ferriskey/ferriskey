@@ -6,6 +6,7 @@ import {
   useGetPortalPageRequirements,
 } from '@/api/portal-theme.api'
 import { useGetPublicPortalLayout } from '@/api/portal-layouts.api'
+import { useGetLoginSettings } from '@/api/realm.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
@@ -66,6 +67,11 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   })
   const { data: requirementsData, isLoading: isRequirementsLoading } =
     useGetPortalPageRequirements({ realm })
+  // Pulled separately from the auth feature so portal pages that don't render
+  // the React `<PageLogin />` fallback still have the realm's configured
+  // identity providers available to the `identity_providers` block.
+  const { data: loginSettings } = useGetLoginSettings({ realm })
+  const identityProviders = loginSettings?.identity_providers ?? []
 
   const cssVars = useMemo(
     () => themeToCssVars(mergeWithDefaults(activeData?.design_tokens)) as CSSProperties,
@@ -130,7 +136,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { runtime: true })}
+      {treeToReactNode(pageTree, { runtime: true, identityProviders })}
     </form>
   )
 
@@ -146,7 +152,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   return (
     <div style={cssVars}>
       {responsiveStyle}
-      {treeToReactNode(layoutTree, { runtime: true, pageContent })}
+      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders })}
     </div>
   )
 }

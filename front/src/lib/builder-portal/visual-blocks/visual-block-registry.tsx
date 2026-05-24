@@ -7,6 +7,7 @@ import {
   containerStyle,
   divStyle,
   headingStyle,
+  IdentityProvidersBlock,
   imageJustify,
   imageStyle,
   inputFieldStyle,
@@ -125,6 +126,8 @@ export function renderVisualBlock(
     case 'password_input':
     case 'totp_input':
       return <InputBlock node={node} isSelected={isSelected} />
+    case 'identity_providers':
+      return <IdentityProvidersPreview node={node} isSelected={isSelected} />
     case 'page-content':
       return <PageContentSlot node={node} isSelected={isSelected} />
     default:
@@ -348,6 +351,23 @@ function InputBlock({ node, isSelected }: { node: BuilderNode; isSelected: boole
         style={mergeStyles({ ...inputFieldStyle(), pointerEvents: 'none' }, isSelected)}
       />
       {helperText ? <span style={inputHelperStyle()}>{helperText}</span> : null}
+    </div>
+  )
+}
+
+function IdentityProvidersPreview({
+  node,
+  isSelected,
+}: {
+  node: BuilderNode
+  isSelected: boolean
+}) {
+  return (
+    <div style={chromeStyle(isSelected)}>
+      {/* Canvas preview reuses the runtime renderer with `runtime=false` so
+          the placeholder providers (Google / GitHub) are drawn — keeps the
+          builder visually identical to what realm end-users will see. */}
+      <IdentityProvidersBlock node={node} runtime={false} />
     </div>
   )
 }

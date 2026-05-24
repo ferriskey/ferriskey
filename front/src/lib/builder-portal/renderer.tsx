@@ -1,4 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
+import type { Schemas } from '@/api/api.client'
+import ProviderIcon, {
+  isProviderIconKey,
+} from '@/pages/identity-providers/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
 
 type RenderOptions = {
@@ -9,6 +13,11 @@ type RenderOptions = {
    * preview), so inputs accept user input instead of being disabled.
    */
   runtime?: boolean
+  /**
+   * Real identity providers fed by the realm's login settings — replaces the
+   * placeholder list rendered for `identity_providers` blocks in the canvas.
+   */
+  identityProviders?: Schemas.IdentityProviderPresentation[]
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
@@ -189,8 +198,205 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         </div>
       )
 
+    case 'identity_providers':
+      return (
+        <IdentityProvidersBlock
+          key={node.id}
+          node={node}
+          providers={options.identityProviders}
+          runtime={options.runtime}
+        />
+      )
+
     default:
       return null
+  }
+}
+
+const PLACEHOLDER_PROVIDERS: Pick<
+  Schemas.IdentityProviderPresentation,
+  'id' | 'display_name' | 'icon' | 'kind' | 'login_url'
+>[] = [
+  { id: 'preview-google', display_name: 'Google', icon: 'google', kind: 'google', login_url: '#' },
+  { id: 'preview-github', display_name: 'GitHub', icon: 'github', kind: 'github', login_url: '#' },
+]
+
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
+
+function buildProviderLoginUrl(loginUrl: string): string {
+  const base = window.apiUrl.endsWith('/') ? window.apiUrl : `${window.apiUrl}/`
+  const path = loginUrl.replace(/^\//, '')
+  const url = new URL(isAbsoluteUrl(loginUrl) ? loginUrl : path, base)
+  const currentParams = new URLSearchParams(window.location.search)
+  currentParams.forEach((value, key) => {
+    if (!url.searchParams.has(key)) {
+      url.searchParams.set(key, value)
+    }
+  })
+  return url.toString()
+}
+
+export function IdentityProvidersBlock({
+  node,
+  providers,
+  runtime,
+}: {
+  node: BuilderNode
+  providers?: Schemas.IdentityProviderPresentation[]
+  runtime?: boolean
+}) {
+  const separatorLabel = (node.props.separatorLabel as string) || 'Or continue with'
+  const buttonLabelPrefix = (node.props.buttonLabel as string) || 'Continue with'
+
+  // In the canvas (or when the realm has no providers yet) we render two
+  // sample buttons so the admin still sees what the block will look like.
+  const list = runtime
+    ? (providers ?? [])
+    : (providers && providers.length > 0 ? providers : PLACEHOLDER_PROVIDERS)
+
+  if (runtime && list.length === 0) {
+    // At runtime, an empty list collapses the whole block so the surrounding
+    // layout doesn't show an orphan "Or continue with" separator.
+    return null
+  }
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        ...orderStyle(node),
+      }}
+    >
+      <div style={providerSeparatorStyle()}>
+        <span style={providerSeparatorLineStyle()} />
+        <span style={providerSeparatorLabelStyle()}>{separatorLabel}</span>
+        <span style={providerSeparatorLineStyle()} />
+      </div>
+      <div style={{ display: 'grid', gap: 12 }}>
+        {list.map((provider) => {
+          const iconKey = provider.icon?.toLowerCase()
+          const knownIcon = iconKey && isProviderIconKey(iconKey) ? iconKey : null
+          const customIconSrc = iconKey && !knownIcon ? provider.icon : null
+          const href =
+            runtime && provider.login_url && provider.login_url !== '#'
+              ? buildProviderLoginUrl(provider.login_url)
+              : '#'
+          return (
+            <a
+              key={provider.id}
+              href={href}
+              style={providerButtonStyle()}
+              onClick={runtime ? undefined : (e) => e.preventDefault()}
+            >
+              <span style={providerIconSlotStyle()}>
+                {knownIcon ? (
+                  <ProviderIcon icon={knownIcon} size='sm' className='h-4 w-4' />
+                ) : customIconSrc ? (
+                  <img
+                    src={customIconSrc}
+                    alt={provider.display_name ?? ''}
+                    style={{ width: 16, height: 16 }}
+                  />
+                ) : (
+                  <span style={providerIconFallbackStyle()}>
+                    {provider.display_name?.[0]?.toUpperCase() ?? '?'}
+                  </span>
+                )}
+              </span>
+              <span style={providerLabelStyle()}>
+                {buttonLabelPrefix} {provider.display_name}
+              </span>
+              <span style={providerArrowStyle()}>→</span>
+            </a>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function providerSeparatorStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 13,
+    color: 'var(--fk-color-body-text, #6b7280)',
+  }
+}
+
+function providerSeparatorLineStyle(): CSSProperties {
+  return {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'var(--fk-color-body-text, #e5e7eb)',
+    opacity: 0.3,
+  }
+}
+
+function providerSeparatorLabelStyle(): CSSProperties {
+  return {
+    padding: '0 8px',
+    fontSize: 13,
+    color: 'var(--fk-color-body-text, #6b7280)',
+  }
+}
+
+function providerButtonStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 'var(--fk-radius-button, 6px)',
+    border: 'var(--fk-border-button, 1px) solid var(--fk-color-body-text, #e5e7eb)',
+    backgroundColor: 'var(--fk-color-secondary-button, #ffffff)',
+    color: 'var(--fk-color-secondary-button-label, #111827)',
+    fontSize: 'var(--fk-font-base-size, 14px)',
+    fontWeight: 500,
+    textDecoration: 'none',
+    cursor: 'pointer',
+  }
+}
+
+function providerIconSlotStyle(): CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+  }
+}
+
+function providerIconFallbackStyle(): CSSProperties {
+  return {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--fk-color-body-text, #6b7280)',
+    textTransform: 'uppercase',
+  }
+}
+
+function providerLabelStyle(): CSSProperties {
+  return {
+    flex: 1,
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  }
+}
+
+function providerArrowStyle(): CSSProperties {
+  return {
+    fontSize: 12,
+    color: 'var(--fk-color-body-text, #9ca3af)',
   }
 }
 
