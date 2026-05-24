@@ -249,7 +249,13 @@ export default function PageTreeEditor({
                   >
                     {hasLayout
                       ? treeToReactNode(layoutTree!, {
-                          pageContent: <Canvas maxWidth={canvasMaxWidth} />,
+                          // Inline mode: the layout's `<page-content>` slot
+                          // controls vertical alignment, so the canvas
+                          // should not stretch — mirrors how the runtime
+                          // injects a `<form>` block here.
+                          pageContent: (
+                            <Canvas maxWidth={canvasMaxWidth} fillHeight={false} />
+                          ),
                         })
                       : <Canvas maxWidth={canvasMaxWidth} />}
                   </CanvasFrame>

@@ -190,9 +190,19 @@ function AppendDropZone({ parentId }: { parentId: string | null }) {
 
 interface CanvasProps {
   maxWidth?: number
+  /**
+   * When `true` (default), the canvas stretches to fill its parent's full
+   * height — the right behavior for a stand-alone editor where the iframe
+   * IS the canvas. Set to `false` when the canvas is mounted inside a
+   * layout's `<page-content>` slot: the layout already controls vertical
+   * alignment (e.g. centering the form), so the canvas should behave like
+   * a block of its content height — matching how `<form>` renders at
+   * runtime — and let the layout's centering apply.
+   */
+  fillHeight?: boolean
 }
 
-export function Canvas({ maxWidth = 600 }: CanvasProps) {
+export function Canvas({ maxWidth = 600, fillHeight = true }: CanvasProps) {
   const { tree, selectNode } = useBuilderContext()
 
   const { setNodeRef, isOver } = useDroppable({
@@ -200,26 +210,40 @@ export function Canvas({ maxWidth = 600 }: CanvasProps) {
     data: { parentId: null },
   })
 
+  const emptyState = (
+    <div
+      ref={setNodeRef}
+      className={`transition-all duration-200 ${
+        isOver ? 'ring-2 ring-primary ring-dashed' : ''
+      } ${fillHeight ? 'min-h-screen' : ''}`}
+      style={{ width: '100%', maxWidth }}
+    >
+      {tree.length === 0 ? (
+        <div
+          className={`flex items-center justify-center text-sm text-muted-foreground ${
+            fillHeight ? 'h-full min-h-screen' : 'py-8'
+          }`}
+        >
+          Drag components here to start building
+        </div>
+      ) : (
+        <DroppableChildren parentId={null}>{tree}</DroppableChildren>
+      )}
+    </div>
+  )
+
+  if (!fillHeight) {
+    // Inline mode: render the drop zone as a block so the surrounding layout
+    // can position it (the layout's `<page-content>` div is the flex item).
+    return <div onClick={() => selectNode(null)}>{emptyState}</div>
+  }
+
   return (
     <div
       className='flex min-h-full flex-1 items-start justify-center'
       onClick={() => selectNode(null)}
     >
-      <div
-        ref={setNodeRef}
-        className={`min-h-screen transition-all duration-200 ${
-          isOver ? 'ring-2 ring-primary ring-dashed' : ''
-        }`}
-        style={{ width: '100%', maxWidth }}
-      >
-        {tree.length === 0 ? (
-          <div className='flex h-full min-h-screen items-center justify-center text-sm text-muted-foreground'>
-            Drag components here to start building
-          </div>
-        ) : (
-          <DroppableChildren parentId={null}>{tree}</DroppableChildren>
-        )}
-      </div>
+      {emptyState}
     </div>
   )
 }

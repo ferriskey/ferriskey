@@ -303,9 +303,9 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
   const { updateNode } = useBuilderContext()
   const style = mergeStyles(buttonStyle(node), isSelected)
 
-  // Render exactly as runtime (`<a>` for button, but we don't follow the href
-  // in the canvas — pointer-down doesn't traverse the anchor). Inline-edit
-  // the label when selected.
+  // Render exactly as runtime (`<a>` for button). We only block the anchor's
+  // default navigation — propagation must continue so the SortableNode
+  // wrapper's onClick handler still picks the click up and selects the node.
   return (
     <a
       data-fk-id={node.id}
@@ -313,7 +313,6 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
       style={style}
       onClick={(e) => {
         e.preventDefault()
-        e.stopPropagation()
       }}
     >
       {isSelected ? (
