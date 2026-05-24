@@ -42,8 +42,12 @@ interface Props {
   isActivating: boolean
   realm: string
   onBack: () => void
-  onSaveMetadata: (name: string, layoutId: string | null, config: object) => void
-  onSavePage: (pageType: PageType, tree: unknown) => void
+  onSaveTheme: (
+    name: string,
+    layoutId: string | null,
+    config: object,
+    pages: { pageType: PageType; tree: unknown }[],
+  ) => void
   onActivate: () => void
 }
 
@@ -55,8 +59,7 @@ export default function PageThemeBuilder({
   isActivating,
   realm,
   onBack,
-  onSaveMetadata,
-  onSavePage,
+  onSaveTheme,
   onActivate,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('theme')
@@ -93,10 +96,13 @@ export default function PageThemeBuilder({
         </Button>
         <Button
           onClick={() => {
-            onSaveMetadata(name, layoutId, tokens)
-            for (const [pageType, tree] of Object.entries(pageOverrides)) {
-              if (tree) onSavePage(pageType as PageType, tree)
-            }
+            const pages = Object.entries(pageOverrides)
+              .filter(([, tree]) => tree)
+              .map(([pageType, tree]) => ({
+                pageType: pageType as PageType,
+                tree: tree as BuilderNode[],
+              }))
+            onSaveTheme(name, layoutId, tokens, pages)
           }}
           disabled={isSavingMetadata || isSavingPage}
         >

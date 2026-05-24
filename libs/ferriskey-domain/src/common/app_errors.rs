@@ -286,6 +286,9 @@ pub enum CoreError {
     #[error("Portal theme page tree is missing required blocks: {0}")]
     PortalThemePageInvalid(String),
 
+    #[error("Portal theme cannot be activated: {0}")]
+    PortalThemeInvalidForActivation(String),
+
     #[error("Portal theme is currently active and cannot be deleted")]
     PortalThemeActive,
 

@@ -237,6 +237,23 @@ impl From<CoreError> for ApiError {
             CoreError::PortalThemePageInvalid(details) => {
                 Self::validation_error(details, "tree")
             }
+            CoreError::PortalThemeInvalidForActivation(details) => {
+                // `details` is a JSON-encoded `Vec<MissingBlocks>` — one entry
+                // per page that failed validation. Surface them as individual
+                // ValidationErrors so the client can render them per page.
+                match serde_json::from_str::<Vec<serde_json::Value>>(&details) {
+                    Ok(items) => Self::validation_errors(
+                        items
+                            .into_iter()
+                            .map(|item| crate::application::http::server::api_entities::api_error::ValidationError {
+                                message: item.to_string().into(),
+                                field: "tree".into(),
+                            })
+                            .collect(),
+                    ),
+                    Err(_) => Self::validation_error(details, "tree"),
+                }
+            }
             CoreError::PortalThemeActive => {
                 Self::BadRequest("Portal theme is currently active and cannot be deleted".into())
             }

@@ -14,7 +14,7 @@ use crate::domain::{
             PortalThemeRepository, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
             UpdateThemePageInput,
         },
-        validation::validate_tree,
+        validation::{validate_pages, validate_tree},
     },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
@@ -230,11 +230,25 @@ where
             "insufficient permissions",
         )?;
 
-        validate_tree(input.page_type, &input.tree).map_err(|missing| {
-            CoreError::PortalThemePageInvalid(
-                serde_json::to_string(&missing).unwrap_or_else(|_| "{}".to_string()),
-            )
-        })?;
+        // Required-block validation only applies to the currently active
+        // theme: a draft can be saved with any tree (validation runs at
+        // activation), but the live theme must always satisfy requirements
+        // because the public portal already renders it.
+        let active_theme = self
+            .portal_theme_repository
+            .get_active(realm.id.into())
+            .await?;
+        if active_theme
+            .as_ref()
+            .map(|t| t.id == input.theme_id)
+            .unwrap_or(false)
+        {
+            validate_tree(input.page_type, &input.tree).map_err(|missing| {
+                CoreError::PortalThemePageInvalid(
+                    serde_json::to_string(&missing).unwrap_or_else(|_| "{}".to_string()),
+                )
+            })?;
+        }
 
         self.portal_theme_repository
             .update_page(realm.id.into(), input.theme_id, input.page_type, input.tree)
@@ -256,6 +270,21 @@ where
             self.policy.can_manage_theme(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        // Validate every page tree before flipping the active flag: once a
+        // theme goes live the public portal renders it immediately, so a
+        // missing required block would break authentication.
+        let theme = self
+            .portal_theme_repository
+            .get_by_id(realm.id.into(), input.theme_id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        validate_pages(|pt| theme.pages.get(pt).clone()).map_err(|missing| {
+            CoreError::PortalThemeInvalidForActivation(
+                serde_json::to_string(&missing).unwrap_or_else(|_| "[]".to_string()),
+            )
+        })?;
 
         self.portal_theme_repository
             .activate(realm.id.into(), input.theme_id)
@@ -675,9 +704,30 @@ mod tests {
         assert_eq!(result, stored_config);
     }
 
+    fn build_active_theme_repo(realm: &Realm, active_theme_id: Uuid) -> MockPortalThemeRepository {
+        use crate::domain::portal_theme::entities::PortalThemePages;
+
+        let mut theme_repo = MockPortalThemeRepository::new();
+        let realm_for_active = realm.clone();
+        theme_repo.expect_get_active().returning(move |_| {
+            let theme = PortalTheme {
+                id: active_theme_id,
+                realm_id: realm_for_active.id,
+                name: "Active".to_string(),
+                layout_id: None,
+                config: PortalThemeConfig::default(),
+                pages: PortalThemePages::default(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(Some(theme)) })
+        });
+        theme_repo
+    }
+
     #[tokio::test]
-    async fn update_theme_page_rejects_tree_missing_required_blocks() {
-        use crate::domain::portal_theme::entities::PortalPageType;
+    async fn update_theme_page_accepts_invalid_tree_for_inactive_theme() {
+        use crate::domain::portal_theme::entities::{PortalPageType, PortalThemePages};
         use serde_json::json;
 
         let realm = test_realm();
@@ -704,7 +754,32 @@ mod tests {
             Box::pin(async move { Ok(vec![admin_role(&r)]) })
         });
 
-        let theme_repo = MockPortalThemeRepository::new();
+        // Draft theme — the active theme has a *different* id, so validation
+        // is skipped and the invalid tree gets persisted.
+        let mut theme_repo = MockPortalThemeRepository::new();
+        theme_repo
+            .expect_get_active()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        let realm_for_update = realm.clone();
+        theme_repo
+            .expect_update_page()
+            .returning(move |_, theme_id, _, tree| {
+                let theme = PortalTheme {
+                    id: theme_id,
+                    realm_id: realm_for_update.id,
+                    name: "Draft".to_string(),
+                    layout_id: None,
+                    config: PortalThemeConfig::default(),
+                    pages: PortalThemePages {
+                        login: tree,
+                        ..Default::default()
+                    },
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                };
+                Box::pin(async move { Ok(theme) })
+            });
+
         let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
 
         let result = service
@@ -719,6 +794,116 @@ mod tests {
             )
             .await;
 
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_theme_page_rejects_invalid_tree_when_theme_is_active() {
+        use crate::domain::portal_theme::entities::PortalPageType;
+        use serde_json::json;
+
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let active_theme_id = Uuid::new_v4();
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        let user_clone = user.clone();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user_clone.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        let realm_for_roles = realm.clone();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let r = realm_for_roles.clone();
+            Box::pin(async move { Ok(vec![admin_role(&r)]) })
+        });
+
+        let theme_repo = build_active_theme_repo(&realm, active_theme_id);
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
+
+        let result = service
+            .update_theme_page(
+                Identity::User(user),
+                UpdateThemePageInput {
+                    realm_name: realm.name.clone(),
+                    theme_id: active_theme_id,
+                    page_type: PortalPageType::Login,
+                    tree: json!([{ "type": "email_input" }]),
+                },
+            )
+            .await;
+
         assert!(matches!(result, Err(CoreError::PortalThemePageInvalid(_))));
+    }
+
+    #[tokio::test]
+    async fn activate_theme_rejects_when_any_page_is_missing_required_blocks() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let theme_id = Uuid::new_v4();
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        let user_clone = user.clone();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user_clone.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        let realm_for_roles = realm.clone();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let r = realm_for_roles.clone();
+            Box::pin(async move { Ok(vec![admin_role(&r)]) })
+        });
+
+        // Theme has default (empty) pages: every required block is missing.
+        let mut theme_repo = MockPortalThemeRepository::new();
+        let realm_for_get = realm.clone();
+        theme_repo.expect_get_by_id().returning(move |_, id| {
+            let theme = PortalTheme {
+                id,
+                realm_id: realm_for_get.id,
+                name: "Draft".to_string(),
+                layout_id: None,
+                config: PortalThemeConfig::default(),
+                pages: Default::default(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(Some(theme)) })
+        });
+
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
+
+        let result = service
+            .activate_theme(
+                Identity::User(user),
+                GetThemeByIdInput {
+                    realm_name: realm.name.clone(),
+                    theme_id,
+                },
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CoreError::PortalThemeInvalidForActivation(_))
+        ));
     }
 }

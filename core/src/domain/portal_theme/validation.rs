@@ -70,6 +70,27 @@ pub fn validate_tree(
     }
 }
 
+/// Validate every page in the supplied collection. Iterates `PortalPageType::ALL`
+/// and aggregates each failure, so a single call surfaces every invalid page
+/// at once (vs. having the caller validate page-by-page and stop at the first
+/// error). Used when activating a theme — partial validation would hide pages
+/// that also block activation.
+pub fn validate_pages(
+    pages: impl Fn(PortalPageType) -> serde_json::Value,
+) -> Result<(), Vec<MissingBlocks>> {
+    let failures: Vec<MissingBlocks> = PortalPageType::ALL
+        .iter()
+        .copied()
+        .filter_map(|pt| validate_tree(pt, &pages(pt)).err())
+        .collect();
+
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures)
+    }
+}
+
 fn collect_types(value: &serde_json::Value, acc: &mut std::collections::HashSet<String>) {
     match value {
         serde_json::Value::Object(map) => {
