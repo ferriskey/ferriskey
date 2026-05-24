@@ -286,8 +286,9 @@ export default function PageLogsEvents({ events, isLoading, isError, isMocked }:
               const isOpen = expanded === event.id
               const DeviceIcon = getDeviceIcon(event.user_agent)
               const actorLabel = getActorLabel(event)
-              const hasDetails =
-                event.details && typeof event.details === 'object' && event.details !== null
+              const hasDetails = Boolean(
+                event.details && typeof event.details === 'object' && event.details !== null,
+              )
 
               return (
                 <div key={event.id}>

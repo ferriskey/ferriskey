@@ -116,7 +116,7 @@ export default function PageEmailTemplateBuilder({
                 backgroundSize: '16px 16px',
               }}
             >
-              <Canvas maxWidth={viewportWidth} canvasClassName='bg-background shadow-lg rounded-lg' />
+              <Canvas maxWidth={viewportWidth} />
             </div>
 
             {/* Right Panel: Config */}
