@@ -47,6 +47,7 @@ pub enum Relation {
     ClientScopes,
     Clients,
     CompassFlows,
+    DeviceAuthSessions,
     EmailTemplates,
     EmailVerificationTokens,
     IdentityProviders,
@@ -92,6 +93,9 @@ impl RelationTrait for Relation {
             Self::ClientScopes => Entity::has_many(super::client_scopes::Entity).into(),
             Self::Clients => Entity::has_many(super::clients::Entity).into(),
             Self::CompassFlows => Entity::has_many(super::compass_flows::Entity).into(),
+            Self::DeviceAuthSessions => {
+                Entity::has_many(super::device_auth_sessions::Entity).into()
+            }
             Self::EmailTemplates => Entity::has_many(super::email_templates::Entity).into(),
             Self::EmailVerificationTokens => {
                 Entity::has_many(super::email_verification_tokens::Entity).into()
@@ -157,6 +161,12 @@ impl Related<super::clients::Entity> for Entity {
 impl Related<super::compass_flows::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CompassFlows.def()
+    }
+}
+
+impl Related<super::device_auth_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::DeviceAuthSessions.def()
     }
 }
 
