@@ -2,12 +2,14 @@ import {
   AtSign,
   Box,
   CheckSquare,
+  Fingerprint,
   Globe,
   Heading as HeadingIcon,
   Image as ImageIcon,
   KeyRound,
   LayoutTemplate,
   LockKeyhole,
+  Mail,
   Minus,
   MousePointerClick,
   MoveVertical,
@@ -31,6 +33,8 @@ const ALL_CHILDREN = [
   'password_input',
   'totp_input',
   'submit_button',
+  'magic_link_button',
+  'passkey_button',
   'identity_providers',
   'page-content',
 ]
@@ -241,6 +245,30 @@ export const portalComponents: ComponentDefinition[] = [
     },
     defaultStyles: {},
   },
+  {
+    type: 'magic_link_button',
+    label: 'Magic link',
+    icon: <Mail size={14} />,
+    hasContent: true,
+    defaultProps: {
+      // Outline by default — magic link is an alternative auth path, not the
+      // primary CTA (which is the submit button).
+      variant: 'outline',
+      fullWidth: 'true',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'passkey_button',
+    label: 'Passkey',
+    icon: <Fingerprint size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'outline',
+      fullWidth: 'true',
+    },
+    defaultStyles: {},
+  },
 ]
 
 /** Block types that are specialized for a portal page (not generic layout). */
@@ -260,6 +288,8 @@ const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   text: 'Sign in to your account.',
   button: 'Continue',
   submit_button: 'Continue',
+  magic_link_button: 'Sign in with a magic link',
+  passkey_button: 'Sign in with a passkey',
 }
 
 export function getDefaultNode(type: string): Omit<BuilderNode, 'id'> {

@@ -160,6 +160,47 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         </a>
       )
 
+    // Magic link / passkey: rendered as alternative auth actions. The host
+    // portal page wires the click behavior by selecting on the
+    // `data-fk-action` attribute (so the renderer stays declarative and the
+    // builder preview is still inert). `type="button"` keeps them from
+    // submitting the surrounding <form> by accident.
+    case 'magic_link_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='magic-link'
+          style={{
+            ...buttonStyle(node),
+            border: buttonStyle(node).border ?? 'none',
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          {node.content ?? 'Sign in with a magic link'}
+        </button>
+      )
+
+    case 'passkey_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='passkey'
+          style={{
+            ...buttonStyle(node),
+            border: buttonStyle(node).border ?? 'none',
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          {node.content ?? 'Sign in with a passkey'}
+        </button>
+      )
+
     case 'input':
     case 'email_input':
     case 'password_input':

@@ -120,6 +120,8 @@ export function renderVisualBlock(
       return <DividerBlock node={node} isSelected={isSelected} />
     case 'button':
     case 'submit_button':
+    case 'magic_link_button':
+    case 'passkey_button':
       return <ButtonBlock node={node} isSelected={isSelected} />
     case 'input':
     case 'email_input':

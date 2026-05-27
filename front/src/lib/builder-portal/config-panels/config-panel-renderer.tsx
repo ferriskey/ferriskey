@@ -661,6 +661,45 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'magic_link_button':
+    case 'passkey_button':
+      // Hard-wired action: clicking triggers the magic-link or passkey
+      // flow via the host page's `data-fk-action` handler. Only visual
+      // style is editable here — same pattern as submit_button.
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            {node.type === 'magic_link_button'
+              ? 'Magic link action is locked — the portal sends a one-time sign-in email when clicked.'
+              : 'Passkey action is locked — the portal triggers the browser passkey prompt when clicked.'}
+          </div>
+          <ConfigSection title='Style'>
+            <SelectField
+              label='Variant'
+              value={node.props.variant as string}
+              options={[
+                { label: 'Primary', value: 'primary' },
+                { label: 'Secondary', value: 'secondary' },
+                { label: 'Outline', value: 'outline' },
+              ]}
+              onChange={(v) => updateProp('variant', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Width'
+              value={node.props.fullWidth as string}
+              options={[
+                { label: 'Full', value: 'true' },
+                { label: 'Auto', value: 'false' },
+              ]}
+              onChange={(v) => updateProp('fullWidth', v)}
+              allowEmpty={false}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'identity_providers':
       return (
         <div className='flex flex-col'>

@@ -65,4 +65,6 @@ export type PortalNodeType =
   | 'divider'
   | 'button'
   | 'input'
+  | 'magic_link_button'
+  | 'passkey_button'
   | 'page-content'
