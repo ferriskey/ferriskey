@@ -581,7 +581,11 @@ export function inputFieldStyle(): CSSProperties {
   return {
     width: '100%',
     padding: '10px 12px',
-    border: 'var(--fk-border-input, 1px) solid var(--fk-color-body-text, #d1d5db)',
+    // Match the theme-overview preview (`preview-card.tsx`): the input border
+    // should read as a faint outline, not as the body text color. Using
+    // `--fk-color-body-text` here made the border render as the dark body
+    // color set by the theme, instead of the grey we show in the preview.
+    border: 'var(--fk-border-input, 1px) solid rgba(0,0,0,0.15)',
     borderRadius: 'var(--fk-radius-input, 6px)',
     fontSize: 'var(--fk-font-base-size, 14px)',
     backgroundColor: '#fff',

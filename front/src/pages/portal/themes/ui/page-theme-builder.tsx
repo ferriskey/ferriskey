@@ -190,7 +190,11 @@ function ThemeTokensTab({ cssVars }: { cssVars: CSSProperties }) {
       <div className='overflow-auto bg-muted/30 p-6' style={cssVars}>
         <PreviewBox />
       </div>
-      <aside className='border-l border-border'>
+      {/* `min-h-0` lets the grid child shrink to the row height so the
+          ScrollArea inside can actually clip and scroll. Without it, the
+          aside grows to fit its content and the ScrollArea inherits an
+          infinite track, which renders as "no scroll". */}
+      <aside className='min-h-0 border-l border-border'>
         <ScrollArea className='h-full'>
           <div className='flex flex-col gap-6 p-4'>
             <ColorsPanel />
