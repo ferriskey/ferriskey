@@ -404,6 +404,138 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
       )
     }
 
+    case 'card':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <TextField
+              label='Max width'
+              value={node.props.maxWidth as string}
+              onChange={(v) => updateProp('maxWidth', v)}
+            />
+            <TextField
+              label='Padding'
+              value={node.props.padding as string}
+              onChange={(v) => updateProp('padding', v)}
+            />
+            <TextField
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+          <ConfigSection title='Style' defaultOpen={false}>
+            <ColorField
+              label='Background'
+              value={node.props.backgroundColor as string}
+              onChange={(v) => updateProp('backgroundColor', v)}
+            />
+            <TextField
+              label='Border radius'
+              value={node.props.borderRadius as string}
+              onChange={(v) => updateProp('borderRadius', v)}
+            />
+            <ColorField
+              label='Border color'
+              value={node.props.borderColor as string}
+              onChange={(v) => updateProp('borderColor', v)}
+            />
+            <TextField
+              label='Box shadow'
+              value={node.props.boxShadow as string}
+              onChange={(v) => updateProp('boxShadow', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-header':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Text align'
+              value={(node.props.textAlign as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('textAlign', v)}
+              allowEmpty={false}
+            />
+            <TextField
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-content':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <TextField
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-footer':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Direction'
+              value={(node.props.direction as string) || 'row'}
+              options={[
+                { label: 'Row', value: 'row' },
+                { label: 'Column', value: 'column' },
+              ]}
+              onChange={(v) => updateProp('direction', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Justify'
+              value={(node.props.justifyContent as string) || 'flex-end'}
+              options={[
+                { label: 'Start', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'End', value: 'flex-end' },
+                { label: 'Space between', value: 'space-between' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+              allowEmpty={false}
+            />
+            <TextField
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'heading':
       return (
         <div className='flex flex-col'>

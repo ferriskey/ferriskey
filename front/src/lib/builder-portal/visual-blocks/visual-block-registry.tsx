@@ -4,6 +4,10 @@ import type { BuilderNode, ComponentDefinition } from '../../builder-core'
 import { useBuilderContext } from '../../builder-core'
 import {
   buttonStyle,
+  cardContentStyle,
+  cardFooterStyle,
+  cardHeaderStyle,
+  cardStyle,
   containerStyle,
   divStyle,
   headingStyle,
@@ -105,6 +109,30 @@ export function renderVisualBlock(
     case 'div':
       return (
         <BoxBlock label='Div' node={node} isSelected={isSelected} style={divStyle(node)}>
+          {children}
+        </BoxBlock>
+      )
+    case 'card':
+      return (
+        <BoxBlock label='Card' node={node} isSelected={isSelected} style={cardStyle(node)}>
+          {children}
+        </BoxBlock>
+      )
+    case 'card-header':
+      return (
+        <BoxBlock label='Header' node={node} isSelected={isSelected} style={cardHeaderStyle(node)}>
+          {children}
+        </BoxBlock>
+      )
+    case 'card-content':
+      return (
+        <BoxBlock label='Content' node={node} isSelected={isSelected} style={cardContentStyle(node)}>
+          {children}
+        </BoxBlock>
+      )
+    case 'card-footer':
+      return (
+        <BoxBlock label='Footer' node={node} isSelected={isSelected} style={cardFooterStyle(node)}>
           {children}
         </BoxBlock>
       )

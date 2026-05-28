@@ -64,6 +64,34 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         </div>
       )
 
+    case 'card':
+      return (
+        <div key={node.id} {...idAttr} style={cardStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-header':
+      return (
+        <div key={node.id} {...idAttr} style={cardHeaderStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-content':
+      return (
+        <div key={node.id} {...idAttr} style={cardContentStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-footer':
+      return (
+        <div key={node.id} {...idAttr} style={cardFooterStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
     case 'heading': {
       const level = (node.props.level as string) ?? '2'
       const Tag = (`h${level}` as 'h1' | 'h2' | 'h3' | 'h4')
@@ -438,6 +466,91 @@ function providerArrowStyle(): CSSProperties {
   return {
     fontSize: 12,
     color: 'var(--fk-color-body-text, #9ca3af)',
+  }
+}
+
+/**
+ * ShadCN-flavoured Card. Uses the theme's `widget-*` tokens so it always
+ * picks up whatever surface/radius/shadow the admin has configured in the
+ * theme tab — drop a Card and it already matches the rest of the realm.
+ *
+ * Centring: `margin: 0 auto` resolves the horizontal alignment regardless of
+ * whether the parent uses block, flex (column), or grid layout, so the Card
+ * "just sits in the middle" of the page without the author needing to set
+ * the parent's `align-items` or `justify-content`. The `align` prop lets the
+ * author opt into a left- or right-anchored card when needed.
+ */
+export function cardStyle(node: BuilderNode): CSSProperties {
+  const align = (node.props.align as string) || 'center'
+  const marginX =
+    align === 'left' ? '0 auto 0 0' : align === 'right' ? '0 0 0 auto' : '0 auto'
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    maxWidth: (node.props.maxWidth as string) || '440px',
+    margin: marginX,
+    backgroundColor:
+      (node.props.backgroundColor as string) ||
+      'var(--fk-color-widget-bg, #ffffff)',
+    borderRadius:
+      (node.props.borderRadius as string) || 'var(--fk-radius-widget, 12px)',
+    border: `var(--fk-border-widget, 1px) solid ${
+      (node.props.borderColor as string) || 'rgba(0,0,0,0.08)'
+    }`,
+    boxShadow:
+      (node.props.boxShadow as string) ||
+      'var(--fk-shadow-widget, 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1))',
+    padding:
+      (node.props.padding as string) ||
+      'var(--fk-spacing-widget-padding, 32px)',
+    gap: (node.props.gap as string) || '20px',
+    ...orderStyle(node),
+  }
+}
+
+/**
+ * Card header slot — title + supporting text live here. Defaults to a
+ * centred column with a tight gap so a Heading + Text pair reads as one
+ * unit.
+ */
+export function cardHeaderStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: ((node.props.textAlign as string) || 'center') === 'center'
+      ? 'center'
+      : (node.props.textAlign as string) === 'right'
+        ? 'flex-end'
+        : 'flex-start',
+    gap: (node.props.gap as string) || '6px',
+    textAlign: ((node.props.textAlign as string) || 'center') as CSSProperties['textAlign'],
+  }
+}
+
+/**
+ * Card content slot — main body. Stays a column with a comfortable gap so a
+ * stack of inputs / providers automatically lines up.
+ */
+export function cardContentStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: (node.props.gap as string) || '12px',
+  }
+}
+
+/**
+ * Card footer slot — buttons row. Defaults to flex-end so the primary action
+ * sits on the right, like ShadCN's `<CardFooter>` and most auth flows.
+ */
+export function cardFooterStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: ((node.props.direction as string) || 'row') as 'row' | 'column',
+    justifyContent: (node.props.justifyContent as string) || 'flex-end',
+    alignItems: (node.props.alignItems as string) || 'center',
+    gap: (node.props.gap as string) || '8px',
   }
 }
 

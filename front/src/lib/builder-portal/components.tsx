@@ -2,6 +2,7 @@ import {
   AtSign,
   Box,
   CheckSquare,
+  CreditCard,
   Fingerprint,
   Globe,
   Heading as HeadingIcon,
@@ -13,15 +14,18 @@ import {
   Minus,
   MousePointerClick,
   MoveVertical,
+  PanelBottom,
+  PanelTop,
   Square,
   TextCursorInput,
   Type,
 } from 'lucide-react'
-import type { BuilderNode, ComponentDefinition } from '../builder-core'
+import { generateNodeId, type BuilderNode, type ComponentDefinition } from '../builder-core'
 
 const ALL_CHILDREN = [
   'container',
   'div',
+  'card',
   'heading',
   'text',
   'image',
@@ -38,6 +42,13 @@ const ALL_CHILDREN = [
   'identity_providers',
   'page-content',
 ]
+
+/**
+ * Children allowed inside a Card slot (header / content / footer). Same as
+ * `ALL_CHILDREN` minus the slot blocks themselves and `card` (nesting cards
+ * inside a slot would defeat the centred layout the parent card provides).
+ */
+const CARD_SLOT_CHILDREN = ALL_CHILDREN.filter((t) => t !== 'card')
 
 export const portalComponents: ComponentDefinition[] = [
   {
@@ -98,6 +109,61 @@ export const portalComponents: ComponentDefinition[] = [
       rowGap: '',
       justifyItems: 'stretch',
       autoFlow: 'row',
+    },
+    defaultStyles: {},
+  },
+  // ShadCN-style Card: opinionated wrapper that auto-centres at a sensible
+  // max width with the theme's widget tokens (background, radius, border,
+  // shadow, padding). Drops three named slots so the author always gets the
+  // header / content / footer split for free — the slots themselves are not
+  // exposed in the library and only live as children of a card.
+  {
+    type: 'card',
+    label: 'Card',
+    icon: <CreditCard size={14} />,
+    isContainer: true,
+    allowedChildren: ['card-header', 'card-content', 'card-footer'],
+    defaultProps: {
+      maxWidth: '440px',
+      // `auto` margins centre the card horizontally in its parent regardless
+      // of whether the parent uses block, flex, or grid layout.
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'card-header',
+    label: 'Card header',
+    icon: <PanelTop size={14} />,
+    isContainer: true,
+    allowedChildren: CARD_SLOT_CHILDREN,
+    defaultProps: {
+      textAlign: 'center',
+      gap: '6px',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'card-content',
+    label: 'Card content',
+    icon: <LayoutTemplate size={14} />,
+    isContainer: true,
+    allowedChildren: CARD_SLOT_CHILDREN,
+    defaultProps: {
+      gap: '12px',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'card-footer',
+    label: 'Card footer',
+    icon: <PanelBottom size={14} />,
+    isContainer: true,
+    allowedChildren: CARD_SLOT_CHILDREN,
+    defaultProps: {
+      direction: 'row',
+      justifyContent: 'flex-end',
+      gap: '8px',
     },
     defaultStyles: {},
   },
@@ -280,8 +346,18 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'identity_providers',
 ])
 
-/** Block types that only make sense in a layout tree, never in a page tree. */
-export const LAYOUT_ONLY_BLOCK_TYPES = new Set(['page-content'])
+/**
+ * Block types hidden from the component library. Either layout-tree only
+ * (`page-content`), or named slots that exist solely as children of a parent
+ * block (`card-header` / `card-content` / `card-footer` — pre-populated by
+ * the Card's `getDefaultNode` and never authored standalone).
+ */
+export const LAYOUT_ONLY_BLOCK_TYPES = new Set([
+  'page-content',
+  'card-header',
+  'card-content',
+  'card-footer',
+])
 
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   heading: 'Welcome',
@@ -292,13 +368,34 @@ const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   passkey_button: 'Sign in with a passkey',
 }
 
+/**
+ * Build a fully-formed `BuilderNode` (including `id`) of the given type using
+ * the same defaults as `getDefaultNode`. Used by `getDefaultNode('card')` to
+ * pre-populate the header/content/footer slots so the author drops a Card and
+ * gets a working layout immediately — no need to add the three slots by hand.
+ */
+function buildNode(type: string): BuilderNode {
+  const seed = getDefaultNode(type)
+  return { ...seed, id: generateNodeId() }
+}
+
 export function getDefaultNode(type: string): Omit<BuilderNode, 'id'> {
   const def = portalComponents.find((c) => c.type === type)
-  return {
+  const base: Omit<BuilderNode, 'id'> = {
     type,
     props: { ...(def?.defaultProps ?? {}) },
     styles: { ...(def?.defaultStyles ?? {}) },
     children: [],
     content: def?.hasContent ? (DEFAULT_CONTENT[type] ?? '') : undefined,
   }
+
+  // A Card is unusable without its three slots — pre-fill them so dropping a
+  // Card produces the same shape ShadCN users expect (header / content /
+  // footer all present, ready for blocks). The slot defaults are produced by
+  // recursing through `buildNode`, which gives each one a stable id.
+  if (type === 'card') {
+    return { ...base, children: [buildNode('card-header'), buildNode('card-content'), buildNode('card-footer')] }
+  }
+
+  return base
 }
