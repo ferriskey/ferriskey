@@ -28,14 +28,14 @@ RUN \
     ca-certificates=20250419 \
     libssl3=3.5.6-1~deb13u1 && \
     rm -rf /var/lib/apt/lists/* && \
-    addgroup \
+    groupadd \
     --system \
     --gid 1000 \
     ferriskey && \
-    adduser \
+    useradd \
     --system \
     --no-create-home \
-    --disabled-login \
+    --shell /usr/sbin/nologin \
     --uid 1000 \
     --gid 1000 \
     ferriskey
