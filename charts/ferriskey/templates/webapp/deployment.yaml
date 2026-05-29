@@ -38,10 +38,11 @@ spec:
       {{- include "ferriskey.webapp.podLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with $podAnnotations }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/webapp/configmap.yaml") . | sha256sum }}
+        {{- with $podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "ferriskey.webapp.podLabels" . | nindent 8 }}
     spec:
@@ -59,12 +60,10 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- with $env }}
           env:
-            - name: API_URL
-              value: {{ (.Values.webapp.api.url | default (and .Values.publicHost (printf "%s://%s%s" .Values.webapp.api.protocol .Values.publicHost .Values.api.server.rootPath)) | default "") | quote }}
-            {{- with $env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- with $envFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}
@@ -100,10 +99,10 @@ spec:
               mountPath: /tmp
               readOnly: false
               subPath: tmp
-            - name: empty-dir
-              mountPath: /usr/share/nginx/html
-              readOnly: false
-              subPath: usr/share/nginx/html
+            - name: webapp-config
+              mountPath: /usr/share/nginx/html/config.json
+              subPath: config.json
+              readOnly: true
             {{- with $volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -190,6 +189,12 @@ spec:
         - name: empty-dir
           emptyDir:
             sizeLimit: {{ .Values.webapp.emptyDirSize | default .Values.common.emptyDirSize }}
+        - name: webapp-config
+          configMap:
+            name: {{ include "ferriskey.webapp.configJsonName" . }}
+            items:
+              - key: config.json
+                path: config.json
         {{- with $volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
