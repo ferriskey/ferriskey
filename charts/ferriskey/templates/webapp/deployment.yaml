@@ -97,10 +97,6 @@ spec:
           {{- end }}
           volumeMounts:
             - name: empty-dir
-              mountPath: /run
-              readOnly: false
-              subPath: run
-            - name: empty-dir
               mountPath: /tmp
               readOnly: false
               subPath: tmp
@@ -108,10 +104,6 @@ spec:
               mountPath: /usr/share/nginx/html
               readOnly: false
               subPath: usr/share/nginx/html
-            - name: empty-dir
-              mountPath: /var/cache/nginx
-              readOnly: false
-              subPath: var/cache/nginx
             {{- with $volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
