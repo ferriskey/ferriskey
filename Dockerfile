@@ -1,4 +1,4 @@
-FROM rust:1.95.0-bookworm AS chef
+FROM rust:1.95.0-trixie AS chef
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -19,32 +19,10 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release
 
-# ── Shared runtime base ───────────────────────────────────────────────────────
-FROM debian:bookworm-slim AS runtime
-
-RUN \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates=20230311+deb12u1 \
-    libssl3=3.0.17-1~deb12u2 && \
-    rm -rf /var/lib/apt/lists/* && \
-    addgroup \
-    --system \
-    --gid 1000 \
-    ferriskey && \
-    adduser \
-    --system \
-    --no-create-home \
-    --disabled-login \
-    --uid 1000 \
-    --gid 1000 \
-    ferriskey
-
-USER ferriskey
-
 # ── API image ─────────────────────────────────────────────────────────────────
-FROM runtime AS api
+FROM gcr.io/distroless/base-debian13:latest AS api
 
+COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
 COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
 COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
@@ -54,8 +32,9 @@ EXPOSE 80
 ENTRYPOINT ["ferriskey-api"]
 
 # ── Operator image ────────────────────────────────────────────────────────────
-FROM runtime AS operator
+FROM gcr.io/distroless/base-debian13:latest AS operator
 
+COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
 COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-operator /usr/local/bin/
 
 EXPOSE 80
@@ -91,14 +70,14 @@ COPY front/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:bookworm-slim AS standalone
+FROM debian:trixie-slim AS standalone
 
 # hadolint ignore=DL3008
 RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    ca-certificates=20230311+deb12u1 \
-    libssl3=3.0.17-1~deb12u2 \
+    ca-certificates=20250419 \
+    libssl3=3.5.6-1~deb13u1 \
     nginx \
     supervisor && \
     rm -rf /var/lib/apt/lists/* && \
