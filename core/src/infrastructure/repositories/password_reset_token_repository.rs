@@ -39,6 +39,7 @@ impl From<PrtModel> for PasswordResetToken {
             token_hash: model.token_hash,
             created_at,
             expires_at,
+            auth_session_code: None, // wired up in PR 2 (migration adds the column)
         }
     }
 }

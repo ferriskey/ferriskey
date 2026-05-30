@@ -157,6 +157,9 @@ pub struct RequestPasswordResetInput {
     pub realm_name: String,
     pub email: String,
     pub base_url: String,
+    /// Session code from the FERRISKEY_SESSION cookie at request time,
+    /// stored so completion can resume the original OAuth flow.
+    pub session_code: Option<String>,
 }
 
 pub struct CompletePasswordResetInput {
@@ -168,6 +171,10 @@ pub struct CompletePasswordResetInput {
 pub struct CompletePasswordResetOutput {
     pub user_id: Uuid,
     pub realm_id: Uuid,
+    /// When the password reset was initiated inside an OAuth flow, this is the
+    /// login URL (containing an authorization code) the browser should be
+    /// redirected to so the original client gets its callback.
+    pub login_url: Option<String>,
 }
 
 pub struct VerifyResetTokenInput {

@@ -86,6 +86,11 @@ pub struct PasswordResetToken {
     pub token_hash: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    /// Session code of the AuthSession that was active when the password reset
+    /// was requested. Used at completion time to redirect the user back to the
+    /// original OAuth client (e.g. an external SPA) instead of dropping them on
+    /// the FerrisKey console.
+    pub auth_session_code: Option<Uuid>,
 }
 
 impl PasswordResetToken {
