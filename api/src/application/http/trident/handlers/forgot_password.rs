@@ -50,6 +50,7 @@ pub async fn forgot_password(
             realm_name,
             email: payload.email,
             base_url,
+            session_code: None, // wired up in PR 3 (read from FERRISKEY_SESSION cookie)
         })
         .await?;
 

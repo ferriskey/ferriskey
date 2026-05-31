@@ -1506,6 +1506,11 @@ where
         let ttl_minutes = 30i64;
         let expires_at = Utc::now() + Duration::minutes(ttl_minutes);
 
+        let auth_session_code = input
+            .session_code
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok());
+
         let prt = PasswordResetToken {
             id: generate_uuid_v7(),
             user_id: user.id,
@@ -1514,6 +1519,7 @@ where
             token_hash: token_hash.hash,
             created_at: Utc::now(),
             expires_at,
+            auth_session_code,
         };
 
         self.password_reset_token_repository.create(&prt).await?;
@@ -1733,6 +1739,7 @@ where
 
         let user_id = prt.user_id;
         let realm_id = prt.realm_id;
+        let auth_session_code = prt.auth_session_code;
 
         // 5. Delete all reset tokens for this user
         self.password_reset_token_repository
@@ -1773,7 +1780,53 @@ where
             .await
             .inspect_err(|e| warn!("Failed to emit password reset webhook: {}", e));
 
-        Ok(CompletePasswordResetOutput { user_id, realm_id })
+        let login_url = if let Some(session_code) = auth_session_code {
+            match self
+                .auth_session_repository
+                .get_by_session_code(session_code)
+                .await
+            {
+                Ok(auth_session) if Uuid::from(auth_session.realm_id) == realm_id => {
+                    match store_auth_code_and_generate_login_url::<AS>(
+                        &self.auth_session_repository,
+                        &auth_session,
+                        user_id,
+                    )
+                    .await
+                    {
+                        Ok(url) => Some(url),
+                        Err(e) => {
+                            warn!(
+                                "Failed to generate login URL after password reset, falling back to console: {}",
+                                e
+                            );
+                            None
+                        }
+                    }
+                }
+                Ok(auth_session) => {
+                    warn!(
+                        "AuthSession realm {} does not match password reset realm {}, falling back to console",
+                        Uuid::from(auth_session.realm_id),
+                        realm_id
+                    );
+                    None
+                }
+                Err(_) => {
+                    // Session might have expired or been purged between request and completion.
+                    // Falling back to console-login is safer than returning a 500 here.
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(CompletePasswordResetOutput {
+            user_id,
+            realm_id,
+            login_url,
+        })
     }
 
     async fn verify_reset_token(&self, input: VerifyResetTokenInput) -> Result<(), CoreError> {
@@ -2006,6 +2059,7 @@ mod tests {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
+                session_code: None,
             })
             .await;
 
@@ -2047,6 +2101,7 @@ mod tests {
                 realm_name: "test-realm".to_string(),
                 email: "unknown@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
+                session_code: None,
             })
             .await;
 
@@ -2107,6 +2162,7 @@ mod tests {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
+                session_code: None,
             })
             .await;
 
@@ -2144,6 +2200,7 @@ mod tests {
                 realm_name: "test-realm".to_string(),
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
+                session_code: None,
             })
             .await;
 
@@ -2166,6 +2223,7 @@ mod tests {
             token_hash: "hashed_token".to_string(),
             created_at: Utc::now(),
             expires_at: Utc::now() + Duration::minutes(30),
+            auth_session_code: None,
         };
         let prt_user_id = prt.user_id;
 
@@ -2268,6 +2326,7 @@ mod tests {
             token_hash: "hashed_token".to_string(),
             created_at: Utc::now() - Duration::hours(1),
             expires_at: Utc::now() - Duration::minutes(30), // expired
+            auth_session_code: None,
         };
 
         let prt_clone = prt.clone();
@@ -2310,6 +2369,7 @@ mod tests {
             token_hash: "hashed_token".to_string(),
             created_at: Utc::now(),
             expires_at: Utc::now() + Duration::minutes(30),
+            auth_session_code: None,
         };
 
         let prt_clone = prt.clone();
