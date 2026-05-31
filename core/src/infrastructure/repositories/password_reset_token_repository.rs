@@ -39,7 +39,7 @@ impl From<PrtModel> for PasswordResetToken {
             token_hash: model.token_hash,
             created_at,
             expires_at,
-            auth_session_code: None, // wired up in PR 2 (migration adds the column)
+            auth_session_code: model.auth_session_code,
         }
     }
 }
@@ -54,6 +54,7 @@ impl PasswordResetTokenRepository for PostgresPasswordResetTokenRepository {
             token_hash: Set(token.token_hash.clone()),
             created_at: Set(token.created_at.fixed_offset()),
             expires_at: Set(token.expires_at.fixed_offset()),
+            auth_session_code: Set(token.auth_session_code),
         };
 
         active_model.insert(&self.db).await.map_err(|e| {
