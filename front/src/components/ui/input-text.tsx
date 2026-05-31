@@ -15,6 +15,13 @@ export interface InputTextProps {
   autoComplete?: string
   // variable to control the toggle visibility of the password even if it's in disable
   togglePasswordVisibility?: boolean
+  /**
+   * Mark the field as required: appends a red `*` after the label and sets
+   * the HTML `required` attribute so the browser's native form validation
+   * kicks in as a fallback if the form-level Zod validation is bypassed
+   * (e.g., when the input is used outside react-hook-form).
+   */
+  required?: boolean
 }
 
 export function InputText({
@@ -29,6 +36,7 @@ export function InputText({
   disabled,
   autoComplete,
   togglePasswordVisibility = false,
+  required = false,
 }: InputTextProps) {
   const [focused, setFocused] = useState<boolean>(false)
   const inputRef = useRef<HTMLDivElement>(null)
@@ -67,6 +75,11 @@ export function InputText({
               className={cn(hasFocus ? 'text-xs' : 'translate-y-2 text-sm')}
             >
               {label}
+              {required && (
+                <span aria-hidden='true' className='ml-0.5 text-destructive'>
+                  *
+                </span>
+              )}
             </label>
 
             <input
@@ -75,6 +88,8 @@ export function InputText({
               className={'input__value'}
               type={currentType}
               disabled={disabled}
+              required={required}
+              aria-required={required || undefined}
               autoComplete={autoComplete}
               value={currentValue}
               onChange={(e) => {

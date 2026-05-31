@@ -1,13 +1,15 @@
-import { Brush, Palette, Type } from 'lucide-react'
+import { LayoutGrid, MousePointerClick, Square, TextCursorInput, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePortalThemeContext, type BuilderTab } from '../context/portal-theme-context'
 
-type Item = { id: BuilderTab; label: string; Icon: typeof Palette }
+type Item = { id: BuilderTab; label: string; Icon: typeof Square }
 
 const ITEMS: Item[] = [
-  { id: 'colors', label: 'Colors', Icon: Palette },
-  { id: 'fonts', label: 'Fonts', Icon: Type },
-  { id: 'borders', label: 'Borders & widget', Icon: Brush },
+  { id: 'buttons', label: 'Buttons', Icon: MousePointerClick },
+  { id: 'inputs', label: 'Inputs', Icon: TextCursorInput },
+  { id: 'widget', label: 'Widget', Icon: Square },
+  { id: 'typography', label: 'Typography', Icon: Type },
+  { id: 'page', label: 'Page', Icon: LayoutGrid },
 ]
 
 export function SidebarNav() {

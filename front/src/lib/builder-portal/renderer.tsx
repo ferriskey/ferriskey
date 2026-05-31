@@ -1,9 +1,20 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
+import { OTPInput, type SlotProps } from 'input-otp'
+import {
+  AlertCircle,
+  Copy,
+  KeyRound,
+  Loader2,
+  Mail,
+  QrCode as QrCodeIcon,
+} from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
 } from '@/pages/identity-providers/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
+import { PortalInput } from './components/portal-input'
 
 type RenderOptions = {
   /** Replaces <page-content /> nodes with this slot content (used by layouts). */
@@ -18,6 +29,35 @@ type RenderOptions = {
    * placeholder list rendered for `identity_providers` blocks in the canvas.
    */
   identityProviders?: Schemas.IdentityProviderPresentation[]
+  /**
+   * Per-render data for the `totp_setup` page. The QR code + secret are
+   * supplied by the backend's `/login-actions/setup-otp` endpoint and
+   * passed through here so the `totp_qr_code` / `totp_secret` blocks can
+   * render real values instead of placeholders. When absent (canvas
+   * preview or any other page type), the blocks render placeholder
+   * content so the admin still sees them in the layout.
+   */
+  totpSetup?: {
+    otpauthUrl: string
+    secret: string
+  }
+  /**
+   * Inline form-error message surfaced by the page's submit handler
+   * (invalid credentials, email already in use, …). Read by the
+   * `form_error_banner` block — when `null`/absent, the banner renders
+   * `null` so it doesn't take layout space. In the canvas preview
+   * we substitute a placeholder message so the admin can style the
+   * banner without having to trigger a real failure.
+   */
+  formError?: string | null
+  /**
+   * `true` while the page's submit network call is in flight. The
+   * runtime `submit_button` reads this and flips into a loader +
+   * disabled state. Wrapper-level CSS (`buttonInteractionCss`) also
+   * uses the `data-fk-busy` flag the renderer emits to set
+   * `cursor: wait` and dim the button.
+   */
+  isSubmitting?: boolean
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
@@ -61,6 +101,34 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
           {node.children.length > 0
             ? node.children.map((c) => renderNode(c, options))
             : null}
+        </div>
+      )
+
+    case 'card':
+      return (
+        <div key={node.id} {...idAttr} style={cardStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-header':
+      return (
+        <div key={node.id} {...idAttr} style={cardHeaderStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-content':
+      return (
+        <div key={node.id} {...idAttr} style={cardContentStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
+        </div>
+      )
+
+    case 'card-footer':
+      return (
+        <div key={node.id} {...idAttr} style={cardFooterStyle(node)}>
+          {node.children.map((c) => renderNode(c, options))}
         </div>
       )
 
@@ -135,6 +203,10 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
           key={node.id}
           {...idAttr}
           href={(node.props.href as string) || '#'}
+          // `data-fk-portal-btn` is the marker the wrapper's injected CSS
+          // uses to wire :hover / :active / :disabled / busy states (see
+          // `buttonInteractionCss` in PortalLayoutWrapper).
+          data-fk-portal-btn=''
           style={buttonStyle(node)}
         >
           {node.content ?? 'Button'}
@@ -145,25 +217,167 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
       // In the runtime portal, the submit button drives the host <form>'s
       // onSubmit handler. In the builder preview it stays a non-interactive
       // link so it visually matches the regular button without firing nav.
+      // `data-fk-busy` reflects the in-flight state of the page's submit
+      // mutation so the user gets a loader + locked cursor while the
+      // network call resolves — same affordance the React default theme
+      // shows on the login form.
       return options.runtime ? (
         <button
           key={node.id}
           {...idAttr}
           type='submit'
-          style={{ ...buttonStyle(node), border: 'none', cursor: 'pointer' }}
+          data-fk-portal-btn=''
+          data-fk-busy={options.isSubmitting ? 'true' : 'false'}
+          disabled={options.isSubmitting}
+          style={{ ...buttonStyle(node), gap: 8, border: 'none', cursor: 'pointer' }}
         >
-          {node.content ?? 'Submit'}
+          {options.isSubmitting && (
+            <Loader2 size={16} aria-hidden data-fk-portal-spinner='' />
+          )}
+          <span>{node.content ?? 'Submit'}</span>
         </button>
       ) : (
-        <a key={node.id} {...idAttr} href='#' style={buttonStyle(node)}>
+        <a
+          key={node.id}
+          {...idAttr}
+          href='#'
+          data-fk-portal-btn=''
+          style={buttonStyle(node)}
+        >
           {node.content ?? 'Submit'}
         </a>
       )
 
+    // Magic link / passkey: rendered as alternative auth actions. The host
+    // portal page wires the click behavior by selecting on the
+    // `data-fk-action` attribute (so the renderer stays declarative and the
+    // builder preview is still inert). `type="button"` keeps them from
+    // submitting the surrounding <form> by accident.
+    case 'magic_link_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='magic-link'
+          data-fk-portal-btn=''
+          style={{
+            ...magicLinkButtonStyle(node),
+            gap: 8,
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          <Mail size={16} aria-hidden />
+          <span>{node.content ?? 'Sign in with a magic link'}</span>
+        </button>
+      )
+
+    case 'passkey_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='passkey'
+          data-fk-portal-btn=''
+          style={{
+            ...passkeyButtonStyle(node),
+            gap: 8,
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          <KeyRound size={16} aria-hidden />
+          <span>{node.content ?? 'Sign in with a passkey'}</span>
+        </button>
+      )
+
+    // Inline anchor link to the realm's `/forgot-password` page. Relative
+    // href means the renderer doesn't need to know the realm name — the
+    // browser resolves it against the current `…/authentication/login` URL.
+    // `./forgot-password` (NOT `../forgot-password`) is the right form: the
+    // browser drops the last URL segment to find the base "directory"
+    // (`…/authentication/`), then `./` stays there. Using `..` would climb
+    // out of `/authentication/` and land on `/realms/{realm}/forgot-password`
+    // — a 404 that the app's catch-all bounces back to login. React Router's
+    // `<Link to='../…'>` resolves by *route*, not by URL, which is why the
+    // legacy login page could use it.
+    // In the builder canvas we keep the click inert so the preview doesn't
+    // navigate while the admin is editing.
+    case 'forgot_password_link':
+      return (
+        <a
+          key={node.id}
+          {...idAttr}
+          href='./forgot-password'
+          onClick={options.runtime ? undefined : (e) => e.preventDefault()}
+          style={forgotPasswordLinkStyle(node)}
+        >
+          {node.content ?? 'Forgot password?'}
+        </a>
+      )
+
+    // "Back to login" inline link. Same relative-href reasoning as
+    // forgot-password — `./login` resolves to the realm's login page from
+    // any sibling auth page (register, forgot-password, magic-link-*, …).
+    // Styling is shared with the forgot-password link: both are inline
+    // auth-flow navigation hints, same visual weight makes them feel like a
+    // pair when both appear on the same page.
+    case 'back_to_login_link':
+      return (
+        <a
+          key={node.id}
+          {...idAttr}
+          href='./login'
+          onClick={options.runtime ? undefined : (e) => e.preventDefault()}
+          style={forgotPasswordLinkStyle(node)}
+        >
+          {node.content ?? 'Back to login'}
+        </a>
+      )
+
+    // "Sign up" inline link. Routes to `./register`, same relative-href
+    // mechanics. Shares link styling with the other auth-flow nav links.
+    case 'register_link':
+      return (
+        <a
+          key={node.id}
+          {...idAttr}
+          href='./register'
+          onClick={options.runtime ? undefined : (e) => e.preventDefault()}
+          style={forgotPasswordLinkStyle(node)}
+        >
+          {node.content ?? 'Don\u2019t have an account? Sign up'}
+        </a>
+      )
+
+    // TOTP enrolment: dynamic blocks fed by the backend's setup-otp call.
+    // The actual data is passed via `options.totpSetup` — when absent
+    // (canvas preview / other pages), we render a placeholder so the
+    // admin can still see + position the block.
+    case 'totp_qr_code':
+      return (
+        <TotpQrCodeBlock key={node.id} node={node} options={options} />
+      )
+
+    case 'totp_secret':
+      return (
+        <TotpSecretBlock key={node.id} node={node} options={options} />
+      )
+
+    case 'form_error_banner':
+      return (
+        <FormErrorBannerBlock key={node.id} node={node} options={options} />
+      )
+
     case 'input':
+    case 'username_input':
+    case 'first_name_input':
+    case 'last_name_input':
     case 'email_input':
     case 'password_input':
-    case 'totp_input':
+    case 'password_confirm_input':
       return (
         <div
           key={node.id}
@@ -175,15 +389,54 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
             ...orderStyle(node),
           }}
         >
+          <PortalInput
+            name={resolveInputName(node)}
+            label={(node.props.label as string) || ''}
+            type={resolveInputType(node)}
+            placeholder={(node.props.placeholder as string) || ''}
+            disabled={!options.runtime}
+            autoComplete={resolveAutoComplete(node)}
+            // In the canvas preview the field is disabled and never
+            // receives focus, so the floating label would never lift —
+            // force it into the lifted position so the admin sees the
+            // label clearly even on an empty preview field.
+            alwaysFloatLabel={!options.runtime}
+          />
+          {node.props.helperText ? (
+            <span style={inputHelperStyle()}>{node.props.helperText as string}</span>
+          ) : null}
+        </div>
+      )
+
+    // TOTP gets a segmented digit-by-digit OTP input — the typical 6-slot
+    // UI users expect from authenticator-style codes. The `input-otp`
+    // library renders an actual `<input>` underneath that holds the
+    // concatenated value, with `name="totp"` so the surrounding <form>
+    // picks it up identically to the plain `<input>` cases above.
+    case 'totp_input':
+      return (
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            alignItems: 'center',
+            ...orderStyle(node),
+          }}
+        >
           {node.props.label ? (
             <label style={inputLabelStyle()}>{node.props.label as string}</label>
           ) : null}
-          <input
-            type={resolveInputType(node)}
-            name={resolveInputName(node)}
-            placeholder={(node.props.placeholder as string) || ''}
-            style={inputFieldStyle()}
+          <TotpInputField
             disabled={!options.runtime}
+            name={resolveInputName(node) ?? 'totp'}
+            length={(() => {
+              const raw = (node.props.length as string) || '6'
+              const n = Number.parseInt(raw, 10)
+              return Number.isFinite(n) && n > 0 && n <= 12 ? n : 6
+            })()}
           />
           {node.props.helperText ? (
             <span style={inputHelperStyle()}>{node.props.helperText as string}</span>
@@ -192,8 +445,20 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
       )
 
     case 'page-content':
+      // The slot must always span the full content area its layout exposes,
+      // regardless of how the surrounding container is aligned. Without an
+      // explicit `width: 100%`, a parent like `Container { align: center }`
+      // (very common: an admin who wants their card centred) collapses the
+      // slot to the page tree's intrinsic width — so even a `width: 100%`
+      // div inside the page would only stretch to whatever its siblings
+      // happen to be, not to the layout's actual horizontal real estate.
+      // `align-self: stretch` covers the flex-child case in one go.
       return (
-        <div key={node.id} data-portal-page-content>
+        <div
+          key={node.id}
+          data-portal-page-content
+          style={{ width: '100%', alignSelf: 'stretch' }}
+        >
           {options.pageContent ?? null}
         </div>
       )
@@ -234,6 +499,191 @@ function buildProviderLoginUrl(loginUrl: string): string {
     }
   })
   return url.toString()
+}
+
+/**
+ * Renders the QR code for first-time TOTP enrolment. Uses `qrcode.react`
+ * (already a dep) to convert the `otpauth://` URL into an SVG. In the
+ * canvas preview (no `options.totpSetup`) we substitute a sample URL so
+ * the admin sees a realistic placeholder square instead of an empty box.
+ */
+export function TotpQrCodeBlock({
+  node,
+  options,
+}: {
+  node: BuilderNode
+  options: RenderOptions
+}) {
+  const size = (() => {
+    const raw = (node.props.size as string) ?? '180'
+    const n = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 80 && n <= 400 ? n : 180
+  })()
+  const align = ((node.props.align as string) || 'center') as
+    | 'left'
+    | 'center'
+    | 'right'
+  const justifyContent =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
+
+  // `qrcode.react` won't crash on an empty string but it does on
+  // truly-undefined. The canvas preview just shows a placeholder; the
+  // sample URL renders a meaningless but visually correct QR square so
+  // the admin can position it before any real data flows.
+  const value =
+    options.totpSetup?.otpauthUrl ??
+    'otpauth://totp/Sample:user@example.com?secret=PREVIEW&issuer=Sample'
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        display: 'flex',
+        justifyContent,
+        ...orderStyle(node),
+      }}
+    >
+      <div
+        style={{
+          padding: 12,
+          borderRadius: 'var(--fk-radius-input, 8px)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.08)',
+        }}
+      >
+        <QRCodeSVG value={value} size={size} level='M' />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Renders the TOTP secret in a copy-on-click pill. Used when the user
+ * can't scan the QR (no camera, manual entry). Placeholder text in the
+ * canvas preview keeps the layout honest.
+ */
+export function TotpSecretBlock({
+  node,
+  options,
+}: {
+  node: BuilderNode
+  options: RenderOptions
+}) {
+  const align = ((node.props.align as string) || 'center') as
+    | 'left'
+    | 'center'
+    | 'right'
+  const justifyContent =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
+  const secret = options.totpSetup?.secret ?? 'PREVIEW-SECRET-XXXX'
+
+  const handleCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(secret)
+    }
+  }
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        display: 'flex',
+        justifyContent,
+        ...orderStyle(node),
+      }}
+    >
+      <button
+        type='button'
+        onClick={handleCopy}
+        disabled={!options.runtime}
+        title='Copy secret'
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 10px',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
+          fontSize: 'var(--fk-font-base-size, 13px)',
+          color: 'var(--fk-color-body-text, #111827)',
+          background: 'rgba(0,0,0,0.04)',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: 'var(--fk-radius-input, 6px)',
+          cursor: options.runtime ? 'pointer' : 'default',
+          letterSpacing: 1,
+        }}
+      >
+        <QrCodeIcon size={12} aria-hidden style={{ opacity: 0.5 }} />
+        <span>{secret}</span>
+        <Copy size={12} aria-hidden style={{ opacity: 0.5 }} />
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Inline error banner that surfaces the latest submit failure (invalid
+ * credentials, "email already in use", session expired, …). The text
+ * comes from `options.formError` — populated by the submit handler in
+ * `usePortalPageSubmit`. When the option is `null`/absent at runtime
+ * the banner renders `null` so it doesn't take any layout space; in
+ * the canvas preview we substitute a placeholder so the admin can
+ * style it.
+ *
+ * Style follows the theme's `--fk-color-error` token by default; the
+ * `variant` prop is reserved for future "amber" (warning) /
+ * "blue" (info) variants — currently only `destructive` ships.
+ */
+export function FormErrorBannerBlock({
+  node,
+  options,
+}: {
+  node: BuilderNode
+  options: RenderOptions
+}) {
+  const message =
+    options.formError ??
+    (options.runtime ? null : 'Sample error: invalid credentials.')
+  if (!message) return null
+
+  const variant = ((node.props.variant as string) || 'destructive') as
+    | 'destructive'
+    | 'warning'
+    | 'info'
+
+  const palette =
+    variant === 'warning'
+      ? { fg: '#92400e', bg: 'rgba(217, 119, 6, 0.10)', border: 'rgba(217, 119, 6, 0.35)' }
+      : variant === 'info'
+        ? { fg: '#1e40af', bg: 'rgba(37, 99, 235, 0.08)', border: 'rgba(37, 99, 235, 0.30)' }
+        : {
+            fg: 'var(--fk-color-error, #d03c38)',
+            bg: 'color-mix(in srgb, var(--fk-color-error, #d03c38) 10%, transparent)',
+            border: 'color-mix(in srgb, var(--fk-color-error, #d03c38) 35%, transparent)',
+          }
+
+  return (
+    <div
+      data-fk-id={node.id}
+      role='alert'
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 8,
+        padding: '10px 12px',
+        borderRadius: 'var(--fk-radius-input, 6px)',
+        border: `1px solid ${palette.border}`,
+        background: palette.bg,
+        color: palette.fg,
+        fontSize: 'var(--fk-font-base-size, 14px)',
+        ...orderStyle(node),
+      }}
+    >
+      <AlertCircle size={16} aria-hidden style={{ marginTop: 1, flexShrink: 0 }} />
+      <span style={{ flex: 1 }}>{message}</span>
+    </div>
+  )
 }
 
 export function IdentityProvidersBlock({
@@ -352,10 +802,17 @@ function providerButtonStyle(): CSSProperties {
     gap: 12,
     width: '100%',
     padding: '10px 12px',
+    // Social provider buttons get their OWN theme tokens (distinct from the
+    // generic secondary button) so an admin can keep a neutral "Sign in with"
+    // look while branding their primary/secondary CTAs. Border thickness is
+    // also dedicated (`--fk-border-social-button`) — provider pills often
+    // look better with a thicker outline than the rest of the form's buttons.
+    // Radius stays shared with the button family for shape consistency.
     borderRadius: 'var(--fk-radius-button, 6px)',
-    border: 'var(--fk-border-button, 1px) solid var(--fk-color-body-text, #e5e7eb)',
-    backgroundColor: 'var(--fk-color-secondary-button, #ffffff)',
-    color: 'var(--fk-color-secondary-button-label, #111827)',
+    border:
+      'var(--fk-border-social-button, 1px) solid var(--fk-color-social-button-border, #d1d5db)',
+    backgroundColor: 'var(--fk-color-social-button-bg, #ffffff)',
+    color: 'var(--fk-color-social-button-label, #111827)',
     fontSize: 'var(--fk-font-base-size, 14px)',
     fontWeight: 500,
     textDecoration: 'none',
@@ -397,6 +854,94 @@ function providerArrowStyle(): CSSProperties {
   return {
     fontSize: 12,
     color: 'var(--fk-color-body-text, #9ca3af)',
+  }
+}
+
+/**
+ * ShadCN-flavoured Card. Uses the theme's `widget-*` tokens so it always
+ * picks up whatever surface/radius/shadow the admin has configured in the
+ * theme tab — drop a Card and it already matches the rest of the realm.
+ *
+ * Centring: `margin: 0 auto` resolves the horizontal alignment regardless of
+ * whether the parent uses block, flex (column), or grid layout, so the Card
+ * "just sits in the middle" of the page without the author needing to set
+ * the parent's `align-items` or `justify-content`. The `align` prop lets the
+ * author opt into a left- or right-anchored card when needed.
+ */
+export function cardStyle(node: BuilderNode): CSSProperties {
+  const align = (node.props.align as string) || 'center'
+  const marginX =
+    align === 'left' ? '0 auto 0 0' : align === 'right' ? '0 0 0 auto' : '0 auto'
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    maxWidth: (node.props.maxWidth as string) || '440px',
+    margin: marginX,
+    backgroundColor:
+      (node.props.backgroundColor as string) ||
+      'var(--fk-color-widget-bg, #ffffff)',
+    borderRadius:
+      (node.props.borderRadius as string) || 'var(--fk-radius-widget, 12px)',
+    // Default border colour bumped from 0.08 → 0.12 alpha so the 1px outline
+    // is actually perceptible against the widget background. With the
+    // previous value the edge melted into the page even on a white card.
+    border: `var(--fk-border-widget, 1px) solid ${
+      (node.props.borderColor as string) || 'rgba(0,0,0,0.12)'
+    }`,
+    boxShadow:
+      (node.props.boxShadow as string) ||
+      'var(--fk-shadow-widget, 0 4px 14px rgba(0,0,0,0.06), 0 12px 32px -4px rgba(0,0,0,0.08))',
+    padding:
+      (node.props.padding as string) ||
+      'var(--fk-spacing-widget-padding, 32px)',
+    gap: (node.props.gap as string) || '20px',
+    ...orderStyle(node),
+  }
+}
+
+/**
+ * Card header slot — title + supporting text live here. Defaults to a
+ * centred column with a tight gap so a Heading + Text pair reads as one
+ * unit.
+ */
+export function cardHeaderStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: ((node.props.textAlign as string) || 'center') === 'center'
+      ? 'center'
+      : (node.props.textAlign as string) === 'right'
+        ? 'flex-end'
+        : 'flex-start',
+    gap: (node.props.gap as string) || '6px',
+    textAlign: ((node.props.textAlign as string) || 'center') as CSSProperties['textAlign'],
+  }
+}
+
+/**
+ * Card content slot — main body. Stays a column with a comfortable gap so a
+ * stack of inputs / providers automatically lines up.
+ */
+export function cardContentStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: (node.props.gap as string) || '12px',
+  }
+}
+
+/**
+ * Card footer slot — buttons row. Defaults to flex-end so the primary action
+ * sits on the right, like ShadCN's `<CardFooter>` and most auth flows.
+ */
+export function cardFooterStyle(node: BuilderNode): CSSProperties {
+  return {
+    display: 'flex',
+    flexDirection: ((node.props.direction as string) || 'row') as 'row' | 'column',
+    justifyContent: (node.props.justifyContent as string) || 'flex-end',
+    alignItems: (node.props.alignItems as string) || 'center',
+    gap: (node.props.gap as string) || '8px',
   }
 }
 
@@ -512,6 +1057,178 @@ export function textStyle(node: BuilderNode): CSSProperties {
   }
 }
 
+/**
+ * "Forgot password?" inline link. Uses the realm's link tokens (color,
+ * size, weight, decoration) by default so it sits naturally alongside any
+ * other link the admin has styled in Theme → Typography → Links.
+ */
+/**
+ * Segmented OTP input rendered for the `totp_input` block. Custom-rendered
+ * (via the `input-otp` library's `render` prop) instead of using shadcn's
+ * default chrome so the slots:
+ *   - integrate with the theme tokens (radius, body text, primary button
+ *     for the active border) — defaults follow whatever the admin set in
+ *     Theme → Inputs / Buttons / Typography
+ *   - are large, gap-separated rounded squares à la Stripe Checkout /
+ *     Linear / Vercel — visually distinct boxes the user fills one at a
+ *     time, not a single connected segment
+ *   - get a focused border (no separate ring) so the active state stays
+ *     calm regardless of the surrounding card colour.
+ *
+ * State is held locally; `OTPInput` exposes the concatenated value through
+ * its internal hidden `<input name>` so the surrounding `<form>` picks it
+ * up the same way as any other text input.
+ */
+export function TotpInputField({
+  disabled,
+  name,
+  length,
+}: {
+  disabled: boolean
+  name: string
+  length: number
+}) {
+  const [value, setValue] = useState('')
+  // Split the slots into two visual groups with a dash between them —
+  // matches how authenticator apps display 6-digit codes (`123 - 456`).
+  // Skip the separator entirely for short codes (≤ 4 slots) where it adds
+  // more noise than rhythm.
+  const half = Math.ceil(length / 2)
+  const showSeparator = length > 4
+  return (
+    <OTPInput
+      maxLength={length}
+      value={value}
+      onChange={setValue}
+      disabled={disabled}
+      name={name}
+      autoFocus={!disabled}
+      inputMode='numeric'
+      autoComplete='one-time-code'
+      containerClassName={
+        // Center the slot row; gap controls inter-slot spacing within each
+        // group, the dash separator brings its own horizontal margin.
+        'flex items-center justify-center gap-2'
+      }
+      render={({ slots }) => (
+        <>
+          <div className='flex items-center gap-1.5'>
+            {slots.slice(0, half).map((slot, i) => (
+              <TotpSlot key={i} {...slot} />
+            ))}
+          </div>
+          {showSeparator && <TotpSlotSeparator />}
+          {length - half > 0 && (
+            <div className='flex items-center gap-1.5'>
+              {slots.slice(half).map((slot, i) => (
+                <TotpSlot key={half + i} {...slot} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    />
+  )
+}
+
+/**
+ * Single OTP slot. Sized at 44×52 (a touch taller than wide — reads as a
+ * "tile" rather than a square), borders pulled from the theme so the user
+ * can tune the look in Theme → Inputs. Active state swaps the border to
+ * the primary button colour with a slightly darker shadow ring, no separate
+ * `box-shadow: 0 0 0 4px ring`-style accent that fights with the rest of
+ * the card chrome.
+ */
+function TotpSlot({ char, isActive, hasFakeCaret, placeholderChar }: SlotProps) {
+  const display = char ?? (isActive ? '' : placeholderChar ?? '')
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: 44,
+        height: 52,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 'var(--fk-radius-input, 8px)',
+        borderWidth: isActive ? 2 : 'var(--fk-border-input, 1px)',
+        borderStyle: 'solid',
+        borderColor: isActive
+          ? 'var(--fk-color-primary-button, #635dff)'
+          : 'rgba(0,0,0,0.15)',
+        background: 'var(--fk-color-widget-bg, #ffffff)',
+        color: 'var(--fk-color-body-text, #111827)',
+        fontSize: 'calc(var(--fk-font-base-size, 16px) * 1.1)',
+        fontWeight: 600,
+        fontVariantNumeric: 'tabular-nums',
+        transition: 'border-color 120ms ease, box-shadow 120ms ease',
+        boxShadow: isActive
+          ? '0 0 0 4px color-mix(in srgb, var(--fk-color-primary-button, #635dff) 18%, transparent)'
+          : 'none',
+      }}
+    >
+      {display}
+      {hasFakeCaret && (
+        // `input-otp` already toggles `hasFakeCaret` on/off via an internal
+        // interval — we just render the span when it's truthy and the
+        // blink emerges from the prop flipping.
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            width: 1.5,
+            height: '50%',
+            background: 'var(--fk-color-body-text, #111827)',
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Visual dash between the two slot groups — uses a thin horizontal rule
+ * instead of a literal `-` character so the typography baseline doesn't
+ * shift the slots vertically.
+ */
+function TotpSlotSeparator() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'block',
+        width: 10,
+        height: 2,
+        borderRadius: 999,
+        background: 'rgba(0,0,0,0.18)',
+      }}
+    />
+  )
+}
+
+export function forgotPasswordLinkStyle(node: BuilderNode): CSSProperties {
+  const order = (node.props.order as string) || ''
+  return {
+    color: (node.props.color as string) || 'var(--fk-color-links, #635dff)',
+    fontSize: (node.props.fontSize as string) || 'var(--fk-font-link-size, 14px)',
+    fontWeight: ((node.props.fontWeight as string) ||
+      'var(--fk-font-link-weight, 500)') as CSSProperties['fontWeight'],
+    textDecoration: ((node.props.textDecoration as string) ||
+      'var(--fk-font-link-decoration, none)') as CSSProperties['textDecoration'],
+    textAlign: ((node.props.textAlign as string) || 'center') as CSSProperties['textAlign'],
+    // `display: block` keeps two stacked links on separate lines inside a
+    // block parent (`<a>` is inline by default and would sit side-by-side
+    // otherwise). We deliberately don't force `width: 100%` — in a flex
+    // row with `justify-content: space-between` each link must size to
+    // content so the parent can distribute the gap; in a flex column with
+    // `align-items: stretch` (the Card content default) the link still
+    // gets the full width via the stretch behaviour, without us hard-
+    // coding it.
+    display: 'block',
+    order: order ? Number(order) : undefined,
+  }
+}
+
 export function imageStyle(node: BuilderNode): CSSProperties {
   return {
     width: (node.props.width as string) || undefined,
@@ -540,7 +1257,11 @@ export function inputFieldStyle(): CSSProperties {
   return {
     width: '100%',
     padding: '10px 12px',
-    border: 'var(--fk-border-input, 1px) solid var(--fk-color-body-text, #d1d5db)',
+    // Match the theme-overview preview (`preview-card.tsx`): the input border
+    // should read as a faint outline, not as the body text color. Using
+    // `--fk-color-body-text` here made the border render as the dark body
+    // color set by the theme, instead of the grey we show in the preview.
+    border: 'var(--fk-border-input, 1px) solid rgba(0,0,0,0.15)',
     borderRadius: 'var(--fk-radius-input, 6px)',
     fontSize: 'var(--fk-font-base-size, 14px)',
     backgroundColor: '#fff',
@@ -561,10 +1282,21 @@ export function buttonStyle(node: BuilderNode): CSSProperties {
   const fullWidth = (node.props.fullWidth as string) === 'true'
   const order = (node.props.order as string) || ''
 
+  // `align` lets the author pin the label/icon to either edge of the
+  // button instead of centring — same vocabulary as the alt-auth buttons,
+  // so submit / button / magic-link / passkey all share one config story.
+  // Defaults to `center` to preserve historical behaviour.
+  const align = ((node.props.align as string) || 'center') as
+    | 'center'
+    | 'left'
+    | 'right'
+  const justifyContent =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
+
   const base: CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent,
     padding: '10px 16px',
     borderRadius: 'var(--fk-radius-button, 6px)',
     fontWeight: 500,
@@ -602,6 +1334,70 @@ export function buttonStyle(node: BuilderNode): CSSProperties {
 }
 
 /**
+ * Alternative-auth buttons (Magic link, Passkey) get their own theme
+ * tokens — same rationale as the social provider buttons: admins want a
+ * neutral "Sign in with X" look that's independent from the primary /
+ * secondary CTA branding. Shape (radius) is shared with the generic
+ * button family; border-weight is per-button to allow heavier outlines.
+ */
+export function magicLinkButtonStyle(node: BuilderNode): CSSProperties {
+  return altAuthButtonStyle(node, {
+    bg: 'var(--fk-color-magic-link-button-bg, #ffffff)',
+    label: 'var(--fk-color-magic-link-button-label, #1e212a)',
+    border: 'var(--fk-color-magic-link-button-border, #d1d5db)',
+    borderWidth: 'var(--fk-border-magic-link-button, 1px)',
+  })
+}
+
+export function passkeyButtonStyle(node: BuilderNode): CSSProperties {
+  return altAuthButtonStyle(node, {
+    bg: 'var(--fk-color-passkey-button-bg, #ffffff)',
+    label: 'var(--fk-color-passkey-button-label, #1e212a)',
+    border: 'var(--fk-color-passkey-button-border, #d1d5db)',
+    borderWidth: 'var(--fk-border-passkey-button, 1px)',
+  })
+}
+
+function altAuthButtonStyle(
+  node: BuilderNode,
+  tokens: { bg: string; label: string; border: string; borderWidth: string },
+): CSSProperties {
+  const fullWidth = (node.props.fullWidth as string) === 'true'
+  const order = (node.props.order as string) || ''
+  // `align` matches the social-button family's options: 'center' keeps the
+  // icon+label grouped in the middle (default for alt-auth buttons since
+  // they read as a single CTA), 'left' anchors them like the social
+  // provider buttons (icon on left, label flowing right). `right` is
+  // available for completeness but rarely useful.
+  const align = ((node.props.align as string) || 'center') as
+    | 'center'
+    | 'left'
+    | 'right'
+  const justifyContent =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent,
+    padding: '10px 16px',
+    borderRadius: 'var(--fk-radius-button, 6px)',
+    border: `${tokens.borderWidth} solid ${tokens.border}`,
+    backgroundColor: tokens.bg,
+    color: tokens.label,
+    // Match the social-button family so all secondary auth options read
+    // as a coherent group (same weight, same size). The base font size
+    // follows the theme's base typography, like social buttons do.
+    fontSize: 'var(--fk-font-base-size, 14px)',
+    fontWeight: 500,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    width: fullWidth ? '100%' : 'auto',
+    transition: 'opacity 0.15s ease',
+    order: order ? Number(order) : undefined,
+  }
+}
+
+/**
  * Required-block inputs always render the HTML type that matches their
  * semantic role — admins can't relabel an `email_input` into a `text` field.
  * The generic `input` block stays user-controlled.
@@ -615,8 +1411,12 @@ export function resolveInputType(node: BuilderNode): string {
     case 'email_input':
       return 'text'
     case 'password_input':
+    case 'password_confirm_input':
       return 'password'
     case 'totp_input':
+    case 'username_input':
+    case 'first_name_input':
+    case 'last_name_input':
       return 'text'
     default:
       return (node.props.type as string) || 'text'
@@ -633,9 +1433,47 @@ export function resolveInputName(node: BuilderNode): string | undefined {
       return 'email'
     case 'password_input':
       return 'password'
+    case 'password_confirm_input':
+      return 'password_confirm'
     case 'totp_input':
       return 'totp'
+    case 'username_input':
+      return 'username'
+    case 'first_name_input':
+      return 'first_name'
+    case 'last_name_input':
+      return 'last_name'
     default:
       return (node.props.name as string) || undefined
+  }
+}
+
+/**
+ * Browser autofill hints so password managers + iOS/Android keyboards know
+ * which field is which. Generic `input` falls back to the user-set prop
+ * (or undefined) so the admin can opt in to any standard token.
+ */
+export function resolveAutoComplete(node: BuilderNode): string | undefined {
+  switch (node.type) {
+    case 'email_input':
+      return 'email'
+    case 'username_input':
+      return 'username'
+    case 'password_input':
+      // Login pages reach for "current-password", register flips to "new-password" —
+      // we conservatively pick `current-password` since password managers cope
+      // with the difference better than the wrong direction (`new-password`
+      // hides existing credentials in suggestion popups).
+      return 'current-password'
+    case 'password_confirm_input':
+      return 'new-password'
+    case 'first_name_input':
+      return 'given-name'
+    case 'last_name_input':
+      return 'family-name'
+    case 'totp_input':
+      return 'one-time-code'
+    default:
+      return (node.props.autoComplete as string) || undefined
   }
 }

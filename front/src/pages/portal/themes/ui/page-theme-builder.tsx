@@ -13,9 +13,12 @@ import {
 import { cn } from '@/lib/utils'
 import type { Schemas } from '@/api/api.client'
 import type { BuilderNode } from '@/lib/builder-core'
-import { ColorsPanel } from '@/pages/portal-theme/components/panels/colors-panel'
-import { FontsPanel } from '@/pages/portal-theme/components/panels/fonts-panel'
-import { BordersPanel } from '@/pages/portal-theme/components/panels/borders-panel'
+import { ButtonsPanel } from '@/pages/portal-theme/components/panels/buttons-panel'
+import { InputsPanel } from '@/pages/portal-theme/components/panels/inputs-panel'
+import { WidgetPanel } from '@/pages/portal-theme/components/panels/widget-panel'
+import { TypographyPanel } from '@/pages/portal-theme/components/panels/typography-panel'
+import { PagePanel } from '@/pages/portal-theme/components/panels/page-panel'
+import { PreviewCard } from '@/pages/portal-theme/components/preview-card'
 import { usePortalThemeContext } from '@/pages/portal-theme/context/portal-theme-context'
 import { themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import type { BuilderTab } from '../feature/page-theme-builder-feature'
@@ -30,7 +33,10 @@ const PAGE_TYPES: { id: PageType; label: string }[] = [
   { id: 'forgot_password', label: 'Forgot password' },
   { id: 'reset_password', label: 'Reset password' },
   { id: 'magic_link_verify', label: 'Magic link verify' },
+  { id: 'magic_link_request', label: 'Magic link request' },
   { id: 'verify_email', label: 'Verify email' },
+  { id: 'email_verified', label: 'Email verified' },
+  { id: 'totp_setup', label: 'TOTP setup' },
 ]
 
 interface Props {
@@ -185,60 +191,30 @@ export default function PageThemeBuilder({
 }
 
 function ThemeTokensTab({ cssVars }: { cssVars: CSSProperties }) {
+  // `cssVars` are now applied inside `PreviewCard` (via the context), so the
+  // outer div only needs the muted background. We keep the prop for API
+  // stability and apply it to the page-bg surface so tweaks to the page
+  // background token are still visible behind the widget.
   return (
     <div className='grid h-full grid-cols-[1fr_360px] overflow-hidden'>
-      <div className='overflow-auto bg-muted/30 p-6' style={cssVars}>
-        <PreviewBox />
+      <div className='min-h-0 overflow-hidden bg-muted/30' style={cssVars}>
+        <PreviewCard />
       </div>
-      <aside className='border-l border-border'>
+      {/* `min-h-0` lets the grid child shrink to the row height so the
+          ScrollArea inside can actually clip and scroll. Without it, the
+          aside grows to fit its content and the ScrollArea inherits an
+          infinite track, which renders as "no scroll". */}
+      <aside className='min-h-0 border-l border-border'>
         <ScrollArea className='h-full'>
           <div className='flex flex-col gap-6 p-4'>
-            <ColorsPanel />
-            <FontsPanel />
-            <BordersPanel />
+            <ButtonsPanel />
+            <InputsPanel />
+            <WidgetPanel />
+            <TypographyPanel />
+            <PagePanel />
           </div>
         </ScrollArea>
       </aside>
-    </div>
-  )
-}
-
-function PreviewBox() {
-  return (
-    <div
-      className='mx-auto flex max-w-md flex-col gap-4 rounded-[var(--fk-radius-widget)] bg-[var(--fk-color-widget-bg)] p-6 shadow-[var(--fk-shadow-widget)]'
-      style={{
-        color: 'var(--fk-color-body-text)',
-        padding: 'var(--fk-spacing-widget-padding, 24px)',
-      }}
-    >
-      <h3 style={{ fontSize: 'var(--fk-font-title-size)', fontWeight: 'var(--fk-font-title-weight)' as never }}>
-        Sign in to your account
-      </h3>
-      <p style={{ fontSize: 'var(--fk-font-body-size)', color: 'var(--fk-color-body-text)' }}>
-        This preview only reflects the theme tokens. Page-specific content is edited in the
-        per-page tabs below.
-      </p>
-      <input
-        className='border'
-        style={{
-          borderRadius: 'var(--fk-radius-input)',
-          borderWidth: 'var(--fk-border-input)',
-          padding: '8px 12px',
-        }}
-        placeholder='you@example.com'
-      />
-      <button
-        type='button'
-        style={{
-          backgroundColor: 'var(--fk-color-primary-button)',
-          color: 'var(--fk-color-primary-button-label)',
-          borderRadius: 'var(--fk-radius-button)',
-          padding: '8px 16px',
-        }}
-      >
-        Continue
-      </button>
     </div>
   )
 }
@@ -315,8 +291,23 @@ function NavButton({
 }
 
 function readPageTree(theme: Schemas.PortalTheme, pageType: PageType): unknown {
+  // The Rust `PortalThemePages` struct is serialised with
+  // `#[serde(rename_all = "camelCase")]`, so the JSON keys are
+  // `forgotPassword` / `magicLinkRequest` / `verifyEmail` / etc. But the
+  // `PortalPageType` enum is serialised in snake_case, so `pageType` is
+  // `'forgot_password'`, `'magic_link_request'`, … — a direct
+  // `pages[pageType]` lookup misses every multi-word page and returns an
+  // empty array, which is why the builder canvas stays blank on refresh
+  // for those pages. Convert the enum value to camelCase before reading.
+  // Single-word pages (login / register / totp) are unaffected (snake ≡
+  // camel for those), which is why the bug only surfaced once we shipped
+  // the multi-word ones.
   const pages = theme.pages as Record<string, unknown> | undefined
-  return pages?.[pageType] ?? []
+  return pages?.[snakeToCamel(pageType)] ?? []
+}
+
+function snakeToCamel(value: string): string {
+  return value.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
 }
 
 function parseLayoutTree(tree: unknown): BuilderNode[] {

@@ -122,7 +122,10 @@ const PAGE_TYPE_LABELS: Partial<Record<Schemas.PortalPageType, string>> = {
   forgot_password: 'forgot password',
   reset_password: 'reset password',
   magic_link_verify: 'magic link verify',
+  magic_link_request: 'magic link request',
   verify_email: 'verify email',
+  email_verified: 'email verified',
+  totp_setup: 'TOTP setup',
 }
 
 export function labelForPageType(pageType: Schemas.PortalPageType): string {

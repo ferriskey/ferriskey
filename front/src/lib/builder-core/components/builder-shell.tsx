@@ -71,8 +71,13 @@ export function BuilderShell({
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
+      // 1px is the smallest distance that still keeps clicks (which select a
+      // node via onClick) distinguishable from drags. Larger values make the
+      // drag overlay visibly lag the cursor by exactly that distance,
+      // because `activatorEvent` points at pointerdown while dnd-kit's
+      // transform tracks from the moment the threshold is crossed.
       activationConstraint: {
-        distance: 5,
+        distance: 1,
       },
     }),
   )
@@ -80,13 +85,23 @@ export function BuilderShell({
   /**
    * Collision detection that's aware of a child iframe.
    *
-   * When the canvas is rendered inside an iframe, droppables registered
-   * inside it report their bounding rects in iframe-local coordinates. The
-   * pointer events captured by the parent's PointerSensor (the iframe sets
-   * `pointer-events: none` during drag) are in parent-window coordinates.
-   * Without translation these would never overlap. We offset every iframe-
-   * inside droppable's rect by the iframe's position in the parent so both
-   * sides agree on a single coordinate space.
+   * Droppables registered inside the canvas iframe report their bounding
+   * rects in iframe-local coordinates; droppables registered in the parent
+   * document are in parent-window coords. The pointer can be in either
+   * coordinate system depending on where the drag started:
+   *  - Library drag: pointerdown happens in the parent document, so dnd-kit
+   *    records the pointer in parent-window coords.
+   *  - Canvas drag: pointerdown happens in the iframe and dnd-kit's
+   *    `setPointerCapture` keeps subsequent moves dispatching inside the
+   *    iframe, so the pointer stays in iframe-local coords for the whole
+   *    drag.
+   *
+   * We always normalise iframe-inside droppable rects to parent-window
+   * coords (multiply by the iframe's visual scale, then offset by its parent
+   * position). When the active source is itself iframe-internal, we apply
+   * the same transformation to `pointerCoordinates` so pointer and rects
+   * meet in a single coord space. Without this, the user has to push the
+   * cursor right/down by exactly the iframe's offset to trigger a drop.
    */
   const collisionDetection = useMemo<CollisionDetection>(
     () => (args) => {
@@ -116,7 +131,50 @@ export function BuilderShell({
         }
       })
 
-      return pointerWithin({ ...args, droppableRects: adjusted })
+      // `Active.data.current.source === 'canvas'` is set by every `useSortable`
+      // call inside the iframe (see `SortableNode` in `canvas.tsx`). We can't
+      // rely on `args.active.node` because dnd-kit's public `Active` type
+      // doesn't expose a node ref, so the previous `ownerDocument` check was
+      // silently always false.
+      //
+      // The tree panel also emits `source: 'canvas'` drags so the move
+      // pipeline doesn't need a separate code path — but those rows live
+      // in the parent document, not in the iframe. The `fromTree` flag
+      // lets us skip the pointer/rect translation for them.
+      const activeData = args.active?.data?.current as
+        | { source?: string; fromTree?: boolean }
+        | undefined
+      const activeInIframe =
+        activeData?.source === 'canvas' && !activeData.fromTree
+      const pointerCoordinates =
+        activeInIframe && args.pointerCoordinates
+          ? {
+              x: args.pointerCoordinates.x * scale + offset.left,
+              y: args.pointerCoordinates.y * scale + offset.top,
+            }
+          : args.pointerCoordinates
+
+      const collisions = pointerWithin({
+        ...args,
+        droppableRects: adjusted,
+        pointerCoordinates,
+      })
+
+      // Tree-panel UX: when both an "into" overlay and the sibling
+      // wrapper of the same row sit under the cursor (the overlay is
+      // inscribed inside the wrapper rect), prefer the "into" target.
+      // Without this, dnd-kit's tie-breaking by distance-to-centre
+      // returns the first-registered droppable — which is the sibling
+      // wrapper, since the overlay renders later as a child — and the
+      // admin can never drop a block *into* a container from the tree.
+      const intoIdx = collisions.findIndex((c) =>
+        String(c.id).startsWith('tree-into-'),
+      )
+      if (intoIdx > 0) {
+        const [intoCollision] = collisions.splice(intoIdx, 1)
+        collisions.unshift(intoCollision)
+      }
+      return collisions
     },
     [],
   )
@@ -126,7 +184,7 @@ export function BuilderShell({
   }
 
   function handleDragOver(event: DragOverEvent) {
-    const { over } = event
+    const { over, active } = event
     if (!over) {
       setDropIndicator(null)
       return
@@ -138,16 +196,21 @@ export function BuilderShell({
       // Over an empty drop zone or canvas root
       setDropIndicator({ overId: String(over.id), position: 'inside' })
     } else if (overData?.node) {
-      // Over a sortable node — use the activatorEvent to determine before/after
-      const overElement = document.querySelector(`[data-sortable-id="${over.id}"]`)
-      if (overElement) {
-        const rect = overElement.getBoundingClientRect()
-        const pointerEvent = event.activatorEvent as PointerEvent
-        const dragY = (event.delta?.y ?? 0) + (pointerEvent?.clientY ?? 0)
-        const midY = rect.top + rect.height / 2
+      // Use dnd-kit's translated rects so this works identically whether the
+      // hovered sortable lives in the parent document or inside the iframe
+      // canvas — `over.rect` is already in the collision-detection coordinate
+      // space, and `active.rect.current.translated` follows the pointer as it
+      // moves. Comparing the active block's center against the hovered
+      // sibling's center yields a stable before/after flip without ever
+      // double-counting the pointer offset.
+      const overRect = over.rect
+      const activeRect = active.rect.current.translated ?? active.rect.current.initial
+      if (overRect && activeRect) {
+        const activeCenterY = activeRect.top + activeRect.height / 2
+        const overCenterY = overRect.top + overRect.height / 2
         setDropIndicator({
           overId: String(over.id),
-          position: dragY < midY ? 'before' : 'after',
+          position: activeCenterY < overCenterY ? 'before' : 'after',
         })
       } else {
         setDropIndicator({ overId: String(over.id), position: 'after' })
@@ -173,16 +236,16 @@ export function BuilderShell({
     let targetIndex = 0
 
     if (overData?.parentId !== undefined) {
-      // Dropped on an empty zone, a container's trailing "+" zone, or canvas
-      // root — append to the end of that parent's children. Appending is the
-      // intuitive default; without it, dropping on a flex/grid silently
-      // re-prepended to the realm root which surprised everyone.
+      // Dropped on an empty zone, a container's leading/trailing zone, or
+      // canvas root. The `position` field distinguishes prepend vs append;
+      // empty containers and the canvas-root fallback default to append (the
+      // historical, less-surprising behavior for an empty parent).
       targetParentId = overData.parentId
       const siblings =
         targetParentId === null
           ? tree
           : (findNode(tree, targetParentId)?.children ?? [])
-      targetIndex = siblings.length
+      targetIndex = overData.position === 'prepend' ? 0 : siblings.length
     } else if (overData?.node) {
       // Dropped on another sortable node — insert as sibling
       const overNode = overData.node

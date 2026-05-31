@@ -2,6 +2,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { findNodePath, useBuilderContext, type BuilderNode } from '../../builder-core'
 import { ConfigSection } from './config-section'
+import { DimensionInput } from './dimension-input'
+import { LinkedSidesInput } from './linked-sides-input'
 import { ColorField, SelectField, TextField } from './shared-fields'
 
 type OnUpdate = (
@@ -137,8 +139,8 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               onChange={(v) => updateProp('align', v)}
               allowEmpty={false}
             />
-            <TextField label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />
-            <TextField label='Padding' value={node.props.padding as string} onChange={(v) => updateProp('padding', v)} />
+            <DimensionInput label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />
+            <LinkedSidesInput label='Padding' value={node.props.padding as string} onChange={(v) => updateProp('padding', v)} />
           </ConfigSection>
           <ConfigSection title='Style' defaultOpen={false}>
             <ColorField
@@ -146,12 +148,13 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               value={node.props.backgroundColor as string}
               onChange={(v) => updateProp('backgroundColor', v)}
             />
-            <TextField
+            <LinkedSidesInput
               label='Border radius'
               value={node.props.borderRadius as string}
               onChange={(v) => updateProp('borderRadius', v)}
+              mode='corners'
             />
-            <TextField label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
+            <DimensionInput label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
           </ConfigSection>
         </div>
       )
@@ -341,31 +344,31 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               onChange={(v) => updateProp('position', v)}
               allowEmpty={false}
             />
-            <TextField label='Top' value={node.props.top as string} onChange={(v) => updateProp('top', v)} />
-            <TextField label='Right' value={node.props.right as string} onChange={(v) => updateProp('right', v)} />
-            <TextField label='Bottom' value={node.props.bottom as string} onChange={(v) => updateProp('bottom', v)} />
-            <TextField label='Left' value={node.props.left as string} onChange={(v) => updateProp('left', v)} />
+            <DimensionInput label='Top' value={node.props.top as string} onChange={(v) => updateProp('top', v)} />
+            <DimensionInput label='Right' value={node.props.right as string} onChange={(v) => updateProp('right', v)} />
+            <DimensionInput label='Bottom' value={node.props.bottom as string} onChange={(v) => updateProp('bottom', v)} />
+            <DimensionInput label='Left' value={node.props.left as string} onChange={(v) => updateProp('left', v)} />
             <TextField label='z-index' value={node.props.zIndex as string} onChange={(v) => updateProp('zIndex', v)} />
           </ConfigSection>
           <ConfigSection title='Size' defaultOpen={false}>
-            <TextField label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
-            <TextField label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
-            <TextField
+            <DimensionInput label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
+            <DimensionInput label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
+            <DimensionInput
               label='Min width'
               value={node.props.minWidth as string}
               onChange={(v) => updateProp('minWidth', v)}
             />
-            <TextField
+            <DimensionInput
               label='Max width'
               value={node.props.maxWidth as string}
               onChange={(v) => updateProp('maxWidth', v)}
             />
-            <TextField
+            <DimensionInput
               label='Min height'
               value={node.props.minHeight as string}
               onChange={(v) => updateProp('minHeight', v)}
             />
-            <TextField
+            <DimensionInput
               label='Max height'
               value={node.props.maxHeight as string}
               onChange={(v) => updateProp('maxHeight', v)}
@@ -384,9 +387,9 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
             />
           </ConfigSection>
           <ConfigSection title='Spacing' defaultOpen={false}>
-            <TextField label='Padding' value={node.props.padding as string} onChange={(v) => updateProp('padding', v)} />
-            <TextField label='Margin' value={node.props.margin as string} onChange={(v) => updateProp('margin', v)} />
-            <TextField label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />
+            <LinkedSidesInput label='Padding' value={node.props.padding as string} onChange={(v) => updateProp('padding', v)} />
+            <LinkedSidesInput label='Margin' value={node.props.margin as string} onChange={(v) => updateProp('margin', v)} />
+            <DimensionInput label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />
           </ConfigSection>
           <ConfigSection title='Style' defaultOpen={false}>
             <ColorField
@@ -394,15 +397,149 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               value={node.props.backgroundColor as string}
               onChange={(v) => updateProp('backgroundColor', v)}
             />
-            <TextField
+            <LinkedSidesInput
               label='Border radius'
               value={node.props.borderRadius as string}
               onChange={(v) => updateProp('borderRadius', v)}
+              mode='corners'
             />
           </ConfigSection>
         </div>
       )
     }
+
+    case 'card':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <DimensionInput
+              label='Max width'
+              value={node.props.maxWidth as string}
+              onChange={(v) => updateProp('maxWidth', v)}
+            />
+            <LinkedSidesInput
+              label='Padding'
+              value={node.props.padding as string}
+              onChange={(v) => updateProp('padding', v)}
+            />
+            <DimensionInput
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+          <ConfigSection title='Style' defaultOpen={false}>
+            <ColorField
+              label='Background'
+              value={node.props.backgroundColor as string}
+              onChange={(v) => updateProp('backgroundColor', v)}
+            />
+            <LinkedSidesInput
+              label='Border radius'
+              value={node.props.borderRadius as string}
+              onChange={(v) => updateProp('borderRadius', v)}
+              mode='corners'
+            />
+            <ColorField
+              label='Border color'
+              value={node.props.borderColor as string}
+              onChange={(v) => updateProp('borderColor', v)}
+            />
+            <TextField
+              label='Box shadow'
+              value={node.props.boxShadow as string}
+              onChange={(v) => updateProp('boxShadow', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-header':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Text align'
+              value={(node.props.textAlign as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('textAlign', v)}
+              allowEmpty={false}
+            />
+            <DimensionInput
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-content':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <DimensionInput
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'card-footer':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Direction'
+              value={(node.props.direction as string) || 'row'}
+              options={[
+                { label: 'Row', value: 'row' },
+                { label: 'Column', value: 'column' },
+              ]}
+              onChange={(v) => updateProp('direction', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Justify'
+              value={(node.props.justifyContent as string) || 'flex-end'}
+              options={[
+                { label: 'Start', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'End', value: 'flex-end' },
+                { label: 'Space between', value: 'space-between' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+              allowEmpty={false}
+            />
+            <DimensionInput
+              label='Gap'
+              value={node.props.gap as string}
+              onChange={(v) => updateProp('gap', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
 
     case 'heading':
       return (
@@ -492,12 +629,13 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
             <TextField label='Alt' value={node.props.alt as string} onChange={(v) => updateProp('alt', v)} />
           </ConfigSection>
           <ConfigSection title='Style' defaultOpen={false}>
-            <TextField label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
-            <TextField label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
-            <TextField
+            <DimensionInput label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
+            <DimensionInput label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
+            <LinkedSidesInput
               label='Border radius'
               value={node.props.borderRadius as string}
               onChange={(v) => updateProp('borderRadius', v)}
+              mode='corners'
             />
             <SelectField
               label='Align'
@@ -517,7 +655,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
     case 'spacer':
       return (
         <div className='flex flex-col gap-3 pt-2'>
-          <TextField label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
+          <DimensionInput label='Height' value={node.props.height as string} onChange={(v) => updateProp('height', v)} />
         </div>
       )
 
@@ -525,8 +663,8 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
       return (
         <div className='flex flex-col gap-3 pt-2'>
           <ColorField label='Color' value={node.props.color as string} onChange={(v) => updateProp('color', v)} />
-          <TextField label='Thickness' value={node.props.thickness as string} onChange={(v) => updateProp('thickness', v)} />
-          <TextField label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
+          <DimensionInput label='Thickness' value={node.props.thickness as string} onChange={(v) => updateProp('thickness', v)} />
+          <DimensionInput label='Width' value={node.props.width as string} onChange={(v) => updateProp('width', v)} />
         </div>
       )
 
@@ -547,6 +685,17 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
                 { label: 'Outline', value: 'outline' },
               ]}
               onChange={(v) => updateProp('variant', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
               allowEmpty={false}
             />
             <SelectField
@@ -585,6 +734,17 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               allowEmpty={false}
             />
             <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <SelectField
               label='Width'
               value={node.props.fullWidth as string}
               options={[
@@ -598,15 +758,25 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'username_input':
+    case 'first_name_input':
+    case 'last_name_input':
     case 'email_input':
     case 'password_input':
+    case 'password_confirm_input':
     case 'totp_input': {
-      const lockedHint =
-        node.type === 'email_input'
-          ? 'Email input — the HTML type and field name are locked to email.'
-          : node.type === 'password_input'
-            ? 'Password input — the HTML type and field name are locked to password.'
-            : 'TOTP input — the HTML type is text and the field name is locked to totp.'
+      const LOCKED_HINTS: Record<string, string> = {
+        email_input: 'Email input — the HTML type and field name are locked to email.',
+        password_input: 'Password input — the HTML type and field name are locked to password.',
+        password_confirm_input:
+          'Confirm-password input — submit handlers compare it against the password field; field name is locked to password_confirm.',
+        totp_input:
+          'TOTP input — rendered as a segmented digit-by-digit OTP field. The field name is locked to totp; the slot count is configurable below.',
+        username_input: 'Username input — the field name is locked to username.',
+        first_name_input: 'First name input — the field name is locked to first_name.',
+        last_name_input: 'Last name input — the field name is locked to last_name.',
+      }
+      const lockedHint = LOCKED_HINTS[node.type] ?? ''
       return (
         <div className='flex flex-col'>
           {identity}
@@ -615,16 +785,26 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
           </div>
           <ConfigSection title='Field'>
             <TextField label='Label' value={node.props.label as string} onChange={(v) => updateProp('label', v)} />
-            <TextField
-              label='Placeholder'
-              value={node.props.placeholder as string}
-              onChange={(v) => updateProp('placeholder', v)}
-            />
+            {node.type !== 'totp_input' && (
+              <TextField
+                label='Placeholder'
+                value={node.props.placeholder as string}
+                onChange={(v) => updateProp('placeholder', v)}
+              />
+            )}
             <TextField
               label='Helper text'
               value={node.props.helperText as string}
               onChange={(v) => updateProp('helperText', v)}
             />
+            {node.type === 'totp_input' && (
+              <TextField
+                label='Slot count'
+                value={(node.props.length as string) ?? '6'}
+                onChange={(v) => updateProp('length', v)}
+                placeholder='6'
+              />
+            )}
           </ConfigSection>
         </div>
       )
@@ -661,6 +841,45 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'magic_link_button':
+    case 'passkey_button':
+      // Hard-wired action: clicking triggers the magic-link or passkey
+      // flow via the host page's `data-fk-action` handler. Only visual
+      // style is editable here — same pattern as submit_button.
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            {node.type === 'magic_link_button'
+              ? 'Magic link action is locked — the portal sends a one-time sign-in email when clicked. Colors and border width are configured in Theme \u2192 Buttons.'
+              : 'Passkey action is locked — the portal triggers the browser passkey prompt when clicked. Colors and border width are configured in Theme \u2192 Buttons.'}
+          </div>
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Width'
+              value={node.props.fullWidth as string}
+              options={[
+                { label: 'Full', value: 'true' },
+                { label: 'Auto', value: 'false' },
+              ]}
+              onChange={(v) => updateProp('fullWidth', v)}
+              allowEmpty={false}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'identity_providers':
       return (
         <div className='flex flex-col'>
@@ -678,6 +897,125 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               label='Button label prefix'
               value={node.props.buttonLabel as string}
               onChange={(v) => updateProp('buttonLabel', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'forgot_password_link':
+    case 'back_to_login_link':
+    case 'register_link':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            {node.type === 'forgot_password_link'
+              ? 'Renders as a link to the realm\u2019s forgot-password page. Styling defaults to the theme\u2019s link tokens.'
+              : node.type === 'back_to_login_link'
+                ? 'Renders as a link back to the realm\u2019s login page. Styling defaults to the theme\u2019s link tokens.'
+                : 'Renders as a link to the realm\u2019s register page. Styling defaults to the theme\u2019s link tokens.'}
+          </div>
+          <ConfigSection title='Typography'>
+            <SelectField
+              label='Text align'
+              value={(node.props.textAlign as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('textAlign', v)}
+              allowEmpty={false}
+            />
+            <ColorField
+              label='Color override'
+              value={node.props.color as string}
+              onChange={(v) => updateProp('color', v)}
+            />
+            <DimensionInput
+              label='Font size override'
+              value={node.props.fontSize as string}
+              onChange={(v) => updateProp('fontSize', v)}
+            />
+            <TextField
+              label='Font weight override'
+              value={node.props.fontWeight as string}
+              onChange={(v) => updateProp('fontWeight', v)}
+              placeholder='400, 500, 600…'
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'totp_qr_code':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            QR code rendered from the `otpauth://` URL the backend supplies during TOTP enrolment. Only the size and alignment are configurable; the content comes from the auth flow.
+          </div>
+          <ConfigSection title='Layout'>
+            <DimensionInput
+              label='Size'
+              value={(node.props.size as string) ?? '180'}
+              onChange={(v) => updateProp('size', v)}
+            />
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'totp_secret':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            Plain-text TOTP secret with a copy-on-click affordance. The value comes from the auth flow; only the alignment is configurable here.
+          </div>
+          <ConfigSection title='Layout'>
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'form_error_banner':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            Auto-populated by the page&apos;s submit handler with the latest failure message (invalid credentials, etc.). Hides itself when there&apos;s nothing to show.
+          </div>
+          <ConfigSection title='Style'>
+            <SelectField
+              label='Variant'
+              value={(node.props.variant as string) || 'destructive'}
+              options={[
+                { label: 'Destructive (red)', value: 'destructive' },
+                { label: 'Warning (amber)', value: 'warning' },
+                { label: 'Info (blue)', value: 'info' },
+              ]}
+              onChange={(v) => updateProp('variant', v)}
+              allowEmpty={false}
             />
           </ConfigSection>
         </div>

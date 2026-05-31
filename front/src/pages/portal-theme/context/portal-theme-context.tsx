@@ -2,7 +2,18 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { defaultTheme, mergeWithDefaults, type PortalThemeConfig } from '../lib/theme'
 import type { Schemas } from '@/api/api.client'
 
-export type BuilderTab = 'colors' | 'fonts' | 'borders'
+/**
+ * Theme builder sidebar is now organised by component rather than by token
+ * type — admins think "I want to customise my buttons", not "I want to edit
+ * the colors palette then jump to borders then to fonts". Each tab pulls the
+ * relevant subset of color / font / border / spacing tokens into one place.
+ */
+export type BuilderTab =
+  | 'buttons'
+  | 'inputs'
+  | 'widget'
+  | 'typography'
+  | 'page'
 
 type PortalThemeContextValue = {
   theme: PortalThemeConfig
@@ -22,6 +33,10 @@ type PortalThemeContextValue = {
     key: K,
     value: PortalThemeConfig['borders'][K],
   ) => void
+  setSpacing: <K extends keyof PortalThemeConfig['spacing']>(
+    key: K,
+    value: PortalThemeConfig['spacing'][K],
+  ) => void
   discard: () => void
   markSaved: (saved: PortalThemeConfig) => void
 }
@@ -38,7 +53,7 @@ export function PortalThemeProvider({
   const seed = useMemo(() => mergeWithDefaults(initial), [initial])
   const [theme, setTheme] = useState<PortalThemeConfig>(seed)
   const [savedTheme, setSavedTheme] = useState<PortalThemeConfig>(seed)
-  const [activeTab, setActiveTab] = useState<BuilderTab>('colors')
+  const [activeTab, setActiveTab] = useState<BuilderTab>('buttons')
 
   const isDirty = useMemo(() => JSON.stringify(theme) !== JSON.stringify(savedTheme), [theme, savedTheme])
 
@@ -52,6 +67,10 @@ export function PortalThemeProvider({
 
   const setBorder = useCallback<PortalThemeContextValue['setBorder']>((key, value) => {
     setTheme((prev) => ({ ...prev, borders: { ...prev.borders, [key]: value } }))
+  }, [])
+
+  const setSpacing = useCallback<PortalThemeContextValue['setSpacing']>((key, value) => {
+    setTheme((prev) => ({ ...prev, spacing: { ...prev.spacing, [key]: value } }))
   }, [])
 
   const discard = useCallback(() => setTheme(savedTheme), [savedTheme])
@@ -70,6 +89,7 @@ export function PortalThemeProvider({
     setColor,
     setFont,
     setBorder,
+    setSpacing,
     discard,
     markSaved,
   }

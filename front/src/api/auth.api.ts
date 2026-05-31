@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import type { PostEndpoints, Schemas } from './api.client'
 
 const TOKEN_PATH: keyof PostEndpoints = '/realms/{realm_name}/protocol/openid-connect/token'
@@ -109,13 +110,39 @@ export const useAuthenticateMutation = () => {
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        let errorCode: string | undefined
         try {
           const errorBody = await response.json()
           if (errorBody.message) {
             errorMessage = errorBody.message
           }
+          if (errorBody.code) {
+            errorCode = errorBody.code
+          }
         } catch {
           // Keep default error message when body is not JSON.
+        }
+
+        // Session-expired path: the authenticate endpoint maintains a
+        // server-side flow session (csrf / state cookie) separate from
+        // the access token. When that expires, the only recovery is to
+        // restart the login — surface a toast with a "Reload" action.
+        // We match on the *message*, not just the status, because a 401
+        // also covers normal "invalid credentials" responses which need
+        // a very different error treatment (see below — those are surfaced
+        // by the caller via the mutation's onError).
+        const isSessionExpired =
+          errorCode === 'E_UNAUTHORIZED' &&
+          /session\s+expired/i.test(errorMessage)
+        if (isSessionExpired) {
+          toast.error('Your login session expired. Please restart the sign-in.', {
+            action: {
+              label: 'Reload',
+              onClick: () => {
+                window.location.reload()
+              },
+            },
+          })
         }
         throw new Error(errorMessage)
       }

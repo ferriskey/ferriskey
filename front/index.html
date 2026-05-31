@@ -8,6 +8,35 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FerrisKey - Portail</title>
+    <!--
+      Pre-paint the realm's last-known portal theme onto :root BEFORE the
+      React bundle loads. Without this script, the browser paints with
+      default CSS vars while React mounts (~50–500ms), producing a visible
+      flash before the custom theme takes effect. The cached CSS vars come
+      from `PortalLayoutWrapper`'s `localStorage` cache; the key shape MUST
+      stay in sync with `CSSVARS_CACHE_PREFIX` in that file.
+    -->
+    <script>
+      (function () {
+        try {
+          var m = location.pathname.match(/\/realms\/([^/]+)\//)
+          if (!m) return
+          var raw = localStorage.getItem('fk_portal_theme_cssvars:' + m[1])
+          if (!raw) return
+          var vars = JSON.parse(raw)
+          var root = document.documentElement
+          for (var k in vars) {
+            if (Object.prototype.hasOwnProperty.call(vars, k)) {
+              root.style.setProperty(k, vars[k])
+            }
+          }
+        } catch (e) {
+          // Storage unavailable or malformed cache — fall back to default
+          // theme silently. The React-side fallback in `PortalLayoutWrapper`
+          // will still apply the right vars once it mounts.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

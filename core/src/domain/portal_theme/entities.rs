@@ -25,18 +25,38 @@ pub enum PortalPageType {
     ForgotPassword,
     ResetPassword,
     MagicLinkVerify,
+    /// Page where an unauthenticated user enters their email to receive a
+    /// magic link. Distinct from `MagicLinkVerify` (which handles the click
+    /// from the email) — this is the request side of the same flow, and
+    /// requires at least an `email_input` + a `submit_button`.
+    MagicLinkRequest,
     VerifyEmail,
+    /// Success screen rendered after a verification link has been clicked
+    /// and the email has been confirmed. Distinct from `VerifyEmail`
+    /// (which collects / shows the "check your inbox" state) — this is
+    /// the post-verification confirmation, typically a "you're verified,
+    /// continue to login" page.
+    EmailVerified,
+    /// First-time TOTP enrolment screen — shows the QR code (and the
+    /// fallback secret) that the user scans into their authenticator
+    /// app, then captures the resulting 6-digit code + an optional
+    /// device label to confirm the binding. Distinct from `Totp` (which
+    /// only collects the code on subsequent logins).
+    TotpSetup,
 }
 
 impl PortalPageType {
-    pub const ALL: [PortalPageType; 7] = [
+    pub const ALL: [PortalPageType; 10] = [
         PortalPageType::Login,
         PortalPageType::Register,
         PortalPageType::Totp,
         PortalPageType::ForgotPassword,
         PortalPageType::ResetPassword,
         PortalPageType::MagicLinkVerify,
+        PortalPageType::MagicLinkRequest,
         PortalPageType::VerifyEmail,
+        PortalPageType::EmailVerified,
+        PortalPageType::TotpSetup,
     ];
 }
 
@@ -49,7 +69,10 @@ pub struct PortalThemePages {
     pub forgot_password: serde_json::Value,
     pub reset_password: serde_json::Value,
     pub magic_link_verify: serde_json::Value,
+    pub magic_link_request: serde_json::Value,
     pub verify_email: serde_json::Value,
+    pub email_verified: serde_json::Value,
+    pub totp_setup: serde_json::Value,
 }
 
 impl PortalThemePages {
@@ -61,7 +84,10 @@ impl PortalThemePages {
             PortalPageType::ForgotPassword => &self.forgot_password,
             PortalPageType::ResetPassword => &self.reset_password,
             PortalPageType::MagicLinkVerify => &self.magic_link_verify,
+            PortalPageType::MagicLinkRequest => &self.magic_link_request,
             PortalPageType::VerifyEmail => &self.verify_email,
+            PortalPageType::EmailVerified => &self.email_verified,
+            PortalPageType::TotpSetup => &self.totp_setup,
         }
     }
 }
@@ -100,6 +126,26 @@ pub struct ThemeColors {
     pub primary_button_label: String,
     pub secondary_button: String,
     pub secondary_button_label: String,
+    /// Background of social auth buttons (Google, GitHub, …). Defaults to
+    /// white because most provider icons assume a light surface. Distinct
+    /// from `secondary_button` so admins can keep a neutral "Sign in with"
+    /// look while branding their primary/secondary CTAs.
+    pub social_button_background: String,
+    pub social_button_label: String,
+    /// Outline color of social buttons. Typically a faint grey — provider
+    /// pills tend to read better with a visible border than a flat
+    /// background, even when the background matches the page surface.
+    pub social_button_border: String,
+    /// Magic-link button (alternative auth path). Distinct from the generic
+    /// secondary button so admins can keep "Sign in with a magic link"
+    /// neutral while branding the primary CTAs separately.
+    pub magic_link_button_background: String,
+    pub magic_link_button_label: String,
+    pub magic_link_button_border: String,
+    /// Passkey button (alternative auth path). Same rationale as magic-link.
+    pub passkey_button_background: String,
+    pub passkey_button_label: String,
+    pub passkey_button_border: String,
     pub widget_background: String,
     pub page_background: String,
     pub body_text: String,
@@ -114,6 +160,15 @@ impl Default for ThemeColors {
             primary_button_label: "#ffffff".to_string(),
             secondary_button: "#ffffff".to_string(),
             secondary_button_label: "#1e212a".to_string(),
+            social_button_background: "#ffffff".to_string(),
+            social_button_label: "#1e212a".to_string(),
+            social_button_border: "#d1d5db".to_string(),
+            magic_link_button_background: "#ffffff".to_string(),
+            magic_link_button_label: "#1e212a".to_string(),
+            magic_link_button_border: "#d1d5db".to_string(),
+            passkey_button_background: "#ffffff".to_string(),
+            passkey_button_label: "#1e212a".to_string(),
+            passkey_button_border: "#d1d5db".to_string(),
             widget_background: "#ffffff".to_string(),
             page_background: "#000000".to_string(),
             body_text: "#1e212a".to_string(),
@@ -197,6 +252,17 @@ pub enum ThemeLinkStyle {
 pub struct ThemeBorders {
     pub button_radius: u32,
     pub button_border_weight: u32,
+    /// Border thickness applied specifically to social auth buttons. Pulled
+    /// out from `button_border_weight` so an admin can give provider pills a
+    /// thicker outline (the usual visual treatment for OAuth buttons on a
+    /// white-on-white surface) without affecting primary/secondary CTAs.
+    pub social_button_border_weight: u32,
+    /// Border thickness for the Magic link button. Same rationale as
+    /// `social_button_border_weight` — alternative auth buttons often want
+    /// a different visual weight than primary/secondary CTAs.
+    pub magic_link_button_border_weight: u32,
+    /// Border thickness for the Passkey button.
+    pub passkey_button_border_weight: u32,
     pub input_radius: u32,
     pub input_border_weight: u32,
     pub widget_radius: u32,
@@ -209,11 +275,22 @@ impl Default for ThemeBorders {
         Self {
             button_radius: 3,
             button_border_weight: 1,
+            social_button_border_weight: 1,
+            magic_link_button_border_weight: 1,
+            passkey_button_border_weight: 1,
             input_radius: 3,
             input_border_weight: 1,
             widget_radius: 5,
-            widget_border_weight: 0,
-            widget_shadow: ThemeShadow::Small,
+            // 1px border combined with the soft shadow gives the card a
+            // distinct edge instead of relying on the shadow alone — the
+            // FerrisKey default design pairs a faint outline with a soft
+            // elevation, so we ship that as the out-of-box look.
+            widget_border_weight: 1,
+            // Default to the pronounced shadow so the widget card reads as
+            // an elevated surface out of the box — matches the look of the
+            // FerrisKey admin's default login screen. Admins can dial back
+            // to `Small` or `None` from Theme → Widget → Shadow.
+            widget_shadow: ThemeShadow::Large,
         }
     }
 }

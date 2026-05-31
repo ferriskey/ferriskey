@@ -27,6 +27,9 @@ pub struct Model {
     pub page_reset_password: Json,
     pub page_magic_link_verify: Json,
     pub page_verify_email: Json,
+    pub page_magic_link_request: Json,
+    pub page_email_verified: Json,
+    pub page_totp_setup: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -45,6 +48,9 @@ pub enum Column {
     PageResetPassword,
     PageMagicLinkVerify,
     PageVerifyEmail,
+    PageMagicLinkRequest,
+    PageEmailVerified,
+    PageTotpSetup,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -84,6 +90,9 @@ impl ColumnTrait for Column {
             Self::PageResetPassword => ColumnType::JsonBinary.def(),
             Self::PageMagicLinkVerify => ColumnType::JsonBinary.def(),
             Self::PageVerifyEmail => ColumnType::JsonBinary.def(),
+            Self::PageMagicLinkRequest => ColumnType::JsonBinary.def(),
+            Self::PageEmailVerified => ColumnType::JsonBinary.def(),
+            Self::PageTotpSetup => ColumnType::JsonBinary.def(),
         }
     }
 }

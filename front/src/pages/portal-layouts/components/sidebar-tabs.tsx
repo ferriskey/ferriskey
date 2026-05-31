@@ -1,6 +1,6 @@
-import { Layers, Wrench } from 'lucide-react'
+import { Layers, Sparkles, Wrench } from 'lucide-react'
 
-export type SidebarTab = 'components' | 'tree'
+export type SidebarTab = 'components' | 'presets' | 'tree'
 
 interface Props {
   current: SidebarTab
@@ -8,11 +8,13 @@ interface Props {
 }
 
 /**
- * Header at the top of the builder's left sidebar that swaps between the
- * drag-and-drop component palette and the hierarchical tree view of the
- * current layout / page. The tree exists so the author can reach blocks
- * that are hidden in the canvas (e.g. `display: none` at the active
- * breakpoint, or stacked under siblings).
+ * Header at the top of the builder's left sidebar. Three modes:
+ *  - Components: the drag-and-drop palette of individual blocks.
+ *  - Presets: ready-made block trees the admin can stamp in one click (a
+ *    full Sign-in card, an "Or continue with" group, …) — gets a new user
+ *    to a working page in seconds instead of building from scratch.
+ *  - Tree: hierarchical view of the current page/layout, useful when blocks
+ *    are hidden in the canvas (e.g., display:none at the active breakpoint).
  */
 export function SidebarTabs({ current, onChange }: Props) {
   return (
@@ -22,6 +24,12 @@ export function SidebarTabs({ current, onChange }: Props) {
         onClick={() => onChange('components')}
         icon={<Wrench size={13} />}
         label='Components'
+      />
+      <TabButton
+        active={current === 'presets'}
+        onClick={() => onChange('presets')}
+        icon={<Sparkles size={13} />}
+        label='Presets'
       />
       <TabButton
         active={current === 'tree'}

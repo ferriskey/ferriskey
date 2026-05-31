@@ -3,13 +3,14 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
+import { findNode } from '../utils'
 import { useDropIndicator } from './builder-shell'
 
 function DropIndicatorLine() {
   return (
-    <div className='relative flex items-center py-0.5'>
-      <div className='bg-primary h-2 w-2 rounded-full' />
-      <div className='bg-primary h-0.5 flex-1 rounded-full' />
+    <div className='relative flex items-center py-1'>
+      <div className='bg-primary ring-primary/30 h-2.5 w-2.5 rounded-full ring-4' />
+      <div className='bg-primary shadow-primary/40 h-1 flex-1 rounded-full shadow-[0_0_8px]' />
     </div>
   )
 }
@@ -127,6 +128,7 @@ interface DroppableChildrenProps {
 function DroppableChildren({ children, parentId }: DroppableChildrenProps) {
   return (
     <>
+      <PrependDropZone parentId={parentId} />
       <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         {children.map((child) => (
           <SortableNode key={child.id} node={child} />
@@ -146,8 +148,10 @@ function EmptyDropZone({ parentId }: { parentId: string }) {
   return (
     <div
       ref={setNodeRef}
-      className={`m-1 rounded border border-dashed py-3 text-center text-[11px] text-muted-foreground/70 transition-colors ${
-        isOver ? 'border-primary bg-primary/5 text-primary' : 'border-border/60'
+      className={`m-1 flex min-h-[56px] items-center justify-center rounded-md border-2 border-dashed py-4 text-center text-xs font-medium transition-all ${
+        isOver
+          ? 'border-primary bg-primary/10 text-primary ring-primary/20 scale-[1.01] ring-4'
+          : 'border-border/70 text-muted-foreground/80'
       }`}
     >
       Drop components here
@@ -163,12 +167,29 @@ function EmptyDropZone({ parentId }: { parentId: string }) {
  * longer sit at the visual center because this zone takes up the second
  * slot in the centering group).
  */
+/**
+ * Resolve a human label for a drop zone targeting `parentId`. `null` means
+ * the page tree itself (the user navigates to this via the "Root" crumb);
+ * stacked zones use distinct labels so a user staring at two adjacent
+ * "insert at top" bars can tell which level (page vs. container) they'd
+ * actually land in.
+ */
+function useParentLabel(parentId: string | null): string {
+  const { tree, adapter } = useBuilderContext()
+  if (parentId === null) return 'Root'
+  const parent = findNode(tree, parentId)
+  if (!parent) return 'parent'
+  const componentDef = adapter.components.find((c) => c.type === parent.type)
+  return parent.name || componentDef?.label || parent.type
+}
+
 function AppendDropZone({ parentId }: { parentId: string | null }) {
   const { active } = useDndContext()
   const { setNodeRef, isOver } = useDroppable({
     id: parentId === null ? 'append-root' : `append-${parentId}`,
-    data: { parentId },
+    data: { parentId, position: 'append' },
   })
+  const parentLabel = useParentLabel(parentId)
 
   // No drag in progress → render nothing so the zone doesn't participate in
   // the parent's flex/grid/block flow.
@@ -177,13 +198,45 @@ function AppendDropZone({ parentId }: { parentId: string | null }) {
   return (
     <div
       ref={setNodeRef}
-      className={`mt-1 rounded border border-dashed text-center text-[11px] transition-all ${
+      className={`mt-1 flex items-center justify-center rounded-md border-2 border-dashed text-center text-xs font-medium transition-all ${
         isOver
-          ? 'border-primary bg-primary/5 py-3 text-primary opacity-100'
-          : 'border-border/40 py-2 text-muted-foreground/60'
+          ? 'border-primary bg-primary/10 ring-primary/20 min-h-[48px] py-4 text-primary opacity-100 ring-4'
+          : 'border-border/60 min-h-[32px] py-3 text-muted-foreground/70'
       }`}
     >
-      + Drop here to append
+      + Append to end of {parentLabel}
+    </div>
+  )
+}
+
+/**
+ * Leading target rendered before each container's existing children. Mirrors
+ * AppendDropZone — same "only during drag" rule so it doesn't perturb the
+ * parent's flex/grid flow when the user isn't actively dragging. Without
+ * this, inserting at index 0 requires the user to precisely hover the first
+ * sortable's top half, which is unforgiving when that sortable is small or
+ * lives inside a large empty container.
+ */
+function PrependDropZone({ parentId }: { parentId: string | null }) {
+  const { active } = useDndContext()
+  const { setNodeRef, isOver } = useDroppable({
+    id: parentId === null ? 'prepend-root' : `prepend-${parentId}`,
+    data: { parentId, position: 'prepend' },
+  })
+  const parentLabel = useParentLabel(parentId)
+
+  if (!active) return null
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-1 flex items-center justify-center rounded-md border-2 border-dashed text-center text-xs font-medium transition-all ${
+        isOver
+          ? 'border-primary bg-primary/10 ring-primary/20 min-h-[48px] py-4 text-primary opacity-100 ring-4'
+          : 'border-border/60 min-h-[32px] py-3 text-muted-foreground/70'
+      }`}
+    >
+      + Insert at start of {parentLabel}
     </div>
   )
 }

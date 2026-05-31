@@ -30,7 +30,10 @@ const PAGE_TYPES = new Set<PageType>([
   'forgot_password',
   'reset_password',
   'magic_link_verify',
+  'magic_link_request',
   'verify_email',
+  'email_verified',
+  'totp_setup',
 ])
 
 const SECTIONS = new Set<PortalThemeBuilderSection>(['theme', 'layout'])
