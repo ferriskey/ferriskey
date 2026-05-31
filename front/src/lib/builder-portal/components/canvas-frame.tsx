@@ -1,5 +1,5 @@
 import { useDndMonitor } from '@dnd-kit/core'
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import Frame, { FrameContextConsumer, type FrameContextProps } from 'react-frame-component'
 
 interface Props {
@@ -65,11 +65,82 @@ export function CanvasFrame({
     if (el) el.style.pointerEvents = interactive ? 'auto' : 'none'
   }
 
+  // Auto-scroll the iframe's content while dragging: dnd-kit's built-in
+  // auto-scroll only knows about scrollable parents in the *parent*
+  // document, but the page tree lives inside the iframe and the iframe
+  // itself is sized to a fixed viewport (e.g. 1600×720 desktop). Without
+  // this hook, the admin can't reach any block that's below the fold —
+  // the mouse wheel doesn't fire on a `pointer-events: none` iframe
+  // during the drag.
+  const autoScrollRafRef = useRef<number | null>(null)
+  const autoScrollDirRef = useRef<-1 | 0 | 1>(0)
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollRafRef.current !== null) return
+    const tick = () => {
+      const dir = autoScrollDirRef.current
+      const win = iframeRef.current?.contentWindow
+      if (dir !== 0 && win) {
+        // 12px per frame ≈ 720px/s at 60fps — fast enough to traverse a
+        // tall page in a couple of seconds without flying past targets.
+        win.scrollBy(0, dir * 12)
+      }
+      autoScrollRafRef.current = requestAnimationFrame(tick)
+    }
+    autoScrollRafRef.current = requestAnimationFrame(tick)
+  }, [])
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current)
+      autoScrollRafRef.current = null
+    }
+    autoScrollDirRef.current = 0
+  }, [])
+
   useDndMonitor({
-    onDragStart: () => setIframeInteractive(false),
-    onDragEnd: () => setIframeInteractive(true),
-    onDragCancel: () => setIframeInteractive(true),
+    onDragStart: () => {
+      setIframeInteractive(false)
+      startAutoScroll()
+    },
+    // `onDragMove` fires with the current pointer position in parent-window
+    // coords (after `setPointerCapture` redirects events to the iframe, the
+    // event view is the iframe but the coordinates have been normalised by
+    // dnd-kit's sensor before reaching us — see the comment in
+    // `drag-overlay.tsx` for the gnarly details). We compute the cursor's
+    // distance to the iframe's top/bottom edges and set a scroll direction
+    // that the RAF loop above consumes. Threshold is generous (60px) so the
+    // admin doesn't have to be pixel-perfect to trigger scroll.
+    onDragMove: (event) => {
+      const el = iframeRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      // `event.delta` is relative to drag start. We need the absolute
+      // pointer Y — dnd-kit doesn't expose it directly here, so derive it
+      // from the active rect's translated position (the centre of the
+      // dragged block tracks the cursor's vertical movement once dnd-kit
+      // is past the activation threshold).
+      const translated = event.active.rect.current.translated
+      if (!translated) return
+      const pointerY = translated.top + translated.height / 2
+      const threshold = 60
+      if (pointerY < rect.top + threshold) {
+        autoScrollDirRef.current = -1
+      } else if (pointerY > rect.bottom - threshold) {
+        autoScrollDirRef.current = 1
+      } else {
+        autoScrollDirRef.current = 0
+      }
+    },
+    onDragEnd: () => {
+      setIframeInteractive(true)
+      stopAutoScroll()
+    },
+    onDragCancel: () => {
+      setIframeInteractive(true)
+      stopAutoScroll()
+    },
   })
+
+  useEffect(() => () => stopAutoScroll(), [stopAutoScroll])
 
   // Re-publish the iframe's bounding rect whenever its size changes or the
   // parent window resizes — collision detection needs the up-to-date offset.

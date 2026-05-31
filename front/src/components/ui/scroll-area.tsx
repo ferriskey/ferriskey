@@ -16,7 +16,12 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot='scroll-area-viewport'
-        className='focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1'
+        // `[&>div]:!block` overrides Radix's internal `display: table` on the
+        // viewport's child wrapper. Without it the wrapper sizes to its
+        // content's natural width and any long row inside the scroll area
+        // pushes the panel wider than its parent column — visible in the
+        // builder rail where component cards overflowed into the canvas.
+        className='focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1 [&>div]:!block'
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

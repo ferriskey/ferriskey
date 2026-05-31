@@ -170,13 +170,22 @@ export default function PageTreeEditor({
       <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
       <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
         <EditorGrid>
-          <aside className='flex min-h-0 flex-col border-r border-border'>
-            <ScrollArea className='h-full'>
-              <div className='flex flex-col gap-3'>
-                {leftRailNav}
-                <PageComponentLibrary requiredTypes={requirements} />
-              </div>
-            </ScrollArea>
+          {/* Split the rail into two stacked scroll regions: the top half
+              hosts the Theme/Layout/Pages switcher (always reachable, even
+              when the page list is long), the bottom half hosts the
+              component library + required-for-this-page list. Previously the
+              whole rail lived inside one ScrollArea and a long components
+              list silently pushed the nav off-screen — making it impossible
+              to navigate back to the Theme tab without page-scrolling. */}
+          <aside className='grid min-h-0 min-w-0 grid-rows-2 overflow-hidden border-r border-border'>
+            <div className='min-h-0 min-w-0 overflow-hidden border-b border-border'>
+              <ScrollArea className='h-full w-full'>{leftRailNav}</ScrollArea>
+            </div>
+            <div className='min-h-0 min-w-0 overflow-hidden'>
+              <ScrollArea className='h-full w-full'>
+                <PageComponentLibrary requiredTypes={requirements} pageType={pageType} />
+              </ScrollArea>
+            </div>
           </aside>
 
           <main className='flex min-w-0 flex-col overflow-hidden'>

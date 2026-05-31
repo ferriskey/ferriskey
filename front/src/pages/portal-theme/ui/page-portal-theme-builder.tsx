@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePortalThemeContext } from '../context/portal-theme-context'
-import { BordersPanel } from '../components/panels/borders-panel'
-import { ColorsPanel } from '../components/panels/colors-panel'
-import { FontsPanel } from '../components/panels/fonts-panel'
+import { ButtonsPanel } from '../components/panels/buttons-panel'
+import { InputsPanel } from '../components/panels/inputs-panel'
+import { PagePanel } from '../components/panels/page-panel'
+import { TypographyPanel } from '../components/panels/typography-panel'
+import { WidgetPanel } from '../components/panels/widget-panel'
 import { PreviewCard } from '../components/preview-card'
 import { SidebarNav } from '../components/sidebar-nav'
 
@@ -46,9 +48,11 @@ export default function PagePortalThemeBuilder({ isSaving, onSave }: Props) {
         <aside className='border-l border-border'>
           <ScrollArea className='h-full'>
             <div className='p-4'>
-              {activeTab === 'colors' && <ColorsPanel />}
-              {activeTab === 'fonts' && <FontsPanel />}
-              {activeTab === 'borders' && <BordersPanel />}
+              {activeTab === 'buttons' && <ButtonsPanel />}
+              {activeTab === 'inputs' && <InputsPanel />}
+              {activeTab === 'widget' && <WidgetPanel />}
+              {activeTab === 'typography' && <TypographyPanel />}
+              {activeTab === 'page' && <PagePanel />}
             </div>
           </ScrollArea>
         </aside>

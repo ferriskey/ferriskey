@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { LayoutTemplate } from 'lucide-react'
+import { KeyRound, LayoutTemplate, Mail } from 'lucide-react'
 import type { BuilderNode, ComponentDefinition } from '../../builder-core'
 import { useBuilderContext } from '../../builder-core'
+import { PortalInput } from '../components/portal-input'
 import {
   buttonStyle,
   cardContentStyle,
@@ -10,17 +11,24 @@ import {
   cardStyle,
   containerStyle,
   divStyle,
+  forgotPasswordLinkStyle,
   headingStyle,
   IdentityProvidersBlock,
   imageJustify,
   imageStyle,
-  inputFieldStyle,
   inputHelperStyle,
   inputLabelStyle,
+  magicLinkButtonStyle,
   orderStyle,
+  passkeyButtonStyle,
+  resolveAutoComplete,
   resolveInputName,
   resolveInputType,
   textStyle,
+  TotpInputField,
+  TotpQrCodeBlock,
+  TotpSecretBlock,
+  FormErrorBannerBlock,
 } from '../renderer'
 import { InlineTextEditor } from './inline-text-editor'
 
@@ -152,12 +160,47 @@ export function renderVisualBlock(
     case 'passkey_button':
       return <ButtonBlock node={node} isSelected={isSelected} />
     case 'input':
+    case 'username_input':
+    case 'first_name_input':
+    case 'last_name_input':
     case 'email_input':
     case 'password_input':
-    case 'totp_input':
+    case 'password_confirm_input':
       return <InputBlock node={node} isSelected={isSelected} />
+    case 'totp_input':
+      return <TotpInputBlock node={node} isSelected={isSelected} />
     case 'identity_providers':
       return <IdentityProvidersPreview node={node} isSelected={isSelected} />
+    case 'forgot_password_link':
+      return <EditableForgotPasswordLink node={node} isSelected={isSelected} />
+    case 'back_to_login_link':
+      return <EditableBackToLoginLink node={node} isSelected={isSelected} />
+    case 'register_link':
+      return <EditableRegisterLink node={node} isSelected={isSelected} />
+    case 'totp_qr_code':
+      // Canvas preview: reuse the runtime block with no `totpSetup`
+      // option — it renders the placeholder QR square + a selection
+      // outline so the admin can position it before any real data flows.
+      return (
+        <div style={chromeStyle(isSelected)}>
+          <TotpQrCodeBlock node={node} options={{}} />
+        </div>
+      )
+    case 'totp_secret':
+      return (
+        <div style={chromeStyle(isSelected)}>
+          <TotpSecretBlock node={node} options={{}} />
+        </div>
+      )
+    case 'form_error_banner':
+      // Pass no `formError`/`runtime` so the renderer falls back to the
+      // placeholder sample message and the admin can style/position
+      // the banner without having to trigger a real failure.
+      return (
+        <div style={chromeStyle(isSelected)}>
+          <FormErrorBannerBlock node={node} options={{}} />
+        </div>
+      )
     case 'page-content':
       return <PageContentSlot node={node} isSelected={isSelected} />
     default:
@@ -334,7 +377,30 @@ function DividerBlock({ node, isSelected }: { node: BuilderNode; isSelected: boo
 
 function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
   const { updateNode } = useBuilderContext()
-  const style = mergeStyles(buttonStyle(node), isSelected)
+  // Pick the right style fn per type so the canvas mirrors the runtime
+  // (`magic_link_button` and `passkey_button` have their own theme tokens —
+  // they don't follow the generic Primary/Secondary palette anymore).
+  const styleFn =
+    node.type === 'magic_link_button'
+      ? magicLinkButtonStyle
+      : node.type === 'passkey_button'
+        ? passkeyButtonStyle
+        : buttonStyle
+  // Icon prefix: alternative-auth buttons get a glyph (mail / key) so the
+  // canvas matches the runtime exactly. Generic buttons stay text-only.
+  const icon =
+    node.type === 'magic_link_button' ? (
+      <Mail size={16} aria-hidden />
+    ) : node.type === 'passkey_button' ? (
+      <KeyRound size={16} aria-hidden />
+    ) : null
+  const style = mergeStyles(
+    {
+      ...styleFn(node),
+      gap: icon ? 8 : undefined,
+    },
+    isSelected,
+  )
 
   // Render exactly as runtime (`<a>` for button). We only block the anchor's
   // default navigation — propagation must continue so the SortableNode
@@ -348,6 +414,7 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
         e.preventDefault()
       }}
     >
+      {icon}
       {isSelected ? (
         <InlineTextEditor
           content={node.content ?? 'Button'}
@@ -368,18 +435,62 @@ function InputBlock({ node, isSelected }: { node: BuilderNode; isSelected: boole
   return (
     <div
       data-fk-id={node.id}
-      style={{ display: 'flex', flexDirection: 'column', gap: 6, ...orderStyle(node) }}
+      style={{
+        ...chromeStyle(isSelected),
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        ...orderStyle(node),
+      }}
+    >
+      {/* Reuse the runtime `PortalInput` with `disabled` so the canvas
+          preview is byte-identical to what realm users will see — same
+          floating-label visual, same theme tokens, same focus ring. */}
+      <PortalInput
+        name={resolveInputName(node)}
+        label={label}
+        type={resolveInputType(node)}
+        placeholder={placeholder}
+        disabled
+        autoComplete={resolveAutoComplete(node)}
+        alwaysFloatLabel
+      />
+      {helperText ? <span style={inputHelperStyle()}>{helperText}</span> : null}
+    </div>
+  )
+}
+
+/**
+ * Canvas preview of the segmented OTP input. Reuses the runtime
+ * `TotpInputField` (with `disabled=true`) so the slots render byte-
+ * identical to what realm end-users will see — no risk of the admin
+ * shipping a layout that looks different from the preview.
+ */
+function TotpInputBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
+  const label = (node.props.label as string) ?? ''
+  const helperText = (node.props.helperText as string) ?? ''
+  const rawLength = (node.props.length as string) || '6'
+  const parsed = Number.parseInt(rawLength, 10)
+  const length = Number.isFinite(parsed) && parsed > 0 && parsed <= 12 ? parsed : 6
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        ...chromeStyle(isSelected),
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        alignItems: 'center',
+        // Disable pointer events on the whole preview — same protection as
+        // the regular `InputBlock` so the admin can't accidentally focus a
+        // slot while editing the page.
+        pointerEvents: 'none',
+        ...orderStyle(node),
+      }}
     >
       {label ? <label style={inputLabelStyle()}>{label}</label> : null}
-      <input
-        type={resolveInputType(node)}
-        name={resolveInputName(node)}
-        placeholder={placeholder}
-        // Disabled in the canvas so the user can't type into the preview
-        // by accident; the runtime renderer flips this off (`runtime: true`).
-        disabled
-        style={mergeStyles({ ...inputFieldStyle(), pointerEvents: 'none' }, isSelected)}
-      />
+      <TotpInputField disabled name={resolveInputName(node) ?? 'totp'} length={length} />
       {helperText ? <span style={inputHelperStyle()}>{helperText}</span> : null}
     </div>
   )
@@ -402,16 +513,159 @@ function IdentityProvidersPreview({
   )
 }
 
+/**
+ * Forgot password link with inline content editing, mirrors the editable
+ * heading/text blocks. Click is suppressed via `e.preventDefault` so the
+ * canvas doesn't navigate while the admin is composing — the SortableNode
+ * wrapper's `onClick` (selection) still runs because we don't
+ * `stopPropagation`.
+ */
+function EditableForgotPasswordLink({
+  node,
+  isSelected,
+}: {
+  node: BuilderNode
+  isSelected: boolean
+}) {
+  const { updateNode } = useBuilderContext()
+  const style = mergeStyles(forgotPasswordLinkStyle(node), isSelected)
+
+  if (isSelected) {
+    return (
+      <a
+        data-fk-id={node.id}
+        href='#'
+        style={style}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+      >
+        <InlineTextEditor
+          content={node.content ?? ''}
+          onChange={(value) => updateNode(node.id, { content: value })}
+        />
+      </a>
+    )
+  }
+  return (
+    <a
+      data-fk-id={node.id}
+      href='#'
+      style={style}
+      onClick={(e) => e.preventDefault()}
+    >
+      {node.content ?? 'Forgot password?'}
+    </a>
+  )
+}
+
+/**
+ * "Back to login" link — shares the inline-text-editor + click-suppression
+ * pattern with `EditableForgotPasswordLink`. Same styling token (link
+ * tokens from the theme), different default content + href.
+ */
+function EditableBackToLoginLink({
+  node,
+  isSelected,
+}: {
+  node: BuilderNode
+  isSelected: boolean
+}) {
+  const { updateNode } = useBuilderContext()
+  const style = mergeStyles(forgotPasswordLinkStyle(node), isSelected)
+
+  if (isSelected) {
+    return (
+      <a
+        data-fk-id={node.id}
+        href='#'
+        style={style}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+      >
+        <InlineTextEditor
+          content={node.content ?? ''}
+          onChange={(value) => updateNode(node.id, { content: value })}
+        />
+      </a>
+    )
+  }
+  return (
+    <a
+      data-fk-id={node.id}
+      href='#'
+      style={style}
+      onClick={(e) => e.preventDefault()}
+    >
+      {node.content ?? 'Back to login'}
+    </a>
+  )
+}
+
+/**
+ * "Don't have an account? Sign up" link. Same editor pattern as the other
+ * auth-flow nav links — shared styling, different default content + href.
+ */
+function EditableRegisterLink({
+  node,
+  isSelected,
+}: {
+  node: BuilderNode
+  isSelected: boolean
+}) {
+  const { updateNode } = useBuilderContext()
+  const style = mergeStyles(forgotPasswordLinkStyle(node), isSelected)
+
+  if (isSelected) {
+    return (
+      <a
+        data-fk-id={node.id}
+        href='#'
+        style={style}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+      >
+        <InlineTextEditor
+          content={node.content ?? ''}
+          onChange={(value) => updateNode(node.id, { content: value })}
+        />
+      </a>
+    )
+  }
+  return (
+    <a
+      data-fk-id={node.id}
+      href='#'
+      style={style}
+      onClick={(e) => e.preventDefault()}
+    >
+      {node.content ?? 'Don\u2019t have an account? Sign up'}
+    </a>
+  )
+}
+
 function PageContentSlot({ isSelected }: { node: BuilderNode; isSelected: boolean }) {
   return (
     <div
       style={{
         ...chromeStyle(isSelected),
-        // Plain block-flow placeholder. Layout (centering, sizing) is up to
-        // the slot's parent in the user's tree — matching the runtime
-        // `<div data-portal-page-content>` exactly.
-        minHeight: 120,
+        // Mirror the runtime stretch behaviour (`<div data-portal-page-content>`
+        // is rendered with `width: 100%` + `align-self: stretch`), otherwise
+        // the layout builder paints a content-width placeholder while the
+        // live portal renders full-width — and the admin can't tell the two
+        // apart until they ship.
+        width: '100%',
+        alignSelf: 'stretch',
         boxSizing: 'border-box',
+        minHeight: 120,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

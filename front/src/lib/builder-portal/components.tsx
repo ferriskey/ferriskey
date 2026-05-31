@@ -1,11 +1,16 @@
 import {
+  AlertCircle,
+  ArrowLeft,
   AtSign,
   Box,
   CheckSquare,
   CreditCard,
   Fingerprint,
   Globe,
+  HelpCircle,
   Heading as HeadingIcon,
+  Hash,
+  IdCard,
   Image as ImageIcon,
   KeyRound,
   LayoutTemplate,
@@ -16,9 +21,13 @@ import {
   MoveVertical,
   PanelBottom,
   PanelTop,
+  QrCode,
+  ShieldCheck,
   Square,
   TextCursorInput,
   Type,
+  User,
+  UserPlus,
 } from 'lucide-react'
 import { generateNodeId, type BuilderNode, type ComponentDefinition } from '../builder-core'
 
@@ -33,13 +42,23 @@ const ALL_CHILDREN = [
   'divider',
   'button',
   'input',
+  'username_input',
+  'first_name_input',
+  'last_name_input',
   'email_input',
   'password_input',
+  'password_confirm_input',
   'totp_input',
   'submit_button',
   'magic_link_button',
   'passkey_button',
   'identity_providers',
+  'forgot_password_link',
+  'back_to_login_link',
+  'register_link',
+  'totp_qr_code',
+  'totp_secret',
+  'form_error_banner',
   'page-content',
 ]
 
@@ -230,6 +249,7 @@ export const portalComponents: ComponentDefinition[] = [
       variant: 'primary',
       href: '#',
       fullWidth: 'true',
+      align: 'center',
     },
     defaultStyles: {},
   },
@@ -249,6 +269,42 @@ export const portalComponents: ComponentDefinition[] = [
     label: 'Page content',
     icon: <LayoutTemplate size={14} />,
     defaultProps: {},
+    defaultStyles: {},
+  },
+  {
+    type: 'username_input',
+    label: 'Username input',
+    icon: <User size={14} />,
+    defaultProps: {
+      label: 'Username',
+      placeholder: '',
+      type: 'text',
+      name: 'username',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'first_name_input',
+    label: 'First name input',
+    icon: <IdCard size={14} />,
+    defaultProps: {
+      label: 'First name',
+      placeholder: '',
+      type: 'text',
+      name: 'first_name',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'last_name_input',
+    label: 'Last name input',
+    icon: <IdCard size={14} />,
+    defaultProps: {
+      label: 'Last name',
+      placeholder: '',
+      type: 'text',
+      name: 'last_name',
+    },
     defaultStyles: {},
   },
   {
@@ -276,6 +332,18 @@ export const portalComponents: ComponentDefinition[] = [
     defaultStyles: {},
   },
   {
+    type: 'password_confirm_input',
+    label: 'Confirm password',
+    icon: <ShieldCheck size={14} />,
+    defaultProps: {
+      label: 'Confirm password',
+      placeholder: '',
+      type: 'password',
+      name: 'password_confirm',
+    },
+    defaultStyles: {},
+  },
+  {
     type: 'totp_input',
     label: 'TOTP input',
     icon: <KeyRound size={14} />,
@@ -296,6 +364,7 @@ export const portalComponents: ComponentDefinition[] = [
       variant: 'primary',
       fullWidth: 'true',
       submit: 'true',
+      align: 'center',
     },
     defaultStyles: {},
   },
@@ -321,6 +390,9 @@ export const portalComponents: ComponentDefinition[] = [
       // primary CTA (which is the submit button).
       variant: 'outline',
       fullWidth: 'true',
+      // Centred icon+label group by default. Switch to `left` for a
+      // social-style alignment (icon on left, label flowing right).
+      align: 'center',
     },
     defaultStyles: {},
   },
@@ -332,12 +404,104 @@ export const portalComponents: ComponentDefinition[] = [
     defaultProps: {
       variant: 'outline',
       fullWidth: 'true',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Inline link that navigates to the realm's `/forgot-password` page. The
+  // URL is relative (`../forgot-password`) so it works across realms without
+  // the renderer needing to know the realm name at render time. Click during
+  // the builder preview is inert (renderer flips `runtime: false`); at
+  // runtime the browser handles the navigation natively.
+  {
+    type: 'forgot_password_link',
+    label: 'Forgot password',
+    icon: <HelpCircle size={14} />,
+    hasContent: true,
+    defaultProps: {
+      textAlign: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Inline "Back to login" link. Used on Register / Forgot password / Magic
+  // link request / Verify email / Reset password / Magic link verify pages —
+  // anywhere the user can reasonably bail out and try the normal sign-in
+  // flow instead. Same relative-href trick as `forgot_password_link`.
+  {
+    type: 'back_to_login_link',
+    label: 'Back to login',
+    icon: <ArrowLeft size={14} />,
+    hasContent: true,
+    defaultProps: {
+      textAlign: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Inline "Don't have an account? Sign up" link. Mirror of back_to_login —
+  // sits on the Login page (and anywhere else the user might want to bail
+  // out and create an account instead). Routes to `./register`.
+  {
+    type: 'register_link',
+    label: 'Register link',
+    icon: <UserPlus size={14} />,
+    hasContent: true,
+    defaultProps: {
+      textAlign: 'center',
+    },
+    defaultStyles: {},
+  },
+  // QR code rendered from the `otpauth://` URL supplied by the TOTP setup
+  // endpoint. The renderer pulls the URL from a per-page render option
+  // (`totpSetup.otpauthUrl`) — the admin doesn't author the value, only
+  // controls the placement.
+  {
+    type: 'totp_qr_code',
+    label: 'TOTP QR code',
+    icon: <QrCode size={14} />,
+    defaultProps: {
+      // Side length in pixels for the rendered QR. Most authenticator
+      // apps scan a 160–200px QR comfortably.
+      size: '180',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Plain-text fallback for the TOTP secret — typed by hand when scanning
+  // isn't possible. Renders the secret string with a copy affordance.
+  {
+    type: 'totp_secret',
+    label: 'TOTP secret',
+    icon: <Hash size={14} />,
+    defaultProps: {
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Inline error banner. Renders the latest submit failure message
+  // surfaced by the page's submit handler (invalid credentials, etc.) —
+  // analogous to the red banner in the React default theme. Auto-hides
+  // when there's no error; the canvas preview shows a placeholder so
+  // admins can style the banner without triggering an actual failure.
+  {
+    type: 'form_error_banner',
+    label: 'Form error',
+    icon: <AlertCircle size={14} />,
+    defaultProps: {
+      variant: 'destructive',
     },
     defaultStyles: {},
   },
 ]
 
-/** Block types that are specialized for a portal page (not generic layout). */
+/**
+ * Block types that are *only ever* required by a specific portal page —
+ * these stay out of the generic palette section and only surface in the
+ * "Required for this page" group when the backend requests them. Optional
+ * identity-related inputs (first/last name, username, password-confirm)
+ * are deliberately NOT in this set: they're genuinely optional building
+ * blocks for forms like Register, so they should appear in the regular
+ * library palette and be hideable per page via `HIDDEN_BLOCKS_BY_PAGE_TYPE`.
+ */
 export const REQUIRED_BLOCK_TYPES = new Set([
   'email_input',
   'password_input',
@@ -359,6 +523,155 @@ export const LAYOUT_ONLY_BLOCK_TYPES = new Set([
   'card-footer',
 ])
 
+/**
+ * Per-page exclusion list: block types that don't make semantic sense on a
+ * given portal page and shouldn't be offered in the library while editing
+ * that page (e.g., no "Forgot password" link on the Register page — the
+ * user doesn't have an account yet). The library filters its generic and
+ * required sections against this set so the palette stays focused on what
+ * the admin can actually use.
+ *
+ * Lookup is by `Schemas.PortalPageType` string. Pages not listed get the
+ * full palette.
+ */
+export const HIDDEN_BLOCKS_BY_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
+  login: new Set([
+    // The "back to login" link is meaningless when we're already there.
+    'back_to_login_link',
+  ]),
+  register: new Set([
+    // Auth alternatives only make sense once the user has an account.
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    // Identity providers can stay (social registration is valid).
+    // TOTP makes no sense before the account exists.
+    'totp_input',
+  ]),
+  forgot_password: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  reset_password: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'email_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  totp: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  magic_link_request: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  magic_link_verify: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  verify_email: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+  email_verified: new Set([
+    // Pure confirmation screen — no auth alternatives, no form fields.
+    // Just heading + text + the back-to-login link (or a button styled
+    // as a CTA).
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+    'register_link',
+  ]),
+  totp_setup: new Set([
+    // QR + code entry only. No auth alternatives (the user is already
+    // mid-flow) and no other identity fields.
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
+}
+
+/**
+ * Inverse of `HIDDEN_BLOCKS_BY_PAGE_TYPE`: blocks that only make sense on
+ * a specific portal page. The library hides them everywhere else so the
+ * admin doesn't drag in a `totp_qr_code` on the login page and end up
+ * with a placeholder that never resolves a real URL.
+ *
+ * Keyed by block type, value is the allow-list of page types where it
+ * should appear.
+ */
+export const RESTRICTED_TO_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
+  totp_qr_code: new Set(['totp_setup']),
+  totp_secret: new Set(['totp_setup']),
+}
+
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   heading: 'Welcome',
   text: 'Sign in to your account.',
@@ -366,6 +679,9 @@ const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   submit_button: 'Continue',
   magic_link_button: 'Sign in with a magic link',
   passkey_button: 'Sign in with a passkey',
+  forgot_password_link: 'Forgot password?',
+  back_to_login_link: 'Back to login',
+  register_link: 'Don\u2019t have an account? Sign up',
 }
 
 /**

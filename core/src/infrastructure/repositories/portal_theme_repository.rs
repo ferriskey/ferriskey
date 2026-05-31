@@ -41,7 +41,10 @@ fn model_to_domain(model: Model) -> Result<PortalTheme, CoreError> {
         forgot_password: model.page_forgot_password,
         reset_password: model.page_reset_password,
         magic_link_verify: model.page_magic_link_verify,
+        magic_link_request: model.page_magic_link_request,
         verify_email: model.page_verify_email,
+        email_verified: model.page_email_verified,
+        totp_setup: model.page_totp_setup,
     };
 
     Ok(PortalTheme {
@@ -64,7 +67,10 @@ fn page_column(page_type: PortalPageType) -> Column {
         PortalPageType::ForgotPassword => Column::PageForgotPassword,
         PortalPageType::ResetPassword => Column::PageResetPassword,
         PortalPageType::MagicLinkVerify => Column::PageMagicLinkVerify,
+        PortalPageType::MagicLinkRequest => Column::PageMagicLinkRequest,
         PortalPageType::VerifyEmail => Column::PageVerifyEmail,
+        PortalPageType::EmailVerified => Column::PageEmailVerified,
+        PortalPageType::TotpSetup => Column::PageTotpSetup,
     }
 }
 

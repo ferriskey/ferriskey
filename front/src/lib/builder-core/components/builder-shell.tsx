@@ -136,9 +136,16 @@ export function BuilderShell({
       // rely on `args.active.node` because dnd-kit's public `Active` type
       // doesn't expose a node ref, so the previous `ownerDocument` check was
       // silently always false.
+      //
+      // The tree panel also emits `source: 'canvas'` drags so the move
+      // pipeline doesn't need a separate code path — but those rows live
+      // in the parent document, not in the iframe. The `fromTree` flag
+      // lets us skip the pointer/rect translation for them.
+      const activeData = args.active?.data?.current as
+        | { source?: string; fromTree?: boolean }
+        | undefined
       const activeInIframe =
-        (args.active?.data?.current as { source?: string } | undefined)?.source ===
-        'canvas'
+        activeData?.source === 'canvas' && !activeData.fromTree
       const pointerCoordinates =
         activeInIframe && args.pointerCoordinates
           ? {
@@ -147,11 +154,27 @@ export function BuilderShell({
             }
           : args.pointerCoordinates
 
-      return pointerWithin({
+      const collisions = pointerWithin({
         ...args,
         droppableRects: adjusted,
         pointerCoordinates,
       })
+
+      // Tree-panel UX: when both an "into" overlay and the sibling
+      // wrapper of the same row sit under the cursor (the overlay is
+      // inscribed inside the wrapper rect), prefer the "into" target.
+      // Without this, dnd-kit's tie-breaking by distance-to-centre
+      // returns the first-registered droppable — which is the sibling
+      // wrapper, since the overlay renders later as a child — and the
+      // admin can never drop a block *into* a container from the tree.
+      const intoIdx = collisions.findIndex((c) =>
+        String(c.id).startsWith('tree-into-'),
+      )
+      if (intoIdx > 0) {
+        const [intoCollision] = collisions.splice(intoIdx, 1)
+        collisions.unshift(intoCollision)
+      }
+      return collisions
     },
     [],
   )

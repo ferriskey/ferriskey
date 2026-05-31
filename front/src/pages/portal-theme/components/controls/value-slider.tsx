@@ -1,6 +1,5 @@
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Slider } from '@/components/ui/slider'
+import { ControlRow } from './control-row'
 
 type ValueSliderProps = {
   label: string
@@ -10,8 +9,26 @@ type ValueSliderProps = {
   max: number
   step?: number
   unit?: string
+  /**
+   * When set, a "modified" dot appears next to the label and clicking it
+   * snaps the value back to `defaultValue`. Pass it from each panel using
+   * the corresponding entry in `defaultTheme`.
+   */
+  defaultValue?: number
 }
 
+/**
+ * Compact numeric input à la Webflow: label on the left, native
+ * `<input type="number">` (with built-in steppers) on the right plus an
+ * optional unit suffix.
+ *
+ * The component is still named `ValueSlider` for the moment to avoid a
+ * sweeping rename across every panel — under the hood it's now a numeric
+ * input. We dropped the actual slider because token values (border weight,
+ * font size, radius) benefit far more from precise stepping than from a
+ * fuzzy drag handle; the native input's keyboard support (↑/↓, ⇧↑/⇧↓ for
+ * larger steps in some browsers) covers exploration cases anyway.
+ */
 export function ValueSlider({
   label,
   value,
@@ -20,34 +37,32 @@ export function ValueSlider({
   max,
   step = 1,
   unit,
+  defaultValue,
 }: ValueSliderProps) {
+  const modified = defaultValue !== undefined && defaultValue !== value
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='flex items-center justify-between'>
-        <Label className='text-xs font-medium text-muted-foreground'>{label}</Label>
-        <div className='flex items-center gap-1'>
-          <Input
-            type='number'
-            value={value}
-            min={min}
-            max={max}
-            step={step}
-            onChange={(e) => {
-              const next = Number(e.target.value)
-              if (!Number.isNaN(next)) onChange(next)
-            }}
-            className='h-7 w-16 text-right text-xs'
-          />
-          {unit && <span className='text-xs text-muted-foreground'>{unit}</span>}
-        </div>
+    <ControlRow
+      label={label}
+      modified={modified}
+      onReset={defaultValue !== undefined ? () => onChange(defaultValue) : undefined}
+    >
+      <div className='flex w-full items-center gap-1'>
+        <Input
+          type='number'
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) => {
+            const next = Number(e.target.value)
+            if (!Number.isNaN(next)) onChange(next)
+          }}
+          className='h-7 w-full text-right text-xs tabular-nums'
+        />
+        {unit && (
+          <span className='w-4 shrink-0 text-[10px] text-muted-foreground'>{unit}</span>
+        )}
       </div>
-      <Slider
-        value={[value]}
-        min={min}
-        max={max}
-        step={step}
-        onValueChange={(values) => onChange(values[0])}
-      />
-    </div>
+    </ControlRow>
   )
 }

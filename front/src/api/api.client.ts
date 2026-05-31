@@ -7,6 +7,9 @@ export namespace Schemas {
     buttonRadius: number
     inputBorderWeight: number
     inputRadius: number
+    socialButtonBorderWeight: number
+    magicLinkButtonBorderWeight: number
+    passkeyButtonBorderWeight: number
     widgetBorderWeight: number
     widgetRadius: number
     widgetShadow: ThemeShadow
@@ -20,6 +23,15 @@ export namespace Schemas {
     primaryButtonLabel: string
     secondaryButton: string
     secondaryButtonLabel: string
+    socialButtonBackground: string
+    socialButtonLabel: string
+    socialButtonBorder: string
+    magicLinkButtonBackground: string
+    magicLinkButtonLabel: string
+    magicLinkButtonBorder: string
+    passkeyButtonBackground: string
+    passkeyButtonLabel: string
+    passkeyButtonBorder: string
     widgetBackground: string
   }>
   export type ThemeFontStyle = { sizePct: number; weight: number }
@@ -305,11 +317,14 @@ export namespace Schemas {
   export type PortalThemePages = Partial<{
     forgotPassword: unknown
     login: unknown
+    magicLinkRequest: unknown
     magicLinkVerify: unknown
     register: unknown
     resetPassword: unknown
     totp: unknown
     verifyEmail: unknown
+    emailVerified: unknown
+    totpSetup: unknown
   }>
   export type PortalTheme = {
     config: PortalThemeConfig
@@ -657,7 +672,10 @@ export namespace Schemas {
     | 'forgot_password'
     | 'reset_password'
     | 'magic_link_verify'
+    | 'magic_link_request'
     | 'verify_email'
+    | 'email_verified'
+    | 'totp_setup'
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> }
   export type PageRequirementsResponse = { data: Array<PageRequirement> }
   export type PasskeyAuthenticateResponse = { login_url: string; status: string }
@@ -749,6 +767,7 @@ export namespace Schemas {
     | { data: PendingVerificationResponse; status: 'pending_verification' }
   export type RemoveClientWhitelistEntryResponse = { message: string }
   export type RemoveRealmWhitelistEntryResponse = { message: string }
+  export type ResendVerificationEmailResponse = { message: string }
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string }
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string }
   export type ResetPasswordValidator = Partial<{
@@ -2023,6 +2042,20 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type post_Resend_verification_email_handler = {
+    method: 'POST'
+    path: '/realms/{realm_name}/login-actions/resend-verification-email'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.ResendVerificationEmailResponse
+      401: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type post_Reset_password_with_token = {
     method: 'POST'
     path: '/realms/{realm_name}/login-actions/reset-password'
@@ -2537,7 +2570,10 @@ export namespace Endpoints {
           | 'forgot_password'
           | 'reset_password'
           | 'magic_link_verify'
+          | 'magic_link_request'
           | 'verify_email'
+          | 'email_verified'
+          | 'totp_setup'
       }
       path: { realm_name: string }
     }
@@ -2697,7 +2733,10 @@ export namespace Endpoints {
           | 'forgot_password'
           | 'reset_password'
           | 'magic_link_verify'
+          | 'magic_link_request'
           | 'verify_email'
+          | 'email_verified'
+          | 'totp_setup'
       }
 
       body: Schemas.UpdateThemePageValidator
@@ -3434,6 +3473,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/login-actions/generate-recovery-codes': Endpoints.post_Generate_recovery_codes
     '/realms/{realm_name}/login-actions/passkey-authenticate': Endpoints.post_Passkey_authenticate
     '/realms/{realm_name}/login-actions/passkey-request-options': Endpoints.post_Passkey_request_options
+    '/realms/{realm_name}/login-actions/resend-verification-email': Endpoints.post_Resend_verification_email_handler
     '/realms/{realm_name}/login-actions/reset-password': Endpoints.post_Reset_password_with_token
     '/realms/{realm_name}/login-actions/send-magic-link': Endpoints.post_Send_magic_link
     '/realms/{realm_name}/login-actions/update-password': Endpoints.post_Update_password

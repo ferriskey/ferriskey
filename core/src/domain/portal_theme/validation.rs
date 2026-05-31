@@ -30,7 +30,24 @@ pub const REQUIRED_BLOCKS: &[(PortalPageType, &[&str])] = &[
         &["password_input", "submit_button"],
     ),
     (PortalPageType::MagicLinkVerify, &["submit_button"]),
+    (
+        PortalPageType::MagicLinkRequest,
+        &["email_input", "submit_button"],
+    ),
     (PortalPageType::VerifyEmail, &["submit_button"]),
+    // No hard requirement: a fully-static success screen (heading + text +
+    // back-to-login link) is a valid composition. The `validate_pages`
+    // walker still enforces presence of *some* tree though — pages with
+    // empty trees fall through to the React fallback.
+    (PortalPageType::EmailVerified, &[]),
+    // First-time TOTP enrolment. The QR code block is required — without
+    // it the user can't bind their authenticator app, which makes the
+    // page un-completable (the `totp_secret` text fallback is optional
+    // since most users will just scan the QR).
+    (
+        PortalPageType::TotpSetup,
+        &["totp_qr_code", "totp_input", "submit_button"],
+    ),
 ];
 
 pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str] {
@@ -176,9 +193,15 @@ mod tests {
 
     #[test]
     fn every_page_type_has_an_entry_in_required_blocks() {
+        // Check presence in the const table directly rather than via
+        // `required_blocks_for`. Some page types (e.g., `EmailVerified`)
+        // have an intentionally empty required-blocks list — a static
+        // success screen is a valid composition — and `is_empty()` would
+        // false-positive both "missing entry" and "intentionally empty"
+        // as the same failure mode.
         for pt in PortalPageType::ALL {
             assert!(
-                !required_blocks_for(pt).is_empty(),
+                REQUIRED_BLOCKS.iter().any(|(entry_pt, _)| *entry_pt == pt),
                 "missing REQUIRED_BLOCKS entry for {pt:?}"
             );
         }

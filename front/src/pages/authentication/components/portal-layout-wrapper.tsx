@@ -1,18 +1,20 @@
-import type { CSSProperties, FormEvent, ReactNode } from 'react'
-import { useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   useGetActivePortalTheme,
   useGetPortalPageRequirements,
 } from '@/api/portal-theme.api'
 import { useGetPublicPortalLayout } from '@/api/portal-layouts.api'
 import { useGetLoginSettings } from '@/api/realm.api'
+import { useSetupOtp } from '@/api/trident.api'
 import type { RouterParams } from '@/routes/router'
 import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
 import { mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import type { Schemas } from '@/api/api.client'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
+import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 
 function parseTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) {
@@ -73,10 +75,66 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   const { data: loginSettings } = useGetLoginSettings({ realm })
   const identityProviders = loginSettings?.identity_providers ?? []
 
-  const cssVars = useMemo(
-    () => themeToCssVars(mergeWithDefaults(activeData?.design_tokens)) as CSSProperties,
-    [activeData?.design_tokens],
+  // TOTP setup: when the user is mid-enrolment we need to fetch the QR
+  // code + secret from the backend's setup endpoint. The token lives in
+  // the URL as `client_data` (set by the auth flow). Only run the query
+  // on the totp_setup page — every other page would waste a network call
+  // and risk a 4xx if no token is present.
+  const totpSetupToken =
+    pageType === 'totp_setup'
+      ? new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get(
+          'client_data',
+        )
+      : null
+  const { data: totpSetupData } = useSetupOtp({
+    realm,
+    token: totpSetupToken,
+  })
+  const totpSetup = useMemo(
+    () => {
+      if (
+        pageType === 'totp_setup' &&
+        totpSetupData?.otpauth_url &&
+        totpSetupData?.secret
+      ) {
+        return {
+          otpauthUrl: totpSetupData.otpauth_url,
+          secret: totpSetupData.secret,
+        }
+      }
+      return undefined
+    },
+    [pageType, totpSetupData],
   )
+
+  // Cache the *already-computed* CSS vars in localStorage keyed by realm
+  // so a refresh can apply the realm's last-known theme instantly. The
+  // pre-computed shape lets us read the same cache from a tiny inline
+  // script in `index.html` that runs before React mounts — that script
+  // applies the vars to `:root` before the browser paints, killing the
+  // last ~50ms of flash that survived the React-side fallback alone.
+  const cachedVars = useMemo(() => readCachedCssVars(realm), [realm])
+  const tokens = activeData?.design_tokens
+  const cssVars = useMemo(() => {
+    if (tokens) {
+      return themeToCssVars(mergeWithDefaults(tokens)) as unknown as CSSProperties
+    }
+    if (cachedVars) {
+      return cachedVars as unknown as CSSProperties
+    }
+    return themeToCssVars(mergeWithDefaults(undefined)) as CSSProperties
+  }, [tokens, cachedVars])
+  useEffect(() => {
+    if (activeData?.design_tokens) {
+      writeCachedCssVars(
+        realm,
+        themeToCssVars(mergeWithDefaults(activeData.design_tokens)) as Record<
+          string,
+          string
+        >,
+      )
+    }
+  }, [realm, activeData?.design_tokens])
 
   const pageTree = parseTree(activeData?.page_tree)
   const layoutTree = layoutData?.data ? parseTree(layoutData.data.tree) : []
@@ -89,7 +147,62 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // feature, which already provides its own layout — wrapping it inside the
   // admin's layout would render an incoherent mix of two designs.
   const pageIsValid = pageTree.length > 0 && hasAllRequiredBlocks(pageTree, requiredBlocks)
-  const { onSubmit } = usePortalPageSubmit(pageType)
+  // Inline form-error banner state. Submit handlers populate this so the
+  // user gets feedback on failed sign-ins / registrations / etc. without
+  // having to find a corner-of-screen toast. The `form_error_banner`
+  // block reads this through the render options and shows or hides
+  // itself accordingly.
+  const [formError, setFormError] = useState<string | null>(null)
+  const { onSubmit, isSubmitting } = usePortalPageSubmit(pageType, {
+    onFormError: setFormError,
+  })
+
+  // Passkey + magic-link buttons rendered inside the custom portal tree
+  // expose themselves via `data-fk-action` (see renderer.tsx). The React
+  // PageLogin fallback wires real onClick handlers, but a tree authored in
+  // the builder is just declarative markup — so we delegate clicks from the
+  // wrapper here and route them to the same flows the fallback uses.
+  const { onPasskeyLogin } = usePasskeyAuth({
+    realm_name: realm,
+    enabled: loginSettings?.passkey_enabled ?? false,
+    isAuthInitiated: true,
+  })
+  const navigate = useNavigate()
+
+  const handlePortalActionClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const trigger = (event.target as HTMLElement | null)?.closest(
+        '[data-fk-action]',
+      ) as HTMLElement | null
+      if (!trigger) return
+
+      const action = trigger.getAttribute('data-fk-action')
+      if (action === 'passkey') {
+        // The button lives inside the surrounding <form>; without preventing
+        // default the click would also submit the form (because `<button>`
+        // defaults to type=submit when not explicitly set — `type=button` is
+        // set in the renderer but we belt-and-brace here too).
+        event.preventDefault()
+        onPasskeyLogin()
+        return
+      }
+
+      if (action === 'magic-link') {
+        event.preventDefault()
+        // Carry over whatever the user already typed into the page's
+        // email/username field so the dedicated form lands pre-filled — most
+        // realms accept either, so try both names.
+        const form = trigger.closest('form')
+        const formData = form ? new FormData(form) : null
+        const email = String(
+          formData?.get('email') ?? formData?.get('username') ?? '',
+        ).trim()
+        const query = email ? `?email=${encodeURIComponent(email)}` : ''
+        navigate(`/realms/${realm}/authentication/magic-link-request${query}`)
+      }
+    },
+    [navigate, onPasskeyLogin, realm],
+  )
 
   if (
     isThemeLoading ||
@@ -121,6 +234,46 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <style dangerouslySetInnerHTML={{ __html: breakpointCss }} />
   ) : null
 
+  // Hover / active / busy CSS for portal buttons. Inline styles can't
+  // express `:hover` so we inject a static rule set keyed by a marker
+  // attribute (`data-fk-portal-btn`) the renderer puts on every button.
+  // - hover: subtle opacity dip — works for primary, secondary, social
+  //   and alt-auth buttons regardless of their underlying colour
+  // - active: a touch more pronounced for the press-down feel
+  // - busy: rendered `cursor: wait` + dimmer + `pointer-events: none` so
+  //   the user can't double-click submit while the network call is in
+  //   flight. The renderer flips `data-fk-busy` when the submit handler
+  //   is in flight.
+  const buttonInteractionCss = `
+    [data-fk-portal-btn]:not(:disabled):not([data-fk-busy="true"]):hover {
+      opacity: 0.92;
+      filter: brightness(1.03);
+    }
+    [data-fk-portal-btn]:not(:disabled):not([data-fk-busy="true"]):active {
+      opacity: 0.85;
+      filter: brightness(0.97);
+    }
+    [data-fk-portal-btn][data-fk-busy="true"] {
+      cursor: wait;
+      opacity: 0.75;
+      pointer-events: none;
+    }
+    [data-fk-portal-btn]:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+    @keyframes fk-portal-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    [data-fk-portal-spinner] {
+      animation: fk-portal-spin 0.8s linear infinite;
+    }
+  `
+  const buttonInteractionStyle = (
+    <style dangerouslySetInnerHTML={{ __html: buttonInteractionCss }} />
+  )
+
   // The layout is only renderable when it has a `page-content` slot.
   // Without one, applying it would hide the page entirely.
   const layoutIsValid = layoutTree.length > 0 && layoutHasPageContent(layoutTree)
@@ -129,6 +282,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     return (
       <div style={cssVars}>
         {responsiveStyle}
+        {buttonInteractionStyle}
         {children}
       </div>
     )
@@ -136,23 +290,60 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { runtime: true, identityProviders })}
+      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, formError, isSubmitting })}
     </form>
   )
 
   if (!layoutIsValid) {
     return (
-      <div style={cssVars}>
+      <div style={cssVars} onClick={handlePortalActionClick}>
         {responsiveStyle}
+        {buttonInteractionStyle}
         {pageContent}
       </div>
     )
   }
 
   return (
-    <div style={cssVars}>
+    <div style={cssVars} onClick={handlePortalActionClick}>
       {responsiveStyle}
-      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders })}
+      {buttonInteractionStyle}
+      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, formError, isSubmitting })}
     </div>
   )
+}
+
+// Keep this prefix in sync with the inline pre-paint script in
+// `index.html` — both sides need to agree on the key shape, otherwise the
+// browser ends up with two competing caches that drift.
+const CSSVARS_CACHE_PREFIX = 'fk_portal_theme_cssvars:'
+
+/**
+ * Read the previously-persisted CSS vars for `realm`. Used to pre-paint
+ * the portal with the last-known theme before the API responds, avoiding a
+ * "default → custom" flash on refresh. Returns `null` on parse failure or
+ * absence — callers fall back to default-derived vars.
+ */
+function readCachedCssVars(realm: string): Record<string, string> | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(CSSVARS_CACHE_PREFIX + realm)
+    if (!raw) return null
+    return JSON.parse(raw) as Record<string, string>
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCssVars(
+  realm: string,
+  vars: Record<string, string>,
+): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(CSSVARS_CACHE_PREFIX + realm, JSON.stringify(vars))
+  } catch {
+    // Quota exceeded or storage disabled — silently skip; the cache is a
+    // pure perf optimisation, the page still works without it.
+  }
 }
