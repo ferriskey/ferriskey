@@ -50,6 +50,14 @@ type RenderOptions = {
    * banner without having to trigger a real failure.
    */
   formError?: string | null
+  /**
+   * `true` while the page's submit network call is in flight. The
+   * runtime `submit_button` reads this and flips into a loader +
+   * disabled state. Wrapper-level CSS (`buttonInteractionCss`) also
+   * uses the `data-fk-busy` flag the renderer emits to set
+   * `cursor: wait` and dim the button.
+   */
+  isSubmitting?: boolean
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
