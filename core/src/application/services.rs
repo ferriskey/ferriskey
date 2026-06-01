@@ -172,6 +172,8 @@ type ApplicationEmailVerificationService = EmailVerificationServiceImpl<
     SmtpConfigRepo,
     EmailTemplateRepo,
     MjmlRenderer,
+    WebhookRepo,
+    SecurityEventRepo,
 >;
 
 type ApplicationMaintenanceService = MaintenanceServiceImpl<
@@ -209,6 +211,8 @@ type ApplicationAuthService = AuthServiceImpl<
     RealmMaintenanceWhitelistRepo,
     UserAttributeRepo,
     ApplicationEmailVerificationService,
+    WebhookRepo,
+    SecurityEventRepo,
 >;
 
 #[derive(Clone, Debug)]

@@ -8,6 +8,8 @@ use utoipa::ToSchema;
 pub enum WebhookTrigger {
     #[serde(rename = "user.created")]
     UserCreated,
+    #[serde(rename = "user.email_verified")]
+    UserEmailVerified,
     #[serde(rename = "user.updated")]
     UserUpdated,
     #[serde(rename = "user.deleted")]
@@ -70,6 +72,7 @@ impl Display for WebhookTrigger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             WebhookTrigger::UserCreated => write!(f, "user.created"),
+            WebhookTrigger::UserEmailVerified => write!(f, "user.email_verified"),
             WebhookTrigger::UserUpdated => write!(f, "user.updated"),
             WebhookTrigger::UserDeleted => write!(f, "user.deleted"),
             WebhookTrigger::UserBulkDeleted => write!(f, "user.bulk_deleted"),
@@ -112,6 +115,7 @@ impl TryFrom<String> for WebhookTrigger {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
             "user.created" => Ok(WebhookTrigger::UserCreated),
+            "user.email_verified" => Ok(WebhookTrigger::UserEmailVerified),
             "user.updated" => Ok(WebhookTrigger::UserUpdated),
             "user.deleted" => Ok(WebhookTrigger::UserDeleted),
             "user.bulk_deleted" => Ok(WebhookTrigger::UserBulkDeleted),

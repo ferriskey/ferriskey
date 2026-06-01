@@ -229,6 +229,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         smtp_config.clone(),
         email_template.clone(),
         mjml_renderer.clone(),
+        webhook.clone(),
+        security_event.clone(),
     );
 
     let app = ApplicationService {
@@ -265,6 +267,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm_maintenance_whitelist.clone(),
             user_attribute.clone(),
             email_verification_service.clone(),
+            webhook.clone(),
+            security_event.clone(),
             Arc::new(MapperEngine::new()),
             flow_recorder.clone(),
         ),
