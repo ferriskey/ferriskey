@@ -60,6 +60,10 @@ use crate::domain::{
         },
         value_objects::CreateUserRequest,
     },
+    webhook::{
+        entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+        ports::WebhookRepository,
+    },
 };
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
@@ -91,6 +95,7 @@ pub struct AuthServiceImpl<
     RMW,
     UAR,
     EV,
+    W,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -115,6 +120,7 @@ pub struct AuthServiceImpl<
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
     EV: EmailVerificationService,
+    W: WebhookRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -139,12 +145,13 @@ pub struct AuthServiceImpl<
     pub(crate) realm_maintenance_whitelist_repository: Arc<RMW>,
     pub(crate) user_attribute_repository: Arc<UAR>,
     pub(crate) email_verification_service: EV,
+    pub(crate) webhook_repository: Arc<W>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV, W>
     AuthServiceImpl<
         R,
         C,
@@ -169,6 +176,7 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA,
         RMW,
         UAR,
         EV,
+        W,
     >
 where
     R: RealmRepository,
@@ -194,6 +202,7 @@ where
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
     EV: EmailVerificationService,
+    W: WebhookRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -220,6 +229,7 @@ where
         realm_maintenance_whitelist_repository: Arc<RMW>,
         user_attribute_repository: Arc<UAR>,
         email_verification_service: EV,
+        webhook_repository: Arc<W>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -247,6 +257,7 @@ where
             realm_maintenance_whitelist_repository,
             user_attribute_repository,
             email_verification_service,
+            webhook_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -254,7 +265,7 @@ where
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV, W>
     AuthServiceImpl<
         R,
         C,
@@ -279,6 +290,7 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA,
         RMW,
         UAR,
         EV,
+        W,
     >
 where
     R: RealmRepository,
@@ -304,6 +316,7 @@ where
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
     EV: EmailVerificationService,
+    W: WebhookRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -1736,7 +1749,7 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 }
 
-impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV>
+impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA, MW, RMW, UAR, EV, W>
     AuthService
     for AuthServiceImpl<
         R,
@@ -1762,6 +1775,7 @@ impl<R, C, RU, PLRU, U, UR, CR, H, AS, KS, RT, AT, F, CSM, PM, OM, OR, OAR, URA,
         RMW,
         UAR,
         EV,
+        W,
     >
 where
     R: RealmRepository,
@@ -1787,6 +1801,7 @@ where
     RMW: RealmMaintenanceWhitelistRepository,
     UAR: UserAttributeRepository,
     EV: EmailVerificationService,
+    W: WebhookRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -2194,11 +2209,33 @@ where
                 return Err(err);
             }
 
+            self.webhook_repository
+                .notify(
+                    realm.id,
+                    WebhookPayload::new(
+                        WebhookTrigger::UserCreated,
+                        realm.id.into(),
+                        Some(user.clone()),
+                    ),
+                )
+                .await?;
+
             return Ok(RegisterUserOutput::PendingVerification {
                 message: "Please check your email to verify your account.".to_string(),
                 user_id: user.id,
             });
         }
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserCreated,
+                    realm.id.into(),
+                    Some(user.clone()),
+                ),
+            )
+            .await?;
 
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by

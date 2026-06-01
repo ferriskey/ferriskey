@@ -209,6 +209,7 @@ type ApplicationAuthService = AuthServiceImpl<
     RealmMaintenanceWhitelistRepo,
     UserAttributeRepo,
     ApplicationEmailVerificationService,
+    WebhookRepo,
 >;
 
 #[derive(Clone, Debug)]
