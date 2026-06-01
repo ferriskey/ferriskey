@@ -20,6 +20,7 @@ pub struct Model {
     pub token_hash: String,
     pub created_at: DateTimeWithTimeZone,
     pub expires_at: DateTimeWithTimeZone,
+    pub auth_session_code: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -31,6 +32,7 @@ pub enum Column {
     TokenHash,
     CreatedAt,
     ExpiresAt,
+    AuthSessionCode,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -62,6 +64,7 @@ impl ColumnTrait for Column {
             Self::TokenHash => ColumnType::Text.def(),
             Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
             Self::ExpiresAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::AuthSessionCode => ColumnType::Uuid.def().null(),
         }
     }
 }

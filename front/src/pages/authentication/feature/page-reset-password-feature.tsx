@@ -60,6 +60,12 @@ export default function PageResetPasswordFeature() {
       {
         onSuccess: (data) => {
           setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
+
+          if (data.login_url) {
+            window.location.href = data.login_url
+            return
+          }
+
           navigate(`/realms/${realm_name}/overview`)
         },
       }

@@ -215,6 +215,16 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined
     user_id?: (string | null) | undefined
   }
+  export type JwtToken = {
+    access_token: string
+    expires_in: number
+    id_token?: (string | null) | undefined
+    refresh_expires_in: number
+    refresh_token: string
+    session_state?: (string | null) | undefined
+    token_type: string
+  }
+  export type CompletePasswordResetResponse = JwtToken & Partial<{ login_url: string | null }>
   export type CreateClientScopeValidator = Partial<{
     description: string | null
     is_default: boolean
@@ -602,15 +612,6 @@ export namespace Schemas {
     token: string
     token_type_hint: string | null
   }>
-  export type JwtToken = {
-    access_token: string
-    expires_in: number
-    id_token?: (string | null) | undefined
-    refresh_expires_in: number
-    refresh_token: string
-    session_state?: (string | null) | undefined
-    token_type: string
-  }
   export type OrganizationId = string
   export type OrganizationAttribute = {
     created_at: string
@@ -2066,7 +2067,7 @@ export namespace Endpoints {
       body: Schemas.ResetPasswordRequest
     }
     responses: {
-      200: Schemas.JwtToken
+      200: Schemas.CompletePasswordResetResponse
       400: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
     }

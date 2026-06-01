@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum_cookie::CookieManager;
 use ferriskey_core::domain::trident::ports::{RequestPasswordResetInput, TridentService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -40,9 +41,13 @@ pub struct ForgotPasswordRequest {
 pub async fn forgot_password(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
 ) -> Result<Response<ForgotPasswordResponse>, ApiError> {
     let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+    let session_code = cookie
+        .get("FERRISKEY_SESSION")
+        .map(|c| c.value().to_string());
 
     state
         .service
@@ -50,7 +55,7 @@ pub async fn forgot_password(
             realm_name,
             email: payload.email,
             base_url,
-            session_code: None, // wired up in PR 3 (read from FERRISKEY_SESSION cookie)
+            session_code,
         })
         .await?;
 

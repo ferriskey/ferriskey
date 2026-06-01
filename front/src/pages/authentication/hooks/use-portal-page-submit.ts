@@ -7,6 +7,7 @@ import {
   useRegistrationMutation,
   useResendVerificationEmailMutation,
 } from '@/api/auth.api'
+import { useForgotPassword, useResetPassword } from '@/api/password-reset.api'
 import { useSendMagicLink, useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import type { Schemas } from '@/api/api.client'
 import { useAuth } from '@/hooks/use-auth'
@@ -206,6 +207,86 @@ export function usePortalPageSubmit(
   // that — reading from the URL is the canonical source).
   const { mutate: resendVerification, isPending: isResendingVerification } =
     useResendVerificationEmailMutation()
+
+  // Forgot password: collect the email, POST to the realm's
+  // `/login-actions/forgot-password`. The endpoint always returns 200
+  // (anti-enumeration), and `useForgotPassword` already toasts both
+  // success and failure — we only need to surface client-side empty-email
+  // feedback via the form-error banner.
+  const { mutate: forgotPassword, isPending: isForgotPasswordPending } =
+    useForgotPassword()
+  const forgotPasswordSubmit = useCallback(
+    (data: FormData) => {
+      const email = String(data.get('email') ?? '').trim()
+      if (!email) {
+        onFormError?.('Enter your email to receive a reset link.')
+        return
+      }
+      onFormError?.(null)
+      forgotPassword({
+        path: { realm_name: realm_name ?? 'master' },
+        body: { email },
+      })
+    },
+    [forgotPassword, onFormError, realm_name],
+  )
+
+  // Reset password: the token is the `token_id` in the URL (set by the
+  // backend's email link). Reads new password + confirm from the form,
+  // verifies match, then POSTs the reset.
+  const { mutate: resetPassword, isPending: isResetPasswordPending } =
+    useResetPassword()
+  const resetPasswordSubmit = useCallback(
+    (data: FormData) => {
+      const password = String(data.get('password') ?? '')
+      const passwordConfirm = String(data.get('password_confirm') ?? '')
+      if (!password) {
+        onFormError?.('Choose a new password.')
+        return
+      }
+      if (passwordConfirm && passwordConfirm !== password) {
+        onFormError?.('Passwords do not match.')
+        return
+      }
+      const params = new URLSearchParams(window.location.search)
+      const tokenId = params.get('token_id') ?? params.get('token') ?? ''
+      const token = params.get('token') ?? ''
+      if (!tokenId) {
+        onFormError?.('Reset link is missing or expired. Request a new one.')
+        return
+      }
+      onFormError?.(null)
+      resetPassword(
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          body: { token_id: tokenId, token, new_password: password },
+        },
+        {
+          // The backend signs the user back in on a successful reset and
+          // returns the OAuth callback URL (`login_url` — `code` + `state`)
+          // — same shape as a normal login. Following it lets the app
+          // exchange the code for tokens and land on the post-login
+          // destination, which matches the React fallback's behaviour.
+          // If for any reason `login_url` is missing, fall back to the
+          // login page with a success toast so the user can re-sign-in
+          // manually with their new password.
+          onSuccess: (response) => {
+            const loginUrl = (response as { login_url?: string | null } | undefined)
+              ?.login_url
+            if (loginUrl) {
+              window.location.href = loginUrl
+              return
+            }
+            toast.success('Password updated. Sign in with your new password.')
+            navigate(`/realms/${realm_name ?? 'master'}/authentication/login`)
+          },
+          onError: (error: Error) =>
+            onFormError?.(error.message || 'Could not reset password.'),
+        },
+      )
+    },
+    [navigate, onFormError, realm_name, resetPassword],
+  )
   const verifyEmailSubmit = useCallback(
     () => {
       const token = new URLSearchParams(window.location.search).get('client_data')
@@ -338,6 +419,12 @@ export function usePortalPageSubmit(
   }
   if (pageType === 'totp_setup') {
     return { onSubmit: totpSetupSubmit, isSubmitting: isVerifyingOtp }
+  }
+  if (pageType === 'forgot_password') {
+    return { onSubmit: forgotPasswordSubmit, isSubmitting: isForgotPasswordPending }
+  }
+  if (pageType === 'reset_password') {
+    return { onSubmit: resetPasswordSubmit, isSubmitting: isResetPasswordPending }
   }
 
   return { isSubmitting: false }

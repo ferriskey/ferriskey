@@ -46,6 +46,17 @@ pub struct VerifyResetTokenResponse {
     pub valid: bool,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CompletePasswordResetResponse {
+    #[serde(flatten)]
+    pub token: JwtToken,
+    /// Present when the password reset happened inside an OAuth flow.
+    /// The frontend should perform a full-page redirect to this URL to
+    /// complete the original authorization flow and reach the client's
+    /// `redirect_uri`.
+    pub login_url: Option<String>,
+}
+
 #[utoipa::path(
     post,
     path = "/login-actions/verify-reset-token",
@@ -88,7 +99,7 @@ pub async fn verify_reset_token(
     ),
     request_body = ResetPasswordRequest,
     responses(
-        (status = 200, description = "Password reset successfully, returns auth tokens", body = JwtToken),
+        (status = 200, description = "Password reset successfully, returns auth tokens (and a login_url when initiated mid-OAuth)", body = CompletePasswordResetResponse),
         (status = 400, description = "Invalid or expired token", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
@@ -135,6 +146,9 @@ pub async fn reset_password_with_token(
     Ok((
         StatusCode::OK,
         [(SET_COOKIE, cookie_value)],
-        axum::Json(token),
+        axum::Json(CompletePasswordResetResponse {
+            token,
+            login_url: result.login_url,
+        }),
     ))
 }
