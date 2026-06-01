@@ -2341,7 +2341,9 @@ where
                 )
                 .with_target("user".to_string(), user.id, None),
             )
-            .await?;
+            .await
+            .map_err(|err| warn!("Failed to store UserCreated security event: {}", err))
+            .ok();
 
         self.webhook_repository
             .notify(
@@ -2352,7 +2354,9 @@ where
                     Some(user.clone()),
                 ),
             )
-            .await?;
+            .await
+            .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
+            .ok();
 
         // If the registration happened inside an active OIDC authorization flow
         // (a FERRISKEY_SESSION cookie was present), resume that flow by
