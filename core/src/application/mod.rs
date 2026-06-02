@@ -433,6 +433,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             organization_attribute.clone(),
             organization_member.clone(),
             policy.clone(),
+            webhook.clone(),
         ),
         flow_recorder,
         db: postgres.get_db(),

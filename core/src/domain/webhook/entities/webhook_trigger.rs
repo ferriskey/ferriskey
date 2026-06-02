@@ -64,6 +64,16 @@ pub enum WebhookTrigger {
     ClientMaintenanceEnabled,
     #[serde(rename = "client.maintenance.disabled")]
     ClientMaintenanceDisabled,
+    #[serde(rename = "organization.created")]
+    OrganizationCreated,
+    #[serde(rename = "organization.updated")]
+    OrganizationUpdated,
+    #[serde(rename = "organization.deleted")]
+    OrganizationDeleted,
+    #[serde(rename = "organization.member.added")]
+    OrganizationMemberAdded,
+    #[serde(rename = "organization.member.removed")]
+    OrganizationMemberRemoved,
 }
 
 impl Display for WebhookTrigger {
@@ -102,6 +112,11 @@ impl Display for WebhookTrigger {
             WebhookTrigger::ClientMaintenanceDisabled => {
                 write!(f, "client.maintenance.disabled")
             }
+            WebhookTrigger::OrganizationCreated => write!(f, "organization.created"),
+            WebhookTrigger::OrganizationUpdated => write!(f, "organization.updated"),
+            WebhookTrigger::OrganizationDeleted => write!(f, "organization.deleted"),
+            WebhookTrigger::OrganizationMemberAdded => write!(f, "organization.member.added"),
+            WebhookTrigger::OrganizationMemberRemoved => write!(f, "organization.member.removed"),
         }
     }
 }
@@ -140,6 +155,11 @@ impl TryFrom<String> for WebhookTrigger {
             "webhook.deleted" => Ok(WebhookTrigger::WebhookDeleted),
             "client.maintenance.enabled" => Ok(WebhookTrigger::ClientMaintenanceEnabled),
             "client.maintenance.disabled" => Ok(WebhookTrigger::ClientMaintenanceDisabled),
+            "organization.created" => Ok(WebhookTrigger::OrganizationCreated),
+            "organization.updated" => Ok(WebhookTrigger::OrganizationUpdated),
+            "organization.deleted" => Ok(WebhookTrigger::OrganizationDeleted),
+            "organization.member.added" => Ok(WebhookTrigger::OrganizationMemberAdded),
+            "organization.member.removed" => Ok(WebhookTrigger::OrganizationMemberRemoved),
             _ => Err("Invalid webhook trigger".to_string()),
         }
     }

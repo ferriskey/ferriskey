@@ -366,6 +366,7 @@ pub struct ApplicationService {
         OrganizationRepo,
         OrganizationAttributeRepo,
         OrganizationMemberRepo,
+        WebhookRepo,
     >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,

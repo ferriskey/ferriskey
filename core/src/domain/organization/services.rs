@@ -23,10 +23,14 @@ use crate::domain::{
     },
     realm::ports::RealmRepository,
     user::ports::{UserRepository, UserRoleRepository},
+    webhook::{
+        entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
+        ports::WebhookRepository,
+    },
 };
 
 #[derive(Clone, Debug)]
-pub struct OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR>
+pub struct OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR, W>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -35,6 +39,7 @@ where
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
     OMR: OrganizationMemberRepository,
+    W: WebhookRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -42,9 +47,10 @@ where
     pub(crate) organization_attribute_repository: Arc<OAR>,
     pub(crate) organization_member_repository: Arc<OMR>,
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+    pub(crate) webhook_repository: Arc<W>,
 }
 
-impl<R, U, C, UR, OR, OAR, OMR> OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR>
+impl<R, U, C, UR, OR, OAR, OMR, W> OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR, W>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -53,6 +59,7 @@ where
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
     OMR: OrganizationMemberRepository,
+    W: WebhookRepository,
 {
     pub fn new(
         realm_repository: Arc<R>,
@@ -61,6 +68,7 @@ where
         organization_attribute_repository: Arc<OAR>,
         organization_member_repository: Arc<OMR>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
+        webhook_repository: Arc<W>,
     ) -> Self {
         Self {
             realm_repository,
@@ -69,6 +77,7 @@ where
             organization_attribute_repository,
             organization_member_repository,
             policy,
+            webhook_repository,
         }
     }
 
@@ -102,8 +111,8 @@ where
     }
 }
 
-impl<R, U, C, UR, OR, OAR, OMR> OrganizationService
-    for OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR>
+impl<R, U, C, UR, OR, OAR, OMR, W> OrganizationService
+    for OrganizationServiceImpl<R, U, C, UR, OR, OAR, OMR, W>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -112,6 +121,7 @@ where
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
     OMR: OrganizationMemberRepository,
+    W: WebhookRepository,
 {
     async fn create_organization(
         &self,
@@ -148,7 +158,8 @@ where
         let org = ferriskey_organization::Organization::new(org_config)
             .map_err(|_| CoreError::Invalid)?;
 
-        self.organization_repository
+        let org = self
+            .organization_repository
             .create_organization(ferriskey_organization::CreateOrganizationParams {
                 realm_id: org.realm_id,
                 name: org.name.clone(),
@@ -158,7 +169,20 @@ where
                 description: org.description.clone(),
                 enabled: org.enabled,
             })
-            .await
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::OrganizationCreated,
+                    realm.id.into(),
+                    Some(org.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(org)
     }
 
     async fn get_organization(
@@ -232,9 +256,23 @@ where
             enabled: input.enabled,
         };
 
-        self.organization_repository
+        let org = self
+            .organization_repository
             .update_organization(org.id, params)
-            .await
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::OrganizationUpdated,
+                    realm.id.into(),
+                    Some(org.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(org)
     }
 
     async fn delete_organization(
@@ -254,7 +292,20 @@ where
 
         self.organization_repository
             .delete_organization(org.id)
-            .await
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::OrganizationDeleted,
+                    realm.id.into(),
+                    Some(org),
+                ),
+            )
+            .await?;
+
+        Ok(())
     }
 
     async fn list_attributes(
@@ -366,9 +417,23 @@ where
             return Err(CoreError::AlreadyExists);
         }
 
-        self.organization_member_repository
+        let member = self
+            .organization_member_repository
             .add_member(org.id, input.user_id)
-            .await
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::OrganizationMemberAdded,
+                    realm.id.into(),
+                    Some(member.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(member)
     }
 
     async fn remove_member(
@@ -387,14 +452,28 @@ where
         )?;
 
         // Verify the membership exists before attempting removal
-        self.organization_member_repository
+        let member = self
+            .organization_member_repository
             .get_member(org.id, input.user_id)
             .await?
             .ok_or(CoreError::NotFound)?;
 
         self.organization_member_repository
             .remove_member(org.id, input.user_id)
-            .await
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::OrganizationMemberRemoved,
+                    realm.id.into(),
+                    Some(member),
+                ),
+            )
+            .await?;
+
+        Ok(())
     }
 
     async fn list_members(
@@ -460,6 +539,7 @@ mod tests {
             entities::User,
             ports::{MockUserRepository, MockUserRoleRepository},
         },
+        webhook::ports::MockWebhookRepository,
     };
 
     use super::*;
@@ -539,6 +619,7 @@ mod tests {
         MockOrganizationRepository,
         MockOrganizationAttributeRepository,
         MockOrganizationMemberRepository,
+        MockWebhookRepository,
     >;
 
     fn build_service(
@@ -548,6 +629,7 @@ mod tests {
         org_repo: MockOrganizationRepository,
         attr_repo: MockOrganizationAttributeRepository,
         member_repo: MockOrganizationMemberRepository,
+        webhook_repo: MockWebhookRepository,
     ) -> TestService {
         let user_arc = Arc::new(user_repo);
         let policy = Arc::new(FerriskeyPolicy::new(
@@ -563,6 +645,7 @@ mod tests {
             Arc::new(attr_repo),
             Arc::new(member_repo),
             policy,
+            Arc::new(webhook_repo),
         )
     }
 
@@ -605,6 +688,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -658,6 +742,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -717,6 +802,7 @@ mod tests {
             org_repo,
             attr_repo,
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -771,6 +857,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -830,6 +917,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -904,6 +992,11 @@ mod tests {
             Box::pin(async move { Ok(vec![role]) })
         });
 
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo
+            .expect_notify::<OrganizationMember>()
+            .return_once(|_, _| Box::pin(async { Ok(()) }));
+
         let service = build_service(
             realm_repo,
             user_repo,
@@ -911,6 +1004,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             member_repo,
+            webhook_repo,
         );
 
         let result = service
@@ -968,6 +1062,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -1035,6 +1130,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             MockOrganizationMemberRepository::new(),
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -1105,6 +1201,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             member_repo,
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -1165,6 +1262,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             member_repo,
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -1226,6 +1324,7 @@ mod tests {
             org_repo,
             MockOrganizationAttributeRepository::new(),
             member_repo,
+            MockWebhookRepository::new(),
         );
 
         let result = service
@@ -1281,6 +1380,7 @@ mod tests {
             MockOrganizationRepository::new(),
             MockOrganizationAttributeRepository::new(),
             member_repo,
+            MockWebhookRepository::new(),
         );
 
         let result = service

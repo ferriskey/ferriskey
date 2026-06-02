@@ -26,6 +26,13 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'auth.reset_password',
   ],
   Webhook: ['webhook.created', 'webhook.deleted', 'webhook.updated'],
+  Organization: [
+    'organization.created',
+    'organization.updated',
+    'organization.deleted',
+    'organization.member.added',
+    'organization.member.removed',
+  ],
 }
 
 export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
@@ -62,6 +69,11 @@ export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
   'webhook.updated': 'Webhook Updated',
   'client.maintenance.enabled': 'Client Maintenance Enabled',
   'client.maintenance.disabled': 'Client Maintenance Disabled',
+  'organization.created': 'Organization Created',
+  'organization.updated': 'Organization Updated',
+  'organization.deleted': 'Organization Deleted',
+  'organization.member.added': 'Organization Member Added',
+  'organization.member.removed': 'Organization Member Removed',
 }
 
 export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string> = {
@@ -98,6 +110,11 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
   'webhook.updated': 'A webhook has been updated.',
   'client.maintenance.enabled': 'Maintenance mode has been enabled on a client.',
   'client.maintenance.disabled': 'Maintenance mode has been disabled on a client.',
+  'organization.created': 'A new organization has been created.',
+  'organization.updated': 'An organization has been updated.',
+  'organization.deleted': 'An organization has been deleted.',
+  'organization.member.added': 'A user has been added to an organization.',
+  'organization.member.removed': 'A user has been removed from an organization.',
 }
 
 export type WebhookCategory = {
