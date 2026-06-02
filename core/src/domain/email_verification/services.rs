@@ -13,8 +13,14 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::email_template::entities::interpolate_variables;
 use crate::domain::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
 use crate::domain::realm::ports::{RealmRepository, SmtpConfigRepository};
+use crate::domain::seawatch::{
+    EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
+};
 use crate::domain::user::entities::{RequiredAction, RequiredActionError};
 use crate::domain::user::ports::{UserRepository, UserRequiredActionRepository};
+use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookRepository;
 
 use super::ports::*;
 
@@ -30,7 +36,7 @@ const EMAIL_DELIVERY_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const EMAIL_DELIVERY_TIMEOUT: StdDuration = StdDuration::from_millis(10);
 
 #[derive(Debug)]
-pub struct EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
+pub struct EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER>
 where
     EVRT: EmailVerificationTokenRepository,
     UR: UserRepository,
@@ -40,6 +46,8 @@ where
     SC: SmtpConfigRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    WR: WebhookRepository,
+    SER: SecurityEventRepository,
 {
     pub(crate) email_verification_token_repository: Arc<EVRT>,
     pub(crate) user_repository: Arc<UR>,
@@ -49,10 +57,12 @@ where
     pub(crate) smtp_config_repository: Arc<SC>,
     pub(crate) email_template_repository: Arc<ETR>,
     pub(crate) template_renderer: Arc<TR>,
+    pub(crate) webhook_repository: Arc<WR>,
+    pub(crate) security_event_repository: Arc<SER>,
 }
 
-impl<EVRT, UR, RR, URA, ES, SC, ETR, TR> Clone
-    for EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
+impl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER> Clone
+    for EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER>
 where
     EVRT: EmailVerificationTokenRepository,
     UR: UserRepository,
@@ -62,6 +72,8 @@ where
     SC: SmtpConfigRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    WR: WebhookRepository,
+    SER: SecurityEventRepository,
 {
     fn clone(&self) -> Self {
         Self {
@@ -73,12 +85,14 @@ where
             smtp_config_repository: self.smtp_config_repository.clone(),
             email_template_repository: self.email_template_repository.clone(),
             template_renderer: self.template_renderer.clone(),
+            webhook_repository: self.webhook_repository.clone(),
+            security_event_repository: self.security_event_repository.clone(),
         }
     }
 }
 
-impl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
-    EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
+impl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER>
+    EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER>
 where
     EVRT: EmailVerificationTokenRepository,
     UR: UserRepository,
@@ -88,6 +102,8 @@ where
     SC: SmtpConfigRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    WR: WebhookRepository,
+    SER: SecurityEventRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -99,6 +115,8 @@ where
         smtp_config_repository: Arc<SC>,
         email_template_repository: Arc<ETR>,
         template_renderer: Arc<TR>,
+        webhook_repository: Arc<WR>,
+        security_event_repository: Arc<SER>,
     ) -> Self {
         Self {
             email_verification_token_repository,
@@ -109,6 +127,8 @@ where
             smtp_config_repository,
             email_template_repository,
             template_renderer,
+            webhook_repository,
+            security_event_repository,
         }
     }
 
@@ -147,8 +167,8 @@ where
     }
 }
 
-impl<EVRT, UR, RR, URA, ES, SC, ETR, TR> EmailVerificationService
-    for EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR>
+impl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER> EmailVerificationService
+    for EmailVerificationServiceImpl<EVRT, UR, RR, URA, ES, SC, ETR, TR, WR, SER>
 where
     EVRT: EmailVerificationTokenRepository,
     UR: UserRepository,
@@ -158,6 +178,8 @@ where
     SC: SmtpConfigRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    WR: WebhookRepository,
+    SER: SecurityEventRepository,
 {
     async fn send_verification_email(
         &self,
@@ -326,7 +348,8 @@ where
         // if the user update fails.
         let user = self.user_repository.get_by_id(token_record.user_id).await?;
 
-        self.user_repository
+        let updated_user = self
+            .user_repository
             .update_user(
                 token_record.user_id,
                 crate::domain::user::value_objects::UpdateUserRequest {
@@ -362,6 +385,39 @@ where
             warn!("Failed to mark verification token as used: {}", e);
         }
 
+        // Audit + webhook emission is best-effort: the email is already verified at
+        // this point and we don't want a downstream failure to break verification.
+        if let Err(e) = self
+            .security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::UserEmailVerified,
+                    EventStatus::Success,
+                    updated_user.id,
+                )
+                .with_target("user".to_string(), updated_user.id, None),
+            )
+            .await
+        {
+            warn!("Failed to store UserEmailVerified security event: {}", e);
+        }
+
+        if let Err(e) = self
+            .webhook_repository
+            .notify(
+                realm.id,
+                WebhookPayload::new(
+                    WebhookTrigger::UserEmailVerified,
+                    realm.id.into(),
+                    Some(updated_user),
+                ),
+            )
+            .await
+        {
+            warn!("Failed to notify UserEmailVerified webhook: {}", e);
+        }
+
         Ok(VerifyEmailResult {
             user_id: token_record.user_id,
             verified: true,
@@ -385,10 +441,12 @@ mod tests {
             entities::{Realm, RealmSetting, SmtpConfig, SmtpEncryption},
             ports::{MockRealmRepository, MockSmtpConfigRepository},
         },
+        seawatch::ports::MockSecurityEventRepository,
         user::{
             entities::{User, UserConfig},
             ports::{MockUserRepository, MockUserRequiredActionRepository},
         },
+        webhook::ports::MockWebhookRepository,
     };
     use ferriskey_domain::realm::RealmId;
     use mockall::predicate::*;
@@ -475,6 +533,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_service(
         evrt: MockEmailVerificationTokenRepository,
         user_repo: MockUserRepository,
@@ -483,6 +542,8 @@ mod tests {
         email_port: MockEmailPort,
         smtp_repo: MockSmtpConfigRepository,
         et_repo: MockEmailTemplateRepository,
+        webhook_repo: MockWebhookRepository,
+        security_event_repo: MockSecurityEventRepository,
     ) -> EmailVerificationServiceImpl<
         MockEmailVerificationTokenRepository,
         MockUserRepository,
@@ -492,6 +553,8 @@ mod tests {
         MockSmtpConfigRepository,
         MockEmailTemplateRepository,
         TestRenderer,
+        MockWebhookRepository,
+        MockSecurityEventRepository,
     > {
         EmailVerificationServiceImpl::new(
             Arc::new(evrt),
@@ -502,6 +565,8 @@ mod tests {
             Arc::new(smtp_repo),
             Arc::new(et_repo),
             Arc::new(TestRenderer),
+            Arc::new(webhook_repo),
+            Arc::new(security_event_repo),
         )
     }
 
@@ -568,6 +633,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -600,6 +667,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -648,6 +717,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -696,6 +767,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -723,6 +796,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -806,6 +881,8 @@ mod tests {
             email_port,
             smtp_repo,
             et_repo,
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -849,6 +926,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -902,6 +981,8 @@ mod tests {
             MockEmailPort::new(),
             smtp_repo,
             MockEmailTemplateRepository::new(),
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -1000,6 +1081,8 @@ mod tests {
             email_port,
             smtp_repo,
             et_repo,
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -1080,6 +1163,8 @@ mod tests {
             email_port,
             smtp_repo,
             et_repo,
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = service
@@ -1160,6 +1245,8 @@ mod tests {
             email_port,
             smtp_repo,
             et_repo,
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
         );
 
         let result = tokio::time::timeout(

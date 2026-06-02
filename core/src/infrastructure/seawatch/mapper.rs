@@ -21,6 +21,7 @@ impl From<security_events::Model> for SecurityEvent {
             "password_reset_requested" => SecurityEventType::PasswordResetRequested,
             "password_reset_completed" => SecurityEventType::PasswordResetCompleted,
             "user_created" => SecurityEventType::UserCreated,
+            "user_email_verified" => SecurityEventType::UserEmailVerified,
             "user_deleted" => SecurityEventType::UserDeleted,
             "role_assigned" => SecurityEventType::RoleAssigned,
             "role_unassigned" => SecurityEventType::RoleUnassigned,
