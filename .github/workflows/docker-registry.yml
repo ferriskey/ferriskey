@@ -57,7 +57,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/Estrelio/ferriskey-${{ matrix.target }}
+          images: ghcr.io/estrelio/ferriskey-${{ matrix.target }}
 
       - name: log-in to ghcr
         if: inputs.push
@@ -74,7 +74,7 @@ jobs:
           context: .
           target: ${{ matrix.target }}
           platforms: ${{ matrix.runner.platform }}
-          tags: ghcr.io/Estrelio/ferriskey-${{ matrix.target }}
+          tags: ghcr.io/estrelio/ferriskey-${{ matrix.target }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
           cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
@@ -141,7 +141,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/Estrelio/ferriskey-${{ matrix.target }}
+          images: ghcr.io/estrelio/ferriskey-${{ matrix.target }}
           tags: |
             type=raw,value=${{ steps.ref.outputs.tag }}
             type=sha
@@ -149,4 +149,4 @@ jobs:
       - name: push manifest
         working-directory: ${{ runner.temp }}/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf 'ghcr.io/Estrelio/ferriskey-${{ matrix.target }}@sha256:%s ' *)
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf 'ghcr.io/estrelio/ferriskey-${{ matrix.target }}@sha256:%s ' *)
