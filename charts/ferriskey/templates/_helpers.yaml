@@ -187,5 +187,8 @@ default
 - name: OTLP_ENDPOINT
   value: {{ .Values.opentelemetry.otlpEndpoint | quote }}
 
+- name: OTLP_PROTOCOL
+  value: {{ .Values.opentelemetry.protocol | default "grpc" | quote }}
+
 {{- end }}
 {{- end }}

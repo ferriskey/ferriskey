@@ -21,7 +21,7 @@ use opentelemetry_sdk::logs::SdkLoggerProvider;
 
 use crate::application::http::server::http_server::{router, state};
 use crate::application::http::server::openapi::ApiDoc;
-use crate::args::{Args, Command, LogArgs, ObservabilityArgs};
+use crate::args::{Args, Command, LogArgs, ObservabilityArgs, OtlpProtocol};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
@@ -76,10 +76,16 @@ fn init_tracing_and_logging(
             .build();
 
         // Create the OTLP exporter
-        let span_exporter = SpanExporter::builder()
-            .with_tonic()
-            .with_endpoint(otlp_endpoint)
-            .build()?;
+        let span_exporter = match &observability_args.otlp_protocol {
+            OtlpProtocol::Grpc => SpanExporter::builder()
+                .with_tonic()
+                .with_endpoint(otlp_endpoint)
+                .build()?,
+            OtlpProtocol::Http => SpanExporter::builder()
+                .with_http()
+                .with_endpoint(otlp_endpoint)
+                .build()?,
+        };
 
         // Build the tracer provider with the exporter
         let tracer_provider = SdkTracerProvider::builder()
@@ -97,11 +103,17 @@ fn init_tracing_and_logging(
 
         // Prometheus natively supports accepting metrics via the OTLP protocol
         // Create the metric exporter
-        let metric_exporter = MetricExporter::builder()
-            .with_tonic()
-            .with_protocol(Protocol::Grpc)
-            .with_endpoint(metrics_endpoint)
-            .build()?;
+        let metric_exporter = match &observability_args.otlp_protocol {
+            OtlpProtocol::Grpc => MetricExporter::builder()
+                .with_tonic()
+                .with_protocol(Protocol::Grpc)
+                .with_endpoint(metrics_endpoint)
+                .build()?,
+            OtlpProtocol::Http => MetricExporter::builder()
+                .with_http()
+                .with_endpoint(metrics_endpoint)
+                .build()?,
+        };
 
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(metric_exporter)
@@ -110,10 +122,16 @@ fn init_tracing_and_logging(
         // Metrics layer for tracing
         let metrics_layer = MetricsLayer::new(meter_provider);
 
-        let log_exporter = LogExporter::builder()
-            .with_tonic()
-            .with_endpoint(otlp_endpoint)
-            .build()?;
+        let log_exporter = match &observability_args.otlp_protocol {
+            OtlpProtocol::Grpc => LogExporter::builder()
+                .with_tonic()
+                .with_endpoint(otlp_endpoint)
+                .build()?,
+            OtlpProtocol::Http => LogExporter::builder()
+                .with_http()
+                .with_endpoint(otlp_endpoint)
+                .build()?,
+        };
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_resource(resource)

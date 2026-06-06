@@ -864,6 +864,10 @@ opentelemetry:
   # -- OTLP endpoint for OpenTelemetry exporter.
   otlpEndpoint: http://tempo:4317
 
+  # -- Transport protocol for the OTLP exporter. Supported values: grpc, http.
+  # Use http for collectors like PostHog that do not support gRPC.
+  protocol: grpc
+
 gatewayAPI:
   httpRoute:
     # -- Enable the HTTPRoute.

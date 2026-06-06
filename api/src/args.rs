@@ -320,6 +320,13 @@ pub struct ServerTlsArgs {
     pub key: PathBuf,
 }
 
+#[derive(clap::ValueEnum, Debug, Clone, Default)]
+pub enum OtlpProtocol {
+    #[default]
+    Grpc,
+    Http,
+}
+
 #[derive(clap::Args, Debug, Clone)]
 pub struct ObservabilityArgs {
     #[arg(
@@ -349,6 +356,15 @@ pub struct ObservabilityArgs {
         required = false
     )]
     pub metrics_endpoint: Option<String>,
+    #[arg(
+        long = "otlp-protocol",
+        env = "OTLP_PROTOCOL",
+        name = "OTLP_PROTOCOL",
+        long_help = "Transport protocol for the OTLP exporter. Use 'grpc' for Tempo/Jaeger, 'http' for PostHog and other HTTP-only collectors.",
+        default_value = "grpc",
+        required = false
+    )]
+    pub otlp_protocol: OtlpProtocol,
 }
 
 impl Default for ObservabilityArgs {
@@ -357,6 +373,7 @@ impl Default for ObservabilityArgs {
             active_observability: false,
             otlp_endpoint: Some("http://localhost:4317".to_string()),
             metrics_endpoint: Some("http://localhost:4317".to_string()),
+            otlp_protocol: OtlpProtocol::Grpc,
         }
     }
 }
