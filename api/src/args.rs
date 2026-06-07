@@ -365,6 +365,22 @@ pub struct ObservabilityArgs {
         required = false
     )]
     pub otlp_protocol: OtlpProtocol,
+    #[arg(
+        long = "otlp-traces-endpoint",
+        env = "OTLP_TRACES_ENDPOINT",
+        name = "OTLP_TRACES_ENDPOINT",
+        long_help = "Override OTLP_ENDPOINT for traces only. Falls back to OTLP_ENDPOINT when unset.",
+        required = false
+    )]
+    pub otlp_traces_endpoint: Option<String>,
+    #[arg(
+        long = "otlp-traces-headers",
+        env = "OTLP_TRACES_HEADERS",
+        name = "OTLP_TRACES_HEADERS",
+        long_help = "HTTP headers for the traces exporter. Format: 'Key1=Value1,Key2=Value2'.",
+        required = false
+    )]
+    pub otlp_traces_headers: Option<String>,
 }
 
 impl Default for ObservabilityArgs {
@@ -374,6 +390,8 @@ impl Default for ObservabilityArgs {
             otlp_endpoint: Some("http://localhost:4317".to_string()),
             metrics_endpoint: Some("http://localhost:4317".to_string()),
             otlp_protocol: OtlpProtocol::Grpc,
+            otlp_traces_endpoint: None,
+            otlp_traces_headers: None,
         }
     }
 }

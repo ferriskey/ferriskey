@@ -40,6 +40,16 @@ use utoipa::OpenApi;
 pub mod application;
 pub mod args;
 
+fn parse_otlp_headers(headers_str: &str) -> std::collections::HashMap<String, String> {
+    headers_str
+        .split(',')
+        .filter_map(|pair| {
+            let (key, val) = pair.split_once('=')?;
+            Some((key.trim().to_string(), val.trim().to_string()))
+        })
+        .collect()
+}
+
 fn init_tracing_and_logging(
     log_args: &LogArgs,
     service_name: &str,
@@ -78,11 +88,22 @@ fn init_tracing_and_logging(
         let accept_invalid_certs =
             std::env::var("OTEL_ACCEPT_INVALID_CERTS").as_deref() == Ok("true");
 
+        let traces_endpoint = observability_args
+            .otlp_traces_endpoint
+            .as_deref()
+            .unwrap_or(otlp_endpoint);
+
+        let traces_headers = observability_args
+            .otlp_traces_headers
+            .as_deref()
+            .map(parse_otlp_headers)
+            .unwrap_or_default();
+
         // Create the OTLP exporter
         let span_exporter = match &observability_args.otlp_protocol {
             OtlpProtocol::Grpc => SpanExporter::builder()
                 .with_tonic()
-                .with_endpoint(otlp_endpoint)
+                .with_endpoint(traces_endpoint)
                 .build()?,
             OtlpProtocol::Http => SpanExporter::builder()
                 .with_http()
@@ -91,7 +112,8 @@ fn init_tracing_and_logging(
                         .danger_accept_invalid_certs(accept_invalid_certs)
                         .build()?,
                 )
-                .with_endpoint(otlp_endpoint)
+                .with_endpoint(traces_endpoint)
+                .with_headers(traces_headers)
                 .build()?,
         };
 
