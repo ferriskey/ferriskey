@@ -25,7 +25,7 @@ use crate::args::{Args, Command, LogArgs, ObservabilityArgs, OtlpProtocol};
 use ferriskey_core::domain::common::entities::StartupConfig;
 use ferriskey_core::domain::common::ports::CoreService;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig, WithHttpConfig};
 use opentelemetry_otlp::{Protocol, SpanExporter};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -75,6 +75,9 @@ fn init_tracing_and_logging(
             .with_service_name(service_name.to_string())
             .build();
 
+        let accept_invalid_certs =
+            std::env::var("OTEL_ACCEPT_INVALID_CERTS").as_deref() == Ok("true");
+
         // Create the OTLP exporter
         let span_exporter = match &observability_args.otlp_protocol {
             OtlpProtocol::Grpc => SpanExporter::builder()
@@ -83,6 +86,11 @@ fn init_tracing_and_logging(
                 .build()?,
             OtlpProtocol::Http => SpanExporter::builder()
                 .with_http()
+                .with_http_client(
+                    reqwest::blocking::Client::builder()
+                        .danger_accept_invalid_certs(accept_invalid_certs)
+                        .build()?,
+                )
                 .with_endpoint(otlp_endpoint)
                 .build()?,
         };
@@ -111,6 +119,11 @@ fn init_tracing_and_logging(
                 .build()?,
             OtlpProtocol::Http => MetricExporter::builder()
                 .with_http()
+                .with_http_client(
+                    reqwest::blocking::Client::builder()
+                        .danger_accept_invalid_certs(accept_invalid_certs)
+                        .build()?,
+                )
                 .with_endpoint(metrics_endpoint)
                 .build()?,
         };
@@ -129,6 +142,11 @@ fn init_tracing_and_logging(
                 .build()?,
             OtlpProtocol::Http => LogExporter::builder()
                 .with_http()
+                .with_http_client(
+                    reqwest::blocking::Client::builder()
+                        .danger_accept_invalid_certs(accept_invalid_certs)
+                        .build()?,
+                )
                 .with_endpoint(otlp_endpoint)
                 .build()?,
         };
