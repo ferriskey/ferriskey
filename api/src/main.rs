@@ -142,7 +142,7 @@ fn init_tracing_and_logging(
         // subscriber.init();
         std::mem::forget(logger_provider);
     } else {
-        let subscriber = Registry::default().with(fmt_layer);
+        let subscriber = Registry::default().with(fmt_layer).with(filter);
 
         subscriber.init();
     }

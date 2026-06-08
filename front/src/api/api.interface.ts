@@ -53,7 +53,8 @@ export interface ChallengeOtpRequest {
 }
 
 export interface ChallengeOtpResponse {
-  url: string
+  url?: string
+  required_actions?: string[]
 }
 
 export interface ClientsResponse {
