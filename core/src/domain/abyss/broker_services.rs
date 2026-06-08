@@ -121,10 +121,20 @@ where
     ) -> Result<(), CoreError> {
         let redirect_uris = self
             .redirect_uri_repository
-            .get_by_client_id(client_id)
+            .get_enabled_by_client_id(client_id)
             .await?;
 
-        let is_valid = redirect_uris.iter().any(|uri| uri.value == redirect_uri);
+        let is_valid = redirect_uris.iter().any(|uri| {
+            if uri.value == redirect_uri {
+                return true;
+            }
+
+            if let Ok(regex) = regex::Regex::new(&uri.value) {
+                return regex.is_match(redirect_uri);
+            }
+
+            false
+        });
 
         if !is_valid {
             return Err(CoreError::InvalidRedirectUri);

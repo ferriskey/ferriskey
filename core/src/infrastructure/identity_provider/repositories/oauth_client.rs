@@ -14,9 +14,14 @@ pub struct ReqwestOAuthClient {
 
 impl ReqwestOAuthClient {
     pub fn new() -> Self {
-        Self {
-            client: Client::new(),
-        }
+        // A User-Agent header is required by some IdP APIs (notably GitHub,
+        // which returns 403 without one).
+        let client = Client::builder()
+            .user_agent(concat!("FerrisKey/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .unwrap_or_default();
+
+        Self { client }
     }
 
     #[allow(unused)]
@@ -58,6 +63,9 @@ impl OAuthClient for ReqwestOAuthClient {
         let response = self
             .client
             .post(token_url)
+            // GitHub (and some other IdPs) default to form-urlencoded token
+            // responses unless the client explicitly asks for JSON.
+            .header(reqwest::header::ACCEPT, "application/json")
             .form(&params)
             .send()
             .await
@@ -120,9 +128,14 @@ impl OAuthClient for ReqwestOAuthClient {
         let user_info = BrokeredUserInfo {
             subject: json["sub"]
                 .as_str()
-                .or_else(|| json["id"].as_str())
-                .ok_or_else(|| CoreError::IdpUserInfoFailed("Missing subject claim".to_string()))?
-                .to_string(),
+                .map(|s| s.to_string())
+                // GitHub returns the user id as a JSON number, not a string.
+                .or_else(|| match &json["id"] {
+                    serde_json::Value::String(s) => Some(s.clone()),
+                    serde_json::Value::Number(n) => Some(n.to_string()),
+                    _ => None,
+                })
+                .ok_or_else(|| CoreError::IdpUserInfoFailed("Missing subject claim".to_string()))?,
             email: json["email"].as_str().map(|s| s.to_string()),
             email_verified: json["email_verified"].as_bool(),
             name: json["name"].as_str().map(|s| s.to_string()),
