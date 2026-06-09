@@ -10,13 +10,19 @@ use crate::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
         authentication::{
-            device_flow::{ports::DeviceTokenIssuer, services::DeviceFlowServiceImpl},
+            device_flow::{
+                ports::{DeviceFlowService, DeviceTokenIssuer},
+                services::DeviceFlowServiceImpl,
+                value_objects::{
+                    InitiateDeviceFlowInput, InitiateDeviceFlowOutput, InitiateDeviceFlowParams,
+                },
+            },
             entities::JwtToken,
             ports::AuthService,
             services::AuthServiceImpl,
             value_objects::{GenerateTokensForUserInput, Identity},
         },
-        client::services::ClientServiceImpl,
+        client::{ports::ClientRepository, services::ClientServiceImpl},
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
             ports::CoreService,
@@ -301,8 +307,6 @@ pub struct ApplicationService {
 
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
-    // Wired for DI; consumed once the device flow HTTP endpoints land.
-    #[allow(dead_code)]
     pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
@@ -449,6 +453,44 @@ impl ApplicationService {
         self.password_policy_service
             .update_policy(identity, &realm, update)
             .await
+    }
+
+    /// Device authorization endpoint (RFC 8628 §3.1).
+    ///
+    /// Resolves the realm and client, builds the realm-scoped verification URI
+    /// from `base_url`, and delegates to the device flow service. `base_url`
+    /// must already be root-path scoped by the caller.
+    pub async fn initiate_device_authorization(
+        &self,
+        input: InitiateDeviceFlowInput,
+        base_url: String,
+    ) -> Result<InitiateDeviceFlowOutput, CoreError> {
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(input.client_id, realm.id)
+            .await?;
+
+        let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
+
+        let output = self
+            .device_flow_service
+            .initiate(InitiateDeviceFlowParams {
+                realm_id: realm.id,
+                client_id: client.id,
+                scope: input.scope,
+                verification_uri,
+            })
+            .await?;
+
+        Ok(output)
     }
 
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {

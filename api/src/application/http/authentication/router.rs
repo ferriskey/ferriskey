@@ -8,6 +8,7 @@ use utoipa::OpenApi;
 use super::handlers::{
     auth::{__path_auth_handler, auth_handler},
     authentificate::{__path_authenticate, authenticate},
+    device_authorization::{__path_device_authorization, device_authorization},
     get_certs::{__path_get_certs, __path_get_jwks_json, get_certs, get_jwks_json},
     introspect::{__path_introspect_token, introspect_token},
     logout::{__path_logout_get, __path_logout_post, logout_get, logout_post},
@@ -28,6 +29,7 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
     exchange_token,
     introspect_token,
     authenticate,
+    device_authorization,
     get_certs,
     get_jwks_json,
     auth_handler,
@@ -56,6 +58,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
             post(exchange_token),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth/device"),
+            post(device_authorization),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token/introspect"),
