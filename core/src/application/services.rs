@@ -536,6 +536,28 @@ impl ApplicationService {
             .await
     }
 
+    /// Verification page: bind the authenticated user to the device session
+    /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
+    pub async fn verify_device_user_code(
+        &self,
+        user_code: String,
+        user_id: uuid::Uuid,
+    ) -> Result<(), DeviceFlowError> {
+        self.device_flow_service
+            .verify_user_code(user_code, user_id)
+            .await
+    }
+
+    /// Verification page: mark the device session identified by `user_code`
+    /// as denied.
+    pub async fn deny_device_user_code(
+        &self,
+        user_code: String,
+        user_id: uuid::Uuid,
+    ) -> Result<(), DeviceFlowError> {
+        self.device_flow_service.deny(user_code, user_id).await
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),
