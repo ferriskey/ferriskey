@@ -41,7 +41,7 @@ impl Default for DeviceFlowConfig {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DeviceFlowServiceImpl<DR, WR, I>
 where
     DR: DeviceAuthRepository,
