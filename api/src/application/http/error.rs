@@ -1,6 +1,6 @@
 use ferriskey_core::domain::{
-    common::entities::app_errors::CoreError, portal_theme::validation::MissingBlocks,
-    user::entities::RequiredAction,
+    authentication::device_flow::error::DeviceFlowError, common::entities::app_errors::CoreError,
+    portal_theme::validation::MissingBlocks, user::entities::RequiredAction,
 };
 use serde_json::{from_str, to_string};
 
@@ -267,6 +267,48 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
+        }
+    }
+}
+
+impl From<DeviceFlowError> for ApiError {
+    fn from(error: DeviceFlowError) -> Self {
+        // Token endpoint errors follow the RFC 6749 §5.2 shape (HTTP 400):
+        // `{ "error": "...", "error_description": "..." }`. The device flow
+        // polling codes are defined by RFC 8628 §3.5.
+        let oauth = |code: &'static str, description: &str| Self::OAuthError {
+            error: code.into(),
+            error_description: description.to_string().into(),
+        };
+
+        match error {
+            DeviceFlowError::AuthorizationPending => oauth(
+                "authorization_pending",
+                "The authorization request is still pending.",
+            ),
+            DeviceFlowError::SlowDown => oauth("slow_down", "Polling too frequently; slow down."),
+            DeviceFlowError::ExpiredToken => oauth("expired_token", "The device code has expired."),
+            DeviceFlowError::AccessDenied => {
+                oauth("access_denied", "The authorization request was denied.")
+            }
+            DeviceFlowError::InvalidDeviceCode => {
+                oauth("invalid_grant", "The device code is invalid or unknown.")
+            }
+            DeviceFlowError::InvalidUserCode => {
+                oauth("invalid_grant", "The user code is invalid or unknown.")
+            }
+            DeviceFlowError::InvalidClient => {
+                oauth("invalid_client", "Client authentication failed.")
+            }
+            DeviceFlowError::UserCodeGenerationExhausted => {
+                Self::InternalServerError("Failed to generate a unique user code".into())
+            }
+            DeviceFlowError::TokenIssuance(msg) => {
+                Self::InternalServerError(format!("Token issuance failed: {msg}").into())
+            }
+            DeviceFlowError::Repository(_) => {
+                Self::InternalServerError("Internal server error".into())
+            }
         }
     }
 }
