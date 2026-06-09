@@ -103,6 +103,9 @@ pub enum GrantType {
 
     #[serde(rename = "refresh_token")]
     RefreshToken,
+
+    #[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
+    DeviceCode,
 }
 
 impl Display for GrantType {
@@ -112,6 +115,7 @@ impl Display for GrantType {
             GrantType::Password => write!(f, "password"),
             GrantType::Credentials => write!(f, "credentials"),
             GrantType::RefreshToken => write!(f, "refresh_token"),
+            GrantType::DeviceCode => write!(f, "urn:ietf:params:oauth:grant-type:device_code"),
         }
     }
 }
