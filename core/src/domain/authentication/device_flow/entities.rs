@@ -130,6 +130,28 @@ pub struct DeviceAuthSessionConfig {
     pub expires_in: i64,
 }
 
+/// Non-sensitive projection of a [`DeviceAuthSession`] sent as the body of
+/// `auth.device_flow.*` webhooks. Deliberately excludes the `user_code` so it
+/// can never leak through a webhook subscriber.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceFlowEventPayload {
+    pub session_id: Uuid,
+    pub realm_id: Uuid,
+    pub client_id: Uuid,
+    pub status: DeviceAuthStatus,
+}
+
+impl From<&DeviceAuthSession> for DeviceFlowEventPayload {
+    fn from(session: &DeviceAuthSession) -> Self {
+        Self {
+            session_id: session.id,
+            realm_id: session.realm_id.into(),
+            client_id: session.client_id,
+            status: session.status,
+        }
+    }
+}
+
 impl DeviceAuthSession {
     pub fn new(config: DeviceAuthSessionConfig) -> Self {
         let now = Utc::now();
