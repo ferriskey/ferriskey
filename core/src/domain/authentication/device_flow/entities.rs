@@ -85,14 +85,32 @@ pub enum DeviceAuthStatus {
     Expired,
 }
 
+impl DeviceAuthStatus {
+    /// Canonical string stored in the database / used by `Display`.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            DeviceAuthStatus::Pending => "pending",
+            DeviceAuthStatus::Approved => "approved",
+            DeviceAuthStatus::Denied => "denied",
+            DeviceAuthStatus::Expired => "expired",
+        }
+    }
+
+    /// Parse a status back from its persisted string form.
+    pub fn from_db_value(value: &str) -> Option<Self> {
+        match value {
+            "pending" => Some(DeviceAuthStatus::Pending),
+            "approved" => Some(DeviceAuthStatus::Approved),
+            "denied" => Some(DeviceAuthStatus::Denied),
+            "expired" => Some(DeviceAuthStatus::Expired),
+            _ => None,
+        }
+    }
+}
+
 impl Display for DeviceAuthStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DeviceAuthStatus::Pending => write!(f, "pending"),
-            DeviceAuthStatus::Approved => write!(f, "approved"),
-            DeviceAuthStatus::Denied => write!(f, "denied"),
-            DeviceAuthStatus::Expired => write!(f, "expired"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 

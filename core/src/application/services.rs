@@ -9,7 +9,13 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::{services::AuthServiceImpl, value_objects::Identity},
+        authentication::{
+            device_flow::{ports::DeviceTokenIssuer, services::DeviceFlowServiceImpl},
+            entities::JwtToken,
+            ports::AuthService,
+            services::AuthServiceImpl,
+            value_objects::{GenerateTokensForUserInput, Identity},
+        },
         client::services::ClientServiceImpl,
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
@@ -77,6 +83,7 @@ use crate::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
+            device_auth_repository::PostgresDeviceAuthRepository,
             email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
@@ -215,6 +222,22 @@ type ApplicationAuthService = AuthServiceImpl<
     SecurityEventRepo,
 >;
 
+type DeviceAuthRepo = PostgresDeviceAuthRepository;
+
+/// The auth service is the concrete token issuer for the device flow: an
+/// approved session mints tokens through its existing issuance path.
+impl DeviceTokenIssuer for ApplicationAuthService {
+    async fn issue_tokens_for_user(
+        &self,
+        input: GenerateTokensForUserInput,
+    ) -> Result<JwtToken, CoreError> {
+        self.generate_tokens_for_user(input).await
+    }
+}
+
+type ApplicationDeviceFlowService =
+    DeviceFlowServiceImpl<DeviceAuthRepo, WebhookRepo, ApplicationAuthService>;
+
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
@@ -278,6 +301,9 @@ pub struct ApplicationService {
 
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
+    // Wired for DI; consumed once the device flow HTTP endpoints land.
+    #[allow(dead_code)]
+    pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
