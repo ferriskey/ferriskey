@@ -1,5 +1,28 @@
 //! DTOs for the device authorization grant use cases (RFC 8628).
 
+use uuid::Uuid;
+
+use crate::domain::realm::entities::RealmId;
+
+/// Domain command for [`DeviceFlowService::initiate`]. The realm and client are
+/// already resolved by the application layer; the domain only deals with ids.
+pub struct InitiateDeviceFlowParams {
+    pub realm_id: RealmId,
+    pub client_id: Uuid,
+    pub scope: Option<String>,
+    /// Absolute verification URI the user visits to enter the code, e.g.
+    /// `https://auth.example.com/realms/master/device`.
+    pub verification_uri: String,
+}
+
+/// Domain command for [`DeviceFlowService::poll`].
+pub struct PollDeviceTokenParams {
+    pub device_code: Uuid,
+    pub client_id: Uuid,
+    /// Issuer base URL used to mint tokens once the session is approved.
+    pub base_url: String,
+}
+
 /// Input for the device authorization endpoint (RFC 8628 §3.1).
 pub struct InitiateDeviceFlowInput {
     pub realm_name: String,
