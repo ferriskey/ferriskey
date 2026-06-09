@@ -1,5 +1,7 @@
 //! DTOs for the device authorization grant use cases (RFC 8628).
 
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -31,14 +33,18 @@ pub struct InitiateDeviceFlowInput {
 }
 
 /// Output of the device authorization endpoint (RFC 8628 §3.2).
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct InitiateDeviceFlowOutput {
     pub device_code: String,
+    #[schema(example = "WDJB-MJHT")]
     pub user_code: String,
     pub verification_uri: String,
     pub verification_uri_complete: String,
     /// Session lifetime, in seconds.
+    #[schema(example = 600)]
     pub expires_in: i64,
     /// Minimum polling interval, in seconds.
+    #[schema(example = 5)]
     pub interval: i64,
 }
 
