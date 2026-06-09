@@ -145,6 +145,8 @@ pub struct ExchangeTokenInput {
     pub base_url: String,
     pub grant_type: GrantType,
     pub scope: Option<String>,
+    /// Set for the `urn:ietf:params:oauth:grant-type:device_code` grant.
+    pub device_code: Option<String>,
 }
 
 pub struct AuthorizeRequestInput {

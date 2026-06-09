@@ -11,13 +11,15 @@ use crate::{
         },
         authentication::{
             device_flow::{
+                error::DeviceFlowError,
                 ports::{DeviceFlowService, DeviceTokenIssuer},
                 services::DeviceFlowServiceImpl,
                 value_objects::{
                     InitiateDeviceFlowInput, InitiateDeviceFlowOutput, InitiateDeviceFlowParams,
+                    PollDeviceTokenParams,
                 },
             },
-            entities::JwtToken,
+            entities::{ExchangeTokenInput, JwtToken},
             ports::AuthService,
             services::AuthServiceImpl,
             value_objects::{GenerateTokensForUserInput, Identity},
@@ -491,6 +493,47 @@ impl ApplicationService {
             .await?;
 
         Ok(output)
+    }
+
+    /// Token endpoint polling for the device_code grant (RFC 8628 §3.4).
+    ///
+    /// Resolves the realm and client, then advances the device flow state
+    /// machine. Errors are returned as [`DeviceFlowError`] so the HTTP layer
+    /// can render the RFC 6749 §5.2 error shape with the correct OAuth code.
+    /// `base_url` must already be root-path scoped by the caller.
+    pub async fn poll_device_token(
+        &self,
+        input: ExchangeTokenInput,
+    ) -> Result<JwtToken, DeviceFlowError> {
+        let device_code = input
+            .device_code
+            .as_deref()
+            .and_then(|code| uuid::Uuid::parse_str(code).ok())
+            .ok_or(DeviceFlowError::InvalidDeviceCode)?;
+
+        // An unresolvable realm/client at the token endpoint is `invalid_client`.
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .ok_or(DeviceFlowError::InvalidClient)?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(input.client_id, realm.id)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?;
+
+        self.device_flow_service
+            .poll(PollDeviceTokenParams {
+                device_code,
+                client_id: client.id,
+                base_url: input.base_url,
+            })
+            .await
     }
 
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
