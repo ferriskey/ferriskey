@@ -19,6 +19,7 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub direct_access_grants_enabled: Option<bool>,
+    pub oauth_device_code_grant_enabled: Option<bool>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

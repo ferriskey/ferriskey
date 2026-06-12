@@ -180,6 +180,7 @@ where
                         public_client: false,
                         service_account_enabled: false,
                         direct_access_grants_enabled: false,
+                        oauth_device_code_grant_enabled: false,
                         client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
                     })
@@ -217,6 +218,7 @@ where
                         public_client: false,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
+                        oauth_device_code_grant_enabled: false,
                         client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
                     })
@@ -249,6 +251,7 @@ where
                         public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
+                        oauth_device_code_grant_enabled: true,
                         client_type: ClientType::System,
                         secret: None,
                     })
@@ -442,6 +445,7 @@ where
                             public_client: false,
                             service_account_enabled: false,
                             direct_access_grants_enabled: false,
+                            oauth_device_code_grant_enabled: false,
                             client_type: ClientType::Confidential,
                             secret: Some(generate_random_string()),
                         })
@@ -674,6 +678,7 @@ pub mod tests {
             enabled: true,
             public_client: false,
             direct_access_grants_enabled: true,
+            oauth_device_code_grant_enabled: false,
             service_account_enabled: true,
             client_type: ClientType::Confidential,
             protocol: "openid-connect".to_string(),

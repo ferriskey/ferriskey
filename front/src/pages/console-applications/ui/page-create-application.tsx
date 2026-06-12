@@ -75,6 +75,16 @@ const FIELDS_BY_TYPE: Record<ApplicationType, FieldsConfig> = {
     showOrigins: false,
     callbackRequired: false,
   },
+  device: {
+    // Device Authorization Grant doesn't redirect — the user lands on the
+    // FerrisKey verification page directly. No callback URL to register.
+    showCallbacks: false,
+    callbacksLabel: '',
+    callbacksHint: '',
+    callbacksPlaceholder: '',
+    showOrigins: false,
+    callbackRequired: false,
+  },
 }
 
 const isValidUrl = (s: string) => {

@@ -12,6 +12,10 @@ pub struct InitiateDeviceFlowParams {
     pub realm_id: RealmId,
     pub client_id: Uuid,
     pub scope: Option<String>,
+    /// Whether the client is allowed to use the device authorization grant.
+    /// When `false`, the service short-circuits with `unauthorized_client`
+    /// (RFC 6749 §5.2) before any session is created.
+    pub oauth_device_code_grant_enabled: bool,
     /// Absolute verification URI the user visits to enter the code, e.g.
     /// `https://auth.example.com/realms/master/device`.
     pub verification_uri: String,

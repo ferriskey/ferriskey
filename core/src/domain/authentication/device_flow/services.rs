@@ -118,6 +118,10 @@ where
         &self,
         params: InitiateDeviceFlowParams,
     ) -> Result<InitiateDeviceFlowOutput, DeviceFlowError> {
+        if !params.oauth_device_code_grant_enabled {
+            return Err(DeviceFlowError::UnauthorizedClient);
+        }
+
         let user_code = self.generate_unique_user_code().await?;
 
         let mut session = DeviceAuthSession::new(DeviceAuthSessionConfig {
@@ -353,6 +357,7 @@ mod tests {
                 realm_id: RealmId::from(Uuid::new_v4()),
                 client_id: Uuid::new_v4(),
                 scope: Some("openid".to_string()),
+                oauth_device_code_grant_enabled: true,
                 verification_uri: "https://auth.example.com/realms/master/device".to_string(),
             })
             .await
@@ -407,11 +412,34 @@ mod tests {
                 realm_id: RealmId::from(Uuid::new_v4()),
                 client_id: Uuid::new_v4(),
                 scope: None,
+                oauth_device_code_grant_enabled: true,
                 verification_uri: "https://auth.example.com/device".to_string(),
             })
             .await;
 
         assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn initiate_returns_unauthorized_when_grant_disabled_on_client() {
+        // Repo / webhook should never be touched: the gate fires first.
+        let device_repo = MockDeviceAuthRepository::new();
+        let webhook_repo = MockWebhookRepository::new();
+        let issuer = MockDeviceTokenIssuer::new();
+
+        let service = build(device_repo, webhook_repo, issuer);
+        let err = service
+            .initiate(InitiateDeviceFlowParams {
+                realm_id: RealmId::from(Uuid::new_v4()),
+                client_id: Uuid::new_v4(),
+                scope: None,
+                oauth_device_code_grant_enabled: false,
+                verification_uri: "https://auth.example.com/device".to_string(),
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::UnauthorizedClient));
     }
 
     #[tokio::test]
