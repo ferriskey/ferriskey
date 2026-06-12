@@ -66,7 +66,7 @@ pub async fn device_verification_page(
     Query(query): Query<DevicePageQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     let mut url = format!(
-        "{}/realms/{}/device",
+        "{}/realms/{}/authentication/device",
         state.args.webapp_url.trim_end_matches('/'),
         realm_name
     );
@@ -113,7 +113,7 @@ pub async fn device_verify(
         Some(token) => token,
         None => {
             let redirect_uri = format!(
-                "/realms/{}/device?user_code={}",
+                "/realms/{}/authentication/device?user_code={}",
                 realm_name,
                 urlencoding::encode(&payload.user_code)
             );
