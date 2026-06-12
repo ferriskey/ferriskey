@@ -1,6 +1,6 @@
 import { useGetClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
-import { APPLICATION_CREATE_URL, APPLICATIONS_URL } from '@/routes/sub-router/applications.router'
+import { APPLICATION_CREATE_URL, APPLICATION_DETAIL_URL } from '@/routes/sub-router/applications.router'
 import { useNavigate, useParams } from 'react-router'
 import PageApplicationsList from '../ui/page-applications-list'
 
@@ -16,9 +16,7 @@ export default function PageApplicationsListFeature() {
 
   const handleSelect = (clientId: string) => {
     if (!realm_name) return
-    // Detail page lives in admin for now; we'll add a CIAM detail later.
-    navigate(`${APPLICATIONS_URL(realm_name)}`)
-    void clientId
+    navigate(APPLICATION_DETAIL_URL(realm_name, clientId))
   }
 
   return (
