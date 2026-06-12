@@ -7,9 +7,9 @@ export namespace Schemas {
     buttonRadius: number
     inputBorderWeight: number
     inputRadius: number
-    socialButtonBorderWeight: number
     magicLinkButtonBorderWeight: number
     passkeyButtonBorderWeight: number
+    socialButtonBorderWeight: number
     widgetBorderWeight: number
     widgetRadius: number
     widgetShadow: ThemeShadow
@@ -18,20 +18,20 @@ export namespace Schemas {
     bodyText: string
     error: string
     links: string
+    magicLinkButtonBackground: string
+    magicLinkButtonBorder: string
+    magicLinkButtonLabel: string
     pageBackground: string
+    passkeyButtonBackground: string
+    passkeyButtonBorder: string
+    passkeyButtonLabel: string
     primaryButton: string
     primaryButtonLabel: string
     secondaryButton: string
     secondaryButtonLabel: string
     socialButtonBackground: string
-    socialButtonLabel: string
     socialButtonBorder: string
-    magicLinkButtonBackground: string
-    magicLinkButtonLabel: string
-    magicLinkButtonBorder: string
-    passkeyButtonBackground: string
-    passkeyButtonLabel: string
-    passkeyButtonBorder: string
+    socialButtonLabel: string
     widgetBackground: string
   }>
   export type ThemeFontStyle = { sizePct: number; weight: number }
@@ -325,6 +325,7 @@ export namespace Schemas {
     permissions: Array<string>
   }
   export type PortalThemePages = Partial<{
+    emailVerified: unknown
     forgotPassword: unknown
     login: unknown
     magicLinkRequest: unknown
@@ -332,9 +333,8 @@ export namespace Schemas {
     register: unknown
     resetPassword: unknown
     totp: unknown
-    verifyEmail: unknown
-    emailVerified: unknown
     totpSetup: unknown
+    verifyEmail: unknown
   }>
   export type PortalTheme = {
     config: PortalThemeConfig
@@ -407,6 +407,7 @@ export namespace Schemas {
   }>
   export type WebhookTrigger =
     | 'user.created'
+    | 'user.email_verified'
     | 'user.updated'
     | 'user.deleted'
     | 'user.role.assigned'
@@ -414,6 +415,9 @@ export namespace Schemas {
     | 'user.bulk_deleted'
     | 'user.credentials.deleted'
     | 'auth.reset_password'
+    | 'auth.device_flow.initiated'
+    | 'auth.device_flow.denied'
+    | 'auth.device_flow.expired'
     | 'client.created'
     | 'client.updated'
     | 'client.deleted'
@@ -497,6 +501,13 @@ export namespace Schemas {
   }
   export type DeleteUserResponse = { count: number }
   export type DeleteWebhookResponse = { message: string; realm_name: string }
+  export type DeviceAuthorizationRequest = Partial<{
+    client_id: string | null
+    scope: string | null
+  }>
+  export type DeviceVerifyAction = 'approve' | 'deny'
+  export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string }
+  export type DeviceVerifyResponse = { status: string }
   export type EventStatus = 'success' | 'failure'
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined
@@ -544,6 +555,7 @@ export namespace Schemas {
     | 'password_reset_requested'
     | 'password_reset_completed'
     | 'user_created'
+    | 'user_email_verified'
     | 'user_deleted'
     | 'role_assigned'
     | 'role_unassigned'
@@ -583,7 +595,12 @@ export namespace Schemas {
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> }
   export type GetUserRolesResponse = { data: Array<Role> }
   export type GetWebhooksResponse = { data: Array<Webhook> }
-  export type GrantType = 'authorization_code' | 'password' | 'client_credentials' | 'refresh_token'
+  export type GrantType =
+    | 'authorization_code'
+    | 'password'
+    | 'client_credentials'
+    | 'refresh_token'
+    | 'urn:ietf:params:oauth:grant-type:device_code'
   export type IdentityProviderPresentation = {
     display_name: string
     icon: string
@@ -606,6 +623,14 @@ export namespace Schemas {
     trust_email: boolean
   }
   export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> }
+  export type InitiateDeviceFlowOutput = {
+    device_code: string
+    expires_in: number
+    interval: number
+    user_code: string
+    verification_uri: string
+    verification_uri_complete: string
+  }
   export type IntrospectRequestValidator = Partial<{
     client_id: string | null
     client_secret: string | null
@@ -848,6 +873,7 @@ export namespace Schemas {
     client_id: string | null
     client_secret: string | null
     code: string | null
+    device_code: string | null
     grant_type: GrantType
     password: string | null
     refresh_token: string | null
@@ -1676,6 +1702,32 @@ export namespace Endpoints {
       401: Schemas.ApiErrorResponse
       403: Schemas.ApiErrorResponse
       500: Schemas.ApiErrorResponse
+    }
+  }
+  export type get_Device_verification_page = {
+    method: 'GET'
+    path: '/realms/{realm_name}/device'
+    requestFormat: 'json'
+    parameters: {
+      query: Partial<{ user_code: string }>
+      path: { realm_name: string }
+    }
+    responses: { 302: unknown }
+  }
+  export type post_Device_verify = {
+    method: 'POST'
+    path: '/realms/{realm_name}/device/verify'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.DeviceVerifyRequest
+    }
+    responses: {
+      200: Schemas.DeviceVerifyResponse
+      400: Schemas.ApiErrorResponse
+      401: unknown
+      403: Schemas.ApiErrorResponse
     }
   }
   export type get_Fetch_templates = {
@@ -2768,6 +2820,23 @@ export namespace Endpoints {
     }
     responses: { 302: Schemas.AuthResponse; 400: unknown; 401: unknown; 500: unknown }
   }
+  export type post_Device_authorization = {
+    method: 'POST'
+    path: '/realms/{realm_name}/protocol/openid-connect/auth/device'
+    requestFormat: 'form-url'
+    parameters: {
+      path: { realm_name: string }
+
+      body: Schemas.DeviceAuthorizationRequest
+    }
+    responses: {
+      200: Schemas.InitiateDeviceFlowOutput
+      400: Schemas.ApiErrorResponse
+      401: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Get_certs = {
     method: 'GET'
     path: '/realms/{realm_name}/protocol/openid-connect/certs'
@@ -3409,6 +3478,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/compass/v1/flows': Endpoints.get_Get_flows
     '/realms/{realm_name}/compass/v1/flows/{flow_id}': Endpoints.get_Get_flow
     '/realms/{realm_name}/compass/v1/stats': Endpoints.get_Get_stats
+    '/realms/{realm_name}/device': Endpoints.get_Device_verification_page
     '/realms/{realm_name}/email-templates': Endpoints.get_Fetch_templates
     '/realms/{realm_name}/email-templates/{template_id}': Endpoints.get_Get_template
     '/realms/{realm_name}/federation/providers': Endpoints.get_List_providers
@@ -3462,6 +3532,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_Create_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/roles': Endpoints.post_Create_client_role
+    '/realms/{realm_name}/device/verify': Endpoints.post_Device_verify
     '/realms/{realm_name}/email-templates': Endpoints.post_Create_template
     '/realms/{realm_name}/federation/providers': Endpoints.post_Create_provider
     '/realms/{realm_name}/federation/providers/{id}/sync-users': Endpoints.post_Sync_users
@@ -3490,6 +3561,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/portal-layouts': Endpoints.post_Create_layout
     '/realms/{realm_name}/portal/themes': Endpoints.post_Create_theme
     '/realms/{realm_name}/portal/themes/{theme_id}/activate': Endpoints.post_Activate_theme
+    '/realms/{realm_name}/protocol/openid-connect/auth/device': Endpoints.post_Device_authorization
     '/realms/{realm_name}/protocol/openid-connect/logout': Endpoints.post_Logout_post
     '/realms/{realm_name}/protocol/openid-connect/registrations': Endpoints.post_Registration_handler
     '/realms/{realm_name}/protocol/openid-connect/revoke': Endpoints.post_Revoke_token

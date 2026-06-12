@@ -10,6 +10,7 @@ import PageMagicLinkVerifyFeature from './feature/page-magic-link-verify-feature
 import PageMagicLinkRequestFeature from './feature/page-magic-link-request-feature'
 import PageEmailVerifiedFeature from './feature/page-email-verified-feature'
 import PageCheckYourEmail from './feature/page-check-your-email'
+import PageDeviceVerifyFeature from './feature/page-device-verify-feature'
 import VerifyEmailRoute from './feature/verify-email-route'
 import { PortalLayoutWrapper } from './components/portal-layout-wrapper'
 import type { Schemas } from '@/api/api.client'
@@ -117,6 +118,9 @@ export default function PageAuthentication() {
       {/* Routes without a portal page type render bare. */}
       <Route path='/callback' element={<PageCallbackFeature />} />
       <Route path='/required-action' element={<PageRequiredActionFeature />} />
+      {/* RFC 8628 §3.3 device verification page. Rendered bare — no
+          PortalPageType variant yet, theme builder support is a follow-up. */}
+      <Route path='/device' element={<PageDeviceVerifyFeature />} />
       {/* "Check your inbox" screen reached right after registration — uses
           the `verify_email` portal pageType so the admin's customised
           design (heading, layout, link styling, theme tokens) applies

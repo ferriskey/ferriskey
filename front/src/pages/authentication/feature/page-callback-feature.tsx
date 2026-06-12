@@ -9,6 +9,21 @@ import {
   getTokenExchangeErrorMessage,
   validateCallbackParams,
 } from './callback-helpers'
+import { POST_LOGIN_RETURN_KEY } from './page-device-verify-feature'
+
+// Only allow returning to in-app paths to avoid an open-redirect via the
+// sessionStorage channel.
+function safePostLoginReturn(realm: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(POST_LOGIN_RETURN_KEY)
+    if (!raw) return null
+    sessionStorage.removeItem(POST_LOGIN_RETURN_KEY)
+    if (!raw.startsWith(`/realms/${realm}/`)) return null
+    return raw
+  } catch {
+    return null
+  }
+}
 
 export default function PageCallbackFeature() {
   const navigate = useNavigate()
@@ -66,7 +81,9 @@ export default function PageCallbackFeature() {
     })
       .then((data) => {
         setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
-        navigate(`/realms/${realm_name ?? 'master'}/overview`, { replace: true })
+        const realm = realm_name ?? 'master'
+        const returnTo = safePostLoginReturn(realm)
+        navigate(returnTo ?? `/realms/${realm}/overview`, { replace: true })
       })
       .catch((error: unknown) => {
         const message = getTokenExchangeErrorMessage(error)

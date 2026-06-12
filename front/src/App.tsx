@@ -243,7 +243,13 @@ function AppRoutes() {
       if (!pathname.includes('authentication/login')) {
         navigate(`/realms/${currentRealm}/authentication/login`, { replace: true })
       }
-    } else if (isAuthenticated && authenticateRoute && !pathname.includes('/callback') && !pathname.includes('/required-action')) {
+    } else if (
+      isAuthenticated &&
+      authenticateRoute &&
+      !pathname.includes('/callback') &&
+      !pathname.includes('/required-action') &&
+      !pathname.includes('/device')
+    ) {
       navigate(`/realms/${currentRealm}/overview`, { replace: true })
     }
   }, [isAuthenticated, isLoading, authenticateRoute, pathname, currentRealm, navigate])
