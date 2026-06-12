@@ -631,6 +631,7 @@ mod tests {
                     protocol: "openid-connect".to_string(),
                     service_account_enabled: false,
                     direct_access_grants_enabled: false,
+                    oauth_device_code_grant_enabled: false,
                 },
             )
             .await

@@ -162,6 +162,32 @@ export default function PageClientSettings({
             </div>
           )}
         />
+
+        {/* Device Authorization Grant (RFC 8628) */}
+        <FormField
+          name='oauthDeviceCodeGrantEnabled'
+          control={form.control}
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>OAuth 2.0 Device Authorization Grant</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem className='flex flex-row items-center gap-3'>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                    {field.value ? 'Enabled' : 'Disabled'}
+                  </FormLabel>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       {/* Access Settings section */}

@@ -11,4 +11,4 @@ export const APPLICATION_CREATE_TYPE_URL = (
   type = ':type',
 ) => `${APPLICATION_CREATE_URL(realmName)}/${type}`
 
-export type ApplicationType = 'native' | 'spa' | 'web' | 'm2m'
+export type ApplicationType = 'native' | 'spa' | 'web' | 'm2m' | 'device'

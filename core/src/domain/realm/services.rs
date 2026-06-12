@@ -343,6 +343,10 @@ where
                 client_id: "admin-cli".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: true,
+                // admin-cli is the canonical CLI client for the realm, so the
+                // device code grant is enabled by default — that's its whole
+                // purpose. Other seeded clients keep it off.
+                oauth_device_code_grant_enabled: true,
                 enabled: true,
                 name: "admin-cli".to_string(),
                 protocol: "openid-connect".to_string(),
@@ -359,6 +363,7 @@ where
                 client_id: "ferriskey-account".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
+                oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "ferriskey-account".to_string(),
                 protocol: "openid-connect".to_string(),
@@ -380,6 +385,7 @@ where
                 client_id: "security-admin-console".to_string(),
                 client_type: ClientType::Confidential,
                 direct_access_grants_enabled: false,
+                oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "security-admin-console".to_string(),
                 protocol: "openid-connect".to_string(),
@@ -473,6 +479,7 @@ where
                 public_client: true,
                 service_account_enabled: false,
                 direct_access_grants_enabled: false,
+                oauth_device_code_grant_enabled: false,
                 client_type: ClientType::Public,
             })
             .await?;
@@ -1124,6 +1131,9 @@ mod tests {
                                 direct_access_grants_enabled: Some(
                                     req.direct_access_grants_enabled,
                                 ),
+                                oauth_device_code_grant_enabled: Some(
+                                    req.oauth_device_code_grant_enabled,
+                                ),
                                 access_token_lifetime: None,
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
@@ -1155,6 +1165,7 @@ mod tests {
                                 service_account_enabled: false,
                                 client_type: req.client_type.clone(),
                                 direct_access_grants_enabled: Some(true),
+                                oauth_device_code_grant_enabled: Some(true),
                                 access_token_lifetime: None,
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
@@ -1188,6 +1199,7 @@ mod tests {
                                 service_account_enabled: false,
                                 client_type: req.client_type.clone(),
                                 direct_access_grants_enabled: Some(false),
+                                oauth_device_code_grant_enabled: Some(false),
                                 access_token_lifetime: None,
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
@@ -1221,6 +1233,7 @@ mod tests {
                                 service_account_enabled: false,
                                 client_type: req.client_type.clone(),
                                 direct_access_grants_enabled: Some(false),
+                                oauth_device_code_grant_enabled: Some(false),
                                 access_token_lifetime: None,
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,

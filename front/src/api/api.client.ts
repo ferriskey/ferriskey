@@ -136,6 +136,7 @@ export namespace Schemas {
     client_type: ClientType
     created_at: string
     direct_access_grants_enabled: boolean
+    oauth_device_code_grant_enabled: boolean
     enabled: boolean
     id: string
     id_token_lifetime?: (number | null) | undefined
@@ -235,6 +236,7 @@ export namespace Schemas {
     client_id?: string | undefined
     client_type: ClientType
     direct_access_grants_enabled?: boolean | undefined
+    oauth_device_code_grant_enabled?: boolean | undefined
     enabled?: boolean | undefined
     name?: string | undefined
     protocol?: string | undefined
@@ -892,6 +894,7 @@ export namespace Schemas {
     access_token_lifetime: number | null
     client_id: string | null
     direct_access_grants_enabled: boolean | null
+    oauth_device_code_grant_enabled: boolean | null
     enabled: boolean | null
     id_token_lifetime: number | null
     name: string | null

@@ -5,6 +5,7 @@ export const updateClientSchema = z.object({
   name: z.string().min(1, { message: 'The name is required' }),
   enabled: z.boolean().optional(),
   directAccessGrantsEnabled: z.boolean().optional(),
+  oauthDeviceCodeGrantEnabled: z.boolean().optional(),
   accessTokenLifetime: z.number().nullable().optional(),
   refreshTokenLifetime: z.number().nullable().optional(),
   idTokenLifetime: z.number().nullable().optional(),

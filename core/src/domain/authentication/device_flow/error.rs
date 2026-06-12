@@ -42,6 +42,14 @@ pub enum DeviceFlowError {
     #[error("invalid client")]
     InvalidClient,
 
+    /// The client exists but is not allowed to use the device authorization
+    /// grant — RFC 6749 §5.2 `unauthorized_client` ("not authorized to use
+    /// this authorization grant type"). Surfaced from the device
+    /// authorization endpoint when the operator has not enabled the grant
+    /// for the client.
+    #[error("unauthorized_client")]
+    UnauthorizedClient,
+
     /// Could not generate a collision-free user code within the retry budget.
     #[error("failed to generate a unique user code")]
     UserCodeGenerationExhausted,
@@ -65,6 +73,7 @@ impl From<DeviceFlowError> for CoreError {
             DeviceFlowError::InvalidDeviceCode => CoreError::InvalidToken,
             DeviceFlowError::InvalidUserCode => CoreError::InvalidToken,
             DeviceFlowError::InvalidClient => CoreError::InvalidClient,
+            DeviceFlowError::UnauthorizedClient => CoreError::InvalidClient,
             DeviceFlowError::UserCodeGenerationExhausted => CoreError::InternalServerError,
             DeviceFlowError::TokenIssuance(msg) => CoreError::TokenGenerationError(msg),
             DeviceFlowError::Repository(err) => err.into(),

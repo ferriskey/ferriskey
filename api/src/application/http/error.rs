@@ -300,6 +300,10 @@ impl From<DeviceFlowError> for ApiError {
             DeviceFlowError::InvalidClient => {
                 oauth("invalid_client", "Client authentication failed.")
             }
+            DeviceFlowError::UnauthorizedClient => oauth(
+                "unauthorized_client",
+                "The client is not authorized to use the device authorization grant.",
+            ),
             DeviceFlowError::UserCodeGenerationExhausted => {
                 Self::InternalServerError("Failed to generate a unique user code".into())
             }

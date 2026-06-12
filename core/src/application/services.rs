@@ -466,33 +466,35 @@ impl ApplicationService {
         &self,
         input: InitiateDeviceFlowInput,
         base_url: String,
-    ) -> Result<InitiateDeviceFlowOutput, CoreError> {
+    ) -> Result<InitiateDeviceFlowOutput, DeviceFlowError> {
+        // An unresolvable realm/client at the device authorization endpoint
+        // is `invalid_client`, matching the token endpoint's behaviour.
         let realm = self
             .realm_service
             .realm_repository
             .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .ok_or(DeviceFlowError::InvalidClient)?;
 
         let client = self
             .client_service
             .client_repository
             .get_by_client_id(input.client_id, realm.id)
-            .await?;
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
 
-        let output = self
-            .device_flow_service
+        self.device_flow_service
             .initiate(InitiateDeviceFlowParams {
                 realm_id: realm.id,
                 client_id: client.id,
                 scope: input.scope,
+                oauth_device_code_grant_enabled: client.oauth_device_code_grant_enabled,
                 verification_uri,
             })
-            .await?;
-
-        Ok(output)
+            .await
     }
 
     /// Token endpoint polling for the device_code grant (RFC 8628 §3.4).
