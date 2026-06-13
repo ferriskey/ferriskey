@@ -1,16 +1,26 @@
 import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api'
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
+import { Skeleton } from '@/components/ui/skeleton'
+import PageClientMaintenanceFeature from '@/pages/client/feature/page-client-maintenance-feature'
+import PageClientRolesFeature from '@/pages/client/feature/page-client-roles-feature'
 import { RouterParams } from '@/routes/router'
 import { APPLICATIONS_URL } from '@/routes/sub-router/applications.router'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Globe, Palette, Puzzle } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import PageApplicationDetail, { ApplicationSettingsValues } from '../ui/page-application-detail'
+import ApplicationDetailShell, { AppTab, TabDef } from '../ui/application-detail-shell'
+import ApiAccessTab from '../ui/tabs/api-access-tab'
+import ComingSoonTab from '../ui/tabs/coming-soon-tab'
+import CredentialsTab from '../ui/tabs/credentials-tab'
+import QuickstartTab from '../ui/tabs/quickstart-tab'
+import SettingsTab, { ApplicationSettingsValues } from '../ui/tabs/settings-tab'
+import { inferApplicationType } from '../types'
 
 export default function PageApplicationDetailFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const realm = realm_name ?? 'master'
 
   const { data: clientResponse, isLoading, refetch } = useGetClient({
@@ -95,17 +105,113 @@ export default function PageApplicationDetailFeature() {
     )
   }
 
+  const appType = inferApplicationType(client)
+  // Interactive (browser) clients can have IdP connections, branding and addons.
+  // Machine-to-machine and device clients have no human login surface for these.
+  const isInteractive = appType !== 'm2m' && appType !== 'device'
+
+  const tabs: TabDef[] = [
+    { id: 'quickstart', label: 'Quickstart' },
+    { id: 'settings', label: 'Settings' },
+    { id: 'credentials', label: 'Credentials' },
+    ...(isInteractive ? [{ id: 'connections', label: 'Connections', soon: true } as TabDef] : []),
+    { id: 'api-access', label: 'API Access' },
+    ...(isInteractive ? [{ id: 'addons', label: 'Addons', soon: true } as TabDef] : []),
+    ...(isInteractive
+      ? [{ id: 'login-experience', label: 'Login Experience', soon: true } as TabDef]
+      : []),
+    { id: 'roles', label: 'Roles' },
+    { id: 'maintenance', label: 'Maintenance' },
+  ]
+
+  const requested = searchParams.get('tab') as AppTab | null
+  const isSelectable = (t: AppTab | null): t is AppTab =>
+    !!t && tabs.some((tab) => tab.id === t && !tab.soon)
+  const activeTab: AppTab = isSelectable(requested) ? requested : 'quickstart'
+
+  const handleSelectTab = (tab: AppTab) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('tab', tab)
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'quickstart':
+        return <QuickstartTab client={client} realm={realm} />
+      case 'settings':
+        return (
+          <SettingsTab
+            client={client}
+            isSaving={isSaving}
+            uriPending={uriPending}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onAddRedirectUri={handleAddRedirectUri}
+            onDeleteRedirectUri={handleDeleteRedirectUri}
+          />
+        )
+      case 'credentials':
+        return <CredentialsTab client={client} />
+      case 'api-access':
+        return <ApiAccessTab realm={realm} clientId={client.id} />
+      case 'roles':
+        return <PageClientRolesFeature />
+      case 'maintenance':
+        return <PageClientMaintenanceFeature />
+      case 'connections':
+        return (
+          <ComingSoonTab
+            icon={Globe}
+            title='Connections'
+            description='Choose which identity providers and login methods this application can use.'
+            points={[
+              'Enable or disable realm identity providers per application',
+              'Restrict social / enterprise connections to specific apps',
+            ]}
+          />
+        )
+      case 'login-experience':
+        return (
+          <ComingSoonTab
+            icon={Palette}
+            title='Login Experience'
+            description='Customize the sign-in page branding shown for this application.'
+            points={[
+              'Per-application logo, colors and theme overrides',
+              'Currently branding is configured at the realm level',
+            ]}
+          />
+        )
+      case 'addons':
+        return (
+          <ComingSoonTab
+            icon={Puzzle}
+            title='Addons'
+            description='Enable protocol addons such as SAML and WS-Federation for this application.'
+            points={['SAML 2.0 service provider', 'WS-Federation', 'Token customization addons']}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   return (
-    <PageApplicationDetail
+    <ApplicationDetailShell
       key={client.id}
       client={client}
-      isSaving={isSaving}
-      uriPending={uriPending}
+      tabs={tabs}
+      activeTab={activeTab}
+      onSelectTab={handleSelectTab}
       onBack={handleBack}
-      onSave={handleSave}
-      onDelete={handleDelete}
-      onAddRedirectUri={handleAddRedirectUri}
-      onDeleteRedirectUri={handleDeleteRedirectUri}
-    />
+    >
+      {renderTab()}
+    </ApplicationDetailShell>
   )
 }
