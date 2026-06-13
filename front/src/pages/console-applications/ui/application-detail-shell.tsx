@@ -9,7 +9,6 @@ export type AppTab =
   | 'settings'
   | 'credentials'
   | 'api-access'
-  | 'roles'
   | 'connections'
   | 'login-experience'
   | 'addons'

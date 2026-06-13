@@ -2,7 +2,6 @@ import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
 import { Skeleton } from '@/components/ui/skeleton'
 import PageClientMaintenanceFeature from '@/pages/client/feature/page-client-maintenance-feature'
-import PageClientRolesFeature from '@/pages/client/feature/page-client-roles-feature'
 import { RouterParams } from '@/routes/router'
 import { APPLICATIONS_URL } from '@/routes/sub-router/applications.router'
 import { Globe, Palette, Puzzle } from 'lucide-react'
@@ -120,7 +119,6 @@ export default function PageApplicationDetailFeature() {
     ...(isInteractive
       ? [{ id: 'login-experience', label: 'Login Experience', soon: true } as TabDef]
       : []),
-    { id: 'roles', label: 'Roles' },
     { id: 'maintenance', label: 'Maintenance' },
   ]
 
@@ -160,8 +158,6 @@ export default function PageApplicationDetailFeature() {
         return <CredentialsTab client={client} />
       case 'api-access':
         return <ApiAccessTab realm={realm} clientId={client.id} />
-      case 'roles':
-        return <PageClientRolesFeature />
       case 'maintenance':
         return <PageClientMaintenanceFeature />
       case 'connections':
