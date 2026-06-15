@@ -383,6 +383,7 @@ Example:
 | webapp.api.url | string | `nil` | URL for the API. Default computed from the ingress configuration. |
 | webapp.args | list | `[]` | Arguments for the webapp container. |
 | webapp.command | list | `[]` | Command for the webapp container. |
+| webapp.configJsonName | string | `nil` | Name of the runtime ConfigMap mounted as /usr/share/nginx/html/config.json. Default is `<release>-webapp-config`. |
 | webapp.dnsConfig | object | `{}` | DNS config for the webapp workload. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#poddnsconfig-v1-core |
 | webapp.emptyDirSize | string | `nil` | EmptyDir size for the webapp workload. |
 | webapp.env | list | `[]` | Environment variables for the webapp container. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envvar-v1-core |
