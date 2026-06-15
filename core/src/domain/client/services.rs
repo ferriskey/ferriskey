@@ -161,6 +161,7 @@ where
                 public_client: input.public_client,
                 service_account_enabled: input.service_account_enabled,
                 direct_access_grants_enabled: input.direct_access_grants_enabled,
+                oauth_device_code_grant_enabled: input.oauth_device_code_grant_enabled,
                 client_type: input.client_type,
             })
             .await

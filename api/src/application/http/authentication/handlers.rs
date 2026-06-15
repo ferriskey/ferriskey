@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod authentificate;
+pub mod device_authorization;
+pub mod device_verify;
 pub mod get_certs;
 pub mod introspect;
 pub mod logout;

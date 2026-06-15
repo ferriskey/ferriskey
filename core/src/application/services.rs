@@ -9,8 +9,22 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::{services::AuthServiceImpl, value_objects::Identity},
-        client::services::ClientServiceImpl,
+        authentication::{
+            device_flow::{
+                error::DeviceFlowError,
+                ports::{DeviceFlowService, DeviceTokenIssuer},
+                services::DeviceFlowServiceImpl,
+                value_objects::{
+                    InitiateDeviceFlowInput, InitiateDeviceFlowOutput, InitiateDeviceFlowParams,
+                    PollDeviceTokenParams,
+                },
+            },
+            entities::{ExchangeTokenInput, JwtToken},
+            ports::AuthService,
+            services::AuthServiceImpl,
+            value_objects::{GenerateTokensForUserInput, Identity},
+        },
+        client::{ports::ClientRepository, services::ClientServiceImpl},
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
             ports::CoreService,
@@ -77,6 +91,7 @@ use crate::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
+            device_auth_repository::PostgresDeviceAuthRepository,
             email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
@@ -215,6 +230,22 @@ type ApplicationAuthService = AuthServiceImpl<
     SecurityEventRepo,
 >;
 
+type DeviceAuthRepo = PostgresDeviceAuthRepository;
+
+/// The auth service is the concrete token issuer for the device flow: an
+/// approved session mints tokens through its existing issuance path.
+impl DeviceTokenIssuer for ApplicationAuthService {
+    async fn issue_tokens_for_user(
+        &self,
+        input: GenerateTokensForUserInput,
+    ) -> Result<JwtToken, CoreError> {
+        self.generate_tokens_for_user(input).await
+    }
+}
+
+type ApplicationDeviceFlowService =
+    DeviceFlowServiceImpl<DeviceAuthRepo, WebhookRepo, ApplicationAuthService>;
+
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
@@ -278,6 +309,7 @@ pub struct ApplicationService {
 
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
+    pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -423,6 +455,109 @@ impl ApplicationService {
         self.password_policy_service
             .update_policy(identity, &realm, update)
             .await
+    }
+
+    /// Device authorization endpoint (RFC 8628 §3.1).
+    ///
+    /// Resolves the realm and client, builds the realm-scoped verification URI
+    /// from `base_url`, and delegates to the device flow service. `base_url`
+    /// must already be root-path scoped by the caller.
+    pub async fn initiate_device_authorization(
+        &self,
+        input: InitiateDeviceFlowInput,
+        base_url: String,
+    ) -> Result<InitiateDeviceFlowOutput, DeviceFlowError> {
+        // An unresolvable realm/client at the device authorization endpoint
+        // is `invalid_client`, matching the token endpoint's behaviour.
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .ok_or(DeviceFlowError::InvalidClient)?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(input.client_id, realm.id)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?;
+
+        let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
+
+        self.device_flow_service
+            .initiate(InitiateDeviceFlowParams {
+                realm_id: realm.id,
+                client_id: client.id,
+                scope: input.scope,
+                oauth_device_code_grant_enabled: client.oauth_device_code_grant_enabled,
+                verification_uri,
+            })
+            .await
+    }
+
+    /// Token endpoint polling for the device_code grant (RFC 8628 §3.4).
+    ///
+    /// Resolves the realm and client, then advances the device flow state
+    /// machine. Errors are returned as [`DeviceFlowError`] so the HTTP layer
+    /// can render the RFC 6749 §5.2 error shape with the correct OAuth code.
+    /// `base_url` must already be root-path scoped by the caller.
+    pub async fn poll_device_token(
+        &self,
+        input: ExchangeTokenInput,
+    ) -> Result<JwtToken, DeviceFlowError> {
+        let device_code = input
+            .device_code
+            .as_deref()
+            .and_then(|code| uuid::Uuid::parse_str(code).ok())
+            .ok_or(DeviceFlowError::InvalidDeviceCode)?;
+
+        // An unresolvable realm/client at the token endpoint is `invalid_client`.
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .ok_or(DeviceFlowError::InvalidClient)?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(input.client_id, realm.id)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?;
+
+        self.device_flow_service
+            .poll(PollDeviceTokenParams {
+                device_code,
+                client_id: client.id,
+                base_url: input.base_url,
+            })
+            .await
+    }
+
+    /// Verification page: bind the authenticated user to the device session
+    /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
+    pub async fn verify_device_user_code(
+        &self,
+        user_code: String,
+        user_id: uuid::Uuid,
+    ) -> Result<(), DeviceFlowError> {
+        self.device_flow_service
+            .verify_user_code(user_code, user_id)
+            .await
+    }
+
+    /// Verification page: mark the device session identified by `user_code`
+    /// as denied.
+    pub async fn deny_device_user_code(
+        &self,
+        user_code: String,
+        user_id: uuid::Uuid,
+    ) -> Result<(), DeviceFlowError> {
+        self.device_flow_service.deny(user_code, user_id).await
     }
 
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {

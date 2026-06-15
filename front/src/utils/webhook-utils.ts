@@ -23,7 +23,13 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'user.deleted',
     'user.role.unassigned',
     'user.updated',
+    'user.email_verified',
     'auth.reset_password',
+  ],
+  Authentication: [
+    'auth.device_flow.initiated',
+    'auth.device_flow.denied',
+    'auth.device_flow.expired',
   ],
   Webhook: ['webhook.created', 'webhook.deleted', 'webhook.updated'],
 }
@@ -55,7 +61,12 @@ export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
   'user.deleted': 'User Deleted',
   'user.role.unassigned': 'User Unassigned Role',
   'user.updated': 'User Updated',
+  'user.email_verified': 'User Email Verified',
   'auth.reset_password': 'Auth Reset Password',
+
+  'auth.device_flow.initiated': 'Device Flow Initiated',
+  'auth.device_flow.denied': 'Device Flow Denied',
+  'auth.device_flow.expired': 'Device Flow Expired',
 
   'webhook.created': 'Webhook Created',
   'webhook.deleted': 'Webhook Deleted',
@@ -91,7 +102,12 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
   'user.deleted': 'A user has been deleted.',
   'user.role.unassigned': 'A user has been unassigned a role.',
   'user.updated': 'A user has been updated.',
+  'user.email_verified': 'A user has verified their email address.',
   'auth.reset_password': 'A user password has been reset.',
+
+  'auth.device_flow.initiated': 'A device authorization flow has been initiated.',
+  'auth.device_flow.denied': 'A device authorization flow has been denied.',
+  'auth.device_flow.expired': 'A device authorization flow has expired.',
 
   'webhook.created': 'A new webhook has been created.',
   'webhook.deleted': 'A webhook has been deleted.',

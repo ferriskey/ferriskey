@@ -14,7 +14,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
-use ferriskey_core::domain::authentication::entities::JwtToken;
+use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use tracing::{instrument, warn};
 
@@ -72,36 +72,48 @@ pub async fn exchange_token(
 
     let is_secure = base_url.starts_with("https://");
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
-    let token = match state
-        .service
-        .exchange_token(ExchangeTokenInput {
-            realm_name,
-            client_id: client_id.clone(),
-            client_secret,
-            code: payload.code,
-            username: payload.username,
-            password: payload.password,
-            refresh_token: payload.refresh_token,
-            base_url,
-            grant_type: payload.grant_type,
-            scope: payload.scope,
-        })
-        .await
-    {
-        Ok(token) => token,
-        Err(error) => {
-            warn!(
-                client_id = %client_id,
-                grant_type = ?grant_type,
-                has_client_secret,
-                has_username,
-                has_password,
-                has_code,
-                has_refresh_token,
-                error = ?error,
-                "Token exchange failed"
-            );
-            return Err(error.into());
+
+    let exchange_input = ExchangeTokenInput {
+        realm_name,
+        client_id: client_id.clone(),
+        client_secret,
+        code: payload.code,
+        username: payload.username,
+        password: payload.password,
+        refresh_token: payload.refresh_token,
+        base_url,
+        grant_type: payload.grant_type.clone(),
+        scope: payload.scope,
+        device_code: payload.device_code,
+    };
+
+    // The device_code grant is served by the device flow polling path so its
+    // RFC 8628 §3.5 error codes survive as an RFC 6749 §5.2 error response.
+    let token = if payload.grant_type == GrantType::DeviceCode {
+        match state.service.poll_device_token(exchange_input).await {
+            Ok(token) => token,
+            Err(error) => {
+                warn!(client_id = %client_id, error = ?error, "Device token poll failed");
+                return Err(error.into());
+            }
+        }
+    } else {
+        match state.service.exchange_token(exchange_input).await {
+            Ok(token) => token,
+            Err(error) => {
+                warn!(
+                    client_id = %client_id,
+                    grant_type = ?grant_type,
+                    has_client_secret,
+                    has_username,
+                    has_password,
+                    has_code,
+                    has_refresh_token,
+                    error = ?error,
+                    "Token exchange failed"
+                );
+                return Err(error.into());
+            }
         }
     };
 

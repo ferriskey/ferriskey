@@ -53,6 +53,7 @@ pub async fn create_client(
                 protocol: payload.protocol,
                 service_account_enabled: payload.service_account_enabled,
                 direct_access_grants_enabled: payload.direct_access_grants_enabled,
+                oauth_device_code_grant_enabled: payload.oauth_device_code_grant_enabled,
             },
         )
         .await?;

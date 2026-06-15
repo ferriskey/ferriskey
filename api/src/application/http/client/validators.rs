@@ -23,6 +23,8 @@ pub struct CreateClientValidator {
     pub enabled: bool,
     #[serde(default)]
     pub direct_access_grants_enabled: bool,
+    #[serde(default)]
+    pub oauth_device_code_grant_enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -38,6 +40,9 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub direct_access_grants_enabled: Option<bool>,
+
+    #[serde(default)]
+    pub oauth_device_code_grant_enabled: Option<bool>,
 
     #[serde(default)]
     pub access_token_lifetime: Option<i64>,

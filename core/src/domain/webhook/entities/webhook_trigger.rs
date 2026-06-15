@@ -24,6 +24,12 @@ pub enum WebhookTrigger {
     UserDeleteCredentials,
     #[serde(rename = "auth.reset_password")]
     AuthResetPassword,
+    #[serde(rename = "auth.device_flow.initiated")]
+    AuthDeviceFlowInitiated,
+    #[serde(rename = "auth.device_flow.denied")]
+    AuthDeviceFlowDenied,
+    #[serde(rename = "auth.device_flow.expired")]
+    AuthDeviceFlowExpired,
     #[serde(rename = "client.created")]
     ClientCreated,
     #[serde(rename = "client.updated")]
@@ -80,6 +86,9 @@ impl Display for WebhookTrigger {
             WebhookTrigger::UserRoleAssigned => write!(f, "user.role.assigned"),
             WebhookTrigger::UserRoleUnassigned => write!(f, "user.role.unassigned"),
             WebhookTrigger::AuthResetPassword => write!(f, "auth.reset_password"),
+            WebhookTrigger::AuthDeviceFlowInitiated => write!(f, "auth.device_flow.initiated"),
+            WebhookTrigger::AuthDeviceFlowDenied => write!(f, "auth.device_flow.denied"),
+            WebhookTrigger::AuthDeviceFlowExpired => write!(f, "auth.device_flow.expired"),
             WebhookTrigger::ClientCreated => write!(f, "client.created"),
             WebhookTrigger::ClientUpdated => write!(f, "client.updated"),
             WebhookTrigger::ClientDeleted => write!(f, "client.deleted"),
@@ -123,6 +132,9 @@ impl TryFrom<String> for WebhookTrigger {
             "user.role.assigned" => Ok(WebhookTrigger::UserRoleAssigned),
             "user.role.unassigned" => Ok(WebhookTrigger::UserRoleUnassigned),
             "auth.reset_password" => Ok(WebhookTrigger::AuthResetPassword),
+            "auth.device_flow.initiated" => Ok(WebhookTrigger::AuthDeviceFlowInitiated),
+            "auth.device_flow.denied" => Ok(WebhookTrigger::AuthDeviceFlowDenied),
+            "auth.device_flow.expired" => Ok(WebhookTrigger::AuthDeviceFlowExpired),
             "client.created" => Ok(WebhookTrigger::ClientCreated),
             "client.updated" => Ok(WebhookTrigger::ClientUpdated),
             "client.deleted" => Ok(WebhookTrigger::ClientDeleted),

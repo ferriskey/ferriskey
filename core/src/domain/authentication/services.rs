@@ -1262,6 +1262,8 @@ where
             GrantType::Password => self.password(params).await,
             GrantType::Credentials => self.client_credential(params).await,
             GrantType::RefreshToken => self.refresh_token(params).await,
+            // Device flow token exchange is not wired up yet (see #1020).
+            GrantType::DeviceCode => Err(CoreError::InvalidRequest),
         }
     }
 

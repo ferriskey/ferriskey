@@ -11,7 +11,11 @@ use crate::{
         aegis::services::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
-        authentication::{mapper_engine::MapperEngine, services::AuthServiceImpl},
+        authentication::{
+            device_flow::services::{DeviceFlowConfig, DeviceFlowServiceImpl},
+            mapper_engine::MapperEngine,
+            services::AuthServiceImpl,
+        },
         client::services::ClientServiceImpl,
         common::{
             FerriskeyConfig, entities::app_errors::CoreError, policies::FerriskeyPolicy,
@@ -79,6 +83,7 @@ use crate::{
             argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
+            device_auth_repository::PostgresDeviceAuthRepository,
             email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
             magic_link_repository::PostgresMagicLinkRepository,
@@ -151,6 +156,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
     let hasher = Arc::new(Argon2HasherRepository::new());
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
+    let device_auth = Arc::new(PostgresDeviceAuthRepository::new(postgres.get_db()));
     let redirect_uri = Arc::new(PostgresRedirectUriRepository::new(postgres.get_db()));
     let post_logout_redirect_uri = Arc::new(PostgresPostLogoutRedirectUriRepository::new(
         postgres.get_db(),
@@ -233,6 +239,44 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         security_event.clone(),
     );
 
+    let auth_service = AuthServiceImpl::new(
+        realm.clone(),
+        client.clone(),
+        redirect_uri.clone(),
+        post_logout_redirect_uri.clone(),
+        user.clone(),
+        user_role.clone(),
+        credential.clone(),
+        hasher.clone(),
+        auth_session.clone(),
+        keystore.clone(),
+        refresh_token.clone(),
+        access_token.clone(),
+        federation.clone(),
+        scope_mapping.clone(),
+        protocol_mapper.clone(),
+        organization_member.clone(),
+        organization.clone(),
+        organization_attribute.clone(),
+        user_required_action.clone(),
+        maintenance_whitelist.clone(),
+        realm_maintenance_whitelist.clone(),
+        user_attribute.clone(),
+        email_verification_service.clone(),
+        webhook.clone(),
+        security_event.clone(),
+        Arc::new(MapperEngine::new()),
+        flow_recorder.clone(),
+    );
+
+    // The auth service doubles as the device flow's token issuer.
+    let device_flow_service = DeviceFlowServiceImpl::new(
+        device_auth.clone(),
+        webhook.clone(),
+        Arc::new(auth_service.clone()),
+        DeviceFlowConfig::default(),
+    );
+
     let app = ApplicationService {
         maintenance_service: MaintenanceServiceImpl::new(
             realm.clone(),
@@ -243,35 +287,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm_maintenance_whitelist.clone(),
             policy.clone(),
         ),
-        auth_service: AuthServiceImpl::new(
-            realm.clone(),
-            client.clone(),
-            redirect_uri.clone(),
-            post_logout_redirect_uri.clone(),
-            user.clone(),
-            user_role.clone(),
-            credential.clone(),
-            hasher.clone(),
-            auth_session.clone(),
-            keystore.clone(),
-            refresh_token.clone(),
-            access_token.clone(),
-            federation.clone(),
-            scope_mapping.clone(),
-            protocol_mapper.clone(),
-            organization_member.clone(),
-            organization.clone(),
-            organization_attribute.clone(),
-            user_required_action.clone(),
-            maintenance_whitelist.clone(),
-            realm_maintenance_whitelist.clone(),
-            user_attribute.clone(),
-            email_verification_service.clone(),
-            webhook.clone(),
-            security_event.clone(),
-            Arc::new(MapperEngine::new()),
-            flow_recorder.clone(),
-        ),
+        auth_service,
+        device_flow_service,
         client_service: ClientServiceImpl::new(
             realm.clone(),
             user.clone(),
@@ -614,6 +631,7 @@ mod tests {
                     protocol: "openid-connect".to_string(),
                     service_account_enabled: false,
                     direct_access_grants_enabled: false,
+                    oauth_device_code_grant_enabled: false,
                 },
             )
             .await

@@ -15,10 +15,16 @@ type RouteParams = {
   type?: ApplicationType
 }
 
-const VALID_TYPES: ApplicationType[] = ['native', 'spa', 'web', 'm2m']
+const VALID_TYPES: ApplicationType[] = ['native', 'spa', 'web', 'm2m', 'device']
 
 function payloadFor(type: ApplicationType, name: string, clientId: string) {
-  const base = { name, client_id: clientId, enabled: true, protocol: 'openid-connect' as const }
+  const base = {
+    name,
+    client_id: clientId,
+    enabled: true,
+    protocol: 'openid-connect' as const,
+    oauth_device_code_grant_enabled: false,
+  }
   switch (type) {
     case 'native':
       return { ...base, client_type: 'public' as const, public_client: false, service_account_enabled: false, direct_access_grants_enabled: false }
@@ -28,6 +34,10 @@ function payloadFor(type: ApplicationType, name: string, clientId: string) {
       return { ...base, client_type: 'confidential' as const, public_client: false, service_account_enabled: false, direct_access_grants_enabled: false }
     case 'm2m':
       return { ...base, client_type: 'confidential' as const, public_client: false, service_account_enabled: true, direct_access_grants_enabled: false }
+    case 'device':
+      // Public client (no secret), device grant on by default — the whole
+      // point of the archetype. Browserless clients don't use redirect URIs.
+      return { ...base, client_type: 'public' as const, public_client: true, service_account_enabled: false, direct_access_grants_enabled: false, oauth_device_code_grant_enabled: true }
   }
 }
 

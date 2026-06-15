@@ -103,6 +103,9 @@ pub enum GrantType {
 
     #[serde(rename = "refresh_token")]
     RefreshToken,
+
+    #[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
+    DeviceCode,
 }
 
 impl Display for GrantType {
@@ -112,6 +115,7 @@ impl Display for GrantType {
             GrantType::Password => write!(f, "password"),
             GrantType::Credentials => write!(f, "credentials"),
             GrantType::RefreshToken => write!(f, "refresh_token"),
+            GrantType::DeviceCode => write!(f, "urn:ietf:params:oauth:grant-type:device_code"),
         }
     }
 }
@@ -141,6 +145,8 @@ pub struct ExchangeTokenInput {
     pub base_url: String,
     pub grant_type: GrantType,
     pub scope: Option<String>,
+    /// Set for the `urn:ietf:params:oauth:grant-type:device_code` grant.
+    pub device_code: Option<String>,
 }
 
 pub struct AuthorizeRequestInput {

@@ -32,6 +32,10 @@ pub struct TokenRequestValidator {
     // Example: "openid profile email"
     #[serde(default)]
     pub scope: Option<String>,
+
+    // Used by the device_code grant (RFC 8628 §3.4)
+    #[serde(default)]
+    pub device_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
