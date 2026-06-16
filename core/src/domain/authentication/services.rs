@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -70,6 +70,40 @@ use ferriskey_domain::token_lifetime::TokenLifetimes;
 use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
+
+/// Build the OAuth2 authorization-code redirect URL sent back to the client
+/// once authentication (login *or* registration) completes.
+///
+/// `state` is OPTIONAL per RFC 6749 §4.1.2 and OpenID Connect Core: when the
+/// originating authorization request omitted it we must neither invent one nor
+/// fail the flow with a 500. We only append `&state=` when the session carries
+/// a non-empty value, echoing it back verbatim as required when present.
+fn format_authorization_redirect_url(
+    auth_session: &AuthSession,
+    authorization_code: &str,
+) -> String {
+    match auth_session.state.as_deref() {
+        Some(state) if !state.is_empty() => format!(
+            "{}?code={}&state={}",
+            auth_session.redirect_uri, authorization_code, state
+        ),
+        _ => format!("{}?code={}", auth_session.redirect_uri, authorization_code),
+    }
+}
+
+/// Decide whether a registration that carried a `FERRISKEY_SESSION` cookie
+/// should resume the originating OIDC authorization flow (issue an
+/// authorization code and redirect back to the client) instead of falling back
+/// to standalone self-service sign-up.
+///
+/// We only resume a session that is still live (`expires_at` in the future) and
+/// has not already been consumed by a prior authentication — a session that
+/// already has a `user_id` *and* is flagged `authenticated` is spent, and
+/// replaying it would mint a second authorization code for a stale request.
+fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
+    auth_session.expires_at >= now
+        && !(auth_session.user_id.is_some() && auth_session.authenticated)
+}
 
 #[derive(Clone, Debug)]
 pub struct AuthServiceImpl<
@@ -1717,14 +1751,9 @@ This is a server error that should be investigated. Do not forward back this mes
         auth_session: &AuthSession,
         authorization_code: &str,
     ) -> Result<String, CoreError> {
-        let state = auth_session
-            .state
-            .as_ref()
-            .ok_or(CoreError::InternalServerError)?;
-
-        Ok(format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, state
+        Ok(format_authorization_redirect_url(
+            auth_session,
+            authorization_code,
         ))
     }
 
@@ -2369,8 +2398,7 @@ where
                 .auth_session_repository
                 .get_by_session_code(session_code)
                 .await
-            && auth_session.expires_at >= Utc::now()
-            && !(auth_session.user_id.is_some() && auth_session.authenticated)
+            && auth_session_can_resume(&auth_session, Utc::now())
         {
             let output = self
                 .finalize_authentication(user.id, session_code, auth_session)
@@ -2718,5 +2746,182 @@ where
             None,
             None,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{auth_session_can_resume, format_authorization_redirect_url};
+    use chrono::{Duration, Utc};
+    use uuid::Uuid;
+
+    use crate::domain::authentication::entities::AuthSession;
+    use crate::domain::realm::entities::RealmId;
+
+    /// Build an [`AuthSession`] with only the fields these helpers read, so the
+    /// tests stay focused on redirect formatting / resume eligibility.
+    fn auth_session(
+        state: Option<&str>,
+        redirect_uri: &str,
+        expires_at: chrono::DateTime<Utc>,
+        user_id: Option<Uuid>,
+        authenticated: bool,
+    ) -> AuthSession {
+        AuthSession {
+            id: Uuid::new_v4(),
+            realm_id: RealmId::from(Uuid::new_v4()),
+            client_id: Uuid::new_v4(),
+            redirect_uri: redirect_uri.to_string(),
+            response_type: "code".to_string(),
+            scope: "openid".to_string(),
+            state: state.map(str::to_string),
+            nonce: None,
+            user_id,
+            code: None,
+            authenticated,
+            created_at: Utc::now(),
+            expires_at,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
+            compass_flow_id: None,
+        }
+    }
+
+    // ---- format_authorization_redirect_url -------------------------------
+
+    #[test]
+    fn redirect_url_includes_state_when_present() {
+        let session = auth_session(
+            Some("xyz-state"),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "AUTH_CODE"),
+            "https://client.example/callback?code=AUTH_CODE&state=xyz-state"
+        );
+    }
+
+    #[test]
+    fn redirect_url_omits_state_when_absent() {
+        // RFC 6749 §4.1.2: `state` is echoed back only when the client supplied
+        // it. A missing state must neither fail the flow nor emit `&state=`.
+        let session = auth_session(
+            None,
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "AUTH_CODE"),
+            "https://client.example/callback?code=AUTH_CODE"
+        );
+    }
+
+    #[test]
+    fn redirect_url_treats_empty_state_as_absent() {
+        let session = auth_session(
+            Some(""),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "AUTH_CODE"),
+            "https://client.example/callback?code=AUTH_CODE"
+        );
+    }
+
+    #[test]
+    fn redirect_url_preserves_redirect_uri_verbatim() {
+        let session = auth_session(
+            Some("s"),
+            "https://client.example/app/oidc",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/app/oidc?code=C&state=s"
+        );
+    }
+
+    // ---- auth_session_can_resume -----------------------------------------
+
+    #[test]
+    fn resume_allowed_for_fresh_unconsumed_session() {
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            "https://c/cb",
+            now + Duration::minutes(5),
+            None,
+            false,
+        );
+
+        assert!(auth_session_can_resume(&session, now));
+    }
+
+    #[test]
+    fn resume_allowed_at_exact_expiry_boundary() {
+        // `expires_at == now` is still live because the check is `>=`.
+        let now = Utc::now();
+        let session = auth_session(Some("s"), "https://c/cb", now, None, false);
+
+        assert!(auth_session_can_resume(&session, now));
+    }
+
+    #[test]
+    fn resume_rejected_for_expired_session() {
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            "https://c/cb",
+            now - Duration::seconds(1),
+            None,
+            false,
+        );
+
+        assert!(!auth_session_can_resume(&session, now));
+    }
+
+    #[test]
+    fn resume_rejected_for_spent_session() {
+        // Already bound to a user *and* authenticated → an authorization code was
+        // already minted for this request; replaying it is forbidden.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            "https://c/cb",
+            now + Duration::minutes(5),
+            Some(Uuid::new_v4()),
+            true,
+        );
+
+        assert!(!auth_session_can_resume(&session, now));
+    }
+
+    #[test]
+    fn resume_allowed_when_user_bound_but_not_yet_authenticated() {
+        // Mid-flow (user_id set, authenticated still false) is not yet spent.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            "https://c/cb",
+            now + Duration::minutes(5),
+            Some(Uuid::new_v4()),
+            false,
+        );
+
+        assert!(auth_session_can_resume(&session, now));
     }
 }
