@@ -3,6 +3,7 @@ use std::fmt::Display;
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::domain::common::generate_uuid_v7;
@@ -157,15 +158,32 @@ pub struct DeviceFlowEventPayload {
     pub realm_id: Uuid,
     pub client_id: Uuid,
     pub status: DeviceAuthStatus,
+    /// Full device code on `Initiated` (already returned to the device in the
+    /// HTTP response); SHA-256 hex for all other events to avoid leaking it.
+    pub device_code: String,
+    pub user_id: Option<Uuid>,
 }
 
-impl From<&DeviceAuthSession> for DeviceFlowEventPayload {
-    fn from(session: &DeviceAuthSession) -> Self {
+/// SHA-256 hex digest of a device code UUID's raw bytes.
+fn hash_device_code(device_code: &Uuid) -> String {
+    hex::encode(Sha256::digest(device_code.as_bytes()))
+}
+
+impl DeviceFlowEventPayload {
+    pub fn new(session: &DeviceAuthSession, reveal_device_code: bool) -> Self {
+        let device_code = if reveal_device_code {
+            session.device_code.to_string()
+        } else {
+            hash_device_code(&session.device_code)
+        };
+
         Self {
             session_id: session.id,
             realm_id: session.realm_id.into(),
             client_id: session.client_id,
             status: session.status,
+            device_code,
+            user_id: session.user_id,
         }
     }
 }
@@ -199,6 +217,77 @@ impl DeviceAuthSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_session() -> DeviceAuthSession {
+        DeviceAuthSession::new(DeviceAuthSessionConfig {
+            realm_id: RealmId::from(Uuid::new_v4()),
+            client_id: Uuid::new_v4(),
+            scope: None,
+            interval: 5,
+            expires_in: 600,
+        })
+    }
+
+    #[test]
+    fn payload_initiated_reveals_full_device_code() {
+        let session = test_session();
+        let payload = DeviceFlowEventPayload::new(&session, true);
+
+        assert_eq!(payload.device_code, session.device_code.to_string());
+        assert_eq!(payload.session_id, session.id);
+        assert_eq!(payload.realm_id, Uuid::from(session.realm_id));
+        assert_eq!(payload.client_id, session.client_id);
+        assert_eq!(payload.status, session.status);
+        assert_eq!(payload.user_id, None);
+    }
+
+    #[test]
+    fn payload_initiated_carries_user_id_when_set() {
+        let mut session = test_session();
+        let user_id = Uuid::new_v4();
+        session.user_id = Some(user_id);
+
+        let payload = DeviceFlowEventPayload::new(&session, true);
+        assert_eq!(payload.user_id, Some(user_id));
+    }
+
+    #[test]
+    fn payload_non_initiated_hashes_device_code() {
+        let session = test_session();
+        let payload = DeviceFlowEventPayload::new(&session, false);
+
+        let raw = session.device_code.to_string();
+        assert_ne!(payload.device_code, raw);
+
+        // Must be a 64-char lowercase hex string (SHA-256).
+        assert_eq!(payload.device_code.len(), 64);
+        assert!(
+            payload
+                .device_code
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase())
+        );
+
+        // Must equal the expected SHA-256 hex of the UUID bytes.
+        let expected = hex::encode(sha2::Sha256::digest(session.device_code.as_bytes()));
+        assert_eq!(payload.device_code, expected);
+    }
+
+    #[test]
+    fn payload_denied_session_with_user_id_carries_through() {
+        let mut session = test_session();
+        session.status = DeviceAuthStatus::Denied;
+        let user_id = Uuid::new_v4();
+        session.user_id = Some(user_id);
+
+        let payload = DeviceFlowEventPayload::new(&session, false);
+
+        assert_eq!(payload.user_id, Some(user_id));
+        assert_eq!(payload.status, DeviceAuthStatus::Denied);
+        // device_code is hashed (64 hex chars), not the raw UUID string.
+        assert_ne!(payload.device_code, session.device_code.to_string());
+        assert_eq!(payload.device_code.len(), 64);
+    }
 
     #[test]
     fn user_code_has_expected_format() {

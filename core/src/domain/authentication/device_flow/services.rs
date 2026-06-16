@@ -96,10 +96,11 @@ where
     /// propagated (mirrors the rest of the codebase).
     async fn fire_event(&self, session: &DeviceAuthSession, trigger: WebhookTrigger) {
         let realm_id = session.realm_id;
+        let reveal_device_code = matches!(trigger, WebhookTrigger::AuthDeviceFlowInitiated);
         let payload = WebhookPayload::new(
             trigger,
             realm_id.into(),
-            Some(DeviceFlowEventPayload::from(session)),
+            Some(DeviceFlowEventPayload::new(session, reveal_device_code)),
         );
 
         if let Err(err) = self.webhook_repository.notify(realm_id, payload).await {
