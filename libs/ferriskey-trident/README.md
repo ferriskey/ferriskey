@@ -2,15 +2,18 @@
 
 ## Overview
 
-`ferriskey-trident` is the Multi-Factor Authentication (MFA) library for the FerrisKey ecosystem. It implements various second-factor mechanisms to strengthen user authentication security beyond simple passwords.
+`ferriskey-trident` is the **Multi-Factor Authentication (MFA)** library for the FerrisKey ecosystem. It provides an advanced suite of second-factor mechanisms to strengthen user authentication security beyond simple passwords.
+
+As described in the FerrisKey modules documentation, Trident handles TOTP, WebAuthn passkeys, magic links, and recovery codes.
 
 ## Domain & Responsibilities
 
 This library operates within the **Authentication Assurance** bounded context. Its primary responsibilities include:
 
 - **TOTP (Time-based One-Time Password)**: Generating and verifying 6-digit codes compatible with authenticator apps (RFC 6238).
-- **Recovery Codes**: Managing secure backup codes for account recovery.
-- **MFA Challenges**: Orchestrating step-up authentication flows.
+- **WebAuthn**: Managing passkeys and hardware security keys for passwordless or step-up authentication.
+- **Recovery Codes**: Managing secure backup codes for account recovery in case primary MFA methods are lost.
+- **Magic Links**: Providing email-based login or verification mechanisms.
 
 ## Core Components
 
@@ -18,21 +21,9 @@ This library operates within the **Authentication Assurance** bounded context. I
 - **RecoveryCodeGenerator**: Utility for creating cryptographically secure, single-use recovery codes.
 - **MfaPolicy**: Rules determining when MFA challenges are required.
 
-## Usage
+## Technical Details
 
-```rust
-use ferriskey_trident::TotpService;
-
-// Verify a user's input code against their stored secret
-let is_valid = TotpService::verify_code(
-    "JBSWY3DPEHPK3PXP", // User's secret (base32)
-    "123456"            // Input code from user
-)?;
-
-if is_valid {
-    println!("MFA verified successfully!");
-}
-```
+`ferriskey-trident` relies on standard cryptographic crates like `base32` for secrets encoding and `chrono` for time window validation. It interacts closely with `ferriskey-domain` to attach MFA configurations and policies to user entities.
 
 ## Dependencies
 

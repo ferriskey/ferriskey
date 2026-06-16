@@ -2,32 +2,28 @@
 
 ## Overview
 
-`ferriskey-compass` provides the navigation and discovery mechanisms for the FerrisKey ecosystem. It is responsible for resolving realms, managing configuration contexts, and ensuring that requests are routed to the correct tenant isolation.
+`ferriskey-compass` is the **Authentication Flow Engine** for the FerrisKey ecosystem. It orchestrates multi-step authentication processes with conditional logic, managing the complex state machine required for modern, secure login flows.
 
 ## Domain & Responsibilities
 
-This library operates within the **Tenancy & Configuration** bounded context. Its primary responsibilities include:
+This library operates within the **Authentication Orchestration** bounded context. Its primary responsibilities include:
 
-- **Realm Resolution**: identifying the target realm from a request (domain, path, or header).
-- **Configuration Management**: Loading and serving dynamic realm settings.
-- **Tenant Context**: Establishing the isolation boundaries for a given operation.
+- **Flow Management**: Driving the user through multi-step authentication (e.g., password -> TOTP -> consent).
+- **Conditional Logic**: Dynamically determining the next required authentication step based on user context, risk signals, and realm policies.
+- **Event Recording**: Emitting detailed flow metrics and step recordings for auditing and anomaly detection.
 
 ## Core Components
 
-- **RealmResolver**: Service to determine the active realm.
-- **ConfigProvider**: Interface for fetching realm-specific settings.
-- **CompassContext**: The resolved context containing tenant information.
+- **CompassFlow**: The entity representing an ongoing authentication attempt, tracking its state, user agent, and IP.
+- **FlowRecorder**: A thread-safe, asynchronous recorder (`recorder.rs`) that publishes flow events (started, step recorded, completed) via channels.
+- **StepStatus / FlowStatus**: Enums defining the outcome of individual authentication challenges.
 
-## Usage
+## Technical Details
 
-```rust
-use ferriskey_compass::RealmResolver;
-
-// Resolving a realm from a domain
-let realm = RealmResolver::resolve("auth.example.com").await?;
-println!("Current Realm: {}", realm.name);
-```
+The library uses a highly asynchronous, event-driven architecture using `tokio::sync::mpsc` channels to decouple flow execution from audit logging. This ensures that recording authentication steps (`CompassFlowStep`) does not block the critical path of the login process.
 
 ## Dependencies
 
-- `ferriskey-domain`: Defines the `Realm` entity.
+- `ferriskey-domain`: Defines the core entities like `RealmId` and `Uuid`.
+- `tokio`: Used for asynchronous channels (`mpsc`, `oneshot`) to handle event recording.
+- `chrono`: For precise timestamping of authentication steps.

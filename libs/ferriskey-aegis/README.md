@@ -2,35 +2,26 @@
 
 ## Overview
 
-`ferriskey-aegis` serves as the authorization and protection layer of the FerrisKey ecosystem. It provides the logic and structures necessary to enforce access control policies, ensuring that authenticated identities are authorized to perform specific actions on resources.
+`ferriskey-aegis` is the **Scopes & Protocol Mappers** engine of the FerrisKey ecosystem. It acts as the authorization boundary that controls exactly what data flows into your access tokens and ID tokens.
 
 ## Domain & Responsibilities
 
-This library operates within the **Authorization** bounded context. Its primary responsibilities include:
+This library operates within the **Authorization & Token Minting** bounded context. Its primary responsibilities include:
 
-- **Access Control**: Evaluating permissions based on roles, scopes, or attributes.
-- **Policy Enforcement**: Verifying that requests meet security criteria before processing.
-- **Resource Protection**: Defining boundaries for sensitive domain entities.
+- **Protocol Mappers**: Transforming internal user attributes and roles into standard OIDC/SAML claims.
+- **Scope Management**: Evaluating requested scopes against user consents and client allowed scopes.
+- **Custom Claims**: Providing extensibility to inject custom business logic into token generation.
 
 ## Core Components
 
-- **AccessPolicy**: Defines rules for accessing resources.
-- **Authorizer**: The primary service interface for checking permissions.
-- **Permission**: Granular access rights definitions.
+- **Mapper**: The core trait/structure for executing transformations from domain entities to token claims (`ports.rs` / `entities.rs`).
+- **ScopeEvaluator**: Logic to resolve overlapping scopes and determine final token permissions.
+- **Claim Extractor**: Mechanisms to safely pull data from the user profile, roles, or realm configuration.
 
-## Usage
+## Technical Details
 
-```rust
-// Conceptual usage of the authorization layer
-use ferriskey_aegis::Authorizer;
-
-if Authorizer::can_access(&user, &resource, Action::Read) {
-    println!("Access granted");
-} else {
-    println!("Access denied");
-}
-```
+The library heavily leverages FerrisKey's internal data model to securely build tokens. It evaluates `AccessPolicy` and scopes before issuing credentials, ensuring that a client application only receives the claims it has been explicitly granted. 
 
 ## Dependencies
 
-- `ferriskey-domain`: Provides the user and resource definitions required for authorization checks.
+- `ferriskey-domain`: Provides the user, role, and resource definitions required for scope and claim evaluation.

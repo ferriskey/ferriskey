@@ -2,36 +2,25 @@
 
 ## Overview
 
-`ferriskey-migrate` provides the infrastructure and tooling for managing database schema changes and data migrations within the FerrisKey ecosystem. It ensures that the persistent state of the application evolves safely and consistently across versions.
+`ferriskey-migrate` is the database migration and schema management library for the FerrisKey ecosystem. It handles the initialization and evolution of the underlying data store, ensuring that the database schema remains synchronized with the domain models.
 
 ## Domain & Responsibilities
 
 This library operates within the **Infrastructure & Persistence** bounded context. Its primary responsibilities include:
 
-- **Schema Evolution**: Managing versioned database changes.
-- **Migration Tracking**: Recording which migrations have been applied.
-- **Data Migration**: Facilitating complex data transformations during upgrades.
+- **Schema Management**: Applying, tracking, and rolling back database migrations.
+- **Bootstrapping**: Initializing the database for fresh FerrisKey installations.
+- **State Verification**: Ensuring the running application is compatible with the current database schema.
 
 ## Core Components
 
-- **Migration**: Trait or struct representing a single unit of change.
-- **Migrator**: Service responsible for planning and executing migrations.
-- **MigrationError**: Standardized errors for migration failures.
+- **Migrator**: The engine responsible for executing SQL or programmatic migration steps.
+- **Migrations**: The sequential list of schema changes.
 
-## Usage
+## Technical Details
 
-```rust
-use ferriskey_migrate::Migrator;
-
-// Conceptual usage
-let result = Migrator::up().await;
-match result {
-    Ok(_) => println!("Migrations applied successfully"),
-    Err(e) => eprintln!("Migration failed: {}", e),
-}
-```
+The library wraps the underlying ORM or database driver's migration capabilities (e.g., SeaORM or SQLx), providing a clean CLI or programmatic interface for CI/CD pipelines and deployment scripts. It ensures migrations run transactionally and safely across distributed instances.
 
 ## Dependencies
 
-- `chrono`: For timestamping migrations.
-- `thiserror`: For error handling.
+- Database driver / ORM (e.g., `sea-orm-migration` or `sqlx`).

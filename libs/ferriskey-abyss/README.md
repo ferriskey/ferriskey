@@ -2,35 +2,28 @@
 
 ## Overview
 
-`ferriskey-abyss` is the domain library responsible for managing authentication flows, session handling, and deep authorization contexts within FerrisKey. It serves as the bridge between raw identity data and actionable security contexts.
+`ferriskey-abyss` is the **Identity Provider Federation** engine for the FerrisKey ecosystem. It bridges the gap between FerrisKey and external identity providers (IdPs), allowing users to bring their existing identities from systems like Google, GitHub, Discord, or enterprise SAML/OIDC providers.
 
 ## Domain & Responsibilities
 
-This library operates within the **Authentication & Authorization** bounded context. Its primary responsibilities include:
+This library operates within the **Identity Federation** bounded context. Its primary responsibilities include:
 
-- **Session Management**: Tracking active user sessions across devices.
-- **Authentication Context**: Building and validating the security context for incoming requests.
-- **Identity Resolution**: Linking ephemeral credentials to persistent identities.
+- **OpenID Connect Federation**: Acting as a relying party to authenticate users via upstream OIDC providers.
+- **SAML 2.0 Bridge**: Integrating with legacy enterprise identity systems (upcoming).
+- **Social Login (OAuth 2.0)**: Handling authentication flows with popular social networks.
+- **Identity Mapping & Transform**: Normalizing claims from various external providers into FerrisKey's internal identity model.
 
 ## Core Components
 
-- **Session**: Represents an active authenticated session.
-- **AuthContext**: The aggregate root for security decisions during a request lifecycle.
-- **AbyssService**: The primary entry point for managing session lifecycles.
+- **IdentityProvider**: The core entity representing an upstream IdP configuration.
+- **Federation Flow**: Handles the redirects, callbacks, and token exchanges required by OIDC/OAuth2 protocols.
+- **Claim Mappers**: Translates external assertions into FerrisKey user attributes.
 
-## Usage
+## Technical Details
 
-```rust
-use ferriskey_abyss::SessionService;
-
-// Example usage (conceptual)
-async fn login_flow(user_id: Uuid) {
-    let session = SessionService::create_session(user_id).await?;
-    println!("Session created: {}", session.id);
-}
-```
+The library implements a robust state machine for authentication flows (`identity_provider.rs`). It securely handles OAuth2 states and nonces to prevent CSRF and replay attacks, bridging ephemeral credentials from external providers into persistent FerrisKey identities.
 
 ## Dependencies
 
 - `ferriskey-domain`: Core domain types and traits.
-- `maskass`: Utility for masking sensitive data.
+- `maskass`: Utility for masking sensitive data during logging.

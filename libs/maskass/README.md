@@ -1,11 +1,25 @@
 # maskass
 
-Small Rust crate to store sensitive values while ensuring they are always redacted in logs and serialized output.
+## Overview
 
-## Features
-- `Masked<T>`: generic wrapper that always serializes/logs as `"***"`.
-- `MaskedWith<S>`: string wrapper that masks using a strategy (email, partial, hash, etc.).
-- `MaskStrategy` implementations: `FullMask`, `EmailMask`, `PartialMask`, `HashMask`.
+`maskass` is a lightweight Rust utility library within the FerrisKey ecosystem designed to store sensitive values while ensuring they are always safely redacted in logs, telemetry, and serialized outputs.
+
+## Domain & Responsibilities
+
+This library operates as a **Security Utility**. Its primary responsibilities include:
+
+- **Data Redaction**: Preventing accidental leakage of PII, tokens, passwords, and secrets.
+- **Safe Serialization**: Intercepting `Serialize`, `Display`, and `Debug` implementations to output masked strings.
+
+## Core Components
+
+- `Masked<T>`: A generic wrapper that always serializes/logs as `"***"`.
+- `MaskedWith<S>`: A string wrapper that applies a specific masking strategy.
+- **MaskStrategy Implementations**: `FullMask`, `EmailMask`, `PartialMask`, `HashMask`.
+
+## Technical Details
+
+The library ensures that the real underlying value is only available programmatically when explicitly requested (or via `Deserialize`), but any automatic formatting (`format!("{token}")`) or serialization (`serde_json::to_string`) will intercept the call and apply the `Redaction::Strategy`. `Masked` defaults to a complete mask, whereas `MaskedWith` allows domain-aware masking (like keeping the domain in an email but hiding the username).
 
 ## Usage
 
@@ -23,6 +37,6 @@ let token = MaskedWith::<PartialMask<2, 2>>::new("123456789");
 assert_eq!(format!("{}", token), "12*****89");
 ```
 
-## Notes
-- `Deserialize` stores the real value; `Serialize`, `Display`, and `Debug` never leak it.
-- `MaskedWith` uses `Redaction::Strategy` by default; `Masked` always uses full redaction.
+## Dependencies
+
+- `serde`: For interception of serialization routines.
