@@ -1,0 +1,65 @@
+name: integration-tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  device-flow:
+    name: device flow (RFC 8628)
+    runs-on: ubuntu-latest
+
+    # DB-backed integration tests are `#[ignore]` so a normal `cargo test`
+    # skips them. This dedicated job provides the Postgres they need and runs
+    # them explicitly with `--ignored`, keeping the rest of CI DB-free.
+    services:
+      postgres:
+        image: postgres:18.2
+        env:
+          POSTGRES_USER: ferriskey
+          POSTGRES_PASSWORD: ferriskey
+          POSTGRES_DB: ferriskey
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: ferriskey
+      DATABASE_USER: ferriskey
+      DATABASE_PASSWORD: ferriskey
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: set up rust toolchain
+        id: rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: cache rust build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.*', '**/*.rs') }}
+          restore-keys: |
+            it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
+
+      # Scoped to device_flow_test for now. Other DB-backed suites
+      # (token_basic_auth_test, organization_test, portal_theme_test) can be
+      # added here once the shared-harness issues in #1086 are resolved.
+      - name: run device flow integration tests
+        run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
