@@ -20,7 +20,7 @@ This library operates within the **Authorization & Token Minting** bounded conte
 
 ## Technical Details
 
-The library heavily leverages FerrisKey's internal data model to securely build tokens. It evaluates `AccessPolicy` and scopes before issuing credentials, ensuring that a client application only receives the claims it has been explicitly granted. 
+The library heavily leverages FerrisKey's internal data model to securely build tokens. It evaluates `AccessPolicy` and scopes before issuing credentials, ensuring that a client application only receives the claims it has been explicitly granted.
 
 ## Dependencies
 
