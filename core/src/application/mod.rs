@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_security::{
+    EnvSecretsProvider, FieldCipher, SecretsProvider, cipher::field_cipher::KEY_ID_V1,
+};
 
 use crate::{
     domain::{
@@ -49,6 +52,7 @@ use crate::{
         },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            encrypting_client_repository::EncryptingClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
@@ -143,6 +147,31 @@ pub mod webhook;
 
 pub use services::ApplicationService;
 
+fn build_field_cipher(config: &FerriskeyConfig) -> Result<Option<FieldCipher>, CoreError> {
+    if !config.encryption.enabled {
+        return Ok(None);
+    }
+
+    let provider = EnvSecretsProvider::new();
+    let secret = provider
+        .get_secret(&config.encryption.master_key_secret_name)
+        .map_err(|e| CoreError::Configuration(format!("encryption master key: {e}")))?;
+
+    use secrecy::ExposeSecret;
+    let hex_key = secret.expose_secret();
+    let key_bytes = hex::decode(hex_key.trim()).map_err(|_| {
+        CoreError::Configuration(
+            "ENCRYPTION master key must be 64 hex chars (32 bytes)".to_string(),
+        )
+    })?;
+
+    let key_arr: [u8; 32] = key_bytes.try_into().map_err(|_| {
+        CoreError::Configuration("ENCRYPTION master key must be exactly 32 bytes".to_string())
+    })?;
+
+    Ok(Some(FieldCipher::new(&key_arr, KEY_ID_V1)))
+}
+
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
@@ -159,7 +188,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
     let realm = Arc::new(PostgresRealmRepository::new(postgres.get_db()));
-    let client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
+
+    let field_cipher = build_field_cipher(&config)?;
+    let raw_client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
+    let client = Arc::new(EncryptingClientRepository::new(raw_client, field_cipher));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
     let hasher = Arc::new(Argon2HasherRepository::new());
@@ -590,6 +622,7 @@ mod tests {
                 name: db_name,
                 schema: schema.clone(),
             },
+            encryption: crate::domain::common::EncryptionConfig::default(),
         })
         .await
         .expect("create service");
