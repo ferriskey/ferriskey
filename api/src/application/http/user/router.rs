@@ -24,6 +24,7 @@ use super::handlers::{
     reset_password::{__path_reset_password, reset_password},
     set_user_attributes::{__path_set_user_attributes, set_user_attributes},
     unassign_role::{__path_unassign_role, unassign_role},
+    unlock_user::{__path_unlock_user, unlock_user},
     update_user::{__path_update_user, update_user},
 };
 
@@ -46,6 +47,7 @@ use super::handlers::{
     get_user_attributes,
     set_user_attributes,
     delete_user_attribute,
+    unlock_user,
 ))]
 pub struct UserApiDoc;
 
@@ -162,6 +164,13 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             delete(delete_user_attribute),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/unlock",
+                state.args.server.root_path
+            ),
+            post(unlock_user),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

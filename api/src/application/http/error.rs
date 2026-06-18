@@ -217,6 +217,9 @@ impl From<CoreError> for ApiError {
                 error_description: description.into(),
             },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
+            CoreError::AccountLocked => Self::Unauthorized(
+                "Account is temporarily locked due to too many failed login attempts".into(),
+            ),
             CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason.into()),
             CoreError::EmailTemplateNotFound => {
                 Self::NotFound("Email template not found".into())

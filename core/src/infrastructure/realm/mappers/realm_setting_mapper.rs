@@ -27,6 +27,8 @@ impl From<Model> for RealmSetting {
             email_verification_enabled: value.email_verification_enabled,
             email_verification_ttl_hours: value.email_verification_ttl_hours as i64,
             updated_at,
+            lockout_threshold: value.lockout_threshold,
+            lockout_duration_seconds: value.lockout_duration_seconds,
         }
     }
 }

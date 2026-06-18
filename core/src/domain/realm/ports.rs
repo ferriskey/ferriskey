@@ -161,6 +161,8 @@ pub trait RealmRepository: Send + Sync {
         email_verification_template_id: Option<Option<Uuid>>,
         email_verification_enabled: Option<bool>,
         email_verification_ttl_hours: Option<i64>,
+        lockout_threshold: Option<i32>,
+        lockout_duration_seconds: Option<i32>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -214,6 +216,8 @@ pub struct UpdateRealmSettingInput {
     pub email_verification_template_id: Option<Option<Uuid>>,
     pub email_verification_enabled: Option<bool>,
     pub email_verification_ttl_hours: Option<i64>,
+    pub lockout_threshold: Option<i32>,
+    pub lockout_duration_seconds: Option<i32>,
 }
 
 pub struct DeleteRealmInput {

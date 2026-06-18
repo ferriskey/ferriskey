@@ -14,4 +14,5 @@ pub mod list_user_organizations;
 pub mod reset_password;
 pub mod set_user_attributes;
 pub mod unassign_role;
+pub mod unlock_user;
 pub mod update_user;

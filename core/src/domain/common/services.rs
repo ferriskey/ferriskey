@@ -532,6 +532,8 @@ pub mod tests {
             roles: Some(Vec::new()),
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 
@@ -551,6 +553,8 @@ pub mod tests {
             lastname: Some("Doe".to_string()),
             required_actions: Vec::new(),
             roles: Some(Vec::new()),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 
@@ -575,6 +579,8 @@ pub mod tests {
             lastname: Some("Doe".to_string()),
             required_actions: Vec::new(),
             roles: Some(Vec::new()),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 
@@ -605,6 +611,8 @@ pub mod tests {
             email_verified: true,
             required_actions: Vec::new(),
             roles: Some(Vec::new()),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 
