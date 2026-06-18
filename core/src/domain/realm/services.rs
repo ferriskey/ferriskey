@@ -790,6 +790,7 @@ where
                 input.login_aliases,
                 input.seawatch_pii_mode,
                 input.seawatch_pseudo_key,
+                input.require_mfa,
             )
             .await?;
 
@@ -1297,6 +1298,7 @@ mod tests {
                             realm_id: req.realm_id,
                             client_id: req.client_id,
                             client: None,
+                            require_mfa: false,
                             created_at: chrono::Utc::now(),
                             updated_at: chrono::Utc::now(),
                         })
@@ -1396,6 +1398,7 @@ mod tests {
                             realm_id: req.realm_id,
                             client_id: req.client_id,
                             client: None,
+                            require_mfa: false,
                             created_at: chrono::Utc::now(),
                             updated_at: chrono::Utc::now(),
                         })
@@ -1464,6 +1467,7 @@ mod tests {
             realm_id: master_realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
@@ -1521,6 +1525,7 @@ mod tests {
             realm_id: master_realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };

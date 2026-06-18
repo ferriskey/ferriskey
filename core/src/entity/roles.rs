@@ -19,6 +19,7 @@ pub struct Model {
     pub permissions: i64,
     pub realm_id: Uuid,
     pub client_id: Option<Uuid>,
+    pub require_mfa: bool,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
@@ -31,6 +32,7 @@ pub enum Column {
     Permissions,
     RealmId,
     ClientId,
+    RequireMfa,
     CreatedAt,
     UpdatedAt,
 }
@@ -66,6 +68,7 @@ impl ColumnTrait for Column {
             Self::Permissions => ColumnType::BigInteger.def(),
             Self::RealmId => ColumnType::Uuid.def(),
             Self::ClientId => ColumnType::Uuid.def().null(),
+            Self::RequireMfa => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
         }

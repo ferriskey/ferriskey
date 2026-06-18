@@ -994,6 +994,7 @@ mod tests {
             realm_id: realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

@@ -16,6 +16,7 @@ pub struct CreateRoleRequest {
 pub struct UpdateRoleRequest {
     pub name: Option<String>,
     pub description: Option<String>,
+    pub require_mfa: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

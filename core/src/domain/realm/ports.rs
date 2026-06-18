@@ -172,6 +172,7 @@ pub trait RealmRepository: Send + Sync {
         login_aliases: Option<LoginAliases>,
         seawatch_pii_mode: Option<String>,
         seawatch_pseudo_key: Option<Option<String>>,
+        require_mfa: Option<bool>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -232,6 +233,7 @@ pub struct UpdateRealmSettingInput {
     pub login_aliases: Option<LoginAliases>,
     pub seawatch_pii_mode: Option<String>,
     pub seawatch_pseudo_key: Option<Option<String>>,
+    pub require_mfa: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

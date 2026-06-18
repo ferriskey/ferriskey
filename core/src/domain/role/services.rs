@@ -271,6 +271,7 @@ where
                 UpdateRoleRequest {
                     description: input.description,
                     name: input.name,
+                    require_mfa: input.require_mfa,
                 },
             )
             .await

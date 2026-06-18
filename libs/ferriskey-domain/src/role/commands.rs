@@ -12,6 +12,7 @@ pub struct UpdateRoleInput {
     pub role_id: Uuid,
     pub name: Option<String>,
     pub description: Option<String>,
+    pub require_mfa: Option<bool>,
 }
 
 pub struct GetUserRolesInput {

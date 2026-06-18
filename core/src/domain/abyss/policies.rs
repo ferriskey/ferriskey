@@ -237,6 +237,7 @@ mod tests {
             realm_id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }
@@ -466,6 +467,7 @@ mod tests {
             realm_id: master_realm.id,
             client_id: Some(client.id),
             client: Some(client.clone()),
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };

@@ -33,6 +33,7 @@ impl From<Model> for RealmSetting {
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap_or_default(),
+            require_mfa: value.require_mfa,
             updated_at,
             lockout_threshold: value.lockout_threshold,
             lockout_duration_seconds: value.lockout_duration_seconds,
@@ -75,6 +76,7 @@ mod tests {
             login_aliases: vec!["email".to_string(), "username".to_string()],
             seawatch_pii_mode: "off".to_string(),
             seawatch_pseudo_key: None,
+            require_mfa: false,
         }
     }
 
