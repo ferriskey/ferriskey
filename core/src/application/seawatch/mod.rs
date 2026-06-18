@@ -3,7 +3,10 @@ use crate::{
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
-        seawatch::{SecurityEvent, ports::SecurityEventService, value_objects::FetchEventsInput},
+        seawatch::{
+            SecurityEvent, VerifyResult, ports::SecurityEventService,
+            value_objects::FetchEventsInput,
+        },
     },
 };
 
@@ -15,6 +18,16 @@ impl SecurityEventService for ApplicationService {
     ) -> Result<Vec<SecurityEvent>, CoreError> {
         self.security_event_service
             .fetch_events(identity, input)
+            .await
+    }
+
+    async fn verify_realm_chain(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<VerifyResult, CoreError> {
+        self.security_event_service
+            .verify_realm_chain(identity, realm_name)
             .await
     }
 }

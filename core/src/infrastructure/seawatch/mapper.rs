@@ -4,6 +4,13 @@ use sea_orm::ActiveValue::Set;
 use crate::domain::seawatch::entities::{ActorType, EventStatus, SecurityEvent, SecurityEventType};
 use crate::entity::security_events;
 
+fn decode_hash(hex_str: Option<String>) -> Option<[u8; 32]> {
+    let s = hex_str?;
+    let bytes = hex::decode(&s).ok()?;
+    let arr: [u8; 32] = bytes.try_into().ok()?;
+    Some(arr)
+}
+
 impl From<security_events::Model> for SecurityEvent {
     fn from(model: security_events::Model) -> Self {
         let actor_type = model.actor_type.and_then(|s| match s.as_str() {
@@ -56,6 +63,8 @@ impl From<security_events::Model> for SecurityEvent {
             ip_address: model.ip_address,
             user_agent: model.user_agent,
             details: model.details,
+            event_hash: decode_hash(model.event_hash),
+            prev_hash: decode_hash(model.prev_hash),
         }
     }
 }
@@ -78,6 +87,8 @@ impl From<SecurityEvent> for security_events::ActiveModel {
             user_agent: Set(event.user_agent),
             details: Set(event.details),
             created_at: Set(Utc::now().naive_utc()),
+            event_hash: Set(event.event_hash.map(hex::encode)),
+            prev_hash: Set(event.prev_hash.map(hex::encode)),
         }
     }
 }

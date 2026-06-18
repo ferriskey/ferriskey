@@ -28,6 +28,11 @@ pub struct Model {
     pub user_agent: Option<String>,
     pub details: Option<Json>,
     pub created_at: DateTime,
+    /// SHA-256 hash of the canonical preimage for this event (hex-encoded).
+    pub event_hash: Option<String>,
+    /// SHA-256 hash of the previous event in the realm chain (hex-encoded).
+    /// 32 zero bytes (hex) for the genesis event.
+    pub prev_hash: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -47,6 +52,8 @@ pub enum Column {
     UserAgent,
     Details,
     CreatedAt,
+    EventHash,
+    PrevHash,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -85,6 +92,8 @@ impl ColumnTrait for Column {
             Self::UserAgent => ColumnType::Text.def().null(),
             Self::Details => ColumnType::JsonBinary.def().null(),
             Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::EventHash => ColumnType::Text.def().null(),
+            Self::PrevHash => ColumnType::Text.def().null(),
         }
     }
 }

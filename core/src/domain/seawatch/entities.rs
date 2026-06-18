@@ -189,6 +189,10 @@ pub struct SecurityEvent {
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub details: Option<serde_json::Value>,
+    /// SHA-256 of the canonical preimage (hex). `None` for legacy rows without hashes.
+    pub event_hash: Option<[u8; 32]>,
+    /// Previous event's `event_hash` in the realm chain (hex-decoded). Genesis = `[0u8; 32]`.
+    pub prev_hash: Option<[u8; 32]>,
 }
 
 impl SecurityEvent {
@@ -213,6 +217,8 @@ impl SecurityEvent {
             ip_address: None,
             user_agent: None,
             details: None,
+            event_hash: None,
+            prev_hash: None,
         }
     }
 
