@@ -1,0 +1,23 @@
+{
+  "_comment": "OIDF Conformance Suite — Basic OP test plan configuration for FerrisKey.",
+  "_comment2": "Replace every <placeholder> value before use. See docs/compliance/oidc-conformance-runbook.md.",
+  "alias": "<YOUR_TEST_ALIAS>",
+  "description": "FerrisKey Basic OP conformance run — realm: <REALM_NAME>",
+  "server": {
+    "discoveryUrl": "https://<FERRISKEY_BASE_URL>/realms/<REALM_NAME>/.well-known/openid-configuration"
+  },
+  "client": {
+    "client_id": "oidf-conformance-client",
+    "client_secret": "<CLIENT_SECRET>",
+    "redirect_uri": "https://www.certification.openid.net/test/a/<YOUR_TEST_ALIAS>/callback",
+    "post_logout_redirect_uri": "https://www.certification.openid.net/test/a/<YOUR_TEST_ALIAS>/post-logout-redirect"
+  },
+  "resource": {
+    "resourceUrl": "https://<FERRISKEY_BASE_URL>/realms/<REALM_NAME>/protocol/openid-connect/userinfo"
+  },
+  "override": {
+    "send_authentication_request_as_signed_request_object": false,
+    "request_object_signing_alg": "none",
+    "fapi_auth_request_method": "by_value"
+  }
+}
