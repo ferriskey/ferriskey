@@ -141,7 +141,9 @@ export default function PageApplicationDetailFeature() {
     )
   }
 
-  function renderTab() {
+  // Arrow function on purpose: it relies on `client` being narrowed to non-null
+  // by the guard above. A hoisted `function` declaration would lose that narrowing.
+  const renderTab = () => {
     switch (activeTab) {
       case 'quickstart':
         return <QuickstartTab client={client} realm={realm} />
