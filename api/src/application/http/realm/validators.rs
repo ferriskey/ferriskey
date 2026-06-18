@@ -92,6 +92,14 @@ pub struct UpdatePasswordPolicyValidator {
     pub require_special: Option<bool>,
     #[validate(range(min = 0, message = "max_age_days must be 0 or greater"))]
     pub max_age_days: Option<i32>,
+    #[validate(range(
+        min = 0,
+        max = 256,
+        message = "min_entropy_bits must be between 0 and 256"
+    ))]
+    pub min_entropy_bits: Option<i32>,
+    pub forbid_common: Option<bool>,
+    pub check_breached: Option<bool>,
 }
 
 fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
