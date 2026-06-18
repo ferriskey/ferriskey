@@ -18,6 +18,7 @@ pub struct UserSession {
     pub ip_address: Option<String>,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    pub last_seen_at: Option<DateTime<Utc>>,
     pub soft_expiry_duration: Option<Duration>,
 }
 
@@ -39,6 +40,7 @@ impl UserSession {
             ip_address,
             created_at: Utc::now(),
             expires_at,
+            last_seen_at: None,
             soft_expiry_duration,
         }
     }

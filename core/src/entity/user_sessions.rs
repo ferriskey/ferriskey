@@ -20,6 +20,7 @@ pub struct Model {
     pub ip_address: Option<String>,
     pub created_at: DateTime,
     pub expires_at: DateTime,
+    pub last_seen_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -31,6 +32,7 @@ pub enum Column {
     IpAddress,
     CreatedAt,
     ExpiresAt,
+    LastSeenAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -62,6 +64,7 @@ impl ColumnTrait for Column {
             Self::IpAddress => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
+            Self::LastSeenAt => ColumnType::DateTime.def().null(),
         }
     }
 }

@@ -49,6 +49,10 @@ use crate::{
         },
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
+        session::{
+            entities::UserSession, ports::UserSessionManagementService,
+            services::UserSessionManagementServiceImpl,
+        },
         trident::services::TridentServiceImpl,
         user::services::UserServiceImpl,
         webhook::services::WebhookServiceImpl,
@@ -100,6 +104,7 @@ use crate::{
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
+            user_session_repository::PostgresUserSessionRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
@@ -157,6 +162,13 @@ type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
+type UserSessionRepo = PostgresUserSessionRepository;
+
+type ApplicationUserSessionManagementService = UserSessionManagementServiceImpl<
+    RealmRepo,
+    UserSessionRepo,
+    crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+>;
 
 type ApplicationTridentService = TridentServiceImpl<
     CredentialRepo,
@@ -406,6 +418,7 @@ pub struct ApplicationService {
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) db: DatabaseConnection,
     pub email_verification_service: ApplicationEmailVerificationService,
+    pub(crate) user_session_management_service: ApplicationUserSessionManagementService,
 }
 
 impl CoreService for ApplicationService {
@@ -558,6 +571,29 @@ impl ApplicationService {
         user_id: uuid::Uuid,
     ) -> Result<(), DeviceFlowError> {
         self.device_flow_service.deny(user_code, user_id).await
+    }
+
+    pub async fn list_user_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: uuid::Uuid,
+    ) -> Result<Vec<UserSession>, CoreError> {
+        self.user_session_management_service
+            .list_sessions(identity, realm_name, user_id)
+            .await
+    }
+
+    pub async fn revoke_user_session(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: uuid::Uuid,
+        session_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        self.user_session_management_service
+            .revoke_session(identity, realm_name, user_id, session_id)
+            .await
     }
 
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
