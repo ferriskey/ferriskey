@@ -65,6 +65,7 @@ pub async fn update_client(
                     enabled: payload.enabled,
                     direct_access_grants_enabled: payload.direct_access_grants_enabled,
                     oauth_device_code_grant_enabled: payload.oauth_device_code_grant_enabled,
+                    require_pkce: payload.require_pkce,
                     access_token_lifetime: payload.access_token_lifetime,
                     refresh_token_lifetime: payload.refresh_token_lifetime,
                     id_token_lifetime: payload.id_token_lifetime,
