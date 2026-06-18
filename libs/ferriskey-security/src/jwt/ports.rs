@@ -7,6 +7,14 @@ use crate::{
     jwt::entities::{AccessToken, Jwt, JwtClaim, JwtKeyPair, RefreshToken},
 };
 
+/// Result of an atomic rotate operation.
+pub enum RotateOutcome {
+    /// The old token was atomically superseded; new token is returned.
+    Rotated(RefreshToken),
+    /// The conditional UPDATE matched 0 rows — a concurrent rotation already won.
+    Conflict,
+}
+
 pub trait JwtService: Send + Sync {
     fn generate_token(
         &self,
@@ -38,12 +46,42 @@ pub trait RefreshTokenRepository: Send + Sync {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
+
+    /// Create a new refresh token that belongs to an existing token family.
+    fn create_in_family(
+        &self,
+        jti: Uuid,
+        user_id: Uuid,
+        family_id: Uuid,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
+
     fn get_by_jti(
         &self,
         jti: Uuid,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
+
     fn revoke_by_jti(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
     fn delete(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
+
+    /// Atomically rotate `old_id` (WHERE status='active') and mint a successor.
+    ///
+    /// Returns `RotateOutcome::Conflict` when 0 rows were updated, indicating a
+    /// concurrent rotation already consumed this token.
+    fn rotate(
+        &self,
+        old_id: Uuid,
+        new_jti: Uuid,
+        user_id: Uuid,
+        family_id: Uuid,
+        new_expires_at: Option<DateTime<Utc>>,
+    ) -> impl Future<Output = Result<RotateOutcome, SecurityError>> + Send;
+
+    /// Revoke every token that shares the given family_id.
+    fn revoke_family(
+        &self,
+        family_id: Uuid,
+    ) -> impl Future<Output = Result<(), SecurityError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
