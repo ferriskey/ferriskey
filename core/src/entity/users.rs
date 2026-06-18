@@ -24,6 +24,8 @@ pub struct Model {
     pub enabled: bool,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+    pub failed_login_attempts: i32,
+    pub locked_until: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -39,6 +41,8 @@ pub enum Column {
     Enabled,
     CreatedAt,
     UpdatedAt,
+    FailedLoginAttempts,
+    LockedUntil,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -92,6 +96,8 @@ impl ColumnTrait for Column {
             Self::Enabled => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
+            Self::FailedLoginAttempts => ColumnType::Integer.def(),
+            Self::LockedUntil => ColumnType::TimestampWithTimeZone.def().null(),
         }
     }
 }

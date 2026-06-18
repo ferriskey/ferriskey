@@ -122,4 +122,15 @@ impl UserService for ApplicationService {
             .delete_user_attribute(identity, input)
             .await
     }
+
+    async fn unlock_user(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        self.user_service
+            .unlock_user(identity, realm_name, user_id)
+            .await
+    }
 }

@@ -491,6 +491,8 @@ mod tests {
             required_actions: vec![],
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 

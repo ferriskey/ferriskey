@@ -40,6 +40,62 @@ pub struct User {
     pub required_actions: Vec<RequiredAction>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub failed_login_attempts: i32,
+    pub locked_until: Option<DateTime<Utc>>,
+}
+
+impl User {
+    pub fn is_locked(&self, now: DateTime<Utc>) -> bool {
+        self.locked_until.is_some_and(|t| t > now)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    fn make_user() -> User {
+        let now = Utc::now();
+        User {
+            id: uuid::Uuid::new_v4(),
+            realm_id: crate::realm::RealmId::default(),
+            client_id: None,
+            username: "test".to_string(),
+            firstname: None,
+            lastname: None,
+            email: None,
+            email_verified: false,
+            enabled: true,
+            roles: None,
+            realm: None,
+            required_actions: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            failed_login_attempts: 0,
+            locked_until: None,
+        }
+    }
+
+    #[test]
+    fn not_locked_when_locked_until_is_none() {
+        let user = make_user();
+        assert!(!user.is_locked(Utc::now()));
+    }
+
+    #[test]
+    fn locked_when_locked_until_is_in_the_future() {
+        let mut user = make_user();
+        user.locked_until = Some(Utc::now() + Duration::seconds(900));
+        assert!(user.is_locked(Utc::now()));
+    }
+
+    #[test]
+    fn not_locked_when_locked_until_is_in_the_past() {
+        let mut user = make_user();
+        user.locked_until = Some(Utc::now() - Duration::seconds(1));
+        assert!(!user.is_locked(Utc::now()));
+    }
 }
 
 pub struct UserConfig {
@@ -136,6 +192,8 @@ impl User {
             required_actions: Vec::new(),
             created_at: now,
             updated_at: now,
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 }

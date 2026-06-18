@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use chrono::DateTime;
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::realm::entities::RealmId;
@@ -92,6 +94,13 @@ pub trait UserService: Send + Sync {
         identity: Identity,
         input: DeleteUserAttributeInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn unlock_user(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -137,6 +146,19 @@ pub trait UserRepository: Send + Sync {
         user_id: Uuid,
         dto: UpdateUserRequest,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn increment_failed_login_attempts(
+        &self,
+        user_id: Uuid,
+        locked_until: Option<DateTime<Utc>>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn reset_failed_login_attempts(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn unlock_user(&self, user_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

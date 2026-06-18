@@ -74,6 +74,20 @@ use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
+fn lockout_compute_locked_until(
+    new_attempts: i32,
+    threshold: i32,
+    duration_seconds: i32,
+    now: DateTime<Utc>,
+) -> Option<DateTime<Utc>> {
+    if new_attempts >= threshold {
+        let duration = chrono::Duration::seconds(duration_seconds as i64);
+        Some(now + duration)
+    } else {
+        None
+    }
+}
+
 /// Build the OAuth2 authorization-code redirect URL sent back to the client
 /// once authentication (login *or* registration) completes.
 ///
@@ -508,6 +522,17 @@ where
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
         if exp <= now { 0 } else { (exp - now) as u32 }
+    }
+
+    /// Returns `Some(locked_until)` when `new_attempts` has reached the threshold,
+    /// otherwise `None` (counter incremented but not yet locked).
+    fn compute_locked_until(
+        new_attempts: i32,
+        threshold: i32,
+        duration_seconds: i32,
+        now: DateTime<Utc>,
+    ) -> Option<DateTime<Utc>> {
+        lockout_compute_locked_until(new_attempts, threshold, duration_seconds, now)
     }
 
     async fn resolve_token_lifetimes(
@@ -1527,6 +1552,25 @@ where
             return Err(CoreError::UserDisabled);
         }
 
+        let realm_settings = self
+            .realm_repository
+            .get_realm_settings(params.realm_id)
+            .await?;
+
+        let lockout_threshold = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_threshold)
+            .unwrap_or(10);
+        let lockout_duration_seconds = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_duration_seconds)
+            .unwrap_or(900);
+
+        let now = Utc::now();
+        if user.is_locked(now) {
+            return Err(CoreError::AccountLocked);
+        }
+
         let credential = self
             .verify_password(user.id, password)
             .instrument(info_span!("auth.password.verify_password"))
@@ -1534,12 +1578,39 @@ where
 
         let is_valid = match credential {
             Ok(is_valid) => is_valid,
-            Err(_) => return Err(CoreError::Invalid),
+            Err(_) => {
+                let locked_until = Self::compute_locked_until(
+                    user.failed_login_attempts + 1,
+                    lockout_threshold,
+                    lockout_duration_seconds,
+                    now,
+                );
+                let _ = self
+                    .user_repository
+                    .increment_failed_login_attempts(user.id, locked_until)
+                    .await;
+                return Err(CoreError::Invalid);
+            }
         };
 
         if !is_valid {
+            let locked_until = Self::compute_locked_until(
+                user.failed_login_attempts + 1,
+                lockout_threshold,
+                lockout_duration_seconds,
+                now,
+            );
+            let _ = self
+                .user_repository
+                .increment_failed_login_attempts(user.id, locked_until)
+                .await;
             return Err(CoreError::Invalid);
         }
+
+        let _ = self
+            .user_repository
+            .reset_failed_login_attempts(user.id)
+            .await;
 
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
@@ -1934,6 +2005,21 @@ where
             }
         }
 
+        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+        let lockout_threshold = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_threshold)
+            .unwrap_or(10);
+        let lockout_duration_seconds = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_duration_seconds)
+            .unwrap_or(900);
+
+        let now = Utc::now();
+        if user.is_locked(now) {
+            return Err(CoreError::AccountLocked);
+        }
+
         // Check if user has federation mapping (LDAP authentication) FIRST
         let federation_mapping = self
             .federation_repository
@@ -2049,8 +2135,23 @@ This is a server error that should be investigated. Do not forward back this mes
             };
 
         if !has_valid_password {
+            let locked_until = Self::compute_locked_until(
+                user.failed_login_attempts + 1,
+                lockout_threshold,
+                lockout_duration_seconds,
+                now,
+            );
+            let _ = self
+                .user_repository
+                .increment_failed_login_attempts(user.id, locked_until)
+                .await;
             return Err(CoreError::InvalidPassword);
         }
+
+        let _ = self
+            .user_repository
+            .reset_failed_login_attempts(user.id)
+            .await;
 
         let auth_session = self
             .auth_session_repository
@@ -2059,8 +2160,6 @@ This is a server error that should be investigated. Do not forward back this mes
             .map_err(|_| CoreError::SessionNotFound)?;
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
-
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
         let access_lifetime = realm_settings
             .as_ref()
             .map(|s| s.access_token_lifetime)
@@ -3199,7 +3298,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{auth_session_can_resume, format_authorization_redirect_url};
+    use super::{
+        auth_session_can_resume, format_authorization_redirect_url, lockout_compute_locked_until,
+    };
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
@@ -3464,5 +3565,32 @@ mod tests {
     fn validate_code_verifier_accepts_128_chars() {
         let max_len = "a".repeat(128);
         assert!(pkce_validate_verifier(&max_len));
+    }
+
+    // ---- compute_locked_until -------------------------------------------
+
+    #[test]
+    fn compute_locked_until_returns_none_below_threshold() {
+        let now = Utc::now();
+        // 3 attempts with threshold 5 → not yet locked
+        let result = lockout_compute_locked_until(3, 5, 900, now);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn compute_locked_until_returns_some_at_threshold() {
+        let now = Utc::now();
+        let result = lockout_compute_locked_until(5, 5, 900, now);
+        assert!(result.is_some());
+        let locked = result.unwrap();
+        let diff = (locked - now).num_seconds();
+        assert_eq!(diff, 900);
+    }
+
+    #[test]
+    fn compute_locked_until_returns_some_above_threshold() {
+        let now = Utc::now();
+        let result = lockout_compute_locked_until(10, 5, 300, now);
+        assert!(result.is_some());
     }
 }

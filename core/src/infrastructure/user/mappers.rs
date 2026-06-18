@@ -6,6 +6,7 @@ impl From<crate::entity::users::Model> for User {
     fn from(value: crate::entity::users::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&value.created_at);
         let updated_at = Utc.from_utc_datetime(&value.updated_at);
+        let locked_until = value.locked_until.map(|t| t.with_timezone(&Utc));
 
         User {
             id: value.id,
@@ -22,6 +23,8 @@ impl From<crate::entity::users::Model> for User {
             required_actions: Vec::new(),
             created_at,
             updated_at,
+            failed_login_attempts: value.failed_login_attempts,
+            locked_until,
         }
     }
 }

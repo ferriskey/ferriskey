@@ -34,6 +34,8 @@ pub struct Model {
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i32,
     pub portal_theme_id: Option<Uuid>,
+    pub lockout_threshold: i32,
+    pub lockout_duration_seconds: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -59,6 +61,8 @@ pub enum Column {
     EmailVerificationEnabled,
     EmailVerificationTtlHours,
     PortalThemeId,
+    LockoutThreshold,
+    LockoutDurationSeconds,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -107,6 +111,8 @@ impl ColumnTrait for Column {
             Self::EmailVerificationEnabled => ColumnType::Boolean.def(),
             Self::EmailVerificationTtlHours => ColumnType::Integer.def(),
             Self::PortalThemeId => ColumnType::Uuid.def().null(),
+            Self::LockoutThreshold => ColumnType::Integer.def(),
+            Self::LockoutDurationSeconds => ColumnType::Integer.def(),
         }
     }
 }

@@ -775,6 +775,32 @@ where
             .delete_by_key(input.user_id, input.key)
             .await
     }
+
+    async fn unlock_user(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: Uuid,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_user(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let user = self.user_repository.get_by_id(user_id).await?;
+
+        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
+            return Err(CoreError::NotFound);
+        }
+
+        self.user_repository.unlock_user(user_id).await
+    }
 }
 
 #[cfg(test)]
