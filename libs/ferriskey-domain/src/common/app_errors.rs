@@ -297,6 +297,9 @@ pub enum CoreError {
 
     #[error("Portal layout is referenced by one or more themes and cannot be deleted")]
     PortalLayoutInUse,
+
+    #[error("Password policy violated: {0}")]
+    PasswordPolicyViolation(String),
 }
 
 impl From<AuthenticationError> for CoreError {

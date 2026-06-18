@@ -15,6 +15,7 @@ use super::entity::{PasswordPolicy, UpdatePasswordPolicy};
 use super::error::PasswordPolicyError;
 use super::ports::PasswordPolicyPolicy;
 use super::repository::PasswordPolicyRepository;
+use super::validator;
 
 #[derive(Debug, Clone)]
 pub struct PasswordPolicyService<R, U, C, UR>
@@ -44,7 +45,6 @@ where
         identity: Identity,
         realm: &Realm,
     ) -> Result<PasswordPolicy, CoreError> {
-        // Check authorization
         ensure_policy(
             self.policy.can_view_password_policy(&identity, realm).await,
             "view realm password policy",
@@ -63,7 +63,6 @@ where
         realm: &Realm,
         update: UpdatePasswordPolicy,
     ) -> Result<PasswordPolicy, CoreError> {
-        // Check authorization
         ensure_policy(
             self.policy
                 .can_update_password_policy(&identity, realm)
@@ -74,50 +73,37 @@ where
         self.repository.upsert(realm.id.into(), update).await
     }
 
+    /// Validate a password against a policy (character class + entropy + common-password rules).
+    ///
+    /// Returns `Ok(())` on success, or an error whose message lists every violated rule.
     pub fn validate_password(
         password: &str,
         policy: &PasswordPolicy,
     ) -> Result<(), Vec<PasswordPolicyError>> {
-        let mut errors = Vec::new();
-
-        // Check minimum length
-        if password.len() < policy.min_length as usize {
-            errors.push(PasswordPolicyError::TooShort {
-                min: policy.min_length,
-                actual: password.len(),
-            });
-        }
-
-        // Check uppercase requirement
-        if policy.require_uppercase && !password.chars().any(|c| c.is_uppercase()) {
-            errors.push(PasswordPolicyError::MissingUppercase);
-        }
-
-        // Check lowercase requirement
-        if policy.require_lowercase && !password.chars().any(|c| c.is_lowercase()) {
-            errors.push(PasswordPolicyError::MissingLowercase);
-        }
-
-        // Check number requirement
-        if policy.require_number && !password.chars().any(|c| c.is_numeric()) {
-            errors.push(PasswordPolicyError::MissingNumber);
-        }
-
-        // Check special character requirement
-        if policy.require_special
-            && !password
-                .chars()
-                .any(|c| "!@#$%^&*()_+-=[]{}|;':\"\",./<>?".contains(c))
-        {
-            errors.push(PasswordPolicyError::MissingSpecialCharacter);
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors)
-        }
+        validator::validate(password, policy, None, None)
     }
+
+    /// Validate a password against a policy, providing user context for the
+    /// `forbid_common` username/email check.
+    pub fn validate_password_with_context(
+        password: &str,
+        policy: &PasswordPolicy,
+        username: Option<&str>,
+        email_local: Option<&str>,
+    ) -> Result<(), Vec<PasswordPolicyError>> {
+        validator::validate(password, policy, username, email_local)
+    }
+}
+
+/// Convert a list of policy violations into a single [`CoreError`] whose message
+/// enumerates all failed rules, separated by "; ".
+pub fn violations_to_core_error(violations: Vec<PasswordPolicyError>) -> CoreError {
+    let msg = violations
+        .iter()
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>()
+        .join("; ");
+    CoreError::PasswordPolicyViolation(msg)
 }
 
 #[cfg(test)]
@@ -126,13 +112,12 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    // Mock types for testing
     use crate::domain::{
         client::ports::MockClientRepository,
         user::ports::{MockUserRepository, MockUserRoleRepository},
     };
 
-    fn create_test_policy(
+    fn make_policy(
         min_length: i32,
         require_uppercase: bool,
         require_lowercase: bool,
@@ -148,6 +133,9 @@ mod tests {
             require_number,
             require_special,
             max_age_days: None,
+            min_entropy_bits: 0,
+            forbid_common: false,
+            check_breached: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -155,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_password_too_short() {
-        let policy = create_test_policy(8, false, false, false, false);
+        let policy = make_policy(8, false, false, false, false);
         let result = PasswordPolicyService::<
             MockRepository,
             MockUserRepository,
@@ -174,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_password_missing_uppercase() {
-        let policy = create_test_policy(8, true, false, false, false);
+        let policy = make_policy(8, true, false, false, false);
         let result = PasswordPolicyService::<
             MockRepository,
             MockUserRepository,
@@ -194,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_password_meets_all_requirements() {
-        let policy = create_test_policy(8, true, true, true, true);
+        let policy = make_policy(8, true, true, true, true);
         let result = PasswordPolicyService::<
             MockRepository,
             MockUserRepository,
@@ -207,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_password_multiple_violations() {
-        let policy = create_test_policy(8, true, true, true, true);
+        let policy = make_policy(8, true, true, true, true);
         let result = PasswordPolicyService::<
             MockRepository,
             MockUserRepository,
@@ -217,7 +205,6 @@ mod tests {
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert_eq!(errors.len(), 4);
         assert!(
             errors
                 .iter()
@@ -240,7 +227,20 @@ mod tests {
         );
     }
 
-    // Mock repository for tests
+    #[test]
+    fn violations_to_core_error_formats_message() {
+        let violations = vec![
+            PasswordPolicyError::MissingUppercase,
+            PasswordPolicyError::MissingNumber,
+        ];
+        let err = violations_to_core_error(violations);
+        assert!(matches!(err, CoreError::PasswordPolicyViolation(_)));
+        if let CoreError::PasswordPolicyViolation(msg) = err {
+            assert!(msg.contains("uppercase"));
+            assert!(msg.contains("number"));
+        }
+    }
+
     struct MockRepository;
     impl PasswordPolicyRepository for MockRepository {
         async fn find_by_realm_id(

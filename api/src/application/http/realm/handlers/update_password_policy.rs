@@ -49,6 +49,9 @@ pub async fn update_password_policy(
         require_number: payload.require_number,
         require_special: payload.require_special,
         max_age_days: payload.max_age_days,
+        min_entropy_bits: payload.min_entropy_bits,
+        forbid_common: payload.forbid_common,
+        check_breached: payload.check_breached,
     };
 
     let policy = state
