@@ -788,6 +788,8 @@ where
                 input.lockout_threshold,
                 input.lockout_duration_seconds,
                 input.login_aliases,
+                input.seawatch_pii_mode,
+                input.seawatch_pseudo_key,
             )
             .await?;
 

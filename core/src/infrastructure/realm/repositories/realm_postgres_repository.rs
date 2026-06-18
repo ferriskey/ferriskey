@@ -203,6 +203,8 @@ impl RealmRepository for PostgresRealmRepository {
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
         login_aliases: Option<LoginAliases>,
+        seawatch_pii_mode: Option<String>,
+        seawatch_pseudo_key: Option<Option<String>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -298,6 +300,14 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(aliases) = login_aliases {
             realm_setting.login_aliases =
                 Set(aliases.as_slice().iter().map(|a| a.to_string()).collect());
+        }
+
+        if let Some(mode) = seawatch_pii_mode {
+            realm_setting.seawatch_pii_mode = Set(mode);
+        }
+
+        if let Some(key) = seawatch_pseudo_key {
+            realm_setting.seawatch_pseudo_key = Set(key);
         }
 
         let realm_setting = realm_setting

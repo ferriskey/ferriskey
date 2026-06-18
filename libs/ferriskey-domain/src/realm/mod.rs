@@ -163,6 +163,9 @@ pub struct RealmSetting {
     pub updated_at: DateTime<Utc>,
     pub lockout_threshold: i32,
     pub lockout_duration_seconds: i32,
+    pub seawatch_pii_mode: String,
+    #[serde(skip_serializing)]
+    pub seawatch_pseudo_key: Option<String>,
 }
 
 impl RealmSetting {
@@ -193,6 +196,8 @@ impl RealmSetting {
             updated_at: now,
             lockout_threshold: 10,
             lockout_duration_seconds: 900,
+            seawatch_pii_mode: "off".to_string(),
+            seawatch_pseudo_key: None,
         }
     }
 }

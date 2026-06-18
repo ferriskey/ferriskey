@@ -7,7 +7,10 @@ use uuid::Uuid;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::seawatch::{
-    entities::SecurityEvent, ports::SecurityEventRepository, value_objects::SecurityEventFilter,
+    entities::SecurityEvent,
+    pii::{AuditPiiMode, PiiConfig, apply_to_event},
+    ports::SecurityEventRepository,
+    value_objects::SecurityEventFilter,
 };
 use crate::entity::security_events;
 
@@ -20,10 +23,35 @@ impl PostgresSecurityEventRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
+
+    async fn load_pii_config(&self, realm_id: Uuid) -> PiiConfig {
+        let result = crate::entity::realm_settings::Entity::find()
+            .filter(crate::entity::realm_settings::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await;
+
+        match result {
+            Ok(Some(model)) => {
+                let mode = model
+                    .seawatch_pii_mode
+                    .parse::<AuditPiiMode>()
+                    .unwrap_or_default();
+                PiiConfig {
+                    mode,
+                    pseudo_key: model.seawatch_pseudo_key,
+                }
+            }
+            _ => PiiConfig::default(),
+        }
+    }
 }
 
 impl SecurityEventRepository for PostgresSecurityEventRepository {
     async fn store_event(&self, event: SecurityEvent) -> Result<(), CoreError> {
+        let realm_id: Uuid = event.realm_id.into();
+        let pii_cfg = self.load_pii_config(realm_id).await;
+        let event = apply_to_event(event, &pii_cfg);
+
         let active_model: security_events::ActiveModel = event.into();
 
         security_events::Entity::insert(active_model)
