@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::domain::authentication::{
     entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
+    value_objects::CodeChallengeMethod,
 };
 
 impl From<crate::entity::auth_sessions::Model> for AuthSession {
@@ -24,6 +25,11 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
         } else {
             None
         };
+
+        let code_challenge_method = model
+            .code_challenge_method
+            .as_deref()
+            .and_then(|s| s.parse::<CodeChallengeMethod>().ok());
 
         AuthSession {
             id: model.id,
@@ -42,6 +48,8 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             webauthn_challenge,
             webauthn_challenge_issued_at,
             compass_flow_id: model.compass_flow_id,
+            code_challenge: model.code_challenge,
+            code_challenge_method,
         }
     }
 }
@@ -59,6 +67,11 @@ impl PostgresAuthSessionRepository {
 
 impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn create(&self, session: &AuthSession) -> Result<AuthSession, AuthenticationError> {
+        let code_challenge_method = session
+            .code_challenge_method
+            .as_ref()
+            .map(|m| m.to_string());
+
         let model = crate::entity::auth_sessions::ActiveModel {
             id: Set(session.id),
             realm_id: Set(session.realm_id.into()),
@@ -76,6 +89,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             webauthn_challenge: Set(None),
             webauthn_challenge_issued_at: Set(None),
             compass_flow_id: Set(session.compass_flow_id),
+            code_challenge: Set(session.code_challenge.clone()),
+            code_challenge_method: Set(code_challenge_method),
         };
 
         let t = model
@@ -452,6 +467,8 @@ mod tests {
             authenticated,
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
+            code_challenge: None,
+            code_challenge_method: None,
             compass_flow_id: None,
         })
     }

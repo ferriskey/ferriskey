@@ -35,10 +35,10 @@ use crate::domain::{
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
-            AuthenticationResult, EndSessionInput, EndSessionOutput, GenerateTokenInput,
-            GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams, Identity,
-            IntrospectTokenInput, RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext,
-            RevokeTokenInput, UserInfoResponse,
+            AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
+            GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams,
+            Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
+            RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
         },
     },
     client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
@@ -103,6 +103,36 @@ fn format_authorization_redirect_url(
 fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
     auth_session.expires_at >= now
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
+}
+
+/// Verify a PKCE `code_verifier` against the stored `code_challenge`.
+///
+/// RFC 7636 §4.6: S256 → BASE64URL-ENCODE(SHA256(ASCII(code_verifier)));
+///                plain → code_verifier == code_challenge.
+fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallengeMethod) -> bool {
+    match method {
+        CodeChallengeMethod::S256 => {
+            let digest = Sha256::digest(code_verifier.as_bytes());
+            let computed = BASE64_URL_SAFE_NO_PAD.encode(digest);
+            computed.as_bytes().ct_eq(code_challenge.as_bytes()).into()
+        }
+        CodeChallengeMethod::Plain => code_verifier
+            .as_bytes()
+            .ct_eq(code_challenge.as_bytes())
+            .into(),
+    }
+}
+
+/// Validate `code_verifier` per RFC 7636 §4.1:
+/// length 43–128, characters in `[A-Z a-z 0-9 \-._~]`.
+fn pkce_validate_verifier(verifier: &str) -> bool {
+    let len = verifier.len();
+    if !(43..=128).contains(&len) {
+        return false;
+    }
+    verifier
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_' | '~'))
 }
 
 #[derive(Clone, Debug)]
@@ -918,6 +948,18 @@ where
         Ok(sorted.join(" "))
     }
 
+    fn verify_pkce(
+        code_verifier: &str,
+        code_challenge: &str,
+        method: &CodeChallengeMethod,
+    ) -> bool {
+        pkce_verify(code_verifier, code_challenge, method)
+    }
+
+    fn validate_code_verifier(verifier: &str) -> bool {
+        pkce_validate_verifier(verifier)
+    }
+
     async fn authorization_code(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let code = params.code.ok_or(CoreError::InternalServerError)?;
         let step_start = Utc::now();
@@ -936,6 +978,33 @@ where
         if auth_session.authenticated {
             warn!("Authorization code {} has already been used", code);
             return Err(CoreError::InvalidToken);
+        }
+
+        // PKCE verification (RFC 7636 §4.6).
+        match (
+            &auth_session.code_challenge,
+            &auth_session.code_challenge_method,
+        ) {
+            (Some(challenge), method) => {
+                let verifier = params
+                    .code_verifier
+                    .as_deref()
+                    .ok_or(CoreError::CodeVerifierMissing)?;
+
+                if !Self::validate_code_verifier(verifier) {
+                    return Err(CoreError::InvalidCodeVerifier);
+                }
+
+                let method = method.as_ref().unwrap_or(&CodeChallengeMethod::Plain);
+                if !Self::verify_pkce(verifier, challenge, method) {
+                    warn!("PKCE verification failed for code {}", code);
+                    return Err(CoreError::InvalidCodeVerifier);
+                }
+            }
+            (None, _) => {
+                // No challenge stored — check if a verifier was sent unexpectedly
+                // (harmless per RFC 7636 §4.6, we simply ignore it).
+            }
         }
 
         let flow_id = auth_session.compass_flow_id.map(FlowId);
@@ -1960,6 +2029,20 @@ where
             return Err(CoreError::InvalidClient);
         }
 
+        // Enforce per-client PKCE policy (RFC 7636 §4.3).
+        if client.require_pkce {
+            if input.code_challenge.is_none() {
+                return Err(CoreError::PkceRequired);
+            }
+            // Reject plain method when require_pkce is set.
+            if matches!(
+                input.code_challenge_method,
+                Some(CodeChallengeMethod::Plain)
+            ) {
+                return Err(CoreError::PkceRequired);
+            }
+        }
+
         let flow_id = self
             .flow_recorder
             .start_flow(
@@ -1985,6 +2068,8 @@ where
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
             compass_flow_id: Some(flow_id.0),
+            code_challenge: input.code_challenge,
+            code_challenge_method: input.code_challenge_method,
         };
         let session = self
             .auth_session_repository
@@ -2098,6 +2183,7 @@ where
             refresh_token: input.refresh_token,
             redirect_uri: None,
             scope: input.scope,
+            code_verifier: input.code_verifier,
         };
 
         let result = self
@@ -2784,6 +2870,8 @@ mod tests {
             webauthn_challenge: None,
             webauthn_challenge_issued_at: None,
             compass_flow_id: None,
+            code_challenge: None,
+            code_challenge_method: None,
         }
     }
 
@@ -2923,5 +3011,96 @@ mod tests {
         );
 
         assert!(auth_session_can_resume(&session, now));
+    }
+
+    // ---- PKCE (RFC 7636) unit tests --------------------------------------
+
+    use super::{pkce_validate_verifier, pkce_verify};
+    use crate::domain::authentication::value_objects::CodeChallengeMethod;
+
+    /// RFC 7636 Appendix B: known S256 test vector.
+    ///
+    /// verifier  = dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+    /// challenge = E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+    #[test]
+    fn pkce_s256_rfc7636_appendix_b_vector() {
+        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+        let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+
+        assert!(
+            pkce_verify(verifier, challenge, &CodeChallengeMethod::S256),
+            "RFC 7636 Appendix B S256 vector must verify"
+        );
+    }
+
+    #[test]
+    fn pkce_s256_wrong_verifier_rejected() {
+        let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+        assert!(
+            !pkce_verify(
+                "wrong-verifier-123456789012345678901234567890",
+                challenge,
+                &CodeChallengeMethod::S256
+            ),
+            "Wrong verifier must not match"
+        );
+    }
+
+    #[test]
+    fn pkce_plain_matches_when_equal() {
+        let secret = "abcdefghijklmnopqrstuvwxyz0123456789ABCDE67";
+        assert!(pkce_verify(secret, secret, &CodeChallengeMethod::Plain));
+    }
+
+    #[test]
+    fn pkce_plain_rejects_when_different() {
+        let verifier = "abcdefghijklmnopqrstuvwxyz0123456789ABCDE67";
+        let challenge = "different-challenge-abcdefghijklmnopqrstuv";
+        assert!(!pkce_verify(
+            verifier,
+            challenge,
+            &CodeChallengeMethod::Plain
+        ));
+    }
+
+    #[test]
+    fn validate_code_verifier_accepts_valid() {
+        let min_len = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+        assert_eq!(min_len.len(), 43);
+        assert!(pkce_validate_verifier(min_len));
+    }
+
+    #[test]
+    fn validate_code_verifier_rejects_too_short() {
+        assert!(!pkce_validate_verifier("tooshort"));
+    }
+
+    #[test]
+    fn validate_code_verifier_rejects_too_long() {
+        let long = "a".repeat(129);
+        assert!(!pkce_validate_verifier(&long));
+    }
+
+    #[test]
+    fn validate_code_verifier_rejects_invalid_char() {
+        // '+' is not in the unreserved set (RFC 7636 §4.1)
+        assert!(!pkce_validate_verifier(
+            "abcdefghijklmnopqrstuvwxyz0123456789ABCDE+7"
+        ));
+    }
+
+    #[test]
+    fn validate_code_verifier_accepts_all_unreserved_chars() {
+        // All four special unreserved characters: - . _ ~
+        // 43 chars: 26 uppercase + 4 special + 13 lowercase
+        let verifier = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-._~abcdefghijklm";
+        assert_eq!(verifier.len(), 43);
+        assert!(pkce_validate_verifier(verifier));
+    }
+
+    #[test]
+    fn validate_code_verifier_accepts_128_chars() {
+        let max_len = "a".repeat(128);
+        assert!(pkce_validate_verifier(&max_len));
     }
 }

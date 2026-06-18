@@ -649,6 +649,13 @@ where
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
+                // Brokered sessions (external IdP) bypass client-native PKCE
+                // because the PKCE challenge/verifier pair is between the
+                // upstream IdP and FerrisKey (outbound, already handled by
+                // `broker_services`). The inbound client flow does not send
+                // a code_challenge in this path.
+                code_challenge: None,
+                code_challenge_method: None,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }

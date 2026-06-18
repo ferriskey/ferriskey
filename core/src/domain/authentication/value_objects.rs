@@ -12,6 +12,35 @@ use crate::domain::{
 
 pub use ferriskey_domain::auth::{Identity, IdentityKind};
 
+/// PKCE code challenge method per RFC 7636 §4.3.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CodeChallengeMethod {
+    S256,
+    Plain,
+}
+
+impl std::fmt::Display for CodeChallengeMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CodeChallengeMethod::S256 => write!(f, "S256"),
+            CodeChallengeMethod::Plain => write!(f, "plain"),
+        }
+    }
+}
+
+impl std::str::FromStr for CodeChallengeMethod {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "S256" => Ok(CodeChallengeMethod::S256),
+            "plain" => Ok(CodeChallengeMethod::Plain),
+            other => Err(format!("unsupported code_challenge_method: {other}")),
+        }
+    }
+}
+
 pub struct AuthenticateRequest {
     pub realm_name: String,
     pub grant_type: GrantType,
@@ -33,6 +62,8 @@ pub struct CreateAuthSessionRequest {
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 pub struct GrantTypeParams {
@@ -47,6 +78,7 @@ pub struct GrantTypeParams {
     pub refresh_token: Option<String>,
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
+    pub code_verifier: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,6 +136,8 @@ impl CreateAuthSessionRequest {
             state: None,
             nonce: None,
             user_id: None,
+            code_challenge: None,
+            code_challenge_method: None,
         }
     }
 
@@ -118,6 +152,16 @@ impl CreateAuthSessionRequest {
         self.scope = Some(scope);
         self.state = state;
         self.nonce = nonce;
+        self
+    }
+
+    pub fn with_pkce(
+        mut self,
+        code_challenge: Option<String>,
+        code_challenge_method: Option<CodeChallengeMethod>,
+    ) -> Self {
+        self.code_challenge = code_challenge;
+        self.code_challenge_method = code_challenge_method;
         self
     }
 
