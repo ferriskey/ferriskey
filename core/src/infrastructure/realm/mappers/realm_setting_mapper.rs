@@ -26,6 +26,7 @@ impl From<Model> for RealmSetting {
             email_verification_template_id: value.email_verification_template_id,
             email_verification_enabled: value.email_verification_enabled,
             email_verification_ttl_hours: value.email_verification_ttl_hours as i64,
+            require_mfa: value.require_mfa,
             updated_at,
         }
     }

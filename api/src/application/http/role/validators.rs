@@ -16,6 +16,7 @@ pub struct CreateRoleValidator {
 pub struct UpdateRoleValidator {
     pub name: Option<String>,
     pub description: Option<String>,
+    pub require_mfa: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

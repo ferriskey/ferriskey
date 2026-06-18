@@ -15,6 +15,7 @@ pub struct Role {
     pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub client: Option<Client>,
+    pub require_mfa: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

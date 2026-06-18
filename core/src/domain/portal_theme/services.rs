@@ -391,6 +391,7 @@ mod tests {
             realm_id: realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -405,6 +406,7 @@ mod tests {
             realm_id: realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
