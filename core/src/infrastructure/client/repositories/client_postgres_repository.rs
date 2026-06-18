@@ -54,6 +54,8 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_enabled: Set(Some(false)),
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
+            secret_encrypted: Set(None),
+            secret_key_id: Set(None),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
