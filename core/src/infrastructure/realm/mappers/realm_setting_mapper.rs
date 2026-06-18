@@ -27,6 +27,8 @@ impl From<Model> for RealmSetting {
             email_verification_enabled: value.email_verification_enabled,
             email_verification_ttl_hours: value.email_verification_ttl_hours as i64,
             updated_at,
+            seawatch_pii_mode: value.seawatch_pii_mode,
+            seawatch_pseudo_key: value.seawatch_pseudo_key,
         }
     }
 }

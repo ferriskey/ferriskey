@@ -50,6 +50,10 @@ pub struct UpdateRealmSettingValidator {
         message = "email_verification_ttl_hours must be between 1 and 720"
     ))]
     pub email_verification_ttl_hours: Option<i64>,
+    pub seawatch_pii_mode: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<String>)]
+    pub seawatch_pseudo_key: Option<Option<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

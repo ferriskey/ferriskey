@@ -161,6 +161,8 @@ pub trait RealmRepository: Send + Sync {
         email_verification_template_id: Option<Option<Uuid>>,
         email_verification_enabled: Option<bool>,
         email_verification_ttl_hours: Option<i64>,
+        seawatch_pii_mode: Option<String>,
+        seawatch_pseudo_key: Option<Option<String>>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -214,6 +216,8 @@ pub struct UpdateRealmSettingInput {
     pub email_verification_template_id: Option<Option<Uuid>>,
     pub email_verification_enabled: Option<bool>,
     pub email_verification_ttl_hours: Option<i64>,
+    pub seawatch_pii_mode: Option<String>,
+    pub seawatch_pseudo_key: Option<Option<String>>,
 }
 
 pub struct DeleteRealmInput {

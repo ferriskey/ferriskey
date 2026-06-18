@@ -69,6 +69,9 @@ pub struct RealmSetting {
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i64,
     pub updated_at: DateTime<Utc>,
+    pub seawatch_pii_mode: String,
+    #[serde(skip_serializing)]
+    pub seawatch_pseudo_key: Option<String>,
 }
 
 impl RealmSetting {
@@ -96,6 +99,8 @@ impl RealmSetting {
             email_verification_enabled: false,
             email_verification_ttl_hours: 24,
             updated_at: now,
+            seawatch_pii_mode: "off".to_string(),
+            seawatch_pseudo_key: None,
         }
     }
 }

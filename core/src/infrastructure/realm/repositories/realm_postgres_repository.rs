@@ -187,6 +187,8 @@ impl RealmRepository for PostgresRealmRepository {
         email_verification_template_id: Option<Option<Uuid>>,
         email_verification_enabled: Option<bool>,
         email_verification_ttl_hours: Option<i64>,
+        seawatch_pii_mode: Option<String>,
+        seawatch_pseudo_key: Option<Option<String>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -269,6 +271,14 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(hours) = email_verification_ttl_hours {
             realm_setting.email_verification_ttl_hours =
                 Set(i32::try_from(hours).map_err(|_| CoreError::Invalid)?);
+        }
+
+        if let Some(mode) = seawatch_pii_mode {
+            realm_setting.seawatch_pii_mode = Set(mode);
+        }
+
+        if let Some(key) = seawatch_pseudo_key {
+            realm_setting.seawatch_pseudo_key = Set(key);
         }
 
         let realm_setting = realm_setting

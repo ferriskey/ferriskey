@@ -781,6 +781,8 @@ where
                 input.email_verification_template_id,
                 input.email_verification_enabled,
                 input.email_verification_ttl_hours,
+                input.seawatch_pii_mode,
+                input.seawatch_pseudo_key,
             )
             .await?;
 
