@@ -35,9 +35,11 @@ export default function PageApplicationDetailFeature() {
 
   const client = clientResponse?.data
 
-  const handleBack = () => navigate(APPLICATIONS_URL(realm))
+  function handleBack() {
+    navigate(APPLICATIONS_URL(realm))
+  }
 
-  const handleSave = async (values: ApplicationSettingsValues) => {
+  async function handleSave(values: ApplicationSettingsValues) {
     if (!client) return
     await updateClient({
       body: {
@@ -55,7 +57,7 @@ export default function PageApplicationDetailFeature() {
     })
   }
 
-  const handleDelete = async () => {
+  async function handleDelete() {
     if (!client) return
     try {
       await deleteClient({ path: { client_id: client.id, realm_name: realm } })
@@ -66,7 +68,7 @@ export default function PageApplicationDetailFeature() {
     }
   }
 
-  const handleAddRedirectUri = async (value: string) => {
+  async function handleAddRedirectUri(value: string) {
     if (!client) return
     setUriPending(true)
     try {
@@ -80,7 +82,7 @@ export default function PageApplicationDetailFeature() {
     }
   }
 
-  const handleDeleteRedirectUri = async (redirectUriId: string) => {
+  async function handleDeleteRedirectUri(redirectUriId: string) {
     if (!client) return
     setUriPending(true)
     try {
@@ -123,11 +125,12 @@ export default function PageApplicationDetailFeature() {
   ]
 
   const requested = searchParams.get('tab') as AppTab | null
-  const isSelectable = (t: AppTab | null): t is AppTab =>
-    !!t && tabs.some((tab) => tab.id === t && !tab.soon)
+  function isSelectable(t: AppTab | null): t is AppTab {
+    return !!t && tabs.some((tab) => tab.id === t && !tab.soon)
+  }
   const activeTab: AppTab = isSelectable(requested) ? requested : 'quickstart'
 
-  const handleSelectTab = (tab: AppTab) => {
+  function handleSelectTab(tab: AppTab) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
@@ -138,7 +141,7 @@ export default function PageApplicationDetailFeature() {
     )
   }
 
-  const renderTab = () => {
+  function renderTab() {
     switch (activeTab) {
       case 'quickstart':
         return <QuickstartTab client={client} realm={realm} />

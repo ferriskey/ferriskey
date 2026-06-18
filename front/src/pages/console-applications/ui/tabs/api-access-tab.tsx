@@ -8,8 +8,9 @@ import { Section } from './primitives'
 
 type ScopeKind = 'default' | 'optional'
 
-const scopeKind = (s: Schemas.ClientScope): ScopeKind =>
-  s.default_scope_type === 'DEFAULT' ? 'default' : 'optional'
+function scopeKind(s: Schemas.ClientScope): ScopeKind {
+  return s.default_scope_type === 'DEFAULT' ? 'default' : 'optional'
+}
 
 interface Props {
   realm: string
@@ -48,7 +49,7 @@ export default function ApiAccessTab({ realm, clientId }: Props) {
     [available],
   )
 
-  const handleAdd = async () => {
+  async function handleAdd() {
     if (picked.length === 0) return
     setAdding(true)
     try {
@@ -63,7 +64,7 @@ export default function ApiAccessTab({ realm, clientId }: Props) {
     }
   }
 
-  const handleChangeKind = async (scopeId: string, from: ScopeKind) => {
+  async function handleChangeKind(scopeId: string, from: ScopeKind) {
     const to: ScopeKind = from === 'default' ? 'optional' : 'default'
     setPendingId(scopeId)
     try {
@@ -74,7 +75,7 @@ export default function ApiAccessTab({ realm, clientId }: Props) {
     }
   }
 
-  const handleRemove = async (scopeId: string, kind: ScopeKind) => {
+  async function handleRemove(scopeId: string, kind: ScopeKind) {
     setPendingId(scopeId)
     try {
       await unassignScope.mutateAsync({ realm, clientId, scopeId, type: kind })
