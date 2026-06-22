@@ -91,11 +91,7 @@ export function BuilderDragOverlay({ activeItem }: BuilderDragOverlayProps) {
 
   const data = activeItem.data.current
   const type =
-    data?.source === 'library'
-      ? data.type
-      : data?.source === 'canvas'
-        ? data.node?.type
-        : null
+    data?.source === 'library' ? data.type : data?.source === 'canvas' ? data.node?.type : null
 
   if (!type) return null
 
@@ -127,6 +123,6 @@ export function BuilderDragOverlay({ activeItem }: BuilderDragOverlayProps) {
         <span>{def?.label ?? type}</span>
       </div>
     </div>,
-    document.body,
+    document.body
   )
 }

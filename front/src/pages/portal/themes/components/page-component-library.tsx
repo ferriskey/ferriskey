@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { ChevronDown, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   HIDDEN_BLOCKS_BY_PAGE_TYPE,
   LAYOUT_ONLY_BLOCK_TYPES,
@@ -10,22 +10,12 @@ import {
   portalComponents,
   type PortalPreset,
 } from '@/lib/builder-portal'
-import {
-  ComponentTree,
-  useBuilderContext,
-  type ComponentDefinition,
-} from '@/lib/builder-core'
+import { ComponentTree, useBuilderContext, type ComponentDefinition } from '@/lib/builder-core'
 import type { Schemas } from '@/api/api.client'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import {
-  SidebarTabs,
-  type SidebarTab,
-} from '@/pages/portal-layouts/components/sidebar-tabs'
+import { SidebarTabs, type SidebarTab } from '@/pages/portal-layouts/components/sidebar-tabs'
+import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 
 interface Props {
   /** Block types the API requires for the currently-edited page. */
@@ -67,11 +57,7 @@ const COMPONENT_GROUPS: Array<{ id: string; label: string; types: string[] }> = 
   {
     id: 'identity',
     label: 'Identity fields',
-    types: [
-      'first_name_input',
-      'last_name_input',
-      'username_input',
-    ],
+    types: ['first_name_input', 'last_name_input', 'username_input'],
   },
 ]
 
@@ -90,7 +76,7 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
       !REQUIRED_BLOCK_TYPES.has(c.type) &&
       !LAYOUT_ONLY_BLOCK_TYPES.has(c.type) &&
       !isHidden(c.type) &&
-      !isRestricted(c.type),
+      !isRestricted(c.type)
   )
   const genericByType = new Map(generic.map((c) => [c.type, c]))
   const required = requiredTypes
@@ -125,7 +111,7 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
                   <DraggableComponent key={def.type} definition={def} />
                 ))}
               </Group>
-            ),
+            )
           )}
           {ungrouped.length > 0 && (
             <Group title='Other'>
@@ -216,28 +202,57 @@ function DraggableComponent({ definition }: { definition: ComponentDefinition })
  */
 function PresetsTab() {
   const { tree, setTree } = useBuilderContext()
+  const [selectedPreset, setSelectedPreset] = useState<PortalPreset | null>(null)
+  const [open, setOpen] = useState(false)
 
-  const insert = (preset: PortalPreset) => {
-    setTree([...tree, ...preset.factory()])
+  function handleReplace(preset: PortalPreset) {
+    // alert modale submit
+    if (tree.length) {
+      setSelectedPreset(preset)
+      setOpen(true)
+    } else {
+      setTree([...preset.factory()])
+    }
+  }
+
+  function handleSubmit() {
+    setTree([...selectedPreset!.factory()])
+    setOpen(false)
+    setSelectedPreset(null)
+  }
+
+  function handleCancel() {
+    setOpen(false)
+    setSelectedPreset(null)
   }
 
   return (
-    <div className='flex flex-col gap-2 p-2'>
-      <div className='flex items-center gap-1.5 px-1 pb-1 text-[11px] text-muted-foreground'>
-        <Sparkles size={12} />
-        <span>Click a preset to append it to the page.</span>
+    <Fragment>
+      <ConfirmDeleteAlert
+        open={open}
+        title='Confirm actual preset deletion'
+        description='This action cannot be undone.'
+        confirmText='confirm'
+        onConfirm={handleSubmit}
+        onCancel={handleCancel}
+      />
+      <div className='flex flex-col gap-2 p-2'>
+        <div className='flex items-center gap-1.5 px-1 pb-1 text-[11px] text-muted-foreground'>
+          <Sparkles size={12} />
+          <span>Click a preset to append it to the page.</span>
+        </div>
+        {PORTAL_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type='button'
+            onClick={() => handleReplace(p)}
+            className='flex flex-col gap-0.5 rounded-md border border-border bg-card p-3 text-left text-xs transition-colors hover:border-primary hover:bg-accent'
+          >
+            <span className='font-medium text-foreground'>{p.label}</span>
+            <span className='text-muted-foreground'>{p.description}</span>
+          </button>
+        ))}
       </div>
-      {PORTAL_PRESETS.map((p) => (
-        <button
-          key={p.id}
-          type='button'
-          onClick={() => insert(p)}
-          className='flex flex-col gap-0.5 rounded-md border border-border bg-card p-3 text-left text-xs transition-colors hover:border-primary hover:bg-accent'
-        >
-          <span className='font-medium text-foreground'>{p.label}</span>
-          <span className='text-muted-foreground'>{p.description}</span>
-        </button>
-      ))}
-    </div>
+    </Fragment>
   )
 }
