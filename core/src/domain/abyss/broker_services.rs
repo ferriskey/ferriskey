@@ -8,7 +8,7 @@ use ferriskey_compass::{
 };
 use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
-use tracing::{error, instrument};
+use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 use crate::domain::abyss::identity_provider::broker::{
@@ -52,6 +52,30 @@ where
     auth_session_repository: Arc<ASR>,
     oauth_client: Arc<OC>,
     flow_recorder: FlowRecorder,
+}
+
+fn evaluate_redirect_uri(allowed: &[String], redirect_uri: &str) -> Result<(), CoreError> {
+    if allowed.is_empty() {
+        return Err(CoreError::RedirectUriNotFound);
+    }
+
+    let is_valid = allowed.iter().any(|uri| {
+        if uri == redirect_uri {
+            return true;
+        }
+
+        if let Ok(regex) = regex::Regex::new(uri) {
+            return regex.is_match(redirect_uri);
+        }
+
+        false
+    });
+
+    if is_valid {
+        Ok(())
+    } else {
+        Err(CoreError::InvalidRedirectUri)
+    }
 }
 
 impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC> BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
@@ -124,20 +148,19 @@ where
             .get_enabled_by_client_id(client_id)
             .await?;
 
-        let is_valid = redirect_uris.iter().any(|uri| {
-            if uri.value == redirect_uri {
-                return true;
-            }
+        let values = redirect_uris
+            .into_iter()
+            .map(|uri| uri.value)
+            .collect::<Vec<_>>();
 
-            if let Ok(regex) = regex::Regex::new(&uri.value) {
-                return regex.is_match(redirect_uri);
-            }
-
-            false
-        });
-
-        if !is_valid {
-            return Err(CoreError::InvalidRedirectUri);
+        if let Err(error) = evaluate_redirect_uri(&values, redirect_uri) {
+            warn!(
+                %client_id,
+                redirect_uri = %redirect_uri,
+                error = %error,
+                "Broker redirect URI validation failed"
+            );
+            return Err(error);
         }
 
         Ok(())
@@ -700,5 +723,44 @@ where
         Err(CoreError::IdpUserInfoFailed(
             "No ID token and no userinfo endpoint configured".to_string(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn evaluate_redirect_uri_returns_not_found_when_allowed_list_is_empty() {
+        let result = evaluate_redirect_uri(&[], "https://app.example/cb");
+
+        assert!(matches!(result, Err(CoreError::RedirectUriNotFound)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_returns_invalid_when_no_entries_match() {
+        let allowed = vec!["https://other.example/cb".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://app.example/cb");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_accepts_exact_match() {
+        let allowed = vec!["https://app.example/cb".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://app.example/cb");
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_accepts_regex_match() {
+        let allowed = vec!["https://app\\.example/.*".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://app.example/cb");
+
+        assert!(result.is_ok());
     }
 }
