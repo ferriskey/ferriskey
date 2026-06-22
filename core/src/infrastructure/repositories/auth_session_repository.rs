@@ -377,10 +377,7 @@ mod tests {
     use sqlx::Executor as _;
     use uuid::Uuid;
 
-    use crate::domain::authentication::{
-        entities::{AuthSession, AuthSessionParams},
-        ports::AuthSessionRepository as _,
-    };
+    use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
     use crate::domain::realm::entities::RealmId;
 
     async fn setup() -> (PostgresAuthSessionRepository, Uuid, Uuid) {

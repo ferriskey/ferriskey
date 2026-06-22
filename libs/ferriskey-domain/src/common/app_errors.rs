@@ -58,6 +58,9 @@ pub enum CoreError {
     #[error("Invalid authorization request")]
     InvalidRequest,
 
+    #[error("Invalid credentials")]
+    InvalidCredentials,
+
     #[error("Service account not found")]
     ServiceAccountNotFound,
 

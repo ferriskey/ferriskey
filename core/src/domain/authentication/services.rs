@@ -2247,6 +2247,7 @@ where
 
                 self.handle_user_credentials_authentication(params, auth_session)
                     .await
+                    .map_err(|_| CoreError::InvalidCredentials)
             }
         }
     }
