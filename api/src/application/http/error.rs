@@ -29,8 +29,12 @@ impl From<CoreError> for ApiError {
             CoreError::InternalServerError => {
                         Self::InternalServerError("Internal server error".into())
                     }
-            CoreError::RedirectUriNotFound => Self::NotFound("Redirect URI not found".into()),
-            CoreError::InvalidRedirectUri => Self::BadRequest("Invalid redirect URI".into()),
+            CoreError::RedirectUriNotFound => {
+                Self::NotFound("No redirect URI is registered for this client".into())
+            }
+            CoreError::InvalidRedirectUri => {
+                Self::BadRequest("Redirect URI is not allowed for this client".into())
+            }
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
             CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
             CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),
