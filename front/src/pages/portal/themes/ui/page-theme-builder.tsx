@@ -53,7 +53,7 @@ interface Props {
     name: string,
     layoutId: string | null,
     config: object,
-    pages: { pageType: PageType; tree: unknown }[],
+    pages: { pageType: PageType; tree: unknown }[]
   ) => void
   onActivate: () => void
 }
@@ -122,8 +122,7 @@ export default function PageThemeBuilder({
       {(() => {
         const isSectionActive = (s: 'theme' | 'layout') =>
           activeTab.kind === 'section' && activeTab.section === s
-        const isPageActive = (p: PageType) =>
-          activeTab.kind === 'page' && activeTab.pageType === p
+        const isPageActive = (p: PageType) => activeTab.kind === 'page' && activeTab.pageType === p
 
         const nav = (
           <nav className='flex flex-col gap-1 p-2'>
@@ -281,7 +280,7 @@ function NavButton({
       onClick={onClick}
       className={cn(
         'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-        active ? 'bg-sidebar-primary/15 text-sidebar-primary' : 'hover:bg-muted',
+        active ? 'bg-sidebar-primary/15 text-sidebar-primary' : 'hover:bg-muted'
       )}
     >
       {icon}
@@ -312,7 +311,11 @@ function snakeToCamel(value: string): string {
 
 function parseLayoutTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) return tree as BuilderNode[]
-  if (tree && typeof tree === 'object' && Array.isArray((tree as { children?: unknown }).children)) {
+  if (
+    tree &&
+    typeof tree === 'object' &&
+    Array.isArray((tree as { children?: unknown }).children)
+  ) {
     return (tree as { children: BuilderNode[] }).children
   }
   return []
