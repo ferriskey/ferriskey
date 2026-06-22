@@ -14,6 +14,7 @@ impl From<CoreError> for ApiError {
             CoreError::EmailAlreadyExists => {
                 Self::BadRequest("Email already exists in this realm".into())
             }
+            CoreError::InvalidCredentials => Self::Unauthorized("Invalid credentials".into()),
             CoreError::UsernameAlreadyExists => {
                 Self::BadRequest("Username already exists in this realm".into())
             }
