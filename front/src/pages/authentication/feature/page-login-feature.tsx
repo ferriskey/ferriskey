@@ -7,11 +7,29 @@ import { useOAuthParams } from '../hooks/use-oauth-params'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import { useSessionRefresh } from '../hooks/use-session-refresh'
 import PageLogin, { LoginErrorPage } from '../ui/page-login'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate } from 'react-router'
 export type { AuthenticateSchema } from '../hooks/use-login-form'
 
 export default function PageLoginFeature() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const { realm_name, isAuthInitiated, loginError, getAuthParamsFromUrl, getOAuthParams } =
     useOAuthParams()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    if (isAuthInitiated) {
+      const { query, realm } = getOAuthParams()
+      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      return
+    }
+
+    navigate(`/realms/${realm_name}/overview`, { replace: true })
+  }, [isAuthenticated, navigate, realm_name, isAuthInitiated, getOAuthParams])
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
