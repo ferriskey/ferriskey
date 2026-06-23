@@ -19,9 +19,9 @@ export default function PageLoginFeature() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/')
+      navigate(`/realms/${realm_name}/overview`)
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, navigate, realm_name])
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
