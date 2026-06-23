@@ -104,7 +104,7 @@ export default function PageLoginFeature() {
       />
       <FloatingActionBar
         show={showFloatingActionBar}
-        title="Session expired"
+        title='Session expired'
         description={
           countdown !== null
             ? `Refreshing automatically in ${countdown}s...`
