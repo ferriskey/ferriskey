@@ -7,11 +7,21 @@ import { useOAuthParams } from '../hooks/use-oauth-params'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import { useSessionRefresh } from '../hooks/use-session-refresh'
 import PageLogin, { LoginErrorPage } from '../ui/page-login'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate } from 'react-router'
 export type { AuthenticateSchema } from '../hooks/use-login-form'
 
 export default function PageLoginFeature() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const { realm_name, isAuthInitiated, loginError, getAuthParamsFromUrl, getOAuthParams } =
     useOAuthParams()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/')
+    }
+  }, [isAuthenticated, navigate])
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
@@ -86,7 +96,7 @@ export default function PageLoginFeature() {
       />
       <FloatingActionBar
         show={showFloatingActionBar}
-        title='Session expired'
+        title="Session expired"
         description={
           countdown !== null
             ? `Refreshing automatically in ${countdown}s...`
