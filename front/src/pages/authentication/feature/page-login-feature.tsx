@@ -18,10 +18,18 @@ export default function PageLoginFeature() {
     useOAuthParams()
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(`/realms/${realm_name}/overview`, { replace: true })
+    if (!isAuthenticated) {
+      return
     }
-  }, [isAuthenticated, navigate, realm_name])
+
+    if (isAuthInitiated) {
+      const { query, realm } = getOAuthParams()
+      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      return
+    }
+
+    navigate(`/realms/${realm_name}/overview`, { replace: true })
+  }, [isAuthenticated, navigate, realm_name, isAuthInitiated, getOAuthParams])
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
