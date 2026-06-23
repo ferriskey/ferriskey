@@ -19,7 +19,7 @@ export default function PageLoginFeature() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(`/realms/${realm_name}/overview`)
+      navigate(`/realms/${realm_name}/overview`, { replace: true })
     }
   }, [isAuthenticated, navigate, realm_name])
 
