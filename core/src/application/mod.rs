@@ -34,6 +34,7 @@ use crate::{
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
+        session::services::UserSessionManagementServiceImpl,
         trident::services::TridentServiceImpl,
         user::services::UserServiceImpl,
         webhook::services::WebhookServiceImpl,
@@ -93,6 +94,7 @@ use crate::{
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
+            user_session_repository::PostgresUserSessionRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
@@ -171,6 +173,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
+    let user_session = Arc::new(PostgresUserSessionRepository::new(postgres.get_db()));
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
@@ -457,6 +460,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         flow_recorder,
         db: postgres.get_db(),
         email_verification_service,
+        user_session_management_service: UserSessionManagementServiceImpl::new(
+            realm.clone(),
+            user_session.clone(),
+            policy.clone(),
+        ),
     };
 
     Ok(app)

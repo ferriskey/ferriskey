@@ -12,3 +12,4 @@ pub mod portal_layouts_repository;
 pub mod portal_theme_repository;
 pub mod random_bytes_recovery_code;
 pub mod refresh_token_repository;
+pub mod user_session_repository;
