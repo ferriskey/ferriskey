@@ -1,13 +1,16 @@
 use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect,
+    QuerySelect, TransactionTrait,
 };
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::seawatch::{
-    entities::SecurityEvent, ports::SecurityEventRepository, value_objects::SecurityEventFilter,
+    entities::SecurityEvent,
+    hashing::{GENESIS_PREV_HASH, compute_event_hash},
+    ports::SecurityEventRepository,
+    value_objects::SecurityEventFilter,
 };
 use crate::entity::security_events;
 
@@ -35,6 +38,65 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
             })?;
 
         Ok(())
+    }
+
+    /// Atomically compute and persist the chained event.
+    ///
+    /// The implementation opens a transaction, fetches the current chain head
+    /// (latest event for the realm ordered by `created_at DESC`), computes
+    /// `event_hash = SHA-256(preimage || prev_hash)`, and inserts in the same
+    /// transaction to keep the chain linear even under concurrent writes from
+    /// multiple API workers (Postgres serialises the writes within the txn).
+    async fn store_event_chained(
+        &self,
+        mut event: SecurityEvent,
+    ) -> Result<SecurityEvent, CoreError> {
+        let db = &self.db;
+        let realm_uuid: Uuid = event.realm_id.into();
+
+        let txn = db.begin().await.map_err(|e| {
+            tracing::error!("Failed to begin transaction for chained event: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        // Lock the latest row for this realm so concurrent inserts are serialised.
+        let head = security_events::Entity::find()
+            .filter(security_events::Column::RealmId.eq(realm_uuid))
+            .order_by_desc(security_events::Column::CreatedAt)
+            .lock_exclusive()
+            .one(&txn)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to fetch chain head: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        let prev_hash: [u8; 32] = head
+            .and_then(|m| {
+                m.event_hash
+                    .and_then(|h| hex::decode(&h).ok().and_then(|b| b.try_into().ok()))
+            })
+            .unwrap_or(GENESIS_PREV_HASH);
+
+        let hash = compute_event_hash(&event, &prev_hash);
+        event.prev_hash = Some(prev_hash);
+        event.event_hash = Some(hash);
+
+        let active_model: security_events::ActiveModel = event.clone().into();
+        security_events::Entity::insert(active_model)
+            .exec(&txn)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to store chained security event: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        txn.commit().await.map_err(|e| {
+            tracing::error!("Failed to commit chained event transaction: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(event)
     }
 
     async fn get_events(
@@ -150,5 +212,22 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
 
             Ok(count as i64)
         }
+    }
+
+    async fn get_events_ordered_for_verification(
+        &self,
+        realm_id: RealmId,
+    ) -> Result<Vec<SecurityEvent>, CoreError> {
+        let models = security_events::Entity::find()
+            .filter(security_events::Column::RealmId.eq::<Uuid>(realm_id.into()))
+            .order_by_asc(security_events::Column::CreatedAt)
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to fetch events for chain verification: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(models.into_iter().map(|m| m.into()).collect())
     }
 }

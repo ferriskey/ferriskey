@@ -10,7 +10,9 @@ use crate::domain::{
     realm::ports::RealmRepository,
     seawatch::{
         SecurityEvent, SecurityEventFilter, SecurityEventPolicy, SecurityEventRepository,
-        ports::SecurityEventService, value_objects::FetchEventsInput,
+        hashing::{VerifyResult, verify_chain},
+        ports::SecurityEventService,
+        value_objects::FetchEventsInput,
     },
     user::ports::{UserRepository, UserRoleRepository},
 };
@@ -87,5 +89,30 @@ where
             .await?;
 
         Ok(security_events)
+    }
+
+    async fn verify_realm_chain(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<VerifyResult, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_events(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let events = self
+            .security_event_repository
+            .get_events_ordered_for_verification(realm.id)
+            .await?;
+
+        Ok(verify_chain(&events))
     }
 }
