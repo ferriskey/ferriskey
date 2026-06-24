@@ -12,6 +12,7 @@ use ferriskey_core::domain::authentication::entities::{
     AuthInput, AuthenticateInput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -60,6 +61,13 @@ pub struct AuthRequest {
     pub scope: Option<String>,
     #[serde(default)]
     pub state: Option<String>,
+    /// PKCE code challenge (RFC 7636 §4.3).
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+    /// PKCE code challenge method: `S256` (recommended) or `plain` (RFC 7636 §4.3).
+    /// Defaults to `plain` when omitted per RFC 7636 §4.3.
+    #[serde(default)]
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -100,6 +108,8 @@ pub async fn auth_handler(
             response_type: params.response_type.clone(),
             scope: params.scope.clone(),
             state: params.state.clone(),
+            code_challenge: params.code_challenge.clone(),
+            code_challenge_method: params.code_challenge_method.clone(),
         })
         .await
     {

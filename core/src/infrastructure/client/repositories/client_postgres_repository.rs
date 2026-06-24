@@ -54,6 +54,7 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_enabled: Set(Some(false)),
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
+            require_pkce: Set(Some(false)),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -160,6 +161,11 @@ impl ClientRepository for PostgresClientRepository {
         client.oauth_device_code_grant_enabled = match data.oauth_device_code_grant_enabled {
             Some(enabled) => Set(Some(enabled)),
             None => client.oauth_device_code_grant_enabled,
+        };
+
+        client.require_pkce = match data.require_pkce {
+            Some(v) => Set(Some(v)),
+            None => client.require_pkce,
         };
 
         client.access_token_lifetime_secs = Set(data.access_token_lifetime.map(|v| v as i32));

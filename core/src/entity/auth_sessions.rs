@@ -29,6 +29,8 @@ pub struct Model {
     pub webauthn_challenge: Option<Json>,
     pub webauthn_challenge_issued_at: Option<DateTime>,
     pub compass_flow_id: Option<Uuid>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -49,6 +51,8 @@ pub enum Column {
     WebauthnChallenge,
     WebauthnChallengeIssuedAt,
     CompassFlowId,
+    CodeChallenge,
+    CodeChallengeMethod,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -95,6 +99,8 @@ impl ColumnTrait for Column {
             Self::WebauthnChallenge => ColumnType::JsonBinary.def().null(),
             Self::WebauthnChallengeIssuedAt => ColumnType::DateTime.def().null(),
             Self::CompassFlowId => ColumnType::Uuid.def().null(),
+            Self::CodeChallenge => ColumnType::Text.def().null(),
+            Self::CodeChallengeMethod => ColumnType::String(StringLen::N(10u32)).def().null(),
         }
     }
 }

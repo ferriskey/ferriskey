@@ -272,6 +272,23 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
+            // PKCE errors (RFC 7636) → OAuth2 invalid_request / invalid_grant
+            CoreError::PkceRequired => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "PKCE is required for this client. Send code_challenge (S256) with the authorization request.".into(),
+            },
+            CoreError::InvalidCodeVerifier => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "code_verifier does not match code_challenge".into(),
+            },
+            CoreError::CodeChallengeMissing => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "code_challenge is required".into(),
+            },
+            CoreError::CodeVerifierMissing => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "code_verifier is required when code_challenge was used at authorization".into(),
+            },
         }
     }
 }
