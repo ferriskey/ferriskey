@@ -63,6 +63,7 @@ use crate::{
         },
         client::repositories::{
             client_postgres_repository::PostgresClientRepository,
+            encrypting_client_repository::EncryptingClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
         },
@@ -116,7 +117,7 @@ use crate::{
 };
 
 type RealmRepo = PostgresRealmRepository;
-type ClientRepo = PostgresClientRepository;
+type ClientRepo = EncryptingClientRepository<PostgresClientRepository>;
 type UserRepo = PostgresUserRepository;
 type UserRoleRepo = PostgresUserRoleRepository;
 type SecurityEventRepo = PostgresSecurityEventRepository;

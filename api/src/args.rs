@@ -3,7 +3,7 @@
 use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
+use ferriskey_core::domain::common::{DatabaseConfig, EncryptionConfig, FerriskeyConfig};
 use url::Url;
 
 #[derive(Debug, Clone, ValueEnum, Default)]
@@ -72,6 +72,8 @@ pub struct Args {
     pub webapp_url: String,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
+    #[command(flatten)]
+    pub encryption: EncryptionArgs,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -86,6 +88,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
+            encryption: EncryptionArgs::default(),
             command: None,
         }
     }
@@ -361,6 +364,59 @@ impl Default for ObservabilityArgs {
     }
 }
 
+/// Encryption-at-rest configuration.
+///
+/// When `ENCRYPTION_ENABLED=true`, client secrets are stored as AES-256-GCM
+/// blobs. The master key is resolved by the `EnvSecretsProvider`:
+///
+/// ```
+/// # for a secret named "master_key":
+/// FERRISKEY_SECRET_MASTER_KEY=<64 hex chars>   # 32 raw bytes, hex-encoded
+/// # or via file:
+/// FERRISKEY_SECRET_MASTER_KEY_FILE=/run/secrets/ferriskey-master-key
+/// ```
+///
+/// ## Key lifecycle (summary)
+/// 1. Generate a 32-byte random key and store it in your secrets manager.
+/// 2. Set `ENCRYPTION_ENABLED=true` and configure the key reference.
+/// 3. All new client secrets are encrypted on write.
+/// 4. Existing plaintext rows are read as-is (sentinel: `secret_key_id IS NULL`).
+/// 5. Run the backfill job (future PR) to encrypt legacy rows.
+/// 6. Key rotation: generate a new key, re-encrypt rows, bump `secret_key_id`.
+///
+/// ## Vault / KMS path (future follow-up)
+/// Implement `SecretsProvider` from `ferriskey-security` for your KMS backend
+/// and pass it to `build_field_cipher`. All TLS to the KMS endpoint MUST be
+/// validated; never disable certificate verification.
+#[derive(clap::Args, Debug, Clone)]
+pub struct EncryptionArgs {
+    #[arg(
+        long = "encryption-enabled",
+        env = "ENCRYPTION_ENABLED",
+        name = "ENCRYPTION_ENABLED",
+        default_value_t = false,
+        long_help = "Enable AES-256-GCM encryption of sensitive fields at rest"
+    )]
+    pub enabled: bool,
+    #[arg(
+        long = "encryption-master-key-secret",
+        env = "ENCRYPTION_MASTER_KEY_SECRET",
+        name = "ENCRYPTION_MASTER_KEY_SECRET",
+        default_value = "master_key",
+        long_help = "Name of the secret (resolved via SecretsProvider) holding the 32-byte hex-encoded master key"
+    )]
+    pub master_key_secret_name: String,
+}
+
+impl Default for EncryptionArgs {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            master_key_secret_name: "master_key".to_string(),
+        }
+    }
+}
+
 fn parse_root_path(value: &str) -> Result<String, String> {
     let value = value.trim_end_matches('/');
     if value.is_empty() || value.starts_with('/') {
@@ -380,6 +436,10 @@ impl From<Args> for FerriskeyConfig {
                 port: value.db.port,
                 username: value.db.user,
                 schema: value.db.schema,
+            },
+            encryption: EncryptionConfig {
+                enabled: value.encryption.enabled,
+                master_key_secret_name: value.encryption.master_key_secret_name,
             },
         }
     }

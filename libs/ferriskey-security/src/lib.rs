@@ -1,7 +1,11 @@
 use thiserror::Error;
 
+pub mod cipher;
 pub mod crypto;
 pub mod jwt;
+
+pub use cipher::field_cipher::FieldCipher;
+pub use cipher::secrets::{EnvSecretsProvider, SecretsProvider};
 
 #[derive(Debug, Error)]
 pub enum SecurityError {
@@ -31,4 +35,13 @@ pub enum SecurityError {
 
     #[error("Expired token")]
     ExpiredToken,
+
+    #[error("Encryption error: {0}")]
+    EncryptionError(String),
+
+    #[error("Decryption error: {0}")]
+    DecryptionError(String),
+
+    #[error("Secret not found: {0}")]
+    SecretNotFound(String),
 }
