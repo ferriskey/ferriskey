@@ -272,6 +272,9 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
+            CoreError::PasswordPolicyViolation(msg) => {
+                Self::BadRequest(format!("Password policy violated: {}", msg).into())
+            }
         }
     }
 }
