@@ -1,0 +1,45 @@
+name: CodSpeed Benchmarks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install OpenSSL dev
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Install cargo-codspeed
+        run: cargo install cargo-codspeed --locked
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: codspeed-${{ runner.arch }}-${{ hashFiles('Cargo.*', '**/*.rs') }}
+          restore-keys: |
+            codspeed-${{ runner.arch }}-
+
+      - name: Run CodSpeed benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          run: |
+            cargo codspeed build -m simulation --bench masking --bench permissions
+            cargo codspeed run
+          mode: simulation
