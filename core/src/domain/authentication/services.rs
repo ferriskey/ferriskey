@@ -22,6 +22,7 @@ use crate::domain::authentication::mapper_engine::ContextOrganization;
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
 };
+use crate::domain::trident::mfa_policy;
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -1648,13 +1649,35 @@ This is a server error that should be investigated. Do not forward back this mes
             access_lifetime,
         );
 
-        if !user.required_actions.is_empty() || has_temporary_password {
+        // Resolve MFA enforcement: realm-level or role-level require_mfa.
+        let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let mut effective_required_actions = user.required_actions.clone();
+
+        let mfa_required_action = (!has_temporary_password
+            && mfa_policy::user_requires_mfa(realm_settings.as_ref(), &user_roles))
+        .then(|| {
+            mfa_policy::required_action_for_mfa(has_otp_credentials)
+                .filter(|a| !effective_required_actions.contains(a))
+        })
+        .flatten();
+
+        if let Some(action) = mfa_required_action {
+            effective_required_actions.push(action);
+        }
+
+        if !effective_required_actions.is_empty() || has_temporary_password {
             let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
 
             let required_actions = if has_temporary_password {
                 vec![RequiredAction::UpdatePassword]
             } else {
-                user.required_actions.clone()
+                effective_required_actions
             };
 
             return Ok(AuthenticationResult {
@@ -1665,13 +1688,13 @@ This is a server error that should be investigated. Do not forward back this mes
                 credentials,
             });
         }
-        let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
+
         if has_otp_credentials {
             let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
 
             return Ok(AuthenticationResult {
                 code: None,
-                required_actions: user.required_actions.clone(),
+                required_actions: Vec::new(),
                 user_id: user.id,
                 token: Some(jwt_token.token),
                 credentials,

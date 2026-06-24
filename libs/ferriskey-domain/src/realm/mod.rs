@@ -68,6 +68,7 @@ pub struct RealmSetting {
     pub email_verification_template_id: Option<Uuid>,
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i64,
+    pub require_mfa: bool,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -95,6 +96,7 @@ impl RealmSetting {
             email_verification_template_id: None,
             email_verification_enabled: false,
             email_verification_ttl_hours: 24,
+            require_mfa: false,
             updated_at: now,
         }
     }

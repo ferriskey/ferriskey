@@ -38,6 +38,7 @@ impl RoleRepository for PostgresRoleRepository {
             permissions: Set(bitfield as i64),
             realm_id: Set(payload.realm_id.into()),
             client_id: Set(payload.client_id),
+            require_mfa: Set(false),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
         };
@@ -152,6 +153,10 @@ impl RoleRepository for PostgresRoleRepository {
         }
 
         role.description = Set(payload.description);
+
+        if let Some(require_mfa) = payload.require_mfa {
+            role.require_mfa = Set(require_mfa);
+        }
 
         let updated_role: Role = role
             .update(&self.db)

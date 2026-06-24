@@ -21,6 +21,7 @@ impl From<Model> for Role {
             realm_id: model.realm_id.into(),
             client_id: model.client_id,
             client: None,
+            require_mfa: model.require_mfa,
             created_at: Utc.from_utc_datetime(&model.created_at),
             updated_at: Utc.from_utc_datetime(&model.updated_at),
         }

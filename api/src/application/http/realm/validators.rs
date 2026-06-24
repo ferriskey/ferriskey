@@ -50,6 +50,7 @@ pub struct UpdateRealmSettingValidator {
         message = "email_verification_ttl_hours must be between 1 and 720"
     ))]
     pub email_verification_ttl_hours: Option<i64>,
+    pub require_mfa: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

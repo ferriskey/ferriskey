@@ -781,6 +781,7 @@ where
                 input.email_verification_template_id,
                 input.email_verification_enabled,
                 input.email_verification_ttl_hours,
+                input.require_mfa,
             )
             .await?;
 
@@ -1283,6 +1284,7 @@ mod tests {
                             realm_id: req.realm_id,
                             client_id: req.client_id,
                             client: None,
+                            require_mfa: false,
                             created_at: chrono::Utc::now(),
                             updated_at: chrono::Utc::now(),
                         })
@@ -1382,6 +1384,7 @@ mod tests {
                             realm_id: req.realm_id,
                             client_id: req.client_id,
                             client: None,
+                            require_mfa: false,
                             created_at: chrono::Utc::now(),
                             updated_at: chrono::Utc::now(),
                         })
@@ -1450,6 +1453,7 @@ mod tests {
             realm_id: master_realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
@@ -1506,6 +1510,7 @@ mod tests {
             realm_id: master_realm.id,
             client_id: None,
             client: None,
+            require_mfa: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
