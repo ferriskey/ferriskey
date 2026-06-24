@@ -75,6 +75,7 @@ pub async fn get_openid_configuration(
             "refresh_token".to_string(),
             "client_credentials".to_string(),
             "password".to_string(),
+            "urn:ietf:params:oauth:grant-type:token-exchange".to_string(),
         ],
         token_endpoint_auth_methods_supported: vec![
             "client_secret_basic".to_string(),
