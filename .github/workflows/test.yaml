@@ -1,0 +1,73 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: set up rust toolchain
+        id: rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: cache rust build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: test-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.*', '**/*.rs') }}
+          restore-keys: |
+            test-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
+
+      - name: run unit tests
+        run: cargo test
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ferriskey
+          POSTGRES_PASSWORD: ferriskey
+          POSTGRES_DB: ferriskey
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: set up rust toolchain
+        id: rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: cache rust build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: test-integration-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.*', '**/*.rs') }}
+          restore-keys: |
+            test-integration-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
+
+      - name: run integration tests
+        run: cargo test -p ferriskey-api -- --ignored
