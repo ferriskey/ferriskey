@@ -67,6 +67,8 @@ pub async fn update_realm_setting(
                 email_verification_template_id: payload.email_verification_template_id,
                 email_verification_enabled: payload.email_verification_enabled,
                 email_verification_ttl_hours: payload.email_verification_ttl_hours,
+                seawatch_pii_mode: payload.seawatch_pii_mode,
+                seawatch_pseudo_key: payload.seawatch_pseudo_key,
             },
         )
         .await
