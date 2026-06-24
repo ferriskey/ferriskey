@@ -49,7 +49,7 @@ use crate::domain::{
     jwt::{
         JwtError,
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
-        ports::{AccessTokenRepository, RefreshTokenRepository},
+        ports::{AccessTokenRepository, RefreshTokenRepository, RotateOutcome},
     },
     realm::{entities::RealmId, ports::RealmRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
@@ -652,7 +652,7 @@ where
             .exp
             .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
 
-        let refresh_claims = JwtClaim::new_refresh_token(
+        let mut refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
             claims.iss.clone(),
             claims.aud.clone(),
@@ -660,6 +660,12 @@ where
             claims.scope.clone(),
             input.refresh_token_lifetime,
         );
+
+        // When the caller has already persisted the refresh token row (rotation path),
+        // override the jti so the signed JWT matches the DB record exactly.
+        if let Some(override_jti) = input.refresh_jti_override {
+            refresh_claims.jti = override_jti;
+        }
 
         let refresh_token = Self::encode_token_with_key(
             &refresh_claims,
@@ -718,22 +724,38 @@ where
             .single()
             .ok_or(CoreError::InternalServerError)?;
 
-        tokio::try_join!(
-            self.access_token_repository.create(
-                access_token_hash,
-                Some(claims.jti),
-                claims.sub,
-                input.realm_id,
-                access_token_expires_at,
-                access_token_claims,
-            ),
-            self.refresh_token_repository.create(
-                refresh_claims.jti,
-                input.user_id,
-                Some(refresh_token_expires_at),
+        // When rotating, the refresh token DB row is already committed by `rotate()`.
+        // Skip re-inserting it; only persist the new access token.
+        if input.refresh_jti_override.is_some() {
+            self.access_token_repository
+                .create(
+                    access_token_hash,
+                    Some(claims.jti),
+                    claims.sub,
+                    input.realm_id,
+                    access_token_expires_at,
+                    access_token_claims,
+                )
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+        } else {
+            tokio::try_join!(
+                self.access_token_repository.create(
+                    access_token_hash,
+                    Some(claims.jti),
+                    claims.sub,
+                    input.realm_id,
+                    access_token_expires_at,
+                    access_token_claims,
+                ),
+                self.refresh_token_repository.create(
+                    refresh_claims.jti,
+                    input.user_id,
+                    Some(refresh_token_expires_at),
+                )
             )
-        )
-        .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?;
+        }
 
         Ok((jwt, refresh_token, id_token))
     }
@@ -820,7 +842,7 @@ where
         &self,
         token: String,
         realm_id: RealmId,
-    ) -> Result<JwtClaim, CoreError> {
+    ) -> Result<(JwtClaim, crate::domain::jwt::entities::RefreshToken), CoreError> {
         let claims = self.verify_token(token, realm_id).await?;
 
         let refresh_token = self
@@ -832,17 +854,13 @@ where
                 _ => CoreError::InternalServerError,
             })?;
 
-        if refresh_token.revoked {
-            return Err(CoreError::ExpiredToken);
-        }
-
         if let Some(expires_at) = refresh_token.expires_at
             && expires_at < chrono::Utc::now()
         {
             return Err(CoreError::ExpiredToken);
         }
 
-        Ok(claims)
+        Ok((claims, refresh_token))
     }
 
     /// Resolve the final scope string for a given client and requested scope.
@@ -969,6 +987,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                refresh_jti_override: None,
             })
             .await
             .map_err(|e| {
@@ -1095,6 +1114,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                refresh_jti_override: None,
             })
             .await?;
 
@@ -1195,6 +1215,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                refresh_jti_override: None,
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -1213,10 +1234,10 @@ where
     }
 
     async fn refresh_token(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
-        let refresh_token = params.refresh_token.ok_or(CoreError::InvalidRefreshToken)?;
+        let token_str = params.refresh_token.ok_or(CoreError::InvalidRefreshToken)?;
 
-        let claims = self
-            .verify_refresh_token(refresh_token, params.realm_id)
+        let (claims, stored) = self
+            .verify_refresh_token(token_str, params.realm_id)
             .await?;
 
         if claims.typ != ClaimsTyp::Refresh {
@@ -1226,6 +1247,20 @@ where
         if claims.azp != params.client_id {
             tracing::warn!("invalid client id: {:?}", claims.azp);
             return Err(CoreError::InvalidToken);
+        }
+
+        // Reuse detection: rotated or revoked tokens trigger family revocation.
+        if !stored.status.is_active() {
+            warn!(
+                family_id = %stored.family_id,
+                status = stored.status.as_str(),
+                "refresh token reuse detected — revoking family"
+            );
+            self.refresh_token_repository
+                .revoke_family(stored.family_id)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+            return Err(CoreError::InvalidRefreshToken);
         }
 
         let user = self
@@ -1248,42 +1283,81 @@ where
             .resolve_token_lifetimes(params.realm_id, client.id)
             .await?;
 
-        let (jwt, refresh_token, id_token) = self
-            .create_jwt(GenerateTokenInput {
-                base_url: params.base_url,
-                client_id: params.client_id,
-                client_uuid: client.id,
-                email: user.email.clone().unwrap_or_default(),
-                email_verified: user.email_verified,
-                firstname: user.firstname.clone().unwrap_or_default(),
-                lastname: user.lastname.clone().unwrap_or_default(),
-                realm_id: params.realm_id,
-                realm_name: params.realm_name,
-                user_id: user.id,
-                username: user.username,
-                scope: claims.scope.clone(),
-                access_token_lifetime: lifetimes.access_token,
-                refresh_token_lifetime: lifetimes.refresh_token,
-                id_token_lifetime: lifetimes.id_token,
-            })
-            .await?;
+        let new_refresh_jti = Uuid::new_v4();
+        let new_refresh_expires_at = {
+            let ts = Utc::now().timestamp() + lifetimes.refresh_token;
+            Utc.timestamp_opt(ts, 0)
+                .single()
+                .ok_or(CoreError::InternalServerError)?
+        };
 
-        self.refresh_token_repository
-            .delete(claims.jti)
+        // Atomic conditional rotate: marks old token as 'rotated' and mints successor.
+        let outcome = self
+            .refresh_token_repository
+            .rotate(
+                stored.id,
+                new_refresh_jti,
+                user.id,
+                stored.family_id,
+                Some(new_refresh_expires_at),
+            )
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let id_token_value = id_token.map(|t| t.token);
+        match outcome {
+            RotateOutcome::Conflict => {
+                // A concurrent request already rotated this token — fail safe.
+                warn!(
+                    family_id = %stored.family_id,
+                    "concurrent refresh token rotation detected — revoking family"
+                );
+                self.refresh_token_repository
+                    .revoke_family(stored.family_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+                Err(CoreError::InvalidRefreshToken)
+            }
+            RotateOutcome::Rotated(new_stored) => {
+                // `rotate()` already committed the successor refresh token row.
+                // Pass its jti as an override so `create_jwt` signs a matching JWT
+                // without inserting a duplicate DB row.
+                let (jwt, rotated_refresh_jwt, id_token) = self
+                    .create_jwt(GenerateTokenInput {
+                        base_url: params.base_url,
+                        client_id: params.client_id,
+                        client_uuid: client.id,
+                        email: user.email.clone().unwrap_or_default(),
+                        email_verified: user.email_verified,
+                        firstname: user.firstname.clone().unwrap_or_default(),
+                        lastname: user.lastname.clone().unwrap_or_default(),
+                        realm_id: params.realm_id,
+                        realm_name: params.realm_name,
+                        user_id: user.id,
+                        username: user.username,
+                        scope: claims.scope.clone(),
+                        access_token_lifetime: lifetimes.access_token,
+                        refresh_token_lifetime: lifetimes.refresh_token,
+                        id_token_lifetime: lifetimes.id_token,
+                        refresh_jti_override: Some(new_stored.jti),
+                    })
+                    .await?;
 
-        Ok(JwtToken::new(
-            jwt.token,
-            "Bearer".to_string(),
-            refresh_token.token,
-            Self::expires_in_from(jwt.expires_at),
-            Self::expires_in_from(refresh_token.expires_at),
-            None,
-            id_token_value,
-        ))
+                let id_token_value = id_token.map(|t| t.token);
+                let refresh_expires_in = Self::expires_in_from(
+                    new_stored.expires_at.map(|dt| dt.timestamp()).unwrap_or(0),
+                );
+
+                Ok(JwtToken::new(
+                    jwt.token,
+                    "Bearer".to_string(),
+                    rotated_refresh_jwt.token,
+                    Self::expires_in_from(jwt.expires_at),
+                    refresh_expires_in,
+                    None,
+                    id_token_value,
+                ))
+            }
+        }
     }
 
     async fn authenticate_with_grant_type(
@@ -2534,7 +2608,7 @@ where
             || claims.typ == ClaimsTyp::Refresh
         {
             claims = match self.verify_refresh_token(token, realm.id).await {
-                Ok(c) => c,
+                Ok((c, _stored)) => c,
                 Err(_) => return Ok(inactive),
             };
         }

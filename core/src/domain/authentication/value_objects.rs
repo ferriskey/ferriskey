@@ -143,6 +143,9 @@ pub struct GenerateTokenInput {
     pub access_token_lifetime: i64,
     pub refresh_token_lifetime: i64,
     pub id_token_lifetime: i64,
+    /// When `Some`, use this JTI for the refresh token claims and skip persisting the
+    /// refresh token row (the caller has already committed it via `rotate()`).
+    pub refresh_jti_override: Option<Uuid>,
 }
 
 pub struct GetUserInfoInput {
