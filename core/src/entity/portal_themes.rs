@@ -30,6 +30,8 @@ pub struct Model {
     pub page_magic_link_request: Json,
     pub page_email_verified: Json,
     pub page_totp_setup: Json,
+    pub page_device_verify: Json,
+    pub page_device_verified: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -51,6 +53,8 @@ pub enum Column {
     PageMagicLinkRequest,
     PageEmailVerified,
     PageTotpSetup,
+    PageDeviceVerify,
+    PageDeviceVerified,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -93,6 +97,8 @@ impl ColumnTrait for Column {
             Self::PageMagicLinkRequest => ColumnType::JsonBinary.def(),
             Self::PageEmailVerified => ColumnType::JsonBinary.def(),
             Self::PageTotpSetup => ColumnType::JsonBinary.def(),
+            Self::PageDeviceVerify => ColumnType::JsonBinary.def(),
+            Self::PageDeviceVerified => ColumnType::JsonBinary.def(),
         }
     }
 }

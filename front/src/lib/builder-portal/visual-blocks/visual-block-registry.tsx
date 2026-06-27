@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { KeyRound, LayoutTemplate, Mail } from 'lucide-react'
+import { Ban, KeyRound, LayoutTemplate, Mail } from 'lucide-react'
 import type { BuilderNode, ComponentDefinition } from '../../builder-core'
 import { useBuilderContext } from '../../builder-core'
 import { PortalInput } from '../components/portal-input'
@@ -26,6 +26,7 @@ import {
   resolveInputType,
   textStyle,
   TotpInputField,
+  UserCodeInputField,
   TotpQrCodeBlock,
   TotpSecretBlock,
   FormErrorBannerBlock,
@@ -156,6 +157,8 @@ export function renderVisualBlock(
       return <DividerBlock node={node} isSelected={isSelected} />
     case 'button':
     case 'submit_button':
+    case 'device_approve_button':
+    case 'device_deny_button':
     case 'magic_link_button':
     case 'passkey_button':
       return <ButtonBlock node={node} isSelected={isSelected} />
@@ -169,6 +172,8 @@ export function renderVisualBlock(
       return <InputBlock node={node} isSelected={isSelected} />
     case 'totp_input':
       return <TotpInputBlock node={node} isSelected={isSelected} />
+    case 'user_code_input':
+      return <UserCodeInputBlock node={node} isSelected={isSelected} />
     case 'identity_providers':
       return <IdentityProvidersPreview node={node} isSelected={isSelected} />
     case 'forgot_password_link':
@@ -393,6 +398,8 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
       <Mail size={16} aria-hidden />
     ) : node.type === 'passkey_button' ? (
       <KeyRound size={16} aria-hidden />
+    ) : node.type === 'device_deny_button' ? (
+      <Ban size={16} aria-hidden />
     ) : null
   const style = mergeStyles(
     {
@@ -491,6 +498,36 @@ function TotpInputBlock({ node, isSelected }: { node: BuilderNode; isSelected: b
     >
       {label ? <label style={inputLabelStyle()}>{label}</label> : null}
       <TotpInputField disabled name={resolveInputName(node) ?? 'totp'} length={length} />
+      {helperText ? <span style={inputHelperStyle()}>{helperText}</span> : null}
+    </div>
+  )
+}
+
+/**
+ * Canvas preview of the device user-code input. Mirrors `TotpInputBlock`
+ * but uses the runtime `UserCodeInputField` (8 alpha slots, XXXX-XXXX) so
+ * the admin sees exactly what end-users will. `runtime={false}` keeps it
+ * from reading any `?user_code=` prefill while editing.
+ */
+function UserCodeInputBlock({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
+  const label = (node.props.label as string) ?? ''
+  const helperText = (node.props.helperText as string) ?? ''
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        ...chromeStyle(isSelected),
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        alignItems: 'center',
+        pointerEvents: 'none',
+        ...orderStyle(node),
+      }}
+    >
+      {label ? <label style={inputLabelStyle()}>{label}</label> : null}
+      <UserCodeInputField disabled name={resolveInputName(node) ?? 'user_code'} runtime={false} />
       {helperText ? <span style={inputHelperStyle()}>{helperText}</span> : null}
     </div>
   )

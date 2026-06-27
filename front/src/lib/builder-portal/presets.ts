@@ -301,6 +301,94 @@ function totpSetupCard(): BuilderNode[] {
   ]
 }
 
+function deviceVerifyCard(): BuilderNode[] {
+  return [
+    node('card', {
+      props: { maxWidth: '440px', align: 'center' },
+      children: [
+        node('card-header', {
+          props: { textAlign: 'center', gap: '6px' },
+          children: [
+            node('heading', { content: 'Device verification' }),
+            node('text', {
+              content:
+                'Enter the code displayed on your device to authorise it.',
+            }),
+          ],
+        }),
+        node('card-content', {
+          props: { gap: '16px' },
+          children: [
+            // Surfaces unknown / expired / already-used code errors inline.
+            node('form_error_banner'),
+            node('user_code_input'),
+            node('device_approve_button', { content: 'Approve' }),
+            node('device_deny_button', { content: 'Deny' }),
+          ],
+        }),
+      ],
+    }),
+  ]
+}
+
+// Branded variant of the device-verify screen — logo + title + subtitle on
+// top of the code input and the approve / deny pair. Mirrors the look of the
+// hardcoded `PageDeviceVerify` fallback so an admin who just wants the default
+// design (but themed) can drop this in one click.
+function deviceVerifyBrandedCard(): BuilderNode[] {
+  return [
+    node('card', {
+      props: { maxWidth: '440px', align: 'center' },
+      children: [
+        node('card-header', {
+          props: { textAlign: 'center', gap: '8px' },
+          children: [
+            node('image', { props: { src: '/logo_ferriskey.png', alt: 'Logo', width: '48px', align: 'center' } }),
+            node('heading', { content: 'Device verification' }),
+            node('text', {
+              content:
+                'Enter the code displayed on your device to authorise it.',
+            }),
+          ],
+        }),
+        node('card-content', {
+          props: { gap: '16px' },
+          children: [
+            node('form_error_banner'),
+            node('user_code_input'),
+            node('device_approve_button', { content: 'Approve' }),
+            node('device_deny_button', { content: 'Deny' }),
+          ],
+        }),
+      ],
+    }),
+  ]
+}
+
+// Success screen shown once a device-flow request has been approved. Static
+// confirmation (logo + heading + text) — the user just returns to their
+// device, which signs in automatically. No actions needed.
+function deviceVerifiedCard(): BuilderNode[] {
+  return [
+    node('card', {
+      props: { maxWidth: '440px', align: 'center' },
+      children: [
+        node('card-header', {
+          props: { textAlign: 'center', gap: '8px' },
+          children: [
+            node('image', { props: { src: '/logo_ferriskey.png', alt: 'Logo', width: '48px', align: 'center' } }),
+            node('heading', { content: 'Device approved' }),
+            node('text', {
+              content:
+                'You can now return to the device that requested access. It should sign in automatically within a few seconds.',
+            }),
+          ],
+        }),
+      ],
+    }),
+  ]
+}
+
 function emailVerifiedCard(): BuilderNode[] {
   return [
     node('card', {
@@ -478,6 +566,27 @@ export const PORTAL_PRESETS: PortalPreset[] = [
     description:
       'Card with QR code + secret fallback + code confirmation + device label. For the TOTP setup page.',
     factory: totpSetupCard,
+  },
+  {
+    id: 'device-verify-card',
+    label: 'Device verify card',
+    description:
+      'Card with the device code input + approve / deny buttons. For the Device verify page (RFC 8628).',
+    factory: deviceVerifyCard,
+  },
+  {
+    id: 'device-verify-branded-card',
+    label: 'Device verify card (branded)',
+    description:
+      'Logo + title + subtitle above the device code input and approve / deny buttons. Mirrors the default device screen, themed.',
+    factory: deviceVerifyBrandedCard,
+  },
+  {
+    id: 'device-verified-card',
+    label: 'Device verified card',
+    description:
+      'Success card shown after a device request has been approved. For the Device verified page.',
+    factory: deviceVerifiedCard,
   },
   {
     id: 'passwordless-card',

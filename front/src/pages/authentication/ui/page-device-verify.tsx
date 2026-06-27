@@ -185,7 +185,7 @@ export default function PageDeviceVerify({
   )
 }
 
-function DeviceVerifyShell({ children }: { children: React.ReactNode }) {
+export function DeviceVerifyShell({ children }: { children: React.ReactNode }) {
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
@@ -199,7 +199,7 @@ function DeviceVerifyShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function DeviceVerifyResult({
+export function DeviceVerifyResult({
   status,
   onBackToStart,
 }: {

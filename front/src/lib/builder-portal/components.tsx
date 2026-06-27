@@ -16,9 +16,12 @@ import {
   LayoutTemplate,
   LockKeyhole,
   Mail,
+  Ban,
   Minus,
+  MonitorSmartphone,
   MousePointerClick,
   MoveVertical,
+  ScanLine,
   PanelBottom,
   PanelTop,
   QrCode,
@@ -49,7 +52,10 @@ const ALL_CHILDREN = [
   'password_input',
   'password_confirm_input',
   'totp_input',
+  'user_code_input',
   'submit_button',
+  'device_approve_button',
+  'device_deny_button',
   'magic_link_button',
   'passkey_button',
   'identity_providers',
@@ -355,6 +361,22 @@ export const portalComponents: ComponentDefinition[] = [
     },
     defaultStyles: {},
   },
+  // RFC 8628 device user-code input. Eight letters (charset
+  // BCDFGHJKLMNPQRSTVWXZ) split visually as XXXX-XXXX. Renders the same
+  // segmented control as `totp_input`; submitted as `name="user_code"` and
+  // prefilled from the `?user_code=` query at runtime.
+  {
+    type: 'user_code_input',
+    label: 'Device code input',
+    icon: <ScanLine size={14} />,
+    defaultProps: {
+      label: 'Enter the code shown on your device',
+      placeholder: 'XXXX-XXXX',
+      type: 'text',
+      name: 'user_code',
+    },
+    defaultStyles: {},
+  },
   {
     type: 'submit_button',
     label: 'Submit button',
@@ -364,6 +386,37 @@ export const portalComponents: ComponentDefinition[] = [
       variant: 'primary',
       fullWidth: 'true',
       submit: 'true',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Device-flow approve button — submits the form with action=approve. Same
+  // submit semantics as `submit_button` but page-exclusive to `device_verify`
+  // so the consent screen reads "Approve" rather than a generic "Continue".
+  {
+    type: 'device_approve_button',
+    label: 'Approve button',
+    icon: <MonitorSmartphone size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'primary',
+      fullWidth: 'true',
+      submit: 'true',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  // Device-flow deny button — fires `data-fk-action="device-deny"`, handled by
+  // the portal wrapper (same declarative-action mechanism as the magic-link /
+  // passkey buttons). Outline by default since it's the non-primary choice.
+  {
+    type: 'device_deny_button',
+    label: 'Deny button',
+    icon: <Ban size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'outline',
+      fullWidth: 'true',
       align: 'center',
     },
     defaultStyles: {},
@@ -508,6 +561,9 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'totp_input',
   'submit_button',
   'identity_providers',
+  'user_code_input',
+  'device_approve_button',
+  'device_deny_button',
 ])
 
 /**
@@ -656,6 +712,46 @@ export const HIDDEN_BLOCKS_BY_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
     'username_input',
     'identity_providers',
   ]),
+  device_verify: new Set([
+    // Device-code consent screen: only the user-code input plus approve /
+    // deny buttons. Every other auth primitive (passwords, OTP, social,
+    // alt-auth, nav links) is irrelevant here — the user is already
+    // authenticated and is only authorising a separate device.
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'back_to_login_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+    // The generic submit button is replaced by the dedicated approve button.
+    'submit_button',
+  ]),
+  device_verified: new Set([
+    // Pure confirmation screen ("your device is approved") — heading + text
+    // (+ optional logo). No form fields, no auth alternatives, no actions:
+    // the user just returns to their device, which signs in automatically.
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'back_to_login_link',
+    'submit_button',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+  ]),
 }
 
 /**
@@ -670,6 +766,9 @@ export const HIDDEN_BLOCKS_BY_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
 export const RESTRICTED_TO_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
   totp_qr_code: new Set(['totp_setup']),
   totp_secret: new Set(['totp_setup']),
+  user_code_input: new Set(['device_verify']),
+  device_approve_button: new Set(['device_verify']),
+  device_deny_button: new Set(['device_verify']),
 }
 
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
@@ -677,6 +776,8 @@ const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   text: 'Sign in to your account.',
   button: 'Continue',
   submit_button: 'Continue',
+  device_approve_button: 'Approve',
+  device_deny_button: 'Deny',
   magic_link_button: 'Sign in with a magic link',
   passkey_button: 'Sign in with a passkey',
   forgot_password_link: 'Forgot password?',

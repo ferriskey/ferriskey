@@ -37,6 +37,8 @@ const PAGE_TYPES: { id: PageType; label: string }[] = [
   { id: 'verify_email', label: 'Verify email' },
   { id: 'email_verified', label: 'Email verified' },
   { id: 'totp_setup', label: 'TOTP setup' },
+  { id: 'device_verify', label: 'Device verify' },
+  { id: 'device_verified', label: 'Device verified' },
 ]
 
 interface Props {
