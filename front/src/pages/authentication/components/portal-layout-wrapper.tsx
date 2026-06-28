@@ -15,6 +15,10 @@ import { mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/them
 import type { Schemas } from '@/api/api.client'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
+import {
+  DeviceVerifyResult,
+  DeviceVerifyShell,
+} from '../ui/page-device-verify'
 
 function parseTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) {
@@ -61,6 +65,16 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   const { data: activeData, isLoading: isThemeLoading } = useGetActivePortalTheme({
     realm,
     pageType,
+  })
+  // Device-verify only: the approved-state success screen is a separate
+  // themeable page (`device_verified`). Fetch its tree alongside so we can
+  // swap the hardcoded result for the admin's custom design once the user
+  // approves. Enabled only on the device-verify page to avoid an extra call
+  // everywhere else.
+  const { data: verifiedData } = useGetActivePortalTheme({
+    realm,
+    pageType: 'device_verified',
+    enabled: pageType === 'device_verify',
   })
   const layoutId = activeData?.layout_id
   const { data: layoutData, isLoading: isLayoutLoading } = useGetPublicPortalLayout({
@@ -153,9 +167,10 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // block reads this through the render options and shows or hides
   // itself accordingly.
   const [formError, setFormError] = useState<string | null>(null)
-  const { onSubmit, isSubmitting } = usePortalPageSubmit(pageType, {
-    onFormError: setFormError,
-  })
+  const { onSubmit, isSubmitting, onDeviceDeny, deviceResult, onDeviceReset } =
+    usePortalPageSubmit(pageType, {
+      onFormError: setFormError,
+    })
 
   // Passkey + magic-link buttons rendered inside the custom portal tree
   // expose themselves via `data-fk-action` (see renderer.tsx). The React
@@ -187,6 +202,16 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         return
       }
 
+      if (action === 'device-deny') {
+        // Deny lives outside the form's submit path (that's reserved for
+        // approve). Read the typed user_code from the surrounding form and
+        // hand it to the device-verify hook with action=deny.
+        event.preventDefault()
+        const form = trigger.closest('form')
+        if (form && onDeviceDeny) onDeviceDeny(new FormData(form))
+        return
+      }
+
       if (action === 'magic-link') {
         event.preventDefault()
         // Carry over whatever the user already typed into the page's
@@ -201,7 +226,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         navigate(`/realms/${realm}/authentication/magic-link-request${query}`)
       }
     },
-    [navigate, onPasskeyLogin, realm],
+    [navigate, onDeviceDeny, onPasskeyLogin, realm],
   )
 
   if (
@@ -277,6 +302,55 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // The layout is only renderable when it has a `page-content` slot.
   // Without one, applying it would hide the page entirely.
   const layoutIsValid = layoutTree.length > 0 && layoutHasPageContent(layoutTree)
+
+  // Device-verify terminal state: once the user has approved / denied, swap
+  // the code-entry tree for the result screen. The approved state renders the
+  // admin's custom `device_verified` tree when they've authored one — routed
+  // through the SAME layout slot as a normal page so it sits exactly where the
+  // code-entry screen does (centering comes from the active layout). Denied /
+  // no custom tree falls back to the hardcoded result, which centers itself
+  // via its own full-height shell.
+  if (pageType === 'device_verify' && deviceResult) {
+    const verifiedTree = parseTree(verifiedData?.page_tree)
+    if (deviceResult === 'approved' && verifiedTree.length > 0) {
+      const verifiedContent: ReactNode = treeToReactNode(verifiedTree, {
+        runtime: true,
+        identityProviders,
+      })
+      const verifiedStyleCss = [
+        generateBreakpointCss(verifiedTree),
+        generateBreakpointCss(layoutTree),
+      ]
+        .filter(Boolean)
+        .join('\n')
+      const verifiedStyle = verifiedStyleCss ? (
+        <style dangerouslySetInnerHTML={{ __html: verifiedStyleCss }} />
+      ) : null
+      return (
+        <div style={cssVars} onClick={handlePortalActionClick}>
+          {verifiedStyle}
+          {buttonInteractionStyle}
+          {layoutIsValid
+            ? treeToReactNode(layoutTree, {
+                runtime: true,
+                pageContent: verifiedContent,
+                identityProviders,
+              })
+            : verifiedContent}
+        </div>
+      )
+    }
+    return (
+      <div style={cssVars}>
+        <DeviceVerifyShell>
+          <DeviceVerifyResult
+            status={deviceResult}
+            onBackToStart={() => onDeviceReset?.()}
+          />
+        </DeviceVerifyShell>
+      </div>
+    )
+  }
 
   if (!pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
     return (

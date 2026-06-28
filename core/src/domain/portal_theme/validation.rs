@@ -48,6 +48,20 @@ pub const REQUIRED_BLOCKS: &[(PortalPageType, &[&str])] = &[
         PortalPageType::TotpSetup,
         &["totp_qr_code", "totp_input", "submit_button"],
     ),
+    // RFC 8628 device verification. The user must be able to enter the
+    // `user_code` and act on it — without the code input plus both the
+    // approve and deny buttons the consent screen is un-completable.
+    (
+        PortalPageType::DeviceVerify,
+        &[
+            "user_code_input",
+            "device_approve_button",
+            "device_deny_button",
+        ],
+    ),
+    // Device approval success screen. Like `EmailVerified`, a static
+    // heading + text composition is a valid page, so no blocks are required.
+    (PortalPageType::DeviceVerified, &[]),
 ];
 
 pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str] {

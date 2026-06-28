@@ -758,12 +758,63 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         </div>
       )
 
+    case 'device_approve_button':
+    case 'device_deny_button':
+      // Hard-wired action: approve submits the form (action=approve), deny
+      // fires the `device-deny` action handled by the portal wrapper. Only
+      // visual style is editable here — same pattern as submit_button.
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            {node.type === 'device_approve_button'
+              ? 'Approve action is locked — this button submits the device authorisation when clicked.'
+              : 'Deny action is locked — this button rejects the device authorisation when clicked.'}
+          </div>
+          <ConfigSection title='Style'>
+            <SelectField
+              label='Variant'
+              value={node.props.variant as string}
+              options={[
+                { label: 'Primary', value: 'primary' },
+                { label: 'Secondary', value: 'secondary' },
+                { label: 'Outline', value: 'outline' },
+              ]}
+              onChange={(v) => updateProp('variant', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Alignment'
+              value={(node.props.align as string) || 'center'}
+              options={[
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
+              ]}
+              onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Width'
+              value={node.props.fullWidth as string}
+              options={[
+                { label: 'Full', value: 'true' },
+                { label: 'Auto', value: 'false' },
+              ]}
+              onChange={(v) => updateProp('fullWidth', v)}
+              allowEmpty={false}
+            />
+          </ConfigSection>
+        </div>
+      )
+
     case 'username_input':
     case 'first_name_input':
     case 'last_name_input':
     case 'email_input':
     case 'password_input':
     case 'password_confirm_input':
+    case 'user_code_input':
     case 'totp_input': {
       const LOCKED_HINTS: Record<string, string> = {
         email_input: 'Email input — the HTML type and field name are locked to email.',
@@ -772,11 +823,14 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
           'Confirm-password input — submit handlers compare it against the password field; field name is locked to password_confirm.',
         totp_input:
           'TOTP input — rendered as a segmented digit-by-digit OTP field. The field name is locked to totp; the slot count is configurable below.',
+        user_code_input:
+          'Device code input — a segmented 8-slot field (XXXX-XXXX) restricted to the RFC 8628 charset. The field name is locked to user_code and it is prefilled from the device link.',
         username_input: 'Username input — the field name is locked to username.',
         first_name_input: 'First name input — the field name is locked to first_name.',
         last_name_input: 'Last name input — the field name is locked to last_name.',
       }
       const lockedHint = LOCKED_HINTS[node.type] ?? ''
+      const isSegmented = node.type === 'totp_input' || node.type === 'user_code_input'
       return (
         <div className='flex flex-col'>
           {identity}
@@ -785,7 +839,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
           </div>
           <ConfigSection title='Field'>
             <TextField label='Label' value={node.props.label as string} onChange={(v) => updateProp('label', v)} />
-            {node.type !== 'totp_input' && (
+            {!isSegmented && (
               <TextField
                 label='Placeholder'
                 value={node.props.placeholder as string}

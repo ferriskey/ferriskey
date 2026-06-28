@@ -327,6 +327,8 @@ export namespace Schemas {
     permissions: Array<string>
   }
   export type PortalThemePages = Partial<{
+    deviceVerified: unknown
+    deviceVerify: unknown
     emailVerified: unknown
     forgotPassword: unknown
     login: unknown
@@ -704,6 +706,8 @@ export namespace Schemas {
     | 'verify_email'
     | 'email_verified'
     | 'totp_setup'
+    | 'device_verify'
+    | 'device_verified'
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> }
   export type PageRequirementsResponse = { data: Array<PageRequirement> }
   export type PasskeyAuthenticateResponse = { login_url: string; status: string }
@@ -2630,6 +2634,8 @@ export namespace Endpoints {
           | 'verify_email'
           | 'email_verified'
           | 'totp_setup'
+          | 'device_verify'
+          | 'device_verified'
       }
       path: { realm_name: string }
     }
@@ -2793,6 +2799,8 @@ export namespace Endpoints {
           | 'verify_email'
           | 'email_verified'
           | 'totp_setup'
+          | 'device_verify'
+          | 'device_verified'
       }
 
       body: Schemas.UpdateThemePageValidator

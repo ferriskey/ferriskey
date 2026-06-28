@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
@@ -9,9 +9,13 @@ import {
 } from '@/api/auth.api'
 import { useForgotPassword, useResetPassword } from '@/api/password-reset.api'
 import { useSendMagicLink, useSetupOtp, useVerifyOtp } from '@/api/trident.api'
+import { useDeviceVerify } from '@/api/device.api'
 import type { Schemas } from '@/api/api.client'
 import { useAuth } from '@/hooks/use-auth'
 import { useOAuthParams } from './use-oauth-params'
+import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
+
+export type DeviceVerifyResult = 'approved' | 'denied' | null
 
 /**
  * Returns an `onSubmit(FormData)` handler tailored to the portal page type.
@@ -38,6 +42,21 @@ export function usePortalPageSubmit(
    * something" hint instead of staring at a frozen form.
    */
   isSubmitting: boolean
+  /**
+   * Device-verify only: the deny action. Fired by the wrapper when a
+   * `device_deny_button` (`data-fk-action="device-deny"`) is clicked —
+   * reads the typed `user_code` from the form and POSTs with action=deny.
+   */
+  onDeviceDeny?: (data: FormData) => void
+  /**
+   * Device-verify only: `'approved'` / `'denied'` once the backend has
+   * recorded the decision. The wrapper swaps the custom tree for the
+   * hardcoded result screen when this is set; `null` while the form is
+   * still being filled in.
+   */
+  deviceResult?: DeviceVerifyResult
+  /** Device-verify only: clears the result so the user can verify another code. */
+  onDeviceReset?: () => void
 } {
   const onFormError = options?.onFormError
   const { realm_name, getAuthParamsFromUrl } = useOAuthParams()
@@ -305,6 +324,84 @@ export function usePortalPageSubmit(
     [realm_name, resendVerification],
   )
 
+  // Device verify (RFC 8628): approve is the form submit, deny is the
+  // `data-fk-action="device-deny"` button routed back here by the wrapper.
+  // Both read the typed `user_code` (the segmented input holds 8 flat chars,
+  // so we re-insert the dash to match the stored XXXX-XXXX code) and POST to
+  // the verify endpoint. A 401 means "not signed in yet" — stash the return
+  // URL and bounce to login, exactly like the hardcoded device feature.
+  const { mutateAsync: verifyDevice, isPending: isVerifyingDevice } = useDeviceVerify()
+  const [deviceResult, setDeviceResult] = useState<DeviceVerifyResult>(null)
+  const deviceRedirectingToLogin = useRef(false)
+  const runDeviceVerify = useCallback(
+    async (data: FormData, action: 'approve' | 'deny') => {
+      const raw = String(data.get('user_code') ?? '')
+        .trim()
+        .toUpperCase()
+        .replace('-', '')
+      if (raw.length !== 8) {
+        onFormError?.('Enter the 8-character code shown on your device.')
+        return
+      }
+      const userCode = `${raw.slice(0, 4)}-${raw.slice(4)}`
+      onFormError?.(null)
+      try {
+        const response = await verifyDevice({
+          realm: realm_name ?? 'master',
+          data: { user_code: userCode, action },
+        })
+        setDeviceResult(response.status === 'denied' ? 'denied' : 'approved')
+      } catch (err) {
+        const error = err as {
+          status?: number
+          data?: { error_description?: string; redirect_uri?: string }
+          message?: string
+        }
+        if (error.status === 401) {
+          if (deviceRedirectingToLogin.current) return
+          deviceRedirectingToLogin.current = true
+          try {
+            sessionStorage.setItem(
+              POST_LOGIN_RETURN_KEY,
+              error.data?.redirect_uri ??
+                `${window.location.pathname}${window.location.search}`,
+            )
+          } catch {
+            // sessionStorage disabled — the user lands on /overview after
+            // login instead of back here. Acceptable degradation.
+          }
+          navigate(`/realms/${realm_name ?? 'master'}/authentication/login`, {
+            replace: true,
+          })
+          return
+        }
+        const description =
+          error.data?.error_description ??
+          error.message ??
+          'Unable to verify this code. Please try again.'
+        onFormError?.(description)
+      }
+    },
+    [navigate, onFormError, realm_name, verifyDevice],
+  )
+  const deviceApproveSubmit = useCallback(
+    (data: FormData) => {
+      void runDeviceVerify(data, 'approve')
+    },
+    [runDeviceVerify],
+  )
+  const deviceDenySubmit = useCallback(
+    (data: FormData) => {
+      void runDeviceVerify(data, 'deny')
+    },
+    [runDeviceVerify],
+  )
+  const deviceReset = useCallback(() => {
+    deviceRedirectingToLogin.current = false
+    setDeviceResult(null)
+    onFormError?.(null)
+  }, [onFormError])
+
   // TOTP setup: submit reads the 6-digit code + optional device label from
   // the form, pulls the `secret` from the cached `useSetupOtp` query
   // (already prefetched by `PortalLayoutWrapper`), and posts to verify.
@@ -425,6 +522,15 @@ export function usePortalPageSubmit(
   }
   if (pageType === 'reset_password') {
     return { onSubmit: resetPasswordSubmit, isSubmitting: isResetPasswordPending }
+  }
+  if (pageType === 'device_verify') {
+    return {
+      onSubmit: deviceApproveSubmit,
+      onDeviceDeny: deviceDenySubmit,
+      deviceResult,
+      onDeviceReset: deviceReset,
+      isSubmitting: isVerifyingDevice,
+    }
   }
 
   return { isSubmitting: false }

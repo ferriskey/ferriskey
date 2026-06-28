@@ -118,9 +118,19 @@ export default function PageAuthentication() {
       {/* Routes without a portal page type render bare. */}
       <Route path='/callback' element={<PageCallbackFeature />} />
       <Route path='/required-action' element={<PageRequiredActionFeature />} />
-      {/* RFC 8628 §3.3 device verification page. Rendered bare — no
-          PortalPageType variant yet, theme builder support is a follow-up. */}
-      <Route path='/device' element={<PageDeviceVerifyFeature />} />
+      {/* RFC 8628 §3.3 device verification page. Wrapped in <Portal> so realm
+          admins can customise the code-entry screen via the theme builder
+          (`device_verify` page type); `PageDeviceVerifyFeature` is the React
+          fallback when no valid custom tree exists. The post-decision
+          approved / denied result screen stays hardcoded either way. */}
+      <Route
+        path='/device'
+        element={
+          <Portal pageType='device_verify'>
+            <PageDeviceVerifyFeature />
+          </Portal>
+        }
+      />
       {/* "Check your inbox" screen reached right after registration — uses
           the `verify_email` portal pageType so the admin's customised
           design (heading, layout, link styling, theme tokens) applies

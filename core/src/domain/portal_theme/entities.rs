@@ -43,10 +43,22 @@ pub enum PortalPageType {
     /// device label to confirm the binding. Distinct from `Totp` (which
     /// only collects the code on subsequent logins).
     TotpSetup,
+    /// RFC 8628 device-flow consent screen. The user enters the `user_code`
+    /// displayed on the device that initiated the flow, then approves or
+    /// denies the authorisation. Requires a `user_code_input` plus the
+    /// `device_approve_button` / `device_deny_button` pair — the post-decision
+    /// "denied" result screen stays a hardcoded React fallback; the
+    /// "approved" success screen is `DeviceVerified`.
+    DeviceVerify,
+    /// Success screen rendered once a device-flow request has been approved
+    /// ("you can return to your device, it will sign in automatically").
+    /// Like `EmailVerified`, a fully-static heading + text composition is a
+    /// valid page — no required blocks.
+    DeviceVerified,
 }
 
 impl PortalPageType {
-    pub const ALL: [PortalPageType; 10] = [
+    pub const ALL: [PortalPageType; 12] = [
         PortalPageType::Login,
         PortalPageType::Register,
         PortalPageType::Totp,
@@ -57,6 +69,8 @@ impl PortalPageType {
         PortalPageType::VerifyEmail,
         PortalPageType::EmailVerified,
         PortalPageType::TotpSetup,
+        PortalPageType::DeviceVerify,
+        PortalPageType::DeviceVerified,
     ];
 }
 
@@ -73,6 +87,8 @@ pub struct PortalThemePages {
     pub verify_email: serde_json::Value,
     pub email_verified: serde_json::Value,
     pub totp_setup: serde_json::Value,
+    pub device_verify: serde_json::Value,
+    pub device_verified: serde_json::Value,
 }
 
 impl PortalThemePages {
@@ -88,6 +104,8 @@ impl PortalThemePages {
             PortalPageType::VerifyEmail => &self.verify_email,
             PortalPageType::EmailVerified => &self.email_verified,
             PortalPageType::TotpSetup => &self.totp_setup,
+            PortalPageType::DeviceVerify => &self.device_verify,
+            PortalPageType::DeviceVerified => &self.device_verified,
         }
     }
 }

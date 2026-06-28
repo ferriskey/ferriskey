@@ -34,6 +34,8 @@ const PAGE_TYPES = new Set<PageType>([
   'verify_email',
   'email_verified',
   'totp_setup',
+  'device_verify',
+  'device_verified',
 ])
 
 const SECTIONS = new Set<PortalThemeBuilderSection>(['theme', 'layout'])

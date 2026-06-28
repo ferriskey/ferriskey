@@ -45,6 +45,8 @@ fn model_to_domain(model: Model) -> Result<PortalTheme, CoreError> {
         verify_email: model.page_verify_email,
         email_verified: model.page_email_verified,
         totp_setup: model.page_totp_setup,
+        device_verify: model.page_device_verify,
+        device_verified: model.page_device_verified,
     };
 
     Ok(PortalTheme {
@@ -71,6 +73,8 @@ fn page_column(page_type: PortalPageType) -> Column {
         PortalPageType::VerifyEmail => Column::PageVerifyEmail,
         PortalPageType::EmailVerified => Column::PageEmailVerified,
         PortalPageType::TotpSetup => Column::PageTotpSetup,
+        PortalPageType::DeviceVerify => Column::PageDeviceVerify,
+        PortalPageType::DeviceVerified => Column::PageDeviceVerified,
     }
 }
 

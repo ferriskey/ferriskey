@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import { OTPInput, type SlotProps } from 'input-otp'
 import {
   AlertCircle,
+  Ban,
   Copy,
   KeyRound,
   Loader2,
@@ -248,6 +249,63 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
         </a>
       )
 
+    // Device-flow approve: same submit semantics as `submit_button` (drives
+    // the host <form>'s onSubmit, which the device_verify branch maps to the
+    // approve action). Kept as its own block so the consent screen reads
+    // "Approve" and is page-exclusive to device_verify.
+    case 'device_approve_button':
+      return options.runtime ? (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='submit'
+          data-fk-portal-btn=''
+          data-fk-busy={options.isSubmitting ? 'true' : 'false'}
+          disabled={options.isSubmitting}
+          style={{ ...buttonStyle(node), gap: 8, border: 'none', cursor: 'pointer' }}
+        >
+          {options.isSubmitting && (
+            <Loader2 size={16} aria-hidden data-fk-portal-spinner='' />
+          )}
+          <span>{node.content ?? 'Approve'}</span>
+        </button>
+      ) : (
+        <a
+          key={node.id}
+          {...idAttr}
+          href='#'
+          data-fk-portal-btn=''
+          style={buttonStyle(node)}
+        >
+          {node.content ?? 'Approve'}
+        </a>
+      )
+
+    // Device-flow deny: declarative action button (same mechanism as the
+    // magic-link / passkey buttons). The portal wrapper listens for
+    // `data-fk-action="device-deny"` clicks and fires the deny mutation with
+    // the code already typed into the form. `type="button"` so it never
+    // submits the surrounding <form> (which would trigger an approve).
+    case 'device_deny_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='device-deny'
+          data-fk-portal-btn=''
+          style={{
+            ...buttonStyle(node),
+            gap: 8,
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          <Ban size={16} aria-hidden />
+          <span>{node.content ?? 'Deny'}</span>
+        </button>
+      )
+
     // Magic link / passkey: rendered as alternative auth actions. The host
     // portal page wires the click behavior by selecting on the
     // `data-fk-action` attribute (so the renderer stays declarative and the
@@ -437,6 +495,38 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
               const n = Number.parseInt(raw, 10)
               return Number.isFinite(n) && n > 0 && n <= 12 ? n : 6
             })()}
+          />
+          {node.props.helperText ? (
+            <span style={inputHelperStyle()}>{node.props.helperText as string}</span>
+          ) : null}
+        </div>
+      )
+
+    // RFC 8628 device user-code: an 8-slot segmented input (XXXX-XXXX),
+    // alpha charset, prefilled from the `?user_code=` query at runtime.
+    // Holds its value through a hidden `name="user_code"` input so the
+    // surrounding <form> picks it up; the device_verify submit branch
+    // re-inserts the dash before calling the verify endpoint.
+    case 'user_code_input':
+      return (
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            alignItems: 'center',
+            ...orderStyle(node),
+          }}
+        >
+          {node.props.label ? (
+            <label style={inputLabelStyle()}>{node.props.label as string}</label>
+          ) : null}
+          <UserCodeInputField
+            disabled={!options.runtime}
+            name={resolveInputName(node) ?? 'user_code'}
+            runtime={!!options.runtime}
           />
           {node.props.helperText ? (
             <span style={inputHelperStyle()}>{node.props.helperText as string}</span>
@@ -1125,6 +1215,85 @@ export function TotpInputField({
               ))}
             </div>
           )}
+        </>
+      )}
+    />
+  )
+}
+
+// RFC 8628 user-code charset (no vowels / easily-confused chars). Kept in
+// sync with the backend's `UserCode` generator and the device-verify schema.
+const USER_CODE_CHARSET = 'BCDFGHJKLMNPQRSTVWXZ'
+const USER_CODE_LENGTH = 8
+
+/**
+ * Read and normalise the `?user_code=` query param so the runtime
+ * `user_code_input` lands pre-filled (mirrors `normalisePrefill` in the
+ * hardcoded device-verify feature). Returns the dash-less, upper-cased
+ * 8-char value, or '' when absent / malformed. The hidden `<input>` keeps
+ * the concatenated value; the submit handler re-inserts the dash.
+ */
+function readUserCodePrefill(): string {
+  if (typeof window === 'undefined') return ''
+  const raw = new URLSearchParams(window.location.search).get('user_code')
+  if (!raw) return ''
+  const cleaned = raw.trim().toUpperCase().replace('-', '')
+  if (cleaned.length !== USER_CODE_LENGTH) return ''
+  for (const ch of cleaned) {
+    if (!USER_CODE_CHARSET.includes(ch)) return ''
+  }
+  return cleaned
+}
+
+/**
+ * Segmented device user-code input — same visual treatment as
+ * `TotpInputField` (two groups of four slots with a dash separator) but
+ * restricted to the RFC 8628 alpha charset and uppercased as the user
+ * types. Prefilled from `?user_code=` at runtime.
+ */
+export function UserCodeInputField({
+  disabled,
+  name,
+  runtime,
+}: {
+  disabled: boolean
+  name: string
+  runtime: boolean
+}) {
+  const [value, setValue] = useState(() => (runtime ? readUserCodePrefill() : ''))
+  const half = USER_CODE_LENGTH / 2
+  return (
+    <OTPInput
+      maxLength={USER_CODE_LENGTH}
+      value={value}
+      onChange={(next) =>
+        setValue(
+          next
+            .toUpperCase()
+            .split('')
+            .filter((ch) => USER_CODE_CHARSET.includes(ch))
+            .join(''),
+        )
+      }
+      disabled={disabled}
+      name={name}
+      autoFocus={!disabled}
+      inputMode='text'
+      autoComplete='one-time-code'
+      containerClassName='flex items-center justify-center gap-2'
+      render={({ slots }) => (
+        <>
+          <div className='flex items-center gap-1.5'>
+            {slots.slice(0, half).map((slot, i) => (
+              <TotpSlot key={i} {...slot} />
+            ))}
+          </div>
+          <TotpSlotSeparator />
+          <div className='flex items-center gap-1.5'>
+            {slots.slice(half).map((slot, i) => (
+              <TotpSlot key={half + i} {...slot} />
+            ))}
+          </div>
         </>
       )}
     />

@@ -109,6 +109,9 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   password_input: 'Password field',
   totp_input: 'OTP code field',
   submit_button: 'Submit button',
+  user_code_input: 'Device code field',
+  device_approve_button: 'Approve button',
+  device_deny_button: 'Deny button',
 }
 
 function labelForBlockType(type: string): string {
@@ -126,6 +129,8 @@ const PAGE_TYPE_LABELS: Partial<Record<Schemas.PortalPageType, string>> = {
   verify_email: 'verify email',
   email_verified: 'email verified',
   totp_setup: 'TOTP setup',
+  device_verify: 'device verification',
+  device_verified: 'device verified',
 }
 
 export function labelForPageType(pageType: Schemas.PortalPageType): string {
@@ -289,13 +294,14 @@ export const useDeletePortalTheme = () => {
 export const useGetActivePortalTheme = ({
   realm = 'master',
   pageType,
-}: BaseQuery & { pageType: Schemas.PortalPageType }) => {
+  enabled = true,
+}: BaseQuery & { pageType: Schemas.PortalPageType; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/portal/active', {
       path: { realm_name: realm },
       query: { page_type: pageType },
     }).queryOptions,
-    enabled: !!realm && !!pageType,
+    enabled: enabled && !!realm && !!pageType,
   })
 }
 
