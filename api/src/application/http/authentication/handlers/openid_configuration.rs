@@ -19,6 +19,9 @@ pub struct GetOpenIdConfigurationResponse {
     pub userinfo_endpoint: String,
     pub jwks_uri: String,
     pub grant_types_supported: Vec<String>,
+    pub response_types_supported: Vec<String>,
+    pub subject_types_supported: Vec<String>,
+    pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
 }
 
@@ -76,6 +79,18 @@ pub async fn get_openid_configuration(
             "client_credentials".to_string(),
             "password".to_string(),
         ],
+        response_types_supported: vec![
+            "code".to_string(),
+            "none".to_string(),
+            "id_token".to_string(),
+            "token".to_string(),
+            "id_token token".to_string(),
+            "code id_token".to_string(),
+            "code token".to_string(),
+            "code id_token token".to_string(),
+        ],
+        subject_types_supported: vec!["public".to_string()],
+        id_token_signing_alg_values_supported: vec!["RS256".to_string()],
         token_endpoint_auth_methods_supported: vec![
             "client_secret_basic".to_string(),
             "client_secret_post".to_string(),
