@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BasicSpinner } from '@/components/ui/spinner'
 import {
@@ -12,9 +12,9 @@ import {
 import { useGetPortalLayouts } from '@/api/portal-layouts.api'
 import type { RouterParams } from '@/routes/router'
 import {
-  PORTAL_THEMES_URL,
-  PORTAL_THEME_BUILDER_PAGE_URL,
-  PORTAL_THEME_BUILDER_SECTION_URL,
+  themeBuilderPageUrl,
+  themeBuilderSectionUrl,
+  themesListUrl,
   type PortalThemeBuilderSection,
 } from '@/routes/sub-router/portal-theme.router'
 import { PortalThemeProvider } from '@/pages/portal-theme/context/portal-theme-context'
@@ -62,15 +62,16 @@ export default function PageThemeBuilderFeature() {
     RouterParams & { theme_id: string; section?: string; page_type?: string }
   >()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const realm = realm_name ?? 'master'
   const themeId = theme_id ?? ''
   const activeTab = resolveTab(section, page_type)
 
   const handleTabChange = (tab: BuilderTab) => {
     if (tab.kind === 'page') {
-      navigate(PORTAL_THEME_BUILDER_PAGE_URL(realm, themeId, tab.pageType))
+      navigate(themeBuilderPageUrl(pathname, realm, themeId, tab.pageType))
     } else {
-      navigate(PORTAL_THEME_BUILDER_SECTION_URL(realm, themeId, tab.section))
+      navigate(themeBuilderSectionUrl(pathname, realm, themeId, tab.section))
     }
   }
 
@@ -91,7 +92,7 @@ export default function PageThemeBuilderFeature() {
 
   const theme = themeData.data
 
-  const handleBack = () => navigate(PORTAL_THEMES_URL(realm))
+  const handleBack = () => navigate(themesListUrl(pathname, realm))
 
   // The save button fires metadata + N pages in parallel. We only want one
   // toast at the end: success if every call passed, error otherwise — so a
@@ -164,6 +165,10 @@ export default function PageThemeBuilderFeature() {
         onTabChange={handleTabChange}
         onSaveTheme={handleSaveTheme}
         onActivate={handleActivate}
+        // The console renders the builder inside ProductLayout's bounded,
+        // scrollable <main>, so it fills the parent; the admin portal has no
+        // such ancestor and falls back to the viewport-height calc.
+        fillParent={pathname.includes('/console/')}
       />
     </PortalThemeProvider>
   )

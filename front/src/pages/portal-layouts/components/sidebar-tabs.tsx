@@ -18,7 +18,7 @@ interface Props {
  */
 export function SidebarTabs({ current, onChange }: Props) {
   return (
-    <div className='flex items-center gap-1 border-b border-border bg-muted/30 p-1'>
+    <div className='flex items-center gap-1 overflow-x-auto scrollbar-none border-b border-border bg-muted/30 p-1'>
       <TabButton
         active={current === 'components'}
         onClick={() => onChange('components')}
@@ -60,7 +60,7 @@ function TabButton({
         active
           ? 'bg-background text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground'
-      }`}
+      } whitespace-nowrap`}
     >
       {icon}
       {label}

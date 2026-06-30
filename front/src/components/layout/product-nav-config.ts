@@ -166,6 +166,13 @@ export const productSections: ProductSection[] = [
         to: (r) => `${consolePath(r)}/branding/email-templates`,
         match: (p, r) => startsWith(p, `${consolePath(r)}/branding/email-templates`),
       },
+      {
+        label: 'Themes',
+        description: 'Portal appearance',
+        icon: Palette,
+        to: (r) => `${consolePath(r)}/branding/themes`,
+        match: (p, r) => startsWith(p, `${consolePath(r)}/branding/themes`),
+      },
     ],
   },
 ]

@@ -7,11 +7,11 @@ import {
 import type { BuilderNode } from '@/lib/builder-core'
 import { type EmailTemplatePreset, createMjmlAdapter } from '@/lib/builder-mjml'
 import {
-  EMAIL_TEMPLATES_URL,
+  emailTemplatesListUrl,
   type EmailTemplateRouterParams,
 } from '@/routes/sub-router/email-template.router'
 import { useCallback, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import PageEmailTemplateBuilder from '../ui/page-email-template-builder'
 
 const EMAIL_TYPES = [
@@ -23,8 +23,10 @@ const EMAIL_TYPES = [
 export default function PageEmailTemplateBuilderFeature() {
   const { realm_name, template_id } = useParams<EmailTemplateRouterParams>()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const realm = realm_name ?? 'master'
   const isNew = template_id === 'new'
+  const listUrl = emailTemplatesListUrl(pathname, realm)
 
   const { data: templateData, isLoading } = useGetEmailTemplate({
     realm,
@@ -42,7 +44,6 @@ export default function PageEmailTemplateBuilderFeature() {
   return (
     <BuilderFeatureInner
       key={templateData?.data?.id ?? 'new'}
-      realmName={realm_name}
       realm={realm}
       templateId={template_id ?? ''}
       isNew={isNew}
@@ -54,12 +55,12 @@ export default function PageEmailTemplateBuilderFeature() {
           : []
       }
       navigate={navigate}
+      listUrl={listUrl}
     />
   )
 }
 
 function BuilderFeatureInner({
-  realmName,
   realm,
   templateId,
   isNew,
@@ -67,8 +68,8 @@ function BuilderFeatureInner({
   initialEmailType,
   initialTree,
   navigate,
+  listUrl,
 }: {
-  realmName: string | undefined
   realm: string
   templateId: string
   isNew: boolean
@@ -76,6 +77,7 @@ function BuilderFeatureInner({
   initialEmailType: string
   initialTree: BuilderNode[]
   navigate: ReturnType<typeof useNavigate>
+  listUrl: string
 }) {
   const [name, setName] = useState(initialName)
   const [emailType, setEmailType] = useState(initialEmailType)
@@ -109,7 +111,7 @@ function BuilderFeatureInner({
         },
         {
           onSuccess: () => {
-            navigate(EMAIL_TEMPLATES_URL(realmName))
+            navigate(listUrl)
           },
         },
       )
@@ -127,7 +129,7 @@ function BuilderFeatureInner({
   }
 
   const handleBack = () => {
-    navigate(EMAIL_TEMPLATES_URL(realmName))
+    navigate(listUrl)
   }
 
   return (

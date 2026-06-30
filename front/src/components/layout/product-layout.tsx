@@ -65,7 +65,7 @@ export default function ProductLayout() {
   const activeSection = findActiveSection(pathname, activeRealm)
 
   return (
-    <div className='min-h-screen bg-background flex flex-col'>
+    <div className='h-screen bg-background flex flex-col overflow-hidden'>
       {/* Top Bar — breadcrumb + profile */}
       <header className='sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-3 border-b border-border bg-background px-3 sm:px-6'>
         <Link to={`/realms/${activeRealm}/overview`} className='flex items-center gap-2 shrink-0'>
@@ -194,7 +194,7 @@ export default function ProductLayout() {
       </header>
 
       {/* Horizontal section nav */}
-      <nav className='sticky top-12 z-10 flex h-12 items-stretch gap-1 border-b border-border bg-background px-3 sm:px-6 overflow-x-auto scrollbar-none'>
+      <nav className='sticky top-12 z-10 flex h-12 items-stretch gap-1 border-b border-border bg-background px-3 sm:px-6 overflow-x-hidden'>
         {productSections.map((s) => {
           const isActive = activeSection?.key === s.key
           return (
@@ -278,7 +278,7 @@ export default function ProductLayout() {
           </aside>
         )}
 
-        <main className='flex-1 min-w-0 overflow-x-hidden'>
+        <main className='flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden'>
           <Outlet />
         </main>
       </div>
