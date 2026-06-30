@@ -69,3 +69,8 @@ jobs:
       # run as its own invocation without the shared-runtime harness.
       - name: run nonce id_token integration test
         run: cargo test -p ferriskey-api --test nonce_id_token_test -- --ignored
+
+      # Password policy enforcement: validates that the per-realm policy is
+      # applied to all password-set flows and is readable without auth.
+      - name: run password policy integration tests
+        run: cargo test -p ferriskey-api --test password_policy_test -- --ignored

@@ -1,4 +1,7 @@
 use super::handlers::get_password_policy::{__path_get_password_policy, get_password_policy};
+use super::handlers::get_public_password_policy::{
+    __path_get_public_password_policy, get_public_password_policy,
+};
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use super::handlers::update_password_policy::{
     __path_update_password_policy, update_password_policy,
@@ -43,6 +46,7 @@ use utoipa::OpenApi;
     delete_smtp_config,
     get_password_policy,
     update_password_policy,
+    get_public_password_policy,
 ))]
 pub struct RealmApiDoc;
 
@@ -108,5 +112,12 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_login_realm_settings_handler),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/password-policy/public",
+                state.args.server.root_path
+            ),
+            get(get_public_password_policy),
         )
 }

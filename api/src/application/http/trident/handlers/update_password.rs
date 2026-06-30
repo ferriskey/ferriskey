@@ -53,6 +53,11 @@ pub async fn update_password(
 ) -> Result<Response<UpdatePasswordResponse>, ApiError> {
     state
         .service
+        .validate_password_policy(realm_name.clone(), &payload.value)
+        .await?;
+
+    state
+        .service
         .update_password(
             identity,
             UpdatePasswordInput {

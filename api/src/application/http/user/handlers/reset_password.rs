@@ -58,6 +58,11 @@ pub async fn reset_password(
     );
     state
         .service
+        .validate_password_policy(realm_name.clone(), &payload.value)
+        .await?;
+
+    state
+        .service
         .reset_password(
             identity,
             ResetPasswordInput {

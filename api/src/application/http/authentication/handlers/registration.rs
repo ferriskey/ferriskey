@@ -105,6 +105,11 @@ pub async fn registration_handler(
         .get("FERRISKEY_SESSION")
         .and_then(|c| Uuid::parse_str(c.value()).ok());
 
+    state
+        .service
+        .validate_password_policy(realm_name.clone(), &req.password)
+        .await?;
+
     let url_context = registration_url_context(
         &state.args.webapp_url,
         &base_url,
