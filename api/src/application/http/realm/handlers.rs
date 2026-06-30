@@ -3,6 +3,7 @@ pub mod delete_realm;
 pub mod delete_smtp_config;
 pub mod get_login_realm_settings;
 pub mod get_password_policy;
+pub mod get_public_password_policy;
 pub mod get_realm;
 pub mod get_smtp_config;
 pub mod get_user_realm_settings;

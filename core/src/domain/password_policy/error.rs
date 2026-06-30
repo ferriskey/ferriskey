@@ -1,5 +1,8 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum PasswordPolicyError {
     TooShort { min: i32, actual: usize },
@@ -7,6 +10,18 @@ pub enum PasswordPolicyError {
     MissingLowercase,
     MissingNumber,
     MissingSpecialCharacter,
+}
+
+impl PasswordPolicyError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            PasswordPolicyError::TooShort { .. } => "too_short",
+            PasswordPolicyError::MissingUppercase => "missing_uppercase",
+            PasswordPolicyError::MissingLowercase => "missing_lowercase",
+            PasswordPolicyError::MissingNumber => "missing_number",
+            PasswordPolicyError::MissingSpecialCharacter => "missing_special",
+        }
+    }
 }
 
 impl Display for PasswordPolicyError {
@@ -36,3 +51,18 @@ impl Display for PasswordPolicyError {
 }
 
 impl std::error::Error for PasswordPolicyError {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PasswordPolicyViolation {
+    pub code: String,
+    pub message: String,
+}
+
+impl From<&PasswordPolicyError> for PasswordPolicyViolation {
+    fn from(e: &PasswordPolicyError) -> Self {
+        Self {
+            code: e.code().to_string(),
+            message: e.to_string(),
+        }
+    }
+}

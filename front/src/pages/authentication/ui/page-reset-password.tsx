@@ -7,6 +7,8 @@ import { Link, useParams } from 'react-router'
 import { type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import './page-login.css'
+import type { PublicPasswordPolicy } from '@/api/password-policy.api'
+import PasswordRequirements from '../components/password-requirements'
 
 export interface PageResetPasswordProps {
   form: UseFormReturn<ResetPasswordSchema>
@@ -14,6 +16,7 @@ export interface PageResetPasswordProps {
   isPending: boolean
   tokenStatus: 'loading' | 'valid' | 'invalid'
   errorMessage: string | null
+  policy: PublicPasswordPolicy
 }
 
 export default function PageResetPassword({
@@ -22,8 +25,11 @@ export default function PageResetPassword({
   isPending,
   tokenStatus,
   errorMessage,
+  policy,
 }: PageResetPasswordProps) {
   const { realm_name } = useParams()
+  const password = form.watch('password')
+  const isFormSubmittable = form.formState.isValid && !form.formState.isSubmitting && !isPending
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
@@ -73,10 +79,16 @@ export default function PageResetPassword({
                                   name='password'
                                   type='password'
                                   className='w-full'
-                                  error={form.formState.errors.password?.message}
+                                  error={
+                                    form.formState.errors.password?.message &&
+                                    password.length > 0
+                                      ? form.formState.errors.password.message
+                                      : undefined
+                                  }
                                 />
                               )}
                             />
+                            <PasswordRequirements password={password} policy={policy} />
                           </div>
                           <div className='grid gap-3'>
                             <FormField
@@ -94,7 +106,11 @@ export default function PageResetPassword({
                               )}
                             />
                           </div>
-                          <Button type='submit' className='w-full rounded-lg py-5 text-sm' disabled={isPending}>
+                          <Button
+                            type='submit'
+                            className='w-full rounded-lg py-5 text-sm'
+                            disabled={!isFormSubmittable}
+                          >
                             {isPending ? 'Resetting...' : 'Reset password'}
                           </Button>
                         </div>

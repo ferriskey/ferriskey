@@ -6,15 +6,22 @@ import { InputText } from '@/components/ui/input-text'
 import { Button } from '@/components/ui/button'
 import { useParams } from 'react-router'
 import './page-login.css'
+import type { PublicPasswordPolicy } from '@/api/password-policy.api'
+import PasswordRequirements from '../components/password-requirements'
 
 export interface PageRegisterProps {
   form: UseFormReturn<RegisterSchema>
   onSubmit: (data: RegisterSchema) => void
   backToLogin?: () => void
+  policy: PublicPasswordPolicy
 }
 
-export default function PageRegister({ form, onSubmit, backToLogin }: PageRegisterProps) {
+export default function PageRegister({ form, onSubmit, backToLogin, policy }: PageRegisterProps) {
   const { realm_name } = useParams()
+  const password = form.watch('password')
+  const isPasswordValid = !form.formState.errors.password && password.length > 0
+  const isFormSubmittable =
+    form.formState.isValid && !form.formState.isSubmitting
 
   return (
     <div className='login-shell flex min-h-svh flex-col items-center justify-center px-6 py-10'>
@@ -89,7 +96,7 @@ export default function PageRegister({ form, onSubmit, backToLogin }: PageRegist
                                   type='password'
                                   className='w-full'
                                 />
-                                {fieldState.error && (
+                                {fieldState.error && isPasswordValid === false && password.length > 0 && (
                                   <p className='text-sm text-destructive'>
                                     {fieldState.error.message}
                                   </p>
@@ -97,6 +104,7 @@ export default function PageRegister({ form, onSubmit, backToLogin }: PageRegist
                               </div>
                             )}
                           />
+                          <PasswordRequirements password={password} policy={policy} />
 
                           <FormField
                             control={form.control}
@@ -153,7 +161,9 @@ export default function PageRegister({ form, onSubmit, backToLogin }: PageRegist
                       </div>
 
                       <div className='flex flex-col gap-2'>
-                        <Button className='w-full'>Create Account</Button>
+                        <Button className='w-full' disabled={!isFormSubmittable}>
+                          Create Account
+                        </Button>
 
                         <Button type='button' variant='outline' onClick={backToLogin} className='w-full'>
                           Back to login

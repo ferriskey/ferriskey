@@ -1,6 +1,7 @@
 use ferriskey_core::domain::{
     authentication::device_flow::error::DeviceFlowError, common::entities::app_errors::CoreError,
-    portal_theme::validation::MissingBlocks, user::entities::RequiredAction,
+    password_policy::error::PasswordPolicyViolation, portal_theme::validation::MissingBlocks,
+    user::entities::RequiredAction,
 };
 use serde_json::{from_str, to_string};
 
@@ -272,6 +273,23 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
+            CoreError::PasswordPolicyViolation(details) => {
+                match from_str::<Vec<PasswordPolicyViolation>>(&details) {
+                    Ok(violations) => Self::validation_errors(
+                        violations
+                            .into_iter()
+                            .map(|v| ValidationError {
+                                field: "password".into(),
+                                message: v.message.into(),
+                            })
+                            .collect(),
+                    ),
+                    Err(_) => Self::validation_errors(vec![ValidationError {
+                        field: "password".into(),
+                        message: "Password does not meet the realm policy".into(),
+                    }]),
+                }
+            }
         }
     }
 }

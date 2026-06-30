@@ -3,32 +3,52 @@ import PageRegister from '../ui/page-register'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRegistrationMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
+import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
+import { evaluatePassword } from '../utils/password-policy'
 
-const registerSchema = z
-  .object({
-    username: z.string().min(1, 'Username is required'),
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters long'),
-    confirmPassword: z.string().min(6, 'Confirm Password must be at least 6 characters long'),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    path: ['confirmPassword'],
-    message: 'Passwords do not match',
-  })
+function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
+  return z
+    .object({
+      username: z.string().min(1, 'Username is required'),
+      email: z.string().email('Invalid email address'),
+      password: z
+        .string()
+        .min(1, 'Password is required')
+        .superRefine((value, ctx) => {
+          const result = evaluatePassword(value, policy)
+          if (!result.valid) {
+            ctx.addIssue({
+              code: 'custom',
+              message: result.unmetMessages.join(', '),
+            })
+          }
+        }),
+      confirmPassword: z.string().min(1, 'Please confirm your password'),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      path: ['confirmPassword'],
+      message: 'Passwords do not match',
+    })
+}
 
-export type RegisterSchema = z.infer<typeof registerSchema>
+export type RegisterSchema = z.infer<ReturnType<typeof buildRegisterSchema>>
 
 export default function PageRegisterFeature() {
   const navigate = useNavigate()
   const { realm_name } = useParams<RouterParams>()
   const { mutate: registration, data } = useRegistrationMutation()
   const { setAuthTokens } = useAuth()
+
+  const { data: policy, isLoading: isPolicyLoading } = usePublicPasswordPolicy(realm_name)
+  const resolvedPolicy = policy ?? DEFAULT_PASSWORD_POLICY
+
+  const registerSchema = useMemo(() => buildRegisterSchema(resolvedPolicy), [resolvedPolicy])
 
   const backToLogin = () => {
     navigate('../login')
@@ -46,6 +66,17 @@ export default function PageRegisterFeature() {
       lastName: '',
     },
   })
+
+  // Re-validate password when policy finishes loading so the checklist is
+  // accurate even if the user typed before the policy arrived.
+  useEffect(() => {
+    if (!isPolicyLoading) {
+      const current = form.getValues('password')
+      if (current) {
+        void form.trigger('password')
+      }
+    }
+  }, [isPolicyLoading, resolvedPolicy, form])
 
   function onSubmit(data: RegisterSchema) {
     registration({
@@ -85,5 +116,12 @@ export default function PageRegisterFeature() {
     }
   }, [data, setAuthTokens, navigate, realm_name, form])
 
-  return <PageRegister form={form} onSubmit={onSubmit} backToLogin={backToLogin} />
+  return (
+    <PageRegister
+      form={form}
+      onSubmit={onSubmit}
+      backToLogin={backToLogin}
+      policy={resolvedPolicy}
+    />
+  )
 }

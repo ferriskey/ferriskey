@@ -32,7 +32,6 @@ const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 pub struct ResetPasswordRequest {
     pub token_id: Uuid,
     pub token: String,
-    #[validate(length(min = 8))]
     pub new_password: String,
 }
 
@@ -105,11 +104,16 @@ pub async fn verify_reset_token(
     )
 )]
 pub async fn reset_password_with_token(
-    Path(_realm_name): Path<String>,
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     ValidateJson(payload): ValidateJson<ResetPasswordRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    state
+        .service
+        .validate_password_policy(realm_name, &payload.new_password)
+        .await?;
+
     let result = state
         .service
         .complete_password_reset(CompletePasswordResetInput {

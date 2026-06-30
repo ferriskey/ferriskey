@@ -457,6 +457,37 @@ impl ApplicationService {
             .await
     }
 
+    pub async fn validate_password_policy(
+        &self,
+        realm_name: String,
+        password: &str,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+        self.password_policy_service
+            .enforce(realm.id.into(), password)
+            .await
+    }
+
+    pub async fn get_public_password_policy(
+        &self,
+        realm_name: String,
+    ) -> Result<PasswordPolicy, CoreError> {
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+        self.password_policy_service
+            .get_policy_public(realm.id.into())
+            .await
+    }
+
     /// Device authorization endpoint (RFC 8628 §3.1).
     ///
     /// Resolves the realm and client, builds the realm-scoped verification URI
