@@ -39,10 +39,11 @@ impl PasswordPolicy {
     pub fn validate(&self, password: &str) -> Result<(), Vec<PasswordPolicyError>> {
         let mut errors = Vec::new();
 
-        if password.len() < self.min_length as usize {
+        let length = password.chars().count();
+        if length < self.min_length as usize {
             errors.push(PasswordPolicyError::TooShort {
                 min: self.min_length,
-                actual: password.len(),
+                actual: length,
             });
         }
 

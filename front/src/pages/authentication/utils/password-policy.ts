@@ -22,7 +22,8 @@ export function evaluatePassword(
   password: string,
   policy: PublicPasswordPolicy,
 ): PasswordEvaluation {
-  const minLength = password.length >= policy.min_length
+  // Count Unicode code points to match the backend's `chars().count()`.
+  const minLength = [...password].length >= policy.min_length
   const uppercase = !policy.require_uppercase || /[A-Z]/.test(password)
   const lowercase = !policy.require_lowercase || /[a-z]/.test(password)
   const number = !policy.require_number || /[0-9]/.test(password)

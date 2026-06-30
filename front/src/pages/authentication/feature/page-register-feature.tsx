@@ -22,7 +22,7 @@ function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
           const result = evaluatePassword(value, policy)
           if (!result.valid) {
             ctx.addIssue({
-              code: z.ZodIssueCode.custom,
+              code: 'custom',
               message: result.unmetMessages.join(', '),
             })
           }

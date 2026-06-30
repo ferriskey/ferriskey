@@ -44,7 +44,7 @@ impl From<PasswordPolicy> for PublicPasswordPolicy {
     ),
     responses(
         (status = 200, description = "Password policy retrieved successfully", body = PublicPasswordPolicy),
-        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 401, description = "Invalid realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]

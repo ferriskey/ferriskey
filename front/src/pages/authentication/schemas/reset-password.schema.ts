@@ -12,7 +12,7 @@ export function buildResetPasswordSchema(policy: PublicPasswordPolicy) {
           const result = evaluatePassword(value, policy)
           if (!result.valid) {
             ctx.addIssue({
-              code: z.ZodIssueCode.custom,
+              code: 'custom',
               message: result.unmetMessages.join(', '),
             })
           }

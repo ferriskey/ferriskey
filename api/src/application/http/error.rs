@@ -284,9 +284,10 @@ impl From<CoreError> for ApiError {
                             })
                             .collect(),
                     ),
-                    Err(_) => {
-                        Self::BadRequest("Password does not meet the realm policy".into())
-                    }
+                    Err(_) => Self::validation_errors(vec![ValidationError {
+                        field: "password".into(),
+                        message: "Password does not meet the realm policy".into(),
+                    }]),
                 }
             }
         }
