@@ -701,6 +701,7 @@ where
                 jti: Uuid::new_v4(),
                 sid: None,
                 at_hash,
+                nonce: input.nonce.clone(),
                 preferred_username: None,
                 sub: claims.sub,
                 typ: ClaimsTyp::Id,
@@ -969,6 +970,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                nonce: auth_session.nonce.clone(),
             })
             .await
             .map_err(|e| {
@@ -1095,6 +1097,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                nonce: None,
             })
             .await?;
 
@@ -1195,6 +1198,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                nonce: None,
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -1265,6 +1269,7 @@ where
                 access_token_lifetime: lifetimes.access_token,
                 refresh_token_lifetime: lifetimes.refresh_token,
                 id_token_lifetime: lifetimes.id_token,
+                nonce: None,
             })
             .await?;
 
@@ -1978,7 +1983,7 @@ where
             response_type: input.response_type,
             scope: input.scope.unwrap_or_default(),
             state: input.state.clone(),
-            nonce: None,
+            nonce: input.nonce,
             user_id: None,
             code: None,
             authenticated: false,

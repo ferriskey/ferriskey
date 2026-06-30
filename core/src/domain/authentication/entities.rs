@@ -127,6 +127,7 @@ pub struct AuthInput {
     pub response_type: String,
     pub scope: Option<String>,
     pub state: Option<String>,
+    pub nonce: Option<String>,
 }
 
 pub struct AuthOutput {

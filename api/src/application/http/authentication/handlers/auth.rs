@@ -60,6 +60,8 @@ pub struct AuthRequest {
     pub scope: Option<String>,
     #[serde(default)]
     pub state: Option<String>,
+    #[serde(default)]
+    pub nonce: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -100,6 +102,7 @@ pub async fn auth_handler(
             response_type: params.response_type.clone(),
             scope: params.scope.clone(),
             state: params.state.clone(),
+            nonce: params.nonce.clone(),
         })
         .await
     {

@@ -143,6 +143,7 @@ pub struct GenerateTokenInput {
     pub access_token_lifetime: i64,
     pub refresh_token_lifetime: i64,
     pub id_token_lifetime: i64,
+    pub nonce: Option<String>,
 }
 
 pub struct GetUserInfoInput {
