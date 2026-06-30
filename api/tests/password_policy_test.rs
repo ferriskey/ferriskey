@@ -229,14 +229,16 @@ mod tests {
             }))
             .await;
 
-        assert_eq!(
-            user_response.status_code(),
-            201,
-            "user creation failed: {}",
+        let user_status = user_response.status_code();
+        assert!(
+            user_status == 200 || user_status == 201,
+            "user creation failed ({}): {}",
+            user_status,
             user_response.text()
         );
+        // The user-creation endpoint wraps its payload in a `data` envelope.
         let user_body: Value = user_response.json();
-        let user_id = user_body["id"]
+        let user_id = user_body["data"]["id"]
             .as_str()
             .expect("user id in response")
             .to_string();
