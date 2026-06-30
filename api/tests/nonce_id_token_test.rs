@@ -111,13 +111,18 @@ mod tests {
 
         let realm_name = format!("realm-{}", Uuid::new_v4().simple());
 
+        // Use a non-"admin-cli" default_client_id so the dedicated admin-cli
+        // seeding (public/System, direct_access_grants_enabled=true) is not
+        // short-circuited by the generic confidential default-client creation,
+        // which would otherwise leave admin-cli unable to do the password grant
+        // (see #1086).
         service
             .initialize_application(StartupConfig {
                 master_realm_name: realm_name.clone(),
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
                 admin_email: "admin@test.local".to_string(),
-                default_client_id: "admin-cli".to_string(),
+                default_client_id: "ferriskey-admin".to_string(),
             })
             .await
             .expect("initialize application");
