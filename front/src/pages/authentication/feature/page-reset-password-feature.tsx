@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { resetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
+import { buildResetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import PageResetPassword from '../ui/page-reset-password'
+import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
 
 type TokenStatus = 'loading' | 'valid' | 'invalid'
 
@@ -25,10 +26,28 @@ export default function PageResetPasswordFeature() {
   const { mutate: resetPassword, isPending, error } = useResetPassword()
   const { setAuthTokens } = useAuth()
 
+  const { data: policy, isLoading: isPolicyLoading } = usePublicPasswordPolicy(realm_name)
+  const resolvedPolicy = policy ?? DEFAULT_PASSWORD_POLICY
+
+  const resetPasswordSchema = useMemo(
+    () => buildResetPasswordSchema(resolvedPolicy),
+    [resolvedPolicy],
+  )
+
   const form = useForm<ResetPasswordSchema>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
   })
+
+  // Re-validate when policy arrives after the user may have already typed
+  useEffect(() => {
+    if (!isPolicyLoading) {
+      const current = form.getValues('password')
+      if (current) {
+        void form.trigger('password')
+      }
+    }
+  }, [isPolicyLoading, resolvedPolicy, form])
 
   useEffect(() => {
     if (missingParams) return
@@ -80,6 +99,7 @@ export default function PageResetPasswordFeature() {
         isPending={isPending}
         tokenStatus={tokenStatus}
         errorMessage={error?.message ?? null}
+        policy={resolvedPolicy}
       />
     </Form>
   )
