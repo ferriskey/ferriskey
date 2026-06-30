@@ -58,6 +58,14 @@ interface Props {
     pages: { pageType: PageType; tree: unknown }[]
   ) => void
   onActivate: () => void
+  /**
+   * When true the builder fills its parent (`h-full`) instead of computing its
+   * own viewport height. The console renders it inside ProductLayout's bounded,
+   * scrollable `<main>`, so filling the parent avoids fragile chrome-height
+   * math; the admin portal has no such bounded ancestor and keeps the viewport
+   * calc.
+   */
+  fillParent?: boolean
 }
 
 export default function PageThemeBuilder({
@@ -72,6 +80,7 @@ export default function PageThemeBuilder({
   onTabChange,
   onSaveTheme,
   onActivate,
+  fillParent = false,
 }: Props) {
   const [name, setName] = useState(theme.name)
   const [layoutId, setLayoutId] = useState<string | null>(theme.layout_id ?? null)
@@ -88,7 +97,18 @@ export default function PageThemeBuilder({
   }, [layoutId, layouts])
 
   return (
-    <div className='flex h-[calc(100vh-3rem)] w-full min-w-0 flex-col overflow-hidden'>
+    <div
+      className={cn(
+        'flex w-full min-w-0 flex-col overflow-hidden',
+        // In the console the parent <main> is a bounded flex column, so the
+        // builder fills it via flex (a flex-resolved height is definite, so
+        // the inner `h-full`/`flex-1` panels resolve — unlike `height:100%`,
+        // which collapses inside a flex item). The admin portal has no such
+        // ancestor and keeps the viewport-height calc.
+        fillParent && 'flex-1 min-h-0',
+      )}
+      style={fillParent ? undefined : { height: 'calc(100vh - 3rem)' }}
+    >
       <header className='flex items-center gap-3 border-b border-border px-4 py-2'>
         <Button variant='ghost' size='icon' onClick={onBack}>
           <ArrowLeft size={16} />

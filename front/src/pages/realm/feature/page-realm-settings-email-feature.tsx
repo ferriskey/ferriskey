@@ -2,7 +2,7 @@ import { useGetEmailTemplates, useDeleteEmailTemplate } from '@/api/email-templa
 import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { RouterParams } from '@/routes/router'
 import { useNavigate, useParams } from 'react-router'
-import { EMAIL_TEMPLATE_BUILDER_URL } from '@/routes/sub-router/email-template.router'
+import { ADMIN_EMAIL_TEMPLATE_BUILDER_URL } from '@/routes/sub-router/email-template.router'
 import PageRealmSettingsEmail from '../ui/page-realm-settings-email'
 
 export default function PageRealmSettingsEmailFeature() {
@@ -15,11 +15,11 @@ export default function PageRealmSettingsEmailFeature() {
   const { mutate: updateSettings } = useUpdateRealmSettings()
 
   const handleEditTemplate = (templateId: string) => {
-    navigate(EMAIL_TEMPLATE_BUILDER_URL(realm_name, templateId))
+    navigate(ADMIN_EMAIL_TEMPLATE_BUILDER_URL(realm_name, templateId))
   }
 
   const handleCreateTemplate = () => {
-    navigate(EMAIL_TEMPLATE_BUILDER_URL(realm_name, 'new'))
+    navigate(ADMIN_EMAIL_TEMPLATE_BUILDER_URL(realm_name, 'new'))
   }
 
   const handleDeleteTemplate = (templateId: string) => {

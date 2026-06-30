@@ -181,10 +181,12 @@ export default function PageTreeEditor({
             <div className='min-h-0 min-w-0 overflow-hidden border-b border-border'>
               <ScrollArea className='h-full w-full'>{leftRailNav}</ScrollArea>
             </div>
-            <div className='min-h-0 min-w-0 overflow-hidden'>
-              <ScrollArea className='h-full w-full'>
-                <PageComponentLibrary requiredTypes={requirements} pageType={pageType} />
-              </ScrollArea>
+            {/* The library pins its own tabs row and scrolls only the panel
+                body (both axes), so a deep/wide tree scrolls within the rail
+                without dragging the tabs. `min-w-0` keeps the scroll inside
+                the 220px column rather than pushing the canvas. */}
+            <div className='flex min-h-0 min-w-0 flex-col overflow-hidden'>
+              <PageComponentLibrary requiredTypes={requirements} pageType={pageType} />
             </div>
           </aside>
 

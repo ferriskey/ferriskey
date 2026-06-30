@@ -234,7 +234,37 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     (layoutId && isLayoutLoading) ||
     isRequirementsLoading
   ) {
-    return <div style={cssVars}>{children}</div>
+    // While the active theme / layout / requirements resolve, paint a themed
+    // (background-only) surface instead of the hardcoded React fallback —
+    // showing the fallback here flashes the default page structure + colours
+    // for a frame before the custom tree replaces it, which reads as the
+    // screen "jumping" and the base/custom themes blinking.
+    //
+    // BUT `children` (PageLoginFeature) owns the auth-flow bootstrap: when the
+    // session cookie isn't set yet, its effect redirects to the OIDC authorize
+    // endpoint to create it. Custom-theme realms render the custom tree (not
+    // `children`) once loaded, so this loading phase is the ONLY place that
+    // bootstrap runs for them — dropping it entirely left them with no session
+    // (passkey/login → 401 "Missing session cookie"). So we keep it MOUNTED
+    // but visually hidden: its effects (the redirect) still run, the user just
+    // never sees the fallback form flash.
+    return (
+      <div style={{ ...cssVars, minHeight: '100vh', background: 'var(--fk-color-page-bg)' }}>
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            width: 0,
+            height: 0,
+            overflow: 'hidden',
+            visibility: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    )
   }
 
   // Page content: realm admin's custom tree when present, fall back to the

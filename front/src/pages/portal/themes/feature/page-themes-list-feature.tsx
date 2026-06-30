@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { RouterParams } from '@/routes/router'
 import {
   useActivatePortalTheme,
@@ -7,13 +7,14 @@ import {
   useGetActivePortalTheme,
   useListPortalThemes,
 } from '@/api/portal-theme.api'
-import { PORTAL_THEME_BUILDER_URL } from '@/routes/sub-router/portal-theme.router'
+import { themeBuilderUrl } from '@/routes/sub-router/portal-theme.router'
 import PageThemesList from '../ui/page-themes-list'
 import { defaultTheme } from '@/pages/portal-theme/lib/theme'
 
 export default function PageThemesListFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const realm = realm_name ?? 'master'
 
   const { data: listData, isLoading } = useListPortalThemes({ realm })
@@ -34,7 +35,7 @@ export default function PageThemesListFeature() {
         onSuccess: (res) => {
           const newId = res?.data?.id
           if (newId) {
-            navigate(PORTAL_THEME_BUILDER_URL(realm, newId))
+            navigate(themeBuilderUrl(pathname, realm, newId))
           }
         },
       },
@@ -42,7 +43,7 @@ export default function PageThemesListFeature() {
   }
 
   const handleEdit = (themeId: string) => {
-    navigate(PORTAL_THEME_BUILDER_URL(realm, themeId))
+    navigate(themeBuilderUrl(pathname, realm, themeId))
   }
 
   const handleActivate = (themeId: string) => {

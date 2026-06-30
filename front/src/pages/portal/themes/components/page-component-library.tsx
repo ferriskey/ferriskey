@@ -100,8 +100,14 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
   const ungrouped = generic.filter((c) => !groupedTypes.has(c.type))
 
   return (
-    <div className='flex w-full min-w-0 flex-col'>
-      <SidebarTabs current={tab} onChange={setTab} />
+    <div className='flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden'>
+      {/* Tabs stay pinned: they live outside the scroll region so a wide
+          Tree / category list scrolls horizontally on its own without
+          dragging (and stretching) the Components/Presets/Tree row. */}
+      <div className='shrink-0'>
+        <SidebarTabs current={tab} onChange={setTab} />
+      </div>
+      <div className='min-h-0 min-w-0 flex-1 overflow-auto'>
       {tab === 'components' && (
         <div className='flex w-full min-w-0 flex-col gap-3 p-2'>
           {groupedItems.map((g) =>
@@ -131,6 +137,7 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
       )}
       {tab === 'presets' && <PresetsTab />}
       {tab === 'tree' && <ComponentTree />}
+      </div>
     </div>
   )
 }
