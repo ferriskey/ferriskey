@@ -77,6 +77,9 @@ pub struct IdTokenClaims {
     pub at_hash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_time: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub nonce: Option<String>,
     pub typ: ClaimsTyp,
 
     // Identity claims — absent when the respective scope is not active

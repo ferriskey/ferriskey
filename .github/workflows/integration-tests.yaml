@@ -63,3 +63,9 @@ jobs:
       # added here once the shared-harness issues in #1086 are resolved.
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
+
+      # Single-test suite, so `router()` (and the process-wide Prometheus
+      # recorder, see #1086) is constructed exactly once per process — safe to
+      # run as its own invocation without the shared-runtime harness.
+      - name: run nonce id_token integration test
+        run: cargo test -p ferriskey-api --test nonce_id_token_test -- --ignored
