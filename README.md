@@ -81,6 +81,26 @@ docker compose --profile registry up -d
 
 Then visit [http://localhost:5556](http://localhost:5556) to access the console. The default credentials are `admin` and `admin`.
 
+If you do not want to clone this repository, you can still run the same deployment by first fetching the compose file:
+
+```bash
+mkdir ferriskey-deploy && cd ferriskey-deploy
+curl -fsSL https://raw.githubusercontent.com/ferriskey/ferriskey/main/docker-compose.yaml -o docker-compose.yaml
+docker compose -f docker-compose.yaml --profile registry up -d
+```
+
+### Option A.1 — Running migrations on an upgrade with Docker Compose
+
+When upgrading a compose deployment to a new image, run migrations explicitly before restarting long-running services:
+
+```bash
+docker compose -f docker-compose.yaml --profile registry pull
+docker compose -f docker-compose.yaml --profile registry run --rm db-migrations-registry
+docker compose -f docker-compose.yaml --profile registry up -d api-registry webapp-registry
+```
+
+If migration fails, inspect logs with `docker compose -f docker-compose.yaml logs db-migrations-registry` and keep your database volume in place until you confirm rollback or a fix.
+
 ### Option B — Re-build Docker image
 
 ```yaml
