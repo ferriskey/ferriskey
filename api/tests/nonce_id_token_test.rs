@@ -130,8 +130,7 @@ mod tests {
         let args = Arc::new(Args::default());
         let state = AppState::new(args, service);
         let app = router(state).expect("build router");
-        let mut server = TestServer::new(app).expect("create test server");
-        server.save_cookies();
+        let server = TestServer::new(app).expect("create test server");
 
         TestContext { server, realm_name }
     }
@@ -240,14 +239,19 @@ mod tests {
             .add_query_param("nonce", nonce)
             .await;
 
-        // The authorize endpoint always redirects (302); the session cookie is saved
-        // automatically because we called `server.save_cookies()` during setup.
+        // The authorize endpoint always redirects (302) and sets the
+        // FERRISKEY_SESSION cookie on that response.
         let auth_status = auth_resp.status_code().as_u16();
         assert!(
             (300..=399).contains(&auth_status),
             "expected a 3xx redirect from /auth, got {}",
             auth_status
         );
+
+        // Forward the session cookie explicitly. The cookie is `SameSite=Lax`, so
+        // the automatic cookie jar withholds it on the cross-site POST below;
+        // attaching it by hand (as device_flow_test does) bypasses that.
+        let session_cookie = auth_resp.cookie("FERRISKEY_SESSION");
 
         // 4. Authenticate: POST /login-actions/authenticate?client_id=...
         let login_resp = ctx
@@ -256,6 +260,7 @@ mod tests {
                 "/realms/{}/login-actions/authenticate",
                 ctx.realm_name
             ))
+            .add_cookie(session_cookie)
             .add_query_param("client_id", client_id.as_str())
             .json(&json!({
                 "username": "admin",
