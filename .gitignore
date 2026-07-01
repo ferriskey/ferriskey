@@ -8,3 +8,6 @@
 **/.DS_Store
 
 openapi.json
+
+# OIDF conformance suite result exports (large ZIPs — keep locally only)
+conformance/results/
