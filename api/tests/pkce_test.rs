@@ -466,4 +466,32 @@ mod tests {
             );
         });
     }
+
+    /// require_pkce = true: omitting code_challenge_method must be rejected.
+    /// An absent method would otherwise default to `plain` at verification and
+    /// silently defeat the policy, so it has to be refused up front.
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
+    fn pkce_required_client_rejects_omitted_method() {
+        rt().block_on(async {
+            let ctx = shared_ctx();
+            let server = make_server();
+            let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+
+            let auth_resp = server
+                .get(&auth_url(realm()))
+                .add_query_param("response_type", "code")
+                .add_query_param("client_id", &ctx.pkce_required_client_id)
+                .add_query_param("redirect_uri", "http://localhost/callback")
+                .add_query_param("scope", "openid")
+                .add_query_param("code_challenge", verifier)
+                .await;
+
+            let status = auth_resp.status_code().as_u16();
+            assert!(
+                status == 302 || status == 400,
+                "should reject omitted method: got {status}"
+            );
+        });
+    }
 }

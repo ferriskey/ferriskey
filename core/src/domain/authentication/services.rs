@@ -2039,11 +2039,10 @@ where
             if input.code_challenge.is_none() {
                 return Err(CoreError::PkceRequired);
             }
-            // Reject plain method when require_pkce is set.
-            if matches!(
-                input.code_challenge_method,
-                Some(CodeChallengeMethod::Plain)
-            ) {
+            // Require an explicit S256 method. Reject `plain` as well as an omitted
+            // method, which would otherwise fall back to the `plain` default at
+            // verification and defeat the policy.
+            if !matches!(input.code_challenge_method, Some(CodeChallengeMethod::S256)) {
                 return Err(CoreError::PkceRequired);
             }
         }
