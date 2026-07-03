@@ -1,6 +1,6 @@
 # ferriskey-operator
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.0](https://img.shields.io/badge/AppVersion-0.7.0-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.1](https://img.shields.io/badge/AppVersion-0.7.1-informational?style=flat-square)
 
 A Helm chart for the Ferriskey Kubernetes Operator
 
@@ -19,7 +19,7 @@ metadata:
 spec:
   name: my-ferriskey
   replicas: 1
-  version: "0.7.0"
+  version: "0.7.1"
   api:
     apiUrl: "https://api.iam.example.com"
     webappUrl: "https://iam.example.com"
