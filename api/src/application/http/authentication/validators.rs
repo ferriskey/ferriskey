@@ -36,6 +36,10 @@ pub struct TokenRequestValidator {
     // Used by the device_code grant (RFC 8628 §3.4)
     #[serde(default)]
     pub device_code: Option<String>,
+
+    // PKCE verifier (RFC 7636 §4.5)
+    #[serde(default)]
+    pub code_verifier: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

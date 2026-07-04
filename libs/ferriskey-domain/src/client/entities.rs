@@ -87,6 +87,7 @@ pub struct Client {
     /// Authorization Grant (RFC 8628). Opt-in: most clients should keep
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
     pub oauth_device_code_grant_enabled: bool,
+    pub require_pkce: bool,
     pub client_type: ClientType,
     pub name: String,
     pub redirect_uris: Option<Vec<redirect_uri::RedirectUri>>,
@@ -135,6 +136,7 @@ impl Client {
             oauth_device_code_grant_enabled: config
                 .oauth_device_code_grant_enabled
                 .unwrap_or_default(),
+            require_pkce: false,
             client_type: config.client_type,
             name: config.name,
             redirect_uris: None,
@@ -164,6 +166,7 @@ impl Client {
             service_account_enabled: false,
             direct_access_grants_enabled: false,
             oauth_device_code_grant_enabled: false,
+            require_pkce: false,
             client_type: ClientType::Confidential,
             name: format!("{client_id} Client"),
             redirect_uris: None,

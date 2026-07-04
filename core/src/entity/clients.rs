@@ -34,6 +34,7 @@ pub struct Model {
     pub maintenance_enabled: Option<bool>,
     pub maintenance_reason: Option<String>,
     pub maintenance_session_strategy: Option<String>,
+    pub require_pkce: Option<bool>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -59,6 +60,7 @@ pub enum Column {
     MaintenanceEnabled,
     MaintenanceReason,
     MaintenanceSessionStrategy,
+    RequirePkce,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -114,6 +116,7 @@ impl ColumnTrait for Column {
             Self::MaintenanceSessionStrategy => {
                 ColumnType::String(StringLen::N(50u32)).def().null()
             }
+            Self::RequirePkce => ColumnType::Boolean.def().null(),
         }
     }
 }

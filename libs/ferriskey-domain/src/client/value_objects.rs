@@ -46,6 +46,7 @@ pub struct UpdateClientRequest {
     pub enabled: Option<bool>,
     pub direct_access_grants_enabled: Option<bool>,
     pub oauth_device_code_grant_enabled: Option<bool>,
+    pub require_pkce: Option<bool>,
     pub access_token_lifetime: Option<i64>,
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,

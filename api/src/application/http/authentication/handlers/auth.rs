@@ -12,6 +12,7 @@ use ferriskey_core::domain::authentication::entities::{
     AuthInput, AuthenticateInput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -62,6 +63,10 @@ pub struct AuthRequest {
     pub state: Option<String>,
     #[serde(default)]
     pub nonce: Option<String>,
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+    #[serde(default)]
+    pub code_challenge_method: Option<CodeChallengeMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -103,6 +108,8 @@ pub async fn auth_handler(
             scope: params.scope.clone(),
             state: params.state.clone(),
             nonce: params.nonce.clone(),
+            code_challenge: params.code_challenge.clone(),
+            code_challenge_method: params.code_challenge_method.clone(),
         })
         .await
     {

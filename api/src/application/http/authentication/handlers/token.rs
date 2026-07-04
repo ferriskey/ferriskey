@@ -85,6 +85,7 @@ pub async fn exchange_token(
         grant_type: payload.grant_type.clone(),
         scope: payload.scope,
         device_code: payload.device_code,
+        code_verifier: payload.code_verifier,
     };
 
     // The device_code grant is served by the device flow polling path so its

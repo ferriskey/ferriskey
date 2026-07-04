@@ -250,6 +250,18 @@ pub enum CoreError {
     #[error("Missing authorization code")]
     MissingAuthorizationCode,
 
+    #[error("PKCE is required for this client")]
+    PkceRequired,
+
+    #[error("Invalid code_verifier")]
+    InvalidCodeVerifier,
+
+    #[error("code_challenge is required")]
+    CodeChallengeMissing,
+
+    #[error("code_verifier is required")]
+    CodeVerifierMissing,
+
     #[error("User not found")]
     UserNotFound,
 

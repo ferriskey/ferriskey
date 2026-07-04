@@ -45,6 +45,9 @@ pub struct UpdateClientValidator {
     pub oauth_device_code_grant_enabled: Option<bool>,
 
     #[serde(default)]
+    pub require_pkce: Option<bool>,
+
+    #[serde(default)]
     pub access_token_lifetime: Option<i64>,
 
     #[serde(default)]
