@@ -158,7 +158,6 @@ pub struct ExchangeTokenInput {
     pub scope: Option<String>,
     /// Set for the `urn:ietf:params:oauth:grant-type:device_code` grant.
     pub device_code: Option<String>,
-    /// PKCE verifier (RFC 7636 §4.5).
     pub code_verifier: Option<String>,
 }
 

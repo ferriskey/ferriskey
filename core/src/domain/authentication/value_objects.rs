@@ -12,7 +12,6 @@ use crate::domain::{
 
 pub use ferriskey_domain::auth::{Identity, IdentityKind};
 
-/// PKCE code challenge method per RFC 7636 §4.3.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CodeChallengeMethod {

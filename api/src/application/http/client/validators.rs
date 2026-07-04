@@ -44,7 +44,6 @@ pub struct UpdateClientValidator {
     #[serde(default)]
     pub oauth_device_code_grant_enabled: Option<bool>,
 
-    /// Require PKCE (RFC 7636) on all authorization code requests for this client.
     #[serde(default)]
     pub require_pkce: Option<bool>,
 

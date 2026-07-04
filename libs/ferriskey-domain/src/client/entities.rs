@@ -87,9 +87,6 @@ pub struct Client {
     /// Authorization Grant (RFC 8628). Opt-in: most clients should keep
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
     pub oauth_device_code_grant_enabled: bool,
-    /// When true, the authorization endpoint MUST receive a `code_challenge`
-    /// and the token endpoint MUST receive the matching `code_verifier`
-    /// (RFC 7636). The `plain` method is also rejected when this is true.
     pub require_pkce: bool,
     pub client_type: ClientType,
     pub name: String,

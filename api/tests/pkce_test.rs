@@ -467,9 +467,7 @@ mod tests {
         });
     }
 
-    /// require_pkce = true: omitting code_challenge_method must be rejected.
-    /// An absent method would otherwise default to `plain` at verification and
-    /// silently defeat the policy, so it has to be refused up front.
+    /// require_pkce = true: omitted method rejected (would default to plain).
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
     fn pkce_required_client_rejects_omitted_method() {

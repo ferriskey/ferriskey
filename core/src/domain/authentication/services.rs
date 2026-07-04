@@ -2039,9 +2039,7 @@ where
             if input.code_challenge.is_none() {
                 return Err(CoreError::PkceRequired);
             }
-            // Require an explicit S256 method. Reject `plain` as well as an omitted
-            // method, which would otherwise fall back to the `plain` default at
-            // verification and defeat the policy.
+            // Only S256 is accepted; an omitted method would default to `plain`.
             if !matches!(input.code_challenge_method, Some(CodeChallengeMethod::S256)) {
                 return Err(CoreError::PkceRequired);
             }

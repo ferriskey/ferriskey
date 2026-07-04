@@ -63,11 +63,8 @@ pub struct AuthRequest {
     pub state: Option<String>,
     #[serde(default)]
     pub nonce: Option<String>,
-    /// PKCE code challenge (RFC 7636 §4.3).
     #[serde(default)]
     pub code_challenge: Option<String>,
-    /// PKCE code challenge method: `S256` (recommended) or `plain` (RFC 7636 §4.3).
-    /// Defaults to `plain` when omitted per RFC 7636 §4.3.
     #[serde(default)]
     pub code_challenge_method: Option<CodeChallengeMethod>,
 }
