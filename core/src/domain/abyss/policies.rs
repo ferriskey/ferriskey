@@ -45,6 +45,7 @@ where
         let target_realm = Realm {
             id: realm_id,
             name: user_realm.name.clone(), // Use same name for same-realm access
+            display_name: None,
             settings: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -87,6 +88,7 @@ where
         let target_realm = Realm {
             id: provider.realm_id,
             name: user_realm.name.clone(),
+            display_name: None,
             settings: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -131,6 +133,7 @@ where
         let target_realm = Realm {
             id: provider.realm_id,
             name: user_realm.name.clone(),
+            display_name: None,
             settings: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -182,6 +185,7 @@ mod tests {
         Realm {
             id: RealmId::default(),
             name: name.to_string(),
+            display_name: None,
             settings: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),

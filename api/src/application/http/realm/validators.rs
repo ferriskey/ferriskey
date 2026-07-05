@@ -5,15 +5,27 @@ use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateRealmValidator {
-    #[validate(length(min = 1, message = "name is required"))]
+    #[validate(
+        length(min = 1, message = "name is required"),
+        custom(function = "validate_realm_slug")
+    )]
     #[serde(default)]
     pub name: String,
+    #[validate(length(max = 255, message = "display_name must be at most 255 characters"))]
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct UpdateRealmValidator {
-    #[validate(length(min = 1, message = "name is required"))]
+    #[validate(
+        length(min = 1, message = "name is required"),
+        custom(function = "validate_realm_slug")
+    )]
     pub name: String,
+    #[validate(length(max = 255, message = "display_name must be at most 255 characters"))]
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -88,6 +100,25 @@ where
     D: serde::Deserializer<'de>,
 {
     Ok(Some(Option::deserialize(deserializer)?))
+}
+
+/// Ensures a realm `name` is safe to use as a URL slug.
+///
+/// The realm name is embedded in every realm URL (`/realms/{name}/...`), so it
+/// must not contain whitespace or characters that would need URL-encoding.
+/// Human-readable labels belong in `display_name`, which is free-form.
+fn validate_realm_slug(value: &str) -> Result<(), validator::ValidationError> {
+    if !value.is_empty()
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        Ok(())
+    } else {
+        Err(validator::ValidationError::new(
+            "name must contain only letters, digits, hyphens or underscores",
+        ))
+    }
 }
 
 fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {

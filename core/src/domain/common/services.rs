@@ -117,7 +117,7 @@ where
 
                 let realm = self
                     .realm_repository
-                    .create_realm(config.master_realm_name.clone())
+                    .create_realm(config.master_realm_name.clone(), None)
                     .await?;
 
                 tracing::info!("{} realm created", config.master_realm_name);
@@ -127,7 +127,7 @@ where
                 tracing::info!("creating master realm");
                 let realm = self
                     .realm_repository
-                    .create_realm(config.master_realm_name.clone())
+                    .create_realm(config.master_realm_name.clone(), None)
                     .await?;
 
                 tracing::info!("{} realm created", config.master_realm_name);
@@ -612,6 +612,7 @@ pub mod tests {
         Realm {
             id: RealmId::default(),
             name: "test-realm".to_string(),
+            display_name: None,
             settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -622,6 +623,7 @@ pub mod tests {
         Realm {
             id: RealmId::default(),
             name: name.to_string(),
+            display_name: None,
             settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),

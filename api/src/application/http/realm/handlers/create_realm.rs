@@ -33,6 +33,7 @@ pub async fn create_realm(
             identity,
             CreateRealmInput {
                 realm_name: payload.name,
+                display_name: payload.display_name,
             },
         )
         .await?;

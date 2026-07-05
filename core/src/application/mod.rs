@@ -564,7 +564,7 @@ mod tests {
         let realm = app
             .realm_service
             .realm_repository
-            .create_realm(realm_name.clone())
+            .create_realm(realm_name.clone(), None)
             .await
             .expect("create realm");
 
@@ -611,6 +611,7 @@ mod tests {
             realm: Some(Realm {
                 id: realm.id,
                 name: realm.name.clone(),
+                display_name: realm.display_name.clone(),
                 settings: None,
                 created_at: realm.created_at,
                 updated_at: realm.updated_at,

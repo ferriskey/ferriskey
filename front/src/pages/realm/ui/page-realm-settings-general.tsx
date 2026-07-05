@@ -13,9 +13,10 @@ export interface PageRealmSettingsGeneralProps {
   realmName: string
   isMaster: boolean
   onDeleteRealm: () => void
+  onSave: () => void
 }
 
-export default function PageRealmSettingsGeneral({ hasChanges, realmName, isMaster, onDeleteRealm }: PageRealmSettingsGeneralProps) {
+export default function PageRealmSettingsGeneral({ hasChanges, realmName, isMaster, onDeleteRealm, onSave }: PageRealmSettingsGeneralProps) {
   const form = useFormContext<UpdateRealmSchema>()
 
   return (
@@ -38,6 +39,24 @@ export default function PageRealmSettingsGeneral({ hasChanges, realmName, isMast
               </div>
               <div className='w-1/2'>
                 <InputText label='Realm Name' disabled {...field} />
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='display_name'
+          render={({ field }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Display Name</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Human-readable name shown in the login and admin UI. Leave empty to use the realm name.
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <InputText label='Display Name' {...field} value={field.value ?? ''} />
               </div>
             </div>
           )}
@@ -84,7 +103,7 @@ export default function PageRealmSettingsGeneral({ hasChanges, realmName, isMast
       <FloatingActionBar
         show={hasChanges}
         title='Save Changes'
-        actions={[{ label: 'Save', variant: 'default', onClick: () => { } }]}
+        actions={[{ label: 'Save', variant: 'default', onClick: onSave }]}
         description="You have unsaved changes. Click 'Save' to apply them."
         onCancel={form.reset}
       />

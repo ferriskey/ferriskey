@@ -73,6 +73,39 @@ export const useDeleteRealm = () => {
   })
 }
 
+export const useUpdateRealm = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    ...window.tanstackApi.mutation('put', '/realms/{name}').mutationOptions,
+    onSuccess: async (_, variables) => {
+      const userRealmsKeys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
+        path: {
+          realm_name: variables.path.name,
+        },
+      }).queryKey
+
+      const realmKeys = window.tanstackApi.get('/realms/{name}', {
+        path: {
+          name: variables.path.name,
+        },
+      }).queryKey
+
+      const loginKeys = window.tanstackApi.get('/realms/{name}/login-settings', {
+        path: {
+          name: variables.path.name,
+        },
+      }).queryKey
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userRealmsKeys }),
+        queryClient.invalidateQueries({ queryKey: realmKeys }),
+        queryClient.invalidateQueries({ queryKey: loginKeys }),
+      ])
+    },
+  })
+}
+
 export const useUpdateRealmSettings = () => {
   const queryClient = useQueryClient()
 

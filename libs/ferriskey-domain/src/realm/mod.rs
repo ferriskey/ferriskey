@@ -42,6 +42,12 @@ impl PartialEq<Uuid> for RealmId {
 pub struct Realm {
     pub id: RealmId,
     pub name: String,
+    /// Human-readable label shown in the login and admin UI.
+    ///
+    /// Unlike `name` (which is the URL slug and must stay URL-safe), this can
+    /// contain whitespace and be changed freely without breaking realm URLs.
+    /// Falls back to `name` when unset.
+    pub display_name: Option<String>,
     pub settings: Option<RealmSetting>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -107,6 +113,7 @@ impl Realm {
         Self {
             id: RealmId::default(),
             name,
+            display_name: None,
             settings: None,
             created_at: now,
             updated_at: now,

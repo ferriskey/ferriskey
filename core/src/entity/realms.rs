@@ -15,6 +15,7 @@ impl EntityName for Entity {
 pub struct Model {
     pub id: Uuid,
     pub name: String,
+    pub display_name: Option<String>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
@@ -23,6 +24,7 @@ pub struct Model {
 pub enum Column {
     Id,
     Name,
+    DisplayName,
     CreatedAt,
     UpdatedAt,
 }
@@ -76,6 +78,7 @@ impl ColumnTrait for Column {
         match self {
             Self::Id => ColumnType::Uuid.def(),
             Self::Name => ColumnType::String(StringLen::N(255u32)).def().unique(),
+            Self::DisplayName => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
         }

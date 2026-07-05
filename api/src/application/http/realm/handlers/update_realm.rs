@@ -49,6 +49,7 @@ pub async fn update_realm(
             UpdateRealmInput {
                 realm_name: name,
                 name: payload.name,
+                display_name: payload.display_name,
             },
         )
         .await

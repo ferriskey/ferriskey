@@ -3,6 +3,10 @@ import { z } from 'zod'
 
 export const updateRealmValidator = z.object({
   name: z.string().min(1),
+  display_name: z
+    .string()
+    .max(255, { message: 'Display name must be at most 255 characters' })
+    .optional(),
   default_signing_algorithm: z.nativeEnum(SigningAlgorithm),
 })
 

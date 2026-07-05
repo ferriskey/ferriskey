@@ -307,7 +307,7 @@ export namespace Schemas {
     sync_interval_minutes?: (number | null) | undefined
     sync_mode: string
   }
-  export type CreateRealmValidator = Partial<{ name: string }>
+  export type CreateRealmValidator = Partial<{ display_name: string | null; name: string }>
   export type CreateRedirectUriValidator = Partial<{ enabled: boolean; value: string }>
   export type Role = {
     client?: (null | Client) | undefined
@@ -380,6 +380,7 @@ export namespace Schemas {
   }
   export type Realm = {
     created_at: string
+    display_name?: (string | null) | undefined
     id: RealmId
     name: string
     settings?: (null | RealmSetting) | undefined
@@ -767,11 +768,13 @@ export namespace Schemas {
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type RealmLoginSetting = {
+    display_name?: (string | null) | undefined
     email_verification_enabled: boolean
     forgot_password_enabled: boolean
     identity_providers: Array<IdentityProviderPresentation>
     magic_link_enabled: boolean
     magic_link_ttl: number
+    name: string
     passkey_enabled: boolean
     remember_me_enabled: boolean
     theme: PortalThemeConfig
@@ -977,7 +980,7 @@ export namespace Schemas {
     temporary_token_lifetime: number | null
     user_registration_enabled: boolean | null
   }>
-  export type UpdateRealmValidator = { name: string }
+  export type UpdateRealmValidator = { display_name?: (string | null) | undefined; name: string }
   export type UpdateRedirectUriResponse = { data: RedirectUri }
   export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
   export type UpdateRolePermissionsResponse = { data: Role }
