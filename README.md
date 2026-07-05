@@ -136,6 +136,46 @@ pnpm run dev
 
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
+### OAuth grants in practice
+
+FerrisKey supports multiple OAuth grant flows from a single realm.
+
+#### Device Authorization Grant (RFC 8628)
+
+For CLI, TV, or other browserless clients, enable **Device authorization grant** on the application.
+It uses a verification code flow and the `urn:ietf:params:oauth:grant-type:device_code` grant.
+
+```bash
+curl -s -X POST 'https://auth.example.com/realms/master/protocol/openid-connect/auth/device' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'client_id=<CLIENT_ID>' \
+  -d 'scope=openid%20profile%20email'
+```
+
+The response returns values you can show on the device:
+
+- `verification_uri` or `verification_uri_complete`
+- `user_code`
+- `device_code`
+- `interval`
+- `expires_in`
+
+Poll the token endpoint with the device code:
+
+```bash
+curl -s -X POST 'https://auth.example.com/realms/master/protocol/openid-connect/token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=urn:ietf:params:oauth:grant-type:device_code' \
+  -d 'client_id=<CLIENT_ID>' \
+  -d 'device_code=<DEVICE_CODE>'
+```
+
+Useful webhook events for this flow:
+
+- `auth.device_flow.initiated`
+- `auth.device_flow.denied`
+- `auth.device_flow.expired`
+
 ## ⚙️ Configuration
 
 Common environment variables (example):
