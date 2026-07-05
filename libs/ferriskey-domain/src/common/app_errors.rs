@@ -313,7 +313,7 @@ pub enum CoreError {
     #[error("Portal layout is referenced by one or more themes and cannot be deleted")]
     PortalLayoutInUse,
 
-    #[error("Password does not meet the realm policy")]
+    #[error("Password policy violated: {0}")]
     PasswordPolicyViolation(String),
 }
 

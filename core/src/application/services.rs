@@ -186,6 +186,7 @@ type ApplicationTridentService = TridentServiceImpl<
     WebhookRepo,
     EmailTemplateRepo,
     MjmlRenderer,
+    PasswordPolicyRepo,
 >;
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;
@@ -314,6 +315,7 @@ pub struct ApplicationService {
         WebhookRepo,
         SecurityEventRepo,
         UserAttributeRepo,
+        PasswordPolicyRepo,
     >,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service:

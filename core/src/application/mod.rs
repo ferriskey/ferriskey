@@ -214,6 +214,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let realm_maintenance_whitelist = Arc::new(PostgresRealmMaintenanceWhitelistRepository::new(
         postgres.get_db(),
     ));
+    let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db()));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
@@ -355,6 +356,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             webhook.clone(),
             email_template.clone(),
             mjml_renderer.clone(),
+            password_policy.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
@@ -367,6 +369,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user_attribute.clone(),
             webhook.clone(),
             security_event.clone(),
+            password_policy.clone(),
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
@@ -446,7 +449,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         password_policy_service: PasswordPolicyService::new(
-            Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db())),
+            password_policy.clone(),
             policy.clone(),
         ),
         organization_service: OrganizationServiceImpl::new(

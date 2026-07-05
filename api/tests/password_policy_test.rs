@@ -181,6 +181,13 @@ mod tests {
                 "require_lowercase": true,
                 "require_number": true,
                 "require_special": true,
+                // This test exercises character-class + length enforcement only.
+                // Disable the entropy/common-password rules (which default to the
+                // strict CNIL values) so the configured policy matches what the
+                // assertions below expect.
+                "min_entropy_bits": 0,
+                "forbid_common": false,
+                "check_breached": false,
             }))
             .await;
 
