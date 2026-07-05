@@ -26,28 +26,37 @@ use super::handlers::{
     userinfo::{__path_get_userinfo, get_userinfo},
     verify_email::{__path_verify_email_handler, verify_email_handler},
 };
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
+
 use crate::application::{auth::auth, http::server::app_state::AppState};
 
 #[derive(OpenApi)]
-#[openapi(paths(
-    exchange_token,
-    introspect_token,
-    authenticate,
-    device_authorization,
-    device_verification_page,
-    device_verify,
-    get_certs,
-    get_jwks_json,
-    auth_handler,
-    logout_get,
-    logout_post,
-    revoke_token,
-    get_openid_configuration,
-    registration_handler,
-    verify_email_handler,
-    resend_verification_email_handler,
-    get_userinfo,
-))]
+#[openapi(
+    paths(
+        exchange_token,
+        introspect_token,
+        authenticate,
+        device_authorization,
+        device_verification_page,
+        device_verify,
+        get_certs,
+        get_jwks_json,
+        auth_handler,
+        logout_get,
+        logout_post,
+        revoke_token,
+        get_openid_configuration,
+        registration_handler,
+        verify_email_handler,
+        resend_verification_email_handler,
+        get_userinfo,
+    ),
+    // `CodeChallengeMethod` is only reached through the `AuthRequest` query-params
+    // struct (`IntoParams`), which utoipa does not walk for component schemas — so the
+    // generated `$ref` would otherwise dangle and break OpenAPI clients. Register it
+    // explicitly here.
+    components(schemas(CodeChallengeMethod))
+)]
 pub struct AuthenticationApiDoc;
 
 pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppState> {
