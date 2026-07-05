@@ -114,6 +114,9 @@ pub enum GrantType {
 
     #[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
     DeviceCode,
+
+    #[serde(rename = "urn:ietf:params:oauth:grant-type:token-exchange")]
+    TokenExchange,
 }
 
 impl Display for GrantType {
@@ -124,6 +127,9 @@ impl Display for GrantType {
             GrantType::Credentials => write!(f, "credentials"),
             GrantType::RefreshToken => write!(f, "refresh_token"),
             GrantType::DeviceCode => write!(f, "urn:ietf:params:oauth:grant-type:device_code"),
+            GrantType::TokenExchange => {
+                write!(f, "urn:ietf:params:oauth:grant-type:token-exchange")
+            }
         }
     }
 }
@@ -302,4 +308,27 @@ pub enum AuthenticationStepStatus {
 pub enum AuthenticationMethod {
     UserCredentials { username: String, password: String },
     ExistingToken { token: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TOKEN_EXCHANGE_URN: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
+
+    #[test]
+    fn grant_type_token_exchange_serde_round_trips_to_exact_urn() {
+        let json = format!("\"{TOKEN_EXCHANGE_URN}\"");
+        let parsed: GrantType = serde_json::from_str(&json)
+            .expect("token-exchange URN should deserialize into GrantType");
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
+    }
+
+    #[test]
+    fn grant_type_token_exchange_displays_full_urn() {
+        let json = format!("\"{TOKEN_EXCHANGE_URN}\"");
+        let parsed: GrantType = serde_json::from_str(&json)
+            .expect("token-exchange URN should deserialize into GrantType");
+        assert_eq!(parsed.to_string(), TOKEN_EXCHANGE_URN);
+    }
 }
