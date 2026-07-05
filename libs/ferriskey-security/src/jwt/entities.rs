@@ -211,16 +211,59 @@ pub struct JwkKey {
     pub e: String,
 }
 
+/// Lifecycle status for a persisted refresh token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RefreshTokenStatus {
+    /// Token is valid and may be exchanged exactly once.
+    Active,
+    /// Token has been rotated; a successor exists.
+    Rotated,
+    /// Token has been explicitly revoked (logout or reuse detection).
+    Revoked,
+}
+
+impl RefreshTokenStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Rotated => "rotated",
+            Self::Revoked => "revoked",
+        }
+    }
+
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "rotated" => Self::Rotated,
+            "revoked" => Self::Revoked,
+            _ => Self::Active,
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        matches!(self, Self::Active)
+    }
+}
+
 pub struct RefreshToken {
     pub id: Uuid,
     pub jti: Uuid,
     pub user_id: Uuid,
+    /// Legacy boolean; superseded by `status` but kept for backward compat with logout.
     pub revoked: bool,
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    /// Shared across all tokens in one rotation lineage.
+    pub family_id: Uuid,
+    /// Token lifecycle state.
+    pub status: RefreshTokenStatus,
+    /// Id of the token that superseded this one (diagnostics).
+    pub replaced_by: Option<Uuid>,
+    /// When this token was rotated (diagnostics).
+    pub rotated_at: Option<DateTime<Utc>>,
 }
 
 impl RefreshToken {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         jti: Uuid,
@@ -236,6 +279,14 @@ impl RefreshToken {
             revoked,
             expires_at,
             created_at,
+            family_id: Uuid::new_v4(),
+            status: if revoked {
+                RefreshTokenStatus::Revoked
+            } else {
+                RefreshTokenStatus::Active
+            },
+            replaced_by: None,
+            rotated_at: None,
         }
     }
 }
@@ -362,5 +413,65 @@ mod tests {
 
         assert_eq!(claims.typ, ClaimsTyp::Refresh);
         assert_eq!(claims.scope, scope);
+    }
+
+    #[test]
+    fn refresh_token_status_parse_roundtrip() {
+        assert_eq!(
+            RefreshTokenStatus::parse("active"),
+            RefreshTokenStatus::Active
+        );
+        assert_eq!(
+            RefreshTokenStatus::parse("rotated"),
+            RefreshTokenStatus::Rotated
+        );
+        assert_eq!(
+            RefreshTokenStatus::parse("revoked"),
+            RefreshTokenStatus::Revoked
+        );
+        assert_eq!(
+            RefreshTokenStatus::parse("unknown"),
+            RefreshTokenStatus::Active
+        );
+    }
+
+    #[test]
+    fn refresh_token_status_as_str() {
+        assert_eq!(RefreshTokenStatus::Active.as_str(), "active");
+        assert_eq!(RefreshTokenStatus::Rotated.as_str(), "rotated");
+        assert_eq!(RefreshTokenStatus::Revoked.as_str(), "revoked");
+    }
+
+    #[test]
+    fn refresh_token_status_is_active() {
+        assert!(RefreshTokenStatus::Active.is_active());
+        assert!(!RefreshTokenStatus::Rotated.is_active());
+        assert!(!RefreshTokenStatus::Revoked.is_active());
+    }
+
+    #[test]
+    fn refresh_token_new_defaults_active() {
+        use chrono::Utc;
+        let id = Uuid::new_v4();
+        let jti = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let token = RefreshToken::new(id, jti, user_id, false, None, now);
+        assert_eq!(token.status, RefreshTokenStatus::Active);
+        assert!(!token.revoked);
+    }
+
+    #[test]
+    fn refresh_token_new_revoked_reflects_status() {
+        use chrono::Utc;
+        let id = Uuid::new_v4();
+        let jti = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let token = RefreshToken::new(id, jti, user_id, true, None, now);
+        assert_eq!(token.status, RefreshTokenStatus::Revoked);
+        assert!(token.revoked);
     }
 }
