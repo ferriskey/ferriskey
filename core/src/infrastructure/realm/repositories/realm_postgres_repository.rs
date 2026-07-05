@@ -80,12 +80,18 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
-    async fn create_realm(&self, name: String) -> Result<Realm, CoreError> {
-        let realm = Realm::new(name);
+    async fn create_realm(
+        &self,
+        name: String,
+        display_name: Option<String>,
+    ) -> Result<Realm, CoreError> {
+        let mut realm = Realm::new(name);
+        realm.display_name = display_name;
 
         let new_realm = ActiveModel {
             id: Set(realm.id.into()),
             name: Set(realm.name),
+            display_name: Set(realm.display_name),
             created_at: Set(realm.created_at.naive_utc()),
             updated_at: Set(realm.updated_at.naive_utc()),
         };
@@ -100,7 +106,12 @@ impl RealmRepository for PostgresRealmRepository {
         Ok(realm)
     }
 
-    async fn update_realm(&self, realm_name: String, name: String) -> Result<Realm, CoreError> {
+    async fn update_realm(
+        &self,
+        realm_name: String,
+        name: String,
+        display_name: Option<String>,
+    ) -> Result<Realm, CoreError> {
         let realm = RealmEntity::find()
             .filter(crate::entity::realms::Column::Name.eq(realm_name))
             .one(&self.db)
@@ -110,6 +121,7 @@ impl RealmRepository for PostgresRealmRepository {
 
         let mut realm: ActiveModel = realm.into();
         realm.name = Set(name.clone());
+        realm.display_name = Set(display_name);
         realm.updated_at = Set(Utc::now().naive_utc());
         realm
             .update(&self.db)

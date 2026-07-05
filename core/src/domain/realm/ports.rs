@@ -125,12 +125,17 @@ pub trait RealmRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<Realm>, CoreError>> + Send;
 
-    fn create_realm(&self, name: String) -> impl Future<Output = Result<Realm, CoreError>> + Send;
+    fn create_realm(
+        &self,
+        name: String,
+        display_name: Option<String>,
+    ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
 
     fn update_realm(
         &self,
         realm_name: String,
         name: String,
+        display_name: Option<String>,
     ) -> impl Future<Output = Result<Realm, CoreError>> + Send;
     fn delete_by_name(&self, name: &str) -> impl Future<Output = Result<(), CoreError>> + Send;
 
@@ -180,6 +185,7 @@ pub struct GetRealmSettingInput {
 
 pub struct CreateRealmInput {
     pub realm_name: String,
+    pub display_name: Option<String>,
 }
 
 pub struct CreateRealmWithUserInput {
@@ -190,6 +196,7 @@ pub struct CreateRealmWithUserInput {
 pub struct UpdateRealmInput {
     pub realm_name: String,
     pub name: String,
+    pub display_name: Option<String>,
 }
 
 pub struct UpdateRealmSettingInput {

@@ -90,7 +90,9 @@ export default function PageLogin({
                             </p>
                           </div>
                           <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                            {realm_name?.toUpperCase() ?? 'Login'}
+                            {loginSettings.display_name?.trim()
+                              ? loginSettings.display_name
+                              : (realm_name?.toUpperCase() ?? 'Login')}
                           </h1>
                         </div>
                         {errorMessage && (

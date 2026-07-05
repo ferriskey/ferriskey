@@ -468,6 +468,7 @@ mod tests {
         Realm {
             id,
             name: name.to_string(),
+            display_name: None,
             settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),

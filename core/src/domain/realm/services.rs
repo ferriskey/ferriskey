@@ -302,7 +302,10 @@ where
             "insufficient permissions",
         )?;
 
-        let realm = self.realm_repository.create_realm(input.realm_name).await?;
+        let realm = self
+            .realm_repository
+            .create_realm(input.realm_name, input.display_name)
+            .await?;
         self.realm_repository
             .create_realm_settings(realm.id, "RS256".to_string())
             .await?;
@@ -451,6 +454,7 @@ where
                 identity.clone(),
                 CreateRealmInput {
                     realm_name: input.realm_name.clone(),
+                    display_name: None,
                 },
             )
             .await?;
@@ -719,7 +723,7 @@ where
 
         let realm = self
             .realm_repository
-            .update_realm(input.realm_name, input.name)
+            .update_realm(input.realm_name, input.name, input.display_name)
             .await?;
 
         self.webhook_repository
@@ -828,6 +832,8 @@ where
             .map(|i| IdentityProviderPresentation::new(i, &realm.name))
             .collect();
 
+        settings.name = realm.name.clone();
+        settings.display_name = realm.display_name.clone();
         settings.identity_providers = idp;
 
         Ok(settings)
@@ -1071,9 +1077,12 @@ mod tests {
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
                 .expect_create_realm()
-                .with(mockall::predicate::eq(realm_name))
+                .with(
+                    mockall::predicate::eq(realm_name),
+                    mockall::predicate::always(),
+                )
                 .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(new_realm) }));
+                .return_once(move |_, _| Box::pin(async move { Ok(new_realm) }));
             self
         }
 
@@ -1456,6 +1465,7 @@ mod tests {
 
         let input = CreateRealmInput {
             realm_name: "realm_test".to_string(),
+            display_name: None,
         };
 
         // Create the new realm that will be returned

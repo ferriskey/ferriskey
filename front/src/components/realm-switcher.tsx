@@ -61,7 +61,7 @@ export default function RealmSwitcher() {
               >
                 <div className='grid flex-1 text-left text-sm leading-tight'>
                   <span className='truncate text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wider'>
-                    {activeRealm.name}
+                    {activeRealm.display_name || activeRealm.name}
                   </span>
                 </div>
                 <ChevronsUpDown className='ml-auto size-4 shrink-0 text-sidebar-foreground/50' />
@@ -85,7 +85,7 @@ export default function RealmSwitcher() {
                   <div className='flex size-6 items-center justify-center rounded-none border'>
                     <Globe className='size-3.5 shrink-0' />
                   </div>
-                  {realm.name}
+                  {realm.display_name || realm.name}
                   <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
                 </DropdownMenuItem>
               ))}
@@ -120,7 +120,18 @@ interface ModalCreateRealmProps {
 }
 
 const createRealmSchema = z.object({
-  name: z.string().trim().min(1, { message: 'Realm name is required' }),
+  name: z
+    .string()
+    .trim()
+    .min(1, { message: 'Realm name is required' })
+    .regex(/^[A-Za-z0-9_-]+$/, {
+      message: 'Only letters, digits, hyphens and underscores are allowed',
+    }),
+  display_name: z
+    .string()
+    .trim()
+    .max(255, { message: 'Display name must be at most 255 characters' })
+    .optional(),
 })
 
 type CreateRealmSchema = z.infer<typeof createRealmSchema>
@@ -132,12 +143,19 @@ function ModalCreateRealm({ open, setOpen, realm_name }: ModalCreateRealmProps) 
     resolver: zodResolver(createRealmSchema),
     defaultValues: {
       name: '',
+      display_name: '',
     },
   })
 
   const handleSubmit = () => {
+    const values = form.getValues()
+    const displayName = values.display_name?.trim()
+
     createRealm({
-      body: form.getValues(),
+      body: {
+        name: values.name,
+        display_name: displayName ? displayName : null,
+      },
     })
   }
   const isValid = form.formState.isValid
@@ -175,6 +193,19 @@ function ModalCreateRealm({ open, setOpen, realm_name }: ModalCreateRealmProps) 
                 name={'name'}
                 label='Realm Name'
                 value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+
+          <FormField
+            name='display_name'
+            control={form.control}
+            render={({ field }) => (
+              <InputText
+                name={'display_name'}
+                label='Display Name (optional)'
+                value={field.value ?? ''}
                 onChange={field.onChange}
               />
             )}

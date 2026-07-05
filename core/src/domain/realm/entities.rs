@@ -54,6 +54,8 @@ impl std::str::FromStr for SmtpEncryption {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct RealmLoginSetting {
+    pub name: String,
+    pub display_name: Option<String>,
     pub user_registration_enabled: bool,
     pub forgot_password_enabled: bool,
     pub remember_me_enabled: bool,
@@ -68,6 +70,8 @@ pub struct RealmLoginSetting {
 impl From<RealmSetting> for RealmLoginSetting {
     fn from(value: RealmSetting) -> Self {
         Self {
+            name: String::new(),
+            display_name: None,
             forgot_password_enabled: value.forgot_password_enabled,
             remember_me_enabled: value.remember_me_enabled,
             user_registration_enabled: value.user_registration_enabled,

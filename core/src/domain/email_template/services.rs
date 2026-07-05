@@ -261,6 +261,7 @@ mod tests {
         Realm {
             id: uuid::Uuid::new_v4().into(),
             name: "test-realm".to_string(),
+            display_name: None,
             settings: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),

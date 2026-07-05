@@ -10,6 +10,7 @@ impl From<Model> for Realm {
         Realm {
             id: value.id.into(),
             name: value.name,
+            display_name: value.display_name,
             settings: None,
             created_at,
             updated_at,
@@ -25,6 +26,7 @@ impl From<&Model> for Realm {
         Realm {
             id: model.id.into(),
             name: model.name.clone(),
+            display_name: model.display_name.clone(),
             settings: None,
             created_at,
             updated_at,
