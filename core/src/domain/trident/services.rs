@@ -33,6 +33,10 @@ use crate::{
             entities::interpolate_variables,
             ports::{EmailTemplateRepository, TemplateRenderer},
         },
+        password_policy::{
+            entity::PasswordPolicy, repository::PasswordPolicyRepository,
+            service::violations_to_core_error, validator,
+        },
         realm::{
             entities::RealmId,
             ports::{RealmRepository, SmtpConfigRepository},
@@ -206,7 +210,7 @@ async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
 }
 
 #[derive(Clone, Debug)]
-pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
+pub struct TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -223,6 +227,7 @@ where
     WH: WebhookRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    PPR: PasswordPolicyRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -239,10 +244,11 @@ where
     pub(crate) webhook_repository: Arc<WH>,
     pub(crate) email_template_repository: Arc<ETR>,
     pub(crate) template_renderer: Arc<TR>,
+    pub(crate) password_policy_repository: Arc<PPR>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -259,6 +265,7 @@ where
     WH: WebhookRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    PPR: PasswordPolicyRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -277,6 +284,7 @@ where
         webhook_repository: Arc<WH>,
         email_template_repository: Arc<ETR>,
         template_renderer: Arc<TR>,
+        password_policy_repository: Arc<PPR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -294,6 +302,7 @@ where
             webhook_repository,
             email_template_repository,
             template_renderer,
+            password_policy_repository,
         }
     }
 
@@ -332,8 +341,8 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR> TridentService
+    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -350,6 +359,7 @@ where
     WH: WebhookRepository,
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
+    PPR: PasswordPolicyRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -1030,6 +1040,26 @@ where
             Identity::User(user) => user,
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
+
+        let policy = self
+            .password_policy_repository
+            .find_by_realm_id(user.realm_id.into())
+            .await?
+            .unwrap_or_else(|| PasswordPolicy::default(user.realm_id.into()));
+
+        let email_local_buf = user
+            .email
+            .as_deref()
+            .and_then(|e| e.split('@').next())
+            .map(str::to_string);
+
+        validator::validate(
+            &input.value,
+            &policy,
+            Some(user.username.as_str()),
+            email_local_buf.as_deref(),
+        )
+        .map_err(violations_to_core_error)?;
 
         let password_credential = self
             .credential_repository
@@ -1713,13 +1743,39 @@ where
             return Err(CoreError::InvalidToken);
         }
 
-        // 3. Delete old password credential
+        // 3. Enforce password policy before applying the new credential.
+        let policy = self
+            .password_policy_repository
+            .find_by_realm_id(prt.realm_id)
+            .await?
+            .unwrap_or_else(|| PasswordPolicy::default(prt.realm_id));
+
+        // Look up user context for the common-password check (username/email match).
+        let target_user = self.user_repository.get_by_id(prt.user_id).await.ok();
+
+        let (username_buf, email_local_buf);
+        let (username_ref, email_local_ref) = if let Some(ref u) = target_user {
+            username_buf = u.username.clone();
+            email_local_buf = u
+                .email
+                .as_deref()
+                .and_then(|e| e.split('@').next())
+                .map(str::to_string);
+            (Some(username_buf.as_str()), email_local_buf.as_deref())
+        } else {
+            (None, None)
+        };
+
+        validator::validate(&input.new_password, &policy, username_ref, email_local_ref)
+            .map_err(violations_to_core_error)?;
+
+        // 4. Delete old password credential
         let _ = self
             .credential_repository
             .delete_password_credential(prt.user_id)
             .await;
 
-        // 4. Create new hashed credential
+        // 5. Create new hashed credential
         let hash_result = self
             .hasher_repository
             .hash_password(&input.new_password)
@@ -1855,6 +1911,7 @@ mod tests {
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
         credential::ports::MockCredentialRepository,
         email_template::ports::MockEmailTemplateRepository,
+        password_policy::repository::MockPasswordPolicyRepository,
         realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
         seawatch::ports::MockSecurityEventRepository,
         trident::ports::{
@@ -1898,6 +1955,7 @@ mod tests {
         webhook_repo: Arc<MockWebhookRepository>,
         email_template_repo: Arc<MockEmailTemplateRepository>,
         template_renderer: Arc<NoopTemplateRenderer>,
+        password_policy_repo: Arc<MockPasswordPolicyRepository>,
     }
 
     impl TridentTestBuilder {
@@ -1918,6 +1976,7 @@ mod tests {
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
                 email_template_repo: Arc::new(MockEmailTemplateRepository::new()),
                 template_renderer: Arc::new(NoopTemplateRenderer),
+                password_policy_repo: Arc::new(MockPasswordPolicyRepository::new()),
             }
         }
 
@@ -1939,6 +1998,7 @@ mod tests {
             MockWebhookRepository,
             MockEmailTemplateRepository,
             NoopTemplateRenderer,
+            MockPasswordPolicyRepository,
         > {
             TridentServiceImpl::new(
                 self.credential_repo,
@@ -1956,6 +2016,7 @@ mod tests {
                 self.webhook_repo,
                 self.email_template_repo,
                 self.template_renderer,
+                self.password_policy_repo,
             )
         }
     }
@@ -2241,6 +2302,18 @@ mod tests {
             .expect_verify_magic_token()
             .returning(|_, _| Box::pin(async { Ok(true) }));
 
+        // Policy lookup: no stored policy → use CNIL defaults
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        // User lookup for username/email context
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| Box::pin(async { Err(CoreError::NotFound) }));
+
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_delete_password_credential()
@@ -2301,15 +2374,16 @@ mod tests {
             .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
+        // Strong password satisfying CNIL defaults (≥12 chars, all classes, ≥80 bits entropy)
         let result = service
             .complete_password_reset(CompletePasswordResetInput {
                 token_id,
                 token: "raw_token".to_string(),
-                new_password: "newpassword123".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
             })
             .await;
 
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "expected Ok, got Err");
     }
 
     #[tokio::test]

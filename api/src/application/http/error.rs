@@ -286,7 +286,7 @@ impl From<CoreError> for ApiError {
                     ),
                     Err(_) => Self::validation_errors(vec![ValidationError {
                         field: "password".into(),
-                        message: "Password does not meet the realm policy".into(),
+                        message: details.into(),
                     }]),
                 }
             }

@@ -12,6 +12,10 @@ use crate::domain::{
     },
     credential::ports::CredentialRepository,
     crypto::HasherRepository,
+    password_policy::{
+        entity::PasswordPolicy, repository::PasswordPolicyRepository,
+        service::violations_to_core_error, validator,
+    },
     realm::ports::RealmRepository,
     role::{entities::permission::Permissions, ports::RoleRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
@@ -48,7 +52,7 @@ fn normalize_optional_email(email: Option<String>) -> Option<String> {
 }
 
 #[derive(Clone, Debug)]
-pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -61,6 +65,7 @@ where
     W: WebhookRepository,
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
+    PPR: PasswordPolicyRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -72,12 +77,13 @@ where
     pub(crate) user_attribute_repository: Arc<UAR>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) security_event_repository: Arc<SE>,
+    pub(crate) password_policy_repository: Arc<PPR>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
-    UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
+    UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -90,6 +96,7 @@ where
     W: WebhookRepository,
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
+    PPR: PasswordPolicyRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -103,6 +110,7 @@ where
         user_attribute_repository: Arc<UAR>,
         webhook_repository: Arc<W>,
         security_event_repository: Arc<SE>,
+        password_policy_repository: Arc<PPR>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -116,13 +124,14 @@ where
             user_attribute_repository,
             webhook_repository,
             security_event_repository,
+            password_policy_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR> UserService
-    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR> UserService
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -135,6 +144,7 @@ where
     W: WebhookRepository,
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
+    PPR: PasswordPolicyRepository,
 {
     async fn delete_user(
         &self,
@@ -201,6 +211,30 @@ where
             self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        let policy = self
+            .password_policy_repository
+            .find_by_realm_id(realm.id.into())
+            .await?
+            .unwrap_or_else(|| PasswordPolicy::default(realm.id.into()));
+
+        let target_user = self.user_repository.get_by_id(input.user_id).await.ok();
+
+        let (username, email_local_buf);
+        let (username_ref, email_local_ref) = if let Some(ref u) = target_user {
+            username = u.username.clone();
+            email_local_buf = u
+                .email
+                .as_deref()
+                .and_then(|e| e.split('@').next())
+                .map(str::to_string);
+            (Some(username.as_str()), email_local_buf.as_deref())
+        } else {
+            (None, None)
+        };
+
+        validator::validate(&input.password, &policy, username_ref, email_local_ref)
+            .map_err(violations_to_core_error)?;
 
         let password_credential = self
             .credential_repository
@@ -705,6 +739,7 @@ mod tests {
         },
         credential::ports::MockCredentialRepository,
         crypto::MockHasherRepository,
+        password_policy::repository::MockPasswordPolicyRepository,
         realm::{entities::Realm, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
         seawatch::ports::MockSecurityEventRepository,
@@ -727,6 +762,7 @@ mod tests {
         webhook_repo: Arc<MockWebhookRepository>,
         client_repo: Arc<MockClientRepository>,
         security_event_repo: Arc<MockSecurityEventRepository>,
+        password_policy_repo: Arc<MockPasswordPolicyRepository>,
     }
 
     impl UserServiceTestBuilder {
@@ -743,6 +779,7 @@ mod tests {
                 webhook_repo: Arc::new(MockWebhookRepository::new()),
                 client_repo: Arc::new(MockClientRepository::new()),
                 security_event_repo: Arc::new(MockSecurityEventRepository::new()),
+                password_policy_repo: Arc::new(MockPasswordPolicyRepository::new()),
             }
         }
 
@@ -844,6 +881,7 @@ mod tests {
             MockWebhookRepository,
             MockSecurityEventRepository,
             MockUserAttributeRepository,
+            MockPasswordPolicyRepository,
         > {
             use crate::domain::common::policies::FerriskeyPolicy;
 
@@ -864,6 +902,7 @@ mod tests {
                 self.user_attribute_repo,
                 self.webhook_repo,
                 self.security_event_repo,
+                self.password_policy_repo,
                 Arc::new(policy),
             )
         }

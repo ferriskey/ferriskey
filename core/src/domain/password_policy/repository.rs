@@ -6,6 +6,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 
 use super::entity::{PasswordPolicy, UpdatePasswordPolicy};
 
+#[cfg_attr(test, mockall::automock)]
 pub trait PasswordPolicyRepository: Send + Sync {
     fn find_by_realm_id(
         &self,

@@ -21,6 +21,9 @@ pub struct Model {
     pub require_number: bool,
     pub require_special: bool,
     pub max_age_days: Option<i32>,
+    pub min_entropy_bits: i32,
+    pub forbid_common: bool,
+    pub check_breached: bool,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -35,6 +38,9 @@ pub enum Column {
     RequireNumber,
     RequireSpecial,
     MaxAgeDays,
+    MinEntropyBits,
+    ForbidCommon,
+    CheckBreached,
     CreatedAt,
     UpdatedAt,
 }
@@ -68,6 +74,9 @@ impl ColumnTrait for Column {
             Self::RequireNumber => ColumnType::Boolean.def(),
             Self::RequireSpecial => ColumnType::Boolean.def(),
             Self::MaxAgeDays => ColumnType::Integer.def().null(),
+            Self::MinEntropyBits => ColumnType::Integer.def(),
+            Self::ForbidCommon => ColumnType::Boolean.def(),
+            Self::CheckBreached => ColumnType::Boolean.def(),
             Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
             Self::UpdatedAt => ColumnType::TimestampWithTimeZone.def(),
         }

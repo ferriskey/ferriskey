@@ -4,3 +4,4 @@ pub mod policies;
 pub mod ports;
 pub mod repository;
 pub mod service;
+pub mod validator;

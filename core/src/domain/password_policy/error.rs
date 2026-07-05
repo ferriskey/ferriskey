@@ -10,6 +10,9 @@ pub enum PasswordPolicyError {
     MissingLowercase,
     MissingNumber,
     MissingSpecialCharacter,
+    InsufficientEntropy { min_bits: f64, actual_bits: f64 },
+    CommonPassword,
+    BreachedPassword,
 }
 
 impl PasswordPolicyError {
@@ -20,6 +23,9 @@ impl PasswordPolicyError {
             PasswordPolicyError::MissingLowercase => "missing_lowercase",
             PasswordPolicyError::MissingNumber => "missing_number",
             PasswordPolicyError::MissingSpecialCharacter => "missing_special",
+            PasswordPolicyError::InsufficientEntropy { .. } => "insufficient_entropy",
+            PasswordPolicyError::CommonPassword => "common_password",
+            PasswordPolicyError::BreachedPassword => "breached_password",
         }
     }
 }
@@ -45,6 +51,28 @@ impl Display for PasswordPolicyError {
             }
             PasswordPolicyError::MissingSpecialCharacter => {
                 write!(f, "Password must contain at least one special character")
+            }
+            PasswordPolicyError::InsufficientEntropy {
+                min_bits,
+                actual_bits,
+            } => {
+                write!(
+                    f,
+                    "Password entropy is too low: {:.1} bits (minimum {:.1} bits required)",
+                    actual_bits, min_bits
+                )
+            }
+            PasswordPolicyError::CommonPassword => {
+                write!(
+                    f,
+                    "Password is too common or matches user credentials; please choose a stronger password"
+                )
+            }
+            PasswordPolicyError::BreachedPassword => {
+                write!(
+                    f,
+                    "Password has appeared in a data breach; please choose a different password"
+                )
             }
         }
     }
