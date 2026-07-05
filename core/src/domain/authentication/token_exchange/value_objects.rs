@@ -48,7 +48,6 @@ pub struct TokenExchangeOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::authentication::token_exchange::entities::TokenType;
 
     #[test]
     fn output_serializes_issued_token_type_as_urn_and_omits_absent_scope() {
@@ -71,5 +70,19 @@ mod tests {
             json.get("scope").is_none(),
             "absent scope should be omitted from the RFC 8693 response"
         );
+    }
+
+    #[test]
+    fn output_serializes_present_scope() {
+        let output = TokenExchangeOutput {
+            access_token: "new-token".to_string(),
+            issued_token_type: TokenType::AccessToken,
+            token_type: "Bearer".to_string(),
+            expires_in: 300,
+            scope: Some("openid profile".to_string()),
+        };
+
+        let json = serde_json::to_value(&output).expect("output should serialize");
+        assert_eq!(json["scope"], "openid profile");
     }
 }

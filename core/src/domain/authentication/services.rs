@@ -1372,8 +1372,8 @@ where
             GrantType::RefreshToken => self.refresh_token(params).await,
             // Device flow token exchange is not wired up yet (see #1020).
             GrantType::DeviceCode => Err(CoreError::InvalidRequest),
-            // RFC 8693 token exchange is handled in the token endpoint once
-            // the service lands (see #1053/#1054); not wired up yet.
+            // RFC 8693 token exchange is dispatched here once the exchange
+            // service lands (see #1053/#1054); not wired up yet.
             GrantType::TokenExchange => Err(CoreError::InvalidRequest),
         }
     }
