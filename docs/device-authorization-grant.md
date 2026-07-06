@@ -4,7 +4,7 @@ FerrisKey supports the OAuth 2.0 Device Authorization Grant for browserless clie
 
 Flow diagram:
 
-1. The device requests a `device_code` from the token endpoint.
+1. The device requests a `device_code` from the device authorization endpoint.
 2. The device prompts the user with `user_code` and `verification_uri`.
 3. A separate browser session approves/denies the request.
 4. The device polls the token endpoint with `urn:ietf:params:oauth:grant-type:device_code` until success or error.
