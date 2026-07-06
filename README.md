@@ -181,8 +181,8 @@ Poll at `interval` seconds until the token endpoint returns tokens or one of the
   - `authorization_pending` (retry after interval),
   - `slow_down` (increase interval),
   - `expired_token` (restart the flow),
-- `access_denied` (user denied request),
-- `invalid_grant` (invalid or stale request).
+  - `access_denied` (user denied request),
+  - `invalid_grant` (invalid or stale request).
 
 Useful webhook events for this flow:
 
