@@ -145,6 +145,8 @@ FerrisKey supports multiple OAuth grant flows from a single realm.
 For CLI, TV, or other browserless clients, enable **Device authorization grant** on the application.
 It uses a verification code flow and the `urn:ietf:params:oauth:grant-type:device_code` grant.
 
+Flow:
+
 ```bash
 curl -s -X POST 'https://auth.example.com/realms/master/protocol/openid-connect/auth/device' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
@@ -160,6 +162,8 @@ The response returns values you can show on the device:
 - `interval`
 - `expires_in`
 
+Open `verification_uri_complete` in a browserless flow, or show `verification_uri` + `user_code` to paste manually.
+
 Poll the token endpoint with the device code:
 
 ```bash
@@ -170,11 +174,48 @@ curl -s -X POST 'https://auth.example.com/realms/master/protocol/openid-connect/
   -d 'device_code=<DEVICE_CODE>'
 ```
 
+Poll at `interval` seconds until successful or an error response arrives.
+
+- Successful response includes access and refresh tokens, plus `id_token`.
+- Expected error responses during polling:
+  - `authorization_pending` (retry after interval),
+  - `slow_down` (increase interval),
+  - `expired_token` (restart the flow),
+  - `access_denied` (user denied request),
+  - `invalid_grant` (invalid or stale request).
+
 Useful webhook events for this flow:
 
 - `auth.device_flow.initiated`
 - `auth.device_flow.denied`
 - `auth.device_flow.expired`
+
+Useful references:
+
+- [RFC 8628: OAuth 2.0 Device Authorization Grant](https://www.rfc-editor.org/rfc/rfc8628.html)
+
+Common CLI/TV use case:
+
+- Start the device flow from the CLI, show `verification_uri` + `user_code`, and keep polling `token` until success.
+
+#### Token Exchange (RFC 8693)
+
+For service-to-service delegation scenarios, enable and use **Token Exchange** on the application.
+Use this when one OAuth client wants to swap a token it already holds for another token with different audience or scope.
+
+```bash
+curl -s -X POST 'https://auth.example.com/realms/master/protocol/openid-connect/token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'client_id=<CLIENT_ID>' \
+  -d 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
+  -d 'subject_token=<INPUT_TOKEN>' \
+  -d 'subject_token_type=urn:ietf:params:oauth:token-type:access_token' \
+  -d 'audience=<API_AUDIENCE>'
+```
+
+Useful references:
+
+- [RFC 8693: OAuth 2.0 Token Exchange](https://www.rfc-editor.org/rfc/rfc8693.html)
 
 ## ⚙️ Configuration
 
