@@ -12,6 +12,7 @@ use crate::domain::authentication::token_exchange::entities::TokenType;
 /// The token-type fields carry the raw URNs as received; the service parses
 /// them with [`TokenType::from_urn`] so an unknown URN surfaces as
 /// `unsupported_token_type` rather than a deserialization error.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct TokenExchangeInput {
     /// The token being exchanged.
     pub subject_token: String,
@@ -84,5 +85,22 @@ mod tests {
 
         let json = serde_json::to_value(&output).expect("output should serialize");
         assert_eq!(json["scope"], "openid profile");
+    }
+
+    #[test]
+    fn input_deserializes_request_body_and_carries_raw_token_type_urn() {
+        let input: TokenExchangeInput = serde_json::from_str(
+            r#"{"subject_token":"subj","subject_token_type":"urn:example:custom-token-type"}"#,
+        )
+        .expect("input should deserialize from a token-exchange request body");
+
+        assert_eq!(input.subject_token, "subj");
+        // The raw URN is carried verbatim; parsing happens in the service so an
+        // unknown token type surfaces as `unsupported_token_type`, not a
+        // deserialization error.
+        assert_eq!(input.subject_token_type, "urn:example:custom-token-type");
+        // Absent optional fields deserialize to `None`.
+        assert!(input.requested_token_type.is_none());
+        assert!(input.audience.is_none());
     }
 }
