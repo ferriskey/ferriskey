@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ferriskey_domain::user::commands::BulkDeleteUsersInput;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -204,8 +205,17 @@ where
             .realm_repository
             .get_by_name(&input.realm_name)
             .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+            .map_err(|e| {
+                error!(
+                    "reset_password: failed to fetch realm {}: {e:?}",
+                    input.realm_name
+                );
+                CoreError::InvalidRealm
+            })?
+            .ok_or_else(|| {
+                warn!("reset_password: realm {} not found", input.realm_name);
+                CoreError::InvalidRealm
+            })?;
 
         ensure_policy(
             self.policy.can_update_user(&identity, &realm).await,
@@ -215,7 +225,14 @@ where
         let policy = self
             .password_policy_repository
             .find_by_realm_id(realm.id.into())
-            .await?
+            .await
+            .map_err(|e| {
+                error!(
+                    "reset_password: failed to load password policy for realm {:?}: {e:?}",
+                    realm.id
+                );
+                e
+            })?
             .unwrap_or_else(|| PasswordPolicy::default(realm.id.into()));
 
         let target_user = self.user_repository.get_by_id(input.user_id).await.ok();
@@ -233,8 +250,15 @@ where
             (None, None)
         };
 
-        validator::validate(&input.password, &policy, username_ref, email_local_ref)
-            .map_err(violations_to_core_error)?;
+        validator::validate(&input.password, &policy, username_ref, email_local_ref).map_err(
+            |e| {
+                warn!(
+                    "reset_password: password policy violation for user {}: {e:?}",
+                    input.user_id
+                );
+                violations_to_core_error(e)
+            },
+        )?;
 
         let password_credential = self
             .credential_repository
@@ -245,14 +269,26 @@ where
             self.credential_repository
                 .delete_password_credential(input.user_id)
                 .await
-                .map_err(|_| CoreError::DeletePasswordCredentialError)?;
+                .map_err(|e| {
+                    error!(
+                        "reset_password: failed to delete existing password credential for user {}: {e:?}",
+                        input.user_id
+                    );
+                    CoreError::DeletePasswordCredentialError
+                })?;
         }
 
         let hash_result = self
             .hasher_repository
             .hash_password(&input.password)
             .await
-            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    "reset_password: failed to hash password for user {}: {e:?}",
+                    input.user_id
+                );
+                CoreError::HashPasswordError(e.to_string())
+            })?;
 
         self.credential_repository
             .create_credential(
@@ -263,7 +299,13 @@ where
                 input.temporary,
             )
             .await
-            .map_err(|_| CoreError::CreateCredentialError)?;
+            .map_err(|e| {
+                error!(
+                    "reset_password: failed to create password credential for user {}: {e:?}",
+                    input.user_id
+                );
+                CoreError::CreateCredentialError
+            })?;
 
         self.security_event_repository
             .store_event(
@@ -275,7 +317,14 @@ where
                 )
                 .with_target("user".to_string(), input.user_id, None),
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                error!(
+                    "reset_password: failed to store security event for user {}: {e:?}",
+                    input.user_id
+                );
+                e
+            })?;
 
         // @TODO: webhook call action
 

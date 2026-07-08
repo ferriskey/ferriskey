@@ -123,6 +123,56 @@ export default function PageRealmSettingsPasswordPolicy({ hasChanges, onSave }: 
             </div>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name='min_entropy_bits'
+          render={({ field }) => (
+            <div className='flex items-start justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Minimum Entropy (bits)</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Reject passwords weaker than this Shannon entropy. 0 to disable (CNIL 2022-100 suggests 80).</p>
+              </div>
+              <div className='w-1/2'>
+                <InputText
+                  type='number'
+                  label='Min Entropy (bits)'
+                  {...field}
+                  onChange={field.onChange}
+                  value={field.value ?? ''}
+                />
+              </div>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='forbid_common'
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-2/3'>
+                <p className='text-sm font-medium'>Forbid Common Passwords</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Reject passwords from the common-password list or matching the username/email.</p>
+              </div>
+              <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name='check_breached'
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-2/3'>
+                <p className='text-sm font-medium'>Check Breached Passwords</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>Reject passwords reported as breached (requires an external provider to be configured).</p>
+              </div>
+              <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+            </div>
+          )}
+        />
       </div>
 
       <FloatingActionBar

@@ -81,7 +81,11 @@ where
             .find_by_realm_id(realm_id)
             .await?
             .unwrap_or_else(|| PasswordPolicy::default(realm_id));
-        policy.validate(password).map_err(|errors| {
+        // Use the full validator (entropy + common-password checks) so the pre-flight
+        // check matches the enforcement done later in `reset_password`. Username/email
+        // context is unavailable here, so those similarity checks run only in the
+        // credential flow where the target user is known.
+        validator::validate(password, &policy, None, None).map_err(|errors| {
             let violations: Vec<PasswordPolicyViolation> = errors.iter().map(Into::into).collect();
             CoreError::PasswordPolicyViolation(
                 serde_json::to_string(&violations).unwrap_or_default(),

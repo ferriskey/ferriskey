@@ -24,6 +24,9 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
       require_number: policy?.require_number ?? false,
       require_special: policy?.require_special ?? false,
       max_age_days: policy?.max_age_days ?? 0,
+      min_entropy_bits: policy?.min_entropy_bits ?? 0,
+      forbid_common: policy?.forbid_common ?? false,
+      check_breached: policy?.check_breached ?? false,
     },
   })
 
@@ -36,6 +39,9 @@ export default function PageRealmSettingsPasswordPolicyFeature() {
       require_number: policy.require_number,
       require_special: policy.require_special,
       max_age_days: policy.max_age_days ?? 0,
+      min_entropy_bits: policy.min_entropy_bits,
+      forbid_common: policy.forbid_common,
+      check_breached: policy.check_breached,
     }
   )
 

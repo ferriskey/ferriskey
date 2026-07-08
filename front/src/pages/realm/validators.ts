@@ -38,6 +38,9 @@ export const updatePasswordPolicyValidator = z.object({
   require_number: z.boolean().nullable().optional(),
   require_special: z.boolean().nullable().optional(),
   max_age_days: z.number().min(0).nullable().optional(),
+  min_entropy_bits: z.number().min(0).max(256).nullable().optional(),
+  forbid_common: z.boolean().nullable().optional(),
+  check_breached: z.boolean().nullable().optional(),
 })
 
 export type UpdatePasswordPolicySchema = z.infer<typeof updatePasswordPolicyValidator>

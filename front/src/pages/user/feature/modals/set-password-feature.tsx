@@ -1,10 +1,11 @@
 import { useForm } from 'react-hook-form'
 import SetPassword from '../../ui/modals/set-password'
-import { setCredentialPasswordSchema, SetCredentialPasswordSchema } from '../../schemas'
+import { buildSetCredentialPasswordSchema, SetCredentialPasswordSchema } from '../../schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useResetUserPassword } from '@/api/user.api'
+import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'
@@ -17,8 +18,13 @@ export default function SetPasswordFeature({ contentText }: SetPasswordFeaturePr
   const [open, setOpen] = useState(false)
   const { realm_name, user_id } = useParams<RouterParams>()
   const { mutate: resetPassword } = useResetUserPassword()
+  const { data: passwordPolicy } = usePublicPasswordPolicy(realm_name)
+  const schema = useMemo(
+    () => buildSetCredentialPasswordSchema(passwordPolicy),
+    [passwordPolicy]
+  )
   const form = useForm<SetCredentialPasswordSchema>({
-    resolver: zodResolver(setCredentialPasswordSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       password: '',
       confirmPassword: '',
