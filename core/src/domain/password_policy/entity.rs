@@ -29,7 +29,8 @@ pub struct PasswordPolicy {
 
 impl PasswordPolicy {
     /// CNIL délibération 2022-100 compliant defaults (>= 80 bits entropy, all classes required,
-    /// min 12 characters).
+    /// min 12 characters). Secure by default; admins can relax `min_entropy_bits` /
+    /// `forbid_common` per realm from the admin panel.
     pub fn default(realm_id: Uuid) -> Self {
         Self {
             id: Uuid::now_v7(),

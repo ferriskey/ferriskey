@@ -12,7 +12,7 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::ResetPasswordInput;
 use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{error, info};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -73,7 +73,10 @@ pub async fn reset_password(
             },
         )
         .await
-        .map_err(|_| ApiError::InternalServerError("Internal server error".into()))?;
+        .map_err(|e| {
+            error!("failed to reset password for user {user_id} in realm {realm_name}: {e:?}");
+            ApiError::from(e)
+        })?;
 
     Ok(Response::OK(ResetPasswordResponse {
         message: "Password reset successfully".to_string(),

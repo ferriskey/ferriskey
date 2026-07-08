@@ -716,9 +716,12 @@ export namespace Schemas {
   export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
   export type PasskeyRequestOptionsRequest = Partial<{ username: string | null }>
   export type PasswordPolicy = {
+    check_breached: boolean
     created_at: string
+    forbid_common: boolean
     id: string
     max_age_days?: (number | null) | undefined
+    min_entropy_bits: number
     min_length: number
     realm_id: string
     require_lowercase: boolean
@@ -931,7 +934,10 @@ export namespace Schemas {
     redirect_url: string | null
   }>
   export type UpdatePasswordPolicyValidator = Partial<{
+    check_breached: boolean | null
+    forbid_common: boolean | null
     max_age_days: number | null
+    min_entropy_bits: number | null
     min_length: number | null
     require_lowercase: boolean | null
     require_number: boolean | null

@@ -83,17 +83,20 @@ impl CredentialRepository for PostgresCredentialRepository {
                 hash_result.hash_iterations,
                 hash_result.algorithm.clone(),
             ))
-            .map_err(|_| CredentialError::CreateCredentialError)?),
+            .map_err(|e| {
+                error!("Error serializing credential_data for user {user_id}: {e:?}");
+                CredentialError::CreateCredentialError
+            })?),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
             webauthn_credential_id: Set(None),
         };
 
-        let t = payload
-            .insert(&self.db)
-            .await
-            .map_err(|_| CredentialError::CreateCredentialError)?;
+        let t = payload.insert(&self.db).await.map_err(|e| {
+            error!("Error creating credential for user {user_id}: {e:?}");
+            CredentialError::CreateCredentialError
+        })?;
 
         Ok(t.into())
     }
