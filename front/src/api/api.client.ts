@@ -136,7 +136,6 @@ export namespace Schemas {
     client_type: ClientType
     created_at: string
     direct_access_grants_enabled: boolean
-    oauth_device_code_grant_enabled: boolean
     enabled: boolean
     id: string
     id_token_lifetime?: (number | null) | undefined
@@ -144,11 +143,13 @@ export namespace Schemas {
     maintenance_reason?: (string | null) | undefined
     maintenance_session_strategy: MaintenanceSessionStrategy
     name: string
+    oauth_device_code_grant_enabled: boolean
     protocol: string
     public_client: boolean
     realm_id: RealmId
     redirect_uris?: (Array<RedirectUri> | null) | undefined
     refresh_token_lifetime?: (number | null) | undefined
+    require_pkce: boolean
     secret?: (string | null) | undefined
     service_account_enabled: boolean
     temporary_token_lifetime?: (number | null) | undefined
@@ -180,6 +181,7 @@ export namespace Schemas {
   }
   export type ClientScopesResponse = { data: Array<ClientScope> }
   export type ClientsResponse = { data: Array<Client> }
+  export type CodeChallengeMethod = 'S256' | 'PLAIN'
   export type FlowId = string
   export type FlowStatus = 'pending' | 'success' | 'failure' | 'expired'
   export type FlowStepId = string
@@ -236,9 +238,9 @@ export namespace Schemas {
     client_id?: string | undefined
     client_type: ClientType
     direct_access_grants_enabled?: boolean | undefined
-    oauth_device_code_grant_enabled?: boolean | undefined
     enabled?: boolean | undefined
     name?: string | undefined
+    oauth_device_code_grant_enabled?: boolean | undefined
     protocol?: string | undefined
     public_client?: boolean | undefined
     service_account_enabled?: boolean | undefined
@@ -513,6 +515,21 @@ export namespace Schemas {
   export type DeviceVerifyAction = 'approve' | 'deny'
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string }
   export type DeviceVerifyResponse = { status: string }
+  export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string }
+  export type EvaluatedRoles = {
+    client_roles: Record<string, Array<string>>
+    realm_roles: Array<string>
+  }
+  export type EvaluatedScope = { default_scope_type: string; name: string; protocol: string }
+  export type EvaluateClientScopesResult = {
+    access_token: unknown
+    effective_mappers: Array<EvaluatedMapper>
+    effective_roles: EvaluatedRoles
+    effective_scopes: Array<EvaluatedScope>
+    id_token?: unknown | undefined
+    userinfo: unknown
+  }
+  export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id: string }
   export type EventStatus = 'success' | 'failure'
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined
@@ -539,10 +556,13 @@ export namespace Schemas {
     authorization_endpoint: string
     end_session_endpoint: string
     grant_types_supported: Array<string>
+    id_token_signing_alg_values_supported: Array<string>
     introspection_endpoint: string
     issuer: string
     jwks_uri: string
+    response_types_supported: Array<string>
     revocation_endpoint: string
+    subject_types_supported: Array<string>
     token_endpoint: string
     token_endpoint_auth_methods_supported: Array<string>
     userinfo_endpoint: string
@@ -606,6 +626,7 @@ export namespace Schemas {
     | 'client_credentials'
     | 'refresh_token'
     | 'urn:ietf:params:oauth:grant-type:device_code'
+    | 'urn:ietf:params:oauth:grant-type:token-exchange'
   export type IdentityProviderPresentation = {
     display_name: string
     icon: string
@@ -683,6 +704,17 @@ export namespace Schemas {
   }
   export type ListProvidersResponse = { data: Array<ProviderResponse> }
   export type ListThemesResponse = { data: Array<PortalTheme> }
+  export type UserSessionDto = {
+    created_at: string
+    expires_at: string
+    id: string
+    ip_address?: (string | null) | undefined
+    last_seen_at?: (string | null) | undefined
+    realm_id: string
+    user_agent?: (string | null) | undefined
+    user_id: string
+  }
+  export type ListUserSessionsResponse = { data: Array<UserSessionDto> }
   export type LogoutRequestValidator = Partial<{
     client_id: string | null
     id_token_hint: string | null
@@ -770,6 +802,13 @@ export namespace Schemas {
   export type PublicKeyCredential = Record<string, unknown>
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>
   export type PublicKeyCredentialRequestOptionsJSON = Record<string, unknown>
+  export type PublicPasswordPolicy = {
+    min_length: number
+    require_lowercase: boolean
+    require_number: boolean
+    require_special: boolean
+    require_uppercase: boolean
+  }
   export type RealmLoginSetting = {
     display_name?: (string | null) | undefined
     email_verification_enabled: boolean
@@ -885,6 +924,7 @@ export namespace Schemas {
     client_id: string | null
     client_secret: string | null
     code: string | null
+    code_verifier: string | null
     device_code: string | null
     grant_type: GrantType
     password: string | null
@@ -904,11 +944,12 @@ export namespace Schemas {
     access_token_lifetime: number | null
     client_id: string | null
     direct_access_grants_enabled: boolean | null
-    oauth_device_code_grant_enabled: boolean | null
     enabled: boolean | null
     id_token_lifetime: number | null
     name: string | null
+    oauth_device_code_grant_enabled: boolean | null
     refresh_token_lifetime: number | null
+    require_pkce: boolean | null
     temporary_token_lifetime: number | null
   }>
   export type UpdateEmailTemplateResponse = { data: EmailTemplate }
@@ -1440,6 +1481,22 @@ export namespace Endpoints {
       path: { realm_name: string; client_id: string; scope_id: string }
     }
     responses: { 200: unknown }
+  }
+  export type post_Evaluate_client_scopes = {
+    method: 'POST'
+    path: '/realms/{realm_name}/clients/{client_id}/evaluate-scopes'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; client_id: string }
+
+      body: Schemas.EvaluateScopesValidator
+    }
+    responses: {
+      200: Schemas.EvaluateClientScopesResult
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
   }
   export type put_Toggle_maintenance = {
     method: 'PUT'
@@ -2506,6 +2563,19 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_Get_public_password_policy = {
+    method: 'GET'
+    path: '/realms/{realm_name}/password-policy/public'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string }
+    }
+    responses: {
+      200: Schemas.PublicPasswordPolicy
+      401: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_List_layouts = {
     method: 'GET'
     path: '/realms/{realm_name}/portal-layouts'
@@ -2835,6 +2905,9 @@ export namespace Endpoints {
         redirect_uri: string
         scope: string
         state: string
+        nonce: string
+        code_challenge: string
+        code_challenge_method: 'S256' | 'PLAIN'
       }>
       path: { realm_name: string }
     }
@@ -3396,6 +3469,36 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse
     }
   }
+  export type get_List_user_sessions = {
+    method: 'GET'
+    path: '/realms/{realm_name}/users/{user_id}/sessions'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string }
+    }
+    responses: {
+      200: Schemas.ListUserSessionsResponse
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
+  export type delete_Revoke_user_session = {
+    method: 'DELETE'
+    path: '/realms/{realm_name}/users/{user_id}/sessions/{session_id}'
+    requestFormat: 'json'
+    parameters: {
+      path: { realm_name: string; user_id: string; session_id: string }
+    }
+    responses: {
+      204: unknown
+      401: Schemas.ApiErrorResponse
+      403: Schemas.ApiErrorResponse
+      404: Schemas.ApiErrorResponse
+      500: Schemas.ApiErrorResponse
+    }
+  }
   export type get_Fetch_webhooks = {
     method: 'GET'
     path: '/realms/{realm_name}/webhooks'
@@ -3512,6 +3615,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/organizations/{organization_id}/attributes': Endpoints.get_List_attributes
     '/realms/{realm_name}/organizations/{organization_id}/members': Endpoints.get_List_members
     '/realms/{realm_name}/password-policy': Endpoints.get_Get_password_policy
+    '/realms/{realm_name}/password-policy/public': Endpoints.get_Get_public_password_policy
     '/realms/{realm_name}/portal-layouts': Endpoints.get_List_layouts
     '/realms/{realm_name}/portal-layouts/public/default': Endpoints.get_Get_public_default_layout
     '/realms/{realm_name}/portal-layouts/public/{layout_id}': Endpoints.get_Get_public_layout
@@ -3538,6 +3642,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/users/{user_id}/organizations': Endpoints.get_List_user_organizations
     '/realms/{realm_name}/users/{user_id}/permissions': Endpoints.get_Get_user_permissions
     '/realms/{realm_name}/users/{user_id}/roles': Endpoints.get_Get_user_roles
+    '/realms/{realm_name}/users/{user_id}/sessions': Endpoints.get_List_user_sessions
     '/realms/{realm_name}/webhooks': Endpoints.get_Fetch_webhooks
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.get_Get_webhook
   }
@@ -3548,6 +3653,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers': Endpoints.post_Create_protocol_mapper
     '/realms/{realm_name}/clients': Endpoints.post_Create_client
     '/realms/{realm_name}/clients/settings/maintenance/whitelist': Endpoints.post_Add_realm_whitelist_entry
+    '/realms/{realm_name}/clients/{client_id}/evaluate-scopes': Endpoints.post_Evaluate_client_scopes
     '/realms/{realm_name}/clients/{client_id}/maintenance/whitelist': Endpoints.post_Add_client_whitelist_entry
     '/realms/{realm_name}/clients/{client_id}/post-logout-redirects': Endpoints.post_Create_post_logout_redirect_uri
     '/realms/{realm_name}/clients/{client_id}/redirects': Endpoints.post_Create_redirect_uri
@@ -3644,6 +3750,7 @@ export type EndpointByMethod = {
     '/realms/{realm_name}/users/{user_id}/attributes/{key}': Endpoints.delete_Delete_user_attribute
     '/realms/{realm_name}/users/{user_id}/credentials/{credential_id}': Endpoints.delete_Delete_user_credential
     '/realms/{realm_name}/users/{user_id}/roles/{role_id}': Endpoints.delete_Unassign_role
+    '/realms/{realm_name}/users/{user_id}/sessions/{session_id}': Endpoints.delete_Revoke_user_session
     '/realms/{realm_name}/webhooks/{webhook_id}': Endpoints.delete_Delete_webhook
   }
   patch: {

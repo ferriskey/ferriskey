@@ -1,7 +1,18 @@
 use ferriskey_core::domain::client::entities::ClientType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct EvaluateScopesValidator {
+    /// User whose token would be previewed.
+    pub user_id: Uuid,
+    /// Requested scope string (space-separated). Default scopes always apply; optional scopes
+    /// apply only when named here.
+    #[serde(default)]
+    pub scope: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateClientValidator {

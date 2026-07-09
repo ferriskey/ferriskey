@@ -94,6 +94,31 @@ export const useGetClientRoles = ({ realm, clientId }: BaseQuery & { clientId?: 
   })
 }
 
+export interface EvaluateClientScopesParams {
+  realm: string
+  clientId: string
+  userId: string
+  scope?: string
+}
+
+export const useEvaluateClientScopes = () => {
+  return useMutation({
+    mutationFn: async ({ realm, clientId, userId, scope }: EvaluateClientScopesParams) =>
+      window.tanstackApi
+        .mutation('post', '/realms/{realm_name}/clients/{client_id}/evaluate-scopes')
+        .mutationOptions.mutationFn({
+          path: {
+            realm_name: realm,
+            client_id: clientId,
+          },
+          body: {
+            user_id: userId,
+            scope,
+          },
+        }),
+  })
+}
+
 export const useGetClientScopes = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/client-scopes', {

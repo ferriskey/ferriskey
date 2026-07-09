@@ -198,6 +198,64 @@ pub struct GetUserInfoInput {
     pub claims: JwtClaim,
 }
 
+/// Request received by the application layer for a client-scope evaluation. The application
+/// service authorizes it (view access to the client) and resolves the realm/client before
+/// delegating to the auth service.
+pub struct EvaluateClientScopesRequest {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    /// Realm-scoped issuer base URL, already root-path scoped by the HTTP layer.
+    pub base_url: String,
+    pub user_id: Uuid,
+    pub scope: Option<String>,
+}
+
+/// Input to the client-scope evaluation ("Evaluate") preview. The realm/client are already
+/// resolved (and authorized) by the caller; this only carries what the claim assembly needs.
+pub struct EvaluateClientScopesInput {
+    pub base_url: String,
+    pub realm_id: RealmId,
+    pub realm_name: String,
+    pub client_uuid: Uuid,
+    /// The client's string `client_id` (e.g. `"backend"`), used as the token `azp`.
+    pub client_id: String,
+    pub user_id: Uuid,
+    /// Requested scope string (default scopes are always applied; optional scopes apply when named here).
+    pub scope: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EvaluatedScope {
+    pub name: String,
+    pub protocol: String,
+    pub default_scope_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EvaluatedMapper {
+    pub name: String,
+    pub mapper_type: String,
+    pub config: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EvaluatedRoles {
+    pub realm_roles: Vec<String>,
+    pub client_roles: std::collections::HashMap<String, Vec<String>>,
+}
+
+/// Result of a client-scope evaluation: the effective scopes/mappers/roles plus the decoded
+/// (unsigned, non-persisted) token claims a real token would carry.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EvaluateClientScopesResult {
+    pub effective_scopes: Vec<EvaluatedScope>,
+    pub effective_mappers: Vec<EvaluatedMapper>,
+    pub effective_roles: EvaluatedRoles,
+    pub access_token: serde_json::Value,
+    pub id_token: Option<serde_json::Value>,
+    pub userinfo: serde_json::Value,
+}
+
 pub struct IntrospectTokenInput {
     pub realm_name: String,
     pub client_id: String,

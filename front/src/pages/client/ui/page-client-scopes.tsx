@@ -6,8 +6,10 @@ import { useState } from 'react'
 import AddScopeModal from './components/add-scope-modal'
 import AssignedScopesTable from './components/assigned-scopes-table'
 import EffectiveScopesPreview from './components/effective-scopes-preview'
+import ClientScopesEvaluate from './components/client-scopes-evaluate'
 import { OverviewList } from '@/components/ui/overview-list'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Link } from 'react-router-dom'
 import {
   CLIENT_SCOPE_DETAILS_URL,
@@ -35,7 +37,13 @@ export default function PageClientScopes() {
   }
 
   return (
-    <div className='flex flex-col gap-6'>
+    <Tabs defaultValue='assigned' className='flex flex-col gap-6'>
+      <TabsList>
+        <TabsTrigger value='assigned'>Assigned scopes</TabsTrigger>
+        <TabsTrigger value='evaluate'>Evaluate</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value='assigned' className='flex flex-col gap-6'>
       {/* Assigned Scopes Section - Using OverviewList pattern */}
       <OverviewList
         data={assignedScopes}
@@ -101,6 +109,15 @@ export default function PageClientScopes() {
         onClose={() => setIsAddModalOpen(false)}
         assignedScopeIds={assignedScopes.map((scope) => scope.id)}
       />
-    </div>
+      </TabsContent>
+
+      <TabsContent value='evaluate'>
+        <ClientScopesEvaluate
+          realm={realm_name}
+          clientId={client_id}
+          assignedScopes={assignedScopes}
+        />
+      </TabsContent>
+    </Tabs>
   )
 }
