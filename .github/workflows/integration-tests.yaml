@@ -74,3 +74,10 @@ jobs:
       # applied to all password-set flows and is readable without auth.
       - name: run password policy integration tests
         run: cargo test -p ferriskey-api --test password_policy_test -- --ignored
+
+      # Account lockout / anti-brute-force (#1095): failed-login counter,
+      # lock at threshold, admin unlock, and auto-recovery once the window
+      # lapses. Each test uses its own victim user so the shared realm harness
+      # stays parallel-safe.
+      - name: run account lockout integration tests
+        run: cargo test -p ferriskey-api --test account_lockout_test -- --ignored
