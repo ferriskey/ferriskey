@@ -11,6 +11,7 @@ use subtle::ConstantTimeEq;
 use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
+use ferriskey_aegis::entities::{ClientScope, ProtocolMapper};
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
@@ -36,8 +37,9 @@ use crate::domain::{
         ports::{AuthService, AuthSessionRepository},
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
-            GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput, GrantTypeParams,
-            Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
+            EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
+            EvaluatedScope, GenerateTokenInput, GenerateTokensForUserInput, GetUserInfoInput,
+            GrantTypeParams, Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
             RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
         },
     },
@@ -133,6 +135,20 @@ fn pkce_validate_verifier(verifier: &str) -> bool {
     verifier
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_' | '~'))
+}
+
+/// Token claims assembled from a client's scopes + protocol mappers for a given user,
+/// independent of signing and persistence. Reused by `create_jwt` (real issuance) and by the
+/// client-scope evaluation preview, so the preview reflects exactly what a real token carries.
+struct AssembledClaims {
+    access_claims: JwtClaim,
+    /// ID-token additional claims produced by `IdToken` mappers; `None` when the `openid`
+    /// scope is absent (no ID token is issued in that case).
+    id_mapper_claims: Option<HashMap<String, serde_json::Value>>,
+    /// Client scopes that applied (default scopes + requested optional scopes).
+    effective_scopes: Vec<ClientScope>,
+    /// Protocol mappers gathered from the effective scopes.
+    effective_mappers: Vec<ProtocolMapper>,
 }
 
 #[derive(Clone, Debug)]
@@ -508,16 +524,14 @@ where
         Ok(Jwt { token, expires_at })
     }
 
-    async fn create_jwt(
+    /// Assemble access-token claims (and the ID-token mapper claims) for `input`, applying the
+    /// client's scopes and protocol mappers. Pure computation: it neither signs nor persists a
+    /// token. `create_jwt` uses it before signing/persisting; the client-scope evaluation
+    /// preview uses it directly to show exactly what a real token would contain.
+    async fn assemble_token_claims(
         &self,
-        input: GenerateTokenInput,
-    ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
-        let jwt_key_pair = self
-            .keystore_repository
-            .get_or_generate_key(input.realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
+        input: &GenerateTokenInput,
+    ) -> Result<AssembledClaims, CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
         let realm_audit = format!("{}-realm", input.realm_name);
 
@@ -641,32 +655,216 @@ where
             self.mapper_engine
                 .apply_mappers(&all_mappers, &context, TokenType::AccessToken)?;
 
-        let mut claims = JwtClaim::new(
+        let mut access_claims = JwtClaim::new(
             input.user_id,
-            input.username,
+            input.username.clone(),
             iss,
             vec![realm_audit, "account".to_string()],
             ClaimsTyp::Bearer,
-            input.client_id,
-            Some(input.email),
+            input.client_id.clone(),
+            Some(input.email.clone()),
             input.scope.clone(),
             input.access_token_lifetime,
         );
 
         // Apply mapper output to claims
         for aud in &access_mapper_output.additional_audiences {
-            if !claims.aud.contains(aud) {
-                claims.aud.push(aud.clone());
+            if !access_claims.aud.contains(aud) {
+                access_claims.aud.push(aud.clone());
             }
         }
-        claims.additional_claims = access_mapper_output.claims;
+        access_claims.additional_claims = access_mapper_output.claims;
 
         // `preferred_username` and `email` are now injected exclusively via protocol
         // mappers bound to the `profile` / `email` scopes.  Clearing the hard-coded
         // defaults here ensures they never leak into tokens whose scope set does not
         // include those scopes.
-        claims.preferred_username = None;
-        claims.email = None;
+        access_claims.preferred_username = None;
+        access_claims.email = None;
+
+        // ID-token mapper claims are only produced when the `openid` scope is present.
+        let id_mapper_claims = if input.scope.as_ref().is_some_and(|s| s.contains("openid")) {
+            let id_mapper_output =
+                self.mapper_engine
+                    .apply_mappers(&all_mappers, &context, TokenType::IdToken)?;
+            Some(id_mapper_output.claims)
+        } else {
+            None
+        };
+
+        Ok(AssembledClaims {
+            access_claims,
+            id_mapper_claims,
+            effective_scopes: applicable_scopes,
+            effective_mappers: all_mappers,
+        })
+    }
+
+    /// Build the ID-token claims from already-assembled access-token claims plus the ID-token
+    /// mapper output. `at_hash` is passed in because it depends on the *signed* access token
+    /// (so it is `None` for previews that never sign a token).
+    fn build_id_token_claims(
+        access_claims: &JwtClaim,
+        id_mapper_claims: HashMap<String, serde_json::Value>,
+        at_hash: Option<String>,
+        nonce: Option<String>,
+        id_token_lifetime: i64,
+    ) -> IdTokenClaims {
+        let iat = Utc::now().timestamp();
+        // Identity claims (preferred_username, email, email_verified) are injected into
+        // `additional_claims` by the protocol mappers attached to the `profile`/`email`
+        // scopes. The dedicated struct fields are intentionally left `None` to avoid
+        // duplicate keys in the serialised JWT payload.
+        IdTokenClaims {
+            iss: access_claims.iss.clone(),
+            aud: access_claims.azp.clone(),
+            azp: Some(access_claims.azp.clone()),
+            auth_time: None,
+            email: None,
+            email_verified: None,
+            exp: iat + id_token_lifetime,
+            iat,
+            jti: Uuid::new_v4(),
+            sid: None,
+            at_hash,
+            nonce,
+            preferred_username: None,
+            sub: access_claims.sub,
+            typ: ClaimsTyp::Id,
+            additional_claims: id_mapper_claims,
+        }
+    }
+
+    /// Compute the token claims a user would receive from this client for the given scopes,
+    /// **without signing or persisting anything**. Powers the "Evaluate" client-scopes preview.
+    /// Authorization and realm/client resolution are the caller's responsibility.
+    pub async fn evaluate_client_scopes(
+        &self,
+        input: EvaluateClientScopesInput,
+    ) -> Result<EvaluateClientScopesResult, CoreError> {
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+        let lifetimes = self
+            .resolve_token_lifetimes(input.realm_id, input.client_uuid)
+            .await?;
+
+        let gen_input = GenerateTokenInput {
+            base_url: input.base_url,
+            realm_name: input.realm_name,
+            user_id: user.id,
+            username: user.username.clone(),
+            firstname: user.firstname.clone().unwrap_or_default(),
+            lastname: user.lastname.clone().unwrap_or_default(),
+            email_verified: user.email_verified,
+            client_id: input.client_id,
+            client_uuid: input.client_uuid,
+            email: user.email.clone().unwrap_or_default(),
+            realm_id: input.realm_id,
+            scope: input.scope,
+            access_token_lifetime: lifetimes.access_token,
+            refresh_token_lifetime: lifetimes.refresh_token,
+            id_token_lifetime: lifetimes.id_token,
+            nonce: None,
+            refresh_jti_override: None,
+        };
+
+        let assembled = self.assemble_token_claims(&gen_input).await?;
+
+        // Effective role scope mappings, resolved from the user's role assignments.
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .unwrap_or_default();
+        let mut realm_roles = Vec::new();
+        let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
+        for role in &user_roles {
+            match &role.client {
+                Some(client) => client_roles
+                    .entry(client.client_id.clone())
+                    .or_default()
+                    .push(role.name.clone()),
+                None => realm_roles.push(role.name.clone()),
+            }
+        }
+
+        let access_token = serde_json::to_value(&assembled.access_claims)
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let sub = assembled.access_claims.sub.to_string();
+        let (id_token, userinfo) = match assembled.id_mapper_claims {
+            Some(id_mapper_claims) => {
+                // No signed access token in a preview → no `at_hash`.
+                let id_claims = Self::build_id_token_claims(
+                    &assembled.access_claims,
+                    id_mapper_claims.clone(),
+                    None,
+                    None,
+                    gen_input.id_token_lifetime,
+                );
+                let id_token =
+                    serde_json::to_value(&id_claims).map_err(|_| CoreError::InternalServerError)?;
+
+                // OIDC userinfo carries at least `sub` plus the ID-token mapper claims.
+                let mut userinfo: serde_json::Map<String, serde_json::Value> =
+                    id_mapper_claims.into_iter().collect();
+                userinfo.insert("sub".to_string(), serde_json::Value::String(sub));
+                (Some(id_token), serde_json::Value::Object(userinfo))
+            }
+            None => {
+                let mut userinfo = serde_json::Map::new();
+                userinfo.insert("sub".to_string(), serde_json::Value::String(sub));
+                (None, serde_json::Value::Object(userinfo))
+            }
+        };
+
+        let effective_scopes = assembled
+            .effective_scopes
+            .into_iter()
+            .map(|s| EvaluatedScope {
+                name: s.name,
+                protocol: s.protocol,
+                default_scope_type: format!("{:?}", s.default_scope_type),
+            })
+            .collect();
+
+        let effective_mappers = assembled
+            .effective_mappers
+            .into_iter()
+            .map(|m| EvaluatedMapper {
+                name: m.name,
+                mapper_type: m.mapper_type,
+                config: m.config,
+            })
+            .collect();
+
+        Ok(EvaluateClientScopesResult {
+            effective_scopes,
+            effective_mappers,
+            effective_roles: EvaluatedRoles {
+                realm_roles,
+                client_roles,
+            },
+            access_token,
+            id_token,
+            userinfo,
+        })
+    }
+
+    async fn create_jwt(
+        &self,
+        input: GenerateTokenInput,
+    ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(input.realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let AssembledClaims {
+            access_claims: claims,
+            id_mapper_claims,
+            ..
+        } = self.assemble_token_claims(&input).await?;
 
         let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
             .map_err(|e| {
@@ -703,46 +901,20 @@ where
             &jwt_key_pair,
         )?;
 
-        let contains_openid_scope = input.scope.as_ref().is_some_and(|s| s.contains("openid"));
-        let iat = Utc::now().timestamp();
-        let id_token_exp = iat + input.id_token_lifetime;
-
-        let id_token: Option<Jwt> = if contains_openid_scope {
-            // Apply mappers for ID token
-            let id_mapper_output =
-                self.mapper_engine
-                    .apply_mappers(&all_mappers, &context, TokenType::IdToken)?;
-
-            let aud = claims.azp.clone();
-
+        let id_token: Option<Jwt> = if let Some(id_mapper_claims) = id_mapper_claims {
             // at_hash = base64url(left-half of SHA-256(access_token))
             let at_hash = {
                 let digest = Sha256::digest(jwt.token.as_bytes());
                 Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]))
             };
 
-            // Identity claims (preferred_username, email, email_verified) are injected
-            // into `additional_claims` by the protocol mappers attached to the `profile`
-            // and `email` scopes.  The dedicated struct fields are intentionally left as
-            // `None` to avoid duplicate keys in the serialised JWT payload.
-            let id_claims = IdTokenClaims {
-                iss: claims.iss.clone(),
-                aud,
-                azp: Some(claims.azp.clone()),
-                auth_time: None,
-                email: None,
-                email_verified: None,
-                exp: id_token_exp,
-                iat,
-                jti: Uuid::new_v4(),
-                sid: None,
+            let id_claims = Self::build_id_token_claims(
+                &claims,
+                id_mapper_claims,
                 at_hash,
-                nonce: input.nonce.clone(),
-                preferred_username: None,
-                sub: claims.sub,
-                typ: ClaimsTyp::Id,
-                additional_claims: id_mapper_output.claims,
-            };
+                input.nonce.clone(),
+                input.id_token_lifetime,
+            );
             let t = Self::encode_token_with_key(&id_claims, id_claims.exp, &jwt_key_pair)?;
 
             Some(t)

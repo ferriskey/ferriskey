@@ -22,9 +22,16 @@ use crate::{
             entities::{ExchangeTokenInput, JwtToken},
             ports::AuthService,
             services::AuthServiceImpl,
-            value_objects::{GenerateTokensForUserInput, Identity},
+            value_objects::{
+                EvaluateClientScopesInput, EvaluateClientScopesRequest, EvaluateClientScopesResult,
+                GenerateTokensForUserInput, Identity,
+            },
         },
-        client::{ports::ClientRepository, services::ClientServiceImpl},
+        client::{
+            entities::GetClientInput,
+            ports::{ClientRepository, ClientService},
+            services::ClientServiceImpl,
+        },
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
             ports::CoreService,
@@ -500,6 +507,47 @@ impl ApplicationService {
             .ok_or(CoreError::InvalidRealm)?;
         self.password_policy_service
             .get_policy_public(realm.id.into())
+            .await
+    }
+
+    /// Preview the token claims a user would receive from a client for a given scope set,
+    /// without issuing (signing/persisting) a token. Backs the "Evaluate" client-scopes tab.
+    ///
+    /// Authorization reuses the client view policy: `get_client_by_id` enforces
+    /// `can_view_client` and returns the resolved client.
+    pub async fn evaluate_client_scopes(
+        &self,
+        identity: Identity,
+        request: EvaluateClientScopesRequest,
+    ) -> Result<EvaluateClientScopesResult, CoreError> {
+        let client = self
+            .client_service
+            .get_client_by_id(
+                identity,
+                GetClientInput {
+                    client_id: request.client_id,
+                    realm_name: request.realm_name.clone(),
+                },
+            )
+            .await?;
+
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&request.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        self.auth_service
+            .evaluate_client_scopes(EvaluateClientScopesInput {
+                base_url: request.base_url,
+                realm_id: realm.id,
+                realm_name: realm.name,
+                client_uuid: client.id,
+                client_id: client.client_id,
+                user_id: request.user_id,
+                scope: request.scope,
+            })
             .await
     }
 

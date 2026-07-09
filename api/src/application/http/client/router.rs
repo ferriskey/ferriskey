@@ -16,6 +16,7 @@ use super::handlers::{
         __path_delete_post_logout_redirect_uri, delete_post_logout_redirect_uri,
     },
     delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
+    evaluate_scopes::{__path_evaluate_scopes, evaluate_scopes},
     get_client::{__path_get_client, get_client},
     get_client_roles::{__path_get_client_roles, get_client_roles},
     get_clients::{__path_get_clients, get_clients},
@@ -48,7 +49,8 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
         update_post_logout_redirect_uri,
         delete_redirect_uri,
         delete_post_logout_redirect_uri,
-        get_client_roles
+        get_client_roles,
+        evaluate_scopes
     ),
 
     tags(
@@ -163,6 +165,13 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_client_roles),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/evaluate-scopes",
+                state.args.server.root_path
+            ),
+            post(evaluate_scopes),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }
