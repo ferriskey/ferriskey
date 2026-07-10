@@ -313,6 +313,14 @@ pub trait GroupTokenRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Group>, CoreError>> + Send;
 
+    /// Ids of the groups the user is a *direct* member of (no ancestor expansion). Used by the
+    /// group-membership mapper in `direct` mode to distinguish direct memberships from inherited
+    /// ancestors already present in the effective set.
+    fn list_direct_group_ids_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Uuid>, CoreError>> + Send;
+
     /// Distinct role ids inherited from the user's effective (recursive) groups. Callers resolve
     /// these to full `Role`s (with client) via `UserRoleRepository::get_roles_by_ids`.
     fn list_effective_role_ids_for_user(

@@ -140,7 +140,8 @@ fn pkce_validate_verifier(verifier: &str) -> bool {
 
 /// Build `ContextGroup`s (with full `/parent/child` paths) from a flat list of the user's
 /// effective groups (which already includes every ancestor, so all parents are present).
-fn build_context_groups(groups: &[Group]) -> Vec<ContextGroup> {
+/// `direct_ids` marks which of those groups are direct memberships (vs. inherited ancestors).
+fn build_context_groups(groups: &[Group], direct_ids: &HashSet<Uuid>) -> Vec<ContextGroup> {
     let by_id: HashMap<GroupId, &Group> = groups.iter().map(|g| (g.id, g)).collect();
 
     groups
@@ -163,6 +164,7 @@ fn build_context_groups(groups: &[Group]) -> Vec<ContextGroup> {
                 id: group.id.as_uuid(),
                 name: group.name.clone(),
                 path: format!("/{}", names.join("/")),
+                direct: direct_ids.contains(&group.id.as_uuid()),
             }
         })
         .collect()
@@ -656,12 +658,20 @@ where
         }
 
         // Effective groups (direct + ancestors) with their full paths, for the group mapper.
+        // Direct ids let the mapper emit direct-only membership when configured.
         let effective_groups = self
             .group_token_repository
             .list_effective_groups_for_user(input.user_id)
             .await
             .unwrap_or_default();
-        let groups = build_context_groups(&effective_groups);
+        let direct_group_ids: HashSet<Uuid> = self
+            .group_token_repository
+            .list_direct_group_ids_for_user(input.user_id)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let groups = build_context_groups(&effective_groups, &direct_group_ids);
 
         // Load user organization memberships with their attributes
         let org_memberships = self

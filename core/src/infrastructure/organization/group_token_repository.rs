@@ -23,6 +23,13 @@ SELECT DISTINCT id, organization_id, parent_group_id, name, description, created
 FROM user_groups
 "#;
 
+/// Ids of the groups the user is a direct member of (no ancestor expansion).
+const DIRECT_GROUP_IDS_SQL: &str = r#"
+SELECT group_id
+FROM organization_group_members
+WHERE user_id = $1
+"#;
+
 /// Distinct role ids inherited from the user's effective (recursive) groups.
 const EFFECTIVE_ROLE_IDS_SQL: &str = r#"
 WITH RECURSIVE user_groups AS (
@@ -88,6 +95,25 @@ impl GroupTokenRepository for PostgresGroupTokenRepository {
         }
 
         Ok(groups)
+    }
+
+    async fn list_direct_group_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, CoreError> {
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                DIRECT_GROUP_IDS_SQL,
+                [user_id.into()],
+            ))
+            .await
+            .map_err(|e| {
+                error!("Failed to resolve direct groups for user: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        rows.into_iter()
+            .map(|row| row.try_get::<Uuid>("", "group_id").map_err(map_row_err))
+            .collect()
     }
 
     async fn list_effective_role_ids_for_user(

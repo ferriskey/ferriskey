@@ -34,6 +34,9 @@ pub struct ContextGroup {
     pub name: String,
     /// Full path from the root, e.g. `/engineering/backend`.
     pub path: String,
+    /// `true` when the user is a *direct* member; `false` when this group is present only as an
+    /// ancestor of a direct membership. Lets the group-membership mapper emit direct-only.
+    pub direct: bool,
 }
 
 /// All user/client/realm data that protocol mappers may need.

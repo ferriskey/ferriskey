@@ -426,6 +426,18 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         defaultValue: '',
       },
       {
+        key: 'membership',
+        label: 'Membership',
+        type: 'select',
+        defaultValue: 'effective',
+        options: [
+          { label: 'Effective (direct + parent groups)', value: 'effective' },
+          { label: 'Direct only', value: 'direct' },
+        ],
+        description:
+          'Effective adds every parent group (matches inherited roles). Direct emits only the groups the user directly belongs to (Keycloak-compatible, smaller tokens).',
+      },
+      {
         key: 'full.path',
         label: 'Full group path',
         type: 'switch',
