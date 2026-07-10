@@ -92,6 +92,37 @@ impl UserRoleRepository for PostgresUserRoleRepository {
         Ok(roles)
     }
 
+    async fn get_roles_by_ids(&self, role_ids: Vec<Uuid>) -> Result<Vec<Role>, CoreError> {
+        if role_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let roles = crate::entity::roles::Entity::find()
+            .filter(crate::entity::roles::Column::Id.is_in(role_ids))
+            .join(
+                JoinType::LeftJoin,
+                crate::entity::roles::Relation::Clients.def(),
+            )
+            .select_also(crate::entity::clients::Entity)
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error getting roles by ids: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .iter()
+            .map(|(model, client)| {
+                let mut role: Role = model.clone().into();
+                if let Some(client) = client {
+                    role.client = Some(client.clone().into());
+                }
+                role
+            })
+            .collect::<Vec<Role>>();
+
+        Ok(roles)
+    }
+
     async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, CoreError> {
         todo!("Implement has_role in PostgresUserRoleRepository");
     }

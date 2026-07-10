@@ -27,6 +27,7 @@ use crate::{
         email_verification::services::EmailVerificationServiceImpl,
         health::services::HealthServiceImpl,
         maintenance::services::MaintenanceServiceImpl,
+        organization::group_services::GroupServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
         portal_layouts::services::PortalLayoutsServiceImpl,
@@ -71,6 +72,11 @@ use crate::{
             realm_maintenance_whitelist_repository::PostgresRealmMaintenanceWhitelistRepository,
         },
         organization::{
+            group_attribute_repository::PostgresGroupAttributeRepository,
+            group_member_repository::PostgresGroupMemberRepository,
+            group_repository::PostgresGroupRepository,
+            group_role_repository::PostgresGroupRoleRepository,
+            group_token_repository::PostgresGroupTokenRepository,
             organization_attribute_repository::PostgresOrganizationAttributeRepository,
             organization_member_repository::PostgresOrganizationMemberRepository,
             organization_repository::PostgresOrganizationRepository,
@@ -204,6 +210,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let organization_member =
         Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
+    let group = Arc::new(PostgresGroupRepository::new(postgres.get_db()));
+    let group_member = Arc::new(PostgresGroupMemberRepository::new(postgres.get_db()));
+    let group_role = Arc::new(PostgresGroupRoleRepository::new(postgres.get_db()));
+    let group_attribute = Arc::new(PostgresGroupAttributeRepository::new(postgres.get_db()));
+    let group_token = Arc::new(PostgresGroupTokenRepository::new(postgres.get_db()));
     let email_verification_token_repo = Arc::new(PostgresEmailVerificationTokenRepository::new(
         postgres.get_db(),
     ));
@@ -262,6 +273,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         organization_member.clone(),
         organization.clone(),
         organization_attribute.clone(),
+        group_token.clone(),
         user_required_action.clone(),
         maintenance_whitelist.clone(),
         realm_maintenance_whitelist.clone(),
@@ -458,6 +470,17 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             organization.clone(),
             organization_attribute.clone(),
             organization_member.clone(),
+            policy.clone(),
+        ),
+        group_service: GroupServiceImpl::new(
+            realm.clone(),
+            user.clone(),
+            user_role.clone(),
+            organization.clone(),
+            group.clone(),
+            group_member.clone(),
+            group_role.clone(),
+            group_attribute.clone(),
             policy.clone(),
         ),
         flow_recorder,

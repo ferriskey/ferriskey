@@ -9,6 +9,16 @@ use super::handlers::{
     delete_attribute::{__path_delete_attribute, delete_attribute},
     delete_organization::{__path_delete_organization, delete_organization},
     get_organization::{__path_get_organization, get_organization},
+    groups::{
+        __path_add_group_member, __path_assign_group_role, __path_create_group,
+        __path_delete_group, __path_delete_group_attribute, __path_get_group,
+        __path_list_group_attributes, __path_list_group_members, __path_list_group_roles,
+        __path_list_groups, __path_remove_group_member, __path_revoke_group_role,
+        __path_update_group, __path_upsert_group_attribute, add_group_member, assign_group_role,
+        create_group, delete_group, delete_group_attribute, get_group, list_group_attributes,
+        list_group_members, list_group_roles, list_groups, remove_group_member, revoke_group_role,
+        update_group, upsert_group_attribute,
+    },
     list_attributes::{__path_list_attributes, list_attributes},
     list_members::{__path_list_members, list_members},
     list_organizations::{__path_list_organizations, list_organizations},
@@ -30,6 +40,20 @@ use super::handlers::{
     list_members,
     add_member,
     remove_member,
+    list_groups,
+    create_group,
+    get_group,
+    update_group,
+    delete_group,
+    list_group_members,
+    add_group_member,
+    remove_group_member,
+    list_group_roles,
+    assign_group_role,
+    revoke_group_role,
+    list_group_attributes,
+    upsert_group_attribute,
+    delete_group_attribute,
 ))]
 pub struct OrganizationApiDoc;
 
@@ -78,6 +102,64 @@ pub fn organization_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             axum::routing::delete(remove_member),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups",
+                state.args.server.root_path
+            ),
+            get(list_groups).post(create_group),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}",
+                state.args.server.root_path
+            ),
+            get(get_group)
+                .put(update_group)
+                .delete(delete_group),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/members",
+                state.args.server.root_path
+            ),
+            get(list_group_members).post(add_group_member),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/members/{{user_id}}",
+                state.args.server.root_path
+            ),
+            axum::routing::delete(remove_group_member),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/roles",
+                state.args.server.root_path
+            ),
+            get(list_group_roles).post(assign_group_role),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/roles/{{role_id}}",
+                state.args.server.root_path
+            ),
+            axum::routing::delete(revoke_group_role),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/attributes",
+                state.args.server.root_path
+            ),
+            get(list_group_attributes),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/groups/{{group_id}}/attributes/{{key}}",
+                state.args.server.root_path
+            ),
+            axum::routing::put(upsert_group_attribute).delete(delete_group_attribute),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

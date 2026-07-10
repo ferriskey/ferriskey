@@ -275,6 +275,301 @@ pub struct DeleteOrganizationAttributeInput {
     pub key: String,
 }
 
+// ============================================================================
+// Groups (hierarchical, scoped to an organization)
+// ============================================================================
+
+/// Unique identifier for a group.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, Hash, ToSchema,
+)]
+pub struct GroupId(Uuid);
+
+impl GroupId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl Display for GroupId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<Uuid> for GroupId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<GroupId> for Uuid {
+    fn from(id: GroupId) -> Self {
+        id.0
+    }
+}
+
+/// A group within an organization. Groups form a tree via `parent_group_id`
+/// (`None` = top-level group). Membership is recursive: a member of a group is
+/// effectively a member of all its ancestors.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct Group {
+    pub id: GroupId,
+    pub organization_id: OrganizationId,
+    pub parent_group_id: Option<GroupId>,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+pub struct GroupConfig {
+    pub organization_id: OrganizationId,
+    pub parent_group_id: Option<GroupId>,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+impl Group {
+    pub fn new(config: GroupConfig) -> Result<Self, OrganizationValidationError> {
+        let (now, timestamp) = generate_timestamp();
+
+        Ok(Self {
+            id: GroupId::new(Uuid::new_v7(timestamp)),
+            organization_id: config.organization_id,
+            parent_group_id: config.parent_group_id,
+            name: validate_required_name(config.name)?,
+            description: normalize_optional_text(config.description),
+            created_at: now,
+            updated_at: now,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct CreateGroupParams {
+    pub organization_id: OrganizationId,
+    pub parent_group_id: Option<GroupId>,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct UpdateGroupParams {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    /// When `Some`, moves the group under a new parent (`Some(None)` promotes to top level).
+    pub parent_group_id: Option<Option<GroupId>>,
+}
+
+/// A user's membership in a group.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupMember {
+    pub id: Uuid,
+    pub group_id: GroupId,
+    pub user_id: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+impl GroupMember {
+    pub fn new(group_id: GroupId, user_id: Uuid) -> Self {
+        let (now, timestamp) = generate_timestamp();
+        Self {
+            id: Uuid::new_v7(timestamp),
+            group_id,
+            user_id,
+            created_at: now,
+        }
+    }
+}
+
+/// A group member enriched with the user's identity fields, for display in the members list
+/// without the client having to fetch the whole user directory.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupMemberDetail {
+    pub id: Uuid,
+    pub group_id: GroupId,
+    pub user_id: Uuid,
+    pub username: String,
+    pub email: Option<String>,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub enabled: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+/// A page of group members plus the total count (for server-side pagination).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupMemberPage {
+    pub data: Vec<GroupMemberDetail>,
+    pub total: i64,
+    pub limit: u32,
+    pub offset: u32,
+}
+
+/// A role assigned to a group. Members (recursively) inherit the role.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupRoleMapping {
+    pub id: Uuid,
+    pub group_id: GroupId,
+    pub role_id: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+impl GroupRoleMapping {
+    pub fn new(group_id: GroupId, role_id: Uuid) -> Self {
+        let (now, timestamp) = generate_timestamp();
+        Self {
+            id: Uuid::new_v7(timestamp),
+            group_id,
+            role_id,
+            created_at: now,
+        }
+    }
+}
+
+/// A key/value attribute on a group.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupAttribute {
+    pub id: Uuid,
+    pub group_id: GroupId,
+    pub key: String,
+    pub value: String,
+    pub created_at: DateTime<Utc>,
+}
+
+impl GroupAttribute {
+    pub fn new(
+        group_id: GroupId,
+        key: String,
+        value: String,
+    ) -> Result<Self, OrganizationValidationError> {
+        let (now, timestamp) = generate_timestamp();
+        Ok(Self {
+            id: Uuid::new_v7(timestamp),
+            group_id,
+            key: validate_attribute_key(key)?,
+            value: validate_attribute_value(value)?,
+            created_at: now,
+        })
+    }
+}
+
+/// A node in the group tree, used for hierarchical responses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupNode {
+    #[serde(flatten)]
+    pub group: Group,
+    /// Breaks the self-referential schema so utoipa's OpenAPI generation doesn't recurse forever.
+    #[schema(no_recursion)]
+    pub children: Vec<GroupNode>,
+}
+
+// --- Group input structs ---
+
+pub struct CreateGroupInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub parent_group_id: Option<GroupId>,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+pub struct GetGroupInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+}
+
+pub struct ListGroupsInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+}
+
+pub struct UpdateGroupInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub parent_group_id: Option<Option<GroupId>>,
+}
+
+pub struct DeleteGroupInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+}
+
+pub struct AddGroupMemberInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub user_id: Uuid,
+}
+
+pub struct RemoveGroupMemberInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub user_id: Uuid,
+}
+
+pub struct ListGroupMembersInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+    /// Case-insensitive filter on username/email.
+    pub search: Option<String>,
+}
+
+pub struct AssignGroupRoleInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub role_id: Uuid,
+}
+
+pub struct RevokeGroupRoleInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub role_id: Uuid,
+}
+
+pub struct ListGroupRolesInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+}
+
+pub struct ListGroupAttributesInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+}
+
+pub struct UpsertGroupAttributeInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub key: String,
+    pub value: String,
+}
+
+pub struct DeleteGroupAttributeInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub group_id: GroupId,
+    pub key: String,
+}
+
 fn validate_required_name(name: String) -> Result<String, OrganizationValidationError> {
     let trimmed = name.trim();
     if trimmed.is_empty() {

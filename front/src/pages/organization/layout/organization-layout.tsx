@@ -2,6 +2,7 @@ import { useGetOrganization } from '@/api/organization.api'
 import { RouterParams } from '@/routes/router'
 import {
   ORGANIZATION_ATTRIBUTES_URL,
+  ORGANIZATION_GROUPS_URL,
   ORGANIZATION_MEMBERS_URL,
   ORGANIZATION_SETTINGS_URL,
   ORGANIZATION_URL,
@@ -29,6 +30,7 @@ export default function OrganizationLayout() {
     { key: 'settings', label: 'Settings', path: `${baseUrl}${ORGANIZATION_SETTINGS_URL}` },
     { key: 'attributes', label: 'Attributes', path: `${baseUrl}${ORGANIZATION_ATTRIBUTES_URL}` },
     { key: 'members', label: 'Members', path: `${baseUrl}${ORGANIZATION_MEMBERS_URL}` },
+    { key: 'groups', label: 'Groups', path: `${baseUrl}${ORGANIZATION_GROUPS_URL}` },
   ]
 
   return (

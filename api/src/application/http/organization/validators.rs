@@ -42,3 +42,31 @@ pub struct UpsertAttributeValidator {
     #[validate(length(min = 1, message = "value is required"))]
     pub value: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateGroupValidator {
+    #[validate(length(min = 1, message = "name is required"))]
+    pub name: String,
+    pub description: Option<String>,
+    /// Optional parent group; omit for a top-level group.
+    pub parent_group_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdateGroupValidator {
+    #[validate(length(min = 1, message = "name must not be empty when provided"))]
+    pub name: Option<String>,
+    pub description: Option<String>,
+    /// When present, move the group under this parent.
+    pub parent_group_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct AddGroupMemberValidator {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct AssignGroupRoleValidator {
+    pub role_id: Uuid,
+}

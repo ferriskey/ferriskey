@@ -13,6 +13,7 @@ export const ORGANIZATION_CREATE_URL = '/create'
 export const ORGANIZATION_SETTINGS_URL = '/settings'
 export const ORGANIZATION_ATTRIBUTES_URL = '/attributes'
 export const ORGANIZATION_MEMBERS_URL = '/members'
+export const ORGANIZATION_GROUPS_URL = '/groups'
 
 export type OrganizationRouterParams = {
   realm_name: string

@@ -16,10 +16,11 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperReposit
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_organization::{
-    OrganizationAttributeRepository, OrganizationMemberRepository, OrganizationRepository,
+    Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository,
+    OrganizationMemberRepository, OrganizationRepository,
 };
 
-use crate::domain::authentication::mapper_engine::ContextOrganization;
+use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
 };
@@ -137,6 +138,36 @@ fn pkce_validate_verifier(verifier: &str) -> bool {
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_' | '~'))
 }
 
+/// Build `ContextGroup`s (with full `/parent/child` paths) from a flat list of the user's
+/// effective groups (which already includes every ancestor, so all parents are present).
+fn build_context_groups(groups: &[Group]) -> Vec<ContextGroup> {
+    let by_id: HashMap<GroupId, &Group> = groups.iter().map(|g| (g.id, g)).collect();
+
+    groups
+        .iter()
+        .map(|group| {
+            // Walk up to the root collecting names, then reverse to root-first order.
+            let mut names = vec![group.name.clone()];
+            let mut cursor = group.parent_group_id;
+            while let Some(parent_id) = cursor {
+                match by_id.get(&parent_id) {
+                    Some(parent) => {
+                        names.push(parent.name.clone());
+                        cursor = parent.parent_group_id;
+                    }
+                    None => break,
+                }
+            }
+            names.reverse();
+            ContextGroup {
+                id: group.id.as_uuid(),
+                name: group.name.clone(),
+                path: format!("/{}", names.join("/")),
+            }
+        })
+        .collect()
+}
+
 /// Token claims assembled from a client's scopes + protocol mappers for a given user,
 /// independent of signing and persistence. Reused by `create_jwt` (real issuance) and by the
 /// client-scope evaluation preview, so the preview reflects exactly what a real token carries.
@@ -171,6 +202,7 @@ pub struct AuthServiceImpl<
     OM,
     OR,
     OAR,
+    GT,
     URA,
     MW,
     RMW,
@@ -197,6 +229,7 @@ pub struct AuthServiceImpl<
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    GT: GroupTokenRepository,
     URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
@@ -223,6 +256,7 @@ pub struct AuthServiceImpl<
     pub(crate) organization_member_repository: Arc<OM>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) organization_attribute_repository: Arc<OAR>,
+    pub(crate) group_token_repository: Arc<GT>,
     pub(crate) user_required_action_repository: Arc<URA>,
     pub(crate) maintenance_whitelist_repository: Arc<MW>,
     pub(crate) realm_maintenance_whitelist_repository: Arc<RMW>,
@@ -254,6 +288,7 @@ impl<
     OM,
     OR,
     OAR,
+    GT,
     URA,
     MW,
     RMW,
@@ -281,6 +316,7 @@ impl<
         OM,
         OR,
         OAR,
+        GT,
         URA,
         MW,
         RMW,
@@ -308,6 +344,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    GT: GroupTokenRepository,
     URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
@@ -336,6 +373,7 @@ where
         organization_member_repository: Arc<OM>,
         organization_repository: Arc<OR>,
         organization_attribute_repository: Arc<OAR>,
+        group_token_repository: Arc<GT>,
         user_required_action_repository: Arc<URA>,
         maintenance_whitelist_repository: Arc<MW>,
         realm_maintenance_whitelist_repository: Arc<RMW>,
@@ -365,6 +403,7 @@ where
             organization_member_repository,
             organization_repository,
             organization_attribute_repository,
+            group_token_repository,
             user_required_action_repository,
             maintenance_whitelist_repository,
             realm_maintenance_whitelist_repository,
@@ -398,6 +437,7 @@ impl<
     OM,
     OR,
     OAR,
+    GT,
     URA,
     MW,
     RMW,
@@ -425,6 +465,7 @@ impl<
         OM,
         OR,
         OAR,
+        GT,
         URA,
         MW,
         RMW,
@@ -452,6 +493,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    GT: GroupTokenRepository,
     URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
@@ -588,6 +630,39 @@ where
             }
         }
 
+        // Roles inherited from the user's effective (recursive) group memberships, merged into
+        // the role maps so they flow into tokens exactly like directly-assigned roles.
+        let mut realm_roles: Vec<String> = Vec::new();
+        let group_role_ids = self
+            .group_token_repository
+            .list_effective_role_ids_for_user(input.user_id)
+            .await
+            .unwrap_or_default();
+        if !group_role_ids.is_empty() {
+            let group_roles = self
+                .user_role_repository
+                .get_roles_by_ids(group_role_ids)
+                .await
+                .unwrap_or_default();
+            for role in &group_roles {
+                match &role.client {
+                    Some(client) => client_roles
+                        .entry(client.client_id.clone())
+                        .or_default()
+                        .push(role.name.clone()),
+                    None => realm_roles.push(role.name.clone()),
+                }
+            }
+        }
+
+        // Effective groups (direct + ancestors) with their full paths, for the group mapper.
+        let effective_groups = self
+            .group_token_repository
+            .list_effective_groups_for_user(input.user_id)
+            .await
+            .unwrap_or_default();
+        let groups = build_context_groups(&effective_groups);
+
         // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
@@ -640,7 +715,7 @@ where
             email_verified: input.email_verified,
             firstname: input.firstname.clone(),
             lastname: input.lastname.clone(),
-            realm_roles: vec![],
+            realm_roles,
             client_roles,
             client_id: input.client_id.clone(),
             client_uuid: input.client_uuid,
@@ -648,6 +723,7 @@ where
             realm_id: input.realm_id,
             user_attributes,
             organizations,
+            groups,
         };
 
         // Apply mappers for access token
@@ -769,12 +845,26 @@ where
 
         let assembled = self.assemble_token_claims(&gen_input).await?;
 
-        // Effective role scope mappings, resolved from the user's role assignments.
-        let user_roles = self
+        // Effective role scope mappings: the user's directly-assigned roles plus roles inherited
+        // from their effective (recursive) group memberships — matching what tokens carry.
+        let mut user_roles = self
             .user_role_repository
             .get_user_roles(user.id)
             .await
             .unwrap_or_default();
+        let group_role_ids = self
+            .group_token_repository
+            .list_effective_role_ids_for_user(user.id)
+            .await
+            .unwrap_or_default();
+        if !group_role_ids.is_empty() {
+            let group_roles = self
+                .user_role_repository
+                .get_roles_by_ids(group_role_ids)
+                .await
+                .unwrap_or_default();
+            user_roles.extend(group_roles);
+        }
         let mut realm_roles = Vec::new();
         let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
         for role in &user_roles {
@@ -785,6 +875,12 @@ where
                     .push(role.name.clone()),
                 None => realm_roles.push(role.name.clone()),
             }
+        }
+        realm_roles.sort();
+        realm_roles.dedup();
+        for roles in client_roles.values_mut() {
+            roles.sort();
+            roles.dedup();
         }
 
         let access_token = serde_json::to_value(&assembled.access_claims)
@@ -2184,6 +2280,7 @@ impl<
     OM,
     OR,
     OAR,
+    GT,
     URA,
     MW,
     RMW,
@@ -2211,6 +2308,7 @@ impl<
         OM,
         OR,
         OAR,
+        GT,
         URA,
         MW,
         RMW,
@@ -2238,6 +2336,7 @@ where
     OM: OrganizationMemberRepository,
     OR: OrganizationRepository,
     OAR: OrganizationAttributeRepository,
+    GT: GroupTokenRepository,
     URA: UserRequiredActionRepository,
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
