@@ -31,6 +31,9 @@ pub struct ContextOrganization {
 #[derive(Debug, Clone)]
 pub struct ContextGroup {
     pub id: Uuid,
+    /// Organization the group is scoped to. Lets the mapper prefix paths with the org alias
+    /// (resolved from `MapperContext::organizations`) to disambiguate multi-org tokens.
+    pub organization_id: Uuid,
     pub name: String,
     /// Full path from the root, e.g. `/engineering/backend`.
     pub path: String,

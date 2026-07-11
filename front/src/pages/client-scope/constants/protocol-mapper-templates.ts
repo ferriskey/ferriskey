@@ -444,6 +444,14 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         defaultValue: 'true',
         description: 'Include the full path (e.g. /parent/child) instead of just the group name.',
       },
+      {
+        key: 'prefix.org',
+        label: 'Prefix with organization',
+        type: 'switch',
+        defaultValue: 'false',
+        description:
+          'Prepend the organization alias to the path (e.g. /acme/parent/child) to disambiguate groups from different organizations. Only applies to full paths.',
+      },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },

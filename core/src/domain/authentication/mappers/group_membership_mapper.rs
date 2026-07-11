@@ -21,6 +21,13 @@ use super::super::mapper_engine::{
 /// Each entry is the group's full path (`/parent/child`); set `full.path` to `false` to emit bare
 /// group names instead.
 ///
+/// ## Org prefix (`prefix.org`)
+///
+/// A FerrisKey token can carry groups from several organizations at once, and paths are relative
+/// to their org — so `/finance` from two orgs collides. Set `prefix.org` to `true` to prepend the
+/// group's org alias (`/acme/finance`), disambiguating multi-org tokens. Only applies to full
+/// paths. Defaults to `false` (Keycloak-compatible).
+///
 /// ## Config
 ///
 /// ```json
@@ -28,6 +35,7 @@ use super::super::mapper_engine::{
 ///   "claim.name":         "groups",
 ///   "membership":         "effective",
 ///   "full.path":          "true",
+///   "prefix.org":         "false",
 ///   "access.token.claim": "true",
 ///   "id.token.claim":     "true"
 /// }
@@ -75,16 +83,29 @@ impl GroupMembershipMapper {
             .map(|s| s.eq_ignore_ascii_case("direct"))
             .unwrap_or(false);
 
+        // When enabled, prefix each full path with the group's org alias (`/acme/parent/child`)
+        // to disambiguate groups from different organizations in a multi-org token. Only applies
+        // to full paths — bare names (`full.path=false`) carry no path to prefix.
+        let prefix_org = bool_config(config, "prefix.org", false) && full_path;
+
         let values: Vec<Value> = context
             .groups
             .iter()
             .filter(|group| !direct_only || group.direct)
             .map(|group| {
-                if full_path {
-                    Value::String(group.path.clone())
-                } else {
-                    Value::String(group.name.clone())
+                if !full_path {
+                    return Value::String(group.name.clone());
                 }
+                if prefix_org
+                    && let Some(alias) = context
+                        .organizations
+                        .iter()
+                        .find(|org| org.id.as_uuid() == group.organization_id)
+                        .map(|org| org.alias.as_str())
+                {
+                    return Value::String(format!("/{}{}", alias, group.path));
+                }
+                Value::String(group.path.clone())
             })
             .collect();
 
@@ -99,19 +120,35 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use ferriskey_organization::OrganizationId;
     use serde_json::json;
     use uuid::Uuid;
 
-    use crate::domain::authentication::mapper_engine::ContextGroup;
+    use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
     use crate::domain::realm::entities::RealmId;
+
+    fn org_id() -> Uuid {
+        Uuid::from_u128(0xace)
+    }
 
     fn group(path: &str, direct: bool) -> ContextGroup {
         let name = path.rsplit('/').next().unwrap_or(path).to_string();
         ContextGroup {
             id: Uuid::new_v4(),
+            organization_id: org_id(),
             name,
             path: path.to_string(),
             direct,
+        }
+    }
+
+    fn acme() -> ContextOrganization {
+        ContextOrganization {
+            id: OrganizationId::new(org_id()),
+            name: "acme".to_string(),
+            alias: "acme".to_string(),
+            domain: None,
+            attributes: HashMap::new(),
         }
     }
 
@@ -131,7 +168,7 @@ mod tests {
             realm_name: "master".to_string(),
             realm_id: RealmId::new(Uuid::new_v4()),
             user_attributes: HashMap::new(),
-            organizations: vec![],
+            organizations: vec![acme()],
             groups: vec![
                 group("/novotel", false),
                 group("/novotel/EN", false),
@@ -195,5 +232,57 @@ mod tests {
             )
             .unwrap();
         assert_eq!(groups_claim(&out), vec!["novotel-ld-01"]);
+    }
+
+    #[test]
+    fn prefix_org_prepends_the_org_alias() {
+        let out = GroupMembershipMapper
+            .execute(
+                &json!({ "membership": "direct", "prefix.org": "true" }),
+                &context(),
+                TokenType::AccessToken,
+            )
+            .unwrap();
+        assert_eq!(groups_claim(&out), vec!["/acme/novotel/EN/novotel-ld-01"]);
+    }
+
+    #[test]
+    fn prefix_org_is_off_by_default() {
+        let out = GroupMembershipMapper
+            .execute(
+                &json!({ "membership": "direct" }),
+                &context(),
+                TokenType::AccessToken,
+            )
+            .unwrap();
+        assert_eq!(groups_claim(&out), vec!["/novotel/EN/novotel-ld-01"]);
+    }
+
+    #[test]
+    fn prefix_org_ignored_without_full_path() {
+        // No path to prefix when emitting bare names — prefix.org is a no-op.
+        let out = GroupMembershipMapper
+            .execute(
+                &json!({ "membership": "direct", "prefix.org": "true", "full.path": "false" }),
+                &context(),
+                TokenType::AccessToken,
+            )
+            .unwrap();
+        assert_eq!(groups_claim(&out), vec!["novotel-ld-01"]);
+    }
+
+    #[test]
+    fn prefix_org_falls_back_when_org_missing() {
+        // Org not present in the context (edge case) → emit the unprefixed path rather than drop.
+        let mut ctx = context();
+        ctx.organizations.clear();
+        let out = GroupMembershipMapper
+            .execute(
+                &json!({ "membership": "direct", "prefix.org": "true" }),
+                &ctx,
+                TokenType::AccessToken,
+            )
+            .unwrap();
+        assert_eq!(groups_claim(&out), vec!["/novotel/EN/novotel-ld-01"]);
     }
 }

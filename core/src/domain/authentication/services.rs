@@ -162,6 +162,7 @@ fn build_context_groups(groups: &[Group], direct_ids: &HashSet<Uuid>) -> Vec<Con
             names.reverse();
             ContextGroup {
                 id: group.id.as_uuid(),
+                organization_id: group.organization_id.as_uuid(),
                 name: group.name.clone(),
                 path: format!("/{}", names.join("/")),
                 direct: direct_ids.contains(&group.id.as_uuid()),
