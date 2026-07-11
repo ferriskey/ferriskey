@@ -75,6 +75,8 @@ pub struct RealmSetting {
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i64,
     pub updated_at: DateTime<Utc>,
+    pub lockout_threshold: i32,
+    pub lockout_duration_seconds: i32,
 }
 
 impl RealmSetting {
@@ -102,6 +104,8 @@ impl RealmSetting {
             email_verification_enabled: false,
             email_verification_ttl_hours: 24,
             updated_at: now,
+            lockout_threshold: 10,
+            lockout_duration_seconds: 900,
         }
     }
 }

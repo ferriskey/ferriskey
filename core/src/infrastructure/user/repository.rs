@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, DbErr,
     EntityTrait, ModelTrait, QueryFilter, SqlErr,
@@ -84,6 +85,8 @@ impl UserRepository for PostgresUserRepository {
             client_id: Set(user.client_id),
             created_at: Set(user.created_at.naive_utc()),
             updated_at: Set(user.updated_at.naive_utc()),
+            failed_login_attempts: Set(0),
+            locked_until: Set(None),
         };
 
         let t =
@@ -288,6 +291,87 @@ impl UserRepository for PostgresUserRepository {
             )?;
 
         Ok(updated_user.into())
+    }
+
+    #[instrument(skip(self), err)]
+    async fn increment_failed_login_attempts(
+        &self,
+        user_id: Uuid,
+        locked_until: Option<DateTime<Utc>>,
+    ) -> Result<(), CoreError> {
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error finding user for lockout increment: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
+        let current_attempts = user.failed_login_attempts;
+        let mut active_model: crate::entity::users::ActiveModel = user.into();
+        active_model.failed_login_attempts = Set(current_attempts + 1);
+
+        if let Some(until) = locked_until {
+            active_model.locked_until = Set(Some(until.fixed_offset()));
+            active_model.failed_login_attempts = Set(0);
+        }
+
+        active_model.update(&self.db).await.map_err(|e| {
+            error!("error incrementing failed login attempts: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    async fn reset_failed_login_attempts(&self, user_id: Uuid) -> Result<(), CoreError> {
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error finding user for lockout reset: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
+        let mut active_model: crate::entity::users::ActiveModel = user.into();
+        active_model.failed_login_attempts = Set(0);
+        active_model.locked_until = Set(None);
+
+        active_model.update(&self.db).await.map_err(|e| {
+            error!("error resetting failed login attempts: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    async fn unlock_user(&self, user_id: Uuid) -> Result<(), CoreError> {
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error finding user for unlock: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
+        let mut active_model: crate::entity::users::ActiveModel = user.into();
+        active_model.failed_login_attempts = Set(0);
+        active_model.locked_until = Set(None);
+
+        active_model.update(&self.db).await.map_err(|e| {
+            error!("error unlocking user: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(())
     }
 }
 

@@ -16,6 +16,7 @@ mod tests {
     use std::{env, sync::Arc};
 
     use axum::Router;
+    use axum::http::HeaderValue;
     use axum_test::TestServer;
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
@@ -45,6 +46,8 @@ mod tests {
     struct SharedContext {
         app: std::sync::Mutex<Router>,
         realm_name: String,
+        /// Kept alive for the process lifetime; not read directly by these tests.
+        #[allow(dead_code)]
         pool: sqlx::PgPool,
     }
 
@@ -117,12 +120,11 @@ mod tests {
 
         let realm_name = format!("test-realm-{}", Uuid::new_v4().simple());
         svc.initialize_application(StartupConfig {
+            master_realm_name: realm_name.clone(),
             admin_username: "admin".to_string(),
             admin_email: "admin@ferriskey.test".to_string(),
             admin_password: "admin_pass_1234!".to_string(),
-            admin_firstname: None,
-            admin_lastname: None,
-            realm_name: realm_name.clone(),
+            default_client_id: "ferriskey-admin".to_string(),
         })
         .await
         .expect("initialize application");
@@ -143,6 +145,12 @@ mod tests {
         TestServer::new(app).expect("build test server")
     }
 
+    fn auth_header(token: &str) -> HeaderValue {
+        format!("Bearer {}", token)
+            .parse()
+            .expect("valid header value")
+    }
+
     async fn login(server: &TestServer, realm_name: &str) -> String {
         let token_resp = server
             .post(&format!(
@@ -151,7 +159,7 @@ mod tests {
             ))
             .form(&[
                 ("grant_type", "password"),
-                ("client_id", &format!("{}-realm", realm_name)),
+                ("client_id", "admin-cli"),
                 ("username", "admin"),
                 ("password", "admin_pass_1234!"),
             ])
@@ -166,21 +174,21 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn admin_can_list_own_sessions() {
+        // Build the server + resolve the realm synchronously (initialising the
+        // shared context here, before entering `block_on`, avoids a nested
+        // runtime panic since `ctx()` itself calls `rt().block_on()`).
+        let srv = server();
+        let realm = ctx().realm_name.clone();
         rt().block_on(async {
-            let srv = server();
-            let realm = &ctx().realm_name;
-            let token = login(&srv, realm).await;
+            let token = login(&srv, &realm).await;
 
             // Get admin user id
             let me_resp = srv
                 .get(&format!("/realms/{}/users", realm))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
             let me_body: Value = me_resp.json();
-            let users = me_body.as_array().expect("users array");
+            let users = me_body["data"].as_array().expect("users array");
             let admin_id = users
                 .iter()
                 .find(|u| u["username"] == "admin")
@@ -190,10 +198,7 @@ mod tests {
             // List sessions
             let sessions_resp = srv
                 .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
 
             assert_eq!(sessions_resp.status_code(), 200);
@@ -205,21 +210,18 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn admin_can_revoke_own_session() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
         rt().block_on(async {
-            let srv = server();
-            let realm = &ctx().realm_name;
-            let token = login(&srv, realm).await;
+            let token = login(&srv, &realm).await;
 
             // Get admin user id
             let me_resp = srv
                 .get(&format!("/realms/{}/users", realm))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
             let me_body: Value = me_resp.json();
-            let users = me_body.as_array().expect("users array");
+            let users = me_body["data"].as_array().expect("users array");
             let admin_id = users
                 .iter()
                 .find(|u| u["username"] == "admin")
@@ -229,10 +231,7 @@ mod tests {
             // List sessions
             let sessions_resp = srv
                 .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
             assert_eq!(sessions_resp.status_code(), 200);
             let sessions_body: Value = sessions_resp.json();
@@ -246,10 +245,7 @@ mod tests {
                         "/realms/{}/users/{}/sessions/{}",
                         realm, admin_id, session_id
                     ))
-                    .add_header(
-                        "Authorization",
-                        format!("Bearer {}", token).parse().unwrap(),
-                    )
+                    .add_header("Authorization", auth_header(&token))
                     .await;
 
                 // Revoke is 204 No Content
@@ -261,10 +257,9 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn unauthenticated_request_returns_401() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
         rt().block_on(async {
-            let srv = server();
-            let realm = &ctx().realm_name;
-
             let resp = srv
                 .get(&format!(
                     "/realms/{}/users/{}/sessions",
@@ -280,21 +275,18 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn revoke_nonexistent_session_returns_404() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
         rt().block_on(async {
-            let srv = server();
-            let realm = &ctx().realm_name;
-            let token = login(&srv, realm).await;
+            let token = login(&srv, &realm).await;
 
             // Get admin user id
             let me_resp = srv
                 .get(&format!("/realms/{}/users", realm))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
             let me_body: Value = me_resp.json();
-            let users = me_body.as_array().expect("users array");
+            let users = me_body["data"].as_array().expect("users array");
             let admin_id = users
                 .iter()
                 .find(|u| u["username"] == "admin")
@@ -307,10 +299,7 @@ mod tests {
                     "/realms/{}/users/{}/sessions/{}",
                     realm, admin_id, fake_session_id
                 ))
-                .add_header(
-                    "Authorization",
-                    format!("Bearer {}", token).parse().unwrap(),
-                )
+                .add_header("Authorization", auth_header(&token))
                 .await;
 
             assert_eq!(revoke_resp.status_code(), 404);

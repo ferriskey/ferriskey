@@ -62,6 +62,14 @@ pub struct UpdateRealmSettingValidator {
         message = "email_verification_ttl_hours must be between 1 and 720"
     ))]
     pub email_verification_ttl_hours: Option<i64>,
+    #[validate(range(
+        min = 1,
+        max = 100,
+        message = "lockout_threshold must be between 1 and 100"
+    ))]
+    pub lockout_threshold: Option<i32>,
+    #[validate(range(min = 0, message = "lockout_duration_seconds must be 0 or greater"))]
+    pub lockout_duration_seconds: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

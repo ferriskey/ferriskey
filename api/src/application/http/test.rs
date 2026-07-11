@@ -95,6 +95,8 @@ impl UserBuilder {
             required_actions: Vec::new(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            failed_login_attempts: 0,
+            locked_until: None,
         }
     }
 }

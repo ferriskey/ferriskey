@@ -277,6 +277,9 @@ pub enum CoreError {
     #[error("User account is disabled")]
     UserDisabled,
 
+    #[error("Account is temporarily locked due to too many failed login attempts")]
+    AccountLocked,
+
     #[error("Client is under maintenance: {0}")]
     ClientUnderMaintenance(String),
 
