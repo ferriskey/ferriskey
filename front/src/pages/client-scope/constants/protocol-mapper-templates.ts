@@ -426,11 +426,31 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         defaultValue: '',
       },
       {
+        key: 'membership',
+        label: 'Membership',
+        type: 'select',
+        defaultValue: 'effective',
+        options: [
+          { label: 'Effective (direct + parent groups)', value: 'effective' },
+          { label: 'Direct only', value: 'direct' },
+        ],
+        description:
+          'Effective adds every parent group (matches inherited roles). Direct emits only the groups the user directly belongs to (Keycloak-compatible, smaller tokens).',
+      },
+      {
         key: 'full.path',
         label: 'Full group path',
         type: 'switch',
         defaultValue: 'true',
         description: 'Include the full path (e.g. /parent/child) instead of just the group name.',
+      },
+      {
+        key: 'prefix.org',
+        label: 'Prefix with organization',
+        type: 'switch',
+        defaultValue: 'false',
+        description:
+          'Prepend the organization alias to the path (e.g. /acme/parent/child) to disambiguate groups from different organizations. Only applies to full paths.',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],

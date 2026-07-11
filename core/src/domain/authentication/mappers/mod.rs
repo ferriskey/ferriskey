@@ -1,4 +1,5 @@
 pub mod audience_mapper;
+pub mod group_membership_mapper;
 pub mod hardcoded_claim_mapper;
 pub mod org_detail_mapper;
 pub mod org_membership_mapper;

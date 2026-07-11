@@ -236,6 +236,12 @@ pub trait UserRoleRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    /// Resolve a set of role ids to full `Role`s (with client populated). Used to turn
+    /// group-inherited role ids into roles during token issuance.
+    fn get_roles_by_ids(
+        &self,
+        role_ids: Vec<Uuid>,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
     fn has_role(
         &self,
         user_id: Uuid,

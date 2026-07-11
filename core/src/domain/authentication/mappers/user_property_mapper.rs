@@ -121,6 +121,7 @@ mod tests {
             realm_id: RealmId::new(Uuid::new_v4()),
             user_attributes: HashMap::new(),
             organizations: vec![],
+            groups: vec![],
         }
     }
 

@@ -43,6 +43,7 @@ use crate::{
         email_verification::services::EmailVerificationServiceImpl,
         health::services::HealthServiceImpl,
         maintenance::services::MaintenanceServiceImpl,
+        organization::group_services::GroupServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
@@ -89,6 +90,11 @@ use crate::{
             PostgresIdentityProviderRepository, ReqwestOAuthClient,
         },
         organization::{
+            group_attribute_repository::PostgresGroupAttributeRepository,
+            group_member_repository::PostgresGroupMemberRepository,
+            group_repository::PostgresGroupRepository,
+            group_role_repository::PostgresGroupRoleRepository,
+            group_token_repository::PostgresGroupTokenRepository,
             organization_attribute_repository::PostgresOrganizationAttributeRepository,
             organization_member_repository::PostgresOrganizationMemberRepository,
             organization_repository::PostgresOrganizationRepository,
@@ -168,6 +174,11 @@ type PortalLayoutsRepo = PostgresPortalLayoutsRepository;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
+type GroupRepo = PostgresGroupRepository;
+type GroupMemberRepo = PostgresGroupMemberRepository;
+type GroupRoleRepo = PostgresGroupRoleRepository;
+type GroupAttributeRepo = PostgresGroupAttributeRepository;
+type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = PostgresUserSessionRepository;
 
@@ -241,6 +252,7 @@ type ApplicationAuthService = AuthServiceImpl<
     OrganizationMemberRepo,
     OrganizationRepo,
     OrganizationAttributeRepo,
+    GroupTokenRepo,
     UserRequiredActionRepo,
     MaintenanceWhitelistRepo,
     RealmMaintenanceWhitelistRepo,
@@ -422,6 +434,17 @@ pub struct ApplicationService {
         OrganizationRepo,
         OrganizationAttributeRepo,
         OrganizationMemberRepo,
+    >,
+    pub(crate) group_service: GroupServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        OrganizationRepo,
+        GroupRepo,
+        GroupMemberRepo,
+        GroupRoleRepo,
+        GroupAttributeRepo,
     >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
