@@ -648,19 +648,20 @@ where
             .await
             .unwrap_or_default();
 
+        let mut realm_roles: Vec<String> = Vec::new();
         let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
         for role in &user_roles {
-            if let Some(client) = &role.client {
-                client_roles
+            match &role.client {
+                Some(client) => client_roles
                     .entry(client.client_id.clone())
                     .or_default()
-                    .push(role.name.clone());
+                    .push(role.name.clone()),
+                None => realm_roles.push(role.name.clone()),
             }
         }
 
         // Roles inherited from the user's effective (recursive) group memberships, merged into
         // the role maps so they flow into tokens exactly like directly-assigned roles.
-        let mut realm_roles: Vec<String> = Vec::new();
         let group_role_ids = self
             .group_token_repository
             .list_effective_role_ids_for_user(input.user_id)
