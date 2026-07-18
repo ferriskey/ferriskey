@@ -36,6 +36,7 @@ pub struct Model {
     pub portal_theme_id: Option<Uuid>,
     pub lockout_threshold: i32,
     pub lockout_duration_seconds: i32,
+    pub login_aliases: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -63,6 +64,7 @@ pub enum Column {
     PortalThemeId,
     LockoutThreshold,
     LockoutDurationSeconds,
+    LoginAliases,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -113,6 +115,7 @@ impl ColumnTrait for Column {
             Self::PortalThemeId => ColumnType::Uuid.def().null(),
             Self::LockoutThreshold => ColumnType::Integer.def(),
             Self::LockoutDurationSeconds => ColumnType::Integer.def(),
+            Self::LoginAliases => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
         }
     }
 }
