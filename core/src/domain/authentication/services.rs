@@ -1542,12 +1542,22 @@ where
             }
         }
 
-        let user = self
-            .user_repository
-            .get_by_username(username, params.realm_id)
-            .instrument(info_span!("auth.password.user_lookup"))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let login_aliases = self
+            .realm_repository
+            .get_realm_settings(params.realm_id)
+            .await?
+            .map(|s| s.login_aliases)
+            .unwrap_or_default();
+
+        let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
+            self.user_repository.as_ref(),
+            &username,
+            params.realm_id,
+            &login_aliases,
+        )
+        .instrument(info_span!("auth.password.user_lookup"))
+        .await?
+        .ok_or(CoreError::Invalid)?;
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
@@ -1949,15 +1959,20 @@ where
                 CoreError::InvalidClient
             })?;
 
-        let user = self
-            .user_repository
-            .get_by_username(username.clone(), realm.id)
-            .await
-            .map_err(|e| {
-                warn!("User not found for username {}: {:?}", username, e);
+        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+        let login_aliases = realm_settings
+            .as_ref()
+            .map(|s| s.login_aliases.clone())
+            .unwrap_or_default();
 
-                CoreError::UserNotFound
-            })?;
+        let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
+            self.user_repository.as_ref(),
+            &username,
+            realm.id,
+            &login_aliases,
+        )
+        .await?
+        .ok_or(CoreError::UserNotFound)?;
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
@@ -2161,6 +2176,7 @@ This is a server error that should be investigated. Do not forward back this mes
             .map_err(|_| CoreError::SessionNotFound)?;
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
+
         let access_lifetime = realm_settings
             .as_ref()
             .map(|s| s.access_token_lifetime)

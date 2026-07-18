@@ -107,11 +107,11 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
-    async fn get_by_username(
+    async fn find_by_username(
         &self,
         username: String,
         realm_id: RealmId,
-    ) -> Result<User, CoreError> {
+    ) -> Result<Option<User>, CoreError> {
         let users_model = crate::entity::users::Entity::find()
             .filter(crate::entity::users::Column::Username.eq(username.clone()))
             .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -123,9 +123,9 @@ impl UserRepository for PostgresUserRepository {
                 CoreError::NotFound
             })?;
 
-        let user_model = users_model.first().cloned();
-
-        let (user_model, realm_model) = user_model.ok_or(CoreError::NotFound)?;
+        let Some((user_model, realm_model)) = users_model.first().cloned() else {
+            return Ok(None);
+        };
 
         let required_actions: Vec<RequiredAction> = user_model
             .find_related(crate::entity::user_required_actions::Entity)
@@ -142,14 +142,22 @@ impl UserRepository for PostgresUserRepository {
             .collect::<Result<Vec<_>, _>>()?;
 
         let mut user: User = user_model.clone().into();
-
         user.required_actions = required_actions;
-
         if let Some(realm_model) = realm_model.as_ref() {
             user.realm = Some(realm_model.clone().into());
         }
 
-        Ok(user)
+        Ok(Some(user))
+    }
+
+    async fn get_by_username(
+        &self,
+        username: String,
+        realm_id: RealmId,
+    ) -> Result<User, CoreError> {
+        self.find_by_username(username, realm_id)
+            .await?
+            .ok_or(CoreError::NotFound)
     }
 
     #[instrument]
