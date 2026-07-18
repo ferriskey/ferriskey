@@ -39,6 +39,7 @@ pub struct Model {
     pub login_aliases: Vec<String>,
     pub seawatch_pii_mode: String,
     pub seawatch_pseudo_key: Option<String>,
+    pub require_mfa: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -69,6 +70,7 @@ pub enum Column {
     LoginAliases,
     SeawatchPiiMode,
     SeawatchPseudoKey,
+    RequireMfa,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -122,6 +124,7 @@ impl ColumnTrait for Column {
             Self::LoginAliases => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
             Self::SeawatchPiiMode => ColumnType::String(StringLen::N(20u32)).def(),
             Self::SeawatchPseudoKey => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::RequireMfa => ColumnType::Boolean.def(),
         }
     }
 }

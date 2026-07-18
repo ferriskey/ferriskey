@@ -77,6 +77,7 @@ pub struct UpdateRealmSettingValidator {
     #[serde(default, deserialize_with = "deserialize_optional_field")]
     #[schema(value_type = Option<String>)]
     pub seawatch_pseudo_key: Option<Option<String>>,
+    pub require_mfa: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

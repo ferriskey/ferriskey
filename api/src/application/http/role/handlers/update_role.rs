@@ -57,6 +57,7 @@ pub async fn update_role(
             UpdateRoleInput {
                 name: payload.name,
                 description: payload.description,
+                require_mfa: payload.require_mfa,
                 role_id,
                 realm_name,
             },

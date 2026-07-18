@@ -335,6 +335,7 @@ mod tests {
                     realm_id: rid,
                     client_id: None,
                     client: None,
+                    require_mfa: false,
                     created_at: Utc::now(),
                     updated_at: Utc::now(),
                 }])
