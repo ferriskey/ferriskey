@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
-use ferriskey_domain::realm::LoginAliases;
-pub use ferriskey_domain::realm::{Realm, RealmId, RealmSetting};
+pub use ferriskey_domain::realm::{LoginAlias, LoginAliases, Realm, RealmId, RealmSetting};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;

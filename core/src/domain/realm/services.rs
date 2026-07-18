@@ -787,6 +787,7 @@ where
                 input.email_verification_ttl_hours,
                 input.lockout_threshold,
                 input.lockout_duration_seconds,
+                input.login_aliases,
             )
             .await?;
 

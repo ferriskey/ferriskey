@@ -1,3 +1,4 @@
+use ferriskey_core::domain::realm::entities::LoginAliases;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -70,6 +71,8 @@ pub struct UpdateRealmSettingValidator {
     pub lockout_threshold: Option<i32>,
     #[validate(range(min = 0, message = "lockout_duration_seconds must be 0 or greater"))]
     pub lockout_duration_seconds: Option<i32>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub login_aliases: Option<LoginAliases>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -143,5 +146,56 @@ fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {
         _ => Err(validator::ValidationError::new(
             "encryption must be one of: tls, starttls, none",
         )),
+    }
+}
+
+#[cfg(test)]
+mod update_realm_setting_validator_tests {
+    use super::UpdateRealmSettingValidator;
+    use ferriskey_core::domain::realm::entities::LoginAlias;
+    use serde_json::json;
+
+    #[test]
+    fn empty_login_aliases_is_rejected() {
+        let v: Result<UpdateRealmSettingValidator, _> =
+            serde_json::from_value(json!({ "login_aliases": [] }));
+        assert!(
+            v.is_err(),
+            "expected deserialization to fail for empty login_aliases"
+        );
+    }
+
+    #[test]
+    fn unknown_login_alias_is_rejected() {
+        let v: Result<UpdateRealmSettingValidator, _> =
+            serde_json::from_value(json!({ "login_aliases": ["phone"] }));
+        assert!(
+            v.is_err(),
+            "expected deserialization to fail for unknown alias 'phone'"
+        );
+    }
+
+    #[test]
+    fn valid_login_aliases_are_accepted() {
+        let v: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({ "login_aliases": ["email", "username"] }))
+                .expect("deserialization should succeed for [email, username]");
+        let aliases = v.login_aliases.expect("login_aliases should be Some");
+        assert_eq!(
+            aliases.as_slice(),
+            &[LoginAlias::Email, LoginAlias::Username]
+        );
+    }
+
+    #[test]
+    fn missing_login_aliases_is_none_and_backward_compatible() {
+        let v: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({ "user_registration_enabled": true }))
+                .expect("deserialization should succeed when login_aliases is absent");
+        assert!(
+            v.login_aliases.is_none(),
+            "login_aliases should be None when omitted"
+        );
+        assert_eq!(v.user_registration_enabled, Some(true));
     }
 }
