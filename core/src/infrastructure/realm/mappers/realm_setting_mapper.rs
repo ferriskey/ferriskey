@@ -68,6 +68,8 @@ mod tests {
             email_verification_enabled: false,
             email_verification_ttl_hours: 24,
             portal_theme_id: None,
+            lockout_threshold: 10,
+            lockout_duration_seconds: 900,
             login_aliases: vec!["email".to_string(), "username".to_string()],
         }
     }
