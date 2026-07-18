@@ -73,6 +73,10 @@ pub struct UpdateRealmSettingValidator {
     pub lockout_duration_seconds: Option<i32>,
     #[schema(value_type = Option<Vec<String>>)]
     pub login_aliases: Option<LoginAliases>,
+    pub seawatch_pii_mode: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<String>)]
+    pub seawatch_pseudo_key: Option<Option<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

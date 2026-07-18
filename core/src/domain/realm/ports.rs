@@ -170,6 +170,8 @@ pub trait RealmRepository: Send + Sync {
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
         login_aliases: Option<LoginAliases>,
+        seawatch_pii_mode: Option<String>,
+        seawatch_pseudo_key: Option<Option<String>>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -228,6 +230,8 @@ pub struct UpdateRealmSettingInput {
     pub lockout_threshold: Option<i32>,
     pub lockout_duration_seconds: Option<i32>,
     pub login_aliases: Option<LoginAliases>,
+    pub seawatch_pii_mode: Option<String>,
+    pub seawatch_pseudo_key: Option<Option<String>>,
 }
 
 pub struct DeleteRealmInput {

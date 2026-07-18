@@ -36,6 +36,8 @@ impl From<Model> for RealmSetting {
             updated_at,
             lockout_threshold: value.lockout_threshold,
             lockout_duration_seconds: value.lockout_duration_seconds,
+            seawatch_pii_mode: value.seawatch_pii_mode,
+            seawatch_pseudo_key: value.seawatch_pseudo_key,
         }
     }
 }
@@ -71,6 +73,8 @@ mod tests {
             lockout_threshold: 10,
             lockout_duration_seconds: 900,
             login_aliases: vec!["email".to_string(), "username".to_string()],
+            seawatch_pii_mode: "off".to_string(),
+            seawatch_pseudo_key: None,
         }
     }
 
