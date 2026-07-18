@@ -1,9 +1,10 @@
 import { UseFormReturn } from 'react-hook-form'
 import { RealmLoginSettingsSchema } from '../feature/page-realm-settings-login-feature'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export interface PageRealmSettingsLoginProps {
   form: UseFormReturn<RealmLoginSettingsSchema>
@@ -186,6 +187,47 @@ export default function PageRealmSettingsLogin({ form, hasChanges, handleSubmit 
               )}
             />
           )}
+
+          <FormField
+            control={form.control}
+            name='loginAliases'
+            render={({ field }) => {
+              const ORDER: Array<'username' | 'email'> = ['username', 'email']
+              const toggle = (alias: 'username' | 'email', checked: boolean) => {
+                const next = checked
+                  ? ORDER.filter((a) => a === alias || field.value.includes(a))
+                  : field.value.filter((a) => a !== alias)
+                if (next.length > 0) field.onChange(next)
+              }
+              return (
+                <div className='flex items-center justify-between py-4 border-t'>
+                  <div className='w-1/3'>
+                    <p className='text-sm font-medium'>Login identifiers</p>
+                    <p className='text-sm text-muted-foreground mt-0.5'>
+                      Which identifiers users may sign in with. Order sets precedence.
+                    </p>
+                  </div>
+                  <div className='w-1/2 flex flex-col gap-2'>
+                    {ORDER.map((alias) => (
+                      <FormItem key={alias} className='flex flex-row items-center gap-2'>
+                        <FormControl>
+                          <Checkbox
+                            id={`login-alias-${alias}`}
+                            checked={field.value.includes(alias)}
+                            onCheckedChange={(c) => toggle(alias, c === true)}
+                          />
+                        </FormControl>
+                        <FormLabel htmlFor={`login-alias-${alias}`} className='!mt-0 text-sm font-normal capitalize'>
+                          {alias}
+                        </FormLabel>
+                      </FormItem>
+                    ))}
+                    <FormMessage />
+                  </div>
+                </div>
+              )
+            }}
+          />
         </div>
 
         <FloatingActionBar

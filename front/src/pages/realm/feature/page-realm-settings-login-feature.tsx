@@ -16,6 +16,7 @@ const realmLoginSettingsSchema = z.object({
   passkey: z.boolean(),
   magicLink: z.boolean(),
   magicLinkTtl: z.number().min(1),
+  loginAliases: z.array(z.enum(['username', 'email'])).min(1, { message: 'Select at least one login identifier' }),
 })
 
 export type RealmLoginSettingsSchema = z.infer<typeof realmLoginSettingsSchema>
@@ -35,6 +36,7 @@ export default function PageRealmSettingsLoginFeature() {
       passkey: false,
       magicLink: false,
       magicLinkTtl: 5,
+      loginAliases: ['username'] as ('username' | 'email')[],
     }
   })
 
@@ -53,6 +55,7 @@ export default function PageRealmSettingsLoginFeature() {
         passkey_enabled: values.passkey,
         magic_link_enabled: values.magicLink,
         magic_link_ttl: values.magicLinkTtl,
+        login_aliases: values.loginAliases,
       }
     })
   }
@@ -67,6 +70,7 @@ export default function PageRealmSettingsLoginFeature() {
       passkey: data.passkey_enabled,
       magicLink: data.magic_link_enabled,
       magicLinkTtl: data.magic_link_ttl,
+      loginAliases: (data.login_aliases as ('username' | 'email')[]) ?? ['username'],
     }
   )
 
@@ -80,6 +84,7 @@ export default function PageRealmSettingsLoginFeature() {
         passkey: data.passkey_enabled,
         magicLink: data.magic_link_enabled,
         magicLinkTtl: data.magic_link_ttl,
+        loginAliases: (data.login_aliases as ('username' | 'email')[]) ?? ['username'],
       })
     }
   }, [data, form])
