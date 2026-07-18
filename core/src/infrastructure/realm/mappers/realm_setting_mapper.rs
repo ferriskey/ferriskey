@@ -26,9 +26,73 @@ impl From<Model> for RealmSetting {
             email_verification_template_id: value.email_verification_template_id,
             email_verification_enabled: value.email_verification_enabled,
             email_verification_ttl_hours: value.email_verification_ttl_hours as i64,
+            login_aliases: value
+                .login_aliases
+                .iter()
+                .filter_map(|s| s.parse::<ferriskey_domain::realm::LoginAlias>().ok())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap_or_default(),
             updated_at,
             lockout_threshold: value.lockout_threshold,
             lockout_duration_seconds: value.lockout_duration_seconds,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ferriskey_domain::realm::{LoginAlias, LoginAliases};
+
+    fn base_model() -> crate::entity::realm_settings::Model {
+        crate::entity::realm_settings::Model {
+            id: uuid::Uuid::now_v7(),
+            realm_id: uuid::Uuid::now_v7(),
+            default_signing_algorithm: None,
+            updated_at: chrono::Utc::now().naive_utc(),
+            user_registration_enabled: false,
+            forgot_password_enabled: false,
+            remember_me_enabled: false,
+            magic_link_enabled: false,
+            magic_link_ttl_minutes: 15,
+            compass_enabled: false,
+            access_token_lifetime_secs: 300,
+            refresh_token_lifetime_secs: 3600,
+            id_token_lifetime_secs: 300,
+            temporary_token_lifetime_secs: 300,
+            passkey_enabled: false,
+            reset_password_template_id: None,
+            magic_link_template_id: None,
+            email_verification_template_id: None,
+            email_verification_enabled: false,
+            email_verification_ttl_hours: 24,
+            portal_theme_id: None,
+            lockout_threshold: 10,
+            lockout_duration_seconds: 900,
+            login_aliases: vec!["email".to_string(), "username".to_string()],
+        }
+    }
+
+    #[test]
+    fn maps_login_aliases_in_order() {
+        let setting = RealmSetting::from(base_model());
+        assert_eq!(
+            setting.login_aliases.as_slice(),
+            &[LoginAlias::Email, LoginAlias::Username]
+        );
+    }
+
+    #[test]
+    fn maps_unknown_or_empty_aliases_to_default() {
+        let mut model = base_model();
+        model.login_aliases = vec![];
+        let setting = RealmSetting::from(model);
+        assert_eq!(setting.login_aliases, LoginAliases::default());
+
+        let mut model = base_model();
+        model.login_aliases = vec!["garbage".to_string()];
+        let setting = RealmSetting::from(model);
+        assert_eq!(setting.login_aliases, LoginAliases::default());
     }
 }

@@ -9,6 +9,7 @@ use crate::domain::{
     realm::entities::{Realm, RealmLoginSetting, RealmSetting, SmtpConfig},
     user::entities::User,
 };
+use ferriskey_domain::realm::LoginAliases;
 
 pub trait RealmService: Send + Sync {
     fn get_realms_by_user(
@@ -168,6 +169,7 @@ pub trait RealmRepository: Send + Sync {
         email_verification_ttl_hours: Option<i64>,
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
+        login_aliases: Option<LoginAliases>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(
@@ -225,6 +227,7 @@ pub struct UpdateRealmSettingInput {
     pub email_verification_ttl_hours: Option<i64>,
     pub lockout_threshold: Option<i32>,
     pub lockout_duration_seconds: Option<i32>,
+    pub login_aliases: Option<LoginAliases>,
 }
 
 pub struct DeleteRealmInput {

@@ -110,6 +110,12 @@ pub trait UserRepository: Send + Sync {
         dto: CreateUserRequest,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
+    fn find_by_username(
+        &self,
+        username: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<User>, CoreError>> + Send;
+
     fn get_by_username(
         &self,
         username: String,

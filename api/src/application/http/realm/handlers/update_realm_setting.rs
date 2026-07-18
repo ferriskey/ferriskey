@@ -69,6 +69,7 @@ pub async fn update_realm_setting(
                 email_verification_ttl_hours: payload.email_verification_ttl_hours,
                 lockout_threshold: payload.lockout_threshold,
                 lockout_duration_seconds: payload.lockout_duration_seconds,
+                login_aliases: payload.login_aliases,
             },
         )
         .await

@@ -15,6 +15,7 @@ use crate::domain::realm::{
     entities::{Realm, RealmSetting},
     ports::RealmRepository,
 };
+use ferriskey_domain::realm::LoginAliases;
 use tracing::info_span;
 
 #[derive(Debug, Clone)]
@@ -201,6 +202,7 @@ impl RealmRepository for PostgresRealmRepository {
         email_verification_ttl_hours: Option<i64>,
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
+        login_aliases: Option<LoginAliases>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -291,6 +293,11 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(duration) = lockout_duration_seconds {
             realm_setting.lockout_duration_seconds = Set(duration);
+        }
+
+        if let Some(aliases) = login_aliases {
+            realm_setting.login_aliases =
+                Set(aliases.as_slice().iter().map(|a| a.to_string()).collect());
         }
 
         let realm_setting = realm_setting

@@ -1,5 +1,6 @@
 pub mod device_flow;
 pub mod entities;
+pub mod login_resolver;
 pub mod mapper_engine;
 pub mod mappers;
 pub mod ports;

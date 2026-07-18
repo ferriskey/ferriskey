@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-pub use ferriskey_domain::realm::{Realm, RealmId, RealmSetting};
+pub use ferriskey_domain::realm::{LoginAlias, LoginAliases, Realm, RealmId, RealmSetting};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -64,6 +64,7 @@ pub struct RealmLoginSetting {
     pub magic_link_enabled: bool,
     pub magic_link_ttl: u32,
     pub passkey_enabled: bool,
+    pub login_aliases: LoginAliases,
     pub theme: crate::domain::portal_theme::entities::PortalThemeConfig,
 }
 
@@ -80,6 +81,7 @@ impl From<RealmSetting> for RealmLoginSetting {
             magic_link_enabled: value.magic_link_enabled,
             magic_link_ttl: value.magic_link_ttl,
             passkey_enabled: value.passkey_enabled,
+            login_aliases: value.login_aliases,
             theme: crate::domain::portal_theme::entities::PortalThemeConfig::default(),
         }
     }

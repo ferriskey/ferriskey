@@ -814,6 +814,7 @@ export namespace Schemas {
     email_verification_enabled: boolean
     forgot_password_enabled: boolean
     identity_providers: Array<IdentityProviderPresentation>
+    login_aliases: Array<string>
     magic_link_enabled: boolean
     magic_link_ttl: number
     name: string
@@ -1017,6 +1018,7 @@ export namespace Schemas {
     email_verification_ttl_hours: number | null
     forgot_password_enabled: boolean | null
     id_token_lifetime: number | null
+    login_aliases: Array<string> | null
     magic_link_enabled: boolean | null
     magic_link_template_id: string | null
     magic_link_ttl: number | null
