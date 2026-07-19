@@ -6,17 +6,18 @@ use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::role::entities::Role;
 
 use crate::entities::{
-    AddGroupMemberInput, AddOrganizationMemberInput, AssignGroupRoleInput, CreateGroupInput,
-    CreateGroupParams, CreateOrganizationInput, CreateOrganizationParams,
+    AddGroupMemberInput, AddOrganizationMemberInput, AssignGroupRoleInput, AssignMemberRoleInput,
+    CreateGroupInput, CreateGroupParams, CreateOrganizationInput, CreateOrganizationParams,
     DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
     DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute, GroupId,
     GroupMember, GroupMemberDetail, GroupMemberPage, GroupNode, GroupRoleMapping,
     ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
-    ListOrganizationAttributesInput, ListOrganizationMembersInput, ListOrganizationsInput,
-    ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationId,
-    OrganizationMember, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
-    RevokeGroupRoleInput, UpdateGroupInput, UpdateGroupParams, UpdateOrganizationInput,
-    UpdateOrganizationParams, UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
+    ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
+    ListOrganizationsInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
+    OrganizationId, OrganizationMember, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
+    RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams,
+    UpdateOrganizationInput, UpdateOrganizationParams, UpsertGroupAttributeInput,
+    UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -113,6 +114,27 @@ pub trait OrganizationMemberRepository: Send + Sync {
         organization_id: OrganizationId,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Option<OrganizationMember>, CoreError>> + Send;
+}
+
+/// Persistence for member→role mappings (roles scoped to an organization membership).
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait OrganizationMemberRoleRepository: Send + Sync {
+    fn assign_role(
+        &self,
+        organization_member_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn revoke_role(
+        &self,
+        organization_member_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn list_role_ids(
+        &self,
+        organization_member_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Uuid>, CoreError>> + Send;
 }
 
 /// Service trait for Organization business logic
@@ -327,6 +349,43 @@ pub trait GroupTokenRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Uuid>, CoreError>> + Send;
+
+    /// `(organization_id, role_id)` pairs for roles inherited from the user's effective
+    /// (recursive) group memberships, tagged with the organization each group belongs to.
+    /// Powers the org-scoped role claim (`organizations.<alias>.roles`).
+    fn list_effective_group_role_ids_by_org_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<(Uuid, Uuid)>, CoreError>> + Send;
+
+    /// `(organization_id, role_id)` pairs for roles assigned *directly* to the user's
+    /// organization memberships (not via groups). Powers the org-scoped role claim.
+    fn list_member_role_ids_by_org_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<(Uuid, Uuid)>, CoreError>> + Send;
+}
+
+/// Service trait for member-scoped role business logic.
+pub trait OrganizationMemberRoleService: Send + Sync {
+    fn assign_role(
+        &self,
+        identity: Identity,
+        input: AssignMemberRoleInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn revoke_role(
+        &self,
+        identity: Identity,
+        input: RevokeMemberRoleInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Roles assigned directly to the member (resolved to full `Role`s).
+    fn list_roles(
+        &self,
+        identity: Identity,
+        input: ListMemberRolesInput,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
 }
 
 /// Service trait for group business logic.

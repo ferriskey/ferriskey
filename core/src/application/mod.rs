@@ -28,6 +28,7 @@ use crate::{
         health::services::HealthServiceImpl,
         maintenance::services::MaintenanceServiceImpl,
         organization::group_services::GroupServiceImpl,
+        organization::member_role_services::OrganizationMemberRoleServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::service::PasswordPolicyService,
         portal_layouts::services::PortalLayoutsServiceImpl,
@@ -79,6 +80,7 @@ use crate::{
             group_token_repository::PostgresGroupTokenRepository,
             organization_attribute_repository::PostgresOrganizationAttributeRepository,
             organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_member_role_repository::PostgresOrganizationMemberRoleRepository,
             organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
@@ -210,6 +212,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let organization_member =
         Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
+    let organization_member_role = Arc::new(PostgresOrganizationMemberRoleRepository::new(
+        postgres.get_db(),
+    ));
     let group = Arc::new(PostgresGroupRepository::new(postgres.get_db()));
     let group_member = Arc::new(PostgresGroupMemberRepository::new(postgres.get_db()));
     let group_role = Arc::new(PostgresGroupRoleRepository::new(postgres.get_db()));
@@ -481,6 +486,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             group_member.clone(),
             group_role.clone(),
             group_attribute.clone(),
+            policy.clone(),
+        ),
+        organization_member_role_service: OrganizationMemberRoleServiceImpl::new(
+            realm.clone(),
+            user_role.clone(),
+            organization.clone(),
+            organization_member.clone(),
+            organization_member_role.clone(),
             policy.clone(),
         ),
         flow_recorder,

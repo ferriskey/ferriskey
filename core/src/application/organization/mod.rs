@@ -5,15 +5,17 @@ use crate::{
         common::entities::app_errors::CoreError,
         organization::ports::{
             AddGroupMemberInput, AddOrganizationMemberInput, AssignGroupRoleInput,
-            CreateGroupInput, CreateOrganizationInput, DeleteGroupAttributeInput, DeleteGroupInput,
-            DeleteOrganizationAttributeInput, DeleteOrganizationInput, GetGroupInput,
-            GetOrganizationInput, Group, GroupAttribute, GroupMember, GroupMemberPage, GroupNode,
-            GroupService, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
-            ListGroupsInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
-            ListOrganizationsInput, ListUserOrganizationsInput, Organization,
-            OrganizationAttribute, OrganizationMember, OrganizationService, RemoveGroupMemberInput,
-            RemoveOrganizationMemberInput, RevokeGroupRoleInput, UpdateGroupInput,
-            UpdateOrganizationInput, UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
+            AssignMemberRoleInput, CreateGroupInput, CreateOrganizationInput,
+            DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
+            DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
+            GroupMember, GroupMemberPage, GroupNode, GroupService, ListGroupAttributesInput,
+            ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
+            ListOrganizationAttributesInput, ListOrganizationMembersInput, ListOrganizationsInput,
+            ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationMember,
+            OrganizationMemberRoleService, OrganizationService, RemoveGroupMemberInput,
+            RemoveOrganizationMemberInput, RevokeGroupRoleInput, RevokeMemberRoleInput,
+            UpdateGroupInput, UpdateOrganizationInput, UpsertGroupAttributeInput,
+            UpsertOrganizationAttributeInput,
         },
         role::entities::Role,
     },
@@ -250,5 +252,37 @@ impl GroupService for ApplicationService {
         input: DeleteGroupAttributeInput,
     ) -> Result<(), CoreError> {
         self.group_service.delete_attribute(identity, input).await
+    }
+}
+
+impl OrganizationMemberRoleService for ApplicationService {
+    async fn assign_role(
+        &self,
+        identity: Identity,
+        input: AssignMemberRoleInput,
+    ) -> Result<(), CoreError> {
+        self.organization_member_role_service
+            .assign_role(identity, input)
+            .await
+    }
+
+    async fn revoke_role(
+        &self,
+        identity: Identity,
+        input: RevokeMemberRoleInput,
+    ) -> Result<(), CoreError> {
+        self.organization_member_role_service
+            .revoke_role(identity, input)
+            .await
+    }
+
+    async fn list_roles(
+        &self,
+        identity: Identity,
+        input: ListMemberRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        self.organization_member_role_service
+            .list_roles(identity, input)
+            .await
     }
 }

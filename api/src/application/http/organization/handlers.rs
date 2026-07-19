@@ -7,6 +7,7 @@ pub mod groups;
 pub mod list_attributes;
 pub mod list_members;
 pub mod list_organizations;
+pub mod member_roles;
 pub mod remove_member;
 pub mod update_organization;
 pub mod upsert_attribute;

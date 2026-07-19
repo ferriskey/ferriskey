@@ -44,6 +44,7 @@ use crate::{
         health::services::HealthServiceImpl,
         maintenance::services::MaintenanceServiceImpl,
         organization::group_services::GroupServiceImpl,
+        organization::member_role_services::OrganizationMemberRoleServiceImpl,
         organization::services::OrganizationServiceImpl,
         password_policy::{
             entity::{PasswordPolicy, UpdatePasswordPolicy},
@@ -97,6 +98,7 @@ use crate::{
             group_token_repository::PostgresGroupTokenRepository,
             organization_attribute_repository::PostgresOrganizationAttributeRepository,
             organization_member_repository::PostgresOrganizationMemberRepository,
+            organization_member_role_repository::PostgresOrganizationMemberRoleRepository,
             organization_repository::PostgresOrganizationRepository,
         },
         realm::repositories::{
@@ -174,6 +176,7 @@ type PortalLayoutsRepo = PostgresPortalLayoutsRepository;
 type OrganizationRepo = PostgresOrganizationRepository;
 type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
 type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
+type OrganizationMemberRoleRepo = PostgresOrganizationMemberRoleRepository;
 type GroupRepo = PostgresGroupRepository;
 type GroupMemberRepo = PostgresGroupMemberRepository;
 type GroupRoleRepo = PostgresGroupRoleRepository;
@@ -445,6 +448,15 @@ pub struct ApplicationService {
         GroupMemberRepo,
         GroupRoleRepo,
         GroupAttributeRepo,
+    >,
+    pub(crate) organization_member_role_service: OrganizationMemberRoleServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        OrganizationRepo,
+        OrganizationMemberRepo,
+        OrganizationMemberRoleRepo,
     >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,

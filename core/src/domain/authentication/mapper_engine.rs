@@ -11,8 +11,9 @@ use super::mappers::{
     audience_mapper::AudienceMapper, group_membership_mapper::GroupMembershipMapper,
     hardcoded_claim_mapper::HardcodedClaimMapper, org_detail_mapper::OrgDetailMapper,
     org_membership_mapper::OrgMembershipMapper, user_attribute_mapper::UserAttributeMapper,
-    user_client_role_mapper::UserClientRoleMapper, user_property_mapper::UserPropertyMapper,
-    user_realm_role_mapper::UserRealmRoleMapper,
+    user_client_role_mapper::UserClientRoleMapper,
+    user_organization_role_mapper::UserOrganizationRoleMapper,
+    user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
 
 /// Organization membership data available to protocol mappers.
@@ -25,6 +26,12 @@ pub struct ContextOrganization {
     pub domain: Option<String>,
     /// Flat key-value attributes defined on the organization.
     pub attributes: HashMap<String, String>,
+    /// Realm-role names scoped to this organization (member-direct + group-inherited).
+    /// Powers `organizations.<alias>.roles`.
+    pub roles: Vec<String>,
+    /// Client-role names scoped to this organization, keyed by the client's string `client_id`.
+    /// Powers `organizations.<alias>.clients.<client_id>.roles`.
+    pub client_roles: HashMap<String, Vec<String>>,
 }
 
 /// A group the user effectively belongs to (directly or via a descendant), with its full path.
@@ -95,6 +102,7 @@ enum MapperExecutor {
     OrgMembership(OrgMembershipMapper),
     OrgDetail(OrgDetailMapper),
     GroupMembership(GroupMembershipMapper),
+    UserOrganizationRole(UserOrganizationRoleMapper),
 }
 
 impl MapperExecutor {
@@ -114,6 +122,7 @@ impl MapperExecutor {
             Self::OrgMembership(m) => m.execute(config, context, token_type),
             Self::OrgDetail(m) => m.execute(config, context, token_type),
             Self::GroupMembership(m) => m.execute(config, context, token_type),
+            Self::UserOrganizationRole(m) => m.execute(config, context, token_type),
         }
     }
 }
@@ -162,6 +171,10 @@ impl MapperEngine {
         executors.insert(
             "oidc-group-membership-mapper".to_string(),
             MapperExecutor::GroupMembership(GroupMembershipMapper),
+        );
+        executors.insert(
+            "oidc-organization-role-mapper".to_string(),
+            MapperExecutor::UserOrganizationRole(UserOrganizationRoleMapper),
         );
         Self { executors }
     }
@@ -521,6 +534,8 @@ mod tests {
             alias: "acme".to_string(),
             domain: Some("acme.com".to_string()),
             attributes,
+            roles: Vec::new(),
+            client_roles: HashMap::new(),
         };
 
         let context = MapperContext {
@@ -568,6 +583,8 @@ mod tests {
                 alias: "org-a".to_string(),
                 domain: None,
                 attributes: HashMap::new(),
+                roles: Vec::new(),
+                client_roles: HashMap::new(),
             },
             ContextOrganization {
                 id: OrganizationId::new(Uuid::new_v4()),
@@ -575,6 +592,8 @@ mod tests {
                 alias: "org-b".to_string(),
                 domain: Some("orgb.io".to_string()),
                 attributes: HashMap::new(),
+                roles: Vec::new(),
+                client_roles: HashMap::new(),
             },
         ];
 

@@ -1,5 +1,6 @@
 pub mod context;
 pub mod m0001_seed_default_client_scopes;
+pub mod m0002_seed_organization_scope;
 
 use ferriskey_aegis::ports::{
     ClientScopeMappingRepository, ClientScopeRepository, ProtocolMapperRepository,
@@ -11,7 +12,10 @@ use crate::{
     infrastructure::migrate::repository::PostgresMigrationRepository,
 };
 
-use self::{context::MigrationContext, m0001_seed_default_client_scopes::SeedDefaultClientScopes};
+use self::{
+    context::MigrationContext, m0001_seed_default_client_scopes::SeedDefaultClientScopes,
+    m0002_seed_organization_scope::SeedOrganizationScope,
+};
 
 /// Builds the migration runner with every registered data migration.
 ///
@@ -31,5 +35,7 @@ where
     PM: ProtocolMapperRepository + 'static,
     CSM: ClientScopeMappingRepository + 'static,
 {
-    MigrationRunner::new(repository).register(SeedDefaultClientScopes)
+    MigrationRunner::new(repository)
+        .register(SeedDefaultClientScopes)
+        .register(SeedOrganizationScope)
 }
