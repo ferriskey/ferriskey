@@ -106,6 +106,7 @@ mod tests {
                 name: db_name,
                 schema: schema.clone(),
             },
+            encryption: ferriskey_core::domain::common::EncryptionConfig::default(),
         })
         .await
         .expect("create service");

@@ -157,6 +157,9 @@ impl From<JwtError> for ApiError {
             JwtError::InvalidKey(e) => Self::InternalServerError(e.into()),
             JwtError::ParsingError(e) => Self::InternalServerError(e.into()),
             JwtError::RealmKeyNotFound => Self::InternalServerError("Realm key not found".into()),
+            JwtError::EncryptionError(e) => Self::InternalServerError(e.into()),
+            JwtError::DecryptionError(e) => Self::InternalServerError(e.into()),
+            JwtError::SecretNotFound(e) => Self::InternalServerError(e.into()),
         }
     }
 }
