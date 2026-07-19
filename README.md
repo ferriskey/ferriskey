@@ -216,5 +216,6 @@ Apache‑2.0 — free to use, modify, and distribute.
 - 📂 Source: <https://github.com/ferriskey/ferriskey>
 - 📦 Helm Chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
 - 📖 Documentation: <https://docs.ferriskey.rs/en/discover/what-is-ferriskey>
+- 🧭 Device Authorization Guide: [Device Authorization Grant (RFC 8628)](docs/device-authorization-grant.md)
 - 💬 Discussions: <https://github.com/ferriskey/ferriskey/discussions>
 - 🏆 Sponsor: <https://github.com/sponsors/ferriskey>
