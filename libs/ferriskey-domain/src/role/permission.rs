@@ -1,0 +1,263 @@
+use std::collections::HashSet;
+
+use serde::{Deserialize, Serialize};
+use tracing::instrument;
+use utoipa::ToSchema;
+
+#[repr(u64)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Permissions {
+    // Permissions de création et de gestion
+    CreateClient = 1 << 0,            // 1 << 0
+    ManageAuthorization = 1 << 1,     // 1 << 1
+    ManageClients = 1 << 2,           // 1 << 2
+    ManageEvents = 1 << 3,            // 1 << 3
+    ManageIdentityProviders = 1 << 4, // 1 << 4
+    ManageRealm = 1 << 5,             // 1 << 5
+    ManageUsers = 1 << 6,             // 1 << 6
+    ManageRoles = 1 << 7,             // 1 << 7
+
+    // Permissions de requête/lecture
+    QueryClients = 1 << 8, // 1 << 8
+    QueryGroups = 1 << 9,  // 1 << 9
+    QueryRealms = 1 << 10, // 1 << 10
+    QueryUsers = 1 << 11,  // 1 << 11
+
+    // Permissions de visualisation
+    ViewAuthorization = 1 << 12,     // 1 << 12
+    ViewClients = 1 << 13,           // 1 << 13
+    ViewEvents = 1 << 14,            // 1 << 14
+    ViewIdentityProviders = 1 << 15, // 1 << 15
+    ViewRealm = 1 << 16,             // 1 << 16
+    ViewUsers = 1 << 17,             // 1 << 17
+    ViewRoles = 1 << 18,             // 1 << 18
+
+    ManageWebhooks = 1 << 19, // 1 << 19
+    QueryWebhooks = 1 << 20,  // 1 << 20
+    ViewWebhooks = 1 << 21,   // 1 << 21
+
+    ManageClientScopes = 1 << 22, // 1 << 22
+    QueryClientScopes = 1 << 23,  // 1 << 23
+    ViewClientScopes = 1 << 24,   // 1 << 24
+
+    ManageEmailTemplates = 1 << 25, // 1 << 25
+    ViewEmailTemplates = 1 << 26,   // 1 << 26
+}
+
+impl Permissions {
+    pub fn from_bitfield(bitfield: u64) -> Vec<Self> {
+        let all_permissions = [
+            Self::CreateClient,
+            Self::ManageAuthorization,
+            Self::ManageClients,
+            Self::ManageEvents,
+            Self::ManageIdentityProviders,
+            Self::ManageRealm,
+            Self::ManageUsers,
+            Self::ManageRoles,
+            Self::QueryClients,
+            Self::QueryGroups,
+            Self::QueryRealms,
+            Self::QueryUsers,
+            Self::ViewAuthorization,
+            Self::ViewClients,
+            Self::ViewEvents,
+            Self::ViewIdentityProviders,
+            Self::ViewRealm,
+            Self::ViewUsers,
+            Self::ViewRoles,
+            Self::ManageWebhooks,
+            Self::QueryWebhooks,
+            Self::ViewWebhooks,
+            Self::ManageClientScopes,
+            Self::QueryClientScopes,
+            Self::ViewClientScopes,
+            Self::ManageEmailTemplates,
+            Self::ViewEmailTemplates,
+        ];
+
+        all_permissions
+            .iter()
+            .copied()
+            .filter(|&permission| (bitfield & (permission as u64)) == (permission as u64))
+            .collect()
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            Self::CreateClient => "create_client".to_string(),
+            Self::ManageAuthorization => "manage_authorization".to_string(),
+            Self::ManageClients => "manage_clients".to_string(),
+            Self::ManageEvents => "manage_events".to_string(),
+            Self::ManageIdentityProviders => "manage_identity_providers".to_string(),
+            Self::ManageRealm => "manage_realm".to_string(),
+            Self::ManageUsers => "manage_users".to_string(),
+            Self::ManageRoles => "manage_roles".to_string(),
+            Self::ManageWebhooks => "manage_webhooks".to_string(),
+            Self::QueryClients => "query_clients".to_string(),
+            Self::QueryGroups => "query_groups".to_string(),
+            Self::QueryRealms => "query_realms".to_string(),
+            Self::QueryUsers => "query_users".to_string(),
+            Self::QueryWebhooks => "query_webhooks".to_string(),
+            Self::ViewAuthorization => "view_authorization".to_string(),
+            Self::ViewClients => "view_clients".to_string(),
+            Self::ViewEvents => "view_events".to_string(),
+            Self::ViewIdentityProviders => "view_identity_providers".to_string(),
+            Self::ViewRealm => "view_realm".to_string(),
+            Self::ViewUsers => "view_users".to_string(),
+            Self::ViewRoles => "view_roles".to_string(),
+            Self::ViewWebhooks => "view_webhooks".to_string(),
+            Self::ManageClientScopes => "manage_client_scopes".to_string(),
+            Self::QueryClientScopes => "query_client_scopes".to_string(),
+            Self::ViewClientScopes => "view_client_scopes".to_string(),
+            Self::ManageEmailTemplates => "manage_email_templates".to_string(),
+            Self::ViewEmailTemplates => "view_email_templates".to_string(),
+        }
+    }
+
+    pub fn has_permissions(
+        permissions: &[Permissions],
+        required_permissions: &[Permissions],
+    ) -> bool {
+        required_permissions
+            .iter()
+            .all(|required_permission| permissions.contains(required_permission))
+    }
+
+    #[instrument]
+    pub fn has_one_of_permissions(
+        permissions: &HashSet<Permissions>,
+        required_permissions: &[Permissions],
+    ) -> bool {
+        required_permissions
+            .iter()
+            .any(|required_permission| permissions.contains(required_permission))
+    }
+
+    pub fn to_bitfield(permissions: &[Permissions]) -> u64 {
+        permissions
+            .iter()
+            .fold(0, |acc, &permission| acc | (permission as u64))
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "create_client" => Some(Self::CreateClient),
+            "manage_authorization" => Some(Self::ManageAuthorization),
+            "manage_clients" => Some(Self::ManageClients),
+            "manage_events" => Some(Self::ManageEvents),
+            "manage_identity_providers" => Some(Self::ManageIdentityProviders),
+            "manage_realm" => Some(Self::ManageRealm),
+            "manage_users" => Some(Self::ManageUsers),
+            "manage_roles" => Some(Self::ManageRoles),
+            "query_clients" => Some(Self::QueryClients),
+            "query_groups" => Some(Self::QueryGroups),
+            "query_realms" => Some(Self::QueryRealms),
+            "query_users" => Some(Self::QueryUsers),
+            "view_authorization" => Some(Self::ViewAuthorization),
+            "view_clients" => Some(Self::ViewClients),
+            "view_events" => Some(Self::ViewEvents),
+            "view_identity_providers" => Some(Self::ViewIdentityProviders),
+            "view_realm" => Some(Self::ViewRealm),
+            "view_users" => Some(Self::ViewUsers),
+            "view_roles" => Some(Self::ViewRoles),
+            "manage_webhooks" => Some(Self::ManageWebhooks),
+            "query_webhooks" => Some(Self::QueryWebhooks),
+            "view_webhooks" => Some(Self::ViewWebhooks),
+            "manage_client_scopes" => Some(Self::ManageClientScopes),
+            "query_client_scopes" => Some(Self::QueryClientScopes),
+            "view_client_scopes" => Some(Self::ViewClientScopes),
+            "manage_email_templates" => Some(Self::ManageEmailTemplates),
+            "view_email_templates" => Some(Self::ViewEmailTemplates),
+            _ => None,
+        }
+    }
+
+    pub fn from_names(names: &[String]) -> Vec<Self> {
+        names
+            .iter()
+            .filter_map(|name| Self::from_name(name))
+            .collect()
+    }
+
+    pub fn to_names(permissions: &[Self]) -> Vec<String> {
+        permissions
+            .iter()
+            .map(|permission| permission.name())
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::Permissions;
+
+    #[test]
+    fn test_from_bitfield() {
+        let bitfield = Permissions::ManageUsers as u64 | Permissions::ViewClients as u64;
+        let permissions = Permissions::from_bitfield(bitfield);
+
+        assert_eq!(permissions.len(), 2);
+        assert!(permissions.contains(&Permissions::ManageUsers));
+        assert!(permissions.contains(&Permissions::ViewClients));
+    }
+
+    #[test]
+    fn test_to_bitfield() {
+        let permissions = vec![Permissions::ManageUsers, Permissions::ViewClients];
+        let bitfield = Permissions::to_bitfield(&permissions);
+
+        assert_eq!(
+            bitfield,
+            Permissions::ManageUsers as u64 | Permissions::ViewClients as u64
+        );
+    }
+
+    #[test]
+    fn test_name_and_from_name() {
+        let permission = Permissions::ManageUsers;
+        let name = permission.name();
+
+        assert_eq!(name, "manage_users");
+
+        let recovered = Permissions::from_name(&name);
+        assert_eq!(recovered, Some(permission));
+    }
+
+    #[test]
+    fn test_has_permissions() {
+        let user_permissions = vec![
+            Permissions::ManageUsers,
+            Permissions::ViewClients,
+            Permissions::QueryUsers,
+        ];
+
+        assert!(Permissions::has_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewClients]
+        ));
+
+        assert!(!Permissions::has_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewRealm]
+        ));
+    }
+
+    #[test]
+    fn test_has_one_of_permissions() {
+        let user_permissions = HashSet::from([Permissions::ManageUsers]);
+
+        assert!(Permissions::has_one_of_permissions(
+            &user_permissions,
+            &[Permissions::ManageUsers, Permissions::ViewRealm]
+        ));
+
+        assert!(!Permissions::has_one_of_permissions(
+            &user_permissions,
+            &[Permissions::ManageClients, Permissions::ViewRealm]
+        ));
+    }
+}
