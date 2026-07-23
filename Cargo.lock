@@ -1635,6 +1635,7 @@ name = "ferriskey-domain"
 version = "0.7.0"
 dependencies = [
  "chrono",
+ "mockall 0.14.0",
  "rand 0.8.5",
  "serde",
  "serde_json",
