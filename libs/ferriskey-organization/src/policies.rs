@@ -1,15 +1,12 @@
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, Policy},
-    },
-    organization::ports::{Organization, OrganizationPolicy},
-    role::entities::permission::Permissions,
-    user::ports::{UserRepository, UserRoleRepository},
-};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, Policy};
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::role::permission::Permissions;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
+
+use crate::{Organization, OrganizationPolicy};
 
 impl<U, C, UR> OrganizationPolicy for FerriskeyPolicy<U, C, UR>
 where

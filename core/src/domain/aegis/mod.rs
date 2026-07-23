@@ -1,4 +1,3 @@
-pub mod policies;
 pub mod services;
 
 pub use ferriskey_aegis::entities;
