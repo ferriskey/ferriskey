@@ -12,28 +12,11 @@ use crate::domain::{
     },
 };
 
-pub trait Policy: Send + Sync {
-    fn get_user_from_identity(
-        &self,
-        identity: &Identity,
-    ) -> impl Future<Output = Result<User, CoreError>> + Send;
-    fn get_user_permissions(
-        &self,
-        user: &User,
-    ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
-    fn get_client_specific_permissions(
-        &self,
-        user: &User,
-        client: &Client,
-    ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
-    fn get_permission_for_target_realm(
-        &self,
-        user: &User,
-        target_realm: &Realm,
-    ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
-    fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
-    fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
-}
+// `Policy` and `ensure_policy` now live in the kernel crate `ferriskey-domain`.
+// Re-exported so existing `crate::domain::common::policies::{Policy, ensure_policy}`
+// call sites keep compiling. The concrete `FerriskeyPolicy` implementation stays here
+// because it depends on core's repository ports.
+pub use ferriskey_domain::common::policies::{Policy, ensure_policy};
 
 #[derive(Clone, Debug)]
 pub struct FerriskeyPolicy<U, C, UR>
@@ -208,16 +191,5 @@ where
 
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == "master" && user_realm.name != target_realm.name
-    }
-}
-
-pub fn ensure_policy(
-    result_has_permission: Result<bool, CoreError>,
-    error_message: &str,
-) -> Result<(), CoreError> {
-    match result_has_permission {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(CoreError::Forbidden(error_message.to_string())),
-        Err(_) => Err(CoreError::Forbidden(error_message.to_string())),
     }
 }

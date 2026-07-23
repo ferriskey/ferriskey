@@ -21,15 +21,6 @@ pub trait RealmResolver: Send + Sync {
 
 /// Helper to convert a policy check result into a `Result<(), CoreError>`.
 ///
-/// Returns `Ok(())` if the policy returned `Ok(true)`,
-/// otherwise returns `Err(CoreError::Forbidden(...))`.
-pub fn ensure_policy(
-    result_has_permission: Result<bool, CoreError>,
-    error_message: &str,
-) -> Result<(), CoreError> {
-    match result_has_permission {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(CoreError::Forbidden(error_message.to_string())),
-        Err(_) => Err(CoreError::Forbidden(error_message.to_string())),
-    }
-}
+/// Single source of truth now lives in the kernel crate `ferriskey-domain`.
+/// Re-exported so existing `crate::common::ensure_policy` call sites keep compiling.
+pub use ferriskey_domain::common::policies::ensure_policy;
