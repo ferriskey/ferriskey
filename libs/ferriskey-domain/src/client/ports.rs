@@ -118,6 +118,7 @@ pub trait ClientPolicy: Send + Sync {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait ClientRepository: Send + Sync {
     fn create_client(
         &self,
@@ -172,6 +173,7 @@ pub trait RedirectUriService: Send + Sync {
     fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait RedirectUriRepository: Send + Sync {
     fn create_redirect_uri(
         &self,

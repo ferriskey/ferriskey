@@ -74,6 +74,7 @@ pub trait RolePolicy: Send + Sync {
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait RoleRepository: Send + Sync {
     fn create(
         &self,

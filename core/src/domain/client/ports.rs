@@ -1,15 +1,17 @@
-pub use ferriskey_domain::client::ports::{
-    ClientPolicy, ClientRepository, ClientService, RedirectUriRepository, RedirectUriService,
-};
+//! Client domain port traits live in the shared `ferriskey-domain` crate. `ClientRepository` and
+//! `RedirectUriRepository` use `#[cfg_attr(any(test, feature = "mock"), mockall::automock)]`;
+//! `core` enables ferriskey-domain's `mock` feature, so `MockClientRepository` /
+//! `MockRedirectUriRepository` come through this glob re-export (same convention as user/realm).
+//! `PostLogoutRedirectUriRepository` is a core-local port (no ferriskey-domain trait), so it and
+//! its hand-written mock stay here.
+pub use ferriskey_domain::client::ports::*;
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
 use ferriskey_domain::client::entities::redirect_uri::RedirectUri;
 
 #[cfg(test)]
-pub use mocks::{
-    MockClientRepository, MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
-};
+pub use mocks::MockPostLogoutRedirectUriRepository;
 
 #[cfg(test)]
 mod mocks {
@@ -17,71 +19,7 @@ mod mocks {
     use uuid::Uuid;
 
     use crate::domain::common::entities::app_errors::CoreError;
-    use ferriskey_domain::client::{
-        entities::{Client, redirect_uri::RedirectUri},
-        value_objects::{CreateClientRequest, UpdateClientRequest},
-    };
-    use ferriskey_domain::realm::RealmId;
-
-    mock! {
-        pub ClientRepository {}
-        impl ferriskey_domain::client::ports::ClientRepository for ClientRepository {
-            fn create_client(
-                &self,
-                data: CreateClientRequest,
-            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-            fn get_by_client_id(
-                &self,
-                client_id: String,
-                realm_id: RealmId,
-            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-            fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
-            fn get_by_realm_id(
-                &self,
-                realm_id: RealmId,
-            ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
-
-            fn update_client(
-                &self,
-                client_id: Uuid,
-                data: UpdateClientRequest,
-            ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-
-            fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-        }
-    }
-
-    mock! {
-        pub RedirectUriRepository {}
-        impl ferriskey_domain::client::ports::RedirectUriRepository for RedirectUriRepository {
-            fn create_redirect_uri(
-                &self,
-                client_id: Uuid,
-                value: String,
-                enabled: bool,
-            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-            fn get_by_client_id(
-                &self,
-                client_id: Uuid,
-            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-            fn get_enabled_by_client_id(
-                &self,
-                client_id: Uuid,
-            ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-            fn update_enabled(
-                &self,
-                id: Uuid,
-                enabled: bool,
-            ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-            fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-        }
-    }
+    use ferriskey_domain::client::entities::redirect_uri::RedirectUri;
 
     mock! {
         pub PostLogoutRedirectUriRepository {}
