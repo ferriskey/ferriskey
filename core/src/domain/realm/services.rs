@@ -199,6 +199,33 @@ where
                     }),
                 )],
             ),
+            // Organization context: both mappers write into the `organizations` claim (deep-merged) —
+            // membership contributes id/name/alias, the role mapper contributes roles/clients.
+            // Mirrors `SeedOrganizationScope` (application::migrate::m0002) for existing realms.
+            (
+                "organization",
+                true,
+                vec![
+                    (
+                        "organizations",
+                        "oidc-organization-membership-mapper",
+                        json!({
+                            "claim.name": "organizations",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
+                    ),
+                    (
+                        "organization_roles",
+                        "oidc-organization-role-mapper",
+                        json!({
+                            "claim.name": "organizations",
+                            "access.token.claim": "true",
+                            "id.token.claim": "true"
+                        }),
+                    ),
+                ],
+            ),
             ("offline_access", false, vec![]),
             (
                 "phone",

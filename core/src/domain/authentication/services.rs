@@ -16,7 +16,7 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperReposit
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_organization::{
-    Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository,
+    Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository, OrganizationId,
     OrganizationMemberRepository, OrganizationRepository,
 };
 
@@ -74,6 +74,10 @@ use ferriskey_domain::token_lifetime::TokenLifetimes;
 use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
+
+/// Per-organization role buckets: `org_id -> (realm role names, client roles keyed by client_id)`.
+/// Feeds the org-scoped role claim in token assembly.
+type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
 
 fn lockout_compute_locked_until(
     new_attempts: i32,
@@ -685,6 +689,65 @@ where
             }
         }
 
+        // Organization-scoped roles: roles that apply only within a specific organization,
+        // aggregated per org from (a) roles assigned directly to the membership and
+        // (b) roles inherited from the user's groups in that org. These are surfaced *only*
+        // under the `organizations.<alias>` claim (via the org-role mapper), never flattened
+        // into the global `realm_access` / `resource_access` claims above.
+        let mut org_role_ids: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
+        for (org_id, role_id) in self
+            .group_token_repository
+            .list_member_role_ids_by_org_for_user(input.user_id)
+            .await
+            .unwrap_or_default()
+        {
+            org_role_ids.entry(org_id).or_default().insert(role_id);
+        }
+        for (org_id, role_id) in self
+            .group_token_repository
+            .list_effective_group_role_ids_by_org_for_user(input.user_id)
+            .await
+            .unwrap_or_default()
+        {
+            org_role_ids.entry(org_id).or_default().insert(role_id);
+        }
+
+        // Resolve the distinct role ids once, then bucket per org into realm vs client roles.
+        let mut org_roles: OrgScopedRoles = HashMap::new();
+        if !org_role_ids.is_empty() {
+            let distinct_ids: Vec<Uuid> = org_role_ids
+                .values()
+                .flatten()
+                .copied()
+                .collect::<HashSet<Uuid>>()
+                .into_iter()
+                .collect();
+            let resolved: HashMap<Uuid, _> = self
+                .user_role_repository
+                .get_roles_by_ids(distinct_ids)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|role| (role.id, role))
+                .collect();
+
+            for (org_id, role_ids) in &org_role_ids {
+                let entry = org_roles.entry(*org_id).or_default();
+                for rid in role_ids {
+                    if let Some(role) = resolved.get(rid) {
+                        match &role.client {
+                            Some(client) => entry
+                                .1
+                                .entry(client.client_id.clone())
+                                .or_default()
+                                .push(role.name.clone()),
+                            None => entry.0.push(role.name.clone()),
+                        }
+                    }
+                }
+            }
+        }
+
         // Effective groups (direct + ancestors) with their full paths, for the group mapper.
         // Direct ids let the mapper emit direct-only membership when configured.
         let effective_groups = self
@@ -708,11 +771,26 @@ where
             .await
             .unwrap_or_default();
 
+        // Union of the orgs the user is a direct member of and any org that granted scoped
+        // roles (a user may inherit roles from a group in an org without a direct membership row).
+        let mut org_ids: Vec<OrganizationId> = Vec::new();
+        let mut seen_org_ids: HashSet<Uuid> = HashSet::new();
+        for membership in &org_memberships {
+            if seen_org_ids.insert(membership.organization_id.as_uuid()) {
+                org_ids.push(membership.organization_id);
+            }
+        }
+        for org_id in org_roles.keys() {
+            if seen_org_ids.insert(*org_id) {
+                org_ids.push(OrganizationId::new(*org_id));
+            }
+        }
+
         let mut organizations = Vec::new();
-        for membership in org_memberships {
+        for org_id in org_ids {
             if let Ok(Some(org)) = self
                 .organization_repository
-                .get_organization_by_id(membership.organization_id)
+                .get_organization_by_id(org_id)
                 .await
             {
                 let raw_attrs = self
@@ -723,12 +801,16 @@ where
 
                 let attributes = raw_attrs.into_iter().map(|a| (a.key, a.value)).collect();
 
+                let (roles, client_roles) = org_roles.remove(&org.id.as_uuid()).unwrap_or_default();
+
                 organizations.push(ContextOrganization {
                     id: org.id,
                     name: org.name,
                     alias: org.alias,
                     domain: org.domain,
                     attributes,
+                    roles,
+                    client_roles,
                 });
             }
         }

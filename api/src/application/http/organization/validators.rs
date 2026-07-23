@@ -70,3 +70,8 @@ pub struct AddGroupMemberValidator {
 pub struct AssignGroupRoleValidator {
     pub role_id: Uuid,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct AssignMemberRoleValidator {
+    pub role_id: Uuid,
+}

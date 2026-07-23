@@ -22,6 +22,10 @@ use super::handlers::{
     list_attributes::{__path_list_attributes, list_attributes},
     list_members::{__path_list_members, list_members},
     list_organizations::{__path_list_organizations, list_organizations},
+    member_roles::{
+        __path_assign_member_role, __path_list_member_roles, __path_revoke_member_role,
+        assign_member_role, list_member_roles, revoke_member_role,
+    },
     remove_member::{__path_remove_member, remove_member},
     update_organization::{__path_update_organization, update_organization},
     upsert_attribute::{__path_upsert_attribute, upsert_attribute},
@@ -40,6 +44,9 @@ use super::handlers::{
     list_members,
     add_member,
     remove_member,
+    list_member_roles,
+    assign_member_role,
+    revoke_member_role,
     list_groups,
     create_group,
     get_group,
@@ -102,6 +109,20 @@ pub fn organization_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             axum::routing::delete(remove_member),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/members/{{user_id}}/roles",
+                state.args.server.root_path
+            ),
+            get(list_member_roles).post(assign_member_role),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/organizations/{{organization_id}}/members/{{user_id}}/roles/{{role_id}}",
+                state.args.server.root_path
+            ),
+            axum::routing::delete(revoke_member_role),
         )
         .route(
             &format!(

@@ -156,6 +156,8 @@ mod tests {
             alias: alias.to_string(),
             domain: None,
             attributes: HashMap::new(),
+            roles: Vec::new(),
+            client_roles: HashMap::new(),
         }
     }
 
@@ -174,6 +176,8 @@ mod tests {
                 .iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
+            roles: Vec::new(),
+            client_roles: HashMap::new(),
         }
     }
 
@@ -400,6 +404,8 @@ mod tests {
             alias: "stable".to_string(),
             domain: None,
             attributes: HashMap::new(),
+            roles: Vec::new(),
+            client_roles: HashMap::new(),
         };
 
         let result = mapper

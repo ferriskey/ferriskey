@@ -47,6 +47,32 @@ FROM organization_group_roles gr
 JOIN user_groups ug ON ug.id = gr.group_id
 "#;
 
+/// `(organization_id, role_id)` pairs inherited from the user's effective (recursive) groups,
+/// tagged with the organization each group belongs to. Powers the org-scoped role claim.
+const EFFECTIVE_GROUP_ROLE_IDS_BY_ORG_SQL: &str = r#"
+WITH RECURSIVE user_groups AS (
+    SELECT g.id, g.organization_id, g.parent_group_id
+    FROM organization_groups g
+    JOIN organization_group_members m ON m.group_id = g.id
+    WHERE m.user_id = $1
+  UNION
+    SELECT p.id, p.organization_id, p.parent_group_id
+    FROM organization_groups p
+    JOIN user_groups ug ON ug.parent_group_id = p.id
+)
+SELECT DISTINCT ug.organization_id, gr.role_id
+FROM organization_group_roles gr
+JOIN user_groups ug ON ug.id = gr.group_id
+"#;
+
+/// `(organization_id, role_id)` pairs assigned directly to the user's organization memberships.
+const MEMBER_ROLE_IDS_BY_ORG_SQL: &str = r#"
+SELECT m.organization_id, mr.role_id
+FROM organization_member_roles mr
+JOIN organization_members m ON m.id = mr.organization_member_id
+WHERE m.user_id = $1
+"#;
+
 #[derive(Debug, Clone)]
 pub struct PostgresGroupTokenRepository {
     pub db: DatabaseConnection,
@@ -135,6 +161,61 @@ impl GroupTokenRepository for PostgresGroupTokenRepository {
 
         rows.into_iter()
             .map(|row| row.try_get::<Uuid>("", "role_id").map_err(map_row_err))
+            .collect()
+    }
+
+    async fn list_effective_group_role_ids_by_org_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<(Uuid, Uuid)>, CoreError> {
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                EFFECTIVE_GROUP_ROLE_IDS_BY_ORG_SQL,
+                [user_id.into()],
+            ))
+            .await
+            .map_err(|e| {
+                error!(
+                    "Failed to resolve effective group roles by org for user: {}",
+                    e
+                );
+                CoreError::InternalServerError
+            })?;
+
+        rows.into_iter()
+            .map(|row| {
+                let org_id: Uuid = row.try_get("", "organization_id").map_err(map_row_err)?;
+                let role_id: Uuid = row.try_get("", "role_id").map_err(map_row_err)?;
+                Ok((org_id, role_id))
+            })
+            .collect()
+    }
+
+    async fn list_member_role_ids_by_org_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<(Uuid, Uuid)>, CoreError> {
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                MEMBER_ROLE_IDS_BY_ORG_SQL,
+                [user_id.into()],
+            ))
+            .await
+            .map_err(|e| {
+                error!("Failed to resolve member roles by org for user: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        rows.into_iter()
+            .map(|row| {
+                let org_id: Uuid = row.try_get("", "organization_id").map_err(map_row_err)?;
+                let role_id: Uuid = row.try_get("", "role_id").map_err(map_row_err)?;
+                Ok((org_id, role_id))
+            })
             .collect()
     }
 }

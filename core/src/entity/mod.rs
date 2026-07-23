@@ -27,6 +27,7 @@ pub mod organization_group_attributes;
 pub mod organization_group_members;
 pub mod organization_group_roles;
 pub mod organization_groups;
+pub mod organization_member_roles;
 pub mod organization_members;
 pub mod organizations;
 pub mod password_policy;

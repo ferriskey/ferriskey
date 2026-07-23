@@ -217,6 +217,24 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
     ],
   },
   {
+    id: 'qs-org-role',
+    name: 'Organization Roles',
+    description: 'Adds the roles a user holds within each organization (realm & client roles) under organizations.<alias>',
+    icon: '🛡️',
+    mapper_type: 'oidc-organization-role-mapper',
+    defaultName: 'organization_roles',
+    fields: [
+      {
+        key: 'claim.name',
+        label: 'Claim name',
+        type: 'text',
+        placeholder: 'organizations',
+        defaultValue: 'organizations',
+      },
+      ...TOKEN_INCLUSION_FIELDS,
+    ],
+  },
+  {
     id: 'qs-org-detail',
     name: 'Organization Detail',
     description: 'Adds detailed information about a single organization to the token',
@@ -619,6 +637,27 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
         type: 'switch',
         defaultValue: 'false',
         description: 'Add organization custom attributes to each entry.',
+      },
+      ...TOKEN_INCLUSION_FIELDS,
+    ],
+  },
+  {
+    id: 'cat-org-role',
+    name: 'Organization Roles',
+    description:
+      'Inject the roles a user holds within each organization — realm roles under organizations.<alias>.roles and client roles under organizations.<alias>.clients.<client_id>.roles',
+    icon: '🛡️',
+    mapper_type: 'oidc-organization-role-mapper',
+    defaultName: '',
+    fields: [
+      {
+        key: 'claim.name',
+        label: 'Claim name',
+        type: 'text',
+        placeholder: 'organizations',
+        defaultValue: 'organizations',
+        description:
+          'Root claim holding the per-organization objects (keyed by alias). Deep-merges with the Organization Membership mapper when both are enabled.',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],

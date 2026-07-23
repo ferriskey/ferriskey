@@ -257,6 +257,28 @@ pub struct ListUserOrganizationsInput {
     pub user_id: Uuid,
 }
 
+/// Assign a realm/client role to a user within the scope of an organization.
+/// `user_id` identifies the member (resolved to the `organization_members` row).
+pub struct AssignMemberRoleInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub user_id: Uuid,
+    pub role_id: Uuid,
+}
+
+pub struct RevokeMemberRoleInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub user_id: Uuid,
+    pub role_id: Uuid,
+}
+
+pub struct ListMemberRolesInput {
+    pub realm_name: String,
+    pub organization_id: OrganizationId,
+    pub user_id: Uuid,
+}
+
 pub struct ListOrganizationAttributesInput {
     pub realm_name: String,
     pub organization_id: OrganizationId,

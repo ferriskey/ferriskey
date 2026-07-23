@@ -1,0 +1,87 @@
+//! `SeaORM` Entity for organization member → role mappings.
+
+use sea_orm::entity::prelude::*;
+
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "organization_member_roles"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
+pub struct Model {
+    pub id: Uuid,
+    pub organization_member_id: Uuid,
+    pub role_id: Uuid,
+    pub created_at: DateTimeWithTimeZone,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    OrganizationMemberId,
+    RoleId,
+    CreatedAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = Uuid;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
+pub enum Relation {
+    Members,
+    Roles,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Uuid.def(),
+            Self::OrganizationMemberId => ColumnType::Uuid.def(),
+            Self::RoleId => ColumnType::Uuid.def(),
+            Self::CreatedAt => ColumnType::TimestampWithTimeZone.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::Members => Entity::belongs_to(super::organization_members::Entity)
+                .from(Column::OrganizationMemberId)
+                .to(super::organization_members::Column::Id)
+                .into(),
+            Self::Roles => Entity::belongs_to(super::roles::Entity)
+                .from(Column::RoleId)
+                .to(super::roles::Column::Id)
+                .into(),
+        }
+    }
+}
+
+impl Related<super::organization_members::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Members.def()
+    }
+}
+
+impl Related<super::roles::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Roles.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}

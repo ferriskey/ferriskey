@@ -149,6 +149,8 @@ mod tests {
             alias: "acme".to_string(),
             domain: None,
             attributes: HashMap::new(),
+            roles: Vec::new(),
+            client_roles: HashMap::new(),
         }
     }
 
