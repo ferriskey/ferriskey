@@ -1697,6 +1697,7 @@ dependencies = [
  "mockall 0.14.0",
  "serde",
  "thiserror 2.0.18",
+ "tokio",
  "utoipa",
  "uuid",
 ]
