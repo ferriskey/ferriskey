@@ -1,0 +1,293 @@
+use std::collections::HashMap;
+
+use chrono::DateTime;
+use chrono::Utc;
+use uuid::Uuid;
+
+use crate::auth::Identity;
+use crate::common::app_errors::CoreError;
+use crate::realm::{Realm, RealmId};
+use crate::role::entities::Role;
+use crate::role::permission::Permissions;
+use crate::user::commands::{
+    AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, DeleteUserAttributeInput,
+    GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, ResetPasswordInput,
+    SetUserAttributesInput, UnassignRoleInput, UpdateUserInput,
+};
+use crate::user::entities::{RequiredAction, RequiredActionError, User, UserAttribute};
+use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
+
+pub trait UserService: Send + Sync {
+    fn delete_user(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    fn update_user(
+        &self,
+        identity: Identity,
+        input: UpdateUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn reset_password(
+        &self,
+        identity: Identity,
+        input: ResetPasswordInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_users(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+    fn assign_role(
+        &self,
+        identity: Identity,
+        input: AssignRoleInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn bulk_delete_users(
+        &self,
+        identity: Identity,
+        input: BulkDeleteUsersInput,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+    fn create_user(
+        &self,
+        identity: Identity,
+        input: CreateUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn get_user(
+        &self,
+        identity: Identity,
+        input: GetUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn unassign_role(
+        &self,
+        identity: Identity,
+        input: UnassignRoleInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_user_permissions(
+        &self,
+        identity: Identity,
+        input: GetUserPermissionsInput,
+    ) -> impl Future<Output = Result<Vec<Permissions>, CoreError>> + Send;
+
+    fn get_user_attributes(
+        &self,
+        identity: Identity,
+        input: GetUserAttributesInput,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn set_user_attributes(
+        &self,
+        identity: Identity,
+        input: SetUserAttributesInput,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn delete_user_attribute(
+        &self,
+        identity: Identity,
+        input: DeleteUserAttributeInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn unlock_user(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait UserRepository: Send + Sync {
+    fn create_user(
+        &self,
+        dto: CreateUserRequest,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn find_by_username(
+        &self,
+        username: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<User>, CoreError>> + Send;
+
+    fn get_by_username(
+        &self,
+        username: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn find_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+
+    fn get_by_email(
+        &self,
+        email: &str,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<User>, CoreError>> + Send;
+
+    fn bulk_delete_user(
+        &self,
+        ids: Vec<Uuid>,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    fn update_user(
+        &self,
+        user_id: Uuid,
+        dto: UpdateUserRequest,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn increment_failed_login_attempts(
+        &self,
+        user_id: Uuid,
+        locked_until: Option<DateTime<Utc>>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn reset_failed_login_attempts(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn unlock_user(&self, user_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait UserRequiredActionRepository: Send + Sync {
+    fn add_required_action(
+        &self,
+        user_id: Uuid,
+        action: RequiredAction,
+    ) -> impl Future<Output = Result<(), RequiredActionError>> + Send;
+
+    fn remove_required_action(
+        &self,
+        user_id: Uuid,
+        action: RequiredAction,
+    ) -> impl Future<Output = Result<(), RequiredActionError>> + Send;
+
+    fn get_required_actions(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<RequiredAction>, RequiredActionError>> + Send;
+
+    fn clear_required_actions(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, RequiredActionError>> + Send;
+}
+
+pub trait UserRoleService: Send + Sync {
+    fn assign_role(
+        &self,
+        realm_name: String,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn revoke_role(
+        &self,
+        realm_id: RealmId,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_user_roles(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+
+    fn has_role(
+        &self,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+pub trait UserPolicy: Send + Sync {
+    fn can_create_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_update_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_delete_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn can_view_user_permissions(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        target_user_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait UserRoleRepository: Send + Sync {
+    fn assign_role(
+        &self,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn revoke_role(
+        &self,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_user_roles(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    /// Resolve a set of role ids to full `Role`s (with client populated). Used to turn
+    /// group-inherited role ids into roles during token issuance.
+    fn get_roles_by_ids(
+        &self,
+        role_ids: Vec<Uuid>,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+    fn has_role(
+        &self,
+        user_id: Uuid,
+        role_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait UserAttributeRepository: Send + Sync {
+    fn list_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn upsert_many(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+        attributes: HashMap<String, String>,
+    ) -> impl Future<Output = Result<Vec<UserAttribute>, CoreError>> + Send;
+
+    fn delete_by_key(
+        &self,
+        user_id: Uuid,
+        key: String,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
