@@ -27,6 +27,24 @@
   </a>
 </p>
 
+<p align="center">
+  <a href="https://cloud-iam.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./docs/logos/cloud-iam-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="./docs/logos/cloud-iam-light.svg">
+      <img src="./docs/logos/cloud-iam-light.svg" alt="Cloud-IAM" height="40">
+    </picture>
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://www.gilded.ch/">
+    <img src="./docs/logos/gilded_health.svg" alt="Gilded Health" height="40">
+  </a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://www.nudibranches.tech/">
+    <img src="./docs/logos/nudibranches.png" alt="Nudibranches" height="40">
+  </a>
+</p>
+
 ---
 
 ## ✨ Why FerrisKey?
