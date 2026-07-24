@@ -1,3 +1,4 @@
 pub mod client_postgres_repository;
+pub mod encrypting_client_repository;
 pub mod post_logout_redirect_uri_postgres_repository;
 pub mod redirect_uri_postgres_repository;

@@ -35,6 +35,12 @@ pub struct Model {
     pub maintenance_reason: Option<String>,
     pub maintenance_session_strategy: Option<String>,
     pub require_pkce: Option<bool>,
+    /// AES-256-GCM encrypted blob for the client secret (base64-encoded).
+    /// NULL means the row pre-dates encryption and `secret` holds plaintext.
+    pub secret_encrypted: Option<String>,
+    /// Identifies which master-key version encrypted `secret_encrypted`.
+    /// NULL = plaintext sentinel. "v1" = first key version.
+    pub secret_key_id: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -61,6 +67,8 @@ pub enum Column {
     MaintenanceReason,
     MaintenanceSessionStrategy,
     RequirePkce,
+    SecretEncrypted,
+    SecretKeyId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -117,6 +125,8 @@ impl ColumnTrait for Column {
                 ColumnType::String(StringLen::N(50u32)).def().null()
             }
             Self::RequirePkce => ColumnType::Boolean.def().null(),
+            Self::SecretEncrypted => ColumnType::Text.def().null(),
+            Self::SecretKeyId => ColumnType::String(StringLen::N(64u32)).def().null(),
         }
     }
 }

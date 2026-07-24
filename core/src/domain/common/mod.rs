@@ -15,6 +15,17 @@ pub struct AppConfig {
 #[derive(Clone, Debug)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
+    pub encryption: EncryptionConfig,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct EncryptionConfig {
+    /// When `true`, client secrets are encrypted at rest using AES-256-GCM.
+    /// Set `false` to run without encryption (dev/test only).
+    pub enabled: bool,
+    /// Name of the secret to fetch from the `SecretsProvider`.
+    /// The resolved value must be a 32-byte key, hex-encoded (64 hex chars).
+    pub master_key_secret_name: String,
 }
 
 #[derive(Clone, Debug)]
