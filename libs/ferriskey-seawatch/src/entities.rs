@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::RealmId;
+use ferriskey_domain::generate_uuid_v7;
+use ferriskey_domain::realm::RealmId;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum SecurityEventType {

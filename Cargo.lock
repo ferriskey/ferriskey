@@ -1596,6 +1596,7 @@ dependencies = [
  "ferriskey-mail",
  "ferriskey-migrate",
  "ferriskey-organization",
+ "ferriskey-seawatch",
  "ferriskey-security",
  "ferriskey-trident",
  "futures",
@@ -1698,6 +1699,22 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tokio",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ferriskey-seawatch"
+version = "0.7.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "hex",
+ "hmac",
+ "mockall 0.14.0",
+ "serde",
+ "serde_json",
+ "sha2",
  "utoipa",
  "uuid",
 ]

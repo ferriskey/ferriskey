@@ -1,9 +1,9 @@
 use std::future::Future;
 use uuid::Uuid;
 
-use crate::domain::authentication::value_objects::Identity;
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{Realm, RealmId};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::SecurityEvent;
 use super::hashing::VerifyResult;
@@ -23,7 +23,7 @@ pub trait SecurityEventService: Send + Sync {
     ) -> impl Future<Output = Result<VerifyResult, CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait SecurityEventRepository: Send + Sync {
     /// Store an event that has already had its `event_hash` and `prev_hash` populated.
     fn store_event(

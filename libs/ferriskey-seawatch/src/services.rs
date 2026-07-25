@@ -1,21 +1,16 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    realm::ports::RealmRepository,
-    seawatch::{
-        SecurityEvent, SecurityEventFilter, SecurityEventPolicy, SecurityEventRepository,
-        hashing::{VerifyResult, verify_chain},
-        ports::SecurityEventService,
-        value_objects::FetchEventsInput,
-    },
-    user::ports::{UserRepository, UserRoleRepository},
-};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
+
+use crate::entities::SecurityEvent;
+use crate::hashing::{VerifyResult, verify_chain};
+use crate::ports::{SecurityEventPolicy, SecurityEventRepository, SecurityEventService};
+use crate::value_objects::{FetchEventsInput, SecurityEventFilter};
 
 #[derive(Clone, Debug)]
 pub struct SecurityEventServiceImpl<R, U, C, UR, SE>
