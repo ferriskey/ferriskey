@@ -17,6 +17,7 @@ ferriskey-compass = { path = "../libs/ferriskey-compass" }
 ferriskey-seawatch = { path = "../libs/ferriskey-seawatch", features = ["mock"] }
 ferriskey-password-policy = { path = "../libs/ferriskey-password-policy", features = ["mock"] }
 ferriskey-webhook = { path = "../libs/ferriskey-webhook", features = ["mock"] }
+ferriskey-portal-theme = { path = "../libs/ferriskey-portal-theme", features = ["mock"] }
 ferriskey-migrate = { path = "../libs/ferriskey-migrate" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::domain::portal_theme::entities::PortalPageType;
+use crate::entities::PortalPageType;
 
 /// Block types that must appear somewhere in the JSONB tree for each portal
 /// page to be considered renderable. Validation walks the tree collecting
