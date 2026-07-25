@@ -133,8 +133,8 @@ pub fn pseudonymise(value: &str, key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::realm::entities::RealmId;
-    use crate::domain::seawatch::entities::{EventStatus, SecurityEvent, SecurityEventType};
+    use crate::entities::{EventStatus, SecurityEvent, SecurityEventType};
+    use ferriskey_domain::realm::RealmId;
     use uuid::Uuid;
 
     fn make_event() -> SecurityEvent {

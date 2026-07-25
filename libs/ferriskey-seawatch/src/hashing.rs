@@ -168,10 +168,8 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    use crate::domain::realm::entities::RealmId;
-    use crate::domain::seawatch::entities::{
-        EventStatus, SecurityEvent, SecurityEventId, SecurityEventType,
-    };
+    use crate::entities::{EventStatus, SecurityEvent, SecurityEventId, SecurityEventType};
+    use ferriskey_domain::realm::RealmId;
 
     use super::*;
 
