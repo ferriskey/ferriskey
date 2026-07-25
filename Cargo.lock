@@ -1596,6 +1596,7 @@ dependencies = [
  "ferriskey-mail",
  "ferriskey-migrate",
  "ferriskey-organization",
+ "ferriskey-password-policy",
  "ferriskey-seawatch",
  "ferriskey-security",
  "ferriskey-trident",
@@ -1699,6 +1700,19 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tokio",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ferriskey-password-policy"
+version = "0.7.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "mockall 0.14.0",
+ "serde",
+ "serde_json",
  "utoipa",
  "uuid",
 ]

@@ -1,9 +1,8 @@
 use std::future::Future;
 
-use crate::domain::{
-    authentication::value_objects::Identity, common::entities::app_errors::CoreError,
-    realm::entities::Realm,
-};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::Realm;
 
 pub trait PasswordPolicyPolicy: Send + Sync {
     fn can_view_password_policy(

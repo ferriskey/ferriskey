@@ -2,16 +2,12 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    realm::entities::Realm,
-    user::ports::{UserRepository, UserRoleRepository},
-};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::Realm;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use super::entity::{PasswordPolicy, UpdatePasswordPolicy};
 use super::error::{PasswordPolicyError, PasswordPolicyViolation};
@@ -140,10 +136,8 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    use crate::domain::{
-        client::ports::MockClientRepository,
-        user::ports::{MockUserRepository, MockUserRoleRepository},
-    };
+    use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
 
     fn make_policy(
         min_length: i32,

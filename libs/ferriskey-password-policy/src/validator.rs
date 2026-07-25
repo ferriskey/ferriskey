@@ -215,7 +215,7 @@ pub fn validate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::password_policy::entity::PasswordPolicy;
+    use crate::entity::PasswordPolicy;
     use chrono::Utc;
     use uuid::Uuid;
 
