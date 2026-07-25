@@ -92,8 +92,8 @@ pub trait MailService: Send + Sync {
 // `RealmRepository` and `RealmPolicy` now live in the shared `ferriskey-domain` crate.
 // Re-exported so existing `crate::domain::realm::ports::{RealmRepository, RealmPolicy}` sites
 // (and `MockRealmRepository`, via the `mock` feature core enables) keep resolving.
-// `RealmService` / `MailService` / `SmtpConfigRepository` stay here — they touch
-// `RealmLoginSetting` / `SmtpConfig`, which are still `core`-only types.
+// `RealmService` / `MailService` stay here — they touch `RealmLoginSetting`, still a `core`-only
+// type. `SmtpConfigRepository` (and `SmtpConfig`) now live in `ferriskey-domain`, re-exported below.
 pub use ferriskey_domain::realm::ports::*;
 
 #[derive(Debug)] // TODO derive debug for instrumetnation
@@ -153,24 +153,6 @@ pub struct UpdateRealmSettingInput {
 
 pub struct DeleteRealmInput {
     pub realm_name: String,
-}
-
-#[cfg_attr(test, mockall::automock)]
-pub trait SmtpConfigRepository: Send + Sync {
-    fn get_by_realm_id(
-        &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Option<SmtpConfig>, CoreError>> + Send;
-
-    fn upsert(
-        &self,
-        config: &SmtpConfig,
-    ) -> impl Future<Output = Result<SmtpConfig, CoreError>> + Send;
-
-    fn delete_by_realm_id(
-        &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub struct UpsertSmtpConfigInput {

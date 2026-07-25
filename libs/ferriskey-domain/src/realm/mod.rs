@@ -42,6 +42,52 @@ impl PartialEq<Uuid> for RealmId {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SmtpConfig {
+    pub id: Uuid,
+    pub realm_id: Uuid,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    #[serde(skip_serializing)]
+    pub password: String,
+    pub from_email: String,
+    pub from_name: String,
+    pub encryption: SmtpEncryption,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SmtpEncryption {
+    Tls,
+    StartTls,
+    None,
+}
+
+impl SmtpEncryption {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SmtpEncryption::Tls => "tls",
+            SmtpEncryption::StartTls => "starttls",
+            SmtpEncryption::None => "none",
+        }
+    }
+}
+
+impl FromStr for SmtpEncryption {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "starttls" => SmtpEncryption::StartTls,
+            "none" => SmtpEncryption::None,
+            _ => SmtpEncryption::Tls,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct Realm {
     pub id: RealmId,
