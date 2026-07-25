@@ -12,7 +12,7 @@ ferriskey-domain = { path = "../libs/ferriskey-domain", features = ["mock"] }
 ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
 ferriskey-trident = { path = "../libs/ferriskey-trident" }
 ferriskey-aegis = { path = "../libs/ferriskey-aegis" }
-ferriskey-mail = { path = "../libs/ferriskey-mail" }
+ferriskey-mail = { path = "../libs/ferriskey-mail", features = ["mock"] }
 ferriskey-compass = { path = "../libs/ferriskey-compass" }
 ferriskey-seawatch = { path = "../libs/ferriskey-seawatch", features = ["mock"] }
 ferriskey-password-policy = { path = "../libs/ferriskey-password-policy", features = ["mock"] }

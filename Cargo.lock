@@ -1654,8 +1654,16 @@ dependencies = [
 name = "ferriskey-mail"
 version = "0.7.0"
 dependencies = [
+ "chrono",
+ "ferriskey-domain",
  "lettre",
+ "mockall 0.14.0",
+ "serde",
+ "serde_json",
  "thiserror 2.0.18",
+ "tokio",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]

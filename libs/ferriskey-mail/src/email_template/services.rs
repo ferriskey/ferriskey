@@ -2,24 +2,18 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    email_template::{
-        entities::EmailTemplate,
-        ports::{
-            CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplatePolicy,
-            EmailTemplateRepository, EmailTemplateService, GetEmailTemplateInput,
-            GetEmailTemplatesInput, TemplateRenderer, UpdateEmailTemplateInput,
-        },
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
+use crate::email_template::entities::EmailTemplate;
+use crate::email_template::ports::{
+    CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplatePolicy,
+    EmailTemplateRepository, EmailTemplateService, GetEmailTemplateInput, GetEmailTemplatesInput,
+    TemplateRenderer, UpdateEmailTemplateInput,
 };
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct EmailTemplateServiceImpl<R, U, C, UR, ET, TR>
@@ -228,17 +222,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{
-        client::ports::MockClientRepository,
-        email_template::{entities::EmailType, ports::MockEmailTemplateRepository},
-        realm::{entities::Realm, ports::MockRealmRepository},
-        role::entities::Role,
-        user::{
-            entities::User,
-            ports::{MockUserRepository, MockUserRoleRepository},
-        },
-    };
+    use crate::email_template::entities::EmailType;
+    use crate::email_template::ports::MockEmailTemplateRepository;
     use chrono::Utc;
+    use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
+    use ferriskey_domain::role::entities::Role;
+    use ferriskey_domain::user::{
+        entities::User,
+        ports::{MockUserRepository, MockUserRoleRepository},
+    };
     use mockall::predicate::*;
     use serde_json::json;
 
