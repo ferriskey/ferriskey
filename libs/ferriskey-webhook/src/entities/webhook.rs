@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{
-    common::generate_timestamp, webhook::entities::webhook_subscriber::WebhookSubscriber,
-};
+use ferriskey_domain::generate_timestamp;
+
+use crate::entities::webhook_subscriber::WebhookSubscriber;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Webhook {

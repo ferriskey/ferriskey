@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::entities::webhook_trigger::WebhookTrigger;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
 pub struct WebhookSubscriber {

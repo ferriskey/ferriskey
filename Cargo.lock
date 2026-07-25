@@ -1600,6 +1600,7 @@ dependencies = [
  "ferriskey-seawatch",
  "ferriskey-security",
  "ferriskey-trident",
+ "ferriskey-webhook",
  "futures",
  "hex",
  "hmac",
@@ -1761,6 +1762,19 @@ dependencies = [
  "chrono",
  "ferriskey-domain",
  "serde",
+ "uuid",
+]
+
+[[package]]
+name = "ferriskey-webhook"
+version = "0.7.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "mockall 0.14.0",
+ "serde",
+ "thiserror 2.0.18",
+ "utoipa",
  "uuid",
 ]
 

@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::domain::realm::entities::RealmId;
-use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    realm::entities::Realm,
-    webhook::entities::{
-        webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
-    },
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::{Realm, RealmId};
+
+use crate::entities::{
+    webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
 };
 
 pub trait WebhookService: Send + Sync {
@@ -51,7 +49,7 @@ pub trait WebhookService: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait WebhookRepository: Send + Sync {
     fn fetch_webhooks_by_realm(
         &self,

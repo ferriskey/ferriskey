@@ -1,23 +1,18 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
-    webhook::{
-        entities::{
-            webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
-        },
-        ports::{
-            CreateWebhookInput, DeleteWebhookInput, GetWebhookInput, GetWebhookSubscribersInput,
-            GetWebhooksInput, UpdateWebhookInput, WebhookPolicy, WebhookRepository, WebhookService,
-        },
-    },
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
+
+use crate::entities::{
+    webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
+};
+use crate::ports::{
+    CreateWebhookInput, DeleteWebhookInput, GetWebhookInput, GetWebhookSubscribersInput,
+    GetWebhooksInput, UpdateWebhookInput, WebhookPolicy, WebhookRepository, WebhookService,
 };
 
 #[derive(Clone, Debug)]
