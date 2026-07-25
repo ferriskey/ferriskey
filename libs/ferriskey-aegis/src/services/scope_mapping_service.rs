@@ -2,26 +2,20 @@ use std::sync::Arc;
 
 use tracing::instrument;
 
-use crate::domain::{
-    aegis::{
-        entities::{ClientScope, ClientScopeMapping},
-        ports::{
-            ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository,
-            ScopeMappingService,
-        },
-        value_objects::{
-            AssignClientScopeInput, GetClientClientScopesInput, UnassignClientScopeInput,
-        },
+use crate::{
+    entities::{ClientScope, ClientScopeMapping},
+    ports::{
+        ClientScopeMappingRepository, ClientScopePolicy, ClientScopeRepository, ScopeMappingService,
     },
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
+    value_objects::{AssignClientScopeInput, GetClientClientScopesInput, UnassignClientScopeInput},
 };
+
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct ScopeMappingServiceImpl<R, U, C, UR, CS, CSM>

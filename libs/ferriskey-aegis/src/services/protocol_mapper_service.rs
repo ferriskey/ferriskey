@@ -1,26 +1,22 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    aegis::{
-        entities::ProtocolMapper,
-        ports::{
-            ClientScopePolicy, ClientScopeRepository, ProtocolMapperRepository,
-            ProtocolMapperService,
-        },
-        value_objects::{
-            CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteProtocolMapperInput,
-            UpdateProtocolMapperInput,
-        },
+use crate::{
+    entities::ProtocolMapper,
+    ports::{
+        ClientScopePolicy, ClientScopeRepository, ProtocolMapperRepository, ProtocolMapperService,
     },
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
+    value_objects::{
+        CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteProtocolMapperInput,
+        UpdateProtocolMapperInput,
     },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
 };
+
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct ProtocolMapperServiceImpl<R, U, C, UR, CS, PM>
