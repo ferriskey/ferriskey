@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::entities::webhook_trigger::WebhookTrigger;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct WebhookPayload<T>
