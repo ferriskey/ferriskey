@@ -1,22 +1,16 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    portal_layouts::{
-        entities::PortalLayout,
-        ports::{
-            CreateLayoutInput, GetLayoutInput, ListLayoutsInput, PortalLayoutsPolicy,
-            PortalLayoutsRepository, PortalLayoutsService, UpdateLayoutInput,
-        },
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
+use crate::entities::PortalLayout;
+use crate::ports::{
+    CreateLayoutInput, GetLayoutInput, ListLayoutsInput, PortalLayoutsPolicy,
+    PortalLayoutsRepository, PortalLayoutsService, UpdateLayoutInput,
 };
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct PortalLayoutsServiceImpl<R, U, C, UR, PL>
@@ -241,17 +235,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{
-        client::ports::MockClientRepository,
-        portal_layouts::ports::MockPortalLayoutsRepository,
-        realm::{entities::Realm, ports::MockRealmRepository},
-        role::entities::Role,
-        user::{
-            entities::User,
-            ports::{MockUserRepository, MockUserRoleRepository},
-        },
-    };
+    use crate::ports::MockPortalLayoutsRepository;
     use chrono::Utc;
+    use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
+    use ferriskey_domain::role::entities::Role;
+    use ferriskey_domain::user::{
+        entities::User,
+        ports::{MockUserRepository, MockUserRoleRepository},
+    };
     use uuid::Uuid;
 
     fn test_realm() -> Realm {
