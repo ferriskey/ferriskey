@@ -6,3 +6,12 @@ resolver = "2"
 version = "0.7.0"
 authors = ["nathaelb <pro.nathaelbonnal@gmail.com>", "Baptiste Parmantier <baptiste.parmantier.pro@gmail.com>"]
 edition = "2024"
+
+[profile.release]
+# Debug symbols account for ~13 MB of the 59 MB ferriskey-api binary and are
+# useless in the container images.
+strip = "symbols"
+# Thin LTO + a single codegen unit let the linker drop cross-crate dead code.
+# Slower to build, noticeably smaller (and faster) binaries.
+lto = "thin"
+codegen-units = 1
