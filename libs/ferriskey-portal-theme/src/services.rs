@@ -1,24 +1,18 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    portal_theme::{
-        entities::{PortalTheme, PortalThemeConfig},
-        ports::{
-            CreateThemeInput, GetThemeByIdInput, GetThemeInput, ListThemesInput, PortalThemePolicy,
-            PortalThemeRepository, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
-            UpdateThemePageInput,
-        },
-        validation::{validate_pages, validate_tree},
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserRepository, UserRoleRepository},
+use crate::entities::{PortalTheme, PortalThemeConfig};
+use crate::ports::{
+    CreateThemeInput, GetThemeByIdInput, GetThemeInput, ListThemesInput, PortalThemePolicy,
+    PortalThemeRepository, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
+    UpdateThemePageInput,
 };
+use crate::validation::{validate_pages, validate_tree};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::client::ports::ClientRepository;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct PortalThemeServiceImpl<R, U, C, UR, PT>
@@ -340,17 +334,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{
-        client::ports::MockClientRepository,
-        portal_theme::ports::MockPortalThemeRepository,
-        realm::{entities::Realm, ports::MockRealmRepository},
-        role::entities::Role,
-        user::{
-            entities::User,
-            ports::{MockUserRepository, MockUserRoleRepository},
-        },
-    };
+    use crate::ports::MockPortalThemeRepository;
     use chrono::Utc;
+    use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
+    use ferriskey_domain::role::entities::Role;
+    use ferriskey_domain::user::{
+        entities::User,
+        ports::{MockUserRepository, MockUserRoleRepository},
+    };
     use uuid::Uuid;
 
     fn test_realm() -> Realm {
@@ -710,7 +702,7 @@ mod tests {
     }
 
     fn build_active_theme_repo(realm: &Realm, active_theme_id: Uuid) -> MockPortalThemeRepository {
-        use crate::domain::portal_theme::entities::PortalThemePages;
+        use crate::entities::PortalThemePages;
 
         let mut theme_repo = MockPortalThemeRepository::new();
         let realm_for_active = realm.clone();
@@ -732,7 +724,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_theme_page_accepts_invalid_tree_for_inactive_theme() {
-        use crate::domain::portal_theme::entities::{PortalPageType, PortalThemePages};
+        use crate::entities::{PortalPageType, PortalThemePages};
         use serde_json::json;
 
         let realm = test_realm();
@@ -804,7 +796,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_theme_page_rejects_invalid_tree_when_theme_is_active() {
-        use crate::domain::portal_theme::entities::PortalPageType;
+        use crate::entities::PortalPageType;
         use serde_json::json;
 
         let realm = test_realm();

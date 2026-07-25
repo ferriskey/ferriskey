@@ -2,12 +2,10 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    portal_theme::entities::{PortalPageType, PortalTheme, PortalThemeConfig},
-    realm::entities::Realm,
-};
+use crate::entities::{PortalPageType, PortalTheme, PortalThemeConfig};
+use ferriskey_domain::auth::Identity;
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::Realm;
 
 pub trait PortalThemeService: Send + Sync {
     // ---------- Legacy single-theme-per-realm API (still wired to the old
@@ -80,7 +78,7 @@ pub trait PortalThemeService: Send + Sync {
     ) -> impl Future<Output = Result<Option<PortalTheme>, CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait PortalThemeRepository: Send + Sync {
     fn get_by_realm(
         &self,
