@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
-use crate::realm::{LoginAliases, Realm, RealmId, RealmSetting};
+use crate::realm::{LoginAliases, Realm, RealmId, RealmSetting, SmtpConfig};
 
 pub trait RealmPolicy: Send + Sync {
     fn can_create_realm(
@@ -94,4 +94,22 @@ pub trait RealmRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<RealmSetting>, CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait SmtpConfigRepository: Send + Sync {
+    fn get_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Option<SmtpConfig>, CoreError>> + Send;
+
+    fn upsert(
+        &self,
+        config: &SmtpConfig,
+    ) -> impl Future<Output = Result<SmtpConfig, CoreError>> + Send;
+
+    fn delete_by_realm_id(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
