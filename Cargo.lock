@@ -1649,6 +1649,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+ "webauthn-rs",
 ]
 
 [[package]]

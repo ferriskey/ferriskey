@@ -1,19 +1,13 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    client::ports::ClientRepository,
-    common::{
-        entities::app_errors::CoreError,
-        policies::{FerriskeyPolicy, ensure_policy},
-    },
-    credential::{
-        entities::{CredentialOverview, DeleteCredentialInput, GetCredentialsInput},
-        ports::{CredentialRepository, CredentialService},
-    },
-    realm::ports::RealmRepository,
-    user::ports::{UserPolicy, UserRepository, UserRoleRepository},
-};
+use crate::auth::Identity;
+use crate::client::ports::ClientRepository;
+use crate::common::app_errors::CoreError;
+use crate::common::policies::{FerriskeyPolicy, ensure_policy};
+use crate::credential::entities::{CredentialOverview, DeleteCredentialInput, GetCredentialsInput};
+use crate::credential::ports::{CredentialRepository, CredentialService};
+use crate::realm::ports::RealmRepository;
+use crate::user::ports::{UserPolicy, UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
 pub struct CredentialServiceImpl<R, U, C, UR, CR>
