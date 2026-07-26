@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum::{Json, response::IntoResponse};
 use serde::Serialize;
 
-use crate::application::http::server::api_entities::api_response_body::ApiResponseBody;
+use crate::api_entities::api_response_body::ApiResponseBody;
 
 pub struct ApiSuccess<T: Serialize + PartialEq>(StatusCode, Json<ApiResponseBody<T>>);
 
