@@ -3,14 +3,13 @@ use std::sync::Arc;
 use chrono::Duration;
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    common::{entities::app_errors::CoreError, policies::Policy},
-    realm::ports::RealmRepository,
-    session::{
-        entities::{SessionError, UserSession},
-        ports::{UserSessionManagementService, UserSessionRepository, UserSessionService},
-    },
+use crate::auth::Identity;
+use crate::common::app_errors::CoreError;
+use crate::common::policies::Policy;
+use crate::realm::ports::RealmRepository;
+use crate::session::entities::{SessionError, UserSession};
+use crate::session::ports::{
+    UserSessionManagementService, UserSessionRepository, UserSessionService,
 };
 
 #[derive(Clone)]
@@ -113,15 +112,14 @@ where
                 .get_permission_for_target_realm(&actor, &realm)
                 .await?;
 
-            let has_permission =
-                crate::domain::role::entities::permission::Permissions::has_one_of_permissions(
-                    &permissions,
-                    &[
-                        crate::domain::role::entities::permission::Permissions::ManageUsers,
-                        crate::domain::role::entities::permission::Permissions::ManageRealm,
-                        crate::domain::role::entities::permission::Permissions::ViewUsers,
-                    ],
-                );
+            let has_permission = crate::role::permission::Permissions::has_one_of_permissions(
+                &permissions,
+                &[
+                    crate::role::permission::Permissions::ManageUsers,
+                    crate::role::permission::Permissions::ManageRealm,
+                    crate::role::permission::Permissions::ViewUsers,
+                ],
+            );
 
             if !has_permission {
                 return Err(CoreError::Forbidden(
@@ -160,14 +158,13 @@ where
                 .get_permission_for_target_realm(&actor, &realm)
                 .await?;
 
-            let has_permission =
-                crate::domain::role::entities::permission::Permissions::has_one_of_permissions(
-                    &permissions,
-                    &[
-                        crate::domain::role::entities::permission::Permissions::ManageUsers,
-                        crate::domain::role::entities::permission::Permissions::ManageRealm,
-                    ],
-                );
+            let has_permission = crate::role::permission::Permissions::has_one_of_permissions(
+                &permissions,
+                &[
+                    crate::role::permission::Permissions::ManageUsers,
+                    crate::role::permission::Permissions::ManageRealm,
+                ],
+            );
 
             if !has_permission {
                 return Err(CoreError::Forbidden(
@@ -200,7 +197,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::session::ports::MockUserSessionRepository;
+    use crate::session::ports::MockUserSessionRepository;
     use uuid::Uuid;
 
     fn make_session(user_id: Uuid, realm_id: Uuid) -> UserSession {
@@ -252,7 +249,7 @@ mod tests {
         let session = make_session(user_id, realm_id);
         assert_eq!(
             session.get_state(),
-            crate::domain::session::entities::SessionState::Active
+            crate::session::entities::SessionState::Active
         );
         assert!(!session.is_expired());
     }
@@ -275,7 +272,7 @@ mod tests {
         assert!(session.is_expired());
         assert_eq!(
             session.get_state(),
-            crate::domain::session::entities::SessionState::Expired
+            crate::session::entities::SessionState::Expired
         );
     }
 }

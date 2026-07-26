@@ -1,9 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
-use sea_orm::EnumIter;
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, EnumIter)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SessionState {
     Active,
     SoftExpired,
