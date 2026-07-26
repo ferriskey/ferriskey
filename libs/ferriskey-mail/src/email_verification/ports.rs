@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::common::entities::app_errors::CoreError;
+use ferriskey_domain::common::app_errors::CoreError;
 
 use super::entities::EmailVerificationToken;
 
@@ -15,7 +15,7 @@ pub struct CreateEmailVerificationTokenInput {
     pub expires_at: DateTime<Utc>,
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait EmailVerificationTokenRepository: Send + Sync {
     fn create(
         &self,
@@ -47,7 +47,7 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
     ) -> impl std::future::Future<Output = Result<u64, CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait EmailVerificationService: Send + Sync {
     fn send_verification_email(
         &self,

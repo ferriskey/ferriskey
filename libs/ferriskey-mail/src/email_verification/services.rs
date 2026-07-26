@@ -8,19 +8,17 @@ use tokio::time::timeout;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::domain::common::email::EmailPort;
-use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::email_template::entities::interpolate_variables;
-use crate::domain::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
-use crate::domain::realm::ports::{RealmRepository, SmtpConfigRepository};
-use crate::domain::seawatch::{
-    EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
-};
-use crate::domain::user::entities::{RequiredAction, RequiredActionError};
-use crate::domain::user::ports::{UserRepository, UserRequiredActionRepository};
-use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
-use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
-use crate::domain::webhook::ports::WebhookRepository;
+use crate::email_template::entities::interpolate_variables;
+use crate::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
+use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::email::EmailPort;
+use ferriskey_domain::realm::ports::{RealmRepository, SmtpConfigRepository};
+use ferriskey_domain::user::entities::{RequiredAction, RequiredActionError};
+use ferriskey_domain::user::ports::{UserRepository, UserRequiredActionRepository};
+use ferriskey_seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType};
+use ferriskey_webhook::entities::webhook_payload::WebhookPayload;
+use ferriskey_webhook::entities::webhook_trigger::WebhookTrigger;
+use ferriskey_webhook::ports::WebhookRepository;
 
 use super::ports::*;
 
@@ -135,7 +133,7 @@ where
     async fn render_email_template(
         &self,
         template_id: Uuid,
-        user: &crate::domain::user::entities::User,
+        user: &ferriskey_domain::user::entities::User,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
         let template = self
@@ -352,7 +350,7 @@ where
             .user_repository
             .update_user(
                 token_record.user_id,
-                crate::domain::user::value_objects::UpdateUserRequest {
+                ferriskey_domain::user::value_objects::UpdateUserRequest {
                     firstname: user.firstname,
                     lastname: user.lastname,
                     email: user.email,
@@ -430,25 +428,17 @@ mod tests {
     use std::{future, time::Duration as StdDuration};
 
     use super::*;
-    use crate::domain::{
-        common::{email::MockEmailPort, entities::app_errors::CoreError},
-        email_template::{
-            entities::{EmailTemplate, EmailType},
-            ports::{MockEmailTemplateRepository, TemplateRenderer},
-        },
-        email_verification::entities::EmailVerificationToken,
-        realm::{
-            entities::{Realm, RealmSetting, SmtpConfig, SmtpEncryption},
-            ports::{MockRealmRepository, MockSmtpConfigRepository},
-        },
-        seawatch::ports::MockSecurityEventRepository,
-        user::{
-            entities::{User, UserConfig},
-            ports::{MockUserRepository, MockUserRequiredActionRepository},
-        },
-        webhook::ports::MockWebhookRepository,
-    };
-    use ferriskey_domain::realm::RealmId;
+    use crate::email_template::entities::{EmailTemplate, EmailType};
+    use crate::email_template::ports::{MockEmailTemplateRepository, TemplateRenderer};
+    use crate::email_verification::entities::EmailVerificationToken;
+    use ferriskey_domain::common::app_errors::CoreError;
+    use ferriskey_domain::common::email::MockEmailPort;
+    use ferriskey_domain::realm::ports::{MockRealmRepository, MockSmtpConfigRepository};
+    use ferriskey_domain::realm::{Realm, RealmId, RealmSetting, SmtpConfig, SmtpEncryption};
+    use ferriskey_domain::user::entities::{User, UserConfig};
+    use ferriskey_domain::user::ports::{MockUserRepository, MockUserRequiredActionRepository};
+    use ferriskey_seawatch::ports::MockSecurityEventRepository;
+    use ferriskey_webhook::ports::MockWebhookRepository;
     use mockall::predicate::*;
 
     struct TestRenderer;
