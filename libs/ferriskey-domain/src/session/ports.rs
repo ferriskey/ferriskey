@@ -1,11 +1,9 @@
 use chrono::Duration;
 use uuid::Uuid;
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    session::entities::{SessionError, UserSession},
-};
+use crate::auth::Identity;
+use crate::common::app_errors::CoreError;
+use crate::session::entities::{SessionError, UserSession};
 
 pub trait UserSessionService: Send + Sync {
     fn create_session(
@@ -36,7 +34,7 @@ pub trait UserSessionManagementService: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait UserSessionRepository: Send + Sync {
     fn create(
         &self,
