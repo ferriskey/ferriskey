@@ -1,0 +1,410 @@
+use ferriskey_core::domain::{
+    authentication::device_flow::error::DeviceFlowError, common::entities::app_errors::CoreError,
+    credential::entities::CredentialError, password_policy::error::PasswordPolicyViolation,
+    portal_theme::validation::MissingBlocks, user::entities::RequiredAction,
+};
+use serde_json::{from_str, to_string};
+
+use crate::api_entities::api_error::{ApiError, ValidationError};
+
+impl From<CoreError> for ApiError {
+    fn from(error: CoreError) -> Self {
+        match error {
+            CoreError::NotFound => Self::NotFound("Resource not found".into()),
+            CoreError::AlreadyExists => Self::BadRequest("Resource already exists".into()),
+            CoreError::EmailAlreadyExists => {
+                Self::BadRequest("Email already exists in this realm".into())
+            }
+            CoreError::InvalidCredentials => Self::Unauthorized("Invalid credentials".into()),
+            CoreError::UsernameAlreadyExists => {
+                Self::BadRequest("Username already exists in this realm".into())
+            }
+            CoreError::Invalid => Self::BadRequest("Invalid resource".into()),
+            CoreError::InvalidRequiredAction(action) => {
+                let allowed = RequiredAction::allowed_values().join(", ");
+                Self::BadRequest(format!(
+                    "Invalid required action: {}. Allowed values: {}",
+                    action, allowed
+                ).into())
+            }
+            CoreError::Forbidden(msg) => Self::Forbidden(msg.into()),
+            CoreError::InternalServerError => {
+                        Self::InternalServerError("Internal server error".into())
+                    }
+            CoreError::RedirectUriNotFound => {
+                Self::NotFound("No redirect URI is registered for this client".into())
+            }
+            CoreError::InvalidRedirectUri => {
+                Self::BadRequest("Redirect URI is not allowed for this client".into())
+            }
+            CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
+            CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
+            CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),
+            CoreError::InvalidPassword => Self::Unauthorized("Invalid password".into()),
+            CoreError::InvalidState => Self::BadRequest("Invalid state".into()),
+            CoreError::InvalidRefreshToken => {
+                        Self::Unauthorized("Invalid refresh token".into())
+                    }
+            CoreError::InvalidClientSecret => {
+                        Self::Unauthorized("Invalid client secret".into())
+                    }
+            CoreError::InvalidRequest => {
+                        Self::BadRequest("Invalid authorization request".into())
+                    }
+            CoreError::ServiceAccountNotFound => {
+                        Self::NotFound("Service account not found".into())
+                    }
+            CoreError::HashPasswordError(msg) => {
+                        Self::InternalServerError(format!("Hash password error: {}", msg).into())
+                    }
+            CoreError::VerifyPasswordError(msg) => {
+                        Self::InternalServerError(format!("Verify password error: {}", msg).into())
+                    }
+            CoreError::DeletePasswordCredentialError => {
+                        Self::InternalServerError("Failed to delete password credential".into())
+                    }
+            CoreError::CreateCredentialError => {
+                        Self::InternalServerError("Failed to create credential".into())
+                    }
+            CoreError::GetPasswordCredentialError => {
+                        Self::InternalServerError("Failed to get password credential".into())
+                    }
+            CoreError::GetUserCredentialsError => {
+                        Self::InternalServerError("Failed to get user credentials".into())
+                    }
+            CoreError::DeleteCredentialError => {
+                        Self::InternalServerError("Failed to delete credential".into())
+                    }
+            CoreError::TokenGenerationError(msg) => {
+                        Self::InternalServerError(format!("Token generation error: {}", msg).into())
+                    }
+            CoreError::TokenValidationError(msg) => {
+                        Self::Unauthorized(format!("Token validation error: {}", msg).into())
+                    }
+            CoreError::TokenParsingError(msg) => {
+                        Self::BadRequest(format!("Token parsing error: {}", msg).into())
+                    }
+            CoreError::TokenExpirationError(msg) => {
+                        Self::Unauthorized(format!("Token expiration error: {}", msg).into())
+                    }
+            CoreError::RealmKeyNotFound => {
+                        Self::InternalServerError("Realm key not found".into())
+                    }
+            CoreError::InvalidToken => Self::Unauthorized("Invalid token".into()),
+            CoreError::ExpiredToken => Self::Unauthorized("Expired token".into()),
+            CoreError::InvalidKey(msg) => Self::BadRequest(format!("Invalid key: {}", msg).into()),
+            CoreError::SessionNotFound => Self::NotFound("Session not found".into()),
+            CoreError::SessionExpired => Self::Unauthorized("Session expired".into()),
+            CoreError::InvalidSession => Self::Unauthorized("Invalid session".into()),
+            CoreError::SessionCreateError => {
+                        Self::InternalServerError("Failed to create session".into())
+                    }
+            CoreError::SessionDeleteError => {
+                        Self::InternalServerError("Failed to delete session".into())
+                    }
+            CoreError::InvalidTotpSecretFormat => {
+                        Self::BadRequest("Invalid TOTP secret format".into())
+                    }
+            CoreError::TotpGenerationFailed(msg) => {
+                        Self::InternalServerError(format!("TOTP generation failed: {}", msg).into())
+                    }
+            CoreError::TotpVerificationFailed(msg) => {
+                        Self::Unauthorized(format!("TOTP verification failed: {}", msg).into())
+                    }
+            CoreError::CannotDeleteMasterRealm => {
+                        Self::Forbidden("Cannot delete master realm".into())
+                    }
+            CoreError::WebhookNotFound => Self::NotFound("Webhook not found".into()),
+            CoreError::WebhookForbidden => Self::Forbidden("Webhook forbidden".into()),
+            CoreError::FailedWebhookNotification(msg) => {
+                        Self::InternalServerError(format!("Failed to notify webhook: {}", msg).into())
+                    }
+            CoreError::WebhookRealmNotFound => {
+                        Self::NotFound("Realm not found for webhook".into())
+                    }
+            CoreError::CreateClientError => {
+                        Self::InternalServerError("Failed to create client".into())
+                    }
+            CoreError::ServiceUnavailable(msg) => Self::ServiceUnavailable(msg.into()),
+            CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg.into()),
+            CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg.into()),
+            CoreError::AuthorizationCodeStorageFailed => {
+                Self::InternalServerError("".into())
+            },
+            CoreError::AuthSessionExpectedState => {
+                Self::InternalServerError("".into())
+            },
+            CoreError::WebAuthnMissingChallenge => {
+                Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".into())
+            },
+            CoreError::WebAuthnCredentialNotFound => {
+                Self::BadRequest("Missing webauthn credential for the provided id. Have you created a webauthn credential first ?".into())
+            }
+            CoreError::WebAuthnChallengeFailed => {
+                Self::Unauthorized("Webauthn challenged failed. A new one must be requested to retry.".into())
+            }
+            CoreError::MagicLinkNotEnabled => {
+                Self::BadRequest("Magic link authentication is not enabled for this realm".into())
+            }
+            CoreError::InvalidMagicLink => {
+                Self::Unauthorized("Invalid magic link token".into())
+            }
+            CoreError::MagicLinkExpired => {
+                Self::Unauthorized("Magic link has expired".into())
+            }
+            CoreError::MagicLinkAlreadyUsed => {
+                Self::BadRequest("Magic link has already been used".into())
+            }
+            CoreError::ProviderNotFound => {
+                Self::NotFound("Provider not found".into())
+            }
+            CoreError::ProviderNameAlreadyExists => {
+                Self::BadRequest("Provider name already exists".into())
+            }
+            CoreError::InvalidProviderConfiguration(msg) => {
+                Self::BadRequest(format!("Invalid provider configuration: {}", msg).into())
+            }
+            CoreError::ProviderDisabled => {
+                Self::Forbidden("Provider is disabled".into())
+            }
+            CoreError::InvalidProviderUrl => {
+                Self::BadRequest("Invalid provider URL".into())
+            },
+            CoreError::External(msg) => Self::ServiceUnavailable(format!("External service error: {}", msg).into()),
+            CoreError::Database(msg) => Self::InternalServerError(format!("Database error: {}", msg).into()),
+            CoreError::Configuration(msg) => Self::InternalServerError(format!("Configuration error: {}", msg).into()),
+            CoreError::FederationAuthenticationFailed(msg) => Self::Unauthorized(format!("Federation authentication error: {}", msg).into()),
+
+            // Broker (SSO) errors
+            CoreError::BrokerSessionNotFound => {
+                Self::BadRequest("Invalid or expired SSO session".into())
+            }
+            CoreError::BrokerSessionExpired => {
+                Self::BadRequest("SSO session expired, please try again".into())
+            }
+            CoreError::InvalidBrokerState => {
+                Self::BadRequest("Invalid state parameter".into())
+            }
+            CoreError::IdpTokenExchangeFailed(msg) => {
+                Self::ServiceUnavailable(format!("Identity provider error: {}", msg).into())
+            }
+            CoreError::IdpUserInfoFailed(msg) => {
+                Self::ServiceUnavailable(format!("Failed to retrieve user info: {}", msg).into())
+            }
+            CoreError::IdpAuthenticationFailed(msg) => {
+                Self::Unauthorized(format!("Identity provider authentication failed: {}", msg).into())
+            }
+            CoreError::UserLinkingFailed(msg) => {
+                Self::InternalServerError(format!("User linking failed: {}", msg).into())
+            }
+            CoreError::LinkOnlyUserNotFound => {
+                Self::Forbidden("No existing account found for linking".into())
+            }
+            CoreError::LinkNotFound => {
+                Self::NotFound("Identity provider link not found".into())
+            }
+            CoreError::InvalidIdToken => {
+                Self::BadRequest("Invalid ID token from identity provider".into())
+            }
+            CoreError::MissingAuthorizationCode => {
+                Self::BadRequest("Missing authorization code from identity provider".into())
+            }
+            CoreError::UserNotFound => {
+                Self::NotFound("User not found".into())
+            }
+            CoreError::ClientNotFound => {
+                Self::NotFound("Client not found".into())
+            }
+            CoreError::HintsNotFound => {
+                Self::NotFound("Account hints not found".into())
+            }
+            CoreError::InvalidScope(description) => Self::OAuthError {
+                error: "invalid_scope".into(),
+                error_description: description.into(),
+            },
+            CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
+            CoreError::AccountLocked => Self::Unauthorized(
+                "Account is temporarily locked due to too many failed login attempts".into(),
+            ),
+            CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason.into()),
+            CoreError::EmailTemplateNotFound => {
+                Self::NotFound("Email template not found".into())
+            }
+            CoreError::NoActiveEmailTemplate(email_type) => {
+                Self::NotFound(format!("No active email template for type: {email_type}").into())
+            }
+            CoreError::InvalidEmailTemplateStructure(msg) => {
+                Self::BadRequest(format!("Invalid email template structure: {msg}").into())
+            }
+            CoreError::EmailTemplateRenderError(msg) => {
+                Self::InternalServerError(format!("Email template render error: {msg}").into())
+            }
+            CoreError::InvalidOrExpiredToken => {
+                Self::BadRequest("Invalid or expired email verification token".into())
+            }
+            CoreError::EmailVerificationTemplateNotConfigured => {
+                Self::BadRequest("Email verification template is not configured for this realm".into())
+            }
+            CoreError::PortalThemePageInvalid(details) => {
+                Self::validation_error(details, "tree")
+            }
+            CoreError::PortalThemeInvalidForActivation(details) => {
+                // `details` is a JSON-encoded `Vec<MissingBlocks>` — one entry
+                // per page that failed validation. Surface them as individual
+                // ValidationErrors so the client can render them per page.
+                match from_str::<Vec<MissingBlocks>>(&details) {
+                    Ok(items) => Self::validation_errors(
+                        items
+                            .into_iter()
+                            .map(|item| ValidationError {
+                                field: format!("tree.{:?}", item.page_type).into(),
+                                message: to_string(&item)
+                                    .unwrap_or_default()
+                                    .into(),
+                            })
+                            .collect(),
+                    ),
+                    Err(_) => Self::validation_error(details, "tree"),
+                }
+            }
+            CoreError::PortalThemeActive => {
+                Self::BadRequest("Portal theme is currently active and cannot be deleted".into())
+            }
+            CoreError::PortalLayoutDefault => Self::BadRequest(
+                "Portal layout is the realm default and cannot be deleted".into(),
+            ),
+            CoreError::PortalLayoutInUse => Self::BadRequest(
+                "Portal layout is referenced by one or more themes and cannot be deleted".into(),
+            ),
+            CoreError::PasswordPolicyViolation(details) => {
+                match from_str::<Vec<PasswordPolicyViolation>>(&details) {
+                    Ok(violations) => Self::validation_errors(
+                        violations
+                            .into_iter()
+                            .map(|v| ValidationError {
+                                field: "password".into(),
+                                message: v.message.into(),
+                            })
+                            .collect(),
+                    ),
+                    Err(_) => Self::validation_errors(vec![ValidationError {
+                        field: "password".into(),
+                        message: details.into(),
+                    }]),
+                }
+            }
+            // PKCE errors (RFC 7636) → OAuth2 invalid_request / invalid_grant
+            CoreError::PkceRequired => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "PKCE is required for this client. Send code_challenge (S256) with the authorization request.".into(),
+            },
+            CoreError::InvalidCodeVerifier => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "code_verifier does not match code_challenge".into(),
+            },
+            CoreError::CodeChallengeMissing => Self::OAuthError {
+                error: "invalid_request".into(),
+                error_description: "code_challenge is required".into(),
+            },
+            CoreError::CodeVerifierMissing => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "code_verifier is required when code_challenge was used at authorization".into(),
+            },
+        }
+    }
+}
+
+impl From<DeviceFlowError> for ApiError {
+    fn from(error: DeviceFlowError) -> Self {
+        // Token endpoint errors follow the RFC 6749 §5.2 shape (HTTP 400):
+        // `{ "error": "...", "error_description": "..." }`. The device flow
+        // polling codes are defined by RFC 8628 §3.5.
+        let oauth = |code: &'static str, description: &str| Self::OAuthError {
+            error: code.into(),
+            error_description: description.to_string().into(),
+        };
+
+        match error {
+            DeviceFlowError::AuthorizationPending => oauth(
+                "authorization_pending",
+                "The authorization request is still pending.",
+            ),
+            DeviceFlowError::SlowDown => oauth("slow_down", "Polling too frequently; slow down."),
+            DeviceFlowError::ExpiredToken => oauth("expired_token", "The device code has expired."),
+            DeviceFlowError::AccessDenied => {
+                oauth("access_denied", "The authorization request was denied.")
+            }
+            DeviceFlowError::InvalidDeviceCode => {
+                oauth("invalid_grant", "The device code is invalid or unknown.")
+            }
+            DeviceFlowError::InvalidUserCode => {
+                oauth("invalid_grant", "The user code is invalid or unknown.")
+            }
+            DeviceFlowError::InvalidClient => {
+                oauth("invalid_client", "Client authentication failed.")
+            }
+            DeviceFlowError::UnauthorizedClient => oauth(
+                "unauthorized_client",
+                "The client is not authorized to use the device authorization grant.",
+            ),
+            DeviceFlowError::UserCodeGenerationExhausted => {
+                Self::InternalServerError("Failed to generate a unique user code".into())
+            }
+            DeviceFlowError::TokenIssuance(msg) => {
+                Self::InternalServerError(format!("Token issuance failed: {msg}").into())
+            }
+            DeviceFlowError::Repository(_) => {
+                Self::InternalServerError("Internal server error".into())
+            }
+        }
+    }
+}
+
+impl From<CredentialError> for ApiError {
+    fn from(value: CredentialError) -> Self {
+        match value {
+            CredentialError::CreateCredentialError => {
+                ApiError::InternalServerError("Failed to create credential".into())
+            }
+            CredentialError::GetUserCredentialsError => {
+                ApiError::InternalServerError("Failed to get credential".into())
+            }
+            CredentialError::DeleteCredentialError => {
+                ApiError::InternalServerError("Failed to delete credential".into())
+            }
+            CredentialError::VerifyPasswordError(error) => {
+                ApiError::InternalServerError(format!("Failed to verify password: {error}").into())
+            }
+            CredentialError::DeletePasswordCredentialError => {
+                ApiError::InternalServerError("Failed to delete password credential".into())
+            }
+            CredentialError::GetPasswordCredentialError => {
+                ApiError::InternalServerError("Failed to get password credential".into())
+            }
+            CredentialError::HashPasswordError(error) => {
+                ApiError::InternalServerError(format!("Failed to hash password: {error}").into())
+            }
+            CredentialError::UpdateCredentialError => {
+                ApiError::InternalServerError("Internal server error".into())
+            }
+            CredentialError::UnexpectedCredentialData => {
+                ApiError::InternalServerError("Internal server error".into())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_username_already_exists_to_bad_request() {
+        let error = ApiError::from(CoreError::UsernameAlreadyExists);
+
+        assert_eq!(
+            error,
+            ApiError::BadRequest("Username already exists in this realm".into())
+        );
+    }
+}

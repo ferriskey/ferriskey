@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use serde::Serialize;
 
-use crate::application::http::server::api_entities::api_error::ApiErrorData;
+use crate::api_entities::api_error::ApiErrorData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ApiResponseBody<T: Serialize + PartialEq> {

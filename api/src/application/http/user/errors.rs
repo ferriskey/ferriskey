@@ -1,36 +1,7 @@
-use crate::application::http::server::api_entities::api_error::ApiError;
-use ferriskey_core::domain::credential::entities::CredentialError;
-
-impl From<CredentialError> for ApiError {
-    fn from(value: CredentialError) -> Self {
-        match value {
-            CredentialError::CreateCredentialError => {
-                ApiError::InternalServerError("Failed to create credential".into())
-            }
-            CredentialError::GetUserCredentialsError => {
-                ApiError::InternalServerError("Failed to get credential".into())
-            }
-            CredentialError::DeleteCredentialError => {
-                ApiError::InternalServerError("Failed to delete credential".into())
-            }
-            CredentialError::VerifyPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to verify password: {error}").into())
-            }
-            CredentialError::DeletePasswordCredentialError => {
-                ApiError::InternalServerError("Failed to delete password credential".into())
-            }
-            CredentialError::GetPasswordCredentialError => {
-                ApiError::InternalServerError("Failed to get password credential".into())
-            }
-            CredentialError::HashPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to hash password: {error}").into())
-            }
-            CredentialError::UpdateCredentialError => {
-                ApiError::InternalServerError("Internal server error".into())
-            }
-            CredentialError::UnexpectedCredentialData => {
-                ApiError::InternalServerError("Internal server error".into())
-            }
-        }
-    }
-}
+// The `From<CredentialError> for ApiError` conversion previously defined here
+// now lives in `ferriskey_api_core::error` (alongside the other `From<_> for
+// ApiError` impls), because `ApiError` moved into the `ferriskey-api-core`
+// crate and the orphan rule forbids implementing a foreign trait for a foreign
+// type from `ferriskey-api`. The impl is in scope automatically wherever the
+// crate is linked, so this module is intentionally empty and only preserves the
+// old `crate::application::http::user::errors` path.

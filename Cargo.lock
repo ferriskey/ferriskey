@@ -1522,6 +1522,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenv",
+ "ferriskey-api-core",
  "ferriskey-core",
  "opentelemetry",
  "opentelemetry-appender-tracing",
@@ -1547,6 +1548,33 @@ dependencies = [
  "utoipa-redoc",
  "utoipa-scalar",
  "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+ "webauthn-rs",
+]
+
+[[package]]
+name = "ferriskey-api-core"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "axum-macros",
+ "base32",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "ferriskey-core",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+ "urlencoding",
+ "utoipa",
  "uuid",
  "validator",
  "webauthn-rs",
