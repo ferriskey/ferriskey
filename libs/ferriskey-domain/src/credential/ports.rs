@@ -1,14 +1,12 @@
 use uuid::Uuid;
 use webauthn_rs::prelude::{AuthenticationResult, Passkey};
 
-use crate::domain::{
-    authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    credential::entities::{
-        Credential, CredentialError, CredentialOverview, DeleteCredentialInput, GetCredentialsInput,
-    },
-    crypto::HashResult,
+use crate::auth::Identity;
+use crate::common::app_errors::CoreError;
+use crate::credential::entities::{
+    Credential, CredentialError, CredentialOverview, DeleteCredentialInput, GetCredentialsInput,
 };
+use crate::crypto::HashResult;
 
 pub trait CredentialService: Send + Sync {
     fn get_credentials(
@@ -23,7 +21,7 @@ pub trait CredentialService: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait CredentialRepository: Send + Sync {
     fn create_credential(
         &self,
