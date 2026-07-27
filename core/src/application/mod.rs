@@ -504,6 +504,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user_session.clone(),
             policy.clone(),
         ),
+        security_event_repository: security_event.clone(),
     };
 
     Ok(app)

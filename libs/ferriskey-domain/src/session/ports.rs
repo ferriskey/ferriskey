@@ -25,13 +25,16 @@ pub trait UserSessionManagementService: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<UserSession>, CoreError>> + Send;
 
+    /// Revoke a session by hard-deleting its row. Returns the session as it was
+    /// just before deletion so callers can emit an audit event for it — the row
+    /// is gone afterwards and cannot be read back.
     fn revoke_session(
         &self,
         identity: Identity,
         realm_name: String,
         user_id: Uuid,
         session_id: Uuid,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    ) -> impl Future<Output = Result<UserSession, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
