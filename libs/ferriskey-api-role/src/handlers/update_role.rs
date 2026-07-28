@@ -1,17 +1,13 @@
-use crate::application::http::{
-    role::validators::UpdateRoleValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-};
+use crate::validators::UpdateRoleValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::role::entities::Role;
 use ferriskey_core::domain::role::ports::RoleService;
 use ferriskey_core::domain::{
