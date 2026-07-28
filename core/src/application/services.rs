@@ -227,6 +227,10 @@ type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = PostgresUserSessionRepository;
 
+/// The concrete authorization engine every policy-aware service is wired to.
+type PolicyImpl =
+    crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>;
+
 pub(crate) type ApplicationTokenRevocation =
     crate::application::token_revocation::TokenRevocationAdapter<
         AccessTokenRepo,
@@ -237,7 +241,7 @@ pub(crate) type ApplicationTokenRevocation =
 type ApplicationUserSessionManagementService = UserSessionManagementServiceImpl<
     RealmRepo,
     UserSessionRepo,
-    crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+    PolicyImpl,
     ApplicationTokenRevocation,
 >;
 
@@ -359,7 +363,7 @@ pub struct ApplicationService {
     pub(crate) security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
     pub(crate) credential_service:
-        CredentialServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, CredentialRepo>,
+        CredentialServiceImpl<RealmRepo, UserRepo, CredentialRepo, PolicyImpl>,
     pub(crate) client_service: ApplicationClientService,
     pub(crate) saml_service: ApplicationSamlService,
     pub(crate) realm_service: RealmServiceImpl<
@@ -414,7 +418,7 @@ pub struct ApplicationService {
     >,
     pub(crate) identity_provider_service: IdentityProviderServiceImpl<
         IdentityProviderRepo,
-        crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+        PolicyImpl,
         RealmRepo,
         UserRepo,
         IdentityProviderLinkRepo,
@@ -424,7 +428,7 @@ pub struct ApplicationService {
         crate::domain::abyss::federation::services::FederationServiceImpl<
             RealmRepo,
             FederationRepo,
-            crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+            PolicyImpl,
             UserRepo,
             CredentialRepo,
         >,

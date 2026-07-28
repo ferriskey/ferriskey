@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
@@ -445,10 +446,10 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
+    use ferriskey_authz::FerriskeyPolicy;
     use ferriskey_domain::auth::Identity;
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::common::app_errors::CoreError;
-    use ferriskey_domain::common::policies::FerriskeyPolicy;
     use ferriskey_domain::realm::RealmId;
     use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
