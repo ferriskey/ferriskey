@@ -6,7 +6,7 @@ use ferriskey_core::domain::portal_theme::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::application::http::server::api_entities::{
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     response::Response,
 };

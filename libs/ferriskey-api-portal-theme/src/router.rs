@@ -9,11 +9,11 @@ use super::handlers::list_themes::{__path_list_themes, list_themes};
 use super::handlers::update_theme::{__path_update_theme, update_theme};
 use super::handlers::update_theme_metadata::{__path_update_theme_metadata, update_theme_metadata};
 use super::handlers::update_theme_page::{__path_update_theme_page, update_theme_page};
-use crate::application::{auth::auth, http::server::app_state::AppState};
 use axum::{
     Router, middleware,
     routing::{get, post, put},
 };
+use ferriskey_api_core::{app_state::AppState, auth::auth};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
