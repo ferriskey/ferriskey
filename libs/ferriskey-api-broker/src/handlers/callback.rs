@@ -9,11 +9,11 @@ use ferriskey_core::domain::abyss::identity_provider::broker::{
 };
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
-use crate::application::http::server::{
+use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
     app_state::AppState,
 };
-use crate::application::url::FullUrl;
 
 use super::super::validators::BrokerCallbackQuery;
 

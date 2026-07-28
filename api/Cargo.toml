@@ -9,6 +9,10 @@ edition.workspace = true
 ferriskey-core = { path = "../core" }
 ferriskey-api-core = { path = "../libs/ferriskey-api-core" }
 ferriskey-api-seawatch = { path = "../libs/ferriskey-api-seawatch" }
+ferriskey-api-broker = { path = "../libs/ferriskey-api-broker" }
+ferriskey-api-compass = { path = "../libs/ferriskey-api-compass" }
+ferriskey-api-webhook = { path = "../libs/ferriskey-api-webhook" }
+ferriskey-api-health = { path = "../libs/ferriskey-api-health" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"

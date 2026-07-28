@@ -4,13 +4,12 @@ use axum::{
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    compass::{entities::CompassFlow, ports::CompassService},
+    compass::{ports::CompassService, value_objects::FlowStats},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
-use crate::application::http::server::{
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
         response::Response,
@@ -19,43 +18,35 @@ use crate::application::http::server::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct GetFlowResponse {
-    data: CompassFlow,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FlowPathParams {
-    pub realm_name: String,
-    pub flow_id: Uuid,
+pub struct GetStatsResponse {
+    data: FlowStats,
 }
 
 #[utoipa::path(
     get,
-    summary = "Get Compass Flow",
-    path = "/compass/v1/flows/{flow_id}",
+    summary = "Get Compass Stats",
+    path = "/compass/v1/stats",
     tag = "compass",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
-        ("flow_id" = Uuid, Path, description = "Flow ID"),
     ),
     responses(
-        (status = 200, description = "Flow retrieved successfully", body = GetFlowResponse),
+        (status = 200, description = "Stats retrieved successfully", body = GetStatsResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "Flow not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
-pub async fn get_flow(
-    Path(params): Path<FlowPathParams>,
+pub async fn get_stats(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<GetFlowResponse>, ApiError> {
-    let flow = state
+) -> Result<Response<GetStatsResponse>, ApiError> {
+    let stats = state
         .service
-        .get_flow(identity, params.realm_name, params.flow_id)
+        .get_stats(identity, realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(GetFlowResponse { data: flow }))
+    Ok(Response::OK(GetStatsResponse { data: stats }))
 }

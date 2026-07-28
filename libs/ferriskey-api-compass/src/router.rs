@@ -1,18 +1,14 @@
 use axum::{Router, middleware, routing::get};
 use utoipa::OpenApi;
 
-use crate::application::{
-    auth::auth,
-    http::{
-        compass::handlers::{
-            get_daily_activity_stats::{__path_get_daily_activity_stats, get_daily_activity_stats},
-            get_flow::{__path_get_flow, get_flow},
-            get_flows::{__path_get_flows, get_flows},
-            get_stats::{__path_get_stats, get_stats},
-        },
-        server::app_state::AppState,
-    },
+use crate::handlers::{
+    get_daily_activity_stats::{__path_get_daily_activity_stats, get_daily_activity_stats},
+    get_flow::{__path_get_flow, get_flow},
+    get_flows::{__path_get_flows, get_flows},
+    get_stats::{__path_get_stats, get_stats},
 };
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 
 #[derive(OpenApi)]
 #[openapi(paths(get_flows, get_flow, get_stats, get_daily_activity_stats))]

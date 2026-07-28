@@ -1,8 +1,8 @@
-use crate::application::http::server::api_entities::api_error::ApiError;
-use crate::application::http::server::api_entities::response::Response;
-use crate::application::http::server::app_state::AppState;
 use axum::extract::State;
 use chrono::Utc;
+use ferriskey_api_core::api_entities::api_error::ApiError;
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::health::entities::ReadinessResponse;
 use ferriskey_core::domain::health::ports::HealthCheckService;
 

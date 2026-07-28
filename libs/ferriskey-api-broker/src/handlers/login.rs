@@ -6,11 +6,11 @@ use axum::{
 
 use ferriskey_core::domain::abyss::identity_provider::broker::{BrokerLoginInput, BrokerService};
 
-use crate::application::http::server::{
+use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
     app_state::AppState,
 };
-use crate::application::url::FullUrl;
 
 use super::super::validators::BrokerLoginRequest;
 

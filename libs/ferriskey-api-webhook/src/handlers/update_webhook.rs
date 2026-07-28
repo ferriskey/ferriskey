@@ -1,54 +1,56 @@
-use crate::application::http::server::api_entities::api_error::{
-    ApiError, ApiErrorResponse, ValidateJson,
-};
-use crate::application::http::server::api_entities::response::Response;
-use crate::application::http::server::app_state::AppState;
-use crate::application::http::webhook::validators::CreateWebhookValidator;
+use crate::validators::UpdateWebhookValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::Webhook;
-use ferriskey_core::domain::webhook::ports::{CreateWebhookInput, WebhookService};
+use ferriskey_core::domain::webhook::ports::{UpdateWebhookInput, WebhookService};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct CreateWebhookResponse {
+pub struct UpdateWebhookResponse {
     pub data: Webhook,
 }
 
 #[utoipa::path(
-    post,
-    path = "",
+    put,
+    path = "/{webhook_id}",
     tag = "webhook",
-    summary = "Create webhook",
-    description = "Creates a new webhook in the system related to the current realm.",
+    summary = "Update webhook",
+    description = "Updates a webhook in the system related to the current realm.",
     params(
-        ("realm_name" = String, Path, description = "Realm name"),
+        ("realm_name" = String, Path, description = "Name of the realm"),
+        ("webhook_id" = Uuid, Path, description = "Webhook ID"),
     ),
-    request_body = CreateWebhookValidator,
+    request_body = UpdateWebhookValidator,
     responses(
-        (status = 200, description = "Webhook created successfully", body = CreateWebhookResponse),
+        (status = 200, description = "Webhook updated successfully", body = UpdateWebhookResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn create_webhook(
-    Path(realm_name): Path<String>,
+
+pub async fn update_webhook(
+    Path((realm_name, webhook_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<CreateWebhookValidator>,
-) -> Result<Response<CreateWebhookResponse>, ApiError> {
+    ValidateJson(payload): ValidateJson<UpdateWebhookValidator>,
+) -> Result<Response<UpdateWebhookResponse>, ApiError> {
     let webhook = state
         .service
-        .create_webhook(
+        .update_webhook(
             identity,
-            CreateWebhookInput {
+            UpdateWebhookInput {
                 realm_name,
+                webhook_id,
                 name: payload.name,
                 description: payload.description,
                 endpoint: payload.endpoint,
@@ -59,5 +61,5 @@ pub async fn create_webhook(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(CreateWebhookResponse { data: webhook }))
+    Ok(Response::Updated(UpdateWebhookResponse { data: webhook }))
 }
