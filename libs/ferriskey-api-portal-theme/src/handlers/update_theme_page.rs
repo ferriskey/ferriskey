@@ -13,15 +13,13 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::application::http::{
-    portal_theme::validators::UpdateThemePageValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
+use crate::validators::UpdateThemePageValidator;
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
     },
+    app_state::AppState,
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

@@ -1529,6 +1529,7 @@ dependencies = [
  "ferriskey-api-health",
  "ferriskey-api-maintenance",
  "ferriskey-api-portal-layouts",
+ "ferriskey-api-portal-theme",
  "ferriskey-api-role",
  "ferriskey-api-seawatch",
  "ferriskey-api-webhook",
@@ -1659,6 +1660,20 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-portal-layouts"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-portal-theme"
 version = "0.7.0"
 dependencies = [
  "axum",
