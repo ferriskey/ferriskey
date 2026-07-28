@@ -1,17 +1,13 @@
-use crate::application::http::{
-    aegis::validators::CreateProtocolMapperValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-};
+use crate::validators::CreateProtocolMapperValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::aegis::entities::ProtocolMapper;
 use ferriskey_core::domain::aegis::ports::ProtocolMapperService;
 use ferriskey_core::domain::aegis::value_objects::CreateProtocolMapperInput;

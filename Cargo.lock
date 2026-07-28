@@ -1522,6 +1522,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenv",
+ "ferriskey-api-aegis",
  "ferriskey-api-broker",
  "ferriskey-api-compass",
  "ferriskey-api-core",
@@ -1561,6 +1562,20 @@ dependencies = [
  "uuid",
  "validator",
  "webauthn-rs",
+]
+
+[[package]]
+name = "ferriskey-api-aegis"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]
