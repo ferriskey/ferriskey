@@ -13,8 +13,10 @@
 //! request model (subject / action / resource / context) so the HTTP facade
 //! and any future engine share one vocabulary.
 
+pub mod actions;
 pub mod entities;
 pub mod error;
+pub mod matrix;
 pub mod ports;
 
 mod engine;

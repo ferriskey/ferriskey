@@ -25,6 +25,12 @@ impl EntityType {
     pub const ORGANIZATION: Self = Self(Cow::Borrowed("Organization"));
     pub const GROUP: Self = Self(Cow::Borrowed("Group"));
 
+    /// For resource types named by a literal, usable in `const` position.
+    pub const fn new(name: &'static str) -> Self {
+        Self(Cow::Borrowed(name))
+    }
+
+    /// For resource types only known at runtime — tenant-declared types.
     pub fn custom(name: impl Into<Cow<'static, str>>) -> Self {
         Self(name.into())
     }
