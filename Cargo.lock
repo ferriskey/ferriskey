@@ -1523,6 +1523,7 @@ dependencies = [
  "clap",
  "dotenv",
  "ferriskey-api-core",
+ "ferriskey-api-seawatch",
  "ferriskey-core",
  "opentelemetry",
  "opentelemetry-appender-tracing",
@@ -1578,6 +1579,17 @@ dependencies = [
  "uuid",
  "validator",
  "webauthn-rs",
+]
+
+[[package]]
+name = "ferriskey-api-seawatch"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
 ]
 
 [[package]]

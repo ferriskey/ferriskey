@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 ferriskey-core = { path = "../core" }
 ferriskey-api-core = { path = "../libs/ferriskey-api-core" }
+ferriskey-api-seawatch = { path = "../libs/ferriskey-api-seawatch" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"
