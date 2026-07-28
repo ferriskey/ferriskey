@@ -6,13 +6,14 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     portal_layouts::{
         entities::PortalLayout,
-        ports::{ListLayoutsInput, PortalLayoutsService},
+        ports::{GetLayoutInput, PortalLayoutsService},
     },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
-use crate::application::http::server::{
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
         response::Response,
@@ -21,36 +22,44 @@ use crate::application::http::server::{
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ListPortalLayoutsResponse {
-    pub data: Vec<PortalLayout>,
+pub struct GetPortalLayoutResponse {
+    pub data: PortalLayout,
 }
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/{layout_id}",
     tag = "portal-layouts",
-    summary = "List portal layouts",
-    description = "Returns every portal layout configured for the realm.",
+    summary = "Get a portal layout",
+    description = "Retrieves a single portal layout by id.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
+        ("layout_id" = Uuid, Path, description = "Portal layout ID"),
     ),
     responses(
-        (status = 200, description = "Layouts retrieved successfully", body = ListPortalLayoutsResponse),
+        (status = 200, description = "Layout retrieved successfully", body = GetPortalLayoutResponse),
+        (status = 404, description = "Layout not found", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn list_layouts(
-    Path(realm_name): Path<String>,
+pub async fn get_layout(
+    Path((realm_name, layout_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<ListPortalLayoutsResponse>, ApiError> {
-    let layouts = state
+) -> Result<Response<GetPortalLayoutResponse>, ApiError> {
+    let layout = state
         .service
-        .list_layouts(identity, ListLayoutsInput { realm_name })
+        .get_layout(
+            identity,
+            GetLayoutInput {
+                realm_name,
+                layout_id,
+            },
+        )
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(ListPortalLayoutsResponse { data: layouts }))
+    Ok(Response::OK(GetPortalLayoutResponse { data: layout }))
 }

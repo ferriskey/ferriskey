@@ -16,6 +16,7 @@ ferriskey-api-health = { path = "../libs/ferriskey-api-health" }
 ferriskey-api-role = { path = "../libs/ferriskey-api-role" }
 ferriskey-api-email-template = { path = "../libs/ferriskey-api-email-template" }
 ferriskey-api-maintenance = { path = "../libs/ferriskey-api-maintenance" }
+ferriskey-api-portal-layouts = { path = "../libs/ferriskey-api-portal-layouts" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"
