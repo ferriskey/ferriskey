@@ -3,7 +3,7 @@ use ferriskey_core::domain::email_template::entities::{EmailType, TemplateVariab
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::application::http::server::api_entities::{
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     response::Response,
 };

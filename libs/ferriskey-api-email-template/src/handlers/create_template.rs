@@ -12,16 +12,12 @@ use ferriskey_core::domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::application::http::{
-    email_template::validators::CreateEmailTemplateValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use crate::validators::CreateEmailTemplateValidator;
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct CreateEmailTemplateResponse {
