@@ -4,8 +4,9 @@ use super::handlers::fetch_templates::{__path_fetch_templates, fetch_templates};
 use super::handlers::get_template::{__path_get_template, get_template};
 use super::handlers::get_variables::{__path_get_variables, get_variables};
 use super::handlers::update_template::{__path_update_template, update_template};
-use crate::application::{auth::auth, http::server::app_state::AppState};
 use axum::{Router, middleware, routing::get};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]

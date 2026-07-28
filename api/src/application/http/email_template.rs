@@ -1,3 +1,1 @@
-pub mod handlers;
-pub mod router;
-pub mod validators;
+pub use ferriskey_api_email_template::*;

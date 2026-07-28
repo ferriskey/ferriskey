@@ -6,70 +6,58 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     email_template::{
         entities::EmailTemplate,
-        ports::{EmailTemplateService, UpdateEmailTemplateInput},
+        ports::{EmailTemplateService, GetEmailTemplateInput},
     },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::application::http::{
-    email_template::validators::UpdateEmailTemplateValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct UpdateEmailTemplateResponse {
+pub struct GetEmailTemplateResponse {
     pub data: EmailTemplate,
 }
 
 #[utoipa::path(
-    put,
+    get,
     path = "/{template_id}",
     tag = "email-template",
-    summary = "Update email template",
-    description = "Updates an existing email template.",
+    summary = "Get email template",
+    description = "Retrieves a single email template by ID.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         ("template_id" = Uuid, Path, description = "Email template ID"),
     ),
-    request_body = UpdateEmailTemplateValidator,
     responses(
-        (status = 200, description = "Email template updated successfully", body = UpdateEmailTemplateResponse),
-        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 200, description = "Email template retrieved successfully", body = GetEmailTemplateResponse),
         (status = 404, description = "Email template not found", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn update_template(
+pub async fn get_template(
     Path((realm_name, template_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<UpdateEmailTemplateValidator>,
-) -> Result<Response<UpdateEmailTemplateResponse>, ApiError> {
+) -> Result<Response<GetEmailTemplateResponse>, ApiError> {
     let template = state
         .service
-        .update_template(
+        .get_template(
             identity,
-            UpdateEmailTemplateInput {
+            GetEmailTemplateInput {
                 realm_name,
                 template_id,
-                name: payload.name,
-                structure: payload.structure,
             },
         )
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::Updated(UpdateEmailTemplateResponse {
-        data: template,
-    }))
+    Ok(Response::OK(GetEmailTemplateResponse { data: template }))
 }

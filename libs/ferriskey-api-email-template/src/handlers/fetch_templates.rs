@@ -12,13 +12,11 @@ use ferriskey_core::domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::application::http::server::{
-    api_entities::{
-        api_error::{ApiError, ApiErrorResponse},
-        response::Response,
-    },
-    app_state::AppState,
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct GetEmailTemplatesResponse {
