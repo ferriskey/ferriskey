@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-use crate::application::http::server::{
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
         response::Response,

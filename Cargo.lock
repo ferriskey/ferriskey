@@ -1522,8 +1522,12 @@ dependencies = [
  "chrono",
  "clap",
  "dotenv",
+ "ferriskey-api-broker",
+ "ferriskey-api-compass",
  "ferriskey-api-core",
+ "ferriskey-api-health",
  "ferriskey-api-seawatch",
+ "ferriskey-api-webhook",
  "ferriskey-core",
  "opentelemetry",
  "opentelemetry-appender-tracing",
@@ -1555,6 +1559,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-api-broker"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-compass"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-api-core"
 version = "0.7.0"
 dependencies = [
@@ -1582,6 +1614,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-api-health"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+]
+
+[[package]]
 name = "ferriskey-api-seawatch"
 version = "0.7.0"
 dependencies = [
@@ -1590,6 +1635,20 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "utoipa",
+]
+
+[[package]]
+name = "ferriskey-api-webhook"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]

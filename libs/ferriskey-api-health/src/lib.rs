@@ -1,7 +1,7 @@
-use crate::application::http::health::handlers::health_live::health_live;
-use crate::application::http::health::handlers::health_ready::health_ready;
-use crate::application::http::server::app_state::AppState;
+use crate::handlers::health_live::health_live;
+use crate::handlers::health_ready::health_ready;
 use axum::{Router, routing::get};
+use ferriskey_api_core::app_state::AppState;
 
 pub mod handlers;
 

@@ -1,7 +1,7 @@
 use axum::{Router, routing::get};
 use utoipa::OpenApi;
 
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 use super::handlers::callback::__path_broker_callback;
 use super::handlers::login::__path_broker_login;
