@@ -4,7 +4,8 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 
 use super::handlers::{
     create_role::{__path_create_role, create_role},

@@ -1526,6 +1526,7 @@ dependencies = [
  "ferriskey-api-compass",
  "ferriskey-api-core",
  "ferriskey-api-health",
+ "ferriskey-api-role",
  "ferriskey-api-seawatch",
  "ferriskey-api-webhook",
  "ferriskey-core",
@@ -1624,6 +1625,21 @@ dependencies = [
  "serde",
  "serde_json",
  "utoipa",
+]
+
+[[package]]
+name = "ferriskey-api-role"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "api", "operator","client", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain", "libs/ferriskey-trident", "libs/ferriskey-abyss", "libs/ferriskey-aegis", "libs/ferriskey-compass", "libs/ferriskey-mail", "libs/ferriskey-migrate", "libs/ferriskey-organization", "libs/ferriskey-seawatch", "libs/ferriskey-password-policy", "libs/ferriskey-webhook", "libs/ferriskey-portal-theme", "libs/ferriskey-portal-layouts", "libs/ferriskey-api-core", "libs/ferriskey-api-seawatch", "libs/ferriskey-api-broker", "libs/ferriskey-api-compass", "libs/ferriskey-api-webhook", "libs/ferriskey-api-health"]
+members = ["core", "api", "operator","client", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain", "libs/ferriskey-trident", "libs/ferriskey-abyss", "libs/ferriskey-aegis", "libs/ferriskey-compass", "libs/ferriskey-mail", "libs/ferriskey-migrate", "libs/ferriskey-organization", "libs/ferriskey-seawatch", "libs/ferriskey-password-policy", "libs/ferriskey-webhook", "libs/ferriskey-portal-theme", "libs/ferriskey-portal-layouts", "libs/ferriskey-api-core", "libs/ferriskey-api-seawatch", "libs/ferriskey-api-broker", "libs/ferriskey-api-compass", "libs/ferriskey-api-webhook", "libs/ferriskey-api-health", "libs/ferriskey-api-role"]
 resolver = "2"
 
 [workspace.package]
@@ -15,6 +15,7 @@ axum = "0.8.8"
 chrono = { version = "0.4.40", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
+tracing = "0.1.44"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.19.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
