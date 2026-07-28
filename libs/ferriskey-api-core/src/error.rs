@@ -307,6 +307,7 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
+            CoreError::PortalLayoutInvalidTree(details) => Self::validation_error(details, "tree"),
             CoreError::PasswordPolicyViolation(details) => {
                 match from_str::<Vec<PasswordPolicyViolation>>(&details) {
                     Ok(violations) => Self::validation_errors(

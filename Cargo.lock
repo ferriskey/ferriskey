@@ -1708,6 +1708,7 @@ name = "ferriskey-api-email-template"
 version = "0.7.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",

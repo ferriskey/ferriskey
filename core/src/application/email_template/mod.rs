@@ -7,8 +7,8 @@ use crate::{
             entities::EmailTemplate,
             ports::{
                 CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplateService,
-                GetEmailTemplateInput, GetEmailTemplatesInput, RenderEmailTemplateInput,
-                UpdateEmailTemplateInput,
+                GetEmailTemplateInput, GetEmailTemplatesInput, ImportEmailTemplateInput,
+                RenderEmailTemplateInput, UpdateEmailTemplateInput,
             },
         },
     },
@@ -72,6 +72,16 @@ impl EmailTemplateService for ApplicationService {
     ) -> Result<String, CoreError> {
         self.email_template_service
             .render_template_html(identity, input)
+            .await
+    }
+
+    async fn import_template(
+        &self,
+        identity: Identity,
+        input: ImportEmailTemplateInput,
+    ) -> Result<EmailTemplate, CoreError> {
+        self.email_template_service
+            .import_template(identity, input)
             .await
     }
 }

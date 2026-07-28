@@ -27,6 +27,152 @@ impl TemplateRenderer for MjmlTemplateRenderer {
             .map_err(|e| CoreError::EmailTemplateRenderError(format!("MJML render error: {e}")))?;
         Ok(html)
     }
+
+    fn parse_intermediate(&self, intermediate: &str) -> Result<serde_json::Value, CoreError> {
+        mjml_to_json(intermediate)
+    }
+}
+
+/// Converts an MJML document into the builder JSON structure, the inverse of
+/// [`json_to_mjml`].
+///
+/// `mrml` parses (and thereby validates) the markup, and its AST serializes to
+/// `{"type": "mj-section", "attributes": {…}, "children": […]}` — one rename away
+/// from a builder node. Only the `<mj-body>` subtree is representable in the
+/// builder, so `<mj-head>` and its global attributes are dropped.
+fn mjml_to_json(mjml: &str) -> Result<serde_json::Value, CoreError> {
+    // The markup is supplied by the caller, so a parse failure is bad input,
+    // not a server fault — `InvalidEmailTemplateStructure` is the 4xx variant.
+    let parsed = mrml::parse(mjml)
+        .map_err(|e| CoreError::InvalidEmailTemplateStructure(format!("MJML parse error: {e}")))?;
+
+    let document = serde_json::to_value(&parsed).map_err(|e| {
+        CoreError::EmailTemplateRenderError(format!("MJML serialization error: {e}"))
+    })?;
+
+    let body = document
+        .get("children")
+        .and_then(|children| children.as_array())
+        .and_then(|children| {
+            children
+                .iter()
+                .find(|child| child.get("type").and_then(|t| t.as_str()) == Some("mj-body"))
+        })
+        .ok_or_else(|| {
+            CoreError::InvalidEmailTemplateStructure("MJML document has no <mj-body>".to_string())
+        })?;
+
+    let children = node_children(body)
+        .iter()
+        .filter_map(mrml_node_to_builder_node)
+        .collect::<Vec<_>>();
+
+    Ok(serde_json::json!({ "children": children }))
+}
+
+fn node_children(node: &serde_json::Value) -> &[serde_json::Value] {
+    node.get("children")
+        .and_then(|children| children.as_array())
+        .map(|children| children.as_slice())
+        .unwrap_or_default()
+}
+
+/// Maps one MJML element onto a builder node. Non-MJML children (raw HTML, bare
+/// text) are folded back into `content`, which is where the builder keeps them.
+fn mrml_node_to_builder_node(node: &serde_json::Value) -> Option<serde_json::Value> {
+    let node_type = node.get("type")?.as_str()?;
+    if !node_type.starts_with("mj-") {
+        return None;
+    }
+
+    let mut children = Vec::new();
+    let mut content = String::new();
+
+    for child in node_children(node) {
+        match child {
+            serde_json::Value::String(text) => content.push_str(text),
+            serde_json::Value::Object(_) => {
+                let child_type = child
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or_default();
+                if child_type.starts_with("mj-") {
+                    if let Some(child_node) = mrml_node_to_builder_node(child) {
+                        children.push(child_node);
+                    }
+                } else if child_type != "comment" {
+                    content.push_str(&raw_node_to_html(child));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut builder_node = serde_json::Map::new();
+    builder_node.insert(
+        "id".to_string(),
+        serde_json::Value::String(uuid::Uuid::new_v4().to_string()),
+    );
+    builder_node.insert(
+        "type".to_string(),
+        serde_json::Value::String(node_type.to_string()),
+    );
+    builder_node.insert(
+        "props".to_string(),
+        node.get("attributes")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({})),
+    );
+    builder_node.insert("styles".to_string(), serde_json::json!({}));
+    builder_node.insert("children".to_string(), serde_json::Value::Array(children));
+    if !content.is_empty() {
+        builder_node.insert("content".to_string(), serde_json::Value::String(content));
+    }
+
+    Some(serde_json::Value::Object(builder_node))
+}
+
+/// Re-serializes a raw HTML node from the mrml AST back into markup.
+fn raw_node_to_html(node: &serde_json::Value) -> String {
+    let Some(tag) = node.get("type").and_then(|t| t.as_str()) else {
+        return String::new();
+    };
+
+    let attrs = node
+        .get("attributes")
+        .and_then(|attrs| attrs.as_object())
+        .map(|attrs| {
+            attrs
+                .iter()
+                .map(|(key, value)| match value.as_str() {
+                    Some(value) => format!(" {key}=\"{value}\""),
+                    None => format!(" {key}"),
+                })
+                .collect::<String>()
+        })
+        .unwrap_or_default();
+
+    // `children` is a string for comments, an array for every other node.
+    let inner = match node.get("children") {
+        Some(serde_json::Value::String(text)) => text.clone(),
+        _ => node_children(node)
+            .iter()
+            .map(|child| match child {
+                serde_json::Value::String(text) => text.clone(),
+                serde_json::Value::Object(_) => raw_node_to_html(child),
+                _ => String::new(),
+            })
+            .collect::<String>(),
+    };
+
+    // HTML void elements have no closing tag; emitting one would nest the rest
+    // of the content inside them.
+    const VOID_ELEMENTS: [&str; 6] = ["br", "hr", "img", "input", "meta", "link"];
+    if VOID_ELEMENTS.contains(&tag) {
+        return format!("<{tag}{attrs} />");
+    }
+
+    format!("<{tag}{attrs}>{inner}</{tag}>")
 }
 
 /// Converts a builder JSON structure into an MJML string.
@@ -314,5 +460,77 @@ mod tests {
 
         let html = renderer.render_to_html(&mjml).unwrap();
         assert!(html.contains("Hello {{user.first_name}}"));
+    }
+
+    #[test]
+    fn test_mjml_to_json_builds_builder_nodes() {
+        let mjml = r##"<mjml><mj-body><mj-section background-color="#ffffff"><mj-column><mj-text font-size="16px">Hello {{user.first_name}}</mj-text></mj-column></mj-section></mj-body></mjml>"##;
+
+        let structure = mjml_to_json(mjml).unwrap();
+        let children = structure["children"].as_array().unwrap();
+
+        assert_eq!(children.len(), 1);
+        let section = &children[0];
+        assert_eq!(section["type"], "mj-section");
+        assert_eq!(section["props"]["background-color"], "#ffffff");
+        assert!(section["id"].as_str().is_some_and(|id| !id.is_empty()));
+        assert_eq!(section["styles"], json!({}));
+
+        let text = &section["children"][0]["children"][0];
+        assert_eq!(text["type"], "mj-text");
+        assert_eq!(text["props"]["font-size"], "16px");
+        assert_eq!(text["content"], "Hello {{user.first_name}}");
+    }
+
+    #[test]
+    fn test_mjml_to_json_keeps_inline_html_as_content() {
+        let mjml = r#"<mjml><mj-body><mj-section><mj-column><mj-text><p>Hello <b>world</b></p><br /></mj-text></mj-column></mj-section></mj-body></mjml>"#;
+
+        let structure = mjml_to_json(mjml).unwrap();
+        let text = &structure["children"][0]["children"][0]["children"][0];
+
+        assert_eq!(text["type"], "mj-text");
+        assert_eq!(text["content"], "<p>Hello <b>world</b></p><br />");
+        assert_eq!(text["children"], json!([]));
+    }
+
+    #[test]
+    fn test_mjml_to_json_roundtrips_through_json_to_mjml() {
+        let original = r##"<mjml><mj-body><mj-section><mj-column><mj-text font-size="14px">Hi</mj-text><mj-divider border-color="#eeeeee" /></mj-column></mj-section></mj-body></mjml>"##;
+
+        let structure = mjml_to_json(original).unwrap();
+        let rendered = json_to_mjml(&structure).unwrap();
+
+        // Re-parsing the rendered MJML yields the same tree, ids aside.
+        let reparsed = mjml_to_json(&rendered).unwrap();
+        assert_eq!(strip_ids(&structure), strip_ids(&reparsed));
+
+        let renderer = MjmlTemplateRenderer::new();
+        assert!(renderer.render_to_html(&rendered).unwrap().contains("Hi"));
+    }
+
+    #[test]
+    fn test_mjml_to_json_rejects_invalid_markup() {
+        assert!(mjml_to_json("<invalid>not mjml</invalid>").is_err());
+    }
+
+    #[test]
+    fn test_mjml_to_json_requires_a_body() {
+        assert!(mjml_to_json("<mjml><mj-head></mj-head></mjml>").is_err());
+    }
+
+    fn strip_ids(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(map) => serde_json::Value::Object(
+                map.iter()
+                    .filter(|(key, _)| key.as_str() != "id")
+                    .map(|(key, value)| (key.clone(), strip_ids(value)))
+                    .collect(),
+            ),
+            serde_json::Value::Array(items) => {
+                serde_json::Value::Array(items.iter().map(strip_ids).collect())
+            }
+            other => other.clone(),
+        }
     }
 }
