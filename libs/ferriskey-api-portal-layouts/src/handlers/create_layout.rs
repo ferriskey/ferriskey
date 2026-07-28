@@ -6,62 +6,56 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     portal_layouts::{
         entities::PortalLayout,
-        ports::{PortalLayoutsService, UpdateLayoutInput},
+        ports::{CreateLayoutInput, PortalLayoutsService},
     },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
-use crate::application::http::{
-    portal_layouts::validators::UpdatePortalLayoutValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
+use crate::validators::CreatePortalLayoutValidator;
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
     },
+    app_state::AppState,
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct UpdatePortalLayoutResponse {
+pub struct CreatePortalLayoutResponse {
     pub data: PortalLayout,
 }
 
 #[utoipa::path(
-    put,
-    path = "/{layout_id}",
+    post,
+    path = "",
     tag = "portal-layouts",
-    summary = "Update a portal layout",
-    description = "Updates the name and tree of an existing portal layout.",
+    summary = "Create a portal layout",
+    description = "Creates a new portal layout. The first layout in a realm is automatically marked as default.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
-        ("layout_id" = Uuid, Path, description = "Portal layout ID"),
     ),
-    request_body = UpdatePortalLayoutValidator,
+    request_body = CreatePortalLayoutValidator,
     responses(
-        (status = 200, description = "Layout updated successfully", body = UpdatePortalLayoutResponse),
+        (status = 201, description = "Layout created successfully", body = CreatePortalLayoutResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
-        (status = 404, description = "Layout not found", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn update_layout(
-    Path((realm_name, layout_id)): Path<(String, Uuid)>,
+pub async fn create_layout(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<UpdatePortalLayoutValidator>,
-) -> Result<Response<UpdatePortalLayoutResponse>, ApiError> {
+    ValidateJson(payload): ValidateJson<CreatePortalLayoutValidator>,
+) -> Result<Response<CreatePortalLayoutResponse>, ApiError> {
     let layout = state
         .service
-        .update_layout(
+        .create_layout(
             identity,
-            UpdateLayoutInput {
+            CreateLayoutInput {
                 realm_name,
-                layout_id,
                 name: payload.name,
                 tree: payload.tree,
             },
@@ -69,7 +63,7 @@ pub async fn update_layout(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::Updated(UpdatePortalLayoutResponse {
+    Ok(Response::Created(CreatePortalLayoutResponse {
         data: layout,
     }))
 }

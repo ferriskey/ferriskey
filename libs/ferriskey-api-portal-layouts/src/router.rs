@@ -8,8 +8,8 @@ use super::handlers::get_public_layout::{__path_get_public_layout, get_public_la
 use super::handlers::list_layouts::{__path_list_layouts, list_layouts};
 use super::handlers::set_default_layout::{__path_set_default_layout, set_default_layout};
 use super::handlers::update_layout::{__path_update_layout, update_layout};
-use crate::application::{auth::auth, http::server::app_state::AppState};
 use axum::{Router, middleware, routing::get};
+use ferriskey_api_core::{app_state::AppState, auth::auth};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
