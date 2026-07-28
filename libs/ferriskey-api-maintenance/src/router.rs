@@ -13,7 +13,8 @@ use super::handlers::remove_realm_whitelist_entry::{
     __path_remove_realm_whitelist_entry, remove_realm_whitelist_entry,
 };
 use super::handlers::toggle_maintenance::{__path_toggle_maintenance, toggle_maintenance};
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 
 use axum::{
     Router, middleware,
