@@ -1,16 +1,12 @@
-use crate::application::http::{
-    abyss::identity_provider::dto::{
-        IdentityProviderResponse, IdentityProvidersResponse, ListIdentityProvidersQuery,
-    },
-    server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
-    },
+use crate::identity_provider::dto::{
+    IdentityProviderResponse, IdentityProvidersResponse, ListIdentityProvidersQuery,
 };
 use axum::{
     Extension,
     extract::{Path, Query, State},
 };
+use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::abyss::identity_provider::{
     entities::ListIdentityProvidersInput, ports::IdentityProviderService,
 };

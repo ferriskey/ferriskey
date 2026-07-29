@@ -3,13 +3,11 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::application::http::{
-    abyss::federation::handlers::{
-        create_provider, delete_provider, get_provider, list_providers, sync_users::sync_users,
-        test_connection, update_provider,
-    },
-    server::app_state::AppState,
+use crate::federation::handlers::{
+    create_provider, delete_provider, get_provider, list_providers, sync_users::sync_users,
+    test_connection, update_provider,
 };
+use ferriskey_api_core::app_state::AppState;
 
 pub mod dto;
 pub mod handlers;
