@@ -1,17 +1,13 @@
-use crate::application::http::{
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-    user::validators::UpdateUserValidator,
-};
+use crate::validators::UpdateUserValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::User;
 use ferriskey_core::domain::user::{entities::UpdateUserInput, ports::UserService};

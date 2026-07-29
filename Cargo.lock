@@ -1538,6 +1538,7 @@ dependencies = [
  "ferriskey-api-role",
  "ferriskey-api-seawatch",
  "ferriskey-api-trident",
+ "ferriskey-api-user",
  "ferriskey-api-webhook",
  "ferriskey-core",
  "opentelemetry",
@@ -1804,6 +1805,22 @@ dependencies = [
  "serde",
  "tracing",
  "url",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-user"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
  "utoipa",
  "uuid",
  "validator",
