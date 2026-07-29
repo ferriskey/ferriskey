@@ -1,10 +1,8 @@
-use crate::application::http::realm::validators::CreateRealmValidator;
-use crate::application::http::server::api_entities::api_error::{
-    ApiError, ApiErrorResponse, ValidateJson,
-};
-use crate::application::http::server::api_entities::response::Response;
-use crate::application::http::server::app_state::AppState;
+use crate::validators::CreateRealmValidator;
 use axum::{Extension, extract::State};
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::realm::ports::{CreateRealmInput, RealmService};
 use ferriskey_core::domain::{authentication::value_objects::Identity, realm::entities::Realm};
 

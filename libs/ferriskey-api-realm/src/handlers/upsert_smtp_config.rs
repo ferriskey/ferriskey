@@ -10,16 +10,12 @@ use ferriskey_core::domain::{
     },
 };
 
-use crate::application::http::{
-    realm::validators::UpsertSmtpConfigValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use crate::validators::UpsertSmtpConfigValidator;
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     put,

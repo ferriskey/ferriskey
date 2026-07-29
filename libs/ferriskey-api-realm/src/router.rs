@@ -1,35 +1,27 @@
+use super::handlers::create_realm::{__path_create_realm, create_realm};
+use super::handlers::delete_realm::{__path_delete_realm, delete_realm};
+use super::handlers::delete_smtp_config::{__path_delete_smtp_config, delete_smtp_config};
+use super::handlers::get_login_realm_settings::{
+    __path_get_login_realm_settings_handler, get_login_realm_settings_handler,
+};
 use super::handlers::get_password_policy::{__path_get_password_policy, get_password_policy};
 use super::handlers::get_public_password_policy::{
     __path_get_public_password_policy, get_public_password_policy,
 };
+use super::handlers::get_realm::{__path_get_realm, get_realm};
+use super::handlers::get_smtp_config::{__path_get_smtp_config, get_smtp_config};
+use super::handlers::get_user_realm_settings::get_user_realm_settings;
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
 use super::handlers::update_password_policy::{
     __path_update_password_policy, update_password_policy,
 };
-use crate::application::auth::auth;
-use crate::application::http::realm::handlers::create_realm::{__path_create_realm, create_realm};
-use crate::application::http::realm::handlers::delete_realm::{__path_delete_realm, delete_realm};
-use crate::application::http::realm::handlers::delete_smtp_config::{
-    __path_delete_smtp_config, delete_smtp_config,
-};
-use crate::application::http::realm::handlers::get_login_realm_settings::{
-    __path_get_login_realm_settings_handler, get_login_realm_settings_handler,
-};
-use crate::application::http::realm::handlers::get_realm::{__path_get_realm, get_realm};
-use crate::application::http::realm::handlers::get_smtp_config::{
-    __path_get_smtp_config, get_smtp_config,
-};
-use crate::application::http::realm::handlers::get_user_realm_settings::get_user_realm_settings;
-use crate::application::http::realm::handlers::update_realm::{__path_update_realm, update_realm};
-use crate::application::http::realm::handlers::update_realm_setting::{
-    __path_update_realm_setting, update_realm_setting,
-};
-use crate::application::http::realm::handlers::upsert_smtp_config::{
-    __path_upsert_smtp_config, upsert_smtp_config,
-};
-use crate::application::http::server::app_state::AppState;
+use super::handlers::update_realm::{__path_update_realm, update_realm};
+use super::handlers::update_realm_setting::{__path_update_realm_setting, update_realm_setting};
+use super::handlers::upsert_smtp_config::{__path_upsert_smtp_config, upsert_smtp_config};
 use axum::routing::{delete, get, post, put};
 use axum::{Router, middleware};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
