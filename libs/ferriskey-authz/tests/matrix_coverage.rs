@@ -253,6 +253,142 @@ fn matrix_covers_every_call_site() {
     );
 }
 
+/// The permission slice each `can_*` implementation tests, read from source.
+///
+/// Fourteen of the eighteen policy traits live in crates that depend on this
+/// one, so their methods cannot be called from here. Re-deriving their slices
+/// from source is what keeps their matrix rows honest: edit a policy without
+/// updating the matrix and this fails.
+fn policy_slices() -> HashMap<String, Vec<String>> {
+    let root = repo_root();
+    let mut files = Vec::new();
+    for dir in SCAN_DIRS {
+        rust_files(&root.join(dir), &mut files);
+    }
+
+    let mut direct: HashMap<String, Vec<String>> = HashMap::new();
+    let mut delegates: HashMap<String, Vec<String>> = HashMap::new();
+
+    for path in files {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !(name.contains("policies") || name == "engine.rs") {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let lines: Vec<&str> = text.lines().collect();
+        let ranges = test_ranges(&lines);
+
+        let starts: Vec<usize> = lines
+            .iter()
+            .enumerate()
+            .filter(|(i, l)| {
+                !in_tests(&ranges, *i) && declared_fn(l).is_some_and(|f| f.starts_with("can_"))
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        for (n, &start) in starts.iter().enumerate() {
+            let fn_name = declared_fn(lines[start])
+                .expect("filtered above")
+                .to_string();
+            let end = starts.get(n + 1).copied().unwrap_or(lines.len());
+            let body = lines[start + 1..end].join("\n");
+
+            let mut perms = Vec::new();
+            let mut rest = body.as_str();
+            while let Some(at) = rest
+                .find("has_one_of_permissions(")
+                .or_else(|| rest.find("has_permissions("))
+            {
+                rest = &rest[at..];
+                let Some(open) = rest.find("&[") else { break };
+                let Some(close) = rest[open..].find(']') else {
+                    break;
+                };
+                let slice = &rest[open + 2..open + close];
+                for part in slice.split("Permissions::").skip(1) {
+                    let variant: String = part
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric())
+                        .collect();
+                    if !variant.is_empty() {
+                        perms.push(variant);
+                    }
+                }
+                rest = &rest[open + close..];
+            }
+
+            if perms.is_empty() {
+                // A policy that forwards to another one, e.g. `can_delete_*`
+                // delegating to `can_update_*`.
+                let mut targets = Vec::new();
+                let mut r = body.as_str();
+                while let Some(at) = r.find("self.can_") {
+                    r = &r[at + 5..];
+                    let Some(open) = r.find('(') else { break };
+                    let called = r[..open].trim();
+                    if called.starts_with("can_") {
+                        targets.push(called.to_string());
+                    }
+                }
+                if !targets.is_empty() {
+                    delegates.insert(fn_name, targets);
+                    continue;
+                }
+            }
+            if !perms.is_empty() {
+                direct.insert(fn_name, perms);
+            }
+        }
+    }
+
+    // Resolve one level of delegation, then any further hops.
+    for _ in 0..4 {
+        let pending: Vec<_> = delegates.keys().cloned().collect();
+        for fname in pending {
+            let targets = delegates[&fname].clone();
+            if let Some(resolved) = targets.iter().find_map(|t| direct.get(t)).cloned() {
+                direct.insert(fname.clone(), resolved);
+                delegates.remove(&fname);
+            }
+        }
+    }
+
+    direct
+}
+
+#[test]
+fn matrix_permissions_match_policy_source() {
+    let slices = policy_slices();
+    let mut wrong = Vec::new();
+
+    for row in AUTHZ_MATRIX {
+        let declared: Vec<String> = row.permissions.iter().map(|p| format!("{p:?}")).collect();
+        match slices.get(row.policy_fn) {
+            Some(actual) if *actual == declared => {}
+            Some(actual) => wrong.push(format!(
+                "{}: matrix says {declared:?}, {} tests {actual:?}",
+                row.service_fn, row.policy_fn,
+            )),
+            None => wrong.push(format!(
+                "{}: no implementation of {} found in source",
+                row.service_fn, row.policy_fn,
+            )),
+        }
+    }
+    wrong.sort();
+    wrong.dedup();
+
+    assert!(
+        wrong.is_empty(),
+        "matrix permission sets disagree with the policies they describe ({}):\n{}",
+        wrong.len(),
+        wrong.join("\n"),
+    );
+}
+
 #[test]
 fn every_row_declares_permissions() {
     let empty: Vec<_> = AUTHZ_MATRIX

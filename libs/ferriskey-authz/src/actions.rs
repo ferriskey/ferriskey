@@ -79,14 +79,6 @@ pub const PORTAL_THEME_UPDATE: ActionId = ActionId::new("portal_theme:update");
 pub const PROTOCOL_MAPPER_CREATE: ActionId = ActionId::new("protocol_mapper:create");
 pub const PROTOCOL_MAPPER_DELETE: ActionId = ActionId::new("protocol_mapper:delete");
 pub const PROTOCOL_MAPPER_UPDATE: ActionId = ActionId::new("protocol_mapper:update");
-pub const PROVIDER_CREATE: ActionId = ActionId::new("provider:create");
-pub const PROVIDER_DELETE: ActionId = ActionId::new("provider:delete");
-pub const PROVIDER_READ: ActionId = ActionId::new("provider:read");
-pub const PROVIDER_TOGGLE: ActionId = ActionId::new("provider:toggle");
-pub const PROVIDER_UPDATE: ActionId = ActionId::new("provider:update");
-pub const PROVIDER_MAPPING_CREATE: ActionId = ActionId::new("provider_mapping:create");
-pub const PROVIDER_MAPPING_DELETE: ActionId = ActionId::new("provider_mapping:delete");
-pub const PROVIDER_MAPPING_LIST: ActionId = ActionId::new("provider_mapping:list");
 pub const REALM_CREATE: ActionId = ActionId::new("realm:create");
 pub const REALM_DELETE: ActionId = ActionId::new("realm:delete");
 pub const REALM_READ: ActionId = ActionId::new("realm:read");
@@ -185,14 +177,6 @@ pub const ALL: &[ActionId] = &[
     PROTOCOL_MAPPER_CREATE,
     PROTOCOL_MAPPER_DELETE,
     PROTOCOL_MAPPER_UPDATE,
-    PROVIDER_CREATE,
-    PROVIDER_DELETE,
-    PROVIDER_READ,
-    PROVIDER_TOGGLE,
-    PROVIDER_UPDATE,
-    PROVIDER_MAPPING_CREATE,
-    PROVIDER_MAPPING_DELETE,
-    PROVIDER_MAPPING_LIST,
     REALM_CREATE,
     REALM_DELETE,
     REALM_READ,

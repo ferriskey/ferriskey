@@ -600,11 +600,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::realm::RealmId;
     use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
-    use chrono::Utc;
     use uuid::Uuid;
 
     fn make_realm(name: &str) -> Realm {
