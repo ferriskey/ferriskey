@@ -1,15 +1,13 @@
-use crate::application::http::{
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-    trident::validators::webauthn_rp_info_from_webapp_url,
-};
+use crate::validators::webauthn_rp_info_from_webapp_url;
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
+    app_state::AppState,
+};
 use ferriskey_core::domain::trident::ports::{TridentService, WebAuthnPublicKeyCreateOptionsInput};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, trident::ports::CreationChallengeResponse,

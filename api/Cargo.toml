@@ -23,6 +23,7 @@ ferriskey-api-portal-theme = { path = "../libs/ferriskey-api-portal-theme" }
 ferriskey-api-realm = { path = "../libs/ferriskey-api-realm" }
 ferriskey-api-client = { path = "../libs/ferriskey-api-client" }
 ferriskey-api-organization = { path = "../libs/ferriskey-api-organization" }
+ferriskey-api-trident = { path = "../libs/ferriskey-api-trident" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"

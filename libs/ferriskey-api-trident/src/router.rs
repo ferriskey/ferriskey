@@ -4,43 +4,36 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::application::{
-    auth::{auth, auth_login_actions},
-    http::{
-        server::app_state::AppState,
-        trident::handlers::{
-            burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
-            challenge_otp::{__path_challenge_otp, challenge_otp},
-            forgot_password::{__path_forgot_password, forgot_password},
-            generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
-            magic_link::{
-                __path_send_magic_link, __path_verify_magic_link, send_magic_link,
-                verify_magic_link,
-            },
-            passkey_authenticate::{__path_passkey_authenticate, passkey_authenticate},
-            passkey_request_options::{__path_passkey_request_options, passkey_request_options},
-            reset_password::{
-                __path_reset_password_with_token, __path_verify_reset_token,
-                reset_password_with_token, verify_reset_token,
-            },
-            setup_otp::{__path_setup_otp, setup_otp},
-            update_password::{__path_update_password, update_password},
-            verify_otp::{__path_verify_otp, verify_otp},
-            webauthn_public_key_authenticate::{
-                __path_webauthn_public_key_authenticate, webauthn_public_key_authenticate,
-            },
-            webauthn_public_key_create::{
-                __path_webauthn_public_key_create, webauthn_public_key_create,
-            },
-            webauthn_public_key_create_options::{
-                __path_webauthn_public_key_create_options, webauthn_public_key_create_options,
-            },
-            webauthn_public_key_request_options::{
-                __path_webauthn_public_key_request_options, webauthn_public_key_request_options,
-            },
-        },
+use crate::handlers::{
+    burn_recovery_code::{__path_burn_recovery_code, burn_recovery_code},
+    challenge_otp::{__path_challenge_otp, challenge_otp},
+    forgot_password::{__path_forgot_password, forgot_password},
+    generate_recovery_codes::{__path_generate_recovery_codes, generate_recovery_codes},
+    magic_link::{
+        __path_send_magic_link, __path_verify_magic_link, send_magic_link, verify_magic_link,
+    },
+    passkey_authenticate::{__path_passkey_authenticate, passkey_authenticate},
+    passkey_request_options::{__path_passkey_request_options, passkey_request_options},
+    reset_password::{
+        __path_reset_password_with_token, __path_verify_reset_token, reset_password_with_token,
+        verify_reset_token,
+    },
+    setup_otp::{__path_setup_otp, setup_otp},
+    update_password::{__path_update_password, update_password},
+    verify_otp::{__path_verify_otp, verify_otp},
+    webauthn_public_key_authenticate::{
+        __path_webauthn_public_key_authenticate, webauthn_public_key_authenticate,
+    },
+    webauthn_public_key_create::{__path_webauthn_public_key_create, webauthn_public_key_create},
+    webauthn_public_key_create_options::{
+        __path_webauthn_public_key_create_options, webauthn_public_key_create_options,
+    },
+    webauthn_public_key_request_options::{
+        __path_webauthn_public_key_request_options, webauthn_public_key_request_options,
     },
 };
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::{auth, auth_login_actions};
 
 #[derive(OpenApi)]
 #[openapi(paths(

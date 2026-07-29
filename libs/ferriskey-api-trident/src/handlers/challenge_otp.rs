@@ -1,12 +1,12 @@
-use crate::application::http::server::{
+use axum::{Extension, extract::State};
+use axum_cookie::CookieManager;
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
 };
-use axum::{Extension, extract::State};
-use axum_cookie::CookieManager;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
 use ferriskey_core::domain::user::entities::RequiredAction;

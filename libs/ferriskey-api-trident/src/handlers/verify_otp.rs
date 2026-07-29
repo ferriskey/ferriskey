@@ -1,14 +1,12 @@
-use crate::application::http::{
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-    trident::validators::OtpVerifyRequest,
-};
+use crate::validators::OtpVerifyRequest;
 use axum::{Extension, extract::State};
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
+    },
+    app_state::AppState,
+};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{TridentService, VerifyOtpInput},

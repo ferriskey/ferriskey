@@ -12,15 +12,13 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema},
 };
 
-use crate::application::http::{
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
+use crate::validators::webauthn_rp_info_from_webapp_url;
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
     },
-    trident::validators::webauthn_rp_info_from_webapp_url,
+    app_state::AppState,
 };
 
 #[derive(Debug, Serialize)]

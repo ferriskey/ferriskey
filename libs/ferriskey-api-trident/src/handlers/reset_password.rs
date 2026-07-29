@@ -15,14 +15,12 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::application::{
-    http::server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
+        response::Response,
     },
+    app_state::AppState,
     url::FullUrl,
 };
 
