@@ -711,7 +711,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "view_users");
+            let role = make_role_with_permission(realm_id, "view_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -905,7 +905,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -962,7 +962,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1029,7 +1029,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1099,7 +1099,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1159,7 +1159,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1220,7 +1220,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "view_users");
+            let role = make_role_with_permission(realm_id, "view_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1275,7 +1275,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1435,7 +1435,7 @@ mod tests {
     async fn get_organization_denies_actor_from_another_realm() {
         let victim_realm_id = RealmId::new(Uuid::new_v4());
         let (identity, realm_repo, user_repo, user_role_repo) =
-            cross_realm_actor(victim_realm_id, "view_users");
+            cross_realm_actor(victim_realm_id, "view_organizations");
         let org = make_organization(victim_realm_id);
         let org_id = org.id;
 
@@ -1545,7 +1545,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(attacker_realm_id, "manage_users");
+            let role = make_role_with_permission(attacker_realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1621,7 +1621,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(attacker_realm_id, "manage_users");
+            let role = make_role_with_permission(attacker_realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1686,7 +1686,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1747,7 +1747,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "view_users");
+            let role = make_role_with_permission(realm_id, "view_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 

@@ -163,4 +163,6 @@ export enum Permissions {
   ViewClientScopes = 'view_client_scopes',
   ManageEmailTemplates = 'manage_email_templates',
   ViewEmailTemplates = 'view_email_templates',
+  ManageOrganizations = 'manage_organizations',
+  ViewOrganizations = 'view_organizations',
 }

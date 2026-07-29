@@ -9,6 +9,12 @@ use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use crate::OrganizationPolicy;
 
+/// Organizations are administered through permissions of their own.
+///
+/// They used to borrow the realm's user permissions, which conflated two
+/// different authorities: administering a realm's users is not the same as
+/// administering its organizations. `ManageRealm` still grants everything, so
+/// realm administrators are unaffected.
 impl<U, C, UR> OrganizationPolicy for FerriskeyPolicy<U, C, UR>
 where
     U: UserRepository,
@@ -27,7 +33,7 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         ))
     }
 
@@ -45,8 +51,8 @@ where
             &permissions,
             &[
                 Permissions::ManageRealm,
-                Permissions::ManageUsers,
-                Permissions::ViewUsers,
+                Permissions::ManageOrganizations,
+                Permissions::ViewOrganizations,
             ],
         ))
     }
@@ -63,7 +69,7 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         ))
     }
 
@@ -79,7 +85,7 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm],
+            &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         ))
     }
 
@@ -95,7 +101,7 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         ))
     }
 }

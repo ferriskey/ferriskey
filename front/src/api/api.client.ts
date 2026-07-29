@@ -914,7 +914,9 @@ export namespace Schemas {
     | "query_client_scopes"
     | "view_client_scopes"
     | "manage_email_templates"
-    | "view_email_templates";
+    | "view_email_templates"
+    | "manage_organizations"
+    | "view_organizations";
   export type ProtocolMapper = {
     client_scope_id: string;
     config: unknown;

@@ -209,9 +209,9 @@ mod tests {
     use crate::realm::ports::MockRealmRepository;
     use crate::realm::scope::Unscoped;
     use crate::realm::{Realm, RealmId};
+    use crate::role::permission::Permissions;
     use crate::session::ports::{MockTokenRevocationPort, MockUserSessionRepository};
     use crate::user::entities::User;
-    use crate::role::permission::Permissions;
     use std::collections::HashSet;
     use uuid::Uuid;
 

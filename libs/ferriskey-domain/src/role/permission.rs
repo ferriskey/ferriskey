@@ -43,41 +43,54 @@ pub enum Permissions {
 
     ManageEmailTemplates = 1 << 25, // 1 << 25
     ViewEmailTemplates = 1 << 26,   // 1 << 26
+
+    // Organizations administer their own membership and groups, which is not
+    // the same authority as administering the realm's users.
+    ManageOrganizations = 1 << 27, // 1 << 27
+    ViewOrganizations = 1 << 28,   // 1 << 28
 }
 
 impl Permissions {
-    pub fn from_bitfield(bitfield: u64) -> Vec<Self> {
-        let all_permissions = [
-            Self::CreateClient,
-            Self::ManageAuthorization,
-            Self::ManageClients,
-            Self::ManageEvents,
-            Self::ManageIdentityProviders,
-            Self::ManageRealm,
-            Self::ManageUsers,
-            Self::ManageRoles,
-            Self::QueryClients,
-            Self::QueryGroups,
-            Self::QueryRealms,
-            Self::QueryUsers,
-            Self::ViewAuthorization,
-            Self::ViewClients,
-            Self::ViewEvents,
-            Self::ViewIdentityProviders,
-            Self::ViewRealm,
-            Self::ViewUsers,
-            Self::ViewRoles,
-            Self::ManageWebhooks,
-            Self::QueryWebhooks,
-            Self::ViewWebhooks,
-            Self::ManageClientScopes,
-            Self::QueryClientScopes,
-            Self::ViewClientScopes,
-            Self::ManageEmailTemplates,
-            Self::ViewEmailTemplates,
-        ];
+    /// Every variant, in bit order.
+    ///
+    /// The single list this type enumerates from. When adding a variant:
+    /// `name()` is an exhaustive match and will fail to compile until it is
+    /// handled, and `every_permission_round_trips` fails until the variant is
+    /// listed here and in `from_name`.
+    pub const ALL: [Self; 29] = [
+        Self::CreateClient,
+        Self::ManageAuthorization,
+        Self::ManageClients,
+        Self::ManageEvents,
+        Self::ManageIdentityProviders,
+        Self::ManageRealm,
+        Self::ManageUsers,
+        Self::ManageRoles,
+        Self::QueryClients,
+        Self::QueryGroups,
+        Self::QueryRealms,
+        Self::QueryUsers,
+        Self::ViewAuthorization,
+        Self::ViewClients,
+        Self::ViewEvents,
+        Self::ViewIdentityProviders,
+        Self::ViewRealm,
+        Self::ViewUsers,
+        Self::ViewRoles,
+        Self::ManageWebhooks,
+        Self::QueryWebhooks,
+        Self::ViewWebhooks,
+        Self::ManageClientScopes,
+        Self::QueryClientScopes,
+        Self::ViewClientScopes,
+        Self::ManageEmailTemplates,
+        Self::ViewEmailTemplates,
+        Self::ManageOrganizations,
+        Self::ViewOrganizations,
+    ];
 
-        all_permissions
+    pub fn from_bitfield(bitfield: u64) -> Vec<Self> {
+        Self::ALL
             .iter()
             .copied()
             .filter(|&permission| (bitfield & (permission as u64)) == (permission as u64))
@@ -113,6 +126,8 @@ impl Permissions {
             Self::ViewClientScopes => "view_client_scopes".to_string(),
             Self::ManageEmailTemplates => "manage_email_templates".to_string(),
             Self::ViewEmailTemplates => "view_email_templates".to_string(),
+            Self::ManageOrganizations => "manage_organizations".to_string(),
+            Self::ViewOrganizations => "view_organizations".to_string(),
         }
     }
 
@@ -170,6 +185,8 @@ impl Permissions {
             "view_client_scopes" => Some(Self::ViewClientScopes),
             "manage_email_templates" => Some(Self::ManageEmailTemplates),
             "view_email_templates" => Some(Self::ViewEmailTemplates),
+            "manage_organizations" => Some(Self::ManageOrganizations),
+            "view_organizations" => Some(Self::ViewOrganizations),
             _ => None,
         }
     }
@@ -194,6 +211,40 @@ mod tests {
     use std::collections::HashSet;
 
     use super::Permissions;
+
+    /// Guards the four lists this type keeps in step: the enum, `ALL`,
+    /// `name()` and `from_name()`. A variant reachable by name but absent from
+    /// `ALL` would be silently dropped when a role's bitfield is decoded — the
+    /// permission would exist in the database and grant nothing.
+    #[test]
+    fn every_permission_round_trips() {
+        for permission in Permissions::ALL {
+            let name = permission.name();
+
+            assert_eq!(
+                Permissions::from_name(&name),
+                Some(permission),
+                "{permission:?} has no `from_name` entry for {name:?}",
+            );
+
+            assert_eq!(
+                Permissions::from_bitfield(permission as u64),
+                vec![permission],
+                "{permission:?} is missing from `ALL`, so its bit decodes to nothing",
+            );
+        }
+    }
+
+    #[test]
+    fn permission_bits_are_distinct() {
+        let mut seen = HashSet::new();
+        for permission in Permissions::ALL {
+            assert!(
+                seen.insert(permission as u64),
+                "{permission:?} reuses a bit already taken by another permission",
+            );
+        }
+    }
 
     #[test]
     fn test_from_bitfield() {

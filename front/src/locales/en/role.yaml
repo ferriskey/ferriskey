@@ -151,6 +151,7 @@ permissions:
     client_scopes: Client Scopes
     webhooks: Webhooks
     email_templates: Email Templates
+    organizations: Organizations
   # Keyed by the permission name the API grants. Translate the label and the description, never the key.
   entries:
     manage_users:
@@ -234,3 +235,9 @@ permissions:
     view_email_templates:
       label: View Email Templates
       description: Read the emails the realm sends.
+    manage_organizations:
+      label: Manage Organizations
+      description: Create, edit and delete organizations, and manage their members.
+    view_organizations:
+      label: View Organizations
+      description: Read organizations and their members.
