@@ -25,15 +25,15 @@ pub struct ListGroupMembersQuery {
     pub search: Option<String>,
 }
 
-use crate::application::http::organization::validators::{
+use crate::validators::{
     AddGroupMemberValidator, AssignGroupRoleValidator, CreateGroupValidator, UpdateGroupValidator,
     UpsertAttributeValidator,
 };
-use crate::application::http::server::api_entities::{
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse, ValidateJson},
     response::Response,
 };
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     get,

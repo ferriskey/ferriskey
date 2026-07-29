@@ -9,11 +9,11 @@ use ferriskey_core::domain::{
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::application::http::server::api_entities::{
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     response::Response,
 };
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ListOrganizationsResponse {

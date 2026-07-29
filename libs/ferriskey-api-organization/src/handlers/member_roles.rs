@@ -14,12 +14,12 @@ use ferriskey_core::domain::organization::ports::{
 use ferriskey_core::domain::role::entities::Role;
 use uuid::Uuid;
 
-use crate::application::http::organization::validators::AssignMemberRoleValidator;
-use crate::application::http::server::api_entities::{
+use crate::validators::AssignMemberRoleValidator;
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse, ValidateJson},
     response::Response,
 };
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     get,

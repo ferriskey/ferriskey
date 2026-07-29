@@ -5,56 +5,49 @@ use axum::{
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     organization::ports::{
-        ListOrganizationAttributesInput, OrganizationAttribute, OrganizationId, OrganizationService,
+        GetOrganizationInput, Organization, OrganizationId, OrganizationService,
     },
 };
-use serde::Serialize;
-use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::application::http::server::api_entities::{
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     response::Response,
 };
-use crate::application::http::server::app_state::AppState;
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ListOrganizationAttributesResponse {
-    pub data: Vec<OrganizationAttribute>,
-}
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     get,
-    path = "/{organization_id}/attributes",
+    path = "/{organization_id}",
     tag = "organization",
-    summary = "List organization attributes",
+    summary = "Get organization details",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
     ),
     responses(
-        (status = 200, description = "Attributes retrieved successfully", body = ListOrganizationAttributesResponse),
+        (status = 200, description = "Organization retrieved successfully", body = Organization),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Organization not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn list_attributes(
+pub async fn get_organization(
     Path((realm_name, organization_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<ListOrganizationAttributesResponse>, ApiError> {
+) -> Result<Response<Organization>, ApiError> {
     state
         .service
-        .list_attributes(
+        .get_organization(
             identity,
-            ListOrganizationAttributesInput {
+            GetOrganizationInput {
                 realm_name,
                 organization_id: OrganizationId::new(organization_id),
             },
         )
         .await
-        .map(|data| Response::OK(ListOrganizationAttributesResponse { data }))
+        .map(Response::OK)
         .map_err(ApiError::from)
 }

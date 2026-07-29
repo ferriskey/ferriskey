@@ -6,44 +6,42 @@ use axum::{
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    organization::ports::{DeleteOrganizationAttributeInput, OrganizationId, OrganizationService},
+    organization::ports::{DeleteOrganizationInput, OrganizationId, OrganizationService},
 };
 use uuid::Uuid;
 
-use crate::application::http::server::api_entities::api_error::{ApiError, ApiErrorResponse};
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     delete,
-    path = "/{organization_id}/attributes/{key}",
+    path = "/{organization_id}",
     tag = "organization",
-    summary = "Delete an organization attribute",
+    summary = "Delete an organization",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
-        ("key" = String, Path, description = "Attribute key"),
     ),
     responses(
-        (status = 204, description = "Attribute deleted successfully"),
+        (status = 204, description = "Organization deleted successfully"),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "Organization or attribute not found", body = ApiErrorResponse),
+        (status = 404, description = "Organization not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn delete_attribute(
-    Path((realm_name, organization_id, key)): Path<(String, Uuid, String)>,
+pub async fn delete_organization(
+    Path((realm_name, organization_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<impl IntoResponse, ApiError> {
     state
         .service
-        .delete_attribute(
+        .delete_organization(
             identity,
-            DeleteOrganizationAttributeInput {
+            DeleteOrganizationInput {
                 realm_name,
                 organization_id: OrganizationId::new(organization_id),
-                key,
             },
         )
         .await

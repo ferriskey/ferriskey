@@ -5,58 +5,56 @@ use axum::{
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     organization::ports::{
-        OrganizationAttribute, OrganizationId, OrganizationService,
-        UpsertOrganizationAttributeInput,
+        AddOrganizationMemberInput, OrganizationId, OrganizationMember, OrganizationService,
     },
 };
 use uuid::Uuid;
 
-use crate::application::http::organization::validators::UpsertAttributeValidator;
-use crate::application::http::server::api_entities::{
+use crate::validators::AddMemberValidator;
+use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse, ValidateJson},
     response::Response,
 };
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
-    put,
-    path = "/{organization_id}/attributes/{key}",
+    post,
+    path = "/{organization_id}/members",
     tag = "organization",
-    summary = "Create or update an organization attribute",
-    request_body = UpsertAttributeValidator,
+    summary = "Add a member to an organization",
+    request_body = AddMemberValidator,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
-        ("key" = String, Path, description = "Attribute key"),
     ),
     responses(
-        (status = 200, description = "Attribute upserted successfully", body = OrganizationAttribute),
+        (status = 201, description = "Member added successfully", body = OrganizationMember),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "Organization not found", body = ApiErrorResponse),
+        (status = 404, description = "Organization or user not found", body = ApiErrorResponse),
+        (status = 409, description = "User is already a member", body = ApiErrorResponse),
         (status = 422, description = "Validation error", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-pub async fn upsert_attribute(
-    Path((realm_name, organization_id, key)): Path<(String, Uuid, String)>,
+pub async fn add_member(
+    Path((realm_name, organization_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<UpsertAttributeValidator>,
-) -> Result<Response<OrganizationAttribute>, ApiError> {
+    ValidateJson(payload): ValidateJson<AddMemberValidator>,
+) -> Result<Response<OrganizationMember>, ApiError> {
     state
         .service
-        .upsert_attribute(
+        .add_member(
             identity,
-            UpsertOrganizationAttributeInput {
+            AddOrganizationMemberInput {
                 realm_name,
                 organization_id: OrganizationId::new(organization_id),
-                key,
-                value: payload.value,
+                user_id: payload.user_id,
             },
         )
         .await
-        .map(Response::Updated)
+        .map(Response::Created)
         .map_err(ApiError::from)
 }
