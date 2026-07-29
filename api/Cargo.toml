@@ -14,6 +14,7 @@ ferriskey-api-compass = { path = "../libs/ferriskey-api-compass" }
 ferriskey-api-webhook = { path = "../libs/ferriskey-api-webhook" }
 ferriskey-api-health = { path = "../libs/ferriskey-api-health" }
 ferriskey-api-role = { path = "../libs/ferriskey-api-role" }
+ferriskey-api-aegis = { path = "../libs/ferriskey-api-aegis" }
 ferriskey-api-email-template = { path = "../libs/ferriskey-api-email-template" }
 ferriskey-api-maintenance = { path = "../libs/ferriskey-api-maintenance" }
 ferriskey-api-portal-layouts = { path = "../libs/ferriskey-api-portal-layouts" }

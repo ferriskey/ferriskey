@@ -1,11 +1,9 @@
-use crate::application::http::server::{
-    api_entities::{api_error::ApiError, response::Response},
-    app_state::AppState,
-};
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::aegis::ports::ScopeMappingService;
 use ferriskey_core::domain::aegis::value_objects::UnassignClientScopeInput;
 use ferriskey_core::domain::authentication::value_objects::Identity;

@@ -19,7 +19,8 @@ use super::handlers::{
     update_client_scope::{__path_update_client_scope, update_client_scope},
     update_protocol_mapper::{__path_update_protocol_mapper, update_protocol_mapper},
 };
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 
 #[derive(OpenApi)]
 #[openapi(
