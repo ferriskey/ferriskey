@@ -681,7 +681,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
     },
     AuthzRow {
         service_fn: "delete_user",
-        policy_fn: "can_update_user",
+        policy_fn: "can_delete_user",
         action: actions::USER_DELETE,
         resource: EntityType::REALM,
         permissions: &[Permissions::ManageRealm, Permissions::ManageUsers],

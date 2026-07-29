@@ -187,7 +187,7 @@ where
 
         let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_update_user(&identity, &realm).await,
+            self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
@@ -1769,6 +1769,42 @@ mod tests {
             .await;
 
         assert!(result.is_ok(), "reset_password should succeed: {result:?}");
+    }
+
+    #[tokio::test]
+    async fn delete_user_refuses_a_target_from_another_realm() {
+        let attacker_realm = create_test_realm_with_name("tenant-a");
+        let victim_realm = create_test_realm_with_name("tenant-b");
+        let identity = create_test_user_identity_with_realm(&attacker_realm);
+        let admin_role = create_admin_role(&attacker_realm);
+
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let victim = create_test_user_with_params_and_realm(
+            &victim_realm,
+            "victim",
+            "victim@tenant-b.example".to_string(),
+            true,
+        );
+
+        // No `expect_delete_user`: the mock panics if the deletion is reached.
+        let service = UserServiceTestBuilder::new()
+            .with_realm("tenant-a".to_string(), attacker_realm.clone())
+            .with_user_permissions(admin_id, vec![admin_role])
+            .with_target_user(victim.clone())
+            .build();
+
+        let result = service
+            .delete_user(identity, "tenant-a".to_string(), victim.id)
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::NotFound)),
+            "deleting a user of another realm must not succeed, got {result:?}"
+        );
     }
 
     #[tokio::test]
