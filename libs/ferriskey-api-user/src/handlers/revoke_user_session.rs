@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::application::http::server::{
+use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
     app_state::AppState,
 };

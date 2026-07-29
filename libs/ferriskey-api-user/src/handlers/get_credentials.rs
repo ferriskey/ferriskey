@@ -1,12 +1,12 @@
-use crate::application::http::server::{
+use axum::extract::State;
+use axum::{Extension, extract::Path};
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
         response::Response,
     },
     app_state::AppState,
 };
-use axum::extract::State;
-use axum::{Extension, extract::Path};
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::credential::entities::CredentialOverview;
 use ferriskey_core::domain::credential::{entities::GetCredentialsInput, ports::CredentialService};

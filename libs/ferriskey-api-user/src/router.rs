@@ -1,11 +1,11 @@
-use crate::application::auth::auth;
 use axum::{
     Router, middleware,
     routing::{delete, get, post, put},
 };
+use ferriskey_api_core::auth::auth;
 use utoipa::OpenApi;
 
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::app_state::AppState;
 
 use super::handlers::{
     assign_role::{__path_assign_role, assign_role},

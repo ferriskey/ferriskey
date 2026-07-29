@@ -1,13 +1,13 @@
-use crate::application::http::server::{
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
         response::Response,
     },
     app_state::AppState,
-};
-use axum::{
-    Extension,
-    extract::{Path, State},
 };
 use ferriskey_core::domain::role::entities::Role;
 use ferriskey_core::domain::role::ports::RoleService;

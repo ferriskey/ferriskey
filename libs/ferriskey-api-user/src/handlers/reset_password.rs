@@ -1,13 +1,11 @@
-use crate::application::http::server::api_entities::api_error::{
-    ApiError, ApiErrorResponse, ValidateJson,
-};
-use crate::application::http::server::api_entities::response::Response;
-use crate::application::http::server::app_state::AppState;
-use crate::application::http::user::validators::ResetPasswordValidator;
+use crate::validators::ResetPasswordValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::user::entities::ResetPasswordInput;
 use ferriskey_core::domain::user::ports::UserService;
