@@ -1,17 +1,13 @@
-use crate::application::http::{
-    abyss::identity_provider::dto::{IdentityProviderResponse, UpdateIdentityProviderValidator},
-    server::{
-        api_entities::{
-            api_error::{ApiError, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-};
+use crate::identity_provider::dto::{IdentityProviderResponse, UpdateIdentityProviderValidator};
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::abyss::identity_provider::{
     entities::UpdateIdentityProviderInput, ports::IdentityProviderService,
 };

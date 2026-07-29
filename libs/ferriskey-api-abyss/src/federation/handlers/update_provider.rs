@@ -15,16 +15,12 @@ use std::str::FromStr;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::application::http::{
-    abyss::federation::dto::{ProviderResponse, UpdateProviderRequest},
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use crate::federation::dto::{ProviderResponse, UpdateProviderRequest};
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct UpdateProviderResponse {

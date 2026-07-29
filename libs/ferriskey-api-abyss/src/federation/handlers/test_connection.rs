@@ -2,13 +2,9 @@ use axum::extract::{Path, State};
 use ferriskey_core::domain::abyss::federation::ports::FederationService;
 use uuid::Uuid;
 
-use crate::application::http::{
-    abyss::federation::dto::TestConnectionResponse,
-    server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
-    },
-};
+use crate::federation::dto::TestConnectionResponse;
+use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     post,

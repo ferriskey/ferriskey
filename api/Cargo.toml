@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 ferriskey-core = { path = "../core" }
 ferriskey-api-core = { path = "../libs/ferriskey-api-core" }
+ferriskey-api-abyss = { path = "../libs/ferriskey-api-abyss" }
 ferriskey-api-seawatch = { path = "../libs/ferriskey-api-seawatch" }
 ferriskey-api-broker = { path = "../libs/ferriskey-api-broker" }
 ferriskey-api-compass = { path = "../libs/ferriskey-api-compass" }

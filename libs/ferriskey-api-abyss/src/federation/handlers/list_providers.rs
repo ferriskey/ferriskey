@@ -7,16 +7,12 @@ use ferriskey_core::domain::{
     authentication::value_objects::Identity,
 };
 
-use crate::application::http::{
-    abyss::federation::dto::ListProvidersResponse,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use crate::federation::dto::ListProvidersResponse;
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     get,

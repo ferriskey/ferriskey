@@ -3,16 +3,13 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::application::http::{
-    abyss::identity_provider::handlers::{
-        create_identity_provider::create_identity_provider,
-        delete_identity_provider::delete_identity_provider,
-        get_identity_provider::get_identity_provider,
-        list_identity_providers::list_identity_providers,
-        update_identity_provider::update_identity_provider,
-    },
-    server::app_state::AppState,
+use crate::identity_provider::handlers::{
+    create_identity_provider::create_identity_provider,
+    delete_identity_provider::delete_identity_provider,
+    get_identity_provider::get_identity_provider, list_identity_providers::list_identity_providers,
+    update_identity_provider::update_identity_provider,
 };
+use ferriskey_api_core::app_state::AppState;
 
 pub mod dto;
 pub mod handlers;
