@@ -49,3 +49,15 @@ where
         Ok(FullUrl(full_url, base_url))
     }
 }
+
+/// Joins a base URL with an optional root path segment.
+pub fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
+    if root_path.is_empty() || root_path == "/" {
+        return base_url.to_string();
+    }
+    format!(
+        "{}/{}",
+        base_url.trim_end_matches('/'),
+        root_path.trim_start_matches('/')
+    )
+}

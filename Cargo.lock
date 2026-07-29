@@ -1525,6 +1525,7 @@ dependencies = [
  "ferriskey-api-abyss",
  "ferriskey-api-aegis",
  "ferriskey-api-broker",
+ "ferriskey-api-client",
  "ferriskey-api-compass",
  "ferriskey-api-core",
  "ferriskey-api-email-template",
@@ -1605,6 +1606,22 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-client"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-api-role",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
  "utoipa",
  "uuid",
  "validator",

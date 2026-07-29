@@ -21,20 +21,10 @@ use validator::Validate;
 
 use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
 use crate::application::url::FullUrl;
+pub use ferriskey_api_core::url::root_scoped_base_url;
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
-
-pub fn root_scoped_base_url(base_url: &str, root_path: &str) -> String {
-    if root_path.is_empty() || root_path == "/" {
-        return base_url.to_string();
-    }
-    format!(
-        "{}/{}",
-        base_url.trim_end_matches('/'),
-        root_path.trim_start_matches('/')
-    )
-}
 
 fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
     format!(

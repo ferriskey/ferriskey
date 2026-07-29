@@ -1,17 +1,15 @@
-use crate::application::http::authentication::handlers::auth::root_scoped_base_url;
-use crate::application::http::client::validators::EvaluateScopesValidator;
-use crate::application::http::server::{
-    api_entities::{
-        api_error::{ApiError, ApiErrorResponse, ValidateJson},
-        response::Response,
-    },
-    app_state::AppState,
-};
-use crate::application::url::FullUrl;
+use crate::validators::EvaluateScopesValidator;
 use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_core::domain::authentication::value_objects::{
     EvaluateClientScopesRequest, EvaluateClientScopesResult, Identity,
 };
