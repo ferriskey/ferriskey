@@ -48,6 +48,7 @@ export default function PageApplicationDetailFeature() {
         enabled: values.enabled,
         direct_access_grants_enabled: values.directAccessGrantsEnabled,
         oauth_device_code_grant_enabled: values.oauthDeviceCodeGrantEnabled,
+        require_pkce: values.requirePkce,
         access_token_lifetime: values.accessTokenLifetime,
         refresh_token_lifetime: values.refreshTokenLifetime,
         id_token_lifetime: values.idTokenLifetime,
