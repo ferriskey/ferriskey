@@ -39,6 +39,7 @@ export default function PageClientSettingsFeature() {
       directAccessGrantsEnabled: clientResponse?.data.direct_access_grants_enabled ?? false,
       oauthDeviceCodeGrantEnabled:
         clientResponse?.data.oauth_device_code_grant_enabled ?? false,
+      requirePkce: clientResponse?.data.require_pkce ?? false,
       accessTokenLifetime: clientResponse?.data.access_token_lifetime ?? null,
       refreshTokenLifetime: clientResponse?.data.refresh_token_lifetime ?? null,
       idTokenLifetime: clientResponse?.data.id_token_lifetime ?? null,
@@ -55,6 +56,7 @@ export default function PageClientSettingsFeature() {
       directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled ?? false,
       oauthDeviceCodeGrantEnabled:
         clientResponse.data.oauth_device_code_grant_enabled ?? false,
+      requirePkce: clientResponse.data.require_pkce ?? false,
       accessTokenLifetime: clientResponse.data.access_token_lifetime ?? null,
       refreshTokenLifetime: clientResponse.data.refresh_token_lifetime ?? null,
       idTokenLifetime: clientResponse.data.id_token_lifetime ?? null,
@@ -72,6 +74,7 @@ export default function PageClientSettingsFeature() {
         enabled: values.enabled,
         direct_access_grants_enabled: values.directAccessGrantsEnabled,
         oauth_device_code_grant_enabled: values.oauthDeviceCodeGrantEnabled,
+        require_pkce: values.requirePkce,
         access_token_lifetime: values.accessTokenLifetime,
         refresh_token_lifetime: values.refreshTokenLifetime,
         id_token_lifetime: values.idTokenLifetime,
@@ -93,6 +96,7 @@ export default function PageClientSettingsFeature() {
         directAccessGrantsEnabled: clientResponse.data.direct_access_grants_enabled,
         oauthDeviceCodeGrantEnabled:
           clientResponse.data.oauth_device_code_grant_enabled ?? false,
+        requirePkce: clientResponse.data.require_pkce ?? false,
         accessTokenLifetime: clientResponse.data.access_token_lifetime ?? null,
         refreshTokenLifetime: clientResponse.data.refresh_token_lifetime ?? null,
         idTokenLifetime: clientResponse.data.id_token_lifetime ?? null,

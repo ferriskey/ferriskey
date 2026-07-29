@@ -23,6 +23,7 @@ export interface ApplicationSettingsValues {
   enabled: boolean
   directAccessGrantsEnabled: boolean
   oauthDeviceCodeGrantEnabled: boolean
+  requirePkce: boolean
   accessTokenLifetime: number | null
   refreshTokenLifetime: number | null
   idTokenLifetime: number | null
@@ -35,6 +36,7 @@ function settingsFromClient(c: Client): ApplicationSettingsValues {
     enabled: c.enabled,
     directAccessGrantsEnabled: c.direct_access_grants_enabled,
     oauthDeviceCodeGrantEnabled: c.oauth_device_code_grant_enabled,
+    requirePkce: c.require_pkce,
     accessTokenLifetime: c.access_token_lifetime ?? null,
     refreshTokenLifetime: c.refresh_token_lifetime ?? null,
     idTokenLifetime: c.id_token_lifetime ?? null,
@@ -73,7 +75,12 @@ export default function SettingsTab({
   )
 
   const appType = inferApplicationType(client)
-  const showRedirectUris = appType !== 'm2m' && appType !== 'device'
+  // Redirect URIs and PKCE only mean something for the authorization code flow;
+  // m2m (client credentials) and device (RFC 8628) clients never go through it.
+  const usesAuthorizationCode = appType !== 'm2m' && appType !== 'device'
+  // SPAs and native apps ship their code to the end user, so they cannot hold a
+  // secret — PKCE is their only protection against code interception.
+  const isPublicClient = appType === 'spa' || appType === 'native'
 
   const set = <K extends keyof ApplicationSettingsValues>(
     key: K,
@@ -112,7 +119,7 @@ export default function SettingsTab({
         />
       </Section>
 
-      {showRedirectUris && (
+      {usesAuthorizationCode && (
         <Section
           title='Redirect URIs'
           description='Allowed callback URLs FerrisKey may redirect to after sign-in.'
@@ -180,6 +187,24 @@ export default function SettingsTab({
           onChange={(v) => set('oauthDeviceCodeGrantEnabled', v)}
         />
       </Section>
+
+      {usesAuthorizationCode && (
+        <Section
+          title='Security'
+          description='Hardening options for the authorization code flow.'
+        >
+          <ToggleRow
+            label='Require PKCE'
+            description={
+              isPublicClient
+                ? 'Reject authorization requests without an S256 challenge (RFC 7636). Strongly recommended: this application cannot keep a client secret safe.'
+                : 'Reject authorization requests without an S256 challenge (RFC 7636). The plain method is refused when this is on.'
+            }
+            checked={values.requirePkce}
+            onChange={(v) => set('requirePkce', v)}
+          />
+        </Section>
+      )}
 
       <Section
         title='Token lifetimes'
