@@ -1531,6 +1531,7 @@ dependencies = [
  "ferriskey-api-email-template",
  "ferriskey-api-health",
  "ferriskey-api-maintenance",
+ "ferriskey-api-organization",
  "ferriskey-api-portal-layouts",
  "ferriskey-api-portal-theme",
  "ferriskey-api-realm",
@@ -1697,6 +1698,19 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-maintenance"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-organization"
 version = "0.7.0"
 dependencies = [
  "axum",

@@ -1,7 +1,7 @@
 use axum::{Router, middleware, routing::get};
 use utoipa::OpenApi;
 
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::{app_state::AppState, auth::auth};
 
 use super::handlers::{
     add_member::{__path_add_member, add_member},
