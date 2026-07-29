@@ -1,0 +1,17 @@
+[package]
+name = "ferriskey-api-client"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-api-role = { path = "../ferriskey-api-role" }
+ferriskey-core = { path = "../../core" }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+validator = { workspace = true }

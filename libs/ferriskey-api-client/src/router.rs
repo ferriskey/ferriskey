@@ -30,7 +30,8 @@ use super::handlers::{
     },
     update_redirect_uri::{__path_update_redirect_uri, update_redirect_uri},
 };
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
 
 #[derive(OpenApi)]
 #[openapi(
