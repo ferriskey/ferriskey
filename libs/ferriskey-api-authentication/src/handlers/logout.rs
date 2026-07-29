@@ -8,13 +8,11 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::EndSessionInput};
 use validator::Validate;
 
-use crate::application::http::authentication::validators::LogoutRequestValidator;
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
-use crate::application::http::{
-    authentication::handlers::auth::root_scoped_base_url,
-    server::api_entities::api_error::ApiErrorResponse,
-};
-use crate::application::url::FullUrl;
+use crate::handlers::auth::root_scoped_base_url;
+use crate::validators::LogoutRequestValidator;
+use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";

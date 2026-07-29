@@ -1524,6 +1524,7 @@ dependencies = [
  "dotenv",
  "ferriskey-api-abyss",
  "ferriskey-api-aegis",
+ "ferriskey-api-authentication",
  "ferriskey-api-broker",
  "ferriskey-api-client",
  "ferriskey-api-compass",
@@ -1595,6 +1596,25 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-authentication"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "base64 0.22.1",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "urlencoding",
  "utoipa",
  "uuid",
  "validator",

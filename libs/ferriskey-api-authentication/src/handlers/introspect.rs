@@ -8,14 +8,12 @@ use ferriskey_core::domain::authentication::{
 };
 use validator::Validate;
 
-use crate::application::http::authentication::basic_auth::try_parse_basic_client_credentials;
-use crate::application::http::server::{
+use crate::basic_auth::try_parse_basic_client_credentials;
+use crate::validators::IntrospectRequestValidator;
+use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
-};
-use crate::application::http::{
-    authentication::validators::IntrospectRequestValidator,
-    server::api_entities::api_error::ApiErrorResponse,
 };
 
 #[utoipa::path(

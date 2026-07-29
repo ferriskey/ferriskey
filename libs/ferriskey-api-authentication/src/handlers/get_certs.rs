@@ -1,7 +1,7 @@
-use crate::application::http::server::api_entities::api_error::{ApiError, ApiErrorResponse};
-use crate::application::http::server::api_entities::response::Response;
-use crate::application::http::server::app_state::AppState;
 use axum::extract::{Path, State};
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::{authentication::ports::AuthService, jwt::entities::JwkKey};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

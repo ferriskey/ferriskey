@@ -19,9 +19,9 @@ use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
-use crate::application::http::server::{api_entities::api_error::ApiError, app_state::AppState};
-use crate::application::url::FullUrl;
+use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
+use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";

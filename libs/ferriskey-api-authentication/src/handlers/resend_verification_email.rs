@@ -3,16 +3,12 @@ use ferriskey_core::domain::email_verification::ports::EmailVerificationService;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::application::{
-    decoded_token::OptionalToken,
-    http::server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::decoded_token::OptionalToken;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ResendVerificationEmailResponse {

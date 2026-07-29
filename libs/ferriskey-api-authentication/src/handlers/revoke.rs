@@ -5,8 +5,8 @@ use axum::{
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::RevokeTokenInput};
 use validator::Validate;
 
-use crate::application::http::authentication::validators::RevokeTokenRequestValidator;
-use crate::application::http::server::{
+use crate::validators::RevokeTokenRequestValidator;
+use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };

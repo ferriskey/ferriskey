@@ -1,12 +1,6 @@
 use super::auth::root_scoped_base_url;
-use crate::application::http::authentication::basic_auth::try_parse_basic_client_credentials;
-use crate::application::http::server::api_entities::api_error::ApiError;
-use crate::application::http::server::app_state::AppState;
-use crate::application::http::{
-    authentication::validators::TokenRequestValidator,
-    server::api_entities::api_error::ApiErrorResponse,
-};
-use crate::application::url::FullUrl;
+use crate::basic_auth::try_parse_basic_client_credentials;
+use crate::validators::TokenRequestValidator;
 use axum::{
     Form,
     extract::{Path, State},
@@ -14,6 +8,10 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
+use ferriskey_api_core::api_entities::api_error::ApiError;
+use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use tracing::{instrument, warn};

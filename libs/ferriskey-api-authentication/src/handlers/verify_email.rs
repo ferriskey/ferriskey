@@ -6,7 +6,7 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 use validator::Validate;
 
-use crate::application::http::server::{
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,

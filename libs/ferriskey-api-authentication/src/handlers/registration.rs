@@ -14,14 +14,14 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::auth::root_scoped_base_url;
-use crate::application::http::server::{
+use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
 };
-use crate::application::url::FullUrl;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegistrationRequest {

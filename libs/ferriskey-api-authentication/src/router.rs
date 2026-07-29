@@ -28,7 +28,7 @@ use super::handlers::{
 };
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 
-use crate::application::{auth::auth, http::server::app_state::AppState};
+use ferriskey_api_core::{app_state::AppState, auth::auth};
 
 #[derive(OpenApi)]
 #[openapi(
