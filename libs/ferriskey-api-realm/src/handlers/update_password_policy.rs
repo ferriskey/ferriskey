@@ -7,16 +7,12 @@ use ferriskey_core::domain::{
     password_policy::entity::{PasswordPolicy, UpdatePasswordPolicy},
 };
 
-use crate::application::http::{
-    realm::validators::UpdatePasswordPolicyValidator,
-    server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse, ValidateJson},
-            response::Response,
-        },
-        app_state::AppState,
-    },
+use crate::validators::UpdatePasswordPolicyValidator;
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
 };
+use ferriskey_api_core::app_state::AppState;
 
 #[utoipa::path(
     put,
