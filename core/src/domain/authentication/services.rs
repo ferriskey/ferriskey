@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -57,6 +57,7 @@ use crate::domain::{
     },
     realm::{entities::RealmId, ports::RealmRepository},
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
+    session::{entities::UserSession, ports::UserSessionRepository},
     user::{
         entities::{RequiredAction, UserAttribute},
         ports::{
@@ -232,6 +233,7 @@ pub struct AuthServiceImpl<
     EV,
     WR,
     SER,
+    USR,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -259,6 +261,7 @@ pub struct AuthServiceImpl<
     EV: EmailVerificationService,
     WR: WebhookRepository,
     SER: SecurityEventRepository,
+    USR: UserSessionRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -286,6 +289,7 @@ pub struct AuthServiceImpl<
     pub(crate) email_verification_service: EV,
     pub(crate) webhook_repository: Arc<WR>,
     pub(crate) security_event_repository: Arc<SER>,
+    pub(crate) user_session_repository: Arc<USR>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
@@ -318,6 +322,7 @@ impl<
     EV,
     WR,
     SER,
+    USR,
 >
     AuthServiceImpl<
         R,
@@ -346,6 +351,7 @@ impl<
         EV,
         WR,
         SER,
+        USR,
     >
 where
     R: RealmRepository,
@@ -374,6 +380,7 @@ where
     EV: EmailVerificationService,
     WR: WebhookRepository,
     SER: SecurityEventRepository,
+    USR: UserSessionRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -403,6 +410,7 @@ where
         email_verification_service: EV,
         webhook_repository: Arc<WR>,
         security_event_repository: Arc<SER>,
+        user_session_repository: Arc<USR>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -433,6 +441,7 @@ where
             email_verification_service,
             webhook_repository,
             security_event_repository,
+            user_session_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -467,6 +476,7 @@ impl<
     EV,
     WR,
     SER,
+    USR,
 >
     AuthServiceImpl<
         R,
@@ -495,6 +505,7 @@ impl<
         EV,
         WR,
         SER,
+        USR,
     >
 where
     R: RealmRepository,
@@ -523,6 +534,7 @@ where
     EV: EmailVerificationService,
     WR: WebhookRepository,
     SER: SecurityEventRepository,
+    USR: UserSessionRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -921,7 +933,9 @@ where
             exp: iat + id_token_lifetime,
             iat,
             jti: Uuid::new_v4(),
-            sid: None,
+            // OIDC `sid`, mirrored from the access token so RP-initiated logout and
+            // back-channel logout can identify the session.
+            sid: access_claims.sid.map(|sid| sid.to_string()),
             at_hash,
             nonce,
             preferred_username: None,
@@ -961,6 +975,8 @@ where
             id_token_lifetime: lifetimes.id_token,
             nonce: None,
             refresh_jti_override: None,
+            // Preview only — nothing is signed or persisted, so there is no session.
+            session_id: None,
         };
 
         let assembled = self.assemble_token_claims(&gen_input).await?;
@@ -1066,6 +1082,64 @@ where
         })
     }
 
+    /// Open the SSO session a login is bound to, and record it in the audit trail.
+    ///
+    /// The session is given the same lifetime as the refresh token, so that the
+    /// window in which a user can keep renewing tokens is exactly the window in
+    /// which their session is alive. A dedicated realm-level SSO session lifetime
+    /// would be a better fit and is left for follow-up.
+    ///
+    /// `user_agent` and `ip_address` are left unset: the token endpoint is a
+    /// back-channel call made by the client application, so its transport metadata
+    /// describes the client rather than the user's browser. Recording the real
+    /// values means carrying them from the `/auth` request through `auth_sessions`.
+    async fn create_user_session(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+        session_lifetime_seconds: i64,
+    ) -> Result<UserSession, CoreError> {
+        // The lifetime comes from realm/client settings, so it is operator-supplied.
+        // `Duration::seconds` panics out of range — never let a bad setting take the
+        // token endpoint down.
+        let session_duration =
+            Duration::try_seconds(session_lifetime_seconds).ok_or_else(|| {
+                warn!(
+                    "Refusing to open a session: refresh token lifetime {} is out of range",
+                    session_lifetime_seconds
+                );
+                CoreError::SessionCreateError
+            })?;
+
+        let session =
+            UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+
+        self.user_session_repository
+            .create(&session)
+            .await
+            .map_err(|e| {
+                warn!(
+                    "Failed to create user session for user {}: {:?}",
+                    user_id, e
+                );
+                CoreError::SessionCreateError
+            })?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::SessionCreated,
+                    EventStatus::Success,
+                    user_id,
+                )
+                .with_target("session".to_string(), session.id, None),
+            )
+            .await?;
+
+        Ok(session)
+    }
+
     async fn create_jwt(
         &self,
         input: GenerateTokenInput,
@@ -1077,10 +1151,14 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         let AssembledClaims {
-            access_claims: claims,
+            access_claims: mut claims,
             id_mapper_claims,
             ..
         } = self.assemble_token_claims(&input).await?;
+
+        // Bind the token pair to the SSO session so introspection and refresh can
+        // check it is still alive. Absent for flows that establish no session.
+        claims.sid = input.session_id;
 
         let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
             .map_err(|e| {
@@ -1104,6 +1182,8 @@ where
             claims.scope.clone(),
             input.refresh_token_lifetime,
         );
+
+        refresh_claims.sid = input.session_id;
 
         // When the caller has already persisted the refresh token row (rotation path),
         // override the jti so the signed JWT matches the DB record exactly.
@@ -1428,6 +1508,13 @@ where
             .resolve_token_lifetimes(params.realm_id, auth_session.client_id)
             .await?;
 
+        // The SSO session backing this login. Every token minted below carries its
+        // id as `sid`, which is what lets revocation take effect on introspection
+        // and refresh.
+        let user_session = self
+            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -1447,6 +1534,7 @@ where
                 id_token_lifetime: lifetimes.id_token,
                 nonce: auth_session.nonce.clone(),
                 refresh_jti_override: None,
+                session_id: Some(user_session.id),
             })
             .await
             .map_err(|e| {
@@ -1575,6 +1663,8 @@ where
                 id_token_lifetime: lifetimes.id_token,
                 nonce: None,
                 refresh_jti_override: None,
+                // Machine-to-machine: no user is present, so no SSO session exists.
+                session_id: None,
             })
             .await?;
 
@@ -1733,6 +1823,10 @@ where
                 id_token_lifetime: lifetimes.id_token,
                 nonce: None,
                 refresh_jti_override: None,
+                // The direct access grant establishes no browser SSO session, so
+                // its tokens are not session-bound. Scoped to the authorization
+                // code flow per #1143; extending it here is a separate decision.
+                session_id: None,
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -1857,6 +1951,10 @@ where
                         id_token_lifetime: lifetimes.id_token,
                         nonce: None,
                         refresh_jti_override: Some(new_stored.jti),
+                        // Carry the session binding across rotation, otherwise a
+                        // single refresh would silently detach the token pair from
+                        // its session and make it immune to revocation.
+                        session_id: claims.sid,
                     })
                     .await?;
 
@@ -2520,6 +2618,7 @@ impl<
     EV,
     WR,
     SER,
+    USR,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -2548,6 +2647,7 @@ impl<
         EV,
         WR,
         SER,
+        USR,
     >
 where
     R: RealmRepository,
@@ -2576,6 +2676,7 @@ where
     EV: EmailVerificationService,
     WR: WebhookRepository,
     SER: SecurityEventRepository,
+    USR: UserSessionRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self

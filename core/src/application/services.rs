@@ -269,6 +269,7 @@ type ApplicationAuthService = AuthServiceImpl<
     ApplicationEmailVerificationService,
     WebhookRepo,
     SecurityEventRepo,
+    UserSessionRepo,
 >;
 
 type DeviceAuthRepo = PostgresDeviceAuthRepository;
