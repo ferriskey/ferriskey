@@ -2,6 +2,7 @@ pub mod api_entities;
 pub mod app_state;
 pub mod args;
 pub mod auth;
+pub mod authentication;
 pub mod config;
 pub mod decoded_token;
 pub mod error;

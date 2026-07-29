@@ -1,16 +1,14 @@
-use crate::application::{
-    http::server::{
-        api_entities::{
-            api_error::{ApiError, ApiErrorResponse},
-            response::Response,
-        },
-        app_state::AppState,
-    },
-    url::FullUrl,
-};
 use axum::{
     Extension,
     extract::{Path, State},
+};
+use ferriskey_api_core::{
+    api_entities::{
+        api_error::{ApiError, ApiErrorResponse},
+        response::Response,
+    },
+    app_state::AppState,
+    url::FullUrl,
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,

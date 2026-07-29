@@ -8,9 +8,8 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
 
-use ferriskey_core::domain::authentication::entities::{
-    AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
-};
+use ferriskey_core::domain::authentication::entities::AuthenticateInput;
+use ferriskey_core::domain::authentication::entities::AuthenticationStepStatus;
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::email_verification::ports::EmailVerificationService;
 use ferriskey_core::domain::user::entities::RequiredAction;
@@ -20,26 +19,11 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
+pub use ferriskey_api_core::authentication::{AuthenticateResponse, AuthenticationStatus};
+
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
     client_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
-pub enum AuthenticationStatus {
-    Success,
-    RequiresActions,
-    RequiresOtpChallenge,
-    Failed,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
-pub struct AuthenticateResponse {
-    pub status: AuthenticationStatus,
-    pub url: Option<String>,
-    pub required_actions: Option<Vec<RequiredAction>>,
-    pub token: Option<String>,
-    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -51,45 +35,6 @@ pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "password is required"))]
     #[serde(default)]
     pub password: Option<String>,
-}
-
-impl From<AuthenticateOutput> for AuthenticateResponse {
-    fn from(result: AuthenticateOutput) -> Self {
-        match result.status {
-            AuthenticationStepStatus::Success => AuthenticateResponse {
-                status: AuthenticationStatus::Success,
-                url: result.redirect_url,
-                required_actions: None,
-                token: None,
-                message: Some("Authentication successful".to_string()),
-            },
-            AuthenticationStepStatus::RequiresActions => AuthenticateResponse {
-                status: AuthenticationStatus::RequiresActions,
-                url: None,
-                required_actions: if result.required_actions.is_empty() {
-                    None
-                } else {
-                    Some(result.required_actions)
-                },
-                token: result.temporary_token,
-                message: Some("Additional actions required before login".to_string()),
-            },
-            AuthenticationStepStatus::RequiresOtpChallenge => AuthenticateResponse {
-                status: AuthenticationStatus::RequiresOtpChallenge,
-                url: None,
-                required_actions: None,
-                token: result.temporary_token,
-                message: Some("OTP verification required".to_string()),
-            },
-            AuthenticationStepStatus::Failed => AuthenticateResponse {
-                status: AuthenticationStatus::Failed,
-                url: None,
-                required_actions: None,
-                token: None,
-                message: Some("Authentication failed".to_string()),
-            },
-        }
-    }
 }
 
 #[utoipa::path(

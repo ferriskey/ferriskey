@@ -1537,6 +1537,7 @@ dependencies = [
  "ferriskey-api-realm",
  "ferriskey-api-role",
  "ferriskey-api-seawatch",
+ "ferriskey-api-trident",
  "ferriskey-api-webhook",
  "ferriskey-core",
  "opentelemetry",
@@ -1789,6 +1790,23 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "utoipa",
+]
+
+[[package]]
+name = "ferriskey-api-trident"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "tracing",
+ "url",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]
