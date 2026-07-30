@@ -534,13 +534,15 @@ where
             .await
             .unwrap_or_default();
 
+        let mut realm_roles: Vec<String> = Vec::new();
         let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
         for role in &user_roles {
-            if let Some(client) = &role.client {
-                client_roles
+            match &role.client {
+                Some(client) => client_roles
                     .entry(client.client_id.clone())
                     .or_default()
-                    .push(role.name.clone());
+                    .push(role.name.clone()),
+                None => realm_roles.push(role.name.clone()),
             }
         }
 
@@ -596,7 +598,7 @@ where
             email_verified: input.email_verified,
             firstname: input.firstname.clone(),
             lastname: input.lastname.clone(),
-            realm_roles: vec![],
+            realm_roles,
             client_roles,
             client_id: input.client_id.clone(),
             client_uuid: input.client_uuid,
