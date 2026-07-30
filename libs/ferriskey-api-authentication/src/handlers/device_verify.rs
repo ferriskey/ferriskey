@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use utoipa::ToSchema;
 
-use crate::application::http::server::api_entities::api_error::{ApiError, ApiErrorResponse};
-use crate::application::http::server::app_state::AppState;
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
+use ferriskey_api_core::app_state::AppState;
 
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 

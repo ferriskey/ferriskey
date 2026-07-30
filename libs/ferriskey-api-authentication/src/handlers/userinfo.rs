@@ -7,13 +7,9 @@ use ferriskey_core::domain::authentication::{
     value_objects::{GetUserInfoInput, Identity, UserInfoResponse},
 };
 
-use crate::application::{
-    decoded_token::OptionalToken,
-    http::server::{
-        api_entities::{api_error::ApiError, response::Response},
-        app_state::AppState,
-    },
-};
+use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::decoded_token::OptionalToken;
 
 #[utoipa::path(
     get,

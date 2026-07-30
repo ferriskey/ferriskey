@@ -1,12 +1,12 @@
 use super::auth::root_scoped_base_url;
-use crate::application::decoded_token::OptionalToken;
-use crate::application::http::server::api_entities::api_error::{ApiError, ValidateJson};
-use crate::application::http::server::app_state::AppState;
-use crate::application::url::FullUrl;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
+use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::decoded_token::OptionalToken;
+use ferriskey_api_core::url::FullUrl;
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
 use ferriskey_core::domain::authentication::entities::AuthenticationStepStatus;

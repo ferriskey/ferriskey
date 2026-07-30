@@ -1,10 +1,10 @@
 use super::auth::root_scoped_base_url;
-use crate::application::http::server::{api_entities::response::Response, app_state::AppState};
 use axum::http::Request;
 use axum::{
     body::Body,
     extract::{Path, State},
 };
+use ferriskey_api_core::{api_entities::response::Response, app_state::AppState};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

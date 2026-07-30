@@ -25,6 +25,7 @@ ferriskey-api-client = { path = "../libs/ferriskey-api-client" }
 ferriskey-api-organization = { path = "../libs/ferriskey-api-organization" }
 ferriskey-api-trident = { path = "../libs/ferriskey-api-trident" }
 ferriskey-api-user = { path = "../libs/ferriskey-api-user" }
+ferriskey-api-authentication = { path = "../libs/ferriskey-api-authentication" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"

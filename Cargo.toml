@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "api", "operator","client", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain", "libs/ferriskey-trident", "libs/ferriskey-abyss", "libs/ferriskey-aegis", "libs/ferriskey-compass", "libs/ferriskey-mail", "libs/ferriskey-migrate", "libs/ferriskey-organization", "libs/ferriskey-seawatch", "libs/ferriskey-password-policy", "libs/ferriskey-webhook", "libs/ferriskey-portal-theme", "libs/ferriskey-portal-layouts", "libs/ferriskey-api-core", "libs/ferriskey-api-abyss", "libs/ferriskey-api-seawatch", "libs/ferriskey-api-broker", "libs/ferriskey-api-compass", "libs/ferriskey-api-webhook", "libs/ferriskey-api-health", "libs/ferriskey-api-role", "libs/ferriskey-api-aegis", "libs/ferriskey-api-email-template", "libs/ferriskey-api-maintenance", "libs/ferriskey-api-portal-layouts", "libs/ferriskey-api-portal-theme", "libs/ferriskey-api-realm", "libs/ferriskey-api-client", "libs/ferriskey-api-organization", "libs/ferriskey-api-trident", "libs/ferriskey-api-user"]
+members = ["core", "api", "operator","client", "libs/maskass", "libs/ferriskey-security", "libs/ferriskey-domain", "libs/ferriskey-trident", "libs/ferriskey-abyss", "libs/ferriskey-aegis", "libs/ferriskey-compass", "libs/ferriskey-mail", "libs/ferriskey-migrate", "libs/ferriskey-organization", "libs/ferriskey-seawatch", "libs/ferriskey-password-policy", "libs/ferriskey-webhook", "libs/ferriskey-portal-theme", "libs/ferriskey-portal-layouts", "libs/ferriskey-api-core", "libs/ferriskey-api-abyss", "libs/ferriskey-api-seawatch", "libs/ferriskey-api-broker", "libs/ferriskey-api-compass", "libs/ferriskey-api-webhook", "libs/ferriskey-api-health", "libs/ferriskey-api-role", "libs/ferriskey-api-aegis", "libs/ferriskey-api-email-template", "libs/ferriskey-api-maintenance", "libs/ferriskey-api-portal-layouts", "libs/ferriskey-api-portal-theme", "libs/ferriskey-api-realm", "libs/ferriskey-api-client", "libs/ferriskey-api-organization", "libs/ferriskey-api-trident", "libs/ferriskey-api-user", "libs/ferriskey-api-authentication"]
 resolver = "2"
 
 [workspace.package]
@@ -14,11 +14,13 @@ edition = "2024"
 axum = "0.8.8"
 axum-cookie = "0.2.3"
 axum-extra = { version = "0.12.5", features = ["cookie", "typed-header"] }
+base64 = "0.22.1"
 chrono = { version = "0.4.40", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
 tracing = "0.1.44"
 url = "2.5.4"
+urlencoding = "2.1.3"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.19.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.20.0", features = ["derive"] }
