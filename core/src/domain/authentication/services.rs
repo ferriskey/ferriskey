@@ -938,22 +938,46 @@ where
         &self,
         input: EvaluateClientScopesInput,
     ) -> Result<EvaluateClientScopesResult, CoreError> {
-        let user = self.user_repository.get_by_id(input.user_id).await?;
         let lifetimes = self
             .resolve_token_lifetimes(input.realm_id, input.client_uuid)
             .await?;
 
+        // When a real user_id is provided, load the user and resolve their roles/attributes.
+        // When omitted, use placeholder values so admins can preview hardcoded-claim and
+        // scope-level mappers without needing to select a specific user.
+        let (user_id, username, firstname, lastname, email, email_verified) =
+            if let Some(uid) = input.user_id {
+                let user = self.user_repository.get_by_id(uid).await?;
+                (
+                    user.id,
+                    user.username.clone(),
+                    user.firstname.clone().unwrap_or_default(),
+                    user.lastname.clone().unwrap_or_default(),
+                    user.email.clone().unwrap_or_default(),
+                    user.email_verified,
+                )
+            } else {
+                (
+                    Uuid::new_v4(),
+                    "preview_user".to_string(),
+                    "Preview".to_string(),
+                    "User".to_string(),
+                    "preview@example.com".to_string(),
+                    false,
+                )
+            };
+
         let gen_input = GenerateTokenInput {
             base_url: input.base_url,
             realm_name: input.realm_name,
-            user_id: user.id,
-            username: user.username.clone(),
-            firstname: user.firstname.clone().unwrap_or_default(),
-            lastname: user.lastname.clone().unwrap_or_default(),
-            email_verified: user.email_verified,
+            user_id,
+            username: username.clone(),
+            firstname,
+            lastname,
+            email_verified,
             client_id: input.client_id,
             client_uuid: input.client_uuid,
-            email: user.email.clone().unwrap_or_default(),
+            email: email.clone(),
             realm_id: input.realm_id,
             scope: input.scope,
             access_token_lifetime: lifetimes.access_token,
@@ -965,43 +989,47 @@ where
 
         let assembled = self.assemble_token_claims(&gen_input).await?;
 
-        // Effective role scope mappings: the user's directly-assigned roles plus roles inherited
-        // from their effective (recursive) group memberships — matching what tokens carry.
-        let mut user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .unwrap_or_default();
-        let group_role_ids = self
-            .group_token_repository
-            .list_effective_role_ids_for_user(user.id)
-            .await
-            .unwrap_or_default();
-        if !group_role_ids.is_empty() {
-            let group_roles = self
+        // Effective roles: only resolved when a real user was provided.
+        let (realm_roles, client_roles) = if let Some(uid) = input.user_id {
+            let mut user_roles = self
                 .user_role_repository
-                .get_roles_by_ids(group_role_ids)
+                .get_user_roles(uid)
                 .await
                 .unwrap_or_default();
-            user_roles.extend(group_roles);
-        }
-        let mut realm_roles = Vec::new();
-        let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
-        for role in &user_roles {
-            match &role.client {
-                Some(client) => client_roles
-                    .entry(client.client_id.clone())
-                    .or_default()
-                    .push(role.name.clone()),
-                None => realm_roles.push(role.name.clone()),
+            let group_role_ids = self
+                .group_token_repository
+                .list_effective_role_ids_for_user(uid)
+                .await
+                .unwrap_or_default();
+            if !group_role_ids.is_empty() {
+                let group_roles = self
+                    .user_role_repository
+                    .get_roles_by_ids(group_role_ids)
+                    .await
+                    .unwrap_or_default();
+                user_roles.extend(group_roles);
             }
-        }
-        realm_roles.sort();
-        realm_roles.dedup();
-        for roles in client_roles.values_mut() {
-            roles.sort();
-            roles.dedup();
-        }
+            let mut realm_roles = Vec::new();
+            let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
+            for role in &user_roles {
+                match &role.client {
+                    Some(client) => client_roles
+                        .entry(client.client_id.clone())
+                        .or_default()
+                        .push(role.name.clone()),
+                    None => realm_roles.push(role.name.clone()),
+                }
+            }
+            realm_roles.sort();
+            realm_roles.dedup();
+            for roles in client_roles.values_mut() {
+                roles.sort();
+                roles.dedup();
+            }
+            (realm_roles, client_roles)
+        } else {
+            (Vec::new(), HashMap::new())
+        };
 
         let access_token = serde_json::to_value(&assembled.access_claims)
             .map_err(|_| CoreError::InternalServerError)?;
