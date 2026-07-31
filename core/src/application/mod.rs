@@ -459,6 +459,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             policy.clone(),
         ),
+        policy: policy.clone(),
         compass_service: CompassServiceImpl::new(
             realm.clone(),
             compass_flow.clone(),
