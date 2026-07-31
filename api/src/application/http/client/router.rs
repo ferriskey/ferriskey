@@ -24,6 +24,7 @@ use super::handlers::{
         __path_get_post_logout_redirect_uris, get_post_logout_redirect_uris,
     },
     get_redirect_uris::{__path_get_redirect_uris, get_redirect_uris},
+    token_preview::{__path_preview_token, preview_token},
     update_client::{__path_update_client, update_client},
     update_post_logout_redirect_uri::{
         __path_update_post_logout_redirect_uri, update_post_logout_redirect_uri,
@@ -50,7 +51,8 @@ use crate::application::{auth::auth, http::server::app_state::AppState};
         delete_redirect_uri,
         delete_post_logout_redirect_uri,
         get_client_roles,
-        evaluate_scopes
+        evaluate_scopes,
+        preview_token
     ),
 
     tags(
@@ -172,6 +174,13 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(evaluate_scopes),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/token-preview",
+                state.args.server.root_path
+            ),
+            post(preview_token),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }
