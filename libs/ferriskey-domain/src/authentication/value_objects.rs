@@ -225,6 +225,8 @@ pub struct EvaluatedScope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct EvaluatedMapper {
+    /// Name of the client scope that contributed this mapper.
+    pub scope: String,
     pub name: String,
     pub mapper_type: String,
     pub config: serde_json::Value,
