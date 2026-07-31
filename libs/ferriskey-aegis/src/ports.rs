@@ -148,6 +148,12 @@ pub trait ClientScopePolicy: Send + Sync {
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
+    fn can_preview_scope(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
     fn can_delete_scope(
         &self,
         identity: &Identity,

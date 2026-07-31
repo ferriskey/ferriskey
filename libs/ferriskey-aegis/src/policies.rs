@@ -75,6 +75,25 @@ where
         Ok(has_permission)
     }
 
+    async fn can_preview_scope(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(identity).await?;
+
+        let permissions = self
+            .get_permission_for_target_realm(&user, target_realm)
+            .await?;
+
+        let has_permission = Permissions::has_one_of_permissions(
+            &permissions,
+            &[Permissions::ManageRealm, Permissions::ManageClientScopes],
+        );
+
+        Ok(has_permission)
+    }
+
     async fn can_delete_scope(
         &self,
         identity: &Identity,
