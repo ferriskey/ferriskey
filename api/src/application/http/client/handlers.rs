@@ -11,6 +11,7 @@ pub mod get_client_roles;
 pub mod get_clients;
 pub mod get_post_logout_redirect_uris;
 pub mod get_redirect_uris;
+pub mod token_preview;
 pub mod update_client;
 pub mod update_post_logout_redirect_uri;
 pub mod update_redirect_uri;
