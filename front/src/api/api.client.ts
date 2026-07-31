@@ -490,11 +490,18 @@ export namespace Schemas {
   export type DeviceVerifyAction = "approve" | "deny";
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string };
   export type DeviceVerifyResponse = { status: string };
-  // NOTE: `scope` is manually synced — openapi.yaml is stale for the evaluate-scopes /
-  // token-preview endpoint. Remove this note when regenerating from an updated spec.
   export type EvaluatedMapper = { scope: string; config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
   export type EvaluatedScope = { default_scope_type: string; name: string; protocol: string };
+  export type PreviewedMapper = { mapper: string; scope: string; type: string };
+  export type PreviewedScope = { name: string; type: string };
+  export type TokenPreviewResult = {
+    access_token_claims: unknown;
+    active_scopes: Array<PreviewedScope>;
+    applied_mappers: Array<PreviewedMapper>;
+    id_token_claims?: unknown | undefined;
+    userinfo_claims: unknown;
+  };
   export type EvaluateClientScopesResult = {
     access_token: unknown;
     effective_mappers: Array<EvaluatedMapper>;
@@ -1484,6 +1491,22 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.EvaluateClientScopesResult;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Preview_token = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/token-preview";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.EvaluateScopesValidator;
+    };
+    responses: {
+      200: Schemas.TokenPreviewResult;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
@@ -3806,6 +3829,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
     "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
+    "/realms/{realm_name}/clients/{client_id}/token-preview": Endpoints.post_Preview_token;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
