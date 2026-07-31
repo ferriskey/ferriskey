@@ -194,7 +194,9 @@ pub struct EvaluateClientScopesRequest {
     pub client_id: Uuid,
     /// Realm-scoped issuer base URL, already root-path scoped by the HTTP layer.
     pub base_url: String,
-    pub user_id: Uuid,
+    /// When `Some`, resolves user-attribute mappers against the real user.
+    /// When `None`, user-attribute mappers use placeholder values.
+    pub user_id: Option<Uuid>,
     pub scope: Option<String>,
 }
 
@@ -207,7 +209,9 @@ pub struct EvaluateClientScopesInput {
     pub client_uuid: Uuid,
     /// The client's string `client_id` (e.g. `"backend"`), used as the token `azp`.
     pub client_id: String,
-    pub user_id: Uuid,
+    /// When `Some`, resolves user-attribute mappers against the real user.
+    /// When `None`, user-attribute mappers use placeholder values.
+    pub user_id: Option<Uuid>,
     /// Requested scope string (default scopes are always applied; optional scopes apply when named here).
     pub scope: Option<String>,
 }
