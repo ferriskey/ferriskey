@@ -147,18 +147,20 @@ export default function ClientScopesEvaluate({
                   <tr>
                     <th className='px-4 py-2 font-medium'>Name</th>
                     <th className='px-4 py-2 font-medium'>Type</th>
+                    <th className='px-4 py-2 font-medium'>Scope</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.effective_mappers.map((mapper, i) => (
-                    <tr key={`${mapper.name}-${i}`} className='border-t'>
+                    <tr key={`${mapper.scope}-${mapper.name}-${i}`} className='border-t'>
                       <td className='px-4 py-2'>{mapper.name}</td>
                       <td className='px-4 py-2 text-muted-foreground'>{mapper.mapper_type}</td>
+                      <td className='px-4 py-2 text-muted-foreground'>{mapper.scope}</td>
                     </tr>
                   ))}
                   {result.effective_mappers.length === 0 && (
                     <tr>
-                      <td className='px-4 py-3 text-muted-foreground' colSpan={2}>
+                      <td className='px-4 py-3 text-muted-foreground' colSpan={3}>
                         No protocol mappers apply for this scope set.
                       </td>
                     </tr>
