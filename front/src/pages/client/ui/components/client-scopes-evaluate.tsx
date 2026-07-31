@@ -61,7 +61,7 @@ export default function ClientScopesEvaluate({
     [assignedScopes]
   )
 
-  const [userId, setUserId] = useState<string>('')
+  const [userId, setUserId] = useState<string | undefined>(undefined)
   const [selectedOptional, setSelectedOptional] = useState<string[]>([])
 
   const evaluate = useEvaluateClientScopes()
@@ -73,7 +73,7 @@ export default function ClientScopesEvaluate({
   }
 
   const handleEvaluate = () => {
-    if (!realm || !clientId || !userId) return
+    if (!realm || !clientId) return
     // Default scopes always apply on the backend; include them in the requested scope string
     // so the `scope` claim is realistic, plus the optional scopes the admin selected.
     const scope = [...new Set([...defaultScopeNames, ...selectedOptional])].join(' ')
@@ -86,12 +86,13 @@ export default function ClientScopesEvaluate({
     <div className='flex flex-col gap-6'>
       <div className='flex flex-col gap-4 rounded-md border p-4'>
         <div className='flex flex-col gap-2'>
-          <label className='text-sm font-medium'>User</label>
-          <Select value={userId} onValueChange={setUserId}>
+          <label className='text-sm font-medium'>User (optional)</label>
+          <Select value={userId ?? ''} onValueChange={(v) => setUserId(v === 'none' ? undefined : v)}>
             <SelectTrigger className='max-w-md'>
-              <SelectValue placeholder='Select a user to evaluate' />
+              <SelectValue placeholder='No user — use placeholder values' />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value='none'>No user (placeholder values)</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.username}
@@ -100,6 +101,10 @@ export default function ClientScopesEvaluate({
               ))}
             </SelectContent>
           </Select>
+          <p className='text-xs text-muted-foreground'>
+            Without a user, user-attribute mappers resolve to placeholder values. Select a user to
+            preview real claim data.
+          </p>
         </div>
 
         {optionalScopes.length > 0 && (
@@ -123,8 +128,8 @@ export default function ClientScopesEvaluate({
         )}
 
         <div>
-          <Button onClick={handleEvaluate} disabled={!userId || evaluate.isPending}>
-            {evaluate.isPending ? 'Evaluating…' : 'Evaluate'}
+          <Button onClick={handleEvaluate} disabled={evaluate.isPending}>
+            {evaluate.isPending ? 'Preparing…' : 'Preview Token'}
           </Button>
         </div>
       </div>
