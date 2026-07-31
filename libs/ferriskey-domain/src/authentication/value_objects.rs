@@ -250,6 +250,63 @@ pub struct EvaluateClientScopesResult {
     pub userinfo: serde_json::Value,
 }
 
+/// A scope that applied to the previewed token, in the ticket-defined shape.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PreviewedScope {
+    pub name: String,
+    /// `Default`, `Optional` or `None`.
+    #[serde(rename = "type")]
+    pub scope_type: String,
+}
+
+/// A protocol mapper applied to the previewed token, in the ticket-defined shape.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PreviewedMapper {
+    /// Name of the client scope that contributed this mapper.
+    pub scope: String,
+    pub mapper: String,
+    #[serde(rename = "type")]
+    pub mapper_type: String,
+}
+
+/// Token preview response, exactly as specified by the ticket: decoded (unsigned,
+/// non-persisted) token claims plus the active scopes and applied mappers.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TokenPreviewResult {
+    pub access_token_claims: serde_json::Value,
+    pub id_token_claims: Option<serde_json::Value>,
+    pub userinfo_claims: serde_json::Value,
+    pub active_scopes: Vec<PreviewedScope>,
+    pub applied_mappers: Vec<PreviewedMapper>,
+}
+
+impl From<EvaluateClientScopesResult> for TokenPreviewResult {
+    fn from(result: EvaluateClientScopesResult) -> Self {
+        Self {
+            access_token_claims: result.access_token,
+            id_token_claims: result.id_token,
+            userinfo_claims: result.userinfo,
+            active_scopes: result
+                .effective_scopes
+                .into_iter()
+                .map(|s| PreviewedScope {
+                    name: s.name,
+                    scope_type: s.default_scope_type,
+                })
+                .collect(),
+            applied_mappers: result
+                .effective_mappers
+                .into_iter()
+                .map(|m| PreviewedMapper {
+                    scope: m.scope,
+                    mapper: m.name,
+                    mapper_type: m.mapper_type,
+                })
+                .collect(),
+        }
+    }
+}
+
 pub struct IntrospectTokenInput {
     pub realm_name: String,
     pub client_id: String,
