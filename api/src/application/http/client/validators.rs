@@ -6,8 +6,10 @@ use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct EvaluateScopesValidator {
-    /// User whose token would be previewed.
-    pub user_id: Uuid,
+    /// User whose token would be previewed. When omitted, user-attribute mappers
+    /// resolve to placeholder values instead.
+    #[serde(default)]
+    pub user_id: Option<Uuid>,
     /// Requested scope string (space-separated). Default scopes always apply; optional scopes
     /// apply only when named here.
     #[serde(default)]
