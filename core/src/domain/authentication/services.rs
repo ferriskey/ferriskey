@@ -200,8 +200,9 @@ struct AssembledClaims {
     id_mapper_claims: Option<HashMap<String, serde_json::Value>>,
     /// Client scopes that applied (default scopes + requested optional scopes).
     effective_scopes: Vec<ClientScope>,
-    /// Protocol mappers gathered from the effective scopes.
-    effective_mappers: Vec<ProtocolMapper>,
+    /// Protocol mappers gathered from the effective scopes, each tagged with the
+    /// name of the scope that contributed it.
+    effective_mappers: Vec<(String, ProtocolMapper)>,
 }
 
 #[derive(Clone, Debug)]
@@ -637,13 +638,17 @@ where
         }
 
         let mut all_mappers = Vec::new();
+        // Parallel to `all_mappers`: tags each mapper with the scope that contributed it,
+        // so previews can show "which mapper came from which scope".
+        let mut mapper_origins: Vec<(String, ProtocolMapper)> = Vec::new();
         for scope in &applicable_scopes {
             let mappers = self
                 .protocol_mapper_repository
                 .get_by_scope_id(scope.id)
                 .await
                 .unwrap_or_default();
-            all_mappers.extend(mappers);
+            all_mappers.extend(mappers.iter().cloned());
+            mapper_origins.extend(mappers.into_iter().map(|m| (scope.name.clone(), m)));
         }
 
         // Fetch user roles and group client-scoped roles by client string id.
@@ -892,7 +897,7 @@ where
             access_claims,
             id_mapper_claims,
             effective_scopes: applicable_scopes,
-            effective_mappers: all_mappers,
+            effective_mappers: mapper_origins,
         })
     }
 
@@ -1074,7 +1079,8 @@ where
         let effective_mappers = assembled
             .effective_mappers
             .into_iter()
-            .map(|m| EvaluatedMapper {
+            .map(|(scope, m)| EvaluatedMapper {
+                scope,
                 name: m.name,
                 mapper_type: m.mapper_type,
                 config: m.config,
