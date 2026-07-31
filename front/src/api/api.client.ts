@@ -490,7 +490,9 @@ export namespace Schemas {
   export type DeviceVerifyAction = "approve" | "deny";
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string };
   export type DeviceVerifyResponse = { status: string };
-  export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string };
+  // NOTE: `scope` is manually synced — openapi.yaml is stale for the evaluate-scopes /
+  // token-preview endpoint. Remove this note when regenerating from an updated spec.
+  export type EvaluatedMapper = { scope: string; config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
   export type EvaluatedScope = { default_scope_type: string; name: string; protocol: string };
   export type EvaluateClientScopesResult = {
