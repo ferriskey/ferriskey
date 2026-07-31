@@ -97,7 +97,8 @@ export const useGetClientRoles = ({ realm, clientId }: BaseQuery & { clientId?: 
 export interface EvaluateClientScopesParams {
   realm: string
   clientId: string
-  userId: string
+  /** Optional user id. When omitted, user-attribute mappers resolve to placeholder values. */
+  userId?: string
   scope?: string
 }
 
@@ -112,7 +113,7 @@ export const useEvaluateClientScopes = () => {
             client_id: clientId,
           },
           body: {
-            user_id: userId,
+            user_id: userId ?? null,
             scope,
           },
         }),
