@@ -69,6 +69,12 @@ pub enum SecurityEventType {
 
     #[serde(rename = "client_maintenance_disabled")]
     ClientMaintenanceDisabled,
+
+    #[serde(rename = "session_created")]
+    SessionCreated,
+
+    #[serde(rename = "session_revoked")]
+    SessionRevoked,
 }
 
 impl Display for SecurityEventType {
@@ -98,6 +104,8 @@ impl Display for SecurityEventType {
             SecurityEventType::ClientMaintenanceDisabled => {
                 write!(f, "client_maintenance_disabled")
             }
+            SecurityEventType::SessionCreated => write!(f, "session_created"),
+            SecurityEventType::SessionRevoked => write!(f, "session_revoked"),
         }
     }
 }

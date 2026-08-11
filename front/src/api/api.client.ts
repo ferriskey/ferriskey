@@ -574,7 +574,9 @@ export namespace Schemas {
     | "email_not_sent"
     | "email_sent"
     | "client_maintenance_enabled"
-    | "client_maintenance_disabled";
+    | "client_maintenance_disabled"
+    | "session_created"
+    | "session_revoked";
   export type SecurityEventId = string;
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;

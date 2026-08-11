@@ -143,7 +143,7 @@ where
         realm_name: String,
         user_id: Uuid,
         session_id: Uuid,
-    ) -> Result<(), CoreError> {
+    ) -> Result<UserSession, CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&realm_name)
@@ -190,7 +190,7 @@ where
             .await
             .map_err(|_| CoreError::SessionDeleteError)?;
 
-        Ok(())
+        Ok(session)
     }
 }
 

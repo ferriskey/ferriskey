@@ -1,0 +1,187 @@
+use axum::{
+    Router, middleware,
+    routing::{delete, get, patch, post, put},
+};
+use utoipa::OpenApi;
+
+use super::handlers::{
+    create_client::{__path_create_client, create_client},
+    create_post_logout_redirect_uri::{
+        __path_create_post_logout_redirect_uri, create_post_logout_redirect_uri,
+    },
+    create_redirect_uri::{__path_create_redirect_uri, create_redirect_uri},
+    create_role::{__path_create_role, create_role},
+    delete_client::{__path_delete_client, delete_client},
+    delete_post_logout_redirect_uri::{
+        __path_delete_post_logout_redirect_uri, delete_post_logout_redirect_uri,
+    },
+    delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
+    evaluate_scopes::{__path_evaluate_scopes, evaluate_scopes},
+    get_client::{__path_get_client, get_client},
+    get_client_roles::{__path_get_client_roles, get_client_roles},
+    get_clients::{__path_get_clients, get_clients},
+    get_post_logout_redirect_uris::{
+        __path_get_post_logout_redirect_uris, get_post_logout_redirect_uris,
+    },
+    get_redirect_uris::{__path_get_redirect_uris, get_redirect_uris},
+    token_preview::{__path_preview_token, preview_token},
+    update_client::{__path_update_client, update_client},
+    update_post_logout_redirect_uri::{
+        __path_update_post_logout_redirect_uri, update_post_logout_redirect_uri,
+    },
+    update_redirect_uri::{__path_update_redirect_uri, update_redirect_uri},
+};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::auth::auth;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        get_client,
+        get_clients,
+        create_client,
+        delete_client,
+        create_redirect_uri,
+        create_post_logout_redirect_uri,
+        create_role,
+        get_redirect_uris,
+        get_post_logout_redirect_uris,
+        update_client,
+        update_redirect_uri,
+        update_post_logout_redirect_uri,
+        delete_redirect_uri,
+        delete_post_logout_redirect_uri,
+        get_client_roles,
+        evaluate_scopes,
+        preview_token
+    ),
+
+    tags(
+        (name = "client", description = "Client management")
+    )
+)]
+pub struct ClientApiDoc;
+
+pub fn client_routes(state: AppState) -> Router<AppState> {
+    Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients",
+                state.args.server.root_path
+            ),
+            get(get_clients),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
+            get(get_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients",
+                state.args.server.root_path
+            ),
+            post(create_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
+            patch(update_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects",
+                state.args.server.root_path
+            ),
+            post(create_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/post-logout-redirects",
+                state.args.server.root_path
+            ),
+            post(create_post_logout_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/roles",
+                state.args.server.root_path
+            ),
+            post(create_role),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects",
+                state.args.server.root_path
+            ),
+            get(get_redirect_uris),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/post-logout-redirects",
+                state.args.server.root_path
+            ),
+            get(get_post_logout_redirect_uris),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
+            put(update_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/post-logout-redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
+            put(update_post_logout_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/post-logout-redirects/{{uri_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_post_logout_redirect_uri),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/roles",
+                state.args.server.root_path
+            ),
+            get(get_client_roles),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/evaluate-scopes",
+                state.args.server.root_path
+            ),
+            post(evaluate_scopes),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/token-preview",
+                state.args.server.root_path
+            ),
+            post(preview_token),
+        )
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
+}

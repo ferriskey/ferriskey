@@ -1,0 +1,84 @@
+use crate::validators::ResetPasswordValidator;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::entities::ResetPasswordInput;
+use ferriskey_core::domain::user::ports::UserService;
+use serde::{Deserialize, Serialize};
+use tracing::{error, info};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct ResetPasswordResponse {
+    pub message: String,
+    pub user_id: Uuid,
+    pub realm_name: String,
+}
+
+#[utoipa::path(
+    put,
+    path = "/{user_id}/reset-password",
+    tag = "user",
+    summary = "Reset user password",
+    description = "Resets the password for a user in a specific realm.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("user_id" = Uuid, Path, description = "User ID"),
+    ),
+    request_body(
+        content = ResetPasswordValidator,
+        description = "New password for the user",
+        content_type = "application/json",
+    ),
+    responses(
+        (status = 200, description = "Password reset successfully", body = ResetPasswordResponse),
+        (status = 400, description = "Invalid request body", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    )
+)]
+pub async fn reset_password(
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+    ValidateJson(payload): ValidateJson<ResetPasswordValidator>,
+) -> Result<Response<ResetPasswordResponse>, ApiError> {
+    info!(
+        "reset password for user {:} in realm {:}",
+        user_id, realm_name
+    );
+    state
+        .service
+        .validate_password_policy(realm_name.clone(), &payload.value)
+        .await?;
+
+    state
+        .service
+        .reset_password(
+            identity,
+            ResetPasswordInput {
+                realm_name: realm_name.clone(),
+                user_id,
+                password: payload.value,
+                temporary: payload.temporary,
+            },
+        )
+        .await
+        .map_err(|e| {
+            error!("failed to reset password for user {user_id} in realm {realm_name}: {e:?}");
+            ApiError::from(e)
+        })?;
+
+    Ok(Response::OK(ResetPasswordResponse {
+        message: "Password reset successfully".to_string(),
+        user_id,
+        realm_name,
+    }))
+}

@@ -184,6 +184,10 @@ pub struct GenerateTokenInput {
     /// When `Some`, use this JTI for the refresh token claims and skip persisting the
     /// refresh token row (the caller has already committed it via `rotate()`).
     pub refresh_jti_override: Option<Uuid>,
+    /// The `user_sessions` row this token pair is issued against, emitted as the
+    /// `sid` claim. `None` for flows that establish no SSO session, such as
+    /// `client_credentials`.
+    pub session_id: Option<Uuid>,
 }
 
 /// Request received by the application layer for a client-scope evaluation. The application

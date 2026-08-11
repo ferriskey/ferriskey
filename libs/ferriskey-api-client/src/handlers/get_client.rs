@@ -1,0 +1,59 @@
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::client::entities::Client;
+use ferriskey_core::domain::client::ports::ClientService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, client::entities::GetClientInput,
+};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct GetClientResponse {
+    pub data: Client,
+}
+
+#[utoipa::path(
+    get,
+    path = "/{client_id}",
+    summary = "Get a client",
+    description = "Retrieves a client from the specified realm by its ID.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("client_id" = Uuid, Path, description = "Client ID"),
+    ),
+    tag = "client",
+    responses(
+        (status = 200, description = "Client retrieved successfully", body = GetClientResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Client not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    )
+)]
+pub async fn get_client(
+    Path((realm_name, client_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+) -> Result<Response<GetClientResponse>, ApiError> {
+    let client = state
+        .service
+        .get_client_by_id(
+            identity,
+            GetClientInput {
+                client_id,
+                realm_name,
+            },
+        )
+        .await?;
+
+    Ok(Response::OK(GetClientResponse { data: client }))
+}

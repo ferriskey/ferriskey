@@ -1,0 +1,70 @@
+use crate::validators::UpdateUserValidator;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::user::entities::User;
+use ferriskey_core::domain::user::{entities::UpdateUserInput, ports::UserService};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateUserResponse {
+    pub data: User,
+}
+
+#[utoipa::path(
+    put,
+    path = "/{user_id}",
+    tag = "user",
+    summary = "Update a user in a realm",
+    description = "Updates an existing user in a specific realm. The user must exist and the request must include the necessary fields to update.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("user_id" = String, Path, description = "User ID"),
+    ),
+    request_body(
+        content = UpdateUserValidator,
+        description = "User to update",
+        content_type = "application/json",
+    ),
+    responses(
+        (status = 200, description = "User updated successfully", body = UpdateUserResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "User not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    )
+)]
+pub async fn update_user(
+    Path((realm_name, user_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+    ValidateJson(payload): ValidateJson<UpdateUserValidator>,
+) -> Result<Response<UpdateUserResponse>, ApiError> {
+    let user = state
+        .service
+        .update_user(
+            identity,
+            UpdateUserInput {
+                user_id,
+                realm_name,
+                firstname: payload.firstname,
+                lastname: payload.lastname,
+                email: payload.email,
+                email_verified: payload.email_verified,
+                enabled: payload.enabled.unwrap_or(true),
+                required_actions: payload.required_actions,
+            },
+        )
+        .await?;
+
+    Ok(Response::Updated(UpdateUserResponse { data: user }))
+}

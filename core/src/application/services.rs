@@ -61,7 +61,11 @@ use crate::{
             services::{MailServiceImpl, RealmServiceImpl},
         },
         role::services::RoleServiceImpl,
-        seawatch::services::SecurityEventServiceImpl,
+        seawatch::{
+            entities::{EventStatus, SecurityEvent, SecurityEventType},
+            ports::SecurityEventRepository,
+            services::SecurityEventServiceImpl,
+        },
         session::{
             entities::UserSession, ports::UserSessionManagementService,
             services::UserSessionManagementServiceImpl,
@@ -267,6 +271,7 @@ type ApplicationAuthService = AuthServiceImpl<
     ApplicationEmailVerificationService,
     WebhookRepo,
     SecurityEventRepo,
+    UserSessionRepo,
 >;
 
 type DeviceAuthRepo = PostgresDeviceAuthRepository;
@@ -469,6 +474,9 @@ pub struct ApplicationService {
     pub(crate) db: DatabaseConnection,
     pub email_verification_service: ApplicationEmailVerificationService,
     pub(crate) user_session_management_service: ApplicationUserSessionManagementService,
+    /// Held directly so facade methods that are not backed by a single domain
+    /// service (session revocation) can still write to the audit trail.
+    pub(crate) security_event_repository: Arc<SecurityEventRepo>,
 }
 
 impl CoreService for ApplicationService {
@@ -762,9 +770,27 @@ impl ApplicationService {
         user_id: uuid::Uuid,
         session_id: uuid::Uuid,
     ) -> Result<(), CoreError> {
-        self.user_session_management_service
-            .revoke_session(identity, realm_name, user_id, session_id)
-            .await
+        let session = self
+            .user_session_management_service
+            .revoke_session(identity.clone(), realm_name, user_id, session_id)
+            .await?;
+
+        // Sessions are hard-deleted, so the audit event is the only lasting trace
+        // of the session having existed and been revoked.
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    session.realm_id.into(),
+                    SecurityEventType::SessionRevoked,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("session".to_string(), session.id, None)
+                .with_context(session.ip_address, session.user_agent, None),
+            )
+            .await?;
+
+        Ok(())
     }
 
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {

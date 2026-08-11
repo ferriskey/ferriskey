@@ -1,0 +1,36 @@
+use axum::extract::{Path, State};
+use ferriskey_core::domain::realm::{entities::RealmLoginSetting, ports::RealmService};
+
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
+
+#[utoipa::path(
+    get,
+    path = "/{name}/login-settings",
+    tag = "realm",
+    summary = "Get login settings",
+    description = "Get the login settings for a specific realm.",
+    params(
+        ("name" = String, Path, description = "The name of the realm"),
+    ),
+    responses(
+        (status = 200, description = "Login settings retrieved successfully", body = RealmLoginSetting),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    )
+)]
+pub async fn get_login_realm_settings_handler(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Response<RealmLoginSetting>, ApiError> {
+    state
+        .service
+        .get_login_settings(realm_name)
+        .await
+        .map(Response::OK)
+        .map_err(ApiError::from)
+}

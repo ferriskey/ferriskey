@@ -1,22 +1,20 @@
-use crate::application::http::{
-    abyss::AbyssApiDoc,
-    aegis::router::AegisApiDoc,
-    authentication::router::AuthenticationApiDoc,
-    broker::BrokerApiDoc,
-    client::router::ClientApiDoc,
-    compass::router::CompassApiDoc,
-    email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc},
-    maintenance::router::MaintenanceApiDoc,
-    organization::router::OrganizationApiDoc,
-    portal_layouts::router::{PortalLayoutsApiDoc, PortalLayoutsPublicApiDoc},
-    portal_theme::router::{PortalThemeApiDoc, PortalThemePublicApiDoc},
-    realm::router::RealmApiDoc,
-    role::router::RoleApiDoc,
-    seawatch::router::SeawatchApiDoc,
-    trident::router::TridentApiDoc,
-    user::router::UserApiDoc,
-    webhook::router::WebhookApiDoc,
-};
+use ferriskey_api_abyss::AbyssApiDoc;
+use ferriskey_api_aegis::router::AegisApiDoc;
+use ferriskey_api_authentication::router::AuthenticationApiDoc;
+use ferriskey_api_broker::BrokerApiDoc;
+use ferriskey_api_client::router::ClientApiDoc;
+use ferriskey_api_compass::router::CompassApiDoc;
+use ferriskey_api_email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc};
+use ferriskey_api_maintenance::router::MaintenanceApiDoc;
+use ferriskey_api_organization::router::OrganizationApiDoc;
+use ferriskey_api_portal_layouts::router::{PortalLayoutsApiDoc, PortalLayoutsPublicApiDoc};
+use ferriskey_api_portal_theme::router::{PortalThemeApiDoc, PortalThemePublicApiDoc};
+use ferriskey_api_realm::router::RealmApiDoc;
+use ferriskey_api_role::router::RoleApiDoc;
+use ferriskey_api_seawatch::router::SeawatchApiDoc;
+use ferriskey_api_trident::router::TridentApiDoc;
+use ferriskey_api_user::router::UserApiDoc;
+use ferriskey_api_webhook::router::WebhookApiDoc;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]

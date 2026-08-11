@@ -188,6 +188,36 @@ export default function PageClientSettings({
             </div>
           )}
         />
+
+        {/* PKCE (RFC 7636) */}
+        <FormField
+          name='requirePkce'
+          control={form.control}
+          render={({ field }) => (
+            <div className='flex items-center justify-between py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Require PKCE</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  Rejects authorization requests that carry no S256 code challenge (RFC 7636). The
+                  plain method is refused when this is on.
+                  {client.public_client
+                    ? ' Strongly recommended: this client cannot keep a secret safe.'
+                    : ''}
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem className='flex flex-row items-center gap-3'>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className='!mt-0 font-normal text-muted-foreground'>
+                    {field.value ? 'Required' : 'Optional'}
+                  </FormLabel>
+                </FormItem>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       {/* Access Settings section */}

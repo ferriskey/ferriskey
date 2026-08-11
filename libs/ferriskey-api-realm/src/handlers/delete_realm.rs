@@ -1,0 +1,44 @@
+use axum::extract::Path;
+use axum::{Extension, extract::State};
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::realm::ports::{DeleteRealmInput, RealmService};
+use serde::{Deserialize, Serialize};
+use tracing::info;
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
+pub struct DeleteRealmResponse(String);
+
+#[utoipa::path(
+    delete,
+    path = "/{name}",
+    tag = "realm",
+    summary = "Delete a realm by name",
+    description = "Deletes a realm by its name. This action is irreversible and will remove all associated data.",
+    params(
+          ("name" = String, Path, description = "Realm name"),
+    ),
+    responses(
+        (status = 200, description = "Realm deleted successfully", body = DeleteRealmResponse),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    ),
+)]
+pub async fn delete_realm(
+    Path(name): Path<String>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+) -> Result<Response<String>, ApiError> {
+    info!("try to delete realm: {}", name);
+    state
+        .service
+        .delete_realm(identity, DeleteRealmInput { realm_name: name })
+        .await
+        .map_err(ApiError::from)
+        .map(|_| Response::OK("Realm deleted successfully".to_string()))
+}

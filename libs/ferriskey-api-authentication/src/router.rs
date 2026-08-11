@@ -1,0 +1,141 @@
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
+
+use utoipa::OpenApi;
+
+use super::handlers::{
+    auth::{__path_auth_handler, auth_handler},
+    authentificate::{__path_authenticate, authenticate},
+    device_authorization::{__path_device_authorization, device_authorization},
+    device_verify::{
+        __path_device_verification_page, __path_device_verify, device_verification_page,
+        device_verify,
+    },
+    get_certs::{__path_get_certs, __path_get_jwks_json, get_certs, get_jwks_json},
+    introspect::{__path_introspect_token, introspect_token},
+    logout::{__path_logout_get, __path_logout_post, logout_get, logout_post},
+    openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
+    registration::{__path_registration_handler, registration_handler},
+    resend_verification_email::{
+        __path_resend_verification_email_handler, resend_verification_email_handler,
+    },
+    revoke::{__path_revoke_token, revoke_token},
+    token::{__path_exchange_token, exchange_token},
+    userinfo::{__path_get_userinfo, get_userinfo},
+    verify_email::{__path_verify_email_handler, verify_email_handler},
+};
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
+
+use ferriskey_api_core::{app_state::AppState, auth::auth};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        exchange_token,
+        introspect_token,
+        authenticate,
+        device_authorization,
+        device_verification_page,
+        device_verify,
+        get_certs,
+        get_jwks_json,
+        auth_handler,
+        logout_get,
+        logout_post,
+        revoke_token,
+        get_openid_configuration,
+        registration_handler,
+        verify_email_handler,
+        resend_verification_email_handler,
+        get_userinfo,
+    ),
+    // `CodeChallengeMethod` is only reached through the `AuthRequest` query-params
+    // struct (`IntoParams`), which utoipa does not walk for component schemas — so the
+    // generated `$ref` would otherwise dangle and break OpenAPI clients. Register it
+    // explicitly here.
+    components(schemas(CodeChallengeMethod))
+)]
+pub struct AuthenticationApiDoc;
+
+pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppState> {
+    Router::new()
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
+            get(get_userinfo),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
+            post(get_userinfo),
+        )
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
+            post(exchange_token),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth/device"),
+            post(device_authorization),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/device"),
+            get(device_verification_page),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/device/verify"),
+            post(device_verify),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token/introspect"),
+            post(introspect_token),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/revoke"),
+            post(revoke_token),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
+            get(logout_get),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/logout"),
+            post(logout_post),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
+            get(auth_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/registrations"),
+            post(registration_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/authenticate"),
+            post(authenticate),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/verify-email"),
+            post(verify_email_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/login-actions/resend-verification-email"),
+            post(resend_verification_email_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/certs"),
+            get(get_certs),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/jwks.json"),
+            get(get_jwks_json),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/jwks"),
+            get(get_jwks_json),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/.well-known/openid-configuration"),
+            get(get_openid_configuration),
+        )
+}

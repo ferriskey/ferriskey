@@ -1,0 +1,256 @@
+use axum::extract::Path;
+use axum::http::header::LOCATION;
+use axum::{
+    extract::{Query, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    response::IntoResponse,
+};
+use axum_cookie::CookieManager;
+
+use axum_extra::extract::cookie::{Cookie, SameSite};
+use ferriskey_core::domain::authentication::entities::{
+    AuthInput, AuthenticateInput, AuthenticationStepStatus,
+};
+use ferriskey_core::domain::authentication::ports::AuthService;
+use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use serde::{Deserialize, Serialize};
+use tracing::warn;
+use utoipa::{IntoParams, ToSchema};
+use validator::Validate;
+
+use ferriskey_api_core::url::FullUrl;
+pub use ferriskey_api_core::url::root_scoped_base_url;
+use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
+
+const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
+const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
+
+fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
+    format!(
+        "{}/realms/{}/authentication/login{}",
+        webapp_url.trim_end_matches('/'),
+        realm_name,
+        login_url
+    )
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct AuthRequest {
+    #[validate(length(min = 1, message = "response_type is required"))]
+    #[serde(default)]
+    pub response_type: String,
+    #[validate(length(min = 1, message = "client_id is required"))]
+    #[serde(default)]
+    pub client_id: String,
+    #[validate(length(min = 1, message = "redirect_uri is required"))]
+    #[serde(default)]
+    pub redirect_uri: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub nonce: Option<String>,
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+    #[serde(default)]
+    pub code_challenge_method: Option<CodeChallengeMethod>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
+pub struct AuthResponse {
+    pub url: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/protocol/openid-connect/auth",
+    tag = "auth",
+    summary = "Authenticate a user",
+    description = "Initiates the authentication process for a user in a specific realm.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        AuthRequest
+    ),
+    responses(
+        (status = 302, description = "Redirects to the login page with session cookie set", body = AuthResponse),
+        (status = 400, description = "Bad Request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal Server Error")
+    )
+)]
+pub async fn auth_handler(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
+    cookie: CookieManager,
+    Query(params): Query<AuthRequest>,
+) -> Result<axum::response::Response, ApiError> {
+    let result = match state
+        .service
+        .auth(AuthInput {
+            client_id: params.client_id.clone(),
+            realm_name: realm_name.clone(),
+            redirect_uri: params.redirect_uri.clone(),
+            response_type: params.response_type.clone(),
+            scope: params.scope.clone(),
+            state: params.state.clone(),
+            nonce: params.nonce.clone(),
+            code_challenge: params.code_challenge.clone(),
+            code_challenge_method: params.code_challenge_method.clone(),
+        })
+        .await
+    {
+        Ok(result) => result,
+        // For these errors we must NOT redirect to redirect_uri (it may be invalid / unknown).
+        // Instead, redirect the browser to the FerrisKey login page with a human-readable
+        // error message so the user sees a proper UI rather than raw JSON.
+        Err(
+            e @ CoreError::InvalidRedirectUri
+            | e @ CoreError::ClientNotFound
+            | e @ CoreError::InvalidRealm,
+        ) => {
+            warn!(
+                realm = %realm_name,
+                client_id = %params.client_id,
+                error = %e,
+                "Auth flow rejected — redirecting to login error page"
+            );
+            let error_url = format!(
+                "{}/realms/{}/authentication/login?login_error={}",
+                state.args.webapp_url.trim_end_matches('/'),
+                realm_name,
+                urlencoding::encode(&e.to_string()),
+            );
+            return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
+        }
+        Err(e) => return Err(ApiError::from(e)),
+    };
+
+    if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
+        && !identity_cookie.value().trim().is_empty()
+    {
+        warn!(
+            realm = %realm_name,
+            client_id = %params.client_id,
+            session_code = %result.session.id,
+            "Attempting automatic SSO with identity cookie"
+        );
+
+        let auth_result = state
+            .service
+            .authenticate(AuthenticateInput::with_existing_token(
+                realm_name.clone(),
+                params.client_id.clone(),
+                result.session.id,
+                root_scoped_base_url(&base_url, &state.args.server.root_path),
+                identity_cookie.value().to_string(),
+            ))
+            .await;
+
+        match auth_result {
+            Ok(auth_result)
+                if auth_result.status == AuthenticationStepStatus::Success
+                    && auth_result.redirect_url.is_some() =>
+            {
+                if let Some(redirect_url) = auth_result.redirect_url {
+                    return Ok((StatusCode::FOUND, [(LOCATION, redirect_url)]).into_response());
+                }
+            }
+            Ok(_) => {}
+            Err(e) => {
+                warn!(
+                    realm = %realm_name,
+                    client_id = %params.client_id,
+                    session_code = %result.session.id,
+                    error = ?e,
+                    "Automatic SSO with identity cookie failed, redirecting to login page"
+                );
+            }
+        }
+    }
+
+    let full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
+
+    let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax);
+
+    if full_url.starts_with("https") {
+        session_cookie = session_cookie.secure(true)
+    }
+
+    let session_cookie_value = HeaderValue::from_str(&session_cookie.to_string())
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, session_cookie_value);
+
+    // Force a fresh login if an existing identity cookie did not result in SSO.
+    if cookie.get(IDENTITY_COOKIE).is_some() {
+        let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
+            .path("/")
+            .http_only(true)
+            .same_site(SameSite::Lax)
+            .removal();
+
+        if full_url.starts_with("https") {
+            clear_identity_cookie = clear_identity_cookie.secure(true);
+        }
+
+        let clear_identity_cookie_value = HeaderValue::from_str(&clear_identity_cookie.to_string())
+            .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
+        headers.append(SET_COOKIE, clear_identity_cookie_value);
+    }
+
+    let mut response_builder = axum::response::Response::builder();
+    response_builder = response_builder
+        .status(StatusCode::FOUND)
+        .header(LOCATION, &full_url);
+
+    for value in headers.get_all(SET_COOKIE).iter() {
+        response_builder = response_builder.header(SET_COOKIE, value);
+    }
+
+    let axum_response = response_builder
+        .body(axum::body::Body::empty())
+        .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?;
+
+    Ok(axum_response.into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::webapp_login_url;
+
+    #[test]
+    fn joins_webapp_login_url_without_double_slashes() {
+        let full_url = webapp_login_url(
+            "https://login.example.com/",
+            "demo",
+            "?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client&redirect_uri=https://app.example.com/callback&state=test"
+        );
+    }
+
+    #[test]
+    fn preserves_login_url_when_webapp_has_no_trailing_slash() {
+        let full_url = webapp_login_url(
+            "https://login.example.com",
+            "demo",
+            "?client_id=test-client",
+        );
+
+        assert_eq!(
+            full_url,
+            "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
+        );
+    }
+}

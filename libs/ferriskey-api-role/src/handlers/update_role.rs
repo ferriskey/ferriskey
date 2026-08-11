@@ -1,0 +1,64 @@
+use crate::validators::UpdateRoleValidator;
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    response::Response,
+};
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::role::entities::Role;
+use ferriskey_core::domain::role::ports::RoleService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, role::entities::UpdateRoleInput,
+};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UpdateRoleResponse {
+    pub data: Role,
+}
+
+#[utoipa::path(
+  put,
+  summary = "Update a role in a realm",
+  path = "/{role_id}",
+  tag = "role",
+  request_body = UpdateRoleValidator,
+  params(
+      ("realm_name" = String, Path, description = "Realm name"),
+      ("role_id" = Uuid, Path, description = "Role ID"),
+  ),
+  responses(
+      (status = 200, description = "Role updated successfully", body = UpdateRoleResponse),
+      (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+      (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+      (status = 404, description = "Role not found", body = ApiErrorResponse),
+      (status = 500, description = "Internal server error", body = ApiErrorResponse),
+  ),
+)]
+pub async fn update_role(
+    Path((realm_name, role_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+    ValidateJson(payload): ValidateJson<UpdateRoleValidator>,
+) -> Result<Response<UpdateRoleResponse>, ApiError> {
+    let role = state
+        .service
+        .update_role(
+            identity,
+            UpdateRoleInput {
+                name: payload.name,
+                description: payload.description,
+                require_mfa: payload.require_mfa,
+                role_id,
+                realm_name,
+            },
+        )
+        .await?;
+
+    Ok(Response::Updated(UpdateRoleResponse { data: role }))
+}

@@ -80,9 +80,10 @@ FROM nginxinc/nginx-unprivileged:1.31.1-alpine3.23-slim AS webapp
 # runs as the non-root "nginx" user. The runtime entrypoint wipes and repopulates
 # that directory, so it must be owned by the runtime user — otherwise the rm fails
 # with "Permission denied" and (under `set -e`) nginx never starts.
-USER root
+# Numeric ids (hadolint DL3066): 0 = root, 101 = the image's nginx user.
+USER 0
 RUN rm -rf /usr/share/nginx/html/* && chown -R nginx:nginx /usr/share/nginx/html
-USER nginx
+USER 101
 
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf

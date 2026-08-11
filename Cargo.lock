@@ -1522,7 +1522,25 @@ dependencies = [
  "chrono",
  "clap",
  "dotenv",
+ "ferriskey-api-abyss",
+ "ferriskey-api-aegis",
+ "ferriskey-api-authentication",
+ "ferriskey-api-broker",
+ "ferriskey-api-client",
+ "ferriskey-api-compass",
  "ferriskey-api-core",
+ "ferriskey-api-email-template",
+ "ferriskey-api-health",
+ "ferriskey-api-maintenance",
+ "ferriskey-api-organization",
+ "ferriskey-api-portal-layouts",
+ "ferriskey-api-portal-theme",
+ "ferriskey-api-realm",
+ "ferriskey-api-role",
+ "ferriskey-api-seawatch",
+ "ferriskey-api-trident",
+ "ferriskey-api-user",
+ "ferriskey-api-webhook",
  "ferriskey-core",
  "opentelemetry",
  "opentelemetry-appender-tracing",
@@ -1554,6 +1572,99 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-api-abyss"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-aegis"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-authentication"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "base64 0.22.1",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "urlencoding",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-broker"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-client"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-api-role",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-compass"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-api-core"
 version = "0.7.0"
 dependencies = [
@@ -1578,6 +1689,175 @@ dependencies = [
  "uuid",
  "validator",
  "webauthn-rs",
+]
+
+[[package]]
+name = "ferriskey-api-email-template"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-health"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+]
+
+[[package]]
+name = "ferriskey-api-maintenance"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-organization"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-portal-layouts"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-portal-theme"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-realm"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-role"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-seawatch"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
+]
+
+[[package]]
+name = "ferriskey-api-trident"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "axum-cookie",
+ "axum-extra",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "tracing",
+ "url",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-user"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-webhook"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]

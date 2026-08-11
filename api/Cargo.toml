@@ -8,6 +8,24 @@ edition.workspace = true
 [dependencies]
 ferriskey-core = { path = "../core" }
 ferriskey-api-core = { path = "../libs/ferriskey-api-core" }
+ferriskey-api-abyss = { path = "../libs/ferriskey-api-abyss" }
+ferriskey-api-seawatch = { path = "../libs/ferriskey-api-seawatch" }
+ferriskey-api-broker = { path = "../libs/ferriskey-api-broker" }
+ferriskey-api-compass = { path = "../libs/ferriskey-api-compass" }
+ferriskey-api-webhook = { path = "../libs/ferriskey-api-webhook" }
+ferriskey-api-health = { path = "../libs/ferriskey-api-health" }
+ferriskey-api-role = { path = "../libs/ferriskey-api-role" }
+ferriskey-api-aegis = { path = "../libs/ferriskey-api-aegis" }
+ferriskey-api-email-template = { path = "../libs/ferriskey-api-email-template" }
+ferriskey-api-maintenance = { path = "../libs/ferriskey-api-maintenance" }
+ferriskey-api-portal-layouts = { path = "../libs/ferriskey-api-portal-layouts" }
+ferriskey-api-portal-theme = { path = "../libs/ferriskey-api-portal-theme" }
+ferriskey-api-realm = { path = "../libs/ferriskey-api-realm" }
+ferriskey-api-client = { path = "../libs/ferriskey-api-client" }
+ferriskey-api-organization = { path = "../libs/ferriskey-api-organization" }
+ferriskey-api-trident = { path = "../libs/ferriskey-api-trident" }
+ferriskey-api-user = { path = "../libs/ferriskey-api-user" }
+ferriskey-api-authentication = { path = "../libs/ferriskey-api-authentication" }
 anyhow = "1.0.97"
 axum = "0.8.8"
 axum-cookie = "0.2.3"

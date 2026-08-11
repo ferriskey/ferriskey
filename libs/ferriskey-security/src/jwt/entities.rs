@@ -50,6 +50,14 @@ pub struct JwtClaim {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 
+    /// OIDC session identifier (`sid`): the `user_sessions` row this token was
+    /// issued against. `None` for tokens from flows that establish no SSO
+    /// session — `client_credentials`, and any token minted before this claim
+    /// existed. Consumers must treat a missing `sid` as "not session-bound"
+    /// rather than as an invalid token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sid: Option<Uuid>,
+
     /// Dynamic claims injected by protocol mappers.
     #[serde(flatten)]
     pub additional_claims: HashMap<String, serde_json::Value>,
@@ -133,6 +141,7 @@ impl JwtClaim {
             email,
             scope,
             client_id: None,
+            sid: None,
             additional_claims: HashMap::new(),
         }
     }
@@ -159,6 +168,7 @@ impl JwtClaim {
             email: None,
             exp: Some(timestamp + lifetime_seconds),
             client_id: None,
+            sid: None,
             additional_claims: HashMap::new(),
         }
     }
@@ -177,8 +187,16 @@ impl JwtClaim {
             email: claims.email,
             exp: Some(chrono::Utc::now().timestamp() + lifetime_seconds),
             client_id: claims.client_id,
+            sid: claims.sid,
             additional_claims: claims.additional_claims,
         }
+    }
+
+    /// Bind these claims to the SSO session they were issued against, so that
+    /// introspection and refresh can check the session is still alive.
+    pub fn with_session(mut self, sid: Uuid) -> Self {
+        self.sid = Some(sid);
+        self
     }
 
     pub fn is_service_account(&self) -> bool {
@@ -413,6 +431,81 @@ mod tests {
 
         assert_eq!(claims.typ, ClaimsTyp::Refresh);
         assert_eq!(claims.scope, scope);
+    }
+
+    fn sample_claims() -> JwtClaim {
+        JwtClaim::new(
+            Uuid::new_v4(),
+            "alice".to_string(),
+            "https://issuer".to_string(),
+            vec!["test-realm".to_string()],
+            ClaimsTyp::Bearer,
+            "client-id".to_string(),
+            None,
+            None,
+            DEFAULT_ACCESS_TOKEN_LIFETIME,
+        )
+    }
+
+    #[test]
+    fn claims_carry_no_session_by_default() {
+        assert!(sample_claims().sid.is_none());
+        assert!(
+            JwtClaim::new_refresh_token(
+                Uuid::new_v4(),
+                "https://issuer".to_string(),
+                vec!["test-realm".to_string()],
+                "client-id".to_string(),
+                None,
+                DEFAULT_REFRESH_TOKEN_LIFETIME,
+            )
+            .sid
+            .is_none()
+        );
+    }
+
+    /// `sid` sits next to a `#[serde(flatten)]` field, so a mistake in its
+    /// declaration would silently route it into `additional_claims` instead of
+    /// becoming a real claim. Pin both directions.
+    #[test]
+    fn session_id_round_trips_as_a_top_level_claim() {
+        let sid = Uuid::new_v4();
+        let claims = sample_claims().with_session(sid);
+
+        let encoded = serde_json::to_value(&claims).expect("serialize claims");
+        assert_eq!(
+            encoded.get("sid").and_then(|v| v.as_str()),
+            Some(sid.to_string().as_str())
+        );
+
+        let decoded: JwtClaim = serde_json::from_value(encoded).expect("deserialize claims");
+        assert_eq!(decoded.sid, Some(sid));
+        assert!(
+            !decoded.additional_claims.contains_key("sid"),
+            "`sid` must be a declared claim, not swept into additional_claims"
+        );
+    }
+
+    /// Tokens minted before `sid` existed, and tokens from flows that establish
+    /// no session, must keep deserializing and must not emit an empty `sid`.
+    #[test]
+    fn absent_session_id_is_omitted_and_tolerated() {
+        let encoded = serde_json::to_value(sample_claims()).expect("serialize claims");
+        assert!(encoded.get("sid").is_none());
+
+        let decoded: JwtClaim = serde_json::from_value(encoded).expect("deserialize claims");
+        assert!(decoded.sid.is_none());
+    }
+
+    #[test]
+    fn temporary_token_keeps_its_session_binding() {
+        let sid = Uuid::new_v4();
+        let claims = sample_claims().with_session(sid);
+
+        let temporary = JwtClaim::new_temporary_token(claims, DEFAULT_TEMPORARY_TOKEN_LIFETIME);
+
+        assert_eq!(temporary.typ, ClaimsTyp::Temporary);
+        assert_eq!(temporary.sid, Some(sid));
     }
 
     #[test]

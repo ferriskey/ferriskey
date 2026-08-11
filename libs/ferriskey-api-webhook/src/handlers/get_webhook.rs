@@ -1,0 +1,51 @@
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
+use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
+use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::webhook::entities::webhook::Webhook;
+use ferriskey_core::domain::webhook::ports::WebhookService;
+use ferriskey_core::domain::{
+    authentication::value_objects::Identity, webhook::ports::GetWebhookInput,
+};
+use uuid::Uuid;
+
+#[utoipa::path(
+    get,
+    path = "/{webhook_id}",
+    tag = "webhook",
+    summary = "Get webhook",
+    description = "Retrieves one webhook in the system related to the current realm.",
+    params(
+        ("realm_name" = String, Path, description = "Name of the realm"),
+        ("webhook_id" = Uuid, Path, description = "Webhook ID"),
+    ),
+    responses(
+        (status = 200, description = "Webhook retrieved successfully", body = Webhook),
+        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse),
+    ),
+)]
+
+pub async fn get_webhook(
+    Path((realm_name, webhook_id)): Path<(String, Uuid)>,
+    State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
+) -> Result<Response<Option<Webhook>>, ApiError> {
+    let webhook = state
+        .service
+        .get_webhook(
+            identity,
+            GetWebhookInput {
+                realm_name,
+                webhook_id,
+            },
+        )
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Response::OK(webhook))
+}
