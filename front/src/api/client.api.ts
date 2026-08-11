@@ -113,7 +113,7 @@ export const usePreviewToken = () => {
             client_id: clientId,
           },
           body: {
-            user_id: userId ?? null,
+            user_id: userId,
             scope,
           },
         }),

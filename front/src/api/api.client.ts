@@ -510,7 +510,7 @@ export namespace Schemas {
     id_token?: unknown | undefined;
     userinfo: unknown;
   };
-  export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id: string };
+  export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id?: string | undefined };
   export type EventStatus = "success" | "failure";
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined;

@@ -10,7 +10,9 @@ use crate::{
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
         aegis::{
             ports::ClientScopePolicy,
-            services::{ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl},
+            services::{
+                ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+            },
         },
         authentication::{
             device_flow::{
