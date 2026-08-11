@@ -118,6 +118,22 @@ impl CredentialRepository for PostgresCredentialRepository {
         Ok(credential)
     }
 
+    async fn has_password_credential(&self, user_id: uuid::Uuid) -> Result<bool, CredentialError> {
+        CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq(CredentialType::Password.as_str()),
+            )
+            .one(&self.db)
+            .await
+            .map(|credential| credential.is_some())
+            .map_err(|e| {
+                error!("Error checking password credential for user {user_id}: {e:?}");
+                CredentialError::GetPasswordCredentialError
+            })
+    }
+
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::UserId.eq(user_id))
