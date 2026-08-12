@@ -36,6 +36,14 @@
     </picture>
   </a>
   &nbsp;&nbsp;&nbsp;
+  <a href="https://france-nuage.fr">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./docs/logos/france-nuage-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="./docs/logos/france-nuage-light.png">
+      <img src="./docs/logos/france-nuage-light.png" alt="France Nuage" height="40">
+    </picture>
+  </a>
+  &nbsp;&nbsp;&nbsp;
   <a href="https://www.gilded.ch/">
     <img src="./docs/logos/gilded_health.svg" alt="Gilded Health" height="40">
   </a>
