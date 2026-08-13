@@ -612,17 +612,10 @@ impl ApplicationService {
         identity: Identity,
         request: EvaluateClientScopesRequest,
     ) -> Result<TokenPreviewResult, CoreError> {
-        let client = self
-            .client_service
-            .get_client_by_id(
-                identity.clone(),
-                GetClientInput {
-                    client_id: request.client_id,
-                    realm_name: request.realm_name.clone(),
-                },
-            )
-            .await?;
-
+        // Token preview is gated by `can_preview_scope` (ManageRealm | ManageClientScopes),
+        // not `can_view_client` (ManageRealm | ViewClients). Resolve the realm and authorize
+        // BEFORE looking the client up directly: going through `get_client_by_id` would reject
+        // an identity holding only ManageClientScopes at its `can_view_client` check.
         let realm = self
             .realm_service
             .realm_repository
@@ -634,6 +627,13 @@ impl ApplicationService {
             self.policy.can_preview_scope(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_id(request.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
 
         let result = self
             .auth_service

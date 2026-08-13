@@ -56,6 +56,8 @@ mod tests {
     struct TestContext {
         server: TestServer,
         realm_name: String,
+        /// Schema-scoped pool, used to assert the preview persists nothing.
+        pool: sqlx::PgPool,
     }
 
     async fn setup() -> TestContext {
@@ -146,7 +148,39 @@ mod tests {
         let app = router(state).expect("build router");
         let server = TestServer::new(app).expect("create test server");
 
-        TestContext { server, realm_name }
+        TestContext {
+            server,
+            realm_name,
+            pool,
+        }
+    }
+
+    /// Row counts of the token/session tables in the test schema.
+    impl TestContext {
+        async fn persistence_counts(&self) -> (i64, i64, i64) {
+            async fn count(pool: &sqlx::PgPool, table: &str) -> i64 {
+                let row: (i64,) = sqlx::query_as(&format!("SELECT COUNT(*) FROM {}", table))
+                    .fetch_one(pool)
+                    .await
+                    .expect("count rows");
+                row.0
+            }
+            (
+                count(&self.pool, "access_tokens").await,
+                count(&self.pool, "refresh_tokens").await,
+                count(&self.pool, "user_sessions").await,
+            )
+        }
+
+        /// Assert the token-preview request just made persisted nothing: the counts of
+        /// access tokens, refresh tokens and user sessions must be unchanged.
+        async fn assert_no_persistence(&self, before: (i64, i64, i64)) {
+            let after = self.persistence_counts().await;
+            assert_eq!(
+                before, after,
+                "token-preview must not persist access tokens, refresh tokens or user sessions"
+            );
+        }
     }
 
     fn auth_header(token: &str) -> HeaderValue {
@@ -330,6 +364,7 @@ mod tests {
         let client_uuid = create_client(&ctx, &admin_token).await;
 
         // --- C1 + C2 + C4: no user_id -> ticket shape + placeholders + scope attribution ---
+        let before = ctx.persistence_counts().await;
         let resp = ctx
             .server
             .post(&format!(
@@ -346,6 +381,7 @@ mod tests {
             "token-preview failed: {}",
             resp.text()
         );
+        ctx.assert_no_persistence(before).await;
 
         let body: Value = resp.json();
 
@@ -413,6 +449,7 @@ mod tests {
         let (real_user_id, real_username, _) =
             create_user(&ctx, &admin_token, "preview_real_user").await;
 
+        let before = ctx.persistence_counts().await;
         let resp = ctx
             .server
             .post(&format!(
@@ -429,6 +466,7 @@ mod tests {
             "token-preview with user failed: {}",
             resp.text()
         );
+        ctx.assert_no_persistence(before).await;
 
         let body: Value = resp.json();
         assert_eq!(body["access_token_claims"]["sub"], real_user_id);
@@ -446,6 +484,7 @@ mod tests {
             create_user(&ctx, &admin_token, "preview_limited_user").await;
         let limited_token = login(&ctx, &limited_username, &limited_password).await;
 
+        let before = ctx.persistence_counts().await;
         let resp = ctx
             .server
             .post(&format!(
@@ -464,5 +503,70 @@ mod tests {
         );
         let body: Value = resp.json();
         assert_eq!(body["status"], 403);
+        ctx.assert_no_persistence(before).await;
+
+        // --- C6: an identity holding ONLY ManageClientScopes (not ViewClients) can preview.
+        // Regression for the client lookup path: it must authorize with `can_preview_scope`
+        // (ManageRealm | ManageClientScopes), not `can_view_client` (ManageRealm | ViewClients).
+        let (scope_user_id, scope_username, scope_password) =
+            create_user(&ctx, &admin_token, "preview_scope_admin").await;
+
+        let role_resp = ctx
+            .server
+            .post(&format!("/realms/{}/roles", ctx.realm_name))
+            .add_header("Authorization", auth_header(&admin_token))
+            .json(&json!({
+                "name": format!("scope-admin-{}", Uuid::new_v4().simple()),
+                "description": "Can manage client scopes",
+                "permissions": ["manage_client_scopes"]
+            }))
+            .await;
+        assert_eq!(
+            role_resp.status_code(),
+            201,
+            "role creation failed: {}",
+            role_resp.text()
+        );
+        let role_body: Value = role_resp.json();
+        let role_id = role_body["data"]["id"]
+            .as_str()
+            .expect("role id in response")
+            .to_string();
+
+        let assign = ctx
+            .server
+            .post(&format!(
+                "/realms/{}/users/{}/roles/{}",
+                ctx.realm_name, scope_user_id, role_id
+            ))
+            .add_header("Authorization", auth_header(&admin_token))
+            .await;
+        assert_eq!(
+            assign.status_code(),
+            200,
+            "role assignment failed: {}",
+            assign.text()
+        );
+
+        let scope_admin_token = login(&ctx, &scope_username, &scope_password).await;
+
+        let before = ctx.persistence_counts().await;
+        let resp = ctx
+            .server
+            .post(&format!(
+                "/realms/{}/clients/{}/token-preview",
+                ctx.realm_name, client_uuid
+            ))
+            .add_header("Authorization", auth_header(&scope_admin_token))
+            .json(&json!({ "scope": "openid profile email" }))
+            .await;
+
+        assert_eq!(
+            resp.status_code(),
+            200,
+            "expected 200 for ManageClientScopes-only identity, got: {}",
+            resp.text()
+        );
+        ctx.assert_no_persistence(before).await;
     }
 }

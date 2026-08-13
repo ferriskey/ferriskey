@@ -967,6 +967,11 @@ where
         let (user_id, username, firstname, lastname, email, email_verified) =
             if let Some(uid) = input.user_id {
                 let user = self.user_repository.get_by_id(uid).await?;
+                // The user must belong to the same realm as the client being previewed;
+                // a cross-realm user id must not resolve attributes here.
+                if user.realm_id != input.realm_id {
+                    return Err(CoreError::InvalidUser);
+                }
                 (
                     user.id,
                     user.username.clone(),
@@ -986,6 +991,13 @@ where
                 )
             };
 
+        // Resolve the effective scope set for this client (defaults + validated requested
+        // scopes), mirroring the real token path, so the preview reflects what a real token
+        // would carry instead of trusting the raw requested scope string.
+        let resolved_scope = self
+            .resolve_scopes_for_client(input.client_uuid, input.scope.clone())
+            .await?;
+
         let gen_input = GenerateTokenInput {
             base_url: input.base_url,
             realm_name: input.realm_name,
@@ -998,7 +1010,7 @@ where
             client_uuid: input.client_uuid,
             email: email.clone(),
             realm_id: input.realm_id,
-            scope: input.scope,
+            scope: Some(resolved_scope),
             access_token_lifetime: lifetimes.access_token,
             refresh_token_lifetime: lifetimes.refresh_token,
             id_token_lifetime: lifetimes.id_token,
