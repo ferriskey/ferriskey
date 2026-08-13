@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     authentication::value_objects::Identity,
+    authentication::entities::WebAuthnChallenge,
     common::entities::app_errors::CoreError,
     credential::entities::CredentialOverview,
     crypto::HashResult,
@@ -36,6 +37,41 @@ pub struct WebAuthnRpInfo {
     /// payload doesn't match, then no further verification is done and the payload is rejected.
     /// Must be a valid origin format string ! (scheme://host[:port])
     pub allowed_origin: String,
+}
+
+/// A persisted WebAuthn challenge for the self-service (Bearer) passkey
+/// registration flow.
+///
+/// The login flow keeps its challenge on the `auth_sessions` row, but the
+/// self-service flow has no auth session (it is keyed by the authenticated
+/// user id instead). Storing it in a repository — rather than a process-local
+/// map — keeps it consistent across instances and lets it expire via
+/// `expires_at`.
+#[derive(Debug, Clone)]
+pub struct WebAuthnChallengeRecord {
+    pub user_id: Uuid,
+    pub challenge: WebAuthnChallenge,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Persistence for self-service WebAuthn registration challenges.
+#[cfg_attr(test, mockall::automock)]
+pub trait WebAuthnChallengeRepository: Send + Sync {
+    /// Store (or replace) the pending registration challenge for a user.
+    fn save(
+        &self,
+        record: WebAuthnChallengeRecord,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Take the pending registration challenge for a user, removing it so it
+    /// cannot be reused. Returns `None` when no (unexpired) challenge exists.
+    fn take(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, CoreError>> + Send;
+
+    /// Drop any expired challenges.
+    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 pub struct WebAuthnPublicKeyCreateOptionsInput {
