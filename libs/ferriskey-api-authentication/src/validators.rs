@@ -40,6 +40,11 @@ pub struct TokenRequestValidator {
     // PKCE verifier (RFC 7636 §4.5)
     #[serde(default)]
     pub code_verifier: Option<String>,
+
+    // Required by the authorization_code grant (RFC 6749 §4.1.3), where it must
+    // match the redirect_uri of the originating authorization request.
+    #[serde(default)]
+    pub redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

@@ -384,6 +384,7 @@ where
                 realm_id: realm.id,
                 secret: None,
                 service_account_enabled: false,
+                require_pkce: false,
             })
             .await?;
 
@@ -401,6 +402,7 @@ where
                 realm_id: realm.id,
                 secret: None,
                 service_account_enabled: false,
+                require_pkce: false,
             })
             .await?;
 
@@ -409,20 +411,25 @@ where
 
         // Create the security-admin-console client for this realm so that the
         // FerrisKey webapp can initiate the OAuth flow for this realm.
+        //
+        // It is a browser SPA: it cannot keep a secret, so it is a public client
+        // and relies on PKCE to bind authorization codes to the browser that
+        // started the flow.
         let console_client = self
             .client_repository
             .create_client(CreateClientRequest {
                 client_id: "security-admin-console".to_string(),
-                client_type: ClientType::Confidential,
+                client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "security-admin-console".to_string(),
                 protocol: "openid-connect".to_string(),
-                public_client: false,
+                public_client: true,
                 realm_id: realm.id,
-                secret: Some(generate_random_string()),
+                secret: None,
                 service_account_enabled: false,
+                require_pkce: true,
             })
             .await?;
 
@@ -512,6 +519,7 @@ where
                 direct_access_grants_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 client_type: ClientType::Public,
+                require_pkce: false,
             })
             .await?;
 

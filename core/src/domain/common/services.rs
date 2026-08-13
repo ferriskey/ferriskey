@@ -177,12 +177,14 @@ where
                         client_id: config.default_client_id.clone(),
                         enabled: true,
                         protocol: "openid-connect".to_string(),
-                        public_client: false,
+                        // Browser SPA: no secret to keep, PKCE instead.
+                        public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: false,
                         oauth_device_code_grant_enabled: false,
-                        client_type: ClientType::Confidential,
-                        secret: Some(generate_random_string()),
+                        client_type: ClientType::Public,
+                        secret: None,
+                        require_pkce: true,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -221,6 +223,7 @@ where
                         oauth_device_code_grant_enabled: false,
                         client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
+                        require_pkce: false,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -254,6 +257,7 @@ where
                         oauth_device_code_grant_enabled: true,
                         client_type: ClientType::System,
                         secret: None,
+                        require_pkce: false,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -442,12 +446,14 @@ where
                             client_id: config.default_client_id.clone(),
                             enabled: true,
                             protocol: "openid-connect".to_string(),
-                            public_client: false,
+                            // Browser SPA: no secret to keep, PKCE instead.
+                            public_client: true,
                             service_account_enabled: false,
                             direct_access_grants_enabled: false,
                             oauth_device_code_grant_enabled: false,
-                            client_type: ClientType::Confidential,
-                            secret: Some(generate_random_string()),
+                            client_type: ClientType::Public,
+                            secret: None,
+                            require_pkce: true,
                         })
                         .await
                     {

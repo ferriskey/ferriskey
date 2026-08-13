@@ -54,7 +54,7 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_enabled: Set(Some(false)),
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
-            require_pkce: Set(Some(false)),
+            require_pkce: Set(Some(data.require_pkce)),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };

@@ -45,7 +45,10 @@ use crate::domain::{
             RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
         },
     },
-    client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
+    client::{
+        entities::Client,
+        ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
+    },
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
     crypto::HasherRepository,
@@ -126,6 +129,103 @@ fn format_authorization_redirect_url(
 fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
     auth_session.expires_at >= now
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
+}
+
+/// Constant-time comparison of a configured client secret against the one
+/// presented on the token endpoint. `(None, None)` means "no secret configured
+/// and none presented", which is only ever reached for public clients.
+fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
+    match (stored, provided) {
+        (Some(s), Some(p)) => {
+            let s_hash = Sha256::digest(s.as_bytes());
+            let p_hash = Sha256::digest(p.as_bytes());
+            s_hash.ct_eq(&p_hash).into()
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+/// Bind an incoming `authorization_code` token request back to the authorization
+/// request that minted the code (RFC 6749 §4.1.3, §10.5).
+///
+/// A bearer authorization code is not a credential on its own: it only proves
+/// that *someone* completed a login, not that the caller is the client the code
+/// was issued to. Every check below re-establishes one half of that binding, so
+/// a code obtained out-of-band (referrer leak, browser history, open redirect)
+/// cannot be redeemed by a different client, against a different realm, at a
+/// different redirect target, or indefinitely.
+///
+/// `now` is injected so the expiry branch is testable.
+fn validate_authorization_code_request(
+    auth_session: &AuthSession,
+    client: &Client,
+    request_realm_id: RealmId,
+    request_redirect_uri: Option<&str>,
+    request_client_secret: Option<&str>,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    if !client.enabled {
+        return Err(CoreError::InvalidClient);
+    }
+
+    // Confidential clients must authenticate. Skipping this let anyone redeem a
+    // code without ever proving they are the client it belongs to.
+    if !client.public_client
+        && !client_secret_matches(client.secret.as_deref(), request_client_secret)
+    {
+        warn!(
+            client_id = %client.client_id,
+            "authorization_code: client secret mismatch for confidential client"
+        );
+        return Err(CoreError::InvalidClientSecret);
+    }
+
+    // The code belongs to one client. Without this, any client_id in the realm
+    // could redeem another client's code and receive tokens minted under its own
+    // `azp`, crossing the client boundary.
+    if client.id != auth_session.client_id {
+        warn!(
+            client_id = %client.client_id,
+            expected_client = %auth_session.client_id,
+            "authorization_code: code was issued to a different client"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    // Codes are looked up globally by value, so without a realm check a code
+    // could be redeemed at another realm's token endpoint and come back signed
+    // with that realm's key — a tenant-isolation break.
+    if auth_session.realm_id != request_realm_id {
+        warn!(
+            session_realm = ?auth_session.realm_id,
+            request_realm = ?request_realm_id,
+            "authorization_code: code was issued for a different realm"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    // RFC 6749 §4.1.3: `redirect_uri` is REQUIRED when the authorization request
+    // carried one, and must be identical. Our /auth endpoint always requires it,
+    // so an absent value here is a mismatch.
+    if request_redirect_uri != Some(auth_session.redirect_uri.as_str()) {
+        warn!(
+            client_id = %client.client_id,
+            "authorization_code: redirect_uri does not match the authorization request"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    if now >= auth_session.expires_at {
+        warn!(
+            client_id = %client.client_id,
+            expires_at = %auth_session.expires_at,
+            "authorization_code: code has expired"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    Ok(())
 }
 
 /// Verify a PKCE `code_verifier` against the stored `code_challenge`.
@@ -1451,21 +1551,43 @@ where
         let code = params.code.ok_or(CoreError::InternalServerError)?;
         let step_start = Utc::now();
 
+        // Authenticate the caller before touching the code, so an unauthenticated
+        // request can never reach the code lookup at all.
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        // The code itself is a secret: never log it, since log exposure is one of
+        // the ways it gets into an attacker's hands in the first place.
         let auth_session = self
             .auth_session_repository
             .get_by_code(code.clone())
             .await
             .map_err(|e| {
-                warn!("Auth session not found for code {}: {:?}", code, e);
+                warn!(client_id = %params.client_id, error = ?e, "Auth session lookup failed");
 
                 CoreError::MissingAuthorizationCode
             })?
-            .ok_or(CoreError::NotFound)?;
+            .ok_or(CoreError::InvalidAuthorizationCode)?;
 
         if auth_session.authenticated {
-            warn!("Authorization code {} has already been used", code);
-            return Err(CoreError::InvalidToken);
+            warn!(
+                client_id = %params.client_id,
+                "Authorization code has already been used"
+            );
+            return Err(CoreError::InvalidAuthorizationCode);
         }
+
+        validate_authorization_code_request(
+            &auth_session,
+            &client,
+            params.realm_id,
+            params.redirect_uri.as_deref(),
+            params.client_secret.as_deref(),
+            Utc::now(),
+        )?;
 
         // PKCE verification (RFC 7636 §4.6).
         match (
@@ -1484,7 +1606,7 @@ where
 
                 let method = method.as_ref().unwrap_or(&CodeChallengeMethod::Plain);
                 if !Self::verify_pkce(verifier, challenge, method) {
-                    warn!("PKCE verification failed for code {}", code);
+                    warn!(client_id = %params.client_id, "PKCE verification failed");
                     return Err(CoreError::InvalidCodeVerifier);
                 }
             }
@@ -2533,15 +2655,7 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 
     fn verify_client_secret(stored: Option<&str>, provided: Option<&str>) -> bool {
-        match (stored, provided) {
-            (Some(s), Some(p)) => {
-                let s_hash = Sha256::digest(s.as_bytes());
-                let p_hash = Sha256::digest(p.as_bytes());
-                s_hash.ct_eq(&p_hash).into()
-            }
-            (None, None) => true,
-            _ => false,
-        }
+        client_secret_matches(stored, provided)
     }
 
     async fn verify_id_token_hint(
@@ -2864,7 +2978,7 @@ where
             username: input.username,
             password: input.password,
             refresh_token: input.refresh_token,
-            redirect_uri: None,
+            redirect_uri: input.redirect_uri,
             scope: input.scope,
             code_verifier: input.code_verifier,
         };
@@ -3523,11 +3637,14 @@ where
 mod tests {
     use super::{
         auth_session_can_resume, format_authorization_redirect_url, lockout_compute_locked_until,
+        validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::AuthSession;
+    use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
+    use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
 
     /// Build an [`AuthSession`] with only the fields these helpers read, so the
@@ -3815,5 +3932,240 @@ mod tests {
         let now = Utc::now();
         let result = lockout_compute_locked_until(10, 5, 300, now);
         assert!(result.is_some());
+    }
+
+    // ---- validate_authorization_code_request -----------------------------
+
+    const REDIRECT_URI: &str = "https://client.example/callback";
+
+    fn confidential_client(id: Uuid, realm_id: RealmId) -> Client {
+        Client {
+            id,
+            enabled: true,
+            client_id: "app".to_string(),
+            secret: Some("s3cr3t".to_string()),
+            realm_id,
+            protocol: "openid-connect".to_string(),
+            public_client: false,
+            service_account_enabled: false,
+            direct_access_grants_enabled: false,
+            oauth_device_code_grant_enabled: false,
+            require_pkce: false,
+            client_type: ClientType::Confidential,
+            name: "app".to_string(),
+            redirect_uris: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
+            maintenance_enabled: false,
+            maintenance_reason: None,
+            maintenance_session_strategy: MaintenanceSessionStrategy::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// A session and a client that agree on realm, client and redirect_uri, so
+    /// each test can break exactly one binding.
+    fn matching_pair() -> (AuthSession, Client) {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let client_uuid = Uuid::new_v4();
+
+        let mut session = auth_session(
+            Some("state"),
+            REDIRECT_URI,
+            Utc::now() + Duration::minutes(5),
+            Some(Uuid::new_v4()),
+            false,
+        );
+        session.realm_id = realm_id;
+        session.client_id = client_uuid;
+
+        (session, confidential_client(client_uuid, realm_id))
+    }
+
+    #[test]
+    fn code_request_accepted_when_every_binding_matches() {
+        let (session, client) = matching_pair();
+
+        assert!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn code_request_rejected_without_client_secret() {
+        // The core of the CVE: a confidential client's code was redeemable with
+        // no client authentication at all.
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                None,
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClientSecret)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_with_wrong_client_secret() {
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("wrong"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClientSecret)
+        ));
+    }
+
+    #[test]
+    fn public_client_needs_no_secret() {
+        let (session, mut client) = matching_pair();
+        client.public_client = true;
+        client.secret = None;
+        client.client_type = ClientType::Public;
+
+        assert!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                None,
+                Utc::now(),
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn code_request_rejected_for_a_different_client() {
+        // Another client in the same realm presenting someone else's code.
+        let (session, mut client) = matching_pair();
+        client.id = Uuid::new_v4();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_for_a_different_realm() {
+        // Cross-tenant redemption: the code would come back signed with the
+        // target realm's key.
+        let (session, client) = matching_pair();
+        let other_realm = RealmId::from(Uuid::new_v4());
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                other_realm,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_on_redirect_uri_mismatch() {
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some("https://attacker.example/callback"),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_when_redirect_uri_is_absent() {
+        // RFC 6749 §4.1.3: the authorization request always carries a
+        // redirect_uri here, so omitting it at the token endpoint is a mismatch.
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                None,
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_once_expired() {
+        let (mut session, client) = matching_pair();
+        session.expires_at = Utc::now() - Duration::seconds(1);
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_for_disabled_client() {
+        let (session, mut client) = matching_pair();
+        client.enabled = false;
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClient)
+        ));
     }
 }

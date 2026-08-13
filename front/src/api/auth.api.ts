@@ -176,6 +176,8 @@ export const useTokenMutation = () => {
           password: params.data.password,
           refresh_token: params.data.refresh_token,
           scope: params.data.scope,
+          code_verifier: params.data.code_verifier,
+          redirect_uri: params.data.redirect_uri,
         },
       })) as Schemas.JwtToken
     },

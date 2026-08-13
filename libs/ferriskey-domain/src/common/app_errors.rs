@@ -250,6 +250,13 @@ pub enum CoreError {
     #[error("Missing authorization code")]
     MissingAuthorizationCode,
 
+    /// Deliberately covers every authorization-code binding failure (unknown,
+    /// replayed, expired, wrong client, wrong realm, redirect_uri mismatch) so
+    /// the token endpoint cannot be used as an oracle to probe which of them
+    /// tripped. The specific cause is logged server-side instead.
+    #[error("Invalid authorization code")]
+    InvalidAuthorizationCode,
+
     #[error("PKCE is required for this client")]
     PkceRequired,
 

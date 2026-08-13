@@ -221,6 +221,9 @@ pub struct ExchangeTokenInput {
     /// Set for the `urn:ietf:params:oauth:grant-type:device_code` grant.
     pub device_code: Option<String>,
     pub code_verifier: Option<String>,
+    /// REQUIRED for the `authorization_code` grant (RFC 6749 §4.1.3): must be
+    /// identical to the one sent in the authorization request.
+    pub redirect_uri: Option<String>,
 }
 
 pub struct AuthorizeRequestOutput {

@@ -915,6 +915,7 @@ export namespace Schemas {
     device_code: string | null;
     grant_type: GrantType;
     password: string | null;
+    redirect_uri: string | null;
     refresh_token: string | null;
     scope: string | null;
     username: string | null;

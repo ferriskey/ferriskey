@@ -163,6 +163,7 @@ where
                 direct_access_grants_enabled: input.direct_access_grants_enabled,
                 oauth_device_code_grant_enabled: input.oauth_device_code_grant_enabled,
                 client_type: input.client_type,
+                require_pkce: false,
             })
             .await
             .map_err(|_| CoreError::CreateClientError)?;

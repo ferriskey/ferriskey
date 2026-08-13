@@ -16,6 +16,9 @@ pub struct CreateClientRequest {
     pub direct_access_grants_enabled: bool,
     pub oauth_device_code_grant_enabled: bool,
     pub client_type: ClientType,
+    /// Public clients have no secret to authenticate with, so PKCE is the only
+    /// thing binding an authorization code to the instance that requested it.
+    pub require_pkce: bool,
 }
 
 impl CreateClientRequest {
@@ -35,6 +38,7 @@ impl CreateClientRequest {
             public_client: true,
             secret: None,
             service_account_enabled: false,
+            require_pkce: false,
         }
     }
 }

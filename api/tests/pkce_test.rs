@@ -70,7 +70,13 @@ mod tests {
     }
 
     fn shared_ctx() -> &'static SharedContext {
-        CTX.get_or_init(|| rt().block_on(init_shared_ctx()))
+        CTX.get_or_init(|| match tokio::runtime::Handle::try_current() {
+            // Tests call this from inside `rt().block_on(..)`, where a plain
+            // nested `block_on` would panic. `block_in_place` moves the current
+            // task off the worker thread so the init future can be driven there.
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(init_shared_ctx())),
+            Err(_) => rt().block_on(init_shared_ctx()),
+        })
     }
 
     async fn init_shared_ctx() -> SharedContext {

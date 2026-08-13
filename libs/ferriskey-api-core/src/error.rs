@@ -298,6 +298,10 @@ impl From<CoreError> for ApiError {
                 error: "invalid_request".into(),
                 error_description: "PKCE is required for this client. Send code_challenge (S256) with the authorization request.".into(),
             },
+            CoreError::InvalidAuthorizationCode => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "The authorization code is invalid, expired, already used, or was not issued to this client.".into(),
+            },
             CoreError::InvalidCodeVerifier => Self::OAuthError {
                 error: "invalid_grant".into(),
                 error_description: "code_verifier does not match code_challenge".into(),
