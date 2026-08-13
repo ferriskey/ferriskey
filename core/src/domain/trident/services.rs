@@ -1,6 +1,7 @@
 use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    collections::HashMap,
+    sync::{Arc, Mutex, OnceLock},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use chrono::{Duration, Utc};
@@ -25,7 +26,7 @@ use crate::{
             generate_random_token,
         },
         credential::{
-            entities::{Credential, CredentialData, CredentialType},
+            entities::{Credential, CredentialData, CredentialOverview, CredentialType},
             ports::CredentialRepository,
         },
         crypto::HasherRepository,
@@ -52,17 +53,18 @@ use crate::{
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
-                GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
-                MagicLinkRepository, OtpEnrollmentRepository, PasskeyAuthenticateInput,
-                PasskeyAuthenticateOutput, PasskeyRequestOptionsInput,
-                PasswordResetTokenRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
-                RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
-                VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
-                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
-                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
-                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
-                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                CompletePasswordResetWithRecoveryCodeInput, GenerateRecoveryCodeInput,
+                GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkRepository,
+                OtpEnrollmentRepository, PasskeyAuthenticateInput, PasskeyAuthenticateOutput,
+                PasskeyRegisterOptionsSelfServiceInput, PasskeyRegisterSelfServiceInput,
+                PasskeyRequestOptionsInput, PasswordResetTokenRepository, ReauthenticateInput,
+                RecoveryCodeFormatter, RecoveryCodeRepository, RequestPasswordResetInput,
+                SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
+                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
+                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
+                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
+                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
+                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -89,6 +91,45 @@ const OTP_ENROLLMENT_TTL_MINUTES: i64 = 5;
 /// How long a WebAuthn registration challenge stays usable. The challenge was already
 /// stamped with `webauthn_challenge_issued_at` but nothing ever read it back.
 const WEBAUTHN_CHALLENGE_TTL_MINUTES: i64 = 5;
+
+/// Pending self-service WebAuthn registration, keyed by user id.
+///
+/// The login-flow variant stores challenges on the `AuthSession` row; the
+/// self-service (Bearer) flow has no auth session, so pending registrations
+/// live in memory and expire after a short TTL.
+struct PendingRegistration {
+    challenge: WebAuthnChallenge,
+    created_at: Instant,
+}
+
+const PENDING_REGISTRATION_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
+fn pending_registrations() -> &'static Mutex<HashMap<Uuid, PendingRegistration>> {
+    static STORE: OnceLock<Mutex<HashMap<Uuid, PendingRegistration>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn store_pending_registration(
+    user_id: Uuid,
+    challenge: WebAuthnChallenge,
+) -> Result<(), CoreError> {
+    pending_registrations()
+        .lock()
+        .map_err(|_| CoreError::InternalServerError)?
+        .insert(user_id, PendingRegistration { challenge, created_at: Instant::now() });
+    Ok(())
+}
+
+fn take_pending_registration(user_id: Uuid) -> Result<WebAuthnChallenge, CoreError> {
+    let mut store = pending_registrations().lock().map_err(|_| CoreError::InternalServerError)?;
+    match store.remove(&user_id) {
+        Some(pending) if pending.created_at.elapsed() <= PENDING_REGISTRATION_TTL => {
+            Ok(pending.challenge)
+        }
+        Some(_) => Err(CoreError::WebAuthnMissingChallenge),
+        None => Err(CoreError::WebAuthnMissingChallenge),
+    }
+}
 
 fn generate_secret() -> Result<TotpSecret, CoreError> {
     let mut bytes = [0u8; 20];
@@ -2128,6 +2169,350 @@ where
 
         Ok(())
     }
+
+    async fn passkey_register_options_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterOptionsSelfServiceInput,
+    ) -> Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError> {
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let credentials = self
+            .credential_repository
+            .get_webauthn_public_key_credentials(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let credentials = {
+            let filtered = credentials
+                .into_iter()
+                .filter_map(|v| v.webauthn_credential_id)
+                .collect::<Vec<CredentialID>>();
+            if filtered.is_empty() {
+                None
+            } else {
+                let _ = self
+                    .user_required_action_repository
+                    .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+                    .await;
+                Some(filtered)
+            }
+        };
+
+        let (ccr, pr) = webauthn
+            .start_passkey_registration(
+                user.id,
+                user.email.as_deref().unwrap_or(""),
+                &user.username,
+                credentials,
+            )
+            .map_err(|e| {
+                error!("Failed to generate webauthn challenge: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+        store_pending_registration(user.id, WebAuthnChallenge::Registration(pr))?;
+
+        Ok(WebAuthnPublicKeyCreateOptionsOutput(ccr))
+    }
+
+    async fn passkey_register_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterSelfServiceInput,
+    ) -> Result<WebAuthnValidatePublicKeyOutput, CoreError> {
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        let webauthn = build_webauthn_client(input.rp_info)?;
+
+        let pending = take_pending_registration(user.id)?;
+
+        let passkey = match pending {
+            WebAuthnChallenge::Registration(ref pr) => {
+                webauthn.finish_passkey_registration(&input.credential, pr).map_err(|e| {
+                    debug!("Failed to complete passkey registration: {e:?}");
+                    CoreError::Invalid
+                })
+            }
+            _ => Err(CoreError::Invalid),
+        }?;
+
+        self.credential_repository
+            .create_webauthn_credential(user.id, passkey)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let _ = self
+            .user_required_action_repository
+            .remove_required_action(user.id, RequiredAction::ConfigurePasskey)
+            .await;
+
+        Ok(WebAuthnValidatePublicKeyOutput {})
+    }
+
+    async fn complete_password_reset_with_recovery_code(
+        &self,
+        input: CompletePasswordResetWithRecoveryCodeInput,
+    ) -> Result<CompletePasswordResetOutput, CoreError> {
+        // 1. Resolve the realm and user from the email.
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let user = self
+            .user_repository
+            .get_by_email(&input.email, realm.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
+
+        // 2. Find and burn the matching recovery code.
+        let format =
+            RecoveryCodeFormat::try_from(input.format).map_err(CoreError::RecoveryCodeBurnError)?;
+        let user_code = decode_string(input.code, format)?;
+
+        let user_credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        let recovery_code_creds = user_credentials
+            .into_iter()
+            .filter(|cred| cred.credential_type == CredentialType::RecoveryCode)
+            .collect::<Vec<Credential>>();
+
+        let mut burnt_code: Option<Credential> = None;
+        for code_cred in recovery_code_creds.into_iter() {
+            if let CredentialData::Hash { hash_iterations, algorithm } = &code_cred.credential_data
+            {
+                let salt = code_cred.salt.as_ref().ok_or(CoreError::InternalServerError)?;
+
+                let result = self
+                    .recovery_code_repository
+                    .verify(&user_code, &code_cred.secret_data, *hash_iterations, algorithm, salt)
+                    .await?;
+
+                if result {
+                    burnt_code = Some(code_cred);
+                    break;
+                }
+            } else {
+                error!(
+                    "A recovery code credential has no Hash credential data. This is a server bug."
+                );
+                return Err(CoreError::InternalServerError);
+            }
+        }
+
+        let burnt_code = burnt_code.ok_or_else(|| {
+            CoreError::RecoveryCodeBurnError(
+                "The provided code is invalid or has already been used".to_string(),
+            )
+        })?;
+
+        self.credential_repository
+            .delete_by_id(burnt_code.id)
+            .await
+            .map_err(|e| {
+                error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        // 3. Enforce password policy before applying the new credential.
+        let realm_id_uuid = Uuid::from(realm.id);
+        let policy = self
+            .password_policy_repository
+            .find_by_realm_id(realm_id_uuid)
+            .await?
+            .unwrap_or_else(|| PasswordPolicy::default(realm_id_uuid));
+
+        let email_local_buf =
+            user.email.as_deref().and_then(|e| e.split('@').next()).map(str::to_string);
+
+        validator::validate(
+            &input.new_password,
+            &policy,
+            Some(user.username.as_str()),
+            email_local_buf.as_deref(),
+        )
+        .map_err(violations_to_core_error)?;
+
+        // 4. Replace the password credential.
+        let _ = self.credential_repository.delete_password_credential(user.id).await;
+
+        let hash_result = self
+            .hasher_repository
+            .hash_password(&input.new_password)
+            .await
+            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        self.credential_repository
+            .create_credential(user.id, "password".into(), hash_result, "".into(), false)
+            .await
+            .map_err(|_| CoreError::CreateCredentialError)?;
+
+        // 5. Clean up reset tokens and required actions.
+        let _ = self.password_reset_token_repository.delete_all_by_user_id(user.id).await;
+
+        let _ = self
+            .user_required_action_repository
+            .remove_required_action(user.id, RequiredAction::UpdatePassword)
+            .await
+            .inspect_err(|e| warn!("Failed to remove UpdatePassword required action: {e}"));
+
+        let realm_id = realm.id;
+
+        // 6. Log SeaWatch PasswordResetCompleted.
+        let _ = self
+            .security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::PasswordResetCompleted,
+                    EventStatus::Success,
+                    user.id,
+                )
+                .with_target("user".to_string(), user.id, None),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to log password reset completed event: {e}"));
+
+        // 7. Emit webhook auth.reset_password.
+        let _ = self
+            .webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(WebhookTrigger::AuthResetPassword, user.id, None::<()>),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to emit password reset webhook: {e}"));
+
+        Ok(CompletePasswordResetOutput {
+            user_id: user.id,
+            realm_id: Uuid::from(realm_id),
+            login_url: None,
+        })
+    }
+
+    async fn reauthenticate(
+        &self,
+        identity: Identity,
+        input: ReauthenticateInput,
+    ) -> Result<(), CoreError> {
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        // 1. The account password must always be correct.
+        let password_cred = self
+            .credential_repository
+            .get_password_credential(user.id)
+            .await
+            .map_err(|_| CoreError::InvalidPassword)?;
+
+        let salt = password_cred.salt.ok_or(CoreError::InvalidPassword)?;
+        let CredentialData::Hash { hash_iterations, algorithm } = password_cred.credential_data
+        else {
+            return Err(CoreError::InvalidPassword);
+        };
+
+        let valid = self
+            .hasher_repository
+            .verify_password(
+                &input.password,
+                &password_cred.secret_data,
+                hash_iterations,
+                &algorithm,
+                &salt,
+            )
+            .await
+            .map_err(|_| CoreError::InvalidPassword)?;
+
+        if !valid {
+            return Err(CoreError::InvalidPassword);
+        }
+
+        // 2. When an authenticator is configured, the current OTP code is required too.
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        if let Some(otp_cred) =
+            credentials.iter().find(|c| c.credential_type == CredentialType::Otp)
+        {
+            let code = input.otp_code.ok_or_else(|| {
+                CoreError::TotpVerificationFailed("OTP code is required".to_string())
+            })?;
+
+            let secret = TotpSecret::from_base32(&otp_cred.secret_data);
+            if !verify(&secret, &code)? {
+                error!("invalid OTP code during reauthentication for user: {}", user.id);
+                return Err(CoreError::TotpVerificationFailed("failed to verify OTP".to_string()));
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn list_credentials_self_service(
+        &self,
+        identity: Identity,
+    ) -> Result<Vec<CredentialOverview>, CoreError> {
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(credentials.into_iter().map(CredentialOverview::from).collect())
+    }
+
+    async fn delete_credential_self_service(
+        &self,
+        identity: Identity,
+        credential_id: Uuid,
+    ) -> Result<(), CoreError> {
+        let user = match identity {
+            Identity::User(user) => user,
+            _ => return Err(CoreError::Forbidden("is not user".to_string())),
+        };
+
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        if !credentials.iter().any(|c| c.id == credential_id) {
+            return Err(CoreError::Forbidden("credential does not belong to the user".to_string()));
+        }
+
+        self.credential_repository
+            .delete_by_id(credential_id)
+            .await
+            .map_err(|_| CoreError::DeleteCredentialError)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -3952,5 +4337,562 @@ mod tests {
             matches!(result, Err(CoreError::Forbidden(_))),
             "the VerifyEmail waiver belongs to the magic link path only: {result:?}"
         );
+    }
+
+    // ── list_credentials_self_service ───────────────────────────────────
+
+    fn test_credential(user_id: Uuid, credential_type: CredentialType) -> Credential {
+        Credential {
+            id: Uuid::new_v4(),
+            salt: Some("salt".to_string()),
+            credential_type,
+            user_id,
+            user_label: None,
+            secret_data: "secret".to_string(),
+            credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+            temporary: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            webauthn_credential_id: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn list_credentials_self_service_returns_overview() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let otp_cred = test_credential(user.id, CredentialType::Otp);
+        let passkey_cred = test_credential(user.id, CredentialType::WebAuthnPublicKeyCredential);
+        let otp_id = otp_cred.id;
+        let passkey_id = passkey_cred.id;
+
+        let creds = vec![otp_cred, passkey_cred];
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = creds.clone();
+                Box::pin(async move { Ok(creds) })
+            });
+
+        let service = builder.build();
+        let result = service.list_credentials_self_service(Identity::User(user)).await;
+
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+        let overviews = result.unwrap();
+        assert_eq!(overviews.len(), 2);
+        assert_eq!(overviews[0].id, otp_id);
+        assert_eq!(overviews[0].credential_type, "otp");
+        assert_eq!(overviews[1].id, passkey_id);
+        assert_eq!(overviews[1].credential_type, "webauthn-public-key-credential");
+    }
+
+    #[tokio::test]
+    async fn list_credentials_self_service_forbids_non_user_identity() {
+        let builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let service = builder.build();
+
+        let result = service
+            .list_credentials_self_service(
+                crate::domain::common::services::tests::create_test_client_identity(realm.id),
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    // ── delete_credential_self_service ──────────────────────────────────
+
+    #[tokio::test]
+    async fn delete_credential_self_service_removes_owned_credential() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let owned = test_credential(user.id, CredentialType::Otp);
+        let owned_id = owned.id;
+
+        let owned_clone = owned.clone();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let owned_clone = owned_clone.clone();
+                Box::pin(async move { Ok(vec![owned_clone]) })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result =
+            service.delete_credential_self_service(Identity::User(user), owned_id).await;
+
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn delete_credential_self_service_rejects_unowned_credential() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let other = test_credential(user.id, CredentialType::Otp);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let other = other.clone();
+                Box::pin(async move { Ok(vec![other]) })
+            });
+
+        let service = builder.build();
+        let result = service
+            .delete_credential_self_service(Identity::User(user), Uuid::new_v4())
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    // ── reauthenticate ──────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn reauthenticate_valid_password_without_otp_succeeds() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let password_cred = test_credential(user.id, CredentialType::Password);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(move |_| {
+                let c = password_cred.clone();
+                Box::pin(async move { Ok(c) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_password()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        // No OTP credential configured.
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        let service = builder.build();
+        let result = service
+            .reauthenticate(
+                Identity::User(user),
+                ReauthenticateInput { password: "correct-password".to_string(), otp_code: None },
+            )
+            .await;
+
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn reauthenticate_wrong_password_fails() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let password_cred = test_credential(user.id, CredentialType::Password);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(move |_| {
+                let c = password_cred.clone();
+                Box::pin(async move { Ok(c) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_password()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(false) }));
+
+        let service = builder.build();
+        let result = service
+            .reauthenticate(
+                Identity::User(user),
+                ReauthenticateInput { password: "wrong-password".to_string(), otp_code: None },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn reauthenticate_requires_otp_when_authenticator_configured() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let password_cred = test_credential(user.id, CredentialType::Password);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(move |_| {
+                let c = password_cred.clone();
+                Box::pin(async move { Ok(c) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_password()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        let otp_cred = test_credential(user.id, CredentialType::Otp);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let otp_cred = otp_cred.clone();
+                Box::pin(async move { Ok(vec![otp_cred]) })
+            });
+
+        let service = builder.build();
+        let result = service
+            .reauthenticate(
+                Identity::User(user),
+                ReauthenticateInput { password: "correct-password".to_string(), otp_code: None },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::TotpVerificationFailed(_))));
+    }
+
+    // ── passkey_register_options_self_service ───────────────────────────
+
+    fn test_rp_info() -> WebAuthnRpInfo {
+        WebAuthnRpInfo {
+            rp_id: "localhost".to_string(),
+            allowed_origin: "http://localhost:5555".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn passkey_register_options_self_service_forbids_non_user_identity() {
+        let builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let service = builder.build();
+
+        let result = service
+            .passkey_register_options_self_service(
+                crate::domain::common::services::tests::create_test_client_identity(realm.id),
+                PasskeyRegisterOptionsSelfServiceInput { rp_info: test_rp_info() },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn passkey_register_options_self_service_generates_options_for_user() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        // No existing passkey credentials.
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_public_key_credentials()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        let service = builder.build();
+        let result = service
+            .passkey_register_options_self_service(
+                Identity::User(user),
+                PasskeyRegisterOptionsSelfServiceInput { rp_info: test_rp_info() },
+            )
+            .await;
+
+        assert!(result.is_ok(), "expected Ok, got an error");
+    }
+
+    // ── passkey_register_self_service ───────────────────────────────────
+
+    fn test_register_public_key_credential() -> RegisterPublicKeyCredential {
+        serde_json::from_value(serde_json::json!({
+            "id": "dummy-id",
+            "rawId": "",
+            "response": {
+                "attestationObject": "",
+                "clientDataJSON": ""
+            },
+            "type": "public-key",
+            "extensions": {}
+        }))
+        .expect("valid RegisterPublicKeyCredential payload")
+    }
+
+    #[tokio::test]
+    async fn passkey_register_self_service_forbids_non_user_identity() {
+        let builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let service = builder.build();
+
+        let result = service
+            .passkey_register_self_service(
+                crate::domain::common::services::tests::create_test_client_identity(realm.id),
+                PasskeyRegisterSelfServiceInput {
+                    rp_info: test_rp_info(),
+                    credential: test_register_public_key_credential(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn passkey_register_self_service_missing_pending_challenge_fails() {
+        let builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let service = builder.build();
+        let result = service
+            .passkey_register_self_service(
+                Identity::User(user),
+                PasskeyRegisterSelfServiceInput {
+                    rp_info: test_rp_info(),
+                    credential: test_register_public_key_credential(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::WebAuthnMissingChallenge)));
+    }
+
+    // ── complete_password_reset_with_recovery_code ──────────────────────
+
+    fn test_recovery_credential(user_id: Uuid) -> Credential {
+        Credential {
+            id: Uuid::new_v4(),
+            salt: Some("salt".to_string()),
+            credential_type: CredentialType::RecoveryCode,
+            user_id,
+            user_label: None,
+            secret_data: "hashed-secret".to_string(),
+            credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+            temporary: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            webauthn_credential_id: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_with_recovery_code_succeeds() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let user_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user_clone.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+
+        let recovery_cred = test_recovery_credential(user.id);
+        let recovery_cred_clone = recovery_cred.clone();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let c = recovery_cred_clone.clone();
+                Box::pin(async move { Ok(vec![c]) })
+            });
+
+        Arc::get_mut(&mut builder.recovery_code_repo)
+            .unwrap()
+            .expect_verify()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        // Policy lookup: no stored policy → use CNIL defaults.
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_password_credential()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.hasher_repo).unwrap().expect_hash_password().returning(|_| {
+            Box::pin(async {
+                Ok(HashResult::new(
+                    "new_hash".to_string(),
+                    "salt".to_string(),
+                    1,
+                    "argon2".to_string(),
+                ))
+            })
+        });
+
+        let user_id = user.id;
+        Arc::get_mut(&mut builder.credential_repo).unwrap().expect_create_credential().returning(
+            move |_, _, _, _, _| {
+                let cred = Credential {
+                    id: Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: CredentialType::Password,
+                    user_id,
+                    user_label: None,
+                    secret_data: "new_hash".to_string(),
+                    credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                    temporary: false,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(cred) })
+            },
+        );
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_delete_all_by_user_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
+                realm_name: "test-realm".to_string(),
+                email: "alice@example.com".to_string(),
+                code: "abcd-efgh-ij9m-nopq".to_string(),
+                format: "b32-split-4".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok(), "expected Ok, got an error");
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_with_recovery_code_invalid_code_fails() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let user_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user_clone.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+
+        let recovery_cred = test_recovery_credential(user.id);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let c = recovery_cred.clone();
+                Box::pin(async move { Ok(vec![c]) })
+            });
+
+        // The recovery code does not match any stored credential.
+        Arc::get_mut(&mut builder.recovery_code_repo)
+            .unwrap()
+            .expect_verify()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(false) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
+                realm_name: "test-realm".to_string(),
+                email: "alice@example.com".to_string(),
+                code: "abcd-efgh-ij9m-nopq".to_string(),
+                format: "b32-split-4".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::RecoveryCodeBurnError(_))));
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_with_recovery_code_unknown_email_fails() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
+                realm_name: "test-realm".to_string(),
+                email: "unknown@example.com".to_string(),
+                code: "abcd-efgh-ij9m-nopq".to_string(),
+                format: "b32-split-4".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
+            })
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)));
     }
 }
