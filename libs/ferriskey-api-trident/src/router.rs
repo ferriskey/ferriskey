@@ -1,6 +1,6 @@
 use axum::{
     Router, middleware,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use utoipa::OpenApi;
 
@@ -12,11 +12,24 @@ use crate::handlers::{
     magic_link::{
         __path_send_magic_link, __path_verify_magic_link, send_magic_link, verify_magic_link,
     },
+    me_credentials::{
+        __path_me_credentials, __path_me_delete_credential, me_credentials, me_delete_credential,
+    },
+    me_passkey_register::{__path_me_passkey_register, me_passkey_register},
+    me_passkey_register_options::{
+        __path_me_passkey_register_options, me_passkey_register_options,
+    },
+    me_reauthenticate::{__path_me_reauthenticate, me_reauthenticate},
+    me_totp_setup::{__path_me_totp_setup, me_totp_setup},
+    me_totp_verify::{__path_me_totp_verify, me_totp_verify},
     passkey_authenticate::{__path_passkey_authenticate, passkey_authenticate},
     passkey_request_options::{__path_passkey_request_options, passkey_request_options},
     reset_password::{
         __path_reset_password_with_token, __path_verify_reset_token, reset_password_with_token,
         verify_reset_token,
+    },
+    reset_password_with_recovery_code::{
+        __path_reset_password_with_recovery_code, reset_password_with_recovery_code,
     },
     setup_otp::{__path_setup_otp, setup_otp},
     update_password::{__path_update_password, update_password},
@@ -54,6 +67,14 @@ use ferriskey_api_core::auth::{auth, auth_login_actions};
     forgot_password,
     reset_password_with_token,
     verify_reset_token,
+    reset_password_with_recovery_code,
+    me_totp_setup,
+    me_totp_verify,
+    me_reauthenticate,
+    me_credentials,
+    me_delete_credential,
+    me_passkey_register_options,
+    me_passkey_register,
 ))]
 pub struct TridentApiDoc;
 
@@ -94,6 +115,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(verify_reset_token),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/reset-password-with-recovery-code",
+                state.args.server.root_path
+            ),
+            post(reset_password_with_recovery_code),
         )
         .route(
             &format!(
@@ -154,6 +182,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             ),
             post(webauthn_public_key_create),
         )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/burn-recovery-code",
+                state.args.server.root_path
+            ),
+            post(burn_recovery_code),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_login_actions,
@@ -183,11 +218,41 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             post(generate_recovery_codes),
         )
         .route(
+            &format!("{}/realms/{{realm_name}}/me/totp/setup", state.args.server.root_path),
+            post(me_totp_setup),
+        )
+        .route(
+            &format!("{}/realms/{{realm_name}}/me/totp/verify", state.args.server.root_path),
+            post(me_totp_verify),
+        )
+        .route(
+            &format!("{}/realms/{{realm_name}}/me/reauthenticate", state.args.server.root_path),
+            post(me_reauthenticate),
+        )
+        .route(
+            &format!("{}/realms/{{realm_name}}/me/credentials", state.args.server.root_path),
+            get(me_credentials),
+        )
+        .route(
             &format!(
-                "{}/realms/{{realm_name}}/login-actions/burn-recovery-code",
+                "{}/realms/{{realm_name}}/me/credentials/{{credential_id}}",
                 state.args.server.root_path
             ),
-            post(burn_recovery_code),
+            delete(me_delete_credential),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/me/passkey/registration-options",
+                state.args.server.root_path
+            ),
+            post(me_passkey_register_options),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/me/passkey/registration",
+                state.args.server.root_path
+            ),
+            post(me_passkey_register),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 

@@ -21,7 +21,7 @@ use utoipa::{
 /// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
 #[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
-pub struct CreatePublicKeyResponse(CreationChallengeResponse);
+pub struct CreatePublicKeyResponse(pub CreationChallengeResponse);
 
 impl ToSchema for CreatePublicKeyResponse {
     fn name() -> std::borrow::Cow<'static, str> {
