@@ -21,7 +21,7 @@ use validator::Validate;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ValidatePublicKeyRequest(RegisterPublicKeyCredential);
+pub struct ValidatePublicKeyRequest(pub RegisterPublicKeyCredential);
 
 impl Validate for ValidatePublicKeyRequest {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
