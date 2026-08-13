@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::domain::{
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
+    credential::entities::CredentialOverview,
     crypto::HashResult,
     trident::entities::{MfaRecoveryCode, TotpSecret},
     user::entities::RequiredAction,
@@ -228,6 +229,38 @@ pub trait OtpEnrollmentRepository: Send + Sync {
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
+/// Input for self-service (Bearer-authenticated) passkey registration options.
+/// Unlike the login-flow variant it does not carry a session code: the pending
+/// challenge is keyed by user id instead of an auth session.
+pub struct PasskeyRegisterOptionsSelfServiceInput {
+    pub rp_info: WebAuthnRpInfo,
+}
+
+/// Input for self-service (Bearer-authenticated) passkey registration
+/// completion.
+pub struct PasskeyRegisterSelfServiceInput {
+    pub rp_info: WebAuthnRpInfo,
+    pub credential: RegisterPublicKeyCredential,
+}
+
+/// Input for completing a password reset using a recovery code instead of the
+/// email reset token.
+pub struct CompletePasswordResetWithRecoveryCodeInput {
+    pub realm_name: String,
+    pub email: String,
+    pub code: String,
+    pub format: String,
+    pub new_password: String,
+}
+
+/// Input for re-authenticating a signed-in user before a sensitive operation
+/// (e.g. re-setting up 2FA). Requires the account password, and the current
+/// OTP code when the user already has an authenticator configured.
+pub struct ReauthenticateInput {
+    pub password: String,
+    pub otp_code: Option<String>,
+}
+
 #[cfg_attr(test, mockall::automock)]
 pub trait RecoveryCodeRepository: Send + Sync {
     fn generate_recovery_code(&self) -> MfaRecoveryCode;
@@ -352,6 +385,56 @@ pub trait TridentService: Send + Sync {
     fn verify_reset_token(
         &self,
         input: VerifyResetTokenInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Start a passkey registration from an authenticated (Bearer) workspace,
+    /// without requiring a `FERRISKEY_SESSION` cookie or a temporary
+    /// login-action token. The pending challenge is stored keyed by user id.
+    fn passkey_register_options_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterOptionsSelfServiceInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError>> + Send;
+
+    /// Complete a passkey registration started via
+    /// `passkey_register_options_self_service`.
+    fn passkey_register_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterSelfServiceInput,
+    ) -> impl Future<Output = Result<WebAuthnValidatePublicKeyOutput, CoreError>> + Send;
+
+    /// Complete a password reset using a recovery code instead of the email
+    /// reset token. Consumes the matched recovery code and returns the same
+    /// output as `complete_password_reset`.
+    fn complete_password_reset_with_recovery_code(
+        &self,
+        input: CompletePasswordResetWithRecoveryCodeInput,
+    ) -> impl Future<Output = Result<CompletePasswordResetOutput, CoreError>> + Send;
+
+    /// Re-authenticate a signed-in user by verifying the account password and,
+    /// when an authenticator is configured, the current OTP code. Used before
+    /// sensitive self-service operations such as re-setting up 2FA.
+    fn reauthenticate(
+        &self,
+        identity: Identity,
+        input: ReauthenticateInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// List the signed-in user's own credentials (otp, passkey, recovery
+    /// codes). Bearer self-service variant that does not require realm admin
+    /// permissions, unlike the admin `GET /users/{id}/credentials` endpoint.
+    fn list_credentials_self_service(
+        &self,
+        identity: Identity,
+    ) -> impl Future<Output = Result<Vec<CredentialOverview>, CoreError>> + Send;
+
+    /// Delete one of the signed-in user's own credentials. Bearer self-service
+    /// variant; the credential must belong to the authenticated user.
+    fn delete_credential_self_service(
+        &self,
+        identity: Identity,
+        credential_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
