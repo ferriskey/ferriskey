@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, OnceLock},
-    time::{Instant, SystemTime, UNIX_EPOCH},
-};
+use std::{sync::Arc, time::SystemTime, time::UNIX_EPOCH};
 
 use chrono::{Duration, Utc};
 use ferriskey_domain::generate_uuid_v7;
@@ -64,7 +60,8 @@ use crate::{
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                WebAuthnChallengeRecord, WebAuthnChallengeRepository, WebAuthnRpInfo,
+                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -92,43 +89,40 @@ const OTP_ENROLLMENT_TTL_MINUTES: i64 = 5;
 /// stamped with `webauthn_challenge_issued_at` but nothing ever read it back.
 const WEBAUTHN_CHALLENGE_TTL_MINUTES: i64 = 5;
 
-/// Pending self-service WebAuthn registration, keyed by user id.
-///
-/// The login-flow variant stores challenges on the `AuthSession` row; the
-/// self-service (Bearer) flow has no auth session, so pending registrations
-/// live in memory and expire after a short TTL.
-struct PendingRegistration {
-    challenge: WebAuthnChallenge,
-    created_at: Instant,
-}
+/// How long a self-service passkey registration challenge stays valid.
+const PENDING_REGISTRATION_TTL: chrono::Duration = chrono::Duration::seconds(600);
 
-const PENDING_REGISTRATION_TTL: std::time::Duration = std::time::Duration::from_secs(600);
-
-fn pending_registrations() -> &'static Mutex<HashMap<Uuid, PendingRegistration>> {
-    static STORE: OnceLock<Mutex<HashMap<Uuid, PendingRegistration>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn store_pending_registration(
+async fn store_pending_registration<WCR: WebAuthnChallengeRepository>(
+    webauthn_challenge_repository: &WCR,
     user_id: Uuid,
     challenge: WebAuthnChallenge,
 ) -> Result<(), CoreError> {
-    pending_registrations()
-        .lock()
-        .map_err(|_| CoreError::InternalServerError)?
-        .insert(user_id, PendingRegistration { challenge, created_at: Instant::now() });
-    Ok(())
+    let expires_at = Utc::now() + PENDING_REGISTRATION_TTL;
+    webauthn_challenge_repository
+        .save(WebAuthnChallengeRecord {
+            user_id,
+            challenge,
+            expires_at,
+        })
+        .await
+        .map_err(|e| {
+            error!("Failed to persist self-service passkey challenge: {e:?}");
+            CoreError::InternalServerError
+        })
 }
 
-fn take_pending_registration(user_id: Uuid) -> Result<WebAuthnChallenge, CoreError> {
-    let mut store = pending_registrations().lock().map_err(|_| CoreError::InternalServerError)?;
-    match store.remove(&user_id) {
-        Some(pending) if pending.created_at.elapsed() <= PENDING_REGISTRATION_TTL => {
-            Ok(pending.challenge)
-        }
-        Some(_) => Err(CoreError::WebAuthnMissingChallenge),
-        None => Err(CoreError::WebAuthnMissingChallenge),
-    }
+async fn take_pending_registration<WCR: WebAuthnChallengeRepository>(
+    webauthn_challenge_repository: &WCR,
+    user_id: Uuid,
+) -> Result<WebAuthnChallenge, CoreError> {
+    webauthn_challenge_repository
+        .take(user_id)
+        .await
+        .map_err(|e| {
+            error!("Failed to load self-service passkey challenge: {e:?}");
+            CoreError::InternalServerError
+        })?
+        .ok_or(CoreError::WebAuthnMissingChallenge)
 }
 
 fn generate_secret() -> Result<TotpSecret, CoreError> {
@@ -258,6 +252,7 @@ pub struct TridentServiceImpl<
     OER,
     URR,
     TRV,
+    WCR,
 > where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -278,6 +273,7 @@ pub struct TridentServiceImpl<
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    WCR: WebAuthnChallengeRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -298,9 +294,10 @@ pub struct TridentServiceImpl<
     pub(crate) otp_enrollment_repository: Arc<OER>,
     pub(crate) user_role_repository: Arc<URR>,
     pub(crate) token_revocation: Arc<TRV>,
+    pub(crate) webauthn_challenge_repository: Arc<WCR>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR>
     TridentServiceImpl<
         CR,
         RC,
@@ -321,6 +318,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         OER,
         URR,
         TRV,
+        WCR,
     >
 where
     CR: CredentialRepository,
@@ -342,6 +340,7 @@ where
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    WCR: WebAuthnChallengeRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -364,6 +363,7 @@ where
         otp_enrollment_repository: Arc<OER>,
         user_role_repository: Arc<URR>,
         token_revocation: Arc<TRV>,
+        webauthn_challenge_repository: Arc<WCR>,
     ) -> Self {
         Self {
             credential_repository,
@@ -385,6 +385,7 @@ where
             otp_enrollment_repository,
             user_role_repository,
             token_revocation,
+            webauthn_challenge_repository,
         }
     }
 
@@ -503,7 +504,7 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR>
     TridentService
     for TridentServiceImpl<
         CR,
@@ -525,6 +526,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         OER,
         URR,
         TRV,
+        WCR,
     >
 where
     CR: CredentialRepository,
@@ -546,6 +548,7 @@ where
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    WCR: WebAuthnChallengeRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -2216,7 +2219,12 @@ where
                 CoreError::InternalServerError
             })?;
 
-        store_pending_registration(user.id, WebAuthnChallenge::Registration(pr))?;
+        store_pending_registration(
+            self.webauthn_challenge_repository.as_ref(),
+            user.id,
+            WebAuthnChallenge::Registration(pr),
+        )
+        .await?;
 
         Ok(WebAuthnPublicKeyCreateOptionsOutput(ccr))
     }
@@ -2233,7 +2241,8 @@ where
 
         let webauthn = build_webauthn_client(input.rp_info)?;
 
-        let pending = take_pending_registration(user.id)?;
+        let pending =
+            take_pending_registration(self.webauthn_challenge_repository.as_ref(), user.id).await?;
 
         let passkey = match pending {
             WebAuthnChallenge::Registration(ref pr) => {
@@ -2532,6 +2541,7 @@ mod tests {
             ports::{
                 MockMagicLinkRepository, MockOtpEnrollmentRepository,
                 MockPasswordResetTokenRepository, MockRecoveryCodeRepository, OtpEnrollment,
+                MockWebAuthnChallengeRepository,
             },
         },
         user::ports::{
@@ -2580,6 +2590,7 @@ mod tests {
         MockOtpEnrollmentRepository,
         MockUserRoleRepository,
         MockTokenRevocationPort,
+        MockWebAuthnChallengeRepository,
     >;
 
     /// `(user_id, secret, expires_at)` as handed to `start_enrollment`.
@@ -2605,6 +2616,7 @@ mod tests {
         otp_enrollment_repo: Arc<MockOtpEnrollmentRepository>,
         user_role_repo: Arc<MockUserRoleRepository>,
         token_revocation: Arc<MockTokenRevocationPort>,
+        webauthn_challenge_repo: Arc<MockWebAuthnChallengeRepository>,
     }
 
     impl TridentTestBuilder {
@@ -2629,6 +2641,7 @@ mod tests {
                 otp_enrollment_repo: Arc::new(MockOtpEnrollmentRepository::new()),
                 user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
+                webauthn_challenge_repo: Arc::new(MockWebAuthnChallengeRepository::new()),
             }
         }
 
@@ -2662,6 +2675,7 @@ mod tests {
                 self.otp_enrollment_repo,
                 self.user_role_repo,
                 self.token_revocation,
+                self.webauthn_challenge_repo,
             )
         }
     }
@@ -4606,6 +4620,11 @@ mod tests {
             .expect_get_webauthn_public_key_credentials()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
+        Arc::get_mut(&mut builder.webauthn_challenge_repo)
+            .unwrap()
+            .expect_save()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
         let service = builder.build();
         let result = service
             .passkey_register_options_self_service(
@@ -4658,6 +4677,12 @@ mod tests {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
+        let mut builder = builder;
+        Arc::get_mut(&mut builder.webauthn_challenge_repo)
+            .unwrap()
+            .expect_take()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
         let service = builder.build();
         let result = service
             .passkey_register_self_service(
@@ -4670,6 +4695,91 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::WebAuthnMissingChallenge)));
+    }
+
+    // ── setup_otp / verify_otp (self-service TOTP) ──────────────────────
+
+    #[tokio::test]
+    async fn setup_otp_self_service_generates_secret_and_uri() {
+        let builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let service = builder.build();
+        let result = service
+            .setup_otp(Identity::User(user), SetupOtpInput { issuer: "example.com".to_string() })
+            .await;
+
+        assert!(result.is_ok(), "expected Ok from setup_otp");
+        let output = result.unwrap();
+        assert!(!output.secret.is_empty(), "TOTP secret must be emitted");
+        assert!(output.otpauth_uri.starts_with("otpauth://totp/"));
+    }
+
+    #[tokio::test]
+    async fn verify_otp_self_service_succeeds_with_valid_code() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let secret = generate_secret().expect("generate totp secret");
+        let secret_bytes = secret.to_bytes().expect("secret bytes");
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("epoch")
+            .as_secs();
+        let counter = now / 30;
+        let code = generate_totp_code(&secret_bytes, counter, 6).expect("totp code");
+
+        // No pre-existing OTP credentials to delete.
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_custom_credential()
+            .returning(|user_id, credential_type, _, _, _| {
+                Box::pin(async move {
+                    Ok(Credential {
+                        id: Uuid::new_v4(),
+                        salt: None,
+                        credential_type: if credential_type == "otp" {
+                            CredentialType::Otp
+                        } else {
+                            CredentialType::Password
+                        },
+                        user_id,
+                        user_label: None,
+                        secret_data: "secret".to_string(),
+                        credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                        temporary: false,
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                        webauthn_credential_id: None,
+                    })
+                })
+            });
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: code.to_string(),
+                    label: Some("my-authenticator".to_string()),
+                    secret: secret.base32_encoded().to_string(),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "expected Ok from verify_otp");
     }
 
     // ── complete_password_reset_with_recovery_code ──────────────────────

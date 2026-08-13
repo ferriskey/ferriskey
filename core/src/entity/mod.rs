@@ -54,3 +54,4 @@ pub mod user_sessions;
 pub mod users;
 pub mod webhook_subscribers;
 pub mod webhooks;
+pub mod webauthn_challenges;
