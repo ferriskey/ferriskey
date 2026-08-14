@@ -3,8 +3,8 @@ use ferriskey_trident::entities::{MagicLink, PasswordResetToken};
 use uuid::Uuid;
 
 use crate::domain::{
-    authentication::value_objects::Identity,
     authentication::entities::WebAuthnChallenge,
+    authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
     credential::entities::CredentialOverview,
     crypto::HashResult,
