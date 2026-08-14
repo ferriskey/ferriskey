@@ -1553,6 +1553,7 @@ dependencies = [
  "ferriskey-api-webhook",
  "ferriskey-core",
  "hmac",
+ "libc",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",

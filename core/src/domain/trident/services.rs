@@ -2566,15 +2566,15 @@ where
             ));
         }
 
-        // Do not let a user delete their last remaining primary authentication
-        // factor, which would lock them out of the account. Recovery codes are
-        // not primary factors (they only help regain access), so they are
-        // excluded from the count.
+        // Reject removal only when the target is a primary factor (Password,
+        // Otp or WebAuthn) and deleting it would leave the user with no primary
+        // factor at all. Recovery codes are not primary factors — they only
+        // help regain access — so deleting one can never lock the user out.
         let primary_factors = credentials
             .iter()
             .filter(|c| c.credential_type != CredentialType::RecoveryCode)
             .count();
-        if primary_factors <= 1 {
+        if target.credential_type != CredentialType::RecoveryCode && primary_factors <= 1 {
             return Err(CoreError::Forbidden(
                 "cannot remove the last remaining credential".to_string(),
             ));
@@ -4543,21 +4543,21 @@ mod tests {
             });
 
         let service = builder.build();
-        let result =
-            service.delete_credential_self_service(Identity::User(user), password_id).await;
+        let result = service
+            .delete_credential_self_service(Identity::User(user), password_id)
+            .await;
 
         assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 
     #[tokio::test]
-    async fn delete_credential_self_service_rejects_last_factor_removal() {
+    async fn delete_credential_self_service_allows_recovery_code_deletion() {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
-        // Only the password is a primary factor; recovery codes do not count,
-        // so deleting the recovery code would remove the user's last extra
-        // authentication factor and is rejected.
+        // A recovery code is not a primary factor, so deleting it while the
+        // password remains cannot lock the user out and must succeed.
         let password_cred = test_credential(user.id, CredentialType::Password);
         let recovery_cred = test_credential(user.id, CredentialType::RecoveryCode);
         let recovery_id = recovery_cred.id;
@@ -4571,9 +4571,44 @@ mod tests {
                 Box::pin(async move { Ok(creds) })
             });
 
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
         let service = builder.build();
-        let result =
-            service.delete_credential_self_service(Identity::User(user), recovery_id).await;
+        let result = service
+            .delete_credential_self_service(Identity::User(user), recovery_id)
+            .await;
+
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn delete_credential_self_service_rejects_last_primary_factor_removal() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        // The OTP is the user's only primary factor (recovery codes do not
+        // count), so removing it would lock the user out and is rejected.
+        let otp_cred = test_credential(user.id, CredentialType::Otp);
+        let otp_id = otp_cred.id;
+        let recovery_cred = test_credential(user.id, CredentialType::RecoveryCode);
+
+        let creds = vec![otp_cred, recovery_cred];
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = creds.clone();
+                Box::pin(async move { Ok(creds) })
+            });
+
+        let service = builder.build();
+        let result = service
+            .delete_credential_self_service(Identity::User(user), otp_id)
+            .await;
 
         assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }

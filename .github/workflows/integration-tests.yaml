@@ -102,3 +102,10 @@ jobs:
 
       - name: run web origin integration tests
         run: cargo test -p ferriskey-api --test web_origin_test -- --ignored
+
+      # Bearer self-service endpoints (/me/credentials, /me/totp, passkey
+      # registration options, recovery-code reset). The suite uses the
+      # shared-runtime harness (one router per process, see #1086) and drops
+      # its UUID schema at process exit.
+      - name: run self-service integration tests
+        run: cargo test -p ferriskey-api --test me_self_service_test -- --ignored

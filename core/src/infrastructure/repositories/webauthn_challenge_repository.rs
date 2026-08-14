@@ -67,35 +67,27 @@ impl WebAuthnChallengeRepository for PostgresWebAuthnChallengeRepository {
 
     async fn take(&self, user_id: Uuid) -> Result<Option<WebAuthnChallenge>, CoreError> {
         let now = Utc::now().fixed_offset();
-        let model = WcEntity::find()
+
+        // Atomically delete and return one unexpired challenge. A single
+        // DELETE ... RETURNING guarantees an expired challenge is never
+        // consumed and a concurrent request can never reuse the same row.
+        let models = WcEntity::delete_many()
             .filter(WcColumn::UserId.eq(user_id))
-            // Only an unexpired challenge is usable; an expired one must not be
-            // returned or consumed (it would bypass the intended TTL).
             .filter(WcColumn::ExpiresAt.gt(now))
-            .one(&self.db)
+            .exec_with_returning(&self.db)
             .await
             .map_err(|e| {
-                error!("Failed to load WebAuthn challenge: {e}");
+                error!("Failed to consume WebAuthn challenge: {e}");
                 CoreError::InternalServerError
             })?;
 
-        let Some(model) = model else {
+        let Some(model) = models.into_iter().next() else {
             return Ok(None);
         };
 
         let challenge: WebAuthnChallenge =
             serde_json::from_value(model.challenge).map_err(|e| {
                 error!("Failed to deserialize WebAuthn challenge: {e}");
-                CoreError::InternalServerError
-            })?;
-
-        // Consume the challenge so it cannot be reused.
-        WcEntity::delete_many()
-            .filter(WcColumn::UserId.eq(user_id))
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to delete WebAuthn challenge: {e}");
                 CoreError::InternalServerError
             })?;
 

@@ -71,3 +71,4 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "mig
 serde_json = "1.0.148"
 hmac = "0.12.1"
 sha1 = "0.10.6"
+libc = "0.2.177"
