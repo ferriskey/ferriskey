@@ -31,8 +31,8 @@ use crate::domain::{
         OidcScope,
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
-            AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
-            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            AuthenticationMethod, AuthorizeRequestInput, AuthorizeRequestOutput,
+            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
@@ -50,7 +50,10 @@ use crate::domain::{
         ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
     },
     common::{entities::app_errors::CoreError, generate_random_string},
-    credential::{entities::CredentialData, ports::CredentialRepository},
+    credential::{
+        entities::{CredentialData, CredentialType},
+        ports::CredentialRepository,
+    },
     crypto::HasherRepository,
     email_verification::ports::EmailVerificationService,
     jwt::{
@@ -58,7 +61,11 @@ use crate::domain::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
         ports::{AccessTokenRepository, RefreshTokenRepository, RotateOutcome},
     },
-    realm::{entities::RealmId, ports::RealmRepository},
+    realm::{
+        entities::{RealmId, RealmSetting},
+        ports::RealmRepository,
+    },
+    role::entities::Role,
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     session::{entities::UserSession, ports::UserSessionRepository},
     user::{
@@ -75,7 +82,7 @@ use crate::domain::{
     },
 };
 use ferriskey_domain::token_lifetime::TokenLifetimes;
-use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
+use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
@@ -129,6 +136,84 @@ fn format_authorization_redirect_url(
 fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
     auth_session.expires_at >= now
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
+}
+
+/// Gate the `ExistingToken` branch of `POST /login-actions/authenticate`
+/// (FK-003).
+///
+/// That branch skips the whole interactive login and finalizes the flow on the
+/// strength of the presented token alone, so the token must be one that already
+/// *stands for* a completed authentication — i.e. a `Bearer` access token.
+///
+/// Every other `typ` is a mid-flow artifact and replaying it here would let the
+/// holder jump the step it was minted for. The `Temporary` token is the sharp
+/// case: `using_session_code` hands it out right after the password check and
+/// right *before* the OTP challenge, so accepting it here completes login with
+/// the password alone. `Refresh` and `Id` tokens are rejected for the same
+/// reason — they are not proof of a finished login at this endpoint.
+///
+/// The `AuthSession` freshness check is repeated here (it also lives in
+/// `authenticate`) so this path can never outlive its authorization request,
+/// whatever future caller reaches it. `now` is injected so expiry is testable.
+fn validate_token_refresh_request(
+    claims_typ: &ClaimsTyp,
+    auth_session: &AuthSession,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    if auth_session.expires_at < now {
+        return Err(CoreError::SessionExpired);
+    }
+
+    if *claims_typ != ClaimsTyp::Bearer {
+        return Err(CoreError::InvalidToken);
+    }
+
+    Ok(())
+}
+
+/// Re-derive the required actions that gate the token-refresh path (FK-003).
+///
+/// `ConfigureOtp` is *computed*, never written to `user_required_actions`: the
+/// credentials path builds it on the fly in `using_session_code`. So a path
+/// that only reads the persisted `user.required_actions` sees an empty list and
+/// finalizes, silently bypassing mandatory MFA enrolment. Replaying the same
+/// policy here closes that hole.
+///
+/// Unlike the credentials path we do not suspend enforcement for a temporary
+/// password: no password is presented on this path, so there is nothing to make
+/// the exception for, and defaulting to "enforce" is the safe direction.
+fn resolve_refresh_required_actions(
+    persisted_actions: &[RequiredAction],
+    realm_settings: Option<&RealmSetting>,
+    user_roles: &[Role],
+    has_otp_credential: bool,
+) -> Vec<RequiredAction> {
+    let mut actions = persisted_actions.to_vec();
+
+    let mfa_required_action = mfa_policy::user_requires_mfa(realm_settings, user_roles)
+        .then(|| {
+            mfa_policy::required_action_for_mfa(has_otp_credential).filter(|a| !actions.contains(a))
+        })
+        .flatten();
+
+    if let Some(action) = mfa_required_action {
+        actions.push(action);
+    }
+
+    actions
+}
+
+/// Lifetime, in seconds, of a `Temporary` step token.
+///
+/// A step token only has to survive one hop of the login flow (OTP challenge,
+/// required-action screen), so it must not borrow the access-token lifetime a
+/// realm may have widened to hours. Realms expose a dedicated
+/// `temporary_token_lifetime`; when a realm has no settings row we fall back to
+/// `DEFAULT_TEMPORARY_TOKEN_LIFETIME` rather than to the access-token default.
+fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
+    realm_settings
+        .map(|s| s.temporary_token_lifetime)
+        .unwrap_or(DEFAULT_TEMPORARY_TOKEN_LIFETIME)
 }
 
 /// Constant-time comparison of a configured client secret against the one
@@ -2480,10 +2565,9 @@ This is a server error that should be investigated. Do not forward back this mes
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
-        let access_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.access_token_lifetime)
-            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
+        // A step token must not borrow the (possibly hours-long) access-token
+        // lifetime — it only has to survive the next hop of the login flow.
+        let temporary_lifetime = temporary_token_lifetime(realm_settings.as_ref());
 
         let jwt_claim = JwtClaim::new(
             user.id,
@@ -2494,7 +2578,7 @@ This is a server error that should be investigated. Do not forward back this mes
             client_id.clone(),
             user.email.clone(),
             Some(auth_session.scope),
-            access_lifetime,
+            temporary_lifetime,
         );
 
         // Resolve MFA enforcement: realm-level or role-level require_mfa.
@@ -2593,24 +2677,71 @@ This is a server error that should be investigated. Do not forward back this mes
                 e
             })?;
 
+        // FK-003: only a `Bearer` access token stands for a completed login.
+        // Checked here — the earliest point at which `typ` is known, and before
+        // any repository lookup — so a replayed `Temporary` step token cannot
+        // skip the OTP challenge it was minted in front of.
+        validate_token_refresh_request(&claims.typ, &auth_session, Utc::now()).inspect_err(
+            |e| {
+                warn!(
+                    token_fingerprint = %token_fingerprint,
+                    claims_typ = ?claims.typ,
+                    realm_id = %Uuid::from(realm_id),
+                    session_code = %session_code,
+                    error = ?e,
+                    "Rejected token-refresh authentication attempt"
+                );
+            },
+        )?;
+
         let user = self
             .user_repository
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        if !user.required_actions.is_empty() {
-            let jwt_token = self.generate_token(claims, realm_id).await?;
+        // `ConfigureOtp` is never persisted (see `resolve_refresh_required_actions`),
+        // so the MFA policy has to be re-evaluated here instead of trusting the
+        // stored `user.required_actions` alone.
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
 
-            return Ok(AuthenticateOutput {
-                status: AuthenticationStepStatus::RequiresActions,
-                user_id: user.id,
-                authorization_code: None,
-                redirect_url: None,
-                required_actions: user.required_actions,
-                session_state: None,
-                temporary_token: Some(jwt_token.token),
-            });
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let has_otp_credential = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+            .iter()
+            .any(|cred| cred.credential_type == CredentialType::Otp);
+
+        let required_actions = resolve_refresh_required_actions(
+            &user.required_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+        );
+
+        if !required_actions.is_empty() {
+            // Re-sign as an explicitly `Temporary` step token: re-signing the
+            // incoming claims verbatim would carry the caller's `typ` through,
+            // so the field named `temporary_token` could hand back a full
+            // `Bearer` token.
+            let temporary_claims = JwtClaim::new_temporary_token(
+                claims,
+                temporary_token_lifetime(realm_settings.as_ref()),
+            );
+            let jwt_token = self.generate_token(temporary_claims, realm_id).await?;
+
+            return Ok(AuthenticateOutput::requires_actions(
+                user.id,
+                required_actions,
+                jwt_token.token,
+            ));
         }
 
         self.finalize_authentication(claims.sub, session_code, auth_session)
@@ -4167,5 +4298,216 @@ mod tests {
             ),
             Err(CoreError::InvalidClient)
         ));
+    }
+
+    // ---- FK-003: token-refresh guards ------------------------------------
+    //
+    // `POST /login-actions/authenticate` accepts an `Authorization: Bearer`
+    // token and short-circuits the interactive login. The mid-flow `Temporary`
+    // token minted by `using_session_code` (right before the OTP challenge)
+    // must never be usable there: replaying it would complete authentication
+    // with the password alone, skipping the second factor entirely.
+
+    use super::{
+        resolve_refresh_required_actions, temporary_token_lifetime, validate_token_refresh_request,
+    };
+    use crate::domain::authentication::entities::{AuthenticateOutput, AuthenticationStepStatus};
+    use crate::domain::jwt::entities::ClaimsTyp;
+    use crate::domain::realm::entities::RealmSetting;
+    use crate::domain::role::entities::Role;
+    use crate::domain::user::entities::RequiredAction;
+    use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
+
+    /// A session that is still live, so only the token `typ` can fail a test.
+    fn live_session() -> AuthSession {
+        auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            Utc::now() + Duration::minutes(5),
+            None,
+            false,
+        )
+    }
+
+    fn realm_setting(require_mfa: bool) -> RealmSetting {
+        let mut s = RealmSetting::new(RealmId::from(Uuid::new_v4()), None);
+        s.require_mfa = require_mfa;
+        s
+    }
+
+    fn role(require_mfa: bool) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: "r".to_string(),
+            description: None,
+            permissions: vec![],
+            realm_id: RealmId::from(Uuid::new_v4()),
+            client_id: None,
+            client: None,
+            require_mfa,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn token_refresh_rejects_a_replayed_temporary_token() {
+        // FK-003 path A: the step token handed to the client just before the
+        // OTP challenge, replayed on /login-actions/authenticate.
+        assert!(matches!(
+            validate_token_refresh_request(&ClaimsTyp::Temporary, &live_session(), Utc::now()),
+            Err(CoreError::InvalidToken)
+        ));
+    }
+
+    #[test]
+    fn token_refresh_rejects_refresh_and_id_tokens() {
+        // Only a fully-minted access token stands for a completed login.
+        for typ in [ClaimsTyp::Refresh, ClaimsTyp::Id] {
+            assert!(
+                matches!(
+                    validate_token_refresh_request(&typ, &live_session(), Utc::now()),
+                    Err(CoreError::InvalidToken)
+                ),
+                "{typ:?} must not short-circuit an interactive login"
+            );
+        }
+    }
+
+    #[test]
+    fn token_refresh_accepts_a_bearer_token() {
+        assert!(
+            validate_token_refresh_request(&ClaimsTyp::Bearer, &live_session(), Utc::now()).is_ok()
+        );
+    }
+
+    #[test]
+    fn token_refresh_rejects_an_expired_auth_session() {
+        // `authenticate` guards this, `handle_token_refresh` did not.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            now - Duration::seconds(1),
+            None,
+            false,
+        );
+
+        assert!(matches!(
+            validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now),
+            Err(CoreError::SessionExpired)
+        ));
+    }
+
+    #[test]
+    fn token_refresh_expired_session_beats_a_valid_bearer_token() {
+        // An expired session is fatal regardless of how good the token is.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            now - Duration::hours(1),
+            None,
+            false,
+        );
+
+        assert!(validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now).is_err());
+    }
+
+    // ---- FK-003: MFA policy re-evaluated on the refresh path --------------
+
+    #[test]
+    fn refresh_injects_configure_otp_when_realm_requires_mfa() {
+        // `ConfigureOtp` is computed, never persisted, so reading
+        // `user.required_actions` alone lets mandatory enrolment be skipped.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], false);
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_injects_configure_otp_when_a_role_requires_mfa() {
+        let actions = resolve_refresh_required_actions(
+            &[],
+            Some(&realm_setting(false)),
+            &[role(true)],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_requires_actions_output_carries_no_authorization_code() {
+        // The security property: an enrolment-pending user gets a step token,
+        // never an authorization code.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], false);
+        assert!(!actions.is_empty());
+
+        let output =
+            AuthenticateOutput::requires_actions(Uuid::new_v4(), actions, "step-token".to_string());
+
+        assert_eq!(output.status, AuthenticationStepStatus::RequiresActions);
+        assert!(output.authorization_code.is_none());
+        assert!(output.redirect_url.is_none());
+        assert_eq!(output.required_actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_keeps_persisted_actions_when_mfa_is_not_enforced() {
+        let actions = resolve_refresh_required_actions(
+            &[RequiredAction::VerifyEmail],
+            Some(&realm_setting(false)),
+            &[role(false)],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::VerifyEmail]);
+    }
+
+    #[test]
+    fn refresh_does_not_duplicate_an_already_persisted_configure_otp() {
+        let actions = resolve_refresh_required_actions(
+            &[RequiredAction::ConfigureOtp],
+            Some(&realm_setting(true)),
+            &[],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_adds_no_action_when_the_user_already_enrolled_an_authenticator() {
+        // Enrolment is done; the OTP-challenge gate owns the prompt from here.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], true);
+
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn refresh_enforces_mfa_even_without_realm_settings() {
+        let actions = resolve_refresh_required_actions(&[], None, &[role(true)], false);
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    // ---- FK-003: step tokens are short-lived ------------------------------
+
+    #[test]
+    fn temporary_lifetime_uses_the_realm_temporary_setting_not_the_access_one() {
+        let mut settings = realm_setting(false);
+        settings.access_token_lifetime = 3600;
+        settings.temporary_token_lifetime = 120;
+
+        assert_eq!(temporary_token_lifetime(Some(&settings)), 120);
+    }
+
+    #[test]
+    fn temporary_lifetime_falls_back_to_the_temporary_default() {
+        assert_eq!(
+            temporary_token_lifetime(None),
+            DEFAULT_TEMPORARY_TOKEN_LIFETIME
+        );
     }
 }

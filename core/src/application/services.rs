@@ -129,6 +129,7 @@ use crate::{
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
+        trident::repositories::otp_enrollment_repository::PostgresOtpEnrollmentRepository,
         user::{
             repositories::{
                 user_attribute_repository::PostgresUserAttributeRepository,
@@ -156,6 +157,7 @@ type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherReposito
 type AuthSessionRepo = PostgresAuthSessionRepository;
 type HasherRepo = Argon2HasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
+type OtpEnrollmentRepo = PostgresOtpEnrollmentRepository;
 type UserAttributeRepo = PostgresUserAttributeRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
@@ -214,6 +216,7 @@ type ApplicationTridentService = TridentServiceImpl<
     EmailTemplateRepo,
     MjmlRenderer,
     PasswordPolicyRepo,
+    OtpEnrollmentRepo,
 >;
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;

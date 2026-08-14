@@ -23,6 +23,7 @@ pub use super::magic_links::Entity as MagicLinks;
 pub use super::organization_attributes::Entity as OrganizationAttributes;
 pub use super::organization_members::Entity as OrganizationMembers;
 pub use super::organizations::Entity as Organizations;
+pub use super::otp_enrollments::Entity as OtpEnrollments;
 pub use super::password_policy::Entity as PasswordPolicy;
 pub use super::password_reset_tokens::Entity as PasswordResetTokens;
 pub use super::portal_layouts::Entity as PortalLayouts;

@@ -66,11 +66,12 @@ export default function ConfigureOtpFeature() {
       return
     }
 
+    // The secret is never sent back: the server verifies the code against the
+    // enrollment it recorded when it issued the secret.
     verifyOtp({
       data: {
         code: values.pin,
         label: values.deviceName,
-        secret: data.secret,
       },
       token,
       realm: realm_name,

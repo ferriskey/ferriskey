@@ -16,5 +16,6 @@ pub mod recovery_code;
 pub mod repositories;
 pub mod role;
 pub mod seawatch;
+pub mod trident;
 pub mod user;
 pub mod webhook;

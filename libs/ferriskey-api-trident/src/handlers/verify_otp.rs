@@ -31,7 +31,9 @@ pub struct VerifyOtpResponse {
     ),
     responses(
         (status = 200, description = "OTP verified successfully", body = VerifyOtpResponse),
-        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),        
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 401, description = "No pending enrollment, or the code does not match it", body = ApiErrorResponse),
+        (status = 403, description = "OTP is already configured and no re-configuration was requested", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
@@ -47,11 +49,10 @@ pub async fn verify_otp(
             VerifyOtpInput {
                 code: payload.code,
                 label: Some(payload.label),
-                secret: payload.secret,
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
+        .map_err(ApiError::from)?;
 
     Ok(Response::OK(VerifyOtpResponse {
         message: result.message,
