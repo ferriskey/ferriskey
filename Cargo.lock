@@ -1627,6 +1627,7 @@ dependencies = [
  "ferriskey-core",
  "ferriskey-saml",
  "hmac",
+ "libc",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",
