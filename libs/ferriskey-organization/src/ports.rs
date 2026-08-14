@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::role::entities::Role;
 
 use crate::entities::{
@@ -104,8 +104,17 @@ pub trait OrganizationMemberRepository: Send + Sync {
         organization_id: OrganizationId,
     ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
 
+    /// List a user's memberships, **within `realm_id` only** (FK-006).
+    ///
+    /// The realm is a parameter rather than a caller-side check because one of the two
+    /// callers has no service layer to protect it: the OIDC claim builder
+    /// (`core/src/domain/authentication/services.rs`) reads memberships straight into
+    /// the token. "A membership never crosses a realm" was an invariant held only by
+    /// `add_member`; the moment a cross-realm row reaches the table through an import,
+    /// a seed or a bug, both callers would propagate it.
     fn list_organizations_for_user(
         &self,
+        realm_id: RealmId,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
 
@@ -478,34 +487,45 @@ pub trait GroupService: Send + Sync {
 }
 
 /// Policy trait for Organization authorization
+/// Every method takes the **target realm**, not its id and not the organization.
+///
+/// `get_permission_for_target_realm` — the only permission lookup that applies the
+/// `can_access_realm` gate — pivots on `realm.name`, so a `RealmId` cannot reach it
+/// without a second database round-trip. Taking `&Realm` is what makes the correct
+/// lookup callable at all; the previous signatures are why all five methods silently
+/// fell back to `get_user_permissions`, the unscoped union of every role the caller
+/// holds anywhere (FK-006).
+///
+/// Callers already have the realm in scope: every service resolves it from
+/// `input.realm_name` on its first line.
 pub trait OrganizationPolicy: Send + Sync {
     fn can_create_organization(
         &self,
         identity: &Identity,
-        realm_id: RealmId,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_view_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_update_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_delete_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_manage_members(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }

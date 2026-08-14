@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -69,11 +69,16 @@ where
         }
     }
 
+    /// Resolve the realm from its name and the organization within it.
+    ///
+    /// Returns the realm alongside the organization: it is the *target realm* every
+    /// `OrganizationPolicy` check needs, and recomputing it from `org.realm_id` would cost a
+    /// second lookup for a value already in hand.
     async fn get_org_for_realm_name(
         &self,
         realm_name: String,
         organization_id: OrganizationId,
-    ) -> Result<Organization, CoreError> {
+    ) -> Result<(Realm, Organization), CoreError> {
         let realm = self
             .realm_repository
             .get_by_name(&realm_name)
@@ -81,7 +86,9 @@ where
             .map_err(|_| CoreError::InvalidRealm)?
             .ok_or(CoreError::InvalidRealm)?;
 
-        self.get_org_for_realm(organization_id, realm.id).await
+        let org = self.get_org_for_realm(organization_id, realm.id).await?;
+
+        Ok((realm, org))
     }
 
     async fn get_org_for_realm(
@@ -134,12 +141,12 @@ where
         identity: Identity,
         input: AssignMemberRoleInput,
     ) -> Result<(), CoreError> {
-        let org = self
+        let (realm, org) = self
             .get_org_for_realm_name(input.realm_name, input.organization_id)
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &org).await,
+            self.policy.can_manage_members(&identity, &realm).await,
             "insufficient permissions to manage member roles",
         )?;
 
@@ -154,12 +161,12 @@ where
         identity: Identity,
         input: RevokeMemberRoleInput,
     ) -> Result<(), CoreError> {
-        let org = self
+        let (realm, org) = self
             .get_org_for_realm_name(input.realm_name, input.organization_id)
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &org).await,
+            self.policy.can_manage_members(&identity, &realm).await,
             "insufficient permissions to manage member roles",
         )?;
 
@@ -174,12 +181,12 @@ where
         identity: Identity,
         input: ListMemberRolesInput,
     ) -> Result<Vec<Role>, CoreError> {
-        let org = self
+        let (realm, org) = self
             .get_org_for_realm_name(input.realm_name, input.organization_id)
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &org).await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to view member roles",
         )?;
 
@@ -476,6 +483,74 @@ mod tests {
                     realm_name: "test-realm".to_string(),
                     organization_id: org_id,
                     user_id: Uuid::new_v4(),
+                    role_id: Uuid::new_v4(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn assign_role_denies_actor_from_another_realm() {
+        // FK-006: the actor is a genuine admin of `attacker-realm`, so the denial below proves
+        // the realm gate fired rather than a plain lack of permissions. The organization and
+        // the membership are real, and the repositories are permissive: nothing but the policy
+        // stands between the attacker and the role assignment.
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let attacker_realm = Realm {
+            id: RealmId::new(Uuid::new_v4()),
+            name: "attacker-realm".to_string(),
+            display_name: None,
+            settings: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let attacker_realm_id = attacker_realm.id;
+        let attacker = make_user(&attacker_realm);
+        let identity = Identity::User(attacker.clone());
+
+        let org = make_org(victim_realm_id);
+        let org_id = org.id;
+        let target_user_id = Uuid::new_v4();
+        let member = OrganizationMember {
+            id: Uuid::new_v4(),
+            organization_id: org_id,
+            user_id: target_user_id,
+            created_at: Utc::now(),
+        };
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_get_member()
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(member)) }));
+
+        let mut member_role_repo = MockOrganizationMemberRoleRepository::new();
+        member_role_repo
+            .expect_assign_role()
+            .return_once(|_, _| Box::pin(async { Ok(()) }));
+
+        let service = build_service(
+            realm_repo_returning(victim_realm_id),
+            admin_user_repo(attacker),
+            admin_role_repo(attacker_realm_id, "manage_users"),
+            org_repo,
+            member_repo,
+            member_role_repo,
+        );
+
+        let result = service
+            .assign_role(
+                identity,
+                AssignMemberRoleInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    user_id: target_user_id,
                     role_id: Uuid::new_v4(),
                 },
             )

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
@@ -109,32 +109,40 @@ pub trait IdentityProviderService: Send + Sync {
 /// Policy trait for Identity Provider authorization
 ///
 /// Defines authorization checks for identity provider operations.
+/// Every method takes the **target realm**, not its id and not the provider.
+///
+/// The previous signatures forced each implementation to fabricate a `Realm` for the
+/// permission lookup, and each of them copied `user_realm.name` into it. That made
+/// `is_cross_realm_access` — which compares `user_realm.name != target_realm.name` —
+/// always false, so the lookup silently fell through to `get_user_permissions`, the
+/// unscoped union of every role the caller holds anywhere (FK-006). Passing the real
+/// realm is what makes the gate reachable. `FederationPolicy` already does this.
 pub trait IdentityProviderPolicy: Send + Sync {
     /// Checks if the identity can create an identity provider in the realm
     fn can_create_identity_provider(
         &self,
         identity: &Identity,
-        realm_id: RealmId,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can view the identity provider
     fn can_view_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can update the identity provider
     fn can_update_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can delete the identity provider
     fn can_delete_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
