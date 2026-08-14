@@ -48,6 +48,7 @@ use crate::domain::{
     client::{
         entities::Client,
         ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
+        redirect_uri_matching::redirect_uri_matches_any,
     },
     common::{entities::app_errors::CoreError, generate_random_string},
     credential::{entities::CredentialData, ports::CredentialRepository},
@@ -108,12 +109,26 @@ fn format_authorization_redirect_url(
     auth_session: &AuthSession,
     authorization_code: &str,
 ) -> String {
+    // A registered redirect URI may already carry a query string
+    // (`https://app.example/cb?tenant=acme`), so the separator has to be chosen
+    // rather than assumed, and `state` echoed back percent-encoded.
+    let separator = if auth_session.redirect_uri.contains('?') {
+        '&'
+    } else {
+        '?'
+    };
+
+    let url = format!(
+        "{}{separator}code={}",
+        auth_session.redirect_uri,
+        urlencoding::encode(authorization_code)
+    );
+
     match auth_session.state.as_deref() {
-        Some(state) if !state.is_empty() => format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, state
-        ),
-        _ => format!("{}?code={}", auth_session.redirect_uri, authorization_code),
+        Some(state) if !state.is_empty() => {
+            format!("{url}&state={}", urlencoding::encode(state))
+        }
+        _ => url,
     }
 }
 
@@ -2811,17 +2826,10 @@ where
             .get_enabled_by_client_id(client.id)
             .await?;
 
-        if !client_redirect_uris.iter().any(|uri| {
-            if uri.value == redirect_uri {
-                return true;
-            }
-
-            if let Ok(regex) = regex::Regex::new(&uri.value) {
-                return regex.is_match(&redirect_uri);
-            }
-
-            false
-        }) {
+        if !redirect_uri_matches_any(
+            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
+            &redirect_uri,
+        ) {
             return Err(CoreError::InvalidRedirectUri);
         }
 
@@ -3743,6 +3751,43 @@ mod tests {
         assert_eq!(
             format_authorization_redirect_url(&session, "C"),
             "https://client.example/app/oidc?code=C&state=s"
+        );
+    }
+
+    #[test]
+    fn redirect_url_appends_to_an_existing_query_string() {
+        // A registered redirect URI may legitimately carry query parameters. Joining
+        // with `?` unconditionally produced `...?tenant=acme?code=...`, which no
+        // client can parse.
+        let session = auth_session(
+            Some("s"),
+            "https://client.example/callback?tenant=acme",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/callback?tenant=acme&code=C&state=s"
+        );
+    }
+
+    #[test]
+    fn redirect_url_percent_encodes_state() {
+        // `state` is echoed back verbatim from the client, so it has to be encoded
+        // or it can inject extra query parameters into the callback.
+        let session = auth_session(
+            Some("a b&next=https://evil.example"),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/callback?code=C&state=a%20b%26next%3Dhttps%3A%2F%2Fevil.example"
         );
     }
 

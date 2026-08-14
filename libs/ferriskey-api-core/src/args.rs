@@ -381,6 +381,7 @@ impl From<Args> for FerriskeyConfig {
                 username: value.db.user,
                 schema: value.db.schema,
             },
+            webapp_url: value.webapp_url,
         }
     }
 }
