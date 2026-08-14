@@ -37,14 +37,19 @@ pub trait Policy: Send + Sync {
     fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
 }
 
+/// A well-formed question whose answer is "no" is a 403. A question the
+/// engine couldn't answer — a database read failing, a realm that doesn't
+/// resolve — is not the same thing and must not be reported as one: it
+/// propagates as its own `CoreError`, whatever HTTP status that maps to.
+/// Collapsing both into `Forbidden` would hide infrastructure failures
+/// behind an authorization error, indistinguishable from a legitimate deny.
 pub fn ensure_policy(
     result_has_permission: Result<bool, CoreError>,
     error_message: &str,
 ) -> Result<(), CoreError> {
-    match result_has_permission {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(CoreError::Forbidden(error_message.to_string())),
-        Err(CoreError::NotFound) => Err(CoreError::NotFound),
-        Err(_) => Err(CoreError::Forbidden(error_message.to_string())),
+    if result_has_permission? {
+        Ok(())
+    } else {
+        Err(CoreError::Forbidden(error_message.to_string()))
     }
 }
