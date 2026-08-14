@@ -415,7 +415,10 @@ export function usePortalPageSubmit(
     typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('client_data')
       : null
-  const { data: setupData } = useSetupOtp({
+  // Called for its effect, not its data: this is what makes the server issue and
+  // persist the pending enrolment that `verify-otp` later reads back. The secret it
+  // returns is rendered by the portal renderer, and is no longer sent back on submit.
+  useSetupOtp({
     realm: realm_name ?? 'master',
     token: pageType === 'totp_setup' ? totpSetupToken : null,
   })
@@ -475,14 +478,15 @@ export function usePortalPageSubmit(
         toast.error('Enter the 6-digit code from your authenticator app.')
         return
       }
-      const secret = setupData?.secret
-      if (!totpSetupToken || !secret) {
+      // The secret is no longer sent: the server reads back the enrolment it issued
+      // itself, so a client-supplied secret is neither needed nor accepted (FK-003).
+      if (!totpSetupToken) {
         toast.error('TOTP setup context is missing. Please restart the flow.')
         return
       }
       verifyOtp(
         {
-          data: { code, label, secret },
+          data: { code, label },
           token: totpSetupToken,
           realm: realm_name,
         },
@@ -492,7 +496,7 @@ export function usePortalPageSubmit(
         },
       )
     },
-    [realm_name, setupData, totpSetupToken, verifyOtp],
+    [realm_name, totpSetupToken, verifyOtp],
   )
 
   // All hooks above run unconditionally so the order stays stable across

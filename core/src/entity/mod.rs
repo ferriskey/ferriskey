@@ -30,6 +30,7 @@ pub mod organization_groups;
 pub mod organization_member_roles;
 pub mod organization_members;
 pub mod organizations;
+pub mod otp_enrollments;
 pub mod password_policy;
 pub mod password_reset_tokens;
 pub mod portal_layouts;
