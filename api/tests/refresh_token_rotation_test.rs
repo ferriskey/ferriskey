@@ -113,6 +113,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -129,6 +130,7 @@ mod tests {
 
         service
             .initialize_application(StartupConfig {
+                webapp_url: "http://localhost:5555".to_string(),
                 master_realm_name: realm_name.clone(),
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),

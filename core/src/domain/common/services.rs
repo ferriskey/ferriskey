@@ -9,6 +9,7 @@ use crate::domain::{
         value_objects::CreateClientRequest,
     },
     common::{
+        console_callback_uri,
         entities::{InitializationResult, StartupConfig, app_errors::CoreError},
         generate_random_string,
         ports::CoreService,
@@ -366,13 +367,14 @@ where
             }
         }
 
-        let admin_redirect_patterns = vec![
-            // Pattern regex pour accepter toutes les URLs sur localhost avec n'importe quel port
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
-        ];
+        // Exactly one redirect URI: the console's own callback on this deployment's
+        // origin. The previous list seeded `^/*`, a regex accepting every URI, which
+        // handed the master realm's authorization codes to any host an attacker named
+        // (FK-002).
+        let admin_redirect_patterns = vec![console_callback_uri(
+            &config.webapp_url,
+            &config.master_realm_name,
+        )];
 
         let existing_uris = self
             .redirect_uri_repository
@@ -413,13 +415,6 @@ where
             .fetch_realm()
             .await
             .unwrap_or_default();
-
-        let console_redirect_patterns = [
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
-        ];
 
         for r in &all_realms {
             if r.id == realm.id {
@@ -479,20 +474,20 @@ where
                 .await
                 .unwrap_or_default();
 
-            for pattern in &console_redirect_patterns {
-                if !existing_uris.iter().any(|uri| &uri.value == pattern)
-                    && let Err(e) = self
-                        .redirect_uri_repository
-                        .create_redirect_uri(console_client.id, pattern.to_string(), true)
-                        .await
-                {
-                    tracing::error!(
-                        "failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
-                        pattern,
-                        r.name,
-                        e
-                    );
-                }
+            let callback_uri = console_callback_uri(&config.webapp_url, &r.name);
+
+            if !existing_uris.iter().any(|uri| uri.value == callback_uri)
+                && let Err(e) = self
+                    .redirect_uri_repository
+                    .create_redirect_uri(console_client.id, callback_uri.clone(), true)
+                    .await
+            {
+                tracing::error!(
+                    "failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
+                    callback_uri,
+                    r.name,
+                    e
+                );
             }
         }
 

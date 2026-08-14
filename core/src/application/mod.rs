@@ -343,6 +343,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             redirect_uri.clone(),
             policy.clone(),
+            config.webapp_url.clone(),
         ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
         role_service: RoleServiceImpl::new(
@@ -605,6 +606,7 @@ mod tests {
                 name: db_name,
                 schema: schema.clone(),
             },
+            webapp_url: "http://localhost:5555".to_string(),
         })
         .await
         .expect("create service");

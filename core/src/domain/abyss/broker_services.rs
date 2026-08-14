@@ -21,6 +21,7 @@ use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProvider
 use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
 use crate::domain::authentication::ports::AuthSessionRepository;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
+use crate::domain::client::redirect_uri_matching::redirect_uri_matches_any;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm::ports::RealmRepository;
@@ -59,19 +60,7 @@ fn evaluate_redirect_uri(allowed: &[String], redirect_uri: &str) -> Result<(), C
         return Err(CoreError::RedirectUriNotFound);
     }
 
-    let is_valid = allowed.iter().any(|uri| {
-        if uri == redirect_uri {
-            return true;
-        }
-
-        if let Ok(regex) = regex::Regex::new(uri) {
-            return regex.is_match(redirect_uri);
-        }
-
-        false
-    });
-
-    if is_valid {
+    if redirect_uri_matches_any(allowed.iter().map(String::as_str), redirect_uri) {
         Ok(())
     } else {
         Err(CoreError::InvalidRedirectUri)
@@ -763,11 +752,68 @@ mod tests {
     }
 
     #[test]
-    fn evaluate_redirect_uri_accepts_regex_match() {
-        let allowed = vec!["https://app\\.example/.*".to_string()];
+    fn evaluate_redirect_uri_accepts_anchored_regex_match() {
+        let allowed = vec!["^https://app\\.example/.*$".to_string()];
 
         let result = evaluate_redirect_uri(&allowed, "https://app.example/cb");
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_rejects_catch_all_pattern() {
+        let allowed = vec!["^/*".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://attacker.example/steal");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_rejects_uri_merely_containing_a_registered_one() {
+        let allowed = vec!["https://app.example/cb".to_string()];
+
+        let result = evaluate_redirect_uri(
+            &allowed,
+            "https://attacker.example/?next=https://app.example/cb",
+        );
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_does_not_treat_dots_in_a_literal_uri_as_wildcards() {
+        let allowed = vec!["https://app.example/cb".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://appXexample/cb");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_ignores_an_unanchored_pattern() {
+        let allowed = vec!["https://app\\.example/.*".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://app.example/cb");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_rejects_an_anchored_pattern_matching_the_empty_string() {
+        let allowed = vec!["^.*$".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://attacker.example/steal");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    #[test]
+    fn evaluate_redirect_uri_anchors_each_branch_of_an_alternation() {
+        let allowed = vec!["^https://app\\.example/cb|attacker$".to_string()];
+
+        let result = evaluate_redirect_uri(&allowed, "https://evil.example/attacker");
+
+        assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
     }
 }
