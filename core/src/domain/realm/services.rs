@@ -1404,6 +1404,9 @@ mod tests {
         }
 
         fn with_seed_default_scopes(mut self, new_realm_id: RealmId) -> Self {
+            // 8 scopes (openid, profile, email, roles, organization,
+            // offline_access, phone, address), 10 mappers across them —
+            // see `seed_default_scopes_for_client`.
             Arc::get_mut(&mut self.client_scope_repo)
                 .unwrap()
                 .expect_create()
