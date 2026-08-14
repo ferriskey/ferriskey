@@ -57,11 +57,11 @@ use crate::{
                 RecoveryCodeFormatter, RecoveryCodeRepository, RequestPasswordResetInput,
                 SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
                 VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
+                WebAuthnChallengeRecord, WebAuthnChallengeRepository,
                 WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
                 WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
                 WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnChallengeRecord, WebAuthnChallengeRepository, WebAuthnRpInfo,
-                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -2245,12 +2245,12 @@ where
             take_pending_registration(self.webauthn_challenge_repository.as_ref(), user.id).await?;
 
         let passkey = match pending {
-            WebAuthnChallenge::Registration(ref pr) => {
-                webauthn.finish_passkey_registration(&input.credential, pr).map_err(|e| {
+            WebAuthnChallenge::Registration(ref pr) => webauthn
+                .finish_passkey_registration(&input.credential, pr)
+                .map_err(|e| {
                     debug!("Failed to complete passkey registration: {e:?}");
                     CoreError::Invalid
-                })
-            }
+                }),
             _ => Err(CoreError::Invalid),
         }?;
 
@@ -2303,13 +2303,25 @@ where
 
         let mut burnt_code: Option<Credential> = None;
         for code_cred in recovery_code_creds.into_iter() {
-            if let CredentialData::Hash { hash_iterations, algorithm } = &code_cred.credential_data
+            if let CredentialData::Hash {
+                hash_iterations,
+                algorithm,
+            } = &code_cred.credential_data
             {
-                let salt = code_cred.salt.as_ref().ok_or(CoreError::InternalServerError)?;
+                let salt = code_cred
+                    .salt
+                    .as_ref()
+                    .ok_or(CoreError::InternalServerError)?;
 
                 let result = self
                     .recovery_code_repository
-                    .verify(&user_code, &code_cred.secret_data, *hash_iterations, algorithm, salt)
+                    .verify(
+                        &user_code,
+                        &code_cred.secret_data,
+                        *hash_iterations,
+                        algorithm,
+                        salt,
+                    )
                     .await?;
 
                 if result {
@@ -2346,8 +2358,11 @@ where
             .await?
             .unwrap_or_else(|| PasswordPolicy::default(realm_id_uuid));
 
-        let email_local_buf =
-            user.email.as_deref().and_then(|e| e.split('@').next()).map(str::to_string);
+        let email_local_buf = user
+            .email
+            .as_deref()
+            .and_then(|e| e.split('@').next())
+            .map(str::to_string);
 
         validator::validate(
             &input.new_password,
@@ -2358,7 +2373,10 @@ where
         .map_err(violations_to_core_error)?;
 
         // 4. Replace the password credential.
-        let _ = self.credential_repository.delete_password_credential(user.id).await;
+        let _ = self
+            .credential_repository
+            .delete_password_credential(user.id)
+            .await;
 
         let hash_result = self
             .hasher_repository
@@ -2372,7 +2390,10 @@ where
             .map_err(|_| CoreError::CreateCredentialError)?;
 
         // 5. Clean up reset tokens and required actions.
-        let _ = self.password_reset_token_repository.delete_all_by_user_id(user.id).await;
+        let _ = self
+            .password_reset_token_repository
+            .delete_all_by_user_id(user.id)
+            .await;
 
         let _ = self
             .user_required_action_repository
@@ -2432,7 +2453,10 @@ where
             .map_err(|_| CoreError::InvalidPassword)?;
 
         let salt = password_cred.salt.ok_or(CoreError::InvalidPassword)?;
-        let CredentialData::Hash { hash_iterations, algorithm } = password_cred.credential_data
+        let CredentialData::Hash {
+            hash_iterations,
+            algorithm,
+        } = password_cred.credential_data
         else {
             return Err(CoreError::InvalidPassword);
         };
@@ -2460,8 +2484,9 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        if let Some(otp_cred) =
-            credentials.iter().find(|c| c.credential_type == CredentialType::Otp)
+        if let Some(otp_cred) = credentials
+            .iter()
+            .find(|c| c.credential_type == CredentialType::Otp)
         {
             let code = input.otp_code.ok_or_else(|| {
                 CoreError::TotpVerificationFailed("OTP code is required".to_string())
@@ -2469,8 +2494,13 @@ where
 
             let secret = TotpSecret::from_base32(&otp_cred.secret_data);
             if !verify(&secret, &code)? {
-                error!("invalid OTP code during reauthentication for user: {}", user.id);
-                return Err(CoreError::TotpVerificationFailed("failed to verify OTP".to_string()));
+                error!(
+                    "invalid OTP code during reauthentication for user: {}",
+                    user.id
+                );
+                return Err(CoreError::TotpVerificationFailed(
+                    "failed to verify OTP".to_string(),
+                ));
             }
         }
 
@@ -2492,7 +2522,10 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok(credentials.into_iter().map(CredentialOverview::from).collect())
+        Ok(credentials
+            .into_iter()
+            .map(CredentialOverview::from)
+            .collect())
     }
 
     async fn delete_credential_self_service(
@@ -2512,7 +2545,39 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         if !credentials.iter().any(|c| c.id == credential_id) {
-            return Err(CoreError::Forbidden("credential does not belong to the user".to_string()));
+            return Err(CoreError::Forbidden(
+                "credential does not belong to the user".to_string(),
+            ));
+        }
+
+        let target = credentials
+            .iter()
+            .find(|c| c.id == credential_id)
+            .ok_or_else(|| {
+                CoreError::Forbidden("credential does not belong to the user".to_string())
+            })?;
+
+        // The password credential is the account's primary login path and must
+        // not be removed through self-service (use the dedicated password-reset
+        // flows instead).
+        if target.credential_type == CredentialType::Password {
+            return Err(CoreError::Forbidden(
+                "the password credential cannot be removed via self-service".to_string(),
+            ));
+        }
+
+        // Do not let a user delete their last remaining primary authentication
+        // factor, which would lock them out of the account. Recovery codes are
+        // not primary factors (they only help regain access), so they are
+        // excluded from the count.
+        let primary_factors = credentials
+            .iter()
+            .filter(|c| c.credential_type != CredentialType::RecoveryCode)
+            .count();
+        if primary_factors <= 1 {
+            return Err(CoreError::Forbidden(
+                "cannot remove the last remaining credential".to_string(),
+            ));
         }
 
         self.credential_repository
@@ -4392,7 +4457,9 @@ mod tests {
             });
 
         let service = builder.build();
-        let result = service.list_credentials_self_service(Identity::User(user)).await;
+        let result = service
+            .list_credentials_self_service(Identity::User(user))
+            .await;
 
         assert!(result.is_ok(), "expected Ok, got {result:?}");
         let overviews = result.unwrap();
@@ -4400,7 +4467,10 @@ mod tests {
         assert_eq!(overviews[0].id, otp_id);
         assert_eq!(overviews[0].credential_type, "otp");
         assert_eq!(overviews[1].id, passkey_id);
-        assert_eq!(overviews[1].credential_type, "webauthn-public-key-credential");
+        assert_eq!(
+            overviews[1].credential_type,
+            "webauthn-public-key-credential"
+        );
     }
 
     #[tokio::test]
@@ -4444,8 +4514,9 @@ mod tests {
             .returning(|_| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
-        let result =
-            service.delete_credential_self_service(Identity::User(user), owned_id).await;
+        let result = service
+            .delete_credential_self_service(Identity::User(user), owned_id)
+            .await;
 
         assert!(result.is_ok(), "expected Ok, got {result:?}");
     }
@@ -4505,7 +4576,10 @@ mod tests {
         let result = service
             .reauthenticate(
                 Identity::User(user),
-                ReauthenticateInput { password: "correct-password".to_string(), otp_code: None },
+                ReauthenticateInput {
+                    password: "correct-password".to_string(),
+                    otp_code: None,
+                },
             )
             .await;
 
@@ -4536,7 +4610,10 @@ mod tests {
         let result = service
             .reauthenticate(
                 Identity::User(user),
-                ReauthenticateInput { password: "wrong-password".to_string(), otp_code: None },
+                ReauthenticateInput {
+                    password: "wrong-password".to_string(),
+                    otp_code: None,
+                },
             )
             .await;
 
@@ -4576,7 +4653,10 @@ mod tests {
         let result = service
             .reauthenticate(
                 Identity::User(user),
-                ReauthenticateInput { password: "correct-password".to_string(), otp_code: None },
+                ReauthenticateInput {
+                    password: "correct-password".to_string(),
+                    otp_code: None,
+                },
             )
             .await;
 
@@ -4601,7 +4681,9 @@ mod tests {
         let result = service
             .passkey_register_options_self_service(
                 crate::domain::common::services::tests::create_test_client_identity(realm.id),
-                PasskeyRegisterOptionsSelfServiceInput { rp_info: test_rp_info() },
+                PasskeyRegisterOptionsSelfServiceInput {
+                    rp_info: test_rp_info(),
+                },
             )
             .await;
 
@@ -4629,7 +4711,9 @@ mod tests {
         let result = service
             .passkey_register_options_self_service(
                 Identity::User(user),
-                PasskeyRegisterOptionsSelfServiceInput { rp_info: test_rp_info() },
+                PasskeyRegisterOptionsSelfServiceInput {
+                    rp_info: test_rp_info(),
+                },
             )
             .await;
 
@@ -4707,7 +4791,12 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .setup_otp(Identity::User(user), SetupOtpInput { issuer: "example.com".to_string() })
+            .setup_otp(
+                Identity::User(user),
+                SetupOtpInput {
+                    issuer: "example.com".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_ok(), "expected Ok from setup_otp");
@@ -4855,20 +4944,25 @@ mod tests {
             .expect_delete_password_credential()
             .returning(|_| Box::pin(async { Ok(()) }));
 
-        Arc::get_mut(&mut builder.hasher_repo).unwrap().expect_hash_password().returning(|_| {
-            Box::pin(async {
-                Ok(HashResult::new(
-                    "new_hash".to_string(),
-                    "salt".to_string(),
-                    1,
-                    "argon2".to_string(),
-                ))
-            })
-        });
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
 
         let user_id = user.id;
-        Arc::get_mut(&mut builder.credential_repo).unwrap().expect_create_credential().returning(
-            move |_, _, _, _, _| {
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .returning(move |_, _, _, _, _| {
                 let cred = Credential {
                     id: Uuid::new_v4(),
                     salt: Some("salt".to_string()),
@@ -4883,8 +4977,7 @@ mod tests {
                     webauthn_credential_id: None,
                 };
                 Box::pin(async move { Ok(cred) })
-            },
-        );
+            });
 
         Arc::get_mut(&mut builder.prt_repo)
             .unwrap()
@@ -4908,13 +5001,15 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
-                realm_name: "test-realm".to_string(),
-                email: "alice@example.com".to_string(),
-                code: "abcd-efgh-ij9m-nopq".to_string(),
-                format: "b32-split-4".to_string(),
-                new_password: "Str0ng!P@ssword#2024".to_string(),
-            })
+            .complete_password_reset_with_recovery_code(
+                CompletePasswordResetWithRecoveryCodeInput {
+                    realm_name: "test-realm".to_string(),
+                    email: "alice@example.com".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                    format: "b32-split-4".to_string(),
+                    new_password: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_ok(), "expected Ok, got an error");
@@ -4961,13 +5056,15 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
-                realm_name: "test-realm".to_string(),
-                email: "alice@example.com".to_string(),
-                code: "abcd-efgh-ij9m-nopq".to_string(),
-                format: "b32-split-4".to_string(),
-                new_password: "Str0ng!P@ssword#2024".to_string(),
-            })
+            .complete_password_reset_with_recovery_code(
+                CompletePasswordResetWithRecoveryCodeInput {
+                    realm_name: "test-realm".to_string(),
+                    email: "alice@example.com".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                    format: "b32-split-4".to_string(),
+                    new_password: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::RecoveryCodeBurnError(_))));
@@ -4994,13 +5091,15 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
-                realm_name: "test-realm".to_string(),
-                email: "unknown@example.com".to_string(),
-                code: "abcd-efgh-ij9m-nopq".to_string(),
-                format: "b32-split-4".to_string(),
-                new_password: "Str0ng!P@ssword#2024".to_string(),
-            })
+            .complete_password_reset_with_recovery_code(
+                CompletePasswordResetWithRecoveryCodeInput {
+                    realm_name: "test-realm".to_string(),
+                    email: "unknown@example.com".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                    format: "b32-split-4".to_string(),
+                    new_password: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));

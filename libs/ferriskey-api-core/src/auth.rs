@@ -44,6 +44,12 @@ struct ErrorResponse {
     status: i64,
 }
 
+/// The realm name carried by the authenticated bearer token, extracted from the
+/// JWT `iss` claim (`{base_url}/realms/{realm_name}`). Self-service handlers use
+/// it to reject requests whose URL realm does not match the token's realm.
+#[derive(Clone, Debug)]
+pub struct AuthenticatedRealm(pub String);
+
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
@@ -183,6 +189,7 @@ pub async fn auth(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
+    let realm_from_iss = realm_name_from_iss(&claims.iss);
 
     let output = state
         .service
@@ -195,6 +202,8 @@ pub async fn auth(
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     req.extensions_mut().insert(output.identity);
+    let realm = realm_from_iss.ok_or(StatusCode::UNAUTHORIZED)?;
+    req.extensions_mut().insert(AuthenticatedRealm(realm));
 
     Ok(next.run(req).await)
 }
@@ -205,7 +214,21 @@ const STEP_COMPLETING_ACTIONS: [&str; 4] = [
     "/login-actions/update-password",
     "/login-actions/webauthn-public-key-create",
 ];
-
+/// Extracts the realm name from an issuer claim of the form
+/// `{base_url}/realms/{realm_name}`. Returns `None` when the claim does not
+/// follow that shape; the authentication middleware rejects such requests
+/// with `401 UNAUTHORIZED` rather than proceeding without a realm.
+fn realm_name_from_iss(iss: &str) -> Option<String> {
+    let marker = "/realms/";
+    let idx = iss.find(marker)?;
+    let realm = &iss[idx + marker.len()..];
+    let realm = realm.split(['/', '?']).next().unwrap_or(realm);
+    if realm.is_empty() {
+        None
+    } else {
+        Some(realm.to_string())
+    }
+}
 pub async fn auth_login_actions(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,

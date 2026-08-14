@@ -59,7 +59,10 @@ pub async fn reset_password_with_recovery_code(
     FullUrl(_, base_url): FullUrl,
     ValidateJson(payload): ValidateJson<ResetPasswordWithRecoveryCodeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.service.validate_password_policy(realm_name.clone(), &payload.new_password).await?;
+    state
+        .service
+        .validate_password_policy(realm_name.clone(), &payload.new_password)
+        .await?;
 
     let result = state
         .service

@@ -8,6 +8,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    auth::AuthenticatedRealm,
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, credential::entities::CredentialOverview,
@@ -43,11 +44,22 @@ pub struct MeDeleteCredentialResponse {
     )
 )]
 pub async fn me_credentials(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
+    Extension(auth_realm): Extension<AuthenticatedRealm>,
 ) -> Result<Response<MeCredentialsResponse>, ApiError> {
-    let credentials =
-        state.service.list_credentials_self_service(identity).await.map_err(ApiError::from)?;
+    if auth_realm.0 != realm_name {
+        return Err(ApiError::Forbidden(
+            "token realm does not match the requested realm".into(),
+        ));
+    }
+
+    let credentials = state
+        .service
+        .list_credentials_self_service(identity)
+        .await
+        .map_err(ApiError::from)?;
 
     Ok(Response::OK(MeCredentialsResponse { data: credentials }))
 }
@@ -70,10 +82,17 @@ pub async fn me_credentials(
     )
 )]
 pub async fn me_delete_credential(
-    Path((_realm_name, credential_id)): Path<(String, Uuid)>,
+    Path((realm_name, credential_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
+    Extension(auth_realm): Extension<AuthenticatedRealm>,
 ) -> Result<Response<MeDeleteCredentialResponse>, ApiError> {
+    if auth_realm.0 != realm_name {
+        return Err(ApiError::Forbidden(
+            "token realm does not match the requested realm".into(),
+        ));
+    }
+
     state
         .service
         .delete_credential_self_service(identity, credential_id)

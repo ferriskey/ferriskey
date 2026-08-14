@@ -104,11 +104,11 @@ use crate::{
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             portal_layouts_repository::PostgresPortalLayoutsRepository,
-            webauthn_challenge_repository::PostgresWebAuthnChallengeRepository,
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
             refresh_token_repository::PostgresRefreshTokenRepository,
             user_session_repository::PostgresUserSessionRepository,
+            webauthn_challenge_repository::PostgresWebAuthnChallengeRepository,
         },
         role::repositories::role_postgres_repository::PostgresRoleRepository,
         seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository,
@@ -221,8 +221,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
-    let webauthn_challenge =
-        Arc::new(PostgresWebAuthnChallengeRepository::new(postgres.get_db()));
+    let webauthn_challenge = Arc::new(PostgresWebAuthnChallengeRepository::new(postgres.get_db()));
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());

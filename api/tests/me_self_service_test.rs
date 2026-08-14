@@ -78,8 +78,7 @@ mod tests {
     async fn init_shared_ctx() -> SharedContext {
         let _ = tracing_subscriber::fmt()
             .with_env_filter(
-                env::var("RUST_LOG")
-                    .unwrap_or_else(|_| "warn,ferriskey_core=debug".to_string()),
+                env::var("RUST_LOG").unwrap_or_else(|_| "warn,ferriskey_core=debug".to_string()),
             )
             .with_test_writer()
             .try_init();
@@ -232,7 +231,11 @@ mod tests {
             .to_string();
 
         let pw_resp = server
-            .put(&format!("/realms/{}/users/{}/reset-password", realm(), user_id))
+            .put(&format!(
+                "/realms/{}/users/{}/reset-password",
+                realm(),
+                user_id
+            ))
             .add_header("Authorization", auth_header(admin_token))
             .json(&json!({
                 "value": password,
@@ -295,12 +298,11 @@ mod tests {
         rt().block_on(async {
             let admin_token = get_admin_token(&server).await;
             let (_user_id, username, password) = create_user(&server, &admin_token).await;
-            let user_token = login(&server, &username, &password)
-                .await
-                .json::<Value>()["access_token"]
-                .as_str()
-                .expect("user access_token")
-                .to_string();
+            let user_token =
+                login(&server, &username, &password).await.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("user access_token")
+                    .to_string();
 
             // No token → 401.
             let unauthorized = server
@@ -335,12 +337,11 @@ mod tests {
         rt().block_on(async {
             let admin_token = get_admin_token(&server).await;
             let (_user_id, username, password) = create_user(&server, &admin_token).await;
-            let user_token = login(&server, &username, &password)
-                .await
-                .json::<Value>()["access_token"]
-                .as_str()
-                .expect("user access_token")
-                .to_string();
+            let user_token =
+                login(&server, &username, &password).await.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("user access_token")
+                    .to_string();
 
             let ok = server
                 .post(&format!("/realms/{}/me/reauthenticate", realm()))
@@ -365,25 +366,34 @@ mod tests {
         rt().block_on(async {
             let admin_token = get_admin_token(&server).await;
             let (_user_id, username, password) = create_user(&server, &admin_token).await;
-            let user_token = login(&server, &username, &password)
-                .await
-                .json::<Value>()["access_token"]
-                .as_str()
-                .expect("user access_token")
-                .to_string();
+            let user_token =
+                login(&server, &username, &password).await.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("user access_token")
+                    .to_string();
 
             // Setup → 200 with secret + otpauth_uri.
             let setup = server
                 .post(&format!("/realms/{}/me/totp/setup", realm()))
                 .add_header("Authorization", auth_header(&user_token))
                 .await;
-            assert_eq!(setup.status_code(), 200, "totp setup failed: {}", setup.text());
+            assert_eq!(
+                setup.status_code(),
+                200,
+                "totp setup failed: {}",
+                setup.text()
+            );
             let setup_body: Value = setup.json();
-            let secret = setup_body["secret"].as_str().expect("totp secret").to_string();
-            assert!(setup_body["otpauth_url"]
+            let secret = setup_body["secret"]
                 .as_str()
-                .unwrap()
-                .starts_with("otpauth://totp/"));
+                .expect("totp secret")
+                .to_string();
+            assert!(
+                setup_body["otpauth_url"]
+                    .as_str()
+                    .expect("otpauth_url in TOTP setup response")
+                    .starts_with("otpauth://totp/")
+            );
 
             // Verify with a freshly computed valid code → 200.
             let counter = std::time::SystemTime::now()
@@ -425,15 +435,17 @@ mod tests {
         rt().block_on(async {
             let admin_token = get_admin_token(&server).await;
             let (_user_id, username, password) = create_user(&server, &admin_token).await;
-            let user_token = login(&server, &username, &password)
-                .await
-                .json::<Value>()["access_token"]
-                .as_str()
-                .expect("user access_token")
-                .to_string();
+            let user_token =
+                login(&server, &username, &password).await.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("user access_token")
+                    .to_string();
 
             let resp = server
-                .post(&format!("/realms/{}/me/passkey/registration-options", realm()))
+                .post(&format!(
+                    "/realms/{}/me/passkey/registration-options",
+                    realm()
+                ))
                 .add_header("Authorization", auth_header(&user_token))
                 .await;
             assert_eq!(
@@ -444,7 +456,19 @@ mod tests {
             );
             let body: Value = resp.json();
             // The response reuses the public-key creation options envelope.
-            assert!(body.get("publicKey").is_some() || body.get("data").is_some());
+            let public_key = body
+                .get("publicKey")
+                .or_else(|| body.get("data"))
+                .expect("passkey registration options missing publicKey/data");
+            // A usable challenge must be present so the client can sign it.
+            let challenge = public_key
+                .get("challenge")
+                .and_then(|c| c.as_str())
+                .unwrap_or_default();
+            assert!(
+                !challenge.is_empty(),
+                "passkey registration options missing a usable challenge"
+            );
         });
     }
 
@@ -463,16 +487,20 @@ mod tests {
                 ))
                 .json(&json!({
                     "email": format!("{}@test.local", username),
-                    "recovery_code": "invalid-code",
+                    // Valid b32-split-4 formatting but not a code this user owns,
+                    // so the request reaches recovery-code comparison and is
+                    // rejected as an unmatched code (HTTP 400).
+                    "recovery_code": "aaaa-bbbb-cccc-dddd",
                     "recovery_code_format": "b32-split-4",
                     "new_password": "New-Str0ng!P@ssword#2024",
                 }))
                 .await;
-            // No matching recovery code → 4xx.
+            // No matching recovery code → 400 (BadRequest via RecoveryCodeBurnError).
             let status = resp.status_code().as_u16();
-            assert!(
-                (400..500).contains(&status),
-                "expected client error, got {}: {}",
+            assert_eq!(
+                status,
+                400,
+                "expected 400 for unmatched recovery code, got {}: {}",
                 status,
                 resp.text()
             );
