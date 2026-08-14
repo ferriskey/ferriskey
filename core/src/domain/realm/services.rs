@@ -601,7 +601,9 @@ where
             .delete_by_name(&input.realm_name)
             .await?;
 
-        self.client_repository.delete_by_id(client.id).await?;
+        self.client_repository
+            .delete_by_id(realm_id, client.id)
+            .await?;
 
         Ok(())
     }

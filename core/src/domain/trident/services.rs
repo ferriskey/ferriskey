@@ -340,13 +340,17 @@ where
 
     async fn render_email_template(
         &self,
+        realm_id: Uuid,
         template_id: Uuid,
         user: &crate::domain::user::entities::User,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
+        // FK-005: the password-reset and magic-link mails render their template
+        // through here. Unscoped, another tenant's template could be rendered — and
+        // rewritten upstream to point `{{reset_link}}` at an attacker's domain.
         let template = self
             .email_template_repository
-            .get_by_id(template_id)
+            .get_by_id(realm_id, template_id)
             .await?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
@@ -1372,6 +1376,7 @@ where
 
                 let html_body = self
                     .render_email_template(
+                        realm.id.into(),
                         tid,
                         &user,
                         &[
@@ -1687,6 +1692,7 @@ where
 
                 let html_body = self
                     .render_email_template(
+                        realm.id.into(),
                         tid,
                         &user,
                         &[

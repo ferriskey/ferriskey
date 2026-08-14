@@ -87,9 +87,11 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
-    async fn get_by_id(&self, id: uuid::Uuid) -> Result<Client, CoreError> {
+    async fn get_by_id(&self, realm_id: RealmId, id: uuid::Uuid) -> Result<Client, CoreError> {
         let clients_model = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(id))
+            // FK-005: the tenant bound lives in the query, so a foreign id yields no row.
+            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
             .find_with_related(crate::entity::redirect_uris::Entity)
             .all(&self.db)
             .await
@@ -127,11 +129,13 @@ impl ClientRepository for PostgresClientRepository {
 
     async fn update_client(
         &self,
+        realm_id: RealmId,
         client_id: Uuid,
         data: UpdateClientRequest,
     ) -> Result<Client, CoreError> {
         let client = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(client_id))
+            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -196,9 +200,10 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client.into())
     }
 
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
+    async fn delete_by_id(&self, realm_id: RealmId, id: Uuid) -> Result<(), CoreError> {
         let result = ClientEntity::delete_many()
             .filter(crate::entity::clients::Column::Id.eq(id))
+            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -206,8 +211,10 @@ impl ClientRepository for PostgresClientRepository {
                 CoreError::InternalServerError
             })?;
 
+        // No row deleted now means "absent, or belonging to another realm" — the two
+        // must stay indistinguishable, hence `NotFound` rather than a 500.
         if result.rows_affected == 0 {
-            return Err(CoreError::InternalServerError);
+            return Err(CoreError::NotFound);
         }
 
         Ok(())

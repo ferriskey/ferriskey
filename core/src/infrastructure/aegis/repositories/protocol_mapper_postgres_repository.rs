@@ -53,9 +53,14 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
     }
 
     #[instrument(skip(self))]
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<ProtocolMapper>, CoreError> {
+    async fn get_by_id(
+        &self,
+        client_scope_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<ProtocolMapper>, CoreError> {
         let model = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -83,11 +88,13 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
     #[instrument(skip(self, payload))]
     async fn update_by_id(
         &self,
+        client_scope_id: Uuid,
         id: Uuid,
         payload: UpdateProtocolMapperRequest,
     ) -> Result<ProtocolMapper, CoreError> {
         let model = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -120,9 +127,10 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
     }
 
     #[instrument(skip(self))]
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
+    async fn delete_by_id(&self, client_scope_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         let result = client_scope_protocol_mappers::Entity::delete_many()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
             .exec(&self.db)
             .await
             .map_err(|e| {

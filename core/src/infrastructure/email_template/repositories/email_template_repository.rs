@@ -37,8 +37,13 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             })
     }
 
-    async fn get_by_id(&self, template_id: Uuid) -> Result<Option<EmailTemplate>, CoreError> {
+    async fn get_by_id(
+        &self,
+        realm_id: Uuid,
+        template_id: Uuid,
+    ) -> Result<Option<EmailTemplate>, CoreError> {
         EmailTemplateEntity::find_by_id(template_id)
+            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map(|model| model.map(EmailTemplate::from))
@@ -82,12 +87,14 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
 
     async fn update(
         &self,
+        realm_id: Uuid,
         template_id: Uuid,
         name: String,
         structure: serde_json::Value,
         mjml: String,
     ) -> Result<EmailTemplate, CoreError> {
         let existing = EmailTemplateEntity::find_by_id(template_id)
+            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -112,8 +119,10 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             })
     }
 
-    async fn delete(&self, template_id: Uuid) -> Result<(), CoreError> {
-        EmailTemplateEntity::delete_by_id(template_id)
+    async fn delete(&self, realm_id: Uuid, template_id: Uuid) -> Result<(), CoreError> {
+        EmailTemplateEntity::delete_many()
+            .filter(EmailTemplateColumn::Id.eq(template_id))
+            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
             .exec(&self.db)
             .await
             .map(|_| ())

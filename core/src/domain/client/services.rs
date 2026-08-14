@@ -21,7 +21,7 @@ use crate::domain::{
         generate_random_string,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    realm::ports::RealmRepository,
+    realm::{entities::Realm, ports::RealmRepository},
     role::{
         entities::Role,
         ports::{RolePolicy, RoleRepository},
@@ -38,6 +38,7 @@ use crate::domain::{
     },
 };
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository};
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
@@ -110,6 +111,29 @@ where
             scope_mapping_repository,
             policy,
         }
+    }
+
+    /// Load a client, refusing to look outside `realm` (FK-005).
+    ///
+    /// Authorization is decided against the realm named in the URL, but the client
+    /// used to be fetched by bare UUID. A tenant administrator could therefore read
+    /// any other realm's client — **secret included**, since it is stored unhashed
+    /// and serialized in full — rewrite its security settings (`require_pkce`,
+    /// `direct_access_grants_enabled`), inject a redirect URI, or delete it outright,
+    /// cascading onto its roles, service account and scope mappings.
+    ///
+    /// The realm bound also lives in the SQL (`ClientRepository::get_by_id`); this
+    /// helper exists so sub-resource operations bind their parent before touching a
+    /// child by id.
+    async fn load_client_in_realm(
+        &self,
+        client_id: Uuid,
+        realm: &Realm,
+    ) -> Result<Client, CoreError> {
+        self.client_repository
+            .get_by_id(realm.id, client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)
     }
 }
 
@@ -241,6 +265,8 @@ where
             self.policy.can_create_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
             .redirect_uri_repository
@@ -279,6 +305,8 @@ where
             self.policy.can_create_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
             .post_logout_redirect_uri_repository
@@ -317,6 +345,8 @@ where
             self.policy.can_create_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         let role = self
             .role_repository
@@ -373,9 +403,8 @@ where
         )?;
 
         self.client_repository
-            .delete_by_id(input.client_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .delete_by_id(realm_id, input.client_id)
+            .await?;
 
         self.webhook_repository
             .notify(
@@ -420,9 +449,11 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.redirect_uri_repository
-            .delete(input.uri_id)
+            .delete(input.client_id, input.uri_id)
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
 
@@ -457,9 +488,11 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.post_logout_redirect_uri_repository
-            .delete(input.uri_id)
+            .delete(input.client_id, input.uri_id)
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
 
@@ -495,9 +528,9 @@ where
         )?;
 
         self.client_repository
-            .get_by_id(input.client_id)
+            .get_by_id(realm.id, input.client_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)
+            .map_err(|_| CoreError::NotFound)
     }
 
     async fn get_client_roles(
@@ -516,6 +549,8 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.role_repository
             .get_by_client_id(input.client_id)
@@ -563,6 +598,8 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.redirect_uri_repository
             .get_by_client_id(input.client_id)
@@ -586,6 +623,8 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.post_logout_redirect_uri_repository
             .get_by_client_id(input.client_id)
@@ -613,7 +652,7 @@ where
 
         let client = self
             .client_repository
-            .update_client(input.client_id, input.payload)
+            .update_client(realm_id, input.client_id, input.payload)
             .await
             .map_err(|_| CoreError::NotFound)?;
 
@@ -648,10 +687,12 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
             .redirect_uri_repository
-            .update_enabled(input.redirect_uri_id, input.enabled)
+            .update_enabled(input.client_id, input.redirect_uri_id, input.enabled)
             .await
             .map_err(|_| CoreError::NotFound)?;
 
@@ -686,10 +727,12 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
+        // Bind the parent to the realm before touching any child by id.
+        self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
             .post_logout_redirect_uri_repository
-            .update_enabled(input.redirect_uri_id, input.enabled)
+            .update_enabled(input.client_id, input.redirect_uri_id, input.enabled)
             .await
             .map_err(|_| CoreError::NotFound)?;
 

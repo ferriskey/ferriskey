@@ -77,9 +77,17 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         Ok(redirect_uris)
     }
 
-    async fn update_enabled(&self, id: Uuid, enabled: bool) -> Result<RedirectUri, CoreError> {
+    async fn update_enabled(
+        &self,
+        client_id: Uuid,
+        id: Uuid,
+        enabled: bool,
+    ) -> Result<RedirectUri, CoreError> {
         let redirect_uri = RedirectUriEntity::find()
             .filter(crate::entity::redirect_uris::Column::Id.eq(id))
+            // FK-005: the parent bound lives in the query, so a bare `id` cannot
+            // reach a URI belonging to another client — or another tenant.
+            .filter(crate::entity::redirect_uris::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
@@ -101,11 +109,18 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
         }
     }
 
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
-        RedirectUriEntity::delete_by_id(id)
+    async fn delete(&self, client_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        let result = RedirectUriEntity::delete_many()
+            .filter(crate::entity::redirect_uris::Column::Id.eq(id))
+            .filter(crate::entity::redirect_uris::Column::ClientId.eq(client_id))
             .exec(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        // Absent and "belongs to another client" must stay indistinguishable.
+        if result.rows_affected == 0 {
+            return Err(CoreError::RedirectUriNotFound);
+        }
 
         Ok(())
     }

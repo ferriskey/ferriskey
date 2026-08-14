@@ -765,7 +765,7 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(client_uuid)
+            .get_by_id(realm_id, client_uuid)
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
@@ -3198,7 +3198,12 @@ where
                     CoreError::InvalidClient
                 })?;
 
-                let client = self.client_repository.get_by_id(client_id).await?;
+                // Bound to the realm the token was just verified against: a service
+                // account must not resolve to a client of another realm.
+                let client = self
+                    .client_repository
+                    .get_by_id(user.realm_id, client_id)
+                    .await?;
 
                 Identity::Client(client)
             }

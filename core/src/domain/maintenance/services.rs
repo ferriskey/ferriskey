@@ -113,9 +113,11 @@ where
             "insufficient permissions to toggle maintenance",
         )?;
 
+        // FK-005: bound to the realm in the path, so maintenance cannot be toggled
+        // on another tenant's client — a denial of service on their authentication.
         let client = self
             .client_repository
-            .get_by_id(client_id)
+            .get_by_id(realm.id, client_id)
             .await
             .map_err(|_| CoreError::ClientNotFound)?;
 
@@ -136,7 +138,7 @@ where
         };
 
         self.client_repository
-            .update_client(client_id, update)
+            .update_client(realm.id, client_id, update)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 

@@ -460,6 +460,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         scope_mapping_service: ScopeMappingServiceImpl::new(
             realm.clone(),
+            client.clone(),
             client_scope.clone(),
             scope_mapping.clone(),
             policy.clone(),

@@ -75,9 +75,17 @@ impl PostLogoutRedirectUriRepository for PostgresPostLogoutRedirectUriRepository
         Ok(redirect_uris)
     }
 
-    async fn update_enabled(&self, id: Uuid, enabled: bool) -> Result<RedirectUri, CoreError> {
+    async fn update_enabled(
+        &self,
+        client_id: Uuid,
+        id: Uuid,
+        enabled: bool,
+    ) -> Result<RedirectUri, CoreError> {
         let redirect_uri = crate::entity::post_logout_redirect_uris::Entity::find()
             .filter(crate::entity::post_logout_redirect_uris::Column::Id.eq(id))
+            // FK-005: the parent bound lives in the query, so a bare `id` cannot
+            // reach a URI belonging to another client — or another tenant.
+            .filter(crate::entity::post_logout_redirect_uris::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::RedirectUriNotFound)?;
@@ -99,11 +107,18 @@ impl PostLogoutRedirectUriRepository for PostgresPostLogoutRedirectUriRepository
         }
     }
 
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
-        crate::entity::post_logout_redirect_uris::Entity::delete_by_id(id)
+    async fn delete(&self, client_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        let result = crate::entity::post_logout_redirect_uris::Entity::delete_many()
+            .filter(crate::entity::post_logout_redirect_uris::Column::Id.eq(id))
+            .filter(crate::entity::post_logout_redirect_uris::Column::ClientId.eq(client_id))
             .exec(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        // Absent and "belongs to another client" must stay indistinguishable.
+        if result.rows_affected == 0 {
+            return Err(CoreError::RedirectUriNotFound);
+        }
 
         Ok(())
     }
