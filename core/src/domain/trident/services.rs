@@ -4496,16 +4496,18 @@ mod tests {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
+        // The user keeps a password credential, so removing the OTP factor is safe.
+        let password_cred = test_credential(user.id, CredentialType::Password);
         let owned = test_credential(user.id, CredentialType::Otp);
         let owned_id = owned.id;
 
-        let owned_clone = owned.clone();
+        let creds = vec![password_cred, owned.clone()];
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_credentials_by_user_id()
             .returning(move |_| {
-                let owned_clone = owned_clone.clone();
-                Box::pin(async move { Ok(vec![owned_clone]) })
+                let creds = creds.clone();
+                Box::pin(async move { Ok(creds) })
             });
 
         Arc::get_mut(&mut builder.credential_repo)
@@ -4519,6 +4521,61 @@ mod tests {
             .await;
 
         assert!(result.is_ok(), "expected Ok, got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn delete_credential_self_service_rejects_password_credential() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let password_cred = test_credential(user.id, CredentialType::Password);
+        let password_id = password_cred.id;
+        let otp_cred = test_credential(user.id, CredentialType::Otp);
+
+        let creds = vec![password_cred, otp_cred];
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = creds.clone();
+                Box::pin(async move { Ok(creds) })
+            });
+
+        let service = builder.build();
+        let result =
+            service.delete_credential_self_service(Identity::User(user), password_id).await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn delete_credential_self_service_rejects_last_factor_removal() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        // Only the password is a primary factor; recovery codes do not count,
+        // so deleting the recovery code would remove the user's last extra
+        // authentication factor and is rejected.
+        let password_cred = test_credential(user.id, CredentialType::Password);
+        let recovery_cred = test_credential(user.id, CredentialType::RecoveryCode);
+        let recovery_id = recovery_cred.id;
+
+        let creds = vec![password_cred, recovery_cred];
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = creds.clone();
+                Box::pin(async move { Ok(creds) })
+            });
+
+        let service = builder.build();
+        let result =
+            service.delete_credential_self_service(Identity::User(user), recovery_id).await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 
     #[tokio::test]
