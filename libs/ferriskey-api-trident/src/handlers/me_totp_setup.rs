@@ -49,12 +49,20 @@ pub async fn me_totp_setup(
     let issuer = otp_issuer_from_webapp_url(&state.args.webapp_url, &realm_name);
     let result = state
         .service
-        .setup_otp(identity, SetupOtpInput { issuer: issuer.clone() })
+        .setup_otp(
+            identity,
+            SetupOtpInput {
+                issuer: issuer.clone(),
+            },
+        )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
+        .map_err(ApiError::from)?;
 
-    let response =
-        MeTotpSetupResponse { issuer, otpauth_url: result.otpauth_uri, secret: result.secret };
+    let response = MeTotpSetupResponse {
+        issuer,
+        otpauth_url: result.otpauth_uri,
+        secret: result.secret,
+    };
 
     Ok(Response::OK(response))
 }

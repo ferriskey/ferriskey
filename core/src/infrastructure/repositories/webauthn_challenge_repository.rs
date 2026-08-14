@@ -1,15 +1,14 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    sea_query::OnConflict, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter,
+    ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    sea_query::OnConflict,
 };
 use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     domain::{
-        authentication::entities::WebAuthnChallenge,
-        common::entities::app_errors::CoreError,
+        authentication::entities::WebAuthnChallenge, common::entities::app_errors::CoreError,
         trident::ports::WebAuthnChallengeRepository,
     },
     entity::webauthn_challenges::{
@@ -67,8 +66,12 @@ impl WebAuthnChallengeRepository for PostgresWebAuthnChallengeRepository {
     }
 
     async fn take(&self, user_id: Uuid) -> Result<Option<WebAuthnChallenge>, CoreError> {
+        let now = Utc::now().fixed_offset();
         let model = WcEntity::find()
             .filter(WcColumn::UserId.eq(user_id))
+            // Only an unexpired challenge is usable; an expired one must not be
+            // returned or consumed (it would bypass the intended TTL).
+            .filter(WcColumn::ExpiresAt.gt(now))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -80,10 +83,11 @@ impl WebAuthnChallengeRepository for PostgresWebAuthnChallengeRepository {
             return Ok(None);
         };
 
-        let challenge: WebAuthnChallenge = serde_json::from_value(model.challenge).map_err(|e| {
-            error!("Failed to deserialize WebAuthn challenge: {e}");
-            CoreError::InternalServerError
-        })?;
+        let challenge: WebAuthnChallenge =
+            serde_json::from_value(model.challenge).map_err(|e| {
+                error!("Failed to deserialize WebAuthn challenge: {e}");
+                CoreError::InternalServerError
+            })?;
 
         // Consume the challenge so it cannot be reused.
         WcEntity::delete_many()

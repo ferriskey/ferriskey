@@ -54,7 +54,9 @@ pub async fn me_totp_verify(
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
+        .map_err(ApiError::from)?;
 
-    Ok(Response::OK(MeTotpVerifyResponse { message: result.message }))
+    Ok(Response::OK(MeTotpVerifyResponse {
+        message: result.message,
+    }))
 }

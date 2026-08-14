@@ -69,8 +69,14 @@ mod tests {
 
     #[test]
     fn otp_issuer_keeps_two_part_hosts() {
-        assert_eq!(otp_issuer_from_webapp_url("https://example.com", "demo"), "example.com");
-        assert_eq!(otp_issuer_from_webapp_url("http://localhost:3000", "demo"), "localhost");
+        assert_eq!(
+            otp_issuer_from_webapp_url("https://example.com", "demo"),
+            "example.com"
+        );
+        assert_eq!(
+            otp_issuer_from_webapp_url("http://localhost:3000", "demo"),
+            "localhost"
+        );
     }
 
     #[test]

@@ -41,9 +41,16 @@ pub async fn me_passkey_register(
 ) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
     let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
 
-    let input = PasskeyRegisterSelfServiceInput { rp_info, credential: payload.0 };
+    let input = PasskeyRegisterSelfServiceInput {
+        rp_info,
+        credential: payload.0,
+    };
 
-    state.service.passkey_register_self_service(identity, input).await.map_err(ApiError::from)?;
+    state
+        .service
+        .passkey_register_self_service(identity, input)
+        .await
+        .map_err(ApiError::from)?;
 
     Ok(Response::OK(ValidatePublicKeyResponse {}))
 }

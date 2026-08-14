@@ -218,19 +218,31 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             post(generate_recovery_codes),
         )
         .route(
-            &format!("{}/realms/{{realm_name}}/me/totp/setup", state.args.server.root_path),
+            &format!(
+                "{}/realms/{{realm_name}}/me/totp/setup",
+                state.args.server.root_path
+            ),
             post(me_totp_setup),
         )
         .route(
-            &format!("{}/realms/{{realm_name}}/me/totp/verify", state.args.server.root_path),
+            &format!(
+                "{}/realms/{{realm_name}}/me/totp/verify",
+                state.args.server.root_path
+            ),
             post(me_totp_verify),
         )
         .route(
-            &format!("{}/realms/{{realm_name}}/me/reauthenticate", state.args.server.root_path),
+            &format!(
+                "{}/realms/{{realm_name}}/me/reauthenticate",
+                state.args.server.root_path
+            ),
             post(me_reauthenticate),
         )
         .route(
-            &format!("{}/realms/{{realm_name}}/me/credentials", state.args.server.root_path),
+            &format!(
+                "{}/realms/{{realm_name}}/me/credentials",
+                state.args.server.root_path
+            ),
             get(me_credentials),
         )
         .route(

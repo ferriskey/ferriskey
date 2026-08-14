@@ -53,7 +53,10 @@ pub async fn me_reauthenticate(
         .service
         .reauthenticate(
             identity,
-            ReauthenticateInput { password: payload.password, otp_code: payload.otp_code },
+            ReauthenticateInput {
+                password: payload.password,
+                otp_code: payload.otp_code,
+            },
         )
         .await
         .map_err(ApiError::from)?;
