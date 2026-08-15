@@ -176,7 +176,6 @@ where
     ) -> Result<Vec<Organization>, CoreError> {
         let realm = self.get_realm_by_name(input.realm_name).await?;
 
-        // Listing is a read: gate it on the view policy, not the create one.
         ensure_policy(
             self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list organizations",
@@ -413,15 +412,11 @@ where
     ) -> Result<Vec<OrganizationMember>, CoreError> {
         let realm = self.get_realm_by_name(input.realm_name).await?;
 
-        // Listing someone's memberships is a read, not a create.
         ensure_policy(
             self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list user organizations",
         )?;
 
-        // `list_organizations_for_user` filters on `user_id` alone, so a user id from another
-        // realm would otherwise leak that realm's memberships. Bind the target to the realm
-        // here, the same way `add_member` does via `validate_membership_realms`.
         let user = self
             .user_repository
             .get_by_id(input.user_id)

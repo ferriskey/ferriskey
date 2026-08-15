@@ -99,7 +99,6 @@ impl OrganizationMemberRepository for PostgresOrganizationMemberRepository {
         realm_id: RealmId,
         user_id: Uuid,
     ) -> Result<Vec<OrganizationMember>, CoreError> {
-        // The realm lives on `organizations`, not on the membership row, hence the join.
         let models = MemberEntity::find()
             .filter(MemberColumn::UserId.eq(user_id))
             .inner_join(crate::entity::organizations::Entity)

@@ -109,14 +109,6 @@ pub trait IdentityProviderService: Send + Sync {
 /// Policy trait for Identity Provider authorization
 ///
 /// Defines authorization checks for identity provider operations.
-/// Every method takes the **target realm**, not its id and not the provider.
-///
-/// The previous signatures forced each implementation to fabricate a `Realm` for the
-/// permission lookup, and each of them copied `user_realm.name` into it. That made
-/// `is_cross_realm_access` — which compares `user_realm.name != target_realm.name` —
-/// always false, so the lookup silently fell through to `get_user_permissions`, the
-/// unscoped union of every role the caller holds anywhere (FK-006). Passing the real
-/// realm is what makes the gate reachable. `FederationPolicy` already does this.
 pub trait IdentityProviderPolicy: Send + Sync {
     /// Checks if the identity can create an identity provider in the realm
     fn can_create_identity_provider(

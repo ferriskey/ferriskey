@@ -82,11 +82,6 @@ where
         }
     }
 
-    /// Resolve the realm from its name and the organization within it.
-    ///
-    /// Returns the realm alongside the organization: it is the *target realm* every
-    /// `OrganizationPolicy` check needs, and recomputing it from `org.realm_id` would cost a
-    /// second lookup for a value already in hand.
     async fn get_org(
         &self,
         realm_name: String,
