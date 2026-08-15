@@ -40,7 +40,8 @@ pub trait EmailTemplateService: Send + Sync {
 
     fn render_template_html(
         &self,
-        template_id: Uuid,
+        identity: Identity,
+        input: RenderEmailTemplateInput,
     ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }
 
@@ -53,6 +54,7 @@ pub trait EmailTemplateRepository: Send + Sync {
 
     fn get_by_id(
         &self,
+        realm_id: Uuid,
         template_id: Uuid,
     ) -> impl Future<Output = Result<Option<EmailTemplate>, CoreError>> + Send;
 
@@ -67,13 +69,18 @@ pub trait EmailTemplateRepository: Send + Sync {
 
     fn update(
         &self,
+        realm_id: Uuid,
         template_id: Uuid,
         name: String,
         structure: serde_json::Value,
         mjml: String,
     ) -> impl Future<Output = Result<EmailTemplate, CoreError>> + Send;
 
-    fn delete(&self, template_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete(
+        &self,
+        realm_id: Uuid,
+        template_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 /// Trait for rendering a builder structure JSON into an intermediate format (e.g. MJML)
@@ -125,6 +132,11 @@ pub struct UpdateEmailTemplateInput {
 }
 
 pub struct DeleteEmailTemplateInput {
+    pub realm_name: String,
+    pub template_id: Uuid,
+}
+
+pub struct RenderEmailTemplateInput {
     pub realm_name: String,
     pub template_id: Uuid,
 }

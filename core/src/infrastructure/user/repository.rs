@@ -243,12 +243,13 @@ impl UserRepository for PostgresUserRepository {
         Ok(user.map(|u| u.into()))
     }
 
-    async fn bulk_delete_user(&self, ids: Vec<Uuid>) -> Result<u64, CoreError> {
+    async fn bulk_delete_user(&self, realm_id: RealmId, ids: Vec<Uuid>) -> Result<u64, CoreError> {
         let rows = crate::entity::users::Entity::delete_many()
             .filter(
                 Condition::all()
                     .add(crate::entity::users::Column::Id.is_in(ids.clone()))
-                    .add(crate::entity::users::Column::ClientId.is_null()),
+                    .add(crate::entity::users::Column::ClientId.is_null())
+                    .add(crate::entity::users::Column::RealmId.eq(Uuid::from(realm_id))),
             )
             .exec(&self.db)
             .await

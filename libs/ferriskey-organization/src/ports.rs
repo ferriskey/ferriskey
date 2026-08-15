@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::role::entities::Role;
 
 use crate::entities::{
@@ -106,6 +106,7 @@ pub trait OrganizationMemberRepository: Send + Sync {
 
     fn list_organizations_for_user(
         &self,
+        realm_id: RealmId,
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
 
@@ -482,30 +483,30 @@ pub trait OrganizationPolicy: Send + Sync {
     fn can_create_organization(
         &self,
         identity: &Identity,
-        realm_id: RealmId,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_view_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_update_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_delete_organization(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     fn can_manage_members(
         &self,
         identity: &Identity,
-        organization: &Organization,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }

@@ -523,7 +523,7 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(broker_session.client_id)
+            .get_by_id(broker_session.realm_id, broker_session.client_id)
             .await?;
 
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;

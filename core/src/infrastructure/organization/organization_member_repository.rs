@@ -8,6 +8,7 @@ use ferriskey_organization::{OrganizationId, OrganizationMember, OrganizationMem
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_timestamp;
+use crate::domain::realm::entities::RealmId;
 use crate::entity::organization_members::{
     ActiveModel as MemberActiveModel, Column as MemberColumn, Entity as MemberEntity,
     Model as MemberModel,
@@ -95,10 +96,13 @@ impl OrganizationMemberRepository for PostgresOrganizationMemberRepository {
 
     async fn list_organizations_for_user(
         &self,
+        realm_id: RealmId,
         user_id: Uuid,
     ) -> Result<Vec<OrganizationMember>, CoreError> {
         let models = MemberEntity::find()
             .filter(MemberColumn::UserId.eq(user_id))
+            .inner_join(crate::entity::organizations::Entity)
+            .filter(crate::entity::organizations::Column::RealmId.eq(Uuid::from(realm_id)))
             .all(&self.db)
             .await
             .map_err(|e| {

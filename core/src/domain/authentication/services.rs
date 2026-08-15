@@ -765,7 +765,7 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(client_uuid)
+            .get_by_id(realm_id, client_uuid)
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
@@ -979,7 +979,7 @@ where
         // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
-            .list_organizations_for_user(input.user_id)
+            .list_organizations_for_user(input.realm_id, input.user_id)
             .await
             .unwrap_or_default();
 
@@ -3198,7 +3198,10 @@ where
                     CoreError::InvalidClient
                 })?;
 
-                let client = self.client_repository.get_by_id(client_id).await?;
+                let client = self
+                    .client_repository
+                    .get_by_id(user.realm_id, client_id)
+                    .await?;
 
                 Identity::Client(client)
             }

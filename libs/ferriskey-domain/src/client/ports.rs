@@ -10,7 +10,7 @@ use crate::client::{
         UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
     entities::{Client, redirect_uri::RedirectUri},
-    value_objects::{CreateClientRequest, CreateRedirectUriRequest, UpdateClientRequest},
+    value_objects::{CreateClientRequest, UpdateClientRequest},
 };
 use crate::common::app_errors::CoreError;
 use crate::realm::{Realm, RealmId};
@@ -131,7 +131,12 @@ pub trait ClientRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        realm_id: RealmId,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
     fn get_by_realm_id(
         &self,
         realm_id: RealmId,
@@ -139,38 +144,16 @@ pub trait ClientRepository: Send + Sync {
 
     fn update_client(
         &self,
+        realm_id: RealmId,
         client_id: Uuid,
         data: UpdateClientRequest,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
-}
-
-pub trait RedirectUriService: Send + Sync {
-    fn add_redirect_uri(
+    fn delete_by_id(
         &self,
-        payload: CreateRedirectUriRequest,
-        realm_name: String,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn get_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn get_enabled_by_client_id(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
-
-    fn update_enabled(
-        &self,
+        realm_id: RealmId,
         id: Uuid,
-        enabled: bool,
-    ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
-
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -194,9 +177,14 @@ pub trait RedirectUriRepository: Send + Sync {
 
     fn update_enabled(
         &self,
+        client_id: Uuid,
         id: Uuid,
         enabled: bool,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete(
+        &self,
+        client_id: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
