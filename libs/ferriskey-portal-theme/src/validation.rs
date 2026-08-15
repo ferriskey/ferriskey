@@ -168,7 +168,8 @@ mod tests {
     fn login_missing_password_input_fails() {
         let tree = json!([
             { "type": "email_input" },
-            { "type": "submit_button" }
+            { "type": "submit_button" },
+            { "type": "identity_providers" }
         ]);
         let err = validate_tree(PortalPageType::Login, &tree).unwrap_err();
         assert_eq!(err.page_type, PortalPageType::Login);
