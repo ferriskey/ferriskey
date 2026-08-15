@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::{
     ApplicationService,
     domain::{
@@ -9,7 +7,8 @@ use crate::{
             entities::EmailTemplate,
             ports::{
                 CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplateService,
-                GetEmailTemplateInput, GetEmailTemplatesInput, UpdateEmailTemplateInput,
+                GetEmailTemplateInput, GetEmailTemplatesInput, RenderEmailTemplateInput,
+                UpdateEmailTemplateInput,
             },
         },
     },
@@ -66,9 +65,13 @@ impl EmailTemplateService for ApplicationService {
             .await
     }
 
-    async fn render_template_html(&self, template_id: Uuid) -> Result<String, CoreError> {
+    async fn render_template_html(
+        &self,
+        identity: Identity,
+        input: RenderEmailTemplateInput,
+    ) -> Result<String, CoreError> {
         self.email_template_service
-            .render_template_html(template_id)
+            .render_template_html(identity, input)
             .await
     }
 }
