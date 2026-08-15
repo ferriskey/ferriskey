@@ -249,8 +249,6 @@ impl UserRepository for PostgresUserRepository {
                 Condition::all()
                     .add(crate::entity::users::Column::Id.is_in(ids.clone()))
                     .add(crate::entity::users::Column::ClientId.is_null())
-                    // FK-004: the tenant bound belongs in the query. Ids outside the
-                    // realm addressed by the request match no row.
                     .add(crate::entity::users::Column::RealmId.eq(Uuid::from(realm_id))),
             )
             .exec(&self.db)

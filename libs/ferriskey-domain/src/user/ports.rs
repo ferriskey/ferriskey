@@ -134,11 +134,6 @@ pub trait UserRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<User>, CoreError>> + Send;
 
-    /// Delete users by id, **within `realm_id` only**.
-    ///
-    /// The realm is a parameter rather than a caller-side pre-check so the bound
-    /// lands in the `WHERE` clause: an id belonging to another tenant matches no row
-    /// instead of relying on every caller to remember the check (FK-004).
     fn bulk_delete_user(
         &self,
         realm_id: RealmId,

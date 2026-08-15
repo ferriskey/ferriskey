@@ -131,20 +131,6 @@ where
         }
     }
 
-    /// Load a user, refusing to look outside `realm` (FK-004).
-    ///
-    /// Authorization is decided against the realm named in the URL, but the target
-    /// used to be fetched by bare UUID. A tenant administrator holding `ManageUsers`
-    /// on their own realm could therefore reset the password of, delete, or read any
-    /// account of any other realm — the master administrator included — provided they
-    /// knew its identifier.
-    ///
-    /// `NotFound` rather than `Forbidden`: telling a caller that an id exists but
-    /// belongs elsewhere is itself a cross-tenant disclosure.
-    ///
-    /// Cross-realm access *from* `master` stays legitimate and is decided upstream by
-    /// the policy layer (`can_access_realm`); this only binds the object to the realm
-    /// the request addressed.
     async fn load_user_in_realm(&self, user_id: Uuid, realm: &Realm) -> Result<User, CoreError> {
         let user = self.user_repository.get_by_id(user_id).await?;
 
@@ -161,8 +147,6 @@ where
         Ok(user)
     }
 
-    /// Same binding for roles: granting a role of another realm would carry its
-    /// permissions across the tenant boundary.
     async fn load_role_in_realm(&self, role_id: Uuid, realm: &Realm) -> Result<Role, CoreError> {
         let role = self
             .role_repository
@@ -291,8 +275,6 @@ where
             })?
             .unwrap_or_else(|| PasswordPolicy::default(realm.id.into()));
 
-        // Loaded before any write, and no longer with `.ok()`: swallowing the error
-        // meant a target that could not be read was still reset.
         let target_user = self.load_user_in_realm(input.user_id, &realm).await?;
 
         let username = target_user.username.clone();
@@ -401,8 +383,6 @@ where
             "You are not allowed to view users in this realm.",
         )?;
 
-        // Bind the target to the realm before writing: this method used not to load
-        // it at all, so an id from another tenant was written straight through.
         self.load_user_in_realm(input.user_id, &realm).await?;
 
         let user = self
@@ -492,8 +472,6 @@ where
             "insufficient permissions",
         )?;
 
-        // Both ends are bound: a foreign user must not be granted a role, and a
-        // foreign role must not have its permissions carried across the boundary.
         self.load_user_in_realm(input.user_id, &realm).await?;
         let role = self.load_role_in_realm(input.role_id, &realm).await?;
 
@@ -550,9 +528,6 @@ where
             "insufficient permissions",
         )?;
 
-        // Scoped in SQL rather than by pre-checking each id: a `WHERE realm_id = ?`
-        // predicate cannot be forgotten by a future caller, and ids from another
-        // tenant simply match no row.
         let count = self
             .user_repository
             .bulk_delete_user(realm_id, input.ids.clone())
@@ -732,9 +707,6 @@ where
             "insufficient permissions",
         )?;
 
-        // This site had its own weaker variant of the check: it compared realm *names*
-        // via the optionally-loaded relation, and carried a `|| != "master"` escape
-        // hatch that let any tenant read the permissions of any master-realm user.
         let user = self.load_user_in_realm(input.user_id, &realm).await?;
 
         let permissions = self
