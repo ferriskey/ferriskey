@@ -5,6 +5,20 @@ use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
 use crate::session::entities::{SessionError, UserSession};
 
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait TokenRevocationPort: Send + Sync {
+    fn revoke_session_tokens(
+        &self,
+        session_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn revoke_all_user_access(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
 pub trait UserSessionService: Send + Sync {
     fn create_session(
         &self,
@@ -61,6 +75,19 @@ pub trait UserSessionRepository: Send + Sync {
     ) -> impl Future<Output = Result<Option<UserSession>, SessionError>> + Send;
 
     fn delete(&self, id: &Uuid) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    fn delete_all_by_user(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SessionError>> + Send;
+
+    fn delete_expired_for_user(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> impl Future<Output = Result<u64, SessionError>> + Send;
 
     fn update_last_seen(
         &self,

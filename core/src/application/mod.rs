@@ -140,6 +140,7 @@ pub mod portal_theme;
 pub mod realm;
 pub mod role;
 pub mod seawatch;
+pub mod token_revocation;
 pub mod trident;
 pub mod user;
 pub mod webhook;
@@ -183,6 +184,13 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
     let user_session = Arc::new(PostgresUserSessionRepository::new(postgres.get_db()));
+    let token_revocation = Arc::new(
+        crate::application::token_revocation::TokenRevocationAdapter::new(
+            access_token.clone(),
+            refresh_token.clone(),
+            user_session.clone(),
+        ),
+    );
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
@@ -379,6 +387,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             mjml_renderer.clone(),
             password_policy.clone(),
             otp_enrollment.clone(),
+            token_revocation.clone(),
         ),
         user_service: UserServiceImpl::new(
             realm.clone(),
@@ -392,6 +401,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             webhook.clone(),
             security_event.clone(),
             password_policy.clone(),
+            token_revocation.clone(),
             policy.clone(),
         ),
         webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
@@ -509,6 +519,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             user_session.clone(),
             policy.clone(),
+            token_revocation.clone(),
         ),
         security_event_repository: security_event.clone(),
     };

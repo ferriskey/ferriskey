@@ -186,6 +186,28 @@ fn validate_token_refresh_request(
     Ok(())
 }
 
+fn validate_session_binding(
+    claimed_sid: Option<Uuid>,
+    session: Option<&UserSession>,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    let Some(sid) = claimed_sid else {
+        return Ok(());
+    };
+
+    let Some(session) = session else {
+        warn!(session_id = %sid, "Rejecting token: the session it names no longer exists");
+        return Err(CoreError::InvalidToken);
+    };
+
+    if session.expires_at < now {
+        warn!(session_id = %sid, "Rejecting token: the session it names has expired");
+        return Err(CoreError::InvalidToken);
+    }
+
+    Ok(())
+}
+
 /// Re-derive the required actions that gate the token-refresh path (FK-003).
 ///
 /// `ConfigureOtp` is *computed*, never written to `user_required_actions`: the
@@ -1311,6 +1333,18 @@ where
                 CoreError::SessionCreateError
             })?;
 
+        if let Err(e) = self
+            .user_session_repository
+            .delete_expired_for_user(user_id, realm_id.into(), Utc::now())
+            .await
+        {
+            warn!(
+                user_id = %user_id,
+                error = ?e,
+                "Failed to purge expired sessions before opening a new one"
+            );
+        }
+
         let session =
             UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
 
@@ -1338,6 +1372,59 @@ where
             .await?;
 
         Ok(session)
+    }
+
+    async fn revoke_session_cascade(
+        &self,
+        session_id: Uuid,
+        realm_id: RealmId,
+        user_id: Uuid,
+    ) -> Result<(), CoreError> {
+        let (access_revoked, refresh_revoked) = tokio::try_join!(
+            self.access_token_repository
+                .revoke_by_session_id(session_id),
+            self.refresh_token_repository
+                .revoke_by_session_id(session_id),
+        )
+        .map_err(|e| {
+            warn!(
+                session_id = %session_id,
+                error = ?e,
+                "Failed to revoke the tokens minted against a session"
+            );
+            CoreError::InternalServerError
+        })?;
+
+        if let Err(e) = self.user_session_repository.delete(&session_id).await {
+            warn!(
+                session_id = %session_id,
+                error = ?e,
+                "Tokens revoked but the session row could not be deleted"
+            );
+        }
+
+        info!(
+            session_id = %session_id,
+            access_revoked,
+            refresh_revoked,
+            "Revoked a session and every token minted against it"
+        );
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::SessionRevoked,
+                    EventStatus::Success,
+                    user_id,
+                )
+                .with_target("session".to_string(), session_id, None),
+            )
+            .await
+            .map_err(|err| warn!("Failed to store SessionRevoked security event: {}", err))
+            .ok();
+
+        Ok(())
     }
 
     async fn create_jwt(
@@ -1451,6 +1538,7 @@ where
                     refresh_claims.jti,
                     input.user_id,
                     Some(refresh_token_expires_at),
+                    input.session_id,
                 )
             )
             .map_err(|_| CoreError::InternalServerError)?;
@@ -1481,6 +1569,20 @@ where
         {
             return Err(CoreError::ExpiredToken);
         }
+
+        let session = match token_data.claims.sid {
+            Some(sid) => self
+                .user_session_repository
+                .find_by_id(sid)
+                .await
+                .map_err(|e| {
+                    warn!(session_id = %sid, error = ?e, "Failed to load the session backing a token");
+                    CoreError::InternalServerError
+                })?,
+            None => None,
+        };
+
+        validate_session_binding(token_data.claims.sid, session.as_ref(), Utc::now())?;
 
         // Enforce immediate access token revocation when a persisted token has been marked revoked.
         if token_data.claims.typ == ClaimsTyp::Bearer {
@@ -2026,6 +2128,10 @@ where
             .resolve_token_lifetimes(params.realm_id, client.id)
             .await?;
 
+        let user_session = self
+            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+            .await?;
+
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
                 base_url: params.base_url,
@@ -2045,10 +2151,7 @@ where
                 id_token_lifetime: lifetimes.id_token,
                 nonce: None,
                 refresh_jti_override: None,
-                // The direct access grant establishes no browser SSO session, so
-                // its tokens are not session-bound. Scoped to the authorization
-                // code flow per #1143; extending it here is a separate decision.
-                session_id: None,
+                session_id: Some(user_session.id),
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -3671,6 +3774,16 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
+        if let Some(claims) = id_token_claims.as_ref()
+            && let Some(session_id) = claims
+                .sid
+                .as_deref()
+                .and_then(|sid| Uuid::parse_str(sid).ok())
+        {
+            self.revoke_session_cascade(session_id, realm.id, claims.sub)
+                .await?;
+        }
+
         if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {
             let resolved_client_id = input
                 .client_id
@@ -3735,8 +3848,12 @@ where
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
+        let user_session = self
+            .create_user_session(user.id, realm.id, lifetimes.refresh_token)
+            .await?;
+
         let iss = format!("{}/realms/{}", input.base_url, realm.name);
-        let claims = JwtClaim::new(
+        let mut claims = JwtClaim::new(
             user.id,
             user.username.clone(),
             iss.clone(),
@@ -3747,21 +3864,59 @@ where
             None,
             lifetimes.access_token,
         );
+        claims.sid = Some(user_session.id);
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
 
-        let refresh_claims = JwtClaim::new_refresh_token(
+        let mut refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
-            claims.iss,
-            claims.aud,
-            claims.azp,
+            claims.iss.clone(),
+            claims.aud.clone(),
+            claims.azp.clone(),
             None,
             lifetimes.refresh_token,
         );
+        refresh_claims.sid = Some(user_session.id);
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), realm.id)
             .await?;
+
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+        let refresh_token_expires_at = Utc
+            .timestamp_opt(refresh_token.expires_at, 0)
+            .single()
+            .ok_or(CoreError::InternalServerError)?;
+
+        tokio::try_join!(
+            self.access_token_repository.create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                realm.id,
+                access_token_expires_at,
+                access_token_claims,
+            ),
+            self.refresh_token_repository.create(
+                refresh_claims.jti,
+                user.id,
+                Some(refresh_token_expires_at),
+                Some(user_session.id),
+            )
+        )
+        .map_err(|e| {
+            warn!(
+                user_id = %user.id,
+                error = ?e,
+                "Failed to persist tokens generated for a user"
+            );
+            CoreError::InternalServerError
+        })?;
 
         Ok(JwtToken::new(
             jwt.token,
@@ -4557,5 +4712,76 @@ mod tests {
             temporary_token_lifetime(None),
             DEFAULT_TEMPORARY_TOKEN_LIFETIME
         );
+    }
+
+    use super::validate_session_binding;
+    use ferriskey_domain::session::entities::UserSession;
+
+    fn user_session(expires_at: chrono::DateTime<Utc>) -> UserSession {
+        UserSession {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id: Uuid::new_v4(),
+            user_agent: None,
+            ip_address: None,
+            created_at: Utc::now(),
+            expires_at,
+            last_seen_at: None,
+            soft_expiry_duration: None,
+        }
+    }
+
+    #[test]
+    fn token_rejected_when_its_session_was_revoked() {
+        let now = Utc::now();
+
+        assert!(
+            matches!(
+                validate_session_binding(Some(Uuid::new_v4()), None, now),
+                Err(CoreError::InvalidToken)
+            ),
+            "a token naming a session that no longer exists must not validate"
+        );
+    }
+
+    #[test]
+    fn token_rejected_when_its_session_expired() {
+        let now = Utc::now();
+        let session = user_session(now - Duration::seconds(1));
+
+        assert!(
+            matches!(
+                validate_session_binding(Some(session.id), Some(&session), now),
+                Err(CoreError::InvalidToken)
+            ),
+            "a token naming an expired session must not validate"
+        );
+    }
+
+    #[test]
+    fn token_without_a_sid_is_still_accepted() {
+        assert!(
+            validate_session_binding(None, None, Utc::now()).is_ok(),
+            "a token that never claimed a session must keep working"
+        );
+    }
+
+    #[test]
+    fn token_accepted_while_its_session_lives() {
+        let now = Utc::now();
+        let session = user_session(now + Duration::hours(1));
+
+        assert!(
+            validate_session_binding(Some(session.id), Some(&session), now).is_ok(),
+            "the normal path must not regress"
+        );
+    }
+
+    #[test]
+    fn session_binding_holds_at_the_exact_expiry_boundary() {
+        let now = Utc::now();
+        let session = user_session(now);
+
+        assert!(validate_session_binding(Some(session.id), Some(&session), now).is_ok());
     }
 }

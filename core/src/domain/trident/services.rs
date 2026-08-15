@@ -45,6 +45,7 @@ use crate::{
             entities::{EventStatus, SecurityEvent, SecurityEventType},
             ports::SecurityEventRepository,
         },
+        session::ports::TokenRevocationPort,
         trident::{
             entities::{MfaRecoveryCode, PasswordResetToken, TotpSecret},
             ports::{
@@ -238,6 +239,7 @@ pub struct TridentServiceImpl<
     TR,
     PPR,
     OER,
+    TRV,
 > where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -256,6 +258,7 @@ pub struct TridentServiceImpl<
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    TRV: TokenRevocationPort,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -274,10 +277,11 @@ pub struct TridentServiceImpl<
     pub(crate) template_renderer: Arc<TR>,
     pub(crate) password_policy_repository: Arc<PPR>,
     pub(crate) otp_enrollment_repository: Arc<OER>,
+    pub(crate) token_revocation: Arc<TRV>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV>
+    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV>
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -296,6 +300,7 @@ where
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    TRV: TokenRevocationPort,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -316,6 +321,7 @@ where
         template_renderer: Arc<TR>,
         password_policy_repository: Arc<PPR>,
         otp_enrollment_repository: Arc<OER>,
+        token_revocation: Arc<TRV>,
     ) -> Self {
         Self {
             credential_repository,
@@ -335,6 +341,7 @@ where
             template_renderer,
             password_policy_repository,
             otp_enrollment_repository,
+            token_revocation,
         }
     }
 
@@ -374,8 +381,27 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER> TridentService
-    for TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV> TridentService
+    for TridentServiceImpl<
+        CR,
+        RC,
+        AS,
+        H,
+        URA,
+        ML,
+        UR,
+        RR,
+        ES,
+        SC,
+        PRT,
+        SE,
+        WH,
+        ETR,
+        TR,
+        PPR,
+        OER,
+        TRV,
+    >
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -394,6 +420,7 @@ where
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    TRV: TokenRevocationPort,
 {
     async fn generate_recovery_code(
         &self,
@@ -1172,6 +1199,10 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        self.token_revocation
+            .revoke_all_user_access(user.id, user.realm_id.into())
+            .await?;
+
         Ok(())
     }
 
@@ -1925,6 +1956,10 @@ where
             .await
             .inspect_err(|e| warn!("Failed to remove UpdatePassword required action: {}", e));
 
+        self.token_revocation
+            .revoke_all_user_access(user_id, realm_id)
+            .await?;
+
         let realm_id_typed: RealmId = realm_id.into();
 
         // 7. Log SeaWatch PasswordResetCompleted
@@ -2030,6 +2065,7 @@ mod tests {
         password_policy::repository::MockPasswordPolicyRepository,
         realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
         seawatch::ports::MockSecurityEventRepository,
+        session::ports::MockTokenRevocationPort,
         trident::ports::{
             MockMagicLinkRepository, MockOtpEnrollmentRepository, MockPasswordResetTokenRepository,
             MockRecoveryCodeRepository, OtpEnrollment,
@@ -2076,6 +2112,7 @@ mod tests {
         NoopTemplateRenderer,
         MockPasswordPolicyRepository,
         MockOtpEnrollmentRepository,
+        MockTokenRevocationPort,
     >;
 
     /// `(user_id, secret, expires_at)` as handed to `start_enrollment`.
@@ -2099,6 +2136,7 @@ mod tests {
         template_renderer: Arc<NoopTemplateRenderer>,
         password_policy_repo: Arc<MockPasswordPolicyRepository>,
         otp_enrollment_repo: Arc<MockOtpEnrollmentRepository>,
+        token_revocation: Arc<MockTokenRevocationPort>,
     }
 
     impl TridentTestBuilder {
@@ -2121,7 +2159,17 @@ mod tests {
                 template_renderer: Arc::new(NoopTemplateRenderer),
                 password_policy_repo: Arc::new(MockPasswordPolicyRepository::new()),
                 otp_enrollment_repo: Arc::new(MockOtpEnrollmentRepository::new()),
+                token_revocation: Arc::new(MockTokenRevocationPort::new()),
             }
+        }
+
+        fn with_user_access_revoked(mut self, times: usize) -> Self {
+            Arc::get_mut(&mut self.token_revocation)
+                .unwrap()
+                .expect_revoke_all_user_access()
+                .times(times)
+                .returning(|_, _| Box::pin(async { Ok(()) }));
+            self
         }
 
         fn build(self) -> TestTridentService {
@@ -2143,6 +2191,7 @@ mod tests {
                 self.template_renderer,
                 self.password_policy_repo,
                 self.otp_enrollment_repo,
+                self.token_revocation,
             )
         }
     }
@@ -2394,7 +2443,77 @@ mod tests {
         assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 
-    // ── complete_password_reset ─────────────────────────────────────────
+    #[tokio::test]
+    async fn update_password_revokes_all_user_tokens() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let user_id = user.id;
+
+        let mut builder = TridentTestBuilder::new();
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(|_| Box::pin(async { Err(CredentialError::GetPasswordCredentialError) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .returning(move |_, _, _, _, _| {
+                let cred = Credential {
+                    id: Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: CredentialType::Password,
+                    user_id,
+                    user_label: None,
+                    secret_data: "new_hash".to_string(),
+                    credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                    temporary: false,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        let service = builder.with_user_access_revoked(1).build();
+
+        let result = service
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "update_password should succeed: {result:?}");
+    }
 
     #[tokio::test]
     async fn complete_password_reset_valid_token_succeeds() {
@@ -2499,7 +2618,7 @@ mod tests {
             .expect_notify()
             .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
 
-        let service = builder.build();
+        let service = builder.with_user_access_revoked(1).build();
         // Strong password satisfying CNIL defaults (≥12 chars, all classes, ≥80 bits entropy)
         let result = service
             .complete_password_reset(CompletePasswordResetInput {

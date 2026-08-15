@@ -80,6 +80,37 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
         Ok(access_token.map(|t| t.into()))
     }
 
+    async fn revoke_by_session_id(&self, session_id: Uuid) -> Result<u64, JwtError> {
+        let result = crate::entity::access_tokens::Entity::update_many()
+            .col_expr(
+                crate::entity::access_tokens::Column::Revoked,
+                Expr::value(true),
+            )
+            .filter(Expr::cust_with_values(
+                "claims ->> 'sid' = $1",
+                [session_id.to_string()],
+            ))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, JwtError> {
+        let result = crate::entity::access_tokens::Entity::update_many()
+            .col_expr(
+                crate::entity::access_tokens::Column::Revoked,
+                Expr::value(true),
+            )
+            .filter(crate::entity::access_tokens::Column::UserId.eq(user_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
     async fn revoke_by_token_hash(&self, token_hash: String) -> Result<(), JwtError> {
         crate::entity::access_tokens::Entity::update_many()
             .col_expr(

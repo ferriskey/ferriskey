@@ -193,10 +193,34 @@ type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = PostgresUserSessionRepository;
 
+pub(crate) type ApplicationTokenRevocation =
+    crate::application::token_revocation::TokenRevocationAdapter<
+        AccessTokenRepo,
+        RefreshTokenRepo,
+        UserSessionRepo,
+    >;
+
 type ApplicationUserSessionManagementService = UserSessionManagementServiceImpl<
     RealmRepo,
     UserSessionRepo,
     crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
+    ApplicationTokenRevocation,
+>;
+
+type ApplicationUserService = UserServiceImpl<
+    RealmRepo,
+    UserRepo,
+    ClientRepo,
+    UserRoleRepo,
+    CredentialRepo,
+    HasherRepo,
+    RoleRepo,
+    UserRequiredActionRepo,
+    WebhookRepo,
+    SecurityEventRepo,
+    UserAttributeRepo,
+    PasswordPolicyRepo,
+    ApplicationTokenRevocation,
 >;
 
 type ApplicationTridentService = TridentServiceImpl<
@@ -217,6 +241,7 @@ type ApplicationTridentService = TridentServiceImpl<
     MjmlRenderer,
     PasswordPolicyRepo,
     OtpEnrollmentRepo,
+    ApplicationTokenRevocation,
 >;
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;
@@ -335,20 +360,7 @@ pub struct ApplicationService {
         WebhookRepo,
     >,
     pub(crate) trident_service: ApplicationTridentService,
-    pub(crate) user_service: UserServiceImpl<
-        RealmRepo,
-        UserRepo,
-        ClientRepo,
-        UserRoleRepo,
-        CredentialRepo,
-        HasherRepo,
-        RoleRepo,
-        UserRequiredActionRepo,
-        WebhookRepo,
-        SecurityEventRepo,
-        UserAttributeRepo,
-        PasswordPolicyRepo,
-    >,
+    pub(crate) user_service: ApplicationUserService,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service:
         WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
