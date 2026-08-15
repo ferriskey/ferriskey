@@ -23,6 +23,7 @@ use crate::domain::{
         ports::RoleRepository,
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
+    session::ports::TokenRevocationPort,
     user::{
         entities::{
             AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetUserAttributesInput,
@@ -54,7 +55,7 @@ fn normalize_optional_email(email: Option<String>) -> Option<String> {
 }
 
 #[derive(Clone, Debug)]
-pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
+pub struct UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -68,6 +69,7 @@ where
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
     PPR: PasswordPolicyRepository,
+    TRV: TokenRevocationPort,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
@@ -80,12 +82,13 @@ where
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) password_policy_repository: Arc<PPR>,
+    pub(crate) token_revocation: Arc<TRV>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
-    UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV>
+    UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -99,6 +102,7 @@ where
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
     PPR: PasswordPolicyRepository,
+    TRV: TokenRevocationPort,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -113,6 +117,7 @@ where
         webhook_repository: Arc<W>,
         security_event_repository: Arc<SE>,
         password_policy_repository: Arc<PPR>,
+        token_revocation: Arc<TRV>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -127,6 +132,7 @@ where
             webhook_repository,
             security_event_repository,
             password_policy_repository,
+            token_revocation,
             policy,
         }
     }
@@ -171,8 +177,8 @@ where
     }
 }
 
-impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR> UserService
-    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR>
+impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV> UserService
+    for UserServiceImpl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -186,6 +192,7 @@ where
     SE: SecurityEventRepository,
     UAR: UserAttributeRepository,
     PPR: PasswordPolicyRepository,
+    TRV: TokenRevocationPort,
 {
     async fn delete_user(
         &self,
@@ -342,6 +349,10 @@ where
                 CoreError::CreateCredentialError
             })?;
 
+        self.token_revocation
+            .revoke_all_user_access(input.user_id, realm.id.into())
+            .await?;
+
         self.security_event_repository
             .store_event(
                 SecurityEvent::new(
@@ -383,7 +394,8 @@ where
             "You are not allowed to view users in this realm.",
         )?;
 
-        self.load_user_in_realm(input.user_id, &realm).await?;
+        let existing = self.load_user_in_realm(input.user_id, &realm).await?;
+        let is_being_disabled = existing.enabled && !input.enabled;
 
         let user = self
             .user_repository
@@ -399,6 +411,12 @@ where
                 },
             )
             .await?;
+
+        if is_being_disabled {
+            self.token_revocation
+                .revoke_all_user_access(user.id, realm_id.into())
+                .await?;
+        }
 
         if let Some(required_actions) = input.required_actions {
             self.user_required_action_repository
@@ -844,12 +862,29 @@ mod tests {
         realm::{entities::Realm, ports::MockRealmRepository},
         role::ports::MockRoleRepository,
         seawatch::ports::MockSecurityEventRepository,
+        session::ports::MockTokenRevocationPort,
         user::ports::{
             MockUserAttributeRepository, MockUserRepository, MockUserRequiredActionRepository,
             MockUserRoleRepository,
         },
         webhook::{entities::webhook_payload::WebhookPayload, ports::MockWebhookRepository},
     };
+
+    type TestUserService = UserServiceImpl<
+        MockRealmRepository,
+        MockUserRepository,
+        MockClientRepository,
+        MockUserRoleRepository,
+        MockCredentialRepository,
+        MockHasherRepository,
+        MockRoleRepository,
+        MockUserRequiredActionRepository,
+        MockWebhookRepository,
+        MockSecurityEventRepository,
+        MockUserAttributeRepository,
+        MockPasswordPolicyRepository,
+        MockTokenRevocationPort,
+    >;
 
     struct UserServiceTestBuilder {
         realm_repo: Arc<MockRealmRepository>,
@@ -864,6 +899,7 @@ mod tests {
         client_repo: Arc<MockClientRepository>,
         security_event_repo: Arc<MockSecurityEventRepository>,
         password_policy_repo: Arc<MockPasswordPolicyRepository>,
+        token_revocation: Arc<MockTokenRevocationPort>,
     }
 
     impl UserServiceTestBuilder {
@@ -881,7 +917,27 @@ mod tests {
                 client_repo: Arc::new(MockClientRepository::new()),
                 security_event_repo: Arc::new(MockSecurityEventRepository::new()),
                 password_policy_repo: Arc::new(MockPasswordPolicyRepository::new()),
+                token_revocation: Arc::new(MockTokenRevocationPort::new()),
             }
+        }
+
+        /// Expect the "cut every outstanding grant for this user" cascade exactly
+        /// `times` times. `times(0)` is the regression guard: an edit that does not
+        /// disable the account must never touch anyone's sessions.
+        fn with_user_access_revoked(mut self, user_id: uuid::Uuid, times: usize) -> Self {
+            let expectation = Arc::get_mut(&mut self.token_revocation)
+                .unwrap()
+                .expect_revoke_all_user_access();
+
+            if times == 0 {
+                expectation.never();
+            } else {
+                expectation
+                    .withf(move |uid, _realm_id| *uid == user_id)
+                    .times(times)
+                    .returning(|_, _| Box::pin(async { Ok(()) }));
+            }
+            self
         }
 
         fn with_realm(mut self, realm_name: String, realm: Realm) -> Self {
@@ -990,22 +1046,7 @@ mod tests {
             self
         }
 
-        fn build(
-            self,
-        ) -> UserServiceImpl<
-            MockRealmRepository,
-            MockUserRepository,
-            MockClientRepository,
-            MockUserRoleRepository,
-            MockCredentialRepository,
-            MockHasherRepository,
-            MockRoleRepository,
-            MockUserRequiredActionRepository,
-            MockWebhookRepository,
-            MockSecurityEventRepository,
-            MockUserAttributeRepository,
-            MockPasswordPolicyRepository,
-        > {
+        fn build(self) -> TestUserService {
             use crate::domain::common::policies::FerriskeyPolicy;
 
             let policy = FerriskeyPolicy::new(
@@ -1026,6 +1067,7 @@ mod tests {
                 self.webhook_repo,
                 self.security_event_repo,
                 self.password_policy_repo,
+                self.token_revocation,
                 Arc::new(policy),
             )
         }
@@ -1309,6 +1351,256 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    /// FK-007: flipping `enabled` to false is the operator's "lock this account
+    /// out now" gesture. Without a cascade it only changes a column — every
+    /// access and refresh token already issued keeps working.
+    #[tokio::test]
+    async fn update_user_disabling_an_account_revokes_all_its_tokens() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "compromised",
+            "compromised@example.com".to_string(),
+            true,
+        );
+        let mut disabled = target.clone();
+        disabled.enabled = false;
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![admin_role])
+            .with_target_user(target.clone())
+            .with_update_user_success(target.id, disabled)
+            .with_webhook_notify()
+            .with_user_access_revoked(target.id, 1)
+            .build();
+
+        let result = service
+            .update_user(
+                identity,
+                UpdateUserInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target.id,
+                    firstname: None,
+                    lastname: None,
+                    email: None,
+                    email_verified: Some(true),
+                    enabled: false,
+                    required_actions: None,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "update_user should succeed");
+    }
+
+    /// The regression guard for the cascade above: an ordinary profile edit keeps
+    /// `enabled` true, and must not log the user out of anything. Revoking on
+    /// every `update_user` would make editing a first name a denial of service.
+    #[tokio::test]
+    async fn update_user_that_does_not_disable_the_account_revokes_nothing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "regular",
+            "regular@example.com".to_string(),
+            true,
+        );
+        let mut renamed = target.clone();
+        renamed.firstname = Some("Renamed".to_string());
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![admin_role])
+            .with_target_user(target.clone())
+            .with_update_user_success(target.id, renamed)
+            .with_webhook_notify()
+            .with_user_access_revoked(target.id, 0)
+            .build();
+
+        let result = service
+            .update_user(
+                identity,
+                UpdateUserInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target.id,
+                    firstname: Some("Renamed".to_string()),
+                    lastname: None,
+                    email: None,
+                    email_verified: Some(true),
+                    enabled: true,
+                    required_actions: None,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "update_user should succeed");
+    }
+
+    /// Re-disabling an already-disabled account is not a transition: there is
+    /// nothing left to cut, and repeating the cascade would be pure noise.
+    #[tokio::test]
+    async fn update_user_on_an_already_disabled_account_revokes_nothing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "already-off",
+            "already-off@example.com".to_string(),
+            false,
+        );
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![admin_role])
+            .with_target_user(target.clone())
+            .with_update_user_success(target.id, target.clone())
+            .with_webhook_notify()
+            .with_user_access_revoked(target.id, 0)
+            .build();
+
+        let result = service
+            .update_user(
+                identity,
+                UpdateUserInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target.id,
+                    firstname: None,
+                    lastname: None,
+                    email: None,
+                    email_verified: Some(true),
+                    enabled: false,
+                    required_actions: None,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "update_user should succeed");
+    }
+
+    /// FK-007: an admin resetting a password is remediating. Sessions opened with
+    /// the old password have to die with it.
+    #[tokio::test]
+    async fn reset_password_revokes_all_user_tokens() {
+        use ferriskey_security::crypto::entities::HashResult;
+
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "victim",
+            "victim@example.com".to_string(),
+            true,
+        );
+        let target_id = target.id;
+
+        let mut builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![admin_role])
+            .with_target_user(target.clone())
+            .with_user_access_revoked(target_id, 1);
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(|_| {
+                Box::pin(async {
+                    Err(
+                        crate::domain::credential::entities::CredentialError::GetPasswordCredentialError,
+                    )
+                })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .returning(move |_, _, _, _, _| {
+                let cred = crate::domain::credential::entities::Credential {
+                    id: uuid::Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: crate::domain::credential::entities::CredentialType::Password,
+                    user_id: target_id,
+                    user_label: None,
+                    secret_data: "new_hash".to_string(),
+                    credential_data: crate::domain::credential::entities::CredentialData::new_hash(
+                        1,
+                        "argon2".to_string(),
+                    ),
+                    temporary: false,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+
+        let result = service
+            .reset_password(
+                identity,
+                ResetPasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: target_id,
+                    password: "Str0ng!P@ssword#2024".to_string(),
+                    temporary: false,
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "reset_password should succeed: {result:?}");
     }
 
     #[tokio::test]

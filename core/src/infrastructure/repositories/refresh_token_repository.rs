@@ -54,6 +54,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         jti: Uuid,
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
+        session_id: Option<Uuid>,
     ) -> Result<RefreshToken, JwtError> {
         let family_id = Uuid::new_v4();
         let model = crate::entity::refresh_tokens::ActiveModel {
@@ -67,6 +68,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             status: Set("active".to_string()),
             replaced_by: Set(None),
             rotated_at: Set(None),
+            session_id: Set(session_id),
         };
 
         let refresh_token = model
@@ -83,6 +85,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         user_id: Uuid,
         family_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
+        session_id: Option<Uuid>,
     ) -> Result<RefreshToken, JwtError> {
         let model = crate::entity::refresh_tokens::ActiveModel {
             id: Set(generate_uuid_v7()),
@@ -95,6 +98,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             status: Set("active".to_string()),
             replaced_by: Set(None),
             rotated_at: Set(None),
+            session_id: Set(session_id),
         };
 
         let refresh_token = model
@@ -188,6 +192,12 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             return Ok(RotateOutcome::Conflict);
         }
 
+        let session_id = crate::entity::refresh_tokens::Entity::find_by_id(old_id)
+            .one(&txn)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?
+            .and_then(|m| m.session_id);
+
         // Mint the successor inside the same transaction.
         let new_model = crate::entity::refresh_tokens::ActiveModel {
             id: Set(new_id),
@@ -200,6 +210,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             status: Set("active".to_string()),
             replaced_by: Set(None),
             rotated_at: Set(None),
+            session_id: Set(session_id),
         };
 
         let new_token = new_model
@@ -230,5 +241,41 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn revoke_by_session_id(&self, session_id: Uuid) -> Result<u64, JwtError> {
+        let result = crate::entity::refresh_tokens::Entity::update_many()
+            .col_expr(
+                crate::entity::refresh_tokens::Column::Status,
+                Expr::value("revoked"),
+            )
+            .col_expr(
+                crate::entity::refresh_tokens::Column::Revoked,
+                Expr::value(true),
+            )
+            .filter(crate::entity::refresh_tokens::Column::SessionId.eq(session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, JwtError> {
+        let result = crate::entity::refresh_tokens::Entity::update_many()
+            .col_expr(
+                crate::entity::refresh_tokens::Column::Status,
+                Expr::value("revoked"),
+            )
+            .col_expr(
+                crate::entity::refresh_tokens::Column::Revoked,
+                Expr::value(true),
+            )
+            .filter(crate::entity::refresh_tokens::Column::UserId.eq(user_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
     }
 }

@@ -18,6 +18,7 @@ mod tests {
     use axum::Router;
     use axum::http::HeaderValue;
     use axum_test::TestServer;
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -153,7 +154,24 @@ mod tests {
             .expect("valid header value")
     }
 
+    /// Read the `sid` claim off an access token without verifying the signature, so
+    /// a test can name the exact session its own token was minted against.
+    fn sid_claim(access_token: &str) -> Option<String> {
+        let payload = access_token.split('.').nth(1)?;
+        let raw = URL_SAFE_NO_PAD.decode(payload).ok()?;
+        let claims: Value = serde_json::from_slice(&raw).ok()?;
+        claims.get("sid")?.as_str().map(str::to_string)
+    }
+
     async fn login(server: &TestServer, realm_name: &str) -> String {
+        login_tokens(server, realm_name).await["access_token"]
+            .as_str()
+            .expect("access_token")
+            .to_string()
+    }
+
+    /// The whole token response, for the tests that need the refresh token too.
+    async fn login_tokens(server: &TestServer, realm_name: &str) -> Value {
         let token_resp = server
             .post(&format!(
                 "/realms/{}/protocol/openid-connect/token",
@@ -164,12 +182,35 @@ mod tests {
                 ("client_id", "admin-cli"),
                 ("username", "admin"),
                 ("password", "admin_pass_1234!"),
+                // `userinfo` — the probe used below to check whether a token still
+                // opens a protected resource — refuses a token without `openid`.
+                ("scope", "openid profile"),
             ])
             .await;
-        let body: Value = token_resp.json();
-        body["access_token"]
-            .as_str()
-            .expect("access_token")
+
+        assert_eq!(
+            token_resp.status_code(),
+            200,
+            "password grant failed: {}",
+            token_resp.text()
+        );
+
+        token_resp.json()
+    }
+
+    /// Resolve the seeded admin's user id through the API.
+    async fn admin_user_id(srv: &TestServer, realm: &str, token: &str) -> String {
+        let me_resp = srv
+            .get(&format!("/realms/{}/users", realm))
+            .add_header("Authorization", auth_header(token))
+            .await;
+        let me_body: Value = me_resp.json();
+        let users = me_body["data"].as_array().expect("users array");
+        users
+            .iter()
+            .find(|u| u["username"] == "admin")
+            .and_then(|u| u["id"].as_str())
+            .expect("admin user id")
             .to_string()
     }
 
@@ -183,19 +224,7 @@ mod tests {
         let realm = ctx().realm_name.clone();
         rt().block_on(async {
             let token = login(&srv, &realm).await;
-
-            // Get admin user id
-            let me_resp = srv
-                .get(&format!("/realms/{}/users", realm))
-                .add_header("Authorization", auth_header(&token))
-                .await;
-            let me_body: Value = me_resp.json();
-            let users = me_body["data"].as_array().expect("users array");
-            let admin_id = users
-                .iter()
-                .find(|u| u["username"] == "admin")
-                .and_then(|u| u["id"].as_str())
-                .expect("admin user id");
+            let admin_id = admin_user_id(&srv, &realm, &token).await;
 
             // List sessions
             let sessions_resp = srv
@@ -205,32 +234,56 @@ mod tests {
 
             assert_eq!(sessions_resp.status_code(), 200);
             let body: Value = sessions_resp.json();
-            assert!(body["data"].is_array());
+            let sessions = body["data"].as_array().expect("sessions array");
+
+            // The login above opened a session, so the listing cannot be empty —
+            // asserting only `is_array()` let this pass while the endpoint reported
+            // no sessions at all for every password-grant login.
+            let session_id =
+                sid_claim(&token).expect("the password grant must bind its token to a session");
+            assert!(
+                sessions
+                    .iter()
+                    .any(|s| s["id"].as_str() == Some(session_id.as_str())),
+                "the session backing the current token is not listed: {sessions:?}"
+            );
         });
     }
 
+    /// Revoking one's own session must return 204 *and* end the session.
+    ///
+    /// This test used to wrap everything in `if let Some(session) = sessions.first()`
+    /// over a list that was always empty: the password grant established no
+    /// `user_sessions` row, so there was never a session to revoke and the body
+    /// never ran. It passed without exercising a single line of the revoke path.
+    /// The grant now opens a session (FK-007), so the assertions are unconditional —
+    /// and they check the effect, not just the status code.
+    ///
+    /// The session is selected by the `sid` claim of the very token used, never by
+    /// `.first()`: tests in this binary share the seeded admin and run in parallel,
+    /// so `.first()` could well be another test's session.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn admin_can_revoke_own_session() {
         let srv = server();
         let realm = ctx().realm_name.clone();
         rt().block_on(async {
-            let token = login(&srv, &realm).await;
+            let tokens = login_tokens(&srv, &realm).await;
+            let token = tokens["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+            let refresh_token = tokens["refresh_token"]
+                .as_str()
+                .expect("refresh_token")
+                .to_string();
 
-            // Get admin user id
-            let me_resp = srv
-                .get(&format!("/realms/{}/users", realm))
-                .add_header("Authorization", auth_header(&token))
-                .await;
-            let me_body: Value = me_resp.json();
-            let users = me_body["data"].as_array().expect("users array");
-            let admin_id = users
-                .iter()
-                .find(|u| u["username"] == "admin")
-                .and_then(|u| u["id"].as_str())
-                .expect("admin user id");
+            let admin_id = admin_user_id(&srv, &realm, &token).await;
 
-            // List sessions
+            let session_id =
+                sid_claim(&token).expect("the password grant must bind its token to a session");
+
+            // The session must be visible to the operator before it can be revoked.
             let sessions_resp = srv
                 .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))
                 .add_header("Authorization", auth_header(&token))
@@ -238,21 +291,80 @@ mod tests {
             assert_eq!(sessions_resp.status_code(), 200);
             let sessions_body: Value = sessions_resp.json();
             let sessions = sessions_body["data"].as_array().expect("sessions array");
+            assert!(
+                sessions
+                    .iter()
+                    .any(|s| s["id"].as_str() == Some(session_id.as_str())),
+                "the session backing the current token is not listed: {sessions:?}"
+            );
 
-            if let Some(session) = sessions.first() {
-                let session_id = session["id"].as_str().expect("session id");
+            let revoke_resp = srv
+                .delete(&format!(
+                    "/realms/{}/users/{}/sessions/{}",
+                    realm, admin_id, session_id
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .await;
 
-                let revoke_resp = srv
-                    .delete(&format!(
-                        "/realms/{}/users/{}/sessions/{}",
-                        realm, admin_id, session_id
-                    ))
-                    .add_header("Authorization", auth_header(&token))
-                    .await;
+            // Revoke is 204 No Content
+            assert_eq!(
+                revoke_resp.status_code(),
+                204,
+                "revoking own session failed: {}",
+                revoke_resp.text()
+            );
 
-                // Revoke is 204 No Content
-                assert_eq!(revoke_resp.status_code(), 204);
-            }
+            // 204 is not the point — the access it granted has to be gone.
+            let after = srv
+                .get(&format!(
+                    "/realms/{}/protocol/openid-connect/userinfo",
+                    realm
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .await;
+            assert_eq!(
+                after.status_code(),
+                401,
+                "the revoked session's access token still works: {}",
+                after.text()
+            );
+
+            let refreshed = srv
+                .post(&format!("/realms/{}/protocol/openid-connect/token", realm))
+                .form(&[
+                    ("grant_type", "refresh_token"),
+                    ("client_id", "admin-cli"),
+                    ("refresh_token", refresh_token.as_str()),
+                ])
+                .await;
+            let refreshed_body = refreshed.text();
+            assert_ne!(
+                refreshed.status_code(),
+                200,
+                "the revoked session still rotated into a new token pair: {refreshed_body}"
+            );
+            assert!(
+                !refreshed_body.contains("access_token"),
+                "the refusal still handed back a token: {refreshed_body}"
+            );
+
+            // And the session is gone from the operator's view. A fresh login is
+            // needed: the token used above is now dead, which is the whole point.
+            let fresh = login(&srv, &realm).await;
+            let sessions_after = srv
+                .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))
+                .add_header("Authorization", auth_header(&fresh))
+                .await;
+            assert_eq!(sessions_after.status_code(), 200);
+            let remaining: Value = sessions_after.json();
+            assert!(
+                !remaining["data"]
+                    .as_array()
+                    .expect("sessions array")
+                    .iter()
+                    .any(|s| s["id"].as_str() == Some(session_id.as_str())),
+                "the revoked session is still listed: {remaining}"
+            );
         });
     }
 
@@ -281,19 +393,7 @@ mod tests {
         let realm = ctx().realm_name.clone();
         rt().block_on(async {
             let token = login(&srv, &realm).await;
-
-            // Get admin user id
-            let me_resp = srv
-                .get(&format!("/realms/{}/users", realm))
-                .add_header("Authorization", auth_header(&token))
-                .await;
-            let me_body: Value = me_resp.json();
-            let users = me_body["data"].as_array().expect("users array");
-            let admin_id = users
-                .iter()
-                .find(|u| u["username"] == "admin")
-                .and_then(|u| u["id"].as_str())
-                .expect("admin user id");
+            let admin_id = admin_user_id(&srv, &realm, &token).await;
 
             let fake_session_id = Uuid::new_v4();
             let revoke_resp = srv

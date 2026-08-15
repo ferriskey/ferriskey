@@ -121,6 +121,40 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(())
     }
 
+    async fn delete_all_by_user(&self, user_id: Uuid, realm_id: Uuid) -> Result<u64, SessionError> {
+        let result = crate::entity::user_sessions::Entity::delete_many()
+            .filter(crate::entity::user_sessions::Column::UserId.eq(user_id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(realm_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error deleting user sessions: {:?}", e);
+                SessionError::DeleteError
+            })?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn delete_expired_for_user(
+        &self,
+        user_id: Uuid,
+        realm_id: Uuid,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<u64, SessionError> {
+        let result = crate::entity::user_sessions::Entity::delete_many()
+            .filter(crate::entity::user_sessions::Column::UserId.eq(user_id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(realm_id))
+            .filter(crate::entity::user_sessions::Column::ExpiresAt.lt(now.naive_utc()))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error deleting expired user sessions: {:?}", e);
+                SessionError::DeleteError
+            })?;
+
+        Ok(result.rows_affected)
+    }
+
     async fn update_last_seen(&self, session_id: Uuid) -> Result<(), SessionError> {
         crate::entity::user_sessions::Entity::update_many()
             .col_expr(
