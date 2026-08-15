@@ -979,7 +979,7 @@ where
         // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
-            .list_organizations_for_user(input.user_id)
+            .list_organizations_for_user(input.realm_id, input.user_id)
             .await
             .unwrap_or_default();
 

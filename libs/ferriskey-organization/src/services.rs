@@ -114,9 +114,7 @@ where
         let realm = self.get_realm_by_name(input.realm_name).await?;
 
         ensure_policy(
-            self.policy
-                .can_create_organization(&identity, realm.id)
-                .await,
+            self.policy.can_create_organization(&identity, &realm).await,
             "insufficient permissions to create organization",
         )?;
 
@@ -164,7 +162,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &org).await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to view organization",
         )?;
 
@@ -179,9 +177,7 @@ where
         let realm = self.get_realm_by_name(input.realm_name).await?;
 
         ensure_policy(
-            self.policy
-                .can_create_organization(&identity, realm.id)
-                .await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list organizations",
         )?;
 
@@ -201,7 +197,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &org).await,
+            self.policy.can_update_organization(&identity, &realm).await,
             "insufficient permissions to update organization",
         )?;
 
@@ -240,7 +236,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_delete_organization(&identity, &org).await,
+            self.policy.can_delete_organization(&identity, &realm).await,
             "insufficient permissions to delete organization",
         )?;
 
@@ -260,7 +256,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &org).await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list organization attributes",
         )?;
 
@@ -280,7 +276,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &org).await,
+            self.policy.can_update_organization(&identity, &realm).await,
             "insufficient permissions to upsert organization attribute",
         )?;
 
@@ -310,7 +306,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &org).await,
+            self.policy.can_update_organization(&identity, &realm).await,
             "insufficient permissions to delete organization attribute",
         )?;
 
@@ -330,7 +326,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &org).await,
+            self.policy.can_manage_members(&identity, &realm).await,
             "insufficient permissions to add organization member",
         )?;
 
@@ -374,7 +370,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &org).await,
+            self.policy.can_manage_members(&identity, &realm).await,
             "insufficient permissions to remove organization member",
         )?;
 
@@ -400,7 +396,7 @@ where
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &org).await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list organization members",
         )?;
 
@@ -417,14 +413,22 @@ where
         let realm = self.get_realm_by_name(input.realm_name).await?;
 
         ensure_policy(
-            self.policy
-                .can_create_organization(&identity, realm.id)
-                .await,
+            self.policy.can_view_organization(&identity, &realm).await,
             "insufficient permissions to list user organizations",
         )?;
 
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        if user.realm_id != realm.id {
+            return Err(CoreError::NotFound);
+        }
+
         self.organization_member_repository
-            .list_organizations_for_user(input.user_id)
+            .list_organizations_for_user(realm.id, input.user_id)
             .await
     }
 }
@@ -1253,7 +1257,7 @@ mod tests {
         let mut member_repo = MockOrganizationMemberRepository::new();
         member_repo
             .expect_list_organizations_for_user()
-            .return_once(move |_| Box::pin(async move { Ok(vec![member]) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(vec![member]) }));
 
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
@@ -1287,5 +1291,481 @@ mod tests {
             .await;
 
         assert!(matches!(result, Ok(v) if v.len() == 1));
+    }
+
+    // ─── cross-realm isolation (FK-006) ──────────────────────────────────────────
+    //
+    // Every actor below holds *real* IAM permissions in their own realm. The expected denial
+    // therefore proves the realm gate fired, not that the actor was simply under-privileged:
+    // `get_permission_for_target_realm` returns an empty set as soon as the caller's realm is
+    // neither the target realm nor `master`.
+
+    const ATTACKER_REALM: &str = "attacker-realm";
+    const VICTIM_REALM: &str = "victim-realm";
+
+    /// An attacker who is a full admin of `attacker-realm`, plus the repositories that resolve
+    /// `victim-realm` and answer the policy lookup.
+    fn cross_realm_actor(
+        victim_realm_id: RealmId,
+        permission: &'static str,
+    ) -> (
+        Identity,
+        MockRealmRepository,
+        MockUserRepository,
+        MockUserRoleRepository,
+    ) {
+        let attacker_realm = make_realm(RealmId::new(Uuid::new_v4()), ATTACKER_REALM);
+        let attacker_realm_id = attacker_realm.id;
+        let attacker = make_user(&attacker_realm);
+        let identity = Identity::User(attacker.clone());
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(victim_realm_id, VICTIM_REALM);
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = attacker.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            // Genuine admin rights — but scoped to the attacker's own realm.
+            let role = make_role_with_permission(attacker_realm_id, permission);
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        (identity, realm_repo, user_repo, user_role_repo)
+    }
+
+    #[tokio::test]
+    async fn create_organization_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_repo, user_role_repo) =
+            cross_realm_actor(victim_realm_id, "manage_realm");
+
+        // Permissive repository: if the policy leaks, the write actually lands.
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_exists_organization_by_realm_and_alias()
+            .returning(|_, _| Box::pin(async { Ok(false) }));
+        org_repo.expect_create_organization().returning(move |_| {
+            let o = make_organization(victim_realm_id);
+            Box::pin(async move { Ok(o) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .create_organization(
+                identity,
+                CreateOrganizationInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                    name: "Pwned".to_string(),
+                    alias: "pwned".to_string(),
+                    domain: None,
+                    redirect_url: None,
+                    description: None,
+                    enabled: true,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an admin of another realm must not create organizations here, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_organizations_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_repo, user_role_repo) =
+            cross_realm_actor(victim_realm_id, "manage_realm");
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_list_organizations_by_realm()
+            .returning(move |_| {
+                let o = make_organization(victim_realm_id);
+                Box::pin(async move { Ok(vec![o]) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .list_organizations(
+                identity,
+                ListOrganizationsInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an admin of another realm must not enumerate organizations here, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_organization_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_repo, user_role_repo) =
+            cross_realm_actor(victim_realm_id, "view_users");
+        let org = make_organization(victim_realm_id);
+        let org_id = org.id;
+
+        // The organization genuinely belongs to the victim realm, so `get_org_for_realm`
+        // passes: only the policy stands between the attacker and the data.
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .returning(move |_| {
+                let o = org.clone();
+                Box::pin(async move { Ok(Some(o)) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .get_organization(
+                identity,
+                GetOrganizationInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                    organization_id: org_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an actor of another realm must not read this organization, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn delete_organization_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_repo, user_role_repo) =
+            cross_realm_actor(victim_realm_id, "manage_realm");
+        let org = make_organization(victim_realm_id);
+        let org_id = org.id;
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .returning(move |_| {
+                let o = org.clone();
+                Box::pin(async move { Ok(Some(o)) })
+            });
+        org_repo
+            .expect_delete_organization()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .delete_organization(
+                identity,
+                DeleteOrganizationInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                    organization_id: org_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an admin of another realm must not delete this organization, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn add_member_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let victim_realm = make_realm(victim_realm_id, VICTIM_REALM);
+        let victim_user = make_user(&victim_realm);
+        let victim_user_id = victim_user.id;
+
+        let attacker_realm = make_realm(RealmId::new(Uuid::new_v4()), ATTACKER_REALM);
+        let attacker_realm_id = attacker_realm.id;
+        let identity = Identity::User(make_user(&attacker_realm));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(victim_realm_id, VICTIM_REALM);
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        // The member being added is a legitimate victim-realm user, so
+        // `validate_membership_realms` passes: only the policy can stop this.
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = victim_user.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(attacker_realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let org = make_organization(victim_realm_id);
+        let org_id = org.id;
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_get_organization_by_id()
+            .returning(move |_| {
+                let o = org.clone();
+                Box::pin(async move { Ok(Some(o)) })
+            });
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_get_member()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+        member_repo.expect_add_member().returning(move |o, u| {
+            let m = make_member(o, u);
+            Box::pin(async move { Ok(m) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .add_member(
+                identity,
+                AddOrganizationMemberInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                    organization_id: org_id,
+                    user_id: victim_user_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an admin of another realm must not enroll members here, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_user_organizations_denies_actor_from_another_realm() {
+        let victim_realm_id = RealmId::new(Uuid::new_v4());
+        let victim_realm = make_realm(victim_realm_id, VICTIM_REALM);
+        let victim_user = make_user(&victim_realm);
+        let victim_user_id = victim_user.id;
+
+        let attacker_realm = make_realm(RealmId::new(Uuid::new_v4()), ATTACKER_REALM);
+        let attacker_realm_id = attacker_realm.id;
+        let identity = Identity::User(make_user(&attacker_realm));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(victim_realm_id, VICTIM_REALM);
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        // The queried user really is a victim-realm user: the tenancy check cannot save us
+        // here, the policy has to.
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = victim_user.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(attacker_realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_list_organizations_for_user()
+            .returning(move |_, u| {
+                let m = make_member(OrganizationId::new(Uuid::new_v4()), u);
+                Box::pin(async move { Ok(vec![m]) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            MockOrganizationRepository::new(),
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .list_user_organizations(
+                identity,
+                ListUserOrganizationsInput {
+                    realm_name: VICTIM_REALM.to_string(),
+                    user_id: victim_user_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an admin of another realm must not read this user's memberships, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_user_organizations_rejects_target_user_from_another_realm() {
+        // Legitimate admin of `test-realm`, but the requested user lives elsewhere. The
+        // repository filters on `user_id` alone, so the service must bind the target to the
+        // realm — and answer `NotFound` rather than confirm the user exists.
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let admin = make_user(&realm);
+        let identity = Identity::User(admin);
+
+        let other_realm = make_realm(RealmId::new(Uuid::new_v4()), "other-realm");
+        let foreign_user = make_user(&other_realm);
+        let foreign_user_id = foreign_user.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = foreign_user.clone();
+            Box::pin(async move { Ok(u) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let mut member_repo = MockOrganizationMemberRepository::new();
+        member_repo
+            .expect_list_organizations_for_user()
+            .returning(move |_, u| {
+                let m = make_member(OrganizationId::new(Uuid::new_v4()), u);
+                Box::pin(async move { Ok(vec![m]) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            MockOrganizationRepository::new(),
+            MockOrganizationAttributeRepository::new(),
+            member_repo,
+        );
+
+        let result = service
+            .list_user_organizations(
+                identity,
+                ListUserOrganizationsInput {
+                    realm_name: "test-realm".to_string(),
+                    user_id: foreign_user_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::NotFound)),
+            "memberships of a user from another realm must not be readable, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_organizations_allows_view_only_actor() {
+        // Listing is a read: `view_users` alone must be enough. Guards against the read path
+        // being gated on the *create* policy again.
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let identity = Identity::User(make_user(&realm));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo
+            .expect_list_organizations_by_realm()
+            .returning(move |_| {
+                let o = make_organization(realm_id);
+                Box::pin(async move { Ok(vec![o]) })
+            });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "view_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .list_organizations(
+                identity,
+                ListOrganizationsInput {
+                    realm_name: "test-realm".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Ok(ref v) if v.len() == 1),
+            "a viewer must be able to list organizations, got {result:?}"
+        );
     }
 }

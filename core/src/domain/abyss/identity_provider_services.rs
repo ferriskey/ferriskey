@@ -89,7 +89,7 @@ where
         // Check authorization
         ensure_policy(
             self.identity_provider_policy
-                .can_create_identity_provider(&identity, realm.id)
+                .can_create_identity_provider(&identity, &realm)
                 .await,
             "insufficient permissions to create identity provider",
         )?;
@@ -156,7 +156,7 @@ where
         // Check authorization
         ensure_policy(
             self.identity_provider_policy
-                .can_view_identity_provider(&identity, &provider)
+                .can_view_identity_provider(&identity, &realm)
                 .await,
             "insufficient permissions to view identity provider",
         )?;
@@ -195,7 +195,7 @@ where
         for provider in providers {
             if self
                 .identity_provider_policy
-                .can_view_identity_provider(&identity, &provider)
+                .can_view_identity_provider(&identity, &realm)
                 .await
                 .unwrap_or(false)
             {
@@ -237,7 +237,7 @@ where
         // Check authorization
         ensure_policy(
             self.identity_provider_policy
-                .can_update_identity_provider(&identity, &provider)
+                .can_update_identity_provider(&identity, &realm)
                 .await,
             "insufficient permissions to update identity provider",
         )?;
@@ -291,7 +291,7 @@ where
         // Check authorization
         ensure_policy(
             self.identity_provider_policy
-                .can_delete_identity_provider(&identity, &provider)
+                .can_delete_identity_provider(&identity, &realm)
                 .await,
             "insufficient permissions to delete identity provider",
         )?;

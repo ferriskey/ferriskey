@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
@@ -114,27 +114,27 @@ pub trait IdentityProviderPolicy: Send + Sync {
     fn can_create_identity_provider(
         &self,
         identity: &Identity,
-        realm_id: RealmId,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can view the identity provider
     fn can_view_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can update the identity provider
     fn can_update_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can delete the identity provider
     fn can_delete_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
