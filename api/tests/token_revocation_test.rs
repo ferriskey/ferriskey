@@ -1,38 +1,3 @@
-/// Integration tests: revocation actually cuts off already-issued tokens (FK-007).
-///
-/// An operator who detected a compromise and ran the standard playbook — revoke the
-/// sessions, log out, disable the account, change the password — interrupted the
-/// attacker in *none* of those cases. The `sid` claim was written into every token
-/// and never read back; `revoke_session` deleted a row without touching a single
-/// token; no lifecycle path revoked anything at all. The OpenAPI description of
-/// `DELETE /users/{id}/sessions/{sid}` nevertheless promised "The session's tokens
-/// are immediately invalidated".
-///
-/// Every test here follows the same shape, because the bug was never about status
-/// codes: **get a token, prove it works, apply the remediation, prove it no longer
-/// works.** The "prove it works" step is what makes the failure meaningful — without
-/// it, a token rejected after revocation could just as well have been rejected all
-/// along.
-///
-/// `GET /protocol/openid-connect/userinfo` is the probe for "does this access token
-/// still open a protected resource": it goes through the bearer auth middleware, and
-/// its body carries `sub` and `preferred_username`, so a leak is visible as data and
-/// not merely as a 200.
-///
-/// Each test provisions its *own* user. Disabling an account and changing a password
-/// both cut every session the user holds, so sharing the seeded admin between tests
-/// running in parallel would have them revoke each other.
-///
-/// Requires a running PostgreSQL instance. Marked `#[ignore]`. Run with:
-///
-///   cargo test -p ferriskey-api --test token_revocation_test -- --ignored
-///
-/// Environment variables (defaults shown):
-///   DATABASE_HOST     = localhost
-///   DATABASE_PORT     = 5432
-///   DATABASE_NAME     = ferriskey
-///   DATABASE_USER     = ferriskey
-///   DATABASE_PASSWORD = ferriskey
 #[cfg(test)]
 mod tests {
     use std::{env, sync::Arc};
@@ -56,12 +21,8 @@ mod tests {
 
     const WEBAPP_URL: &str = "http://localhost:5555";
     const SEEDED_CLIENT_ID: &str = "ferriskey-admin";
-    /// The direct-access-grant client every test logs in through.
     const CLI_CLIENT_ID: &str = "admin-cli";
-    /// 16 chars, all four classes: satisfies the CNIL-compliant default policy
-    /// (min 12, upper/lower/digit/special, >= 80 bits estimated entropy).
     const VICTIM_PASSWORD: &str = "Xq7#vLm2$pRt9Wz!";
-    /// The replacement used by the password-change scenario.
     const ROTATED_PASSWORD: &str = "Kd4%bNq8&sTv3Yh!";
 
     fn env_or(key: &str, default: &str) -> String {
@@ -78,14 +39,10 @@ mod tests {
     struct SharedContext {
         app: std::sync::Mutex<Router>,
         realm_name: String,
-        /// Kept alive for the process lifetime so the schema outlives the tests.
         #[allow(dead_code)]
         pool: PgPool,
     }
 
-    // `router()` installs a process-global Prometheus recorder, so it can only be
-    // built once per test binary (#1086). Every test shares this router and runtime,
-    // which is why these are `#[test]` + `rt().block_on(..)` and not `#[tokio::test]`.
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
     static CTX: std::sync::OnceLock<SharedContext> = std::sync::OnceLock::new();
 
@@ -208,7 +165,6 @@ mod tests {
             .expect("valid Authorization header")
     }
 
-    /// Read a string claim straight off a JWT, without verifying the signature.
     fn claim_str(token: &str, name: &str) -> Option<String> {
         let payload = token.split('.').nth(1)?;
         let raw = URL_SAFE_NO_PAD.decode(payload).ok()?;
@@ -216,19 +172,10 @@ mod tests {
         claims.get(name)?.as_str().map(str::to_string)
     }
 
-    /// The `sid` claim. The tests use it to prove the token they are about to kill
-    /// really names the session they are about to revoke — otherwise "the token
-    /// stopped working" would not be evidence that *this* revocation is what
-    /// stopped it.
     fn sid_claim(access_token: &str) -> Option<String> {
         claim_str(access_token, "sid")
     }
 
-    // ---- HTTP helpers ------------------------------------------------------
-
-    /// `scope` is explicit because `userinfo` refuses a token without `openid`, and
-    /// `profile` is what puts `preferred_username` in its answer — the two claims the
-    /// assertions below read to show *whose* identity a token still buys.
     async fn password_grant(server: &TestServer, username: &str, password: &str) -> TestResponse {
         server
             .post(&format!(
@@ -245,7 +192,6 @@ mod tests {
             .await
     }
 
-    /// Log in and return the whole token response, asserting the grant succeeded.
     async fn login(server: &TestServer, username: &str, password: &str) -> Value {
         let response = password_grant(server, username, password).await;
         assert_eq!(
@@ -324,9 +270,6 @@ mod tests {
             .await
     }
 
-    /// RP-initiated logout with nothing but the ID token, which is all a relying
-    /// party holds. No `post_logout_redirect_uri`, so the endpoint answers 204
-    /// instead of redirecting.
     async fn logout(server: &TestServer, id_token: &str) -> TestResponse {
         server
             .post(&format!(
@@ -337,8 +280,6 @@ mod tests {
             .await
     }
 
-    /// A confidential client with a service account, i.e. the `client_credentials`
-    /// setup. Returns `(client_id, client_secret)`.
     async fn create_service_client(server: &TestServer) -> (String, String) {
         let admin = admin_token(server).await;
         let client_id = format!("svc-{}", Uuid::new_v4().simple());
@@ -374,8 +315,6 @@ mod tests {
         (client_id, secret)
     }
 
-    /// A user with a usable password, created through the public admin API so the
-    /// test exercises the same provisioning path an operator would.
     struct Victim {
         id: String,
         username: String,
@@ -437,11 +376,6 @@ mod tests {
         );
     }
 
-    // ---- assertions on effect, not on status codes -------------------------
-
-    /// The token opens a protected resource and hands back this user's identity.
-    /// This is the "before" half of every scenario: without it, a rejection after
-    /// revocation proves nothing.
     async fn assert_token_still_works(server: &TestServer, access_token: &str, victim: &Victim) {
         let response = userinfo(server, access_token).await;
         let body = response.text();
@@ -465,9 +399,6 @@ mod tests {
         );
     }
 
-    /// The token no longer opens the protected resource *and* leaks no identity.
-    /// The status code is checked too, but the load-bearing assertion is that the
-    /// body no longer carries the user — a 200 with `sub` in it is the bug.
     async fn assert_token_is_dead(server: &TestServer, access_token: &str, victim: &Victim) {
         let response = userinfo(server, access_token).await;
         let body = response.text();
@@ -488,9 +419,6 @@ mod tests {
         );
     }
 
-    /// The refresh token can no longer be exchanged for anything. Checked on the
-    /// body, not the status: the failure that mattered was rotation quietly handing
-    /// back a *working* new pair.
     async fn assert_refresh_is_dead(server: &TestServer, refresh_token: &str) {
         let response = refresh(server, refresh_token).await;
         let body = response.text();
@@ -515,10 +443,6 @@ mod tests {
         );
     }
 
-    /// The single session backing `access_token`, as the operator sees it on
-    /// `GET /users/{id}/sessions`. Asserting there is exactly one keeps the
-    /// experiment single-variable: the session revoked below is the one that minted
-    /// this very token, which the `sid` cross-check then confirms.
     async fn sole_session_of(server: &TestServer, token: &str, victim: &Victim) -> String {
         let sessions = list_sessions(server, token, &victim.id).await;
 
@@ -532,14 +456,6 @@ mod tests {
         sessions[0]["id"].as_str().expect("session id").to_string()
     }
 
-    // ---- scenarios ---------------------------------------------------------
-
-    /// Revoking a session must cut both halves of the grant it produced.
-    ///
-    /// Before the fix `revoke_session` deleted the `user_sessions` row and stopped
-    /// there: the access token kept opening userinfo and the refresh token kept
-    /// minting fresh pairs, for the full natural lifetime of the tokens. The
-    /// endpoint returned 204 the whole time.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn revoking_a_session_kills_the_tokens_it_minted() {
@@ -571,7 +487,6 @@ mod tests {
             assert_token_is_dead(&server, access, &victim).await;
             assert_refresh_is_dead(&server, refresh_token).await;
 
-            // The operator's view must agree with reality: nothing left to revoke.
             let admin = admin_token(&server).await;
             let remaining = list_sessions(&server, &admin, &victim.id).await;
             assert!(
@@ -581,11 +496,6 @@ mod tests {
         });
     }
 
-    /// Disabling an account must reach the grants already handed out.
-    ///
-    /// Before the fix `enabled = false` was one column write. The password grant
-    /// refused new logins, and that was the whole of it — every access token already
-    /// out there kept working, and refresh kept renewing them.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn disabling_an_account_kills_its_outstanding_tokens() {
@@ -623,8 +533,6 @@ mod tests {
             assert_token_is_dead(&server, access, &victim).await;
             assert_refresh_is_dead(&server, refresh_token).await;
 
-            // A disabled account cannot log back in either — so the revocation above
-            // is the only thing standing between the attacker and the account.
             let relogin = password_grant(&server, &victim.username, VICTIM_PASSWORD).await;
             assert_ne!(
                 relogin.status_code(),
@@ -635,11 +543,6 @@ mod tests {
         });
     }
 
-    /// Changing a password must invalidate the sessions opened with the old one.
-    ///
-    /// Before the fix, resetting a compromised password stored a new hash and left
-    /// every session opened with the old one renewing itself indefinitely — the
-    /// single most common remediation gesture, with no effect on the attacker.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn changing_the_password_kills_sessions_opened_with_the_old_one() {
@@ -659,23 +562,12 @@ mod tests {
             assert_token_is_dead(&server, access, &victim).await;
             assert_refresh_is_dead(&server, refresh_token).await;
 
-            // The account is locked out of its old grants, not bricked: the new
-            // password still logs in and the new token works.
             let fresh = login(&server, &victim.username, ROTATED_PASSWORD).await;
             let fresh_access = fresh["access_token"].as_str().expect("access_token");
             assert_token_still_works(&server, fresh_access, &victim).await;
         });
     }
 
-    /// The one that matters most: rotation from a revoked session.
-    ///
-    /// Refresh tokens rotate, and the successor inherits the session binding. Before
-    /// the fix nothing checked that binding, so a revoked session could launder
-    /// itself into a brand-new, fully valid token pair — and then do it again, and
-    /// again. Revocation was not merely late, it was unreachable.
-    ///
-    /// The refresh performed *before* the revocation is the control: it proves the
-    /// refusal afterwards comes from the revocation and not from a broken grant.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn a_revoked_session_can_no_longer_be_rotated_into_a_fresh_token_pair() {
@@ -695,7 +587,6 @@ mod tests {
 
             assert_token_still_works(&server, &access1, &victim).await;
 
-            // Control: while the session lives, rotation works and yields a usable pair.
             let rotated = refresh(&server, &refresh1).await;
             assert_eq!(
                 rotated.status_code(),
@@ -716,8 +607,6 @@ mod tests {
             assert_ne!(refresh1, refresh2, "rotation must mint a new refresh token");
             assert_token_still_works(&server, &access2, &victim).await;
 
-            // Rotation must not detach the pair from its session, or revocation would
-            // have nothing left to grab.
             let session_id = sole_session_of(&server, &access2, &victim).await;
             assert_eq!(
                 sid_claim(&access2).as_deref(),
@@ -733,22 +622,14 @@ mod tests {
                 revoked.text()
             );
 
-            // The successor refresh token — the one rotation just handed out — must
-            // now be worthless.
             assert_refresh_is_dead(&server, &refresh2).await;
             assert_token_is_dead(&server, &access2, &victim).await;
 
-            // And the ancestor must not be a way back in either.
             assert_refresh_is_dead(&server, &refresh1).await;
             assert_token_is_dead(&server, &access1, &victim).await;
         });
     }
 
-    /// Non-regression: a session nobody touched keeps working.
-    ///
-    /// Reading the `sid` claim back on every token validation is a new hard failure
-    /// on the hottest path in the system. Without this test, a fix that rejected
-    /// *every* token would look exactly like a fix that rejected the right ones.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn an_untouched_session_keeps_working_and_still_refreshes() {
@@ -760,15 +641,12 @@ mod tests {
             let access = tokens["access_token"].as_str().expect("access_token");
             let refresh_token = tokens["refresh_token"].as_str().expect("refresh_token");
 
-            // The token is bound to a session, and that binding is not in itself a
-            // reason to reject it.
             assert!(
                 sid_claim(access).is_some(),
                 "the password grant must bind its token to a session"
             );
             assert_token_still_works(&server, access, &victim).await;
 
-            // Repeated use is fine: the session lookup happens on every validation.
             assert_token_still_works(&server, access, &victim).await;
 
             let rotated = refresh(&server, refresh_token).await;
@@ -785,8 +663,6 @@ mod tests {
 
             assert_token_still_works(&server, rotated_access, &victim).await;
 
-            // Nothing was revoked as a side effect: the session is still there, and
-            // still the same one.
             let session_id = sole_session_of(&server, rotated_access, &victim).await;
             assert_eq!(
                 sid_claim(access).as_deref(),
@@ -796,17 +672,6 @@ mod tests {
         });
     }
 
-    /// RP-initiated logout must end the session, not just clear cookies.
-    ///
-    /// Before the fix `end_session` validated the `id_token_hint`, assembled a
-    /// redirect and returned — the `sid` the ID token carries was read nowhere, so
-    /// every token that session had minted survived the logout untouched. The user
-    /// saw "you are logged out" while their tokens stayed live for hours.
-    ///
-    /// The status code is deliberately *not* the load-bearing assertion: a logout
-    /// without `post_logout_redirect_uri` swallows an unusable hint and answers 204
-    /// regardless (`core/src/domain/authentication/services.rs:3740`). Only the dead
-    /// tokens distinguish a real logout from a cookie wipe.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn logging_out_kills_the_tokens_of_the_session_it_ends() {
@@ -823,8 +688,6 @@ mod tests {
 
             assert_token_still_works(&server, access, &victim).await;
 
-            // The hint is only useful if it names the session — that mirroring is
-            // what makes logout able to find anything to revoke.
             let session_id = sole_session_of(&server, access, &victim).await;
             assert_eq!(
                 claim_str(id_token, "sid").as_deref(),
@@ -852,13 +715,6 @@ mod tests {
         });
     }
 
-    /// Revocation must be surgical: one session, not the account.
-    ///
-    /// `DELETE /users/{id}/sessions/{sid}` promises "Other sessions are unaffected".
-    /// Every other test here would still pass if the cascade cut *every* token the
-    /// user holds — an over-broad fix logs out the victim's phone, laptop and CI job
-    /// because one of them was revoked, which is its own outage. This is the test
-    /// that pins the blast radius.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn revoking_one_session_leaves_the_users_other_sessions_alone() {
@@ -866,7 +722,6 @@ mod tests {
             let server = make_server();
             let victim = create_victim(&server, "twosess").await;
 
-            // Two independent logins — two devices, as far as the server can tell.
             let first = login(&server, &victim.username, VICTIM_PASSWORD).await;
             let second = login(&server, &victim.username, VICTIM_PASSWORD).await;
 
@@ -912,11 +767,9 @@ mod tests {
                 revoked.text()
             );
 
-            // The revoked one is gone...
             assert_token_is_dead(&server, &access_a, &victim).await;
             assert_refresh_is_dead(&server, &refresh_a).await;
 
-            // ...and the other one is untouched, including its ability to rotate.
             assert_token_still_works(&server, &access_b, &victim).await;
             let rotated = refresh(&server, &refresh_b).await;
             assert_eq!(
@@ -931,7 +784,6 @@ mod tests {
                 .to_string();
             assert_token_still_works(&server, &rotated_access, &victim).await;
 
-            // The operator's view agrees: exactly the revoked one disappeared.
             let remaining = list_sessions(&server, &access_b, &victim.id).await;
             let remaining_ids: Vec<&str> =
                 remaining.iter().filter_map(|s| s["id"].as_str()).collect();
@@ -943,17 +795,6 @@ mod tests {
         });
     }
 
-    /// Non-regression for machine-to-machine: `client_credentials` mints tokens that
-    /// carry no `sid`, and those must keep working.
-    ///
-    /// `validate_session_binding` accepts a token with no `sid` on purpose — a
-    /// service account has no SSO session to end, and every token issued before the
-    /// migration carries no claim either, so enforcing a binding that was never
-    /// recorded would be an outage rather than a hardening. That exemption is the
-    /// one place where the new check deliberately does *not* fire, so it needs a
-    /// test: without it, tightening the rule to "every token must name a session"
-    /// would silently break every service account and every token in flight during a
-    /// deploy.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
     fn client_credentials_tokens_carry_no_session_and_keep_working() {
@@ -989,8 +830,6 @@ mod tests {
                 "client_credentials must not invent an SSO session for a service account"
             );
 
-            // Unbound, and still accepted — twice, so the session lookup cannot be
-            // failing open only on a first, uncached validation.
             for attempt in 1..=2 {
                 let probe = userinfo(&server, access).await;
                 assert_eq!(
@@ -1001,8 +840,6 @@ mod tests {
                 );
             }
 
-            // And the service account really holds no session an operator could
-            // revoke — the row was not created behind the scenes.
             let service_account_id =
                 claim_str(access, "sub").expect("the token must name its service account");
             let admin = admin_token(&server).await;

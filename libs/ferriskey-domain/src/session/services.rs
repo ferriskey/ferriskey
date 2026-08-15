@@ -263,9 +263,6 @@ mod tests {
         }
     }
 
-    /// Builds the management service with the actor acting on their *own*
-    /// sessions, which short-circuits the permission branch — the policy never
-    /// touches a repository, so the mocks below stay empty.
     fn build_service(
         realm_repo: MockRealmRepository,
         session_repo: MockUserSessionRepository,
@@ -285,9 +282,6 @@ mod tests {
         )
     }
 
-    /// FK-007: deleting the `user_sessions` row is not remediation on its own —
-    /// the access and refresh tokens minted against it stay valid until their
-    /// natural expiry. Revoking a session must reach them.
     #[tokio::test]
     async fn revoke_session_revokes_the_tokens_minted_against_it() {
         let realm = make_realm("test-realm");
@@ -333,9 +327,6 @@ mod tests {
         assert!(result.is_ok(), "revoke_session should succeed");
     }
 
-    /// A cascade that silently fails is the whole bug: the operator is told the
-    /// session is gone while the tokens keep working. The row must survive so a
-    /// retry is meaningful, and the error must surface.
     #[tokio::test]
     async fn revoke_session_propagates_revocation_failure_and_keeps_the_row() {
         let realm = make_realm("test-realm");
@@ -355,7 +346,6 @@ mod tests {
         session_repo
             .expect_find_by_id()
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
-        // The row must NOT be deleted when the cascade failed.
         session_repo.expect_delete().never();
 
         let mut revoker = MockTokenRevocationPort::new();

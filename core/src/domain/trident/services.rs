@@ -2163,8 +2163,6 @@ mod tests {
             }
         }
 
-        /// Expect the "cut every outstanding grant for this user" cascade exactly
-        /// `times` times.
         fn with_user_access_revoked(mut self, times: usize) -> Self {
             Arc::get_mut(&mut self.token_revocation)
                 .unwrap()
@@ -2445,11 +2443,6 @@ mod tests {
         assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 
-    // ── update_password / complete_password_reset ───────────────────────
-
-    /// FK-007: a user changing their own password expects every other session to
-    /// be logged out — that is the universal meaning of the gesture, and the only
-    /// thing that helps when the old password leaked.
     #[tokio::test]
     async fn update_password_revokes_all_user_tokens() {
         let realm = create_test_realm_with_name("test-realm");
@@ -2625,7 +2618,6 @@ mod tests {
             .expect_notify()
             .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
 
-        // FK-007: completing a reset now cascades; assert it happens exactly once.
         let service = builder.with_user_access_revoked(1).build();
         // Strong password satisfying CNIL defaults (≥12 chars, all classes, ≥80 bits entropy)
         let result = service

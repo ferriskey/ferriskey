@@ -921,9 +921,6 @@ mod tests {
             }
         }
 
-        /// Expect the "cut every outstanding grant for this user" cascade exactly
-        /// `times` times. `times(0)` is the regression guard: an edit that does not
-        /// disable the account must never touch anyone's sessions.
         fn with_user_access_revoked(mut self, user_id: uuid::Uuid, times: usize) -> Self {
             let expectation = Arc::get_mut(&mut self.token_revocation)
                 .unwrap()
@@ -1353,9 +1350,6 @@ mod tests {
         assert!(matches!(result, Err(CoreError::NotFound)));
     }
 
-    /// FK-007: flipping `enabled` to false is the operator's "lock this account
-    /// out now" gesture. Without a cascade it only changes a column — every
-    /// access and refresh token already issued keeps working.
     #[tokio::test]
     async fn update_user_disabling_an_account_revokes_all_its_tokens() {
         let realm = create_test_realm_with_name("test-realm");
@@ -1403,9 +1397,6 @@ mod tests {
         assert!(result.is_ok(), "update_user should succeed");
     }
 
-    /// The regression guard for the cascade above: an ordinary profile edit keeps
-    /// `enabled` true, and must not log the user out of anything. Revoking on
-    /// every `update_user` would make editing a first name a denial of service.
     #[tokio::test]
     async fn update_user_that_does_not_disable_the_account_revokes_nothing() {
         let realm = create_test_realm_with_name("test-realm");
@@ -1453,8 +1444,6 @@ mod tests {
         assert!(result.is_ok(), "update_user should succeed");
     }
 
-    /// Re-disabling an already-disabled account is not a transition: there is
-    /// nothing left to cut, and repeating the cascade would be pure noise.
     #[tokio::test]
     async fn update_user_on_an_already_disabled_account_revokes_nothing() {
         let realm = create_test_realm_with_name("test-realm");
@@ -1500,8 +1489,6 @@ mod tests {
         assert!(result.is_ok(), "update_user should succeed");
     }
 
-    /// FK-007: an admin resetting a password is remediating. Sessions opened with
-    /// the old password have to die with it.
     #[tokio::test]
     async fn reset_password_revokes_all_user_tokens() {
         use ferriskey_security::crypto::entities::HashResult;

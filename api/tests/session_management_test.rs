@@ -154,8 +154,6 @@ mod tests {
             .expect("valid header value")
     }
 
-    /// Read the `sid` claim off an access token without verifying the signature, so
-    /// a test can name the exact session its own token was minted against.
     fn sid_claim(access_token: &str) -> Option<String> {
         let payload = access_token.split('.').nth(1)?;
         let raw = URL_SAFE_NO_PAD.decode(payload).ok()?;
@@ -170,7 +168,6 @@ mod tests {
             .to_string()
     }
 
-    /// The whole token response, for the tests that need the refresh token too.
     async fn login_tokens(server: &TestServer, realm_name: &str) -> Value {
         let token_resp = server
             .post(&format!(
@@ -182,8 +179,6 @@ mod tests {
                 ("client_id", "admin-cli"),
                 ("username", "admin"),
                 ("password", "admin_pass_1234!"),
-                // `userinfo` — the probe used below to check whether a token still
-                // opens a protected resource — refuses a token without `openid`.
                 ("scope", "openid profile"),
             ])
             .await;
@@ -198,7 +193,6 @@ mod tests {
         token_resp.json()
     }
 
-    /// Resolve the seeded admin's user id through the API.
     async fn admin_user_id(srv: &TestServer, realm: &str, token: &str) -> String {
         let me_resp = srv
             .get(&format!("/realms/{}/users", realm))
@@ -236,9 +230,6 @@ mod tests {
             let body: Value = sessions_resp.json();
             let sessions = body["data"].as_array().expect("sessions array");
 
-            // The login above opened a session, so the listing cannot be empty —
-            // asserting only `is_array()` let this pass while the endpoint reported
-            // no sessions at all for every password-grant login.
             let session_id =
                 sid_claim(&token).expect("the password grant must bind its token to a session");
             assert!(
@@ -250,18 +241,6 @@ mod tests {
         });
     }
 
-    /// Revoking one's own session must return 204 *and* end the session.
-    ///
-    /// This test used to wrap everything in `if let Some(session) = sessions.first()`
-    /// over a list that was always empty: the password grant established no
-    /// `user_sessions` row, so there was never a session to revoke and the body
-    /// never ran. It passed without exercising a single line of the revoke path.
-    /// The grant now opens a session (FK-007), so the assertions are unconditional —
-    /// and they check the effect, not just the status code.
-    ///
-    /// The session is selected by the `sid` claim of the very token used, never by
-    /// `.first()`: tests in this binary share the seeded admin and run in parallel,
-    /// so `.first()` could well be another test's session.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test session_management_test -- --ignored"]
     fn admin_can_revoke_own_session() {
@@ -283,7 +262,6 @@ mod tests {
             let session_id =
                 sid_claim(&token).expect("the password grant must bind its token to a session");
 
-            // The session must be visible to the operator before it can be revoked.
             let sessions_resp = srv
                 .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))
                 .add_header("Authorization", auth_header(&token))
@@ -306,7 +284,6 @@ mod tests {
                 .add_header("Authorization", auth_header(&token))
                 .await;
 
-            // Revoke is 204 No Content
             assert_eq!(
                 revoke_resp.status_code(),
                 204,
@@ -314,7 +291,6 @@ mod tests {
                 revoke_resp.text()
             );
 
-            // 204 is not the point — the access it granted has to be gone.
             let after = srv
                 .get(&format!(
                     "/realms/{}/protocol/openid-connect/userinfo",
@@ -348,8 +324,6 @@ mod tests {
                 "the refusal still handed back a token: {refreshed_body}"
             );
 
-            // And the session is gone from the operator's view. A fresh login is
-            // needed: the token used above is now dead, which is the whole point.
             let fresh = login(&srv, &realm).await;
             let sessions_after = srv
                 .get(&format!("/realms/{}/users/{}/sessions", realm, admin_id))

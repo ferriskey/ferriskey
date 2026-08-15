@@ -199,8 +199,6 @@ mod tests {
         );
     }
 
-    /// Token revocation is the security control: if it fails, the caller must be
-    /// told, never handed a success it can act on.
     #[tokio::test]
     async fn revoke_all_user_access_propagates_token_store_failure() {
         let user_id = Uuid::new_v4();

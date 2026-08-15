@@ -4714,19 +4714,9 @@ mod tests {
         );
     }
 
-    // ---- FK-007: the `sid` claim is actually read -------------------------
-    //
-    // Every token minted through `create_jwt` carries the id of the SSO session
-    // it was issued against, but until now nothing ever compared that claim to
-    // the `user_sessions` row. Revoking a session deleted the row and left every
-    // token it had minted perfectly valid, which is precisely what made
-    // "revoke session" a no-op and the OpenAPI promise ("the session's tokens are
-    // immediately invalidated") false.
-
     use super::validate_session_binding;
     use ferriskey_domain::session::entities::UserSession;
 
-    /// A `UserSession` carrying only the two fields the binding check reads.
     fn user_session(expires_at: chrono::DateTime<Utc>) -> UserSession {
         UserSession {
             id: Uuid::new_v4(),
@@ -4743,8 +4733,6 @@ mod tests {
 
     #[test]
     fn token_rejected_when_its_session_was_revoked() {
-        // The revocation path hard-deletes the row, so the lookup yields `None`.
-        // This is the FK-007 case: logout / admin revoke must cut the token.
         let now = Utc::now();
 
         assert!(
@@ -4758,8 +4746,6 @@ mod tests {
 
     #[test]
     fn token_rejected_when_its_session_expired() {
-        // A session row outliving its `expires_at` must not keep minting access:
-        // the SSO session is the outer bound on the token's usefulness.
         let now = Utc::now();
         let session = user_session(now - Duration::seconds(1));
 
@@ -4774,8 +4760,6 @@ mod tests {
 
     #[test]
     fn token_without_a_sid_is_still_accepted() {
-        // `client_credentials` and every pre-existing token establish no session.
-        // Enforcing a binding they never had would lock out live deployments.
         assert!(
             validate_session_binding(None, None, Utc::now()).is_ok(),
             "a token that never claimed a session must keep working"
@@ -4795,9 +4779,6 @@ mod tests {
 
     #[test]
     fn session_binding_holds_at_the_exact_expiry_boundary() {
-        // `expires_at == now` is not yet expired, matching `auth_session_can_resume`
-        // and `UserSession::is_expired` (`now > expires_at`). Pinned so a later
-        // refactor cannot silently flip the comparison and cut sessions a second early.
         let now = Utc::now();
         let session = user_session(now);
 
