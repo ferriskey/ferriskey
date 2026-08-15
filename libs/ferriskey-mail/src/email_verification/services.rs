@@ -618,6 +618,18 @@ mod tests {
             Box::pin(async move { Ok(Some(r)) })
         });
 
+        let mut security_event_repo = MockSecurityEventRepository::new();
+        security_event_repo
+            .expect_store_event()
+            .times(1)
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo
+            .expect_notify::<User>()
+            .times(1)
+            .returning(|_, _: WebhookPayload<User>| Box::pin(async move { Ok(()) }));
+
         let service = build_service(
             evrt,
             user_repo,
@@ -626,8 +638,8 @@ mod tests {
             MockEmailPort::new(),
             MockSmtpConfigRepository::new(),
             MockEmailTemplateRepository::new(),
-            MockWebhookRepository::new(),
-            MockSecurityEventRepository::new(),
+            webhook_repo,
+            security_event_repo,
         );
 
         let result = service
@@ -644,6 +656,8 @@ mod tests {
         let realm = test_realm();
         let mut evrt = MockEmailVerificationTokenRepository::new();
         evrt.expect_find_valid_by_hash()
+            .return_once(|_, _| Box::pin(async move { Ok(None) }));
+        evrt.expect_find_by_hash()
             .return_once(|_, _| Box::pin(async move { Ok(None) }));
 
         let mut realm_repo = MockRealmRepository::new();
@@ -681,7 +695,7 @@ mod tests {
         let raw_token = "expired-token";
         let token_hash = generate_token_hash(raw_token);
 
-        let _expired_token = EmailVerificationToken {
+        let expired_token = EmailVerificationToken {
             id: Uuid::new_v4(),
             user_id: user.id,
             realm_id: realm.id.into(),
@@ -694,6 +708,15 @@ mod tests {
         let mut evrt = MockEmailVerificationTokenRepository::new();
         evrt.expect_find_valid_by_hash()
             .return_once(move |_, _| Box::pin(async move { Ok(None) }));
+        let et = expired_token.clone();
+        evrt.expect_find_by_hash()
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(et)) }));
+
+        let unverified = user.clone();
+        let mut user_repo = MockUserRepository::new();
+        user_repo
+            .expect_get_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(unverified) }));
 
         let mut realm_repo = MockRealmRepository::new();
         let r = realm.clone();
@@ -704,7 +727,7 @@ mod tests {
 
         let service = build_service(
             evrt,
-            MockUserRepository::new(),
+            user_repo,
             realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
@@ -731,7 +754,7 @@ mod tests {
         let raw_token = "used-token";
         let token_hash = generate_token_hash(raw_token);
 
-        let _used_token = EmailVerificationToken {
+        let used_token = EmailVerificationToken {
             id: Uuid::new_v4(),
             user_id: user.id,
             realm_id: realm.id.into(),
@@ -744,6 +767,16 @@ mod tests {
         let mut evrt = MockEmailVerificationTokenRepository::new();
         evrt.expect_find_valid_by_hash()
             .return_once(move |_, _| Box::pin(async move { Ok(None) }));
+        let ut = used_token.clone();
+        evrt.expect_find_by_hash()
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(ut)) }));
+
+        let mut verified_user = user.clone();
+        verified_user.email_verified = true;
+        let mut user_repo = MockUserRepository::new();
+        user_repo
+            .expect_get_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(verified_user) }));
 
         let mut realm_repo = MockRealmRepository::new();
         let r = realm.clone();
@@ -754,7 +787,7 @@ mod tests {
 
         let service = build_service(
             evrt,
-            MockUserRepository::new(),
+            user_repo,
             realm_repo,
             MockUserRequiredActionRepository::new(),
             MockEmailPort::new(),
@@ -767,11 +800,9 @@ mod tests {
         let result = service
             .verify_email("test-realm".to_string(), raw_token.to_string())
             .await;
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            CoreError::InvalidOrExpiredToken
-        ));
+        let res = result.expect("replaying a spent token on a verified account is idempotent");
+        assert_eq!(res.user_id, user.id);
+        assert!(res.verified);
     }
 
     #[tokio::test]
