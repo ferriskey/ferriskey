@@ -45,9 +45,6 @@ pub trait EmailTemplateService: Send + Sync {
     ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }
 
-/// Every accessor is scoped by `realm_id`: a template id belonging to another realm
-/// must not match any row, so cross-realm access is indistinguishable from a template
-/// that does not exist (no existence oracle). Never add an unscoped accessor here.
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait EmailTemplateRepository: Send + Sync {
     fn fetch_by_realm(

@@ -25,13 +25,6 @@ pub trait ClientScopeRepository: Send + Sync {
         payload: CreateClientScopeRequest,
     ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
 
-    /// Load a client scope **within `realm_id` only** (FK-005).
-    ///
-    /// Authorization is decided against the realm named in the URL; fetching the
-    /// scope by bare UUID afterwards let a tenant administrator read the scopes —
-    /// and the protocol mappers — of any other realm. The realm belongs in the
-    /// query rather than in a caller-side check, so an id from another tenant
-    /// matches no row and no future caller can forget it.
     fn get_by_id(
         &self,
         realm_id: RealmId,
@@ -49,8 +42,6 @@ pub trait ClientScopeRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<ClientScope>, CoreError>> + Send;
 
-    /// Update a client scope **within `realm_id` only** (FK-005). An id from
-    /// another tenant updates no row and yields [`CoreError::NotFound`].
     fn update_by_id(
         &self,
         realm_id: RealmId,
@@ -58,8 +49,6 @@ pub trait ClientScopeRepository: Send + Sync {
         payload: UpdateClientScopeRequest,
     ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
 
-    /// Delete a client scope **within `realm_id` only** (FK-005). An id from
-    /// another tenant deletes no row and yields [`CoreError::NotFound`].
     fn delete_by_id(
         &self,
         realm_id: RealmId,
@@ -95,12 +84,6 @@ pub trait ProtocolMapperRepository: Send + Sync {
         payload: CreateProtocolMapperRequest,
     ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
 
-    /// Load a mapper **within `client_scope_id` only** (FK-005).
-    ///
-    /// A mapper is a sub-resource of its scope, and the scope is what carries the
-    /// realm. Binding the query to the parent scope of the URL means a mapper id
-    /// belonging to any other scope — hence possibly to any other tenant —
-    /// matches no row.
     fn get_by_id(
         &self,
         client_scope_id: Uuid,
@@ -112,8 +95,6 @@ pub trait ProtocolMapperRepository: Send + Sync {
         scope_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ProtocolMapper>, CoreError>> + Send;
 
-    /// Update a mapper **within `client_scope_id` only** (FK-005). A mapper of
-    /// another scope updates no row and yields [`CoreError::NotFound`].
     fn update_by_id(
         &self,
         client_scope_id: Uuid,
@@ -121,8 +102,6 @@ pub trait ProtocolMapperRepository: Send + Sync {
         payload: UpdateProtocolMapperRequest,
     ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
 
-    /// Delete a mapper **within `client_scope_id` only** (FK-005). A mapper of
-    /// another scope deletes no row and yields [`CoreError::NotFound`].
     fn delete_by_id(
         &self,
         client_scope_id: Uuid,

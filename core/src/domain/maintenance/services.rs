@@ -113,8 +113,6 @@ where
             "insufficient permissions to toggle maintenance",
         )?;
 
-        // FK-005: bound to the realm in the path, so maintenance cannot be toggled
-        // on another tenant's client — a denial of service on their authentication.
         let client = self
             .client_repository
             .get_by_id(realm.id, client_id)

@@ -159,8 +159,6 @@ where
             "insufficient permissions",
         )?;
 
-        // Verify the template exists *within this realm* — a template id belonging to
-        // another realm must not match, and is reported as not found (no oracle).
         self.email_template_repository
             .get_by_id(realm.id.into(), input.template_id)
             .await?
@@ -202,8 +200,6 @@ where
             "insufficient permissions",
         )?;
 
-        // Verify the template exists *within this realm* — a template id belonging to
-        // another realm must not match, and is reported as not found (no oracle).
         self.email_template_repository
             .get_by_id(realm.id.into(), input.template_id)
             .await?

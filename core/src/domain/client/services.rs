@@ -113,18 +113,6 @@ where
         }
     }
 
-    /// Load a client, refusing to look outside `realm` (FK-005).
-    ///
-    /// Authorization is decided against the realm named in the URL, but the client
-    /// used to be fetched by bare UUID. A tenant administrator could therefore read
-    /// any other realm's client — **secret included**, since it is stored unhashed
-    /// and serialized in full — rewrite its security settings (`require_pkce`,
-    /// `direct_access_grants_enabled`), inject a redirect URI, or delete it outright,
-    /// cascading onto its roles, service account and scope mappings.
-    ///
-    /// The realm bound also lives in the SQL (`ClientRepository::get_by_id`); this
-    /// helper exists so sub-resource operations bind their parent before touching a
-    /// child by id.
     async fn load_client_in_realm(
         &self,
         client_id: Uuid,
@@ -265,7 +253,6 @@ where
             self.policy.can_create_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
@@ -305,7 +292,6 @@ where
             self.policy.can_create_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
@@ -345,7 +331,6 @@ where
             self.policy.can_create_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         let role = self
@@ -449,7 +434,6 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.redirect_uri_repository
@@ -488,7 +472,6 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.post_logout_redirect_uri_repository
@@ -549,7 +532,6 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.role_repository
@@ -598,7 +580,6 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.redirect_uri_repository
@@ -623,7 +604,6 @@ where
             self.policy.can_view_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         self.post_logout_redirect_uri_repository
@@ -687,7 +667,6 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self
@@ -727,7 +706,6 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        // Bind the parent to the realm before touching any child by id.
         self.load_client_in_realm(input.client_id, &realm).await?;
 
         let redirect_uri = self

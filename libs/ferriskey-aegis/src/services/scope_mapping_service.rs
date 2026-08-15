@@ -61,13 +61,6 @@ where
         }
     }
 
-    /// Both ends of a scope mapping must belong to the realm named in the URL
-    /// (FK-005). Without this, a tenant administrator could graft one of his own
-    /// client scopes — mappers included — onto a client of another tenant, and
-    /// forge the claims of every token that client issues afterwards.
-    ///
-    /// Both lookups are realm-bound in the query, and a foreign id is reported as
-    /// [`CoreError::NotFound`] so the endpoint never becomes an existence oracle.
     async fn ensure_client_in_realm(
         &self,
         realm_id: RealmId,
@@ -227,8 +220,6 @@ where
 
         scopes.extend(optional_scopes);
 
-        // Defence in depth: a mapping created before this realm binding existed
-        // may still point at a scope of another tenant — never echo it back.
         scopes.retain(|scope| scope.realm_id == realm.id);
 
         Ok(scopes)

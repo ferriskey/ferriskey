@@ -90,7 +90,6 @@ impl ClientRepository for PostgresClientRepository {
     async fn get_by_id(&self, realm_id: RealmId, id: uuid::Uuid) -> Result<Client, CoreError> {
         let clients_model = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(id))
-            // FK-005: the tenant bound lives in the query, so a foreign id yields no row.
             .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
             .find_with_related(crate::entity::redirect_uris::Entity)
             .all(&self.db)
@@ -211,8 +210,6 @@ impl ClientRepository for PostgresClientRepository {
                 CoreError::InternalServerError
             })?;
 
-        // No row deleted now means "absent, or belonging to another realm" — the two
-        // must stay indistinguishable, hence `NotFound` rather than a 500.
         if result.rows_affected == 0 {
             return Err(CoreError::NotFound);
         }

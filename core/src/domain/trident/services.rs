@@ -345,9 +345,6 @@ where
         user: &crate::domain::user::entities::User,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
-        // FK-005: the password-reset and magic-link mails render their template
-        // through here. Unscoped, another tenant's template could be rendered — and
-        // rewritten upstream to point `{{reset_link}}` at an attacker's domain.
         let template = self
             .email_template_repository
             .get_by_id(realm_id, template_id)

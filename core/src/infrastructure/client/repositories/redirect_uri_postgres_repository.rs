@@ -85,8 +85,6 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
     ) -> Result<RedirectUri, CoreError> {
         let redirect_uri = RedirectUriEntity::find()
             .filter(crate::entity::redirect_uris::Column::Id.eq(id))
-            // FK-005: the parent bound lives in the query, so a bare `id` cannot
-            // reach a URI belonging to another client — or another tenant.
             .filter(crate::entity::redirect_uris::Column::ClientId.eq(client_id))
             .one(&self.db)
             .await
@@ -117,7 +115,6 @@ impl RedirectUriRepository for PostgresRedirectUriRepository {
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        // Absent and "belongs to another client" must stay indistinguishable.
         if result.rows_affected == 0 {
             return Err(CoreError::RedirectUriNotFound);
         }

@@ -131,13 +131,6 @@ pub trait ClientRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
-    /// Load a client **within `realm_id` only** (FK-005).
-    ///
-    /// Authorization is decided against the realm named in the URL; fetching the
-    /// client by bare UUID afterwards let a tenant administrator read, rewrite or
-    /// delete the clients of any other realm — secret included. The realm belongs in
-    /// the query rather than in a caller-side check, so an id from another tenant
-    /// matches no row and no future caller can forget it.
     fn get_by_id(
         &self,
         realm_id: RealmId,
@@ -182,10 +175,6 @@ pub trait RedirectUriRepository: Send + Sync {
         client_id: Uuid,
     ) -> impl Future<Output = Result<Vec<RedirectUri>, CoreError>> + Send;
 
-    /// Update a redirect URI, **within `client_id` only**.
-    ///
-    /// The parent is a parameter rather than a caller-side check: without it a bare
-    /// `uri_id` reaches any client of any realm (FK-005).
     fn update_enabled(
         &self,
         client_id: Uuid,
@@ -193,7 +182,6 @@ pub trait RedirectUriRepository: Send + Sync {
         enabled: bool,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
 
-    /// Delete a redirect URI, **within `client_id` only**. Same reason as above.
     fn delete(
         &self,
         client_id: Uuid,
