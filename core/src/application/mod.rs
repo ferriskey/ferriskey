@@ -387,6 +387,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             mjml_renderer.clone(),
             password_policy.clone(),
             otp_enrollment.clone(),
+            user_role.clone(),
             token_revocation.clone(),
         ),
         user_service: UserServiceImpl::new(

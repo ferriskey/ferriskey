@@ -756,7 +756,7 @@ export namespace Schemas {
     require_uppercase: boolean;
     updated_at: string;
   };
-  export type PendingVerificationResponse = { message: string; user_id: string };
+  export type PendingActionResponse = { message: string; user_id: string };
   export type Permissions =
     | "create_client"
     | "manage_authorization"
@@ -836,7 +836,7 @@ export namespace Schemas {
   export type RegistrationResponse =
     | { data: JwtToken; status: "authenticated" }
     | { data: RedirectRegistrationResponse; status: "redirect" }
-    | { data: PendingVerificationResponse; status: "pending_verification" };
+    | { data: PendingActionResponse; status: "pending_action" };
   export type RemoveClientWhitelistEntryResponse = { message: string };
   export type RemoveRealmWhitelistEntryResponse = { message: string };
   export type ResendVerificationEmailResponse = { message: string };

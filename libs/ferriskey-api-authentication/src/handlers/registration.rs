@@ -37,7 +37,7 @@ pub struct RegistrationRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct PendingVerificationResponse {
+pub struct PendingActionResponse {
     pub message: String,
     pub user_id: Uuid,
 }
@@ -52,7 +52,7 @@ pub struct RedirectRegistrationResponse {
 pub enum RegistrationResponse {
     Authenticated(JwtToken),
     Redirect(RedirectRegistrationResponse),
-    PendingVerification(PendingVerificationResponse),
+    PendingAction(PendingActionResponse),
 }
 
 fn registration_verification_base_url(webapp_url: &str) -> String {
@@ -138,11 +138,8 @@ pub async fn registration_handler(
         RegisterUserOutput::Redirect { url } => Ok(Response::Created(
             RegistrationResponse::Redirect(RedirectRegistrationResponse { url }),
         )),
-        RegisterUserOutput::PendingVerification { message, user_id } => Ok(Response::Created(
-            RegistrationResponse::PendingVerification(PendingVerificationResponse {
-                message,
-                user_id,
-            }),
+        RegisterUserOutput::PendingAction { message, user_id } => Ok(Response::Created(
+            RegistrationResponse::PendingAction(PendingActionResponse { message, user_id }),
         )),
     }
 }
@@ -186,7 +183,7 @@ mod tests {
     #[test]
     fn test_pending_verification_response_serialization() {
         let user_id = Uuid::new_v4();
-        let response = PendingVerificationResponse {
+        let response = PendingActionResponse {
             message: "Please check your email".to_string(),
             user_id,
         };
@@ -197,9 +194,9 @@ mod tests {
     }
 
     #[test]
-    fn test_registration_response_pending_verification_serialization() {
+    fn test_registration_response_pending_action_serialization() {
         let user_id = Uuid::new_v4();
-        let response = RegistrationResponse::PendingVerification(PendingVerificationResponse {
+        let response = RegistrationResponse::PendingAction(PendingActionResponse {
             message: "Please verify your email".to_string(),
             user_id,
         });
@@ -208,7 +205,7 @@ mod tests {
         assert_eq!(
             json,
             serde_json::json!({
-                "status": "pending_verification",
+                "status": "pending_action",
                 "data": {
                     "message": "Please verify your email",
                     "user_id": user_id,

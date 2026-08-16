@@ -24,6 +24,44 @@ pub fn required_action_for_mfa(has_mfa_credential: bool) -> Option<RequiredActio
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingAuthStep {
+    RequiredActions(Vec<RequiredAction>),
+    OtpChallenge,
+}
+
+pub fn pending_auth_step(
+    persisted_actions: &[RequiredAction],
+    settings: Option<&RealmSetting>,
+    roles: &[Role],
+    has_otp_credential: bool,
+    has_temporary_password: bool,
+) -> Option<PendingAuthStep> {
+    let mut effective = persisted_actions.to_vec();
+
+    if has_temporary_password && !effective.contains(&RequiredAction::UpdatePassword) {
+        effective.push(RequiredAction::UpdatePassword);
+    }
+
+    if !has_temporary_password && user_requires_mfa(settings, roles) {
+        if let Some(action) = required_action_for_mfa(has_otp_credential)
+            && !effective.contains(&action)
+        {
+            effective.push(action);
+        }
+    }
+
+    if !effective.is_empty() {
+        return Some(PendingAuthStep::RequiredActions(effective));
+    }
+
+    if has_otp_credential {
+        return Some(PendingAuthStep::OtpChallenge);
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +136,144 @@ mod tests {
     fn has_mfa_credential_returns_none() {
         let action = required_action_for_mfa(true);
         assert_eq!(action, None);
+    }
+
+    #[test]
+    fn no_pending_step_for_a_plain_user() {
+        let settings = make_realm_setting(false);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            None
+        );
+    }
+
+    #[test]
+    fn an_otp_credential_alone_demands_a_challenge() {
+        let settings = make_realm_setting(false);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(&[], Some(&settings), &[role], true, false),
+            Some(PendingAuthStep::OtpChallenge)
+        );
+    }
+
+    #[test]
+    fn a_persisted_action_outranks_the_otp_challenge() {
+        let settings = make_realm_setting(false);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(
+                &[RequiredAction::UpdatePassword],
+                Some(&settings),
+                &[role],
+                true,
+                false
+            ),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::UpdatePassword
+            ]))
+        );
+    }
+
+    #[test]
+    fn realm_level_mfa_without_a_credential_demands_enrolment() {
+        let settings = make_realm_setting(true);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::ConfigureOtp
+            ]))
+        );
+    }
+
+    #[test]
+    fn role_level_mfa_without_a_credential_demands_enrolment() {
+        let settings = make_realm_setting(false);
+        let role = make_role(true);
+        assert_eq!(
+            pending_auth_step(&[], Some(&settings), &[role], false, false),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::ConfigureOtp
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_temporary_password_is_settled_before_mfa_enrolment() {
+        let settings = make_realm_setting(true);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(
+                &[RequiredAction::UpdatePassword],
+                Some(&settings),
+                &[role],
+                false,
+                true
+            ),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::UpdatePassword
+            ]))
+        );
+    }
+
+    #[test]
+    fn enrolment_is_not_demanded_twice() {
+        let settings = make_realm_setting(true);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(
+                &[RequiredAction::ConfigureOtp],
+                Some(&settings),
+                &[role],
+                false,
+                false
+            ),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::ConfigureOtp
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_realm_without_settings_still_honours_role_level_mfa() {
+        let role = make_role(true);
+        assert_eq!(
+            pending_auth_step(&[], None, &[role], false, false),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::ConfigureOtp
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_temporary_password_is_owed_even_when_nothing_was_persisted() {
+        let settings = make_realm_setting(false);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(&[], Some(&settings), &[role], false, true),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::UpdatePassword
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_temporary_password_is_not_owed_twice() {
+        let settings = make_realm_setting(false);
+        let role = make_role(false);
+        assert_eq!(
+            pending_auth_step(
+                &[RequiredAction::UpdatePassword],
+                Some(&settings),
+                &[role],
+                false,
+                true
+            ),
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::UpdatePassword
+            ]))
+        );
     }
 }

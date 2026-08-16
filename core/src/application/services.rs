@@ -241,6 +241,7 @@ type ApplicationTridentService = TridentServiceImpl<
     MjmlRenderer,
     PasswordPolicyRepo,
     OtpEnrollmentRepo,
+    UserRoleRepo,
     ApplicationTokenRevocation,
 >;
 
