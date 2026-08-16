@@ -871,7 +871,7 @@ mod tests {
             let token = EmailVerificationToken {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
-                realm_id: Uuid::new_v4().into(),
+                realm_id: Uuid::new_v4(),
                 token_hash: "hash".to_string(),
                 expires_at: Utc::now() + Duration::hours(24),
                 created_at: Utc::now(),
@@ -1153,7 +1153,7 @@ mod tests {
                 Ok(EmailVerificationToken {
                     id: Uuid::new_v4(),
                     user_id: Uuid::new_v4(),
-                    realm_id: Uuid::new_v4().into(),
+                    realm_id: Uuid::new_v4(),
                     token_hash: "hash".to_string(),
                     expires_at: Utc::now() + Duration::hours(24),
                     created_at: Utc::now(),
@@ -1235,7 +1235,7 @@ mod tests {
                 Ok(EmailVerificationToken {
                     id: Uuid::new_v4(),
                     user_id: Uuid::new_v4(),
-                    realm_id: Uuid::new_v4().into(),
+                    realm_id: Uuid::new_v4(),
                     token_hash: "hash".to_string(),
                     expires_at: Utc::now() + Duration::hours(24),
                     created_at: Utc::now(),

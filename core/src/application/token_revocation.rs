@@ -160,7 +160,7 @@ mod tests {
     async fn revoke_all_user_access_revokes_tokens_and_drops_sessions() {
         let user_id = Uuid::new_v4();
         let realm_id = Uuid::new_v4();
-        let sessions = vec![
+        let sessions = [
             make_session(user_id, realm_id),
             make_session(user_id, realm_id),
         ];
