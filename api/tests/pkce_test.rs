@@ -292,7 +292,7 @@ mod tests {
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .add_query_param("redirect_uri", "http://localhost/callback")
                 .add_query_param("scope", "openid")
-                .add_query_param("code_challenge", &challenge)
+                .add_query_param("code_challenge", challenge)
                 .add_query_param("code_challenge_method", "S256")
                 .await;
 
@@ -348,7 +348,7 @@ mod tests {
             let token_resp = server
                 .post(&token_url(realm()))
                 .content_type("application/x-www-form-urlencoded")
-                .text(&format!(
+                .text(format!(
                     "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
                     ctx.plain_client_id, code, verifier
                 ))
@@ -378,7 +378,7 @@ mod tests {
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .add_query_param("redirect_uri", "http://localhost/callback")
                 .add_query_param("scope", "openid")
-                .add_query_param("code_challenge", &challenge)
+                .add_query_param("code_challenge", challenge)
                 .add_query_param("code_challenge_method", "S256")
                 .await;
 
@@ -409,7 +409,7 @@ mod tests {
             let token_resp = server
                 .post(&token_url(realm()))
                 .content_type("application/x-www-form-urlencoded")
-                .text(&format!(
+                .text(format!(
                     "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
                     ctx.plain_client_id, code, wrong_verifier
                 ))
