@@ -43,12 +43,12 @@ pub fn pending_auth_step(
         effective.push(RequiredAction::UpdatePassword);
     }
 
-    if !has_temporary_password && user_requires_mfa(settings, roles) {
-        if let Some(action) = required_action_for_mfa(has_otp_credential)
-            && !effective.contains(&action)
-        {
-            effective.push(action);
-        }
+    if !has_temporary_password
+        && user_requires_mfa(settings, roles)
+        && let Some(action) = required_action_for_mfa(has_otp_credential)
+        && !effective.contains(&action)
+    {
+        effective.push(action);
     }
 
     if !effective.is_empty() {
