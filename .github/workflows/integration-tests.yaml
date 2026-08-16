@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   device-flow:
-    name: device flow (RFC 8628)
+    name: integration suites
     runs-on: ubuntu-latest
 
     # DB-backed integration tests are `#[ignore]` so a normal `cargo test`
@@ -58,9 +58,6 @@ jobs:
           restore-keys: |
             it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
-      # Scoped to device_flow_test for now. Other DB-backed suites
-      # (token_basic_auth_test, organization_test, portal_theme_test) can be
-      # added here once the shared-harness issues in #1086 are resolved.
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 
@@ -81,3 +78,24 @@ jobs:
       # stays parallel-safe.
       - name: run account lockout integration tests
         run: cargo test -p ferriskey-api --test account_lockout_test -- --ignored
+
+      - name: run session management integration tests
+        run: cargo test -p ferriskey-api --test session_management_test -- --ignored
+
+      - name: run redirect_uri validation integration tests
+        run: cargo test -p ferriskey-api --test redirect_uri_validation_test -- --ignored
+
+      - name: run MFA bypass integration tests
+        run: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored
+
+      - name: run token revocation integration tests
+        run: cargo test -p ferriskey-api --test token_revocation_test -- --ignored
+
+      - name: run cross-realm user isolation integration tests
+        run: cargo test -p ferriskey-api --test user_cross_realm_test -- --ignored
+
+      - name: run cross-realm client isolation integration tests
+        run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
+
+      - name: run cross-realm organization isolation integration tests
+        run: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored
