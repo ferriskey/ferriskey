@@ -14,12 +14,25 @@ concurrency:
 
 jobs:
   device-flow:
-    name: device flow (RFC 8628)
+    name: integration suites
     runs-on: ubuntu-latest
 
     # DB-backed integration tests are `#[ignore]` so a normal `cargo test`
     # skips them. This dedicated job provides the Postgres they need and runs
     # them explicitly with `--ignored`, keeping the rest of CI DB-free.
+    #
+    # Every suite listed below is verified green. Six suites are deliberately
+    # NOT listed because they fail for reasons that predate this workflow:
+    #   - login_aliases_test, organization_test, token_basic_auth_test
+    #     panic with "Failed to set global recorder" (#1086): they build
+    #     `router()` once per test, and the Prometheus recorder is process-wide.
+    #     The suites below avoid this with a `OnceLock` shared context.
+    #   - pkce_test (2/5), portal_theme_test (1/1), refresh_token_rotation_test
+    #     (2/2) fail on their own assertions. Verified failing at c7a59166,
+    #     i.e. before the security remediation work, so these are standing bugs
+    #     rather than regressions.
+    # Fixing those is tracked separately; do not add a suite here until it is
+    # green locally, or this job stops meaning anything.
     services:
       postgres:
         image: postgres:18.2
@@ -58,26 +71,38 @@ jobs:
           restore-keys: |
             it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
-      # Scoped to device_flow_test for now. Other DB-backed suites
-      # (token_basic_auth_test, organization_test, portal_theme_test) can be
-      # added here once the shared-harness issues in #1086 are resolved.
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 
-      # Single-test suite, so `router()` (and the process-wide Prometheus
-      # recorder, see #1086) is constructed exactly once per process — safe to
-      # run as its own invocation without the shared-runtime harness.
       - name: run nonce id_token integration test
         run: cargo test -p ferriskey-api --test nonce_id_token_test -- --ignored
 
-      # Password policy enforcement: validates that the per-realm policy is
-      # applied to all password-set flows and is readable without auth.
       - name: run password policy integration tests
         run: cargo test -p ferriskey-api --test password_policy_test -- --ignored
 
-      # Account lockout / anti-brute-force (#1095): failed-login counter,
-      # lock at threshold, admin unlock, and auto-recovery once the window
-      # lapses. Each test uses its own victim user so the shared realm harness
-      # stays parallel-safe.
       - name: run account lockout integration tests
         run: cargo test -p ferriskey-api --test account_lockout_test -- --ignored
+
+      - name: run session management integration tests
+        run: cargo test -p ferriskey-api --test session_management_test -- --ignored
+
+      # The suites below cover the security remediation work (FK-002 to FK-008).
+      # Each one reproduces a vulnerability that was confirmed exploitable
+      # against the unpatched build, so a regression here is a reopened hole.
+      - name: run redirect_uri validation integration tests
+        run: cargo test -p ferriskey-api --test redirect_uri_validation_test -- --ignored
+
+      - name: run MFA bypass integration tests
+        run: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored
+
+      - name: run token revocation integration tests
+        run: cargo test -p ferriskey-api --test token_revocation_test -- --ignored
+
+      - name: run cross-realm user isolation integration tests
+        run: cargo test -p ferriskey-api --test user_cross_realm_test -- --ignored
+
+      - name: run cross-realm client isolation integration tests
+        run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
+
+      - name: run cross-realm organization isolation integration tests
+        run: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored
