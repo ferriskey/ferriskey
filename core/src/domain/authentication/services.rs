@@ -240,6 +240,49 @@ fn resolve_refresh_required_actions(
     actions
 }
 
+fn pending_step_message(step: &mfa_policy::PendingAuthStep) -> String {
+    match step {
+        mfa_policy::PendingAuthStep::RequiredActions(actions) => format!(
+            "the required action(s) {} are still owed",
+            actions
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        mfa_policy::PendingAuthStep::OtpChallenge => {
+            "a second authentication factor is still owed".to_string()
+        }
+    }
+}
+
+fn pending_step_refusal(step: &mfa_policy::PendingAuthStep) -> CoreError {
+    CoreError::Forbidden(format!(
+        "Tokens cannot be issued for this account because {}. Sign in through the browser-based authorization_code flow to complete the remaining step.",
+        pending_step_message(step)
+    ))
+}
+
+fn refuse_token_issuance_when_step_pending(
+    step: Option<&mfa_policy::PendingAuthStep>,
+) -> Result<(), CoreError> {
+    match step {
+        Some(step) => Err(pending_step_refusal(step)),
+        None => Ok(()),
+    }
+}
+
+fn refuse_token_issuance_when_actions_pending(
+    step: Option<&mfa_policy::PendingAuthStep>,
+) -> Result<(), CoreError> {
+    match step {
+        Some(step @ mfa_policy::PendingAuthStep::RequiredActions(_)) => {
+            Err(pending_step_refusal(step))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Lifetime, in seconds, of a `Temporary` step token.
 ///
 /// A step token only has to survive one hop of the login flow (OTP challenge,
@@ -1639,6 +1682,48 @@ where
         Ok(is_valid)
     }
 
+    async fn resolve_pending_auth_step(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+    ) -> Result<Option<mfa_policy::PendingAuthStep>, CoreError> {
+        let persisted_actions = self
+            .user_required_action_repository
+            .get_required_actions(user_id)
+            .await
+            .map_err(|e| {
+                warn!(user_id = %user_id, error = ?e, "Failed to load required actions");
+                CoreError::InternalServerError
+            })?;
+
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        let has_otp_credential = credentials
+            .iter()
+            .any(|credential| matches!(credential.credential_type, CredentialType::Otp));
+        let has_temporary_password = credentials.iter().any(|credential| credential.temporary);
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        Ok(mfa_policy::pending_auth_step(
+            &persisted_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+            has_temporary_password,
+        ))
+    }
+
     async fn verify_refresh_token(
         &self,
         token: String,
@@ -1821,6 +1906,20 @@ where
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
+
+        let pending_step = self
+            .resolve_pending_auth_step(user_id, params.realm_id)
+            .await?;
+
+        if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user_id,
+                client_id = %params.client_id,
+                step = ?pending_step,
+                "Refusing an authorization code: the account still owes a required action"
+            );
+            return Err(error);
+        }
 
         let final_scope = self
             .resolve_scopes_for_client(auth_session.client_id, Some(auth_session.scope.clone()))
@@ -2119,6 +2218,21 @@ where
             .user_repository
             .reset_failed_login_attempts(user.id)
             .await;
+
+        let pending_step = self
+            .resolve_pending_auth_step(user.id, params.realm_id)
+            .instrument(info_span!("auth.password.pending_step"))
+            .await?;
+
+        if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user.id,
+                client_id = %params.client_id,
+                step = ?pending_step,
+                "Refusing a direct grant: the account still owes an authentication step"
+            );
+            return Err(error);
+        }
 
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
@@ -3485,7 +3599,7 @@ where
                 .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
                 .ok();
 
-            return Ok(RegisterUserOutput::PendingVerification {
+            return Ok(RegisterUserOutput::PendingAction {
                 message: "Please check your email to verify your account.".to_string(),
                 user_id: user.id,
             });
@@ -3534,6 +3648,13 @@ where
                 .await?;
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
+        }
+
+        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await? {
+            return Ok(RegisterUserOutput::PendingAction {
+                message: pending_step_message(&step),
+                user_id: user.id,
+            });
         }
 
         let token = self
@@ -3847,6 +3968,17 @@ where
         };
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        let pending_step = self.resolve_pending_auth_step(user.id, realm.id).await?;
+
+        if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user.id,
+                step = ?pending_step,
+                "Refusing to mint tokens: the account still owes an authentication step"
+            );
+            return Err(error);
+        }
 
         let user_session = self
             .create_user_session(user.id, realm.id, lifetimes.refresh_token)
@@ -4783,5 +4915,149 @@ mod tests {
         let session = user_session(now);
 
         assert!(validate_session_binding(Some(session.id), Some(&session), now).is_ok());
+    }
+
+    use super::{
+        refuse_token_issuance_when_actions_pending, refuse_token_issuance_when_step_pending,
+    };
+    use crate::domain::trident::mfa_policy::{PendingAuthStep, pending_auth_step};
+
+    fn step(
+        persisted: &[RequiredAction],
+        require_mfa: bool,
+        has_otp_credential: bool,
+        has_temporary_password: bool,
+    ) -> Option<PendingAuthStep> {
+        let settings = realm_setting(require_mfa);
+        pending_auth_step(
+            persisted,
+            Some(&settings),
+            &[role(false)],
+            has_otp_credential,
+            has_temporary_password,
+        )
+    }
+
+    #[test]
+    fn an_admin_owing_nothing_still_gets_a_direct_grant() {
+        let pending = step(&[], false, false, false);
+
+        assert_eq!(pending, None);
+        assert!(refuse_token_issuance_when_step_pending(pending.as_ref()).is_ok());
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_a_temporary_password() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, false, true).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_an_enrolled_authenticator() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_when_the_realm_mandates_mfa_enrolment() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], true, false, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_when_a_role_mandates_mfa_enrolment() {
+        let pending = pending_auth_step(&[], None, &[role(true)], false, false);
+
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(pending.as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_a_persisted_action() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(
+                step(&[RequiredAction::VerifyEmail], false, false, false).as_ref()
+            ),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_refusal_names_the_step_and_sends_the_client_to_the_browser() {
+        let Err(CoreError::Forbidden(message)) =
+            refuse_token_issuance_when_step_pending(step(&[], false, false, true).as_ref())
+        else {
+            panic!("a temporary password must be refused");
+        };
+
+        assert!(
+            message.contains("update_password"),
+            "the client must learn which step is owed: {message}"
+        );
+        assert!(
+            message.contains("authorization_code"),
+            "the client must be told where to continue: {message}"
+        );
+
+        let Err(CoreError::Forbidden(otp_message)) =
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref())
+        else {
+            panic!("an enrolled authenticator must be refused");
+        };
+
+        assert!(
+            otp_message.contains("authorization_code"),
+            "the client must be told where to continue: {otp_message}"
+        );
+    }
+
+    #[test]
+    fn auto_login_survives_a_reset_that_leaves_nothing_pending() {
+        assert!(
+            refuse_token_issuance_when_step_pending(step(&[], false, false, false).as_ref())
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn auto_login_is_refused_when_a_second_factor_is_enrolled() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_code_grant_survives_an_otp_challenge() {
+        assert!(
+            refuse_token_issuance_when_actions_pending(step(&[], false, true, false).as_ref())
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn a_code_grant_is_refused_while_actions_are_owed() {
+        assert!(matches!(
+            refuse_token_issuance_when_actions_pending(
+                step(&[RequiredAction::VerifyEmail], false, false, false).as_ref()
+            ),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_code_grant_survives_an_empty_slate() {
+        assert!(
+            refuse_token_issuance_when_actions_pending(step(&[], false, false, false).as_ref())
+                .is_ok()
+        );
     }
 }

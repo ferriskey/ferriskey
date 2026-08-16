@@ -48,6 +48,7 @@ use crate::{
         session::ports::TokenRevocationPort,
         trident::{
             entities::{MfaRecoveryCode, PasswordResetToken, TotpSecret},
+            mfa_policy::{PendingAuthStep, pending_auth_step},
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
@@ -66,7 +67,7 @@ use crate::{
         },
         user::{
             entities::RequiredAction,
-            ports::{UserRepository, UserRequiredActionRepository},
+            ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         },
         webhook::{
             entities::{webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger},
@@ -195,31 +196,6 @@ fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError>
         })
 }
 
-/// Generates a random authorization code, stores it in the user auth session
-/// and returns it in a formated URL ready to be sent to the user
-async fn store_auth_code_and_generate_login_url<AS: AuthSessionRepository>(
-    auth_session_repository: &AS,
-    auth_session: &AuthSession,
-    user_id: Uuid,
-) -> Result<String, CoreError> {
-    let authorization_code = generate_random_string();
-
-    auth_session_repository
-        .update_code_and_user_id(auth_session.id, authorization_code.clone(), user_id)
-        .await
-        .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
-
-    let current_state = auth_session
-        .state
-        .as_ref()
-        .ok_or(CoreError::AuthSessionExpectedState)?;
-
-    Ok(format!(
-        "{}?code={}&state={}",
-        auth_session.redirect_uri, authorization_code, current_state
-    ))
-}
-
 #[derive(Clone, Debug)]
 pub struct TridentServiceImpl<
     CR,
@@ -239,6 +215,7 @@ pub struct TridentServiceImpl<
     TR,
     PPR,
     OER,
+    URR,
     TRV,
 > where
     CR: CredentialRepository,
@@ -258,6 +235,7 @@ pub struct TridentServiceImpl<
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    URR: UserRoleRepository,
     TRV: TokenRevocationPort,
 {
     pub(crate) credential_repository: Arc<CR>,
@@ -277,11 +255,32 @@ pub struct TridentServiceImpl<
     pub(crate) template_renderer: Arc<TR>,
     pub(crate) password_policy_repository: Arc<PPR>,
     pub(crate) otp_enrollment_repository: Arc<OER>,
+    pub(crate) user_role_repository: Arc<URR>,
     pub(crate) token_revocation: Arc<TRV>,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV>
-    TridentServiceImpl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+    TridentServiceImpl<
+        CR,
+        RC,
+        AS,
+        H,
+        URA,
+        ML,
+        UR,
+        RR,
+        ES,
+        SC,
+        PRT,
+        SE,
+        WH,
+        ETR,
+        TR,
+        PPR,
+        OER,
+        URR,
+        TRV,
+    >
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -300,6 +299,7 @@ where
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    URR: UserRoleRepository,
     TRV: TokenRevocationPort,
 {
     #[allow(clippy::too_many_arguments)]
@@ -321,6 +321,7 @@ where
         template_renderer: Arc<TR>,
         password_policy_repository: Arc<PPR>,
         otp_enrollment_repository: Arc<OER>,
+        user_role_repository: Arc<URR>,
         token_revocation: Arc<TRV>,
     ) -> Self {
         Self {
@@ -341,8 +342,88 @@ where
             template_renderer,
             password_policy_repository,
             otp_enrollment_repository,
+            user_role_repository,
             token_revocation,
         }
+    }
+
+    async fn pending_auth_step_for(
+        &self,
+        user_id: Uuid,
+        actions_satisfied_by_path: &[RequiredAction],
+    ) -> Result<Option<PendingAuthStep>, CoreError> {
+        let user = self.user_repository.get_by_id(user_id).await?;
+
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        let has_otp_credential = credentials
+            .iter()
+            .any(|credential| credential.credential_type == CredentialType::Otp);
+        let has_temporary_password = credentials.iter().any(|credential| credential.temporary);
+
+        let roles = self.user_role_repository.get_user_roles(user_id).await?;
+
+        let settings = self
+            .realm_repository
+            .get_realm_settings(user.realm_id)
+            .await?;
+
+        let persisted_actions = user
+            .required_actions
+            .into_iter()
+            .filter(|action| !actions_satisfied_by_path.contains(action))
+            .collect::<Vec<RequiredAction>>();
+
+        Ok(pending_auth_step(
+            &persisted_actions,
+            settings.as_ref(),
+            &roles,
+            has_otp_credential,
+            has_temporary_password,
+        ))
+    }
+
+    async fn store_auth_code_and_generate_login_url(
+        &self,
+        auth_session: &AuthSession,
+        user_id: Uuid,
+        actions_satisfied_by_path: &[RequiredAction],
+    ) -> Result<String, CoreError> {
+        if let Some(step) = self
+            .pending_auth_step_for(user_id, actions_satisfied_by_path)
+            .await?
+        {
+            warn!(
+                user_id = %user_id,
+                ?step,
+                "refusing to issue an authorization code while an authentication step is due"
+            );
+
+            return Err(CoreError::Forbidden(
+                "an authentication step is still due for this user".to_string(),
+            ));
+        }
+
+        let authorization_code = generate_random_string();
+
+        self.auth_session_repository
+            .update_code_and_user_id(auth_session.id, authorization_code.clone(), user_id)
+            .await
+            .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
+
+        let current_state = auth_session
+            .state
+            .as_ref()
+            .ok_or(CoreError::AuthSessionExpectedState)?;
+
+        Ok(format!(
+            "{}?code={}&state={}",
+            auth_session.redirect_uri, authorization_code, current_state
+        ))
     }
 
     async fn render_email_template(
@@ -381,7 +462,8 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV> TridentService
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+    TridentService
     for TridentServiceImpl<
         CR,
         RC,
@@ -400,6 +482,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, TRV
         TR,
         PPR,
         OER,
+        URR,
         TRV,
     >
 where
@@ -420,6 +503,7 @@ where
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
     OER: OtpEnrollmentRepository,
+    URR: UserRoleRepository,
     TRV: TokenRevocationPort,
 {
     async fn generate_recovery_code(
@@ -831,12 +915,9 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let login_url = store_auth_code_and_generate_login_url::<AS>(
-            &self.auth_session_repository,
-            &auth_session,
-            user.id,
-        )
-        .await?;
+        let login_url = self
+            .store_auth_code_and_generate_login_url(&auth_session, user.id, &[])
+            .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
     }
@@ -1016,12 +1097,9 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let login_url = store_auth_code_and_generate_login_url::<AS>(
-            &self.auth_session_repository,
-            &auth_session,
-            user.id,
-        )
-        .await?;
+        let login_url = self
+            .store_auth_code_and_generate_login_url(&auth_session, user.id, &[])
+            .await?;
 
         Ok(PasskeyAuthenticateOutput { login_url })
     }
@@ -1595,13 +1673,14 @@ where
         }
 
         // Generate authorization code and login URL
-        let login_url = store_auth_code_and_generate_login_url::<AS>(
-            &self.auth_session_repository,
-            &auth_session,
-            magic_link.user_id,
-        )
-        .await
-        .inspect_err(|e| error!("Failed to generate login URL: {}", e))?;
+        let login_url = self
+            .store_auth_code_and_generate_login_url(
+                &auth_session,
+                magic_link.user_id,
+                &[RequiredAction::VerifyEmail],
+            )
+            .await
+            .inspect_err(|e| error!("Failed to generate login URL: {}", e))?;
 
         // TODO: here an email should be sent to the user instead of logging it
         debug!("Magic link verified for user_id: {}", magic_link.user_id);
@@ -1994,12 +2073,9 @@ where
                 .await
             {
                 Ok(auth_session) if Uuid::from(auth_session.realm_id) == realm_id => {
-                    match store_auth_code_and_generate_login_url::<AS>(
-                        &self.auth_session_repository,
-                        &auth_session,
-                        user_id,
-                    )
-                    .await
+                    match self
+                        .store_auth_code_and_generate_login_url(&auth_session, user_id, &[])
+                        .await
                     {
                         Ok(url) => Some(url),
                         Err(e) => {
@@ -2066,11 +2142,16 @@ mod tests {
         realm::ports::{MockRealmRepository, MockSmtpConfigRepository},
         seawatch::ports::MockSecurityEventRepository,
         session::ports::MockTokenRevocationPort,
-        trident::ports::{
-            MockMagicLinkRepository, MockOtpEnrollmentRepository, MockPasswordResetTokenRepository,
-            MockRecoveryCodeRepository, OtpEnrollment,
+        trident::{
+            entities::MagicLink,
+            ports::{
+                MockMagicLinkRepository, MockOtpEnrollmentRepository,
+                MockPasswordResetTokenRepository, MockRecoveryCodeRepository, OtpEnrollment,
+            },
         },
-        user::ports::{MockUserRepository, MockUserRequiredActionRepository},
+        user::ports::{
+            MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository,
+        },
         webhook::ports::MockWebhookRepository,
     };
     use chrono::DateTime;
@@ -2112,6 +2193,7 @@ mod tests {
         NoopTemplateRenderer,
         MockPasswordPolicyRepository,
         MockOtpEnrollmentRepository,
+        MockUserRoleRepository,
         MockTokenRevocationPort,
     >;
 
@@ -2136,6 +2218,7 @@ mod tests {
         template_renderer: Arc<NoopTemplateRenderer>,
         password_policy_repo: Arc<MockPasswordPolicyRepository>,
         otp_enrollment_repo: Arc<MockOtpEnrollmentRepository>,
+        user_role_repo: Arc<MockUserRoleRepository>,
         token_revocation: Arc<MockTokenRevocationPort>,
     }
 
@@ -2159,6 +2242,7 @@ mod tests {
                 template_renderer: Arc::new(NoopTemplateRenderer),
                 password_policy_repo: Arc::new(MockPasswordPolicyRepository::new()),
                 otp_enrollment_repo: Arc::new(MockOtpEnrollmentRepository::new()),
+                user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
             }
         }
@@ -2191,6 +2275,7 @@ mod tests {
                 self.template_renderer,
                 self.password_policy_repo,
                 self.otp_enrollment_repo,
+                self.user_role_repo,
                 self.token_revocation,
             )
         }
@@ -3350,6 +3435,522 @@ mod tests {
         assert!(
             matches!(result, Err(CoreError::WebAuthnChallengeFailed)),
             "a challenge older than its TTL must be refused"
+        );
+    }
+
+    fn password_credential(user_id: Uuid) -> Credential {
+        Credential {
+            id: Uuid::new_v4(),
+            salt: Some("salt".to_string()),
+            credential_type: CredentialType::Password,
+            user_id,
+            user_label: None,
+            secret_data: "new_hash".to_string(),
+            credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+            temporary: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            webauthn_credential_id: None,
+        }
+    }
+
+    fn magic_link_for(user_id: Uuid, realm_id: Uuid, session_code: Uuid) -> MagicLink {
+        MagicLink {
+            id: Uuid::new_v4(),
+            user_id,
+            realm_id,
+            magic_token_id: Uuid::new_v4(),
+            magic_token_hash: "hashed".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + Duration::minutes(10),
+            auth_session_code: Some(session_code),
+        }
+    }
+
+    fn expect_pending_step_lookups(
+        builder: &mut TridentTestBuilder,
+        user: crate::domain::user::entities::User,
+        credentials: Vec<Credential>,
+        settings: RealmSetting,
+    ) {
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let c = credentials.clone();
+                Box::pin(async move { Ok(c) })
+            });
+
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+    }
+
+    fn expect_no_authorization_code(builder: &mut TridentTestBuilder) {
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_update_code_and_user_id()
+            .never()
+            .returning(|_, _, _| Box::pin(async { Err(AuthenticationError::NotFound) }));
+    }
+
+    fn expect_authorization_code(builder: &mut TridentTestBuilder, session: AuthSession) {
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_update_code_and_user_id()
+            .times(1)
+            .returning(move |_, _, _| {
+                let s = session.clone();
+                Box::pin(async move { Ok(s) })
+            });
+    }
+
+    struct MagicLinkFixture {
+        builder: TridentTestBuilder,
+        token_id: Uuid,
+        session: AuthSession,
+    }
+
+    fn magic_link_fixture(
+        realm: &crate::domain::realm::entities::Realm,
+        user: &crate::domain::user::entities::User,
+    ) -> MagicLinkFixture {
+        let mut builder = TridentTestBuilder::new();
+        let session_code = Uuid::new_v4();
+        let session = auth_session_with_challenge_issued_at(realm, session_code, None);
+
+        let magic_link = magic_link_for(user.id, Uuid::from(realm.id), session_code);
+        let token_id = magic_link.magic_token_id;
+
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(move |_| {
+                let ml = magic_link.clone();
+                Box::pin(async move { Ok(Some(ml)) })
+            });
+
+        let session_clone = session.clone();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = session_clone.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_magic_token()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        MagicLinkFixture {
+            builder,
+            token_id,
+            session,
+        }
+    }
+
+    #[tokio::test]
+    async fn verify_magic_link_withholds_the_code_while_otp_enrolment_is_pending() {
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::ConfigureOtp];
+
+        let MagicLinkFixture {
+            mut builder,
+            token_id,
+            ..
+        } = magic_link_fixture(&realm, &user);
+
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+        let result = service
+            .verify_magic_link(VerifyMagicLinkInput {
+                magic_token_id: token_id,
+                magic_token: "raw_token".to_string(),
+            })
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "a magic link must not log in a user who still owes ConfigureOtp: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_magic_link_withholds_the_code_from_an_otp_credential_holder() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let MagicLinkFixture {
+            mut builder,
+            token_id,
+            ..
+        } = magic_link_fixture(&realm, &user);
+
+        let credentials = vec![otp_credential(user.id)];
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            credentials,
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+        let result = service
+            .verify_magic_link(VerifyMagicLinkInput {
+                magic_token_id: token_id,
+                magic_token: "raw_token".to_string(),
+            })
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an OTP credential still demands a challenge before any code is minted: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_magic_link_does_not_stall_on_a_pending_email_verification() {
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::VerifyEmail];
+
+        let MagicLinkFixture {
+            mut builder,
+            token_id,
+            session,
+        } = magic_link_fixture(&realm, &user);
+
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session);
+
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_delete_by_token_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .verify_magic_link(VerifyMagicLinkInput {
+                magic_token_id: token_id,
+                magic_token: "raw_token".to_string(),
+            })
+            .await;
+
+        let url = result.expect("clicking the link already proves mailbox control");
+        assert!(
+            url.contains("code="),
+            "expected an authorization code in {url}"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_magic_link_still_logs_in_a_user_owing_nothing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let MagicLinkFixture {
+            mut builder,
+            token_id,
+            session,
+        } = magic_link_fixture(&realm, &user);
+
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session);
+
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_delete_by_token_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .verify_magic_link(VerifyMagicLinkInput {
+                magic_token_id: token_id,
+                magic_token: "raw_token".to_string(),
+            })
+            .await;
+
+        let url = result.expect("a user owing no step must still be logged in");
+        assert!(
+            url.contains("code="),
+            "expected an authorization code in {url}"
+        );
+    }
+
+    struct PasswordResetFixture {
+        builder: TridentTestBuilder,
+        token_id: Uuid,
+        session: AuthSession,
+    }
+
+    fn password_reset_fixture(
+        realm: &crate::domain::realm::entities::Realm,
+        user: &crate::domain::user::entities::User,
+    ) -> PasswordResetFixture {
+        let mut builder = TridentTestBuilder::new();
+        let token_id = Uuid::new_v4();
+        let session_code = Uuid::new_v4();
+        let session = auth_session_with_challenge_issued_at(realm, session_code, None);
+        let user_id = user.id;
+
+        let prt = PasswordResetToken {
+            id: Uuid::new_v4(),
+            user_id,
+            realm_id: Uuid::from(realm.id),
+            token_id,
+            token_hash: "hashed_token".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + Duration::minutes(30),
+            auth_session_code: Some(session_code),
+        };
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_get_by_token_id()
+            .returning(move |_| {
+                let t = prt.clone();
+                Box::pin(async move { Ok(Some(t)) })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_magic_token()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_password_credential()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .times(1)
+            .returning(move |_, _, _, _, _| {
+                let cred = password_credential(user_id);
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_delete_all_by_user_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
+        let session_clone = session.clone();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = session_clone.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        PasswordResetFixture {
+            builder,
+            token_id,
+            session,
+        }
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_withholds_auto_login_while_an_action_is_pending() {
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::ConfigureOtp];
+
+        let PasswordResetFixture {
+            mut builder,
+            token_id,
+            ..
+        } = password_reset_fixture(&realm, &user);
+
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.with_user_access_revoked(1).build();
+        let output = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "raw_token".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
+            })
+            .await
+            .expect("the password change itself must still go through");
+
+        assert!(
+            output.login_url.is_none(),
+            "a residual required action must not be skipped by the reset auto-login"
+        );
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_still_logs_in_a_user_owing_nothing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let PasswordResetFixture {
+            mut builder,
+            token_id,
+            session,
+        } = password_reset_fixture(&realm, &user);
+
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session);
+
+        let service = builder.with_user_access_revoked(1).build();
+        let output = service
+            .complete_password_reset(CompletePasswordResetInput {
+                token_id,
+                token: "raw_token".to_string(),
+                new_password: "Str0ng!P@ssword#2024".to_string(),
+            })
+            .await
+            .expect("password reset must succeed");
+
+        let url = output
+            .login_url
+            .expect("a user owing no step keeps the auto-login");
+        assert!(
+            url.contains("code="),
+            "expected an authorization code in {url}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_shared_gate_refuses_an_otp_holder_for_passkey_and_webauthn_callers() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let session = auth_session_with_challenge_issued_at(&realm, Uuid::new_v4(), None);
+
+        let credentials = vec![otp_credential(user.id)];
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            credentials,
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+        let result = service
+            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "passkey and webauthn waive nothing, so an OTP credential must block: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn only_the_magic_link_path_waives_the_email_verification_step() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::VerifyEmail];
+        let session = auth_session_with_challenge_issued_at(&realm, Uuid::new_v4(), None);
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+        let result = service
+            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "the VerifyEmail waiver belongs to the magic link path only: {result:?}"
         );
     }
 }
