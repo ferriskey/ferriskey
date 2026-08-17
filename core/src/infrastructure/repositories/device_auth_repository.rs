@@ -31,7 +31,7 @@ impl From<DasModel> for DeviceAuthSession {
             user_code: UserCode::new(model.user_code),
             scope: model.scope,
             status: DeviceAuthStatus::from_db_value(&model.status)
-                .unwrap_or(DeviceAuthStatus::Pending),
+                .unwrap_or(DeviceAuthStatus::Expired),
             user_id: model.user_id,
             interval: i64::from(model.interval_seconds),
             created_at,
@@ -130,6 +130,7 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
     async fn update_status(
         &self,
         device_code: Uuid,
+        expected: DeviceAuthStatus,
         status: DeviceAuthStatus,
         user_id: Option<Uuid>,
     ) -> Result<DeviceAuthSession, AuthenticationError> {
@@ -142,6 +143,7 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
 
         let model = update
             .filter(DasColumn::DeviceCode.eq(device_code))
+            .filter(DasColumn::Status.eq(expected.as_str()))
             .exec_with_returning(&self.db)
             .await
             .map_err(|e| {

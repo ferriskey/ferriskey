@@ -35,6 +35,7 @@ pub trait DeviceAuthRepository: Send + Sync {
     fn update_status(
         &self,
         device_code: Uuid,
+        expected: DeviceAuthStatus,
         status: DeviceAuthStatus,
         user_id: Option<Uuid>,
     ) -> impl Future<Output = Result<DeviceAuthSession, AuthenticationError>> + Send;

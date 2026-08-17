@@ -169,6 +169,7 @@ where
         match session.status {
             DeviceAuthStatus::Denied => return Err(DeviceFlowError::AccessDenied),
             DeviceAuthStatus::Expired => return Err(DeviceFlowError::ExpiredToken),
+            DeviceAuthStatus::Consumed => return Err(DeviceFlowError::InvalidUserCode),
             // Idempotent: re-approving an already approved session is a no-op.
             DeviceAuthStatus::Approved => return Ok(()),
             DeviceAuthStatus::Pending => {}
@@ -181,6 +182,7 @@ where
         self.device_auth_repository
             .update_status(
                 session.device_code,
+                DeviceAuthStatus::Pending,
                 DeviceAuthStatus::Approved,
                 Some(user_id),
             )
@@ -196,9 +198,26 @@ where
             .await?
             .ok_or(DeviceFlowError::InvalidUserCode)?;
 
+        match session.status {
+            DeviceAuthStatus::Denied => return Ok(()),
+            DeviceAuthStatus::Approved => return Err(DeviceFlowError::InvalidUserCode),
+            DeviceAuthStatus::Expired => return Err(DeviceFlowError::ExpiredToken),
+            DeviceAuthStatus::Consumed => return Err(DeviceFlowError::InvalidUserCode),
+            DeviceAuthStatus::Pending => {}
+        }
+
+        if session.is_expired() {
+            return Err(DeviceFlowError::ExpiredToken);
+        }
+
         let session = self
             .device_auth_repository
-            .update_status(session.device_code, DeviceAuthStatus::Denied, Some(user_id))
+            .update_status(
+                session.device_code,
+                DeviceAuthStatus::Pending,
+                DeviceAuthStatus::Denied,
+                Some(user_id),
+            )
             .await?;
 
         self.fire_event(&session, WebhookTrigger::AuthDeviceFlowDenied)
@@ -219,6 +238,25 @@ where
             return Err(DeviceFlowError::InvalidClient);
         }
 
+        if session.is_expired() {
+            if session.status == DeviceAuthStatus::Pending
+                && let Ok(expired) = self
+                    .device_auth_repository
+                    .update_status(
+                        session.device_code,
+                        DeviceAuthStatus::Pending,
+                        DeviceAuthStatus::Expired,
+                        None,
+                    )
+                    .await
+            {
+                self.fire_event(&expired, WebhookTrigger::AuthDeviceFlowExpired)
+                    .await;
+            }
+
+            return Err(DeviceFlowError::ExpiredToken);
+        }
+
         match session.status {
             DeviceAuthStatus::Approved => {
                 let user_id = session.user_id.ok_or_else(|| {
@@ -226,6 +264,16 @@ where
                         "approved session has no associated user".to_string(),
                     )
                 })?;
+
+                self.device_auth_repository
+                    .update_status(
+                        session.device_code,
+                        DeviceAuthStatus::Approved,
+                        DeviceAuthStatus::Consumed,
+                        None,
+                    )
+                    .await
+                    .map_err(|_| DeviceFlowError::InvalidDeviceCode)?;
 
                 self.token_issuer
                     .issue_tokens_for_user(GenerateTokensForUserInput {
@@ -237,22 +285,10 @@ where
                     .await
                     .map_err(|err| DeviceFlowError::TokenIssuance(err.to_string()))
             }
+            DeviceAuthStatus::Consumed => Err(DeviceFlowError::InvalidDeviceCode),
             DeviceAuthStatus::Denied => Err(DeviceFlowError::AccessDenied),
             DeviceAuthStatus::Expired => Err(DeviceFlowError::ExpiredToken),
             DeviceAuthStatus::Pending => {
-                // Time-based expiry takes precedence: terminate the session.
-                if session.is_expired() {
-                    let session = self
-                        .device_auth_repository
-                        .update_status(session.device_code, DeviceAuthStatus::Expired, None)
-                        .await?;
-
-                    self.fire_event(&session, WebhookTrigger::AuthDeviceFlowExpired)
-                        .await;
-
-                    return Err(DeviceFlowError::ExpiredToken);
-                }
-
                 // Anti-bruteforce: reject polls arriving faster than `interval`.
                 if let Some(last_polled_at) = session.last_polled_at {
                     let next_allowed = last_polled_at + Duration::seconds(session.interval);
@@ -287,6 +323,7 @@ mod tests {
     use crate::domain::authentication::device_flow::value_objects::{
         InitiateDeviceFlowParams, PollDeviceTokenParams,
     };
+    use crate::domain::authentication::entities::AuthenticationError;
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
     use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
@@ -459,11 +496,14 @@ mod tests {
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
         device_repo
             .expect_update_status()
-            .withf(move |dc, status, uid| {
-                *dc == device_code && *status == DeviceAuthStatus::Approved && *uid == Some(user_id)
+            .withf(move |dc, expected, status, uid| {
+                *dc == device_code
+                    && *expected == DeviceAuthStatus::Pending
+                    && *status == DeviceAuthStatus::Approved
+                    && *uid == Some(user_id)
             })
             .times(1)
-            .return_once(move |_, _, _| {
+            .return_once(move |_, _, _, _| {
                 let mut s = pending_session(Uuid::new_v4());
                 s.status = DeviceAuthStatus::Approved;
                 s.user_id = Some(user_id);
@@ -514,9 +554,13 @@ mod tests {
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
         device_repo
             .expect_update_status()
-            .withf(move |dc, status, _| *dc == device_code && *status == DeviceAuthStatus::Denied)
+            .withf(move |dc, expected, status, _| {
+                *dc == device_code
+                    && *expected == DeviceAuthStatus::Pending
+                    && *status == DeviceAuthStatus::Denied
+            })
             .times(1)
-            .return_once(move |_, _, _| {
+            .return_once(move |_, _, _, _| {
                 let mut s = pending_session(Uuid::new_v4());
                 s.status = DeviceAuthStatus::Denied;
                 Box::pin(async move { Ok(s) })
@@ -551,6 +595,19 @@ mod tests {
             .expect_find_by_device_code()
             .times(1)
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+        device_repo
+            .expect_update_status()
+            .withf(move |dc, expected, status, _| {
+                *dc == device_code
+                    && *expected == DeviceAuthStatus::Approved
+                    && *status == DeviceAuthStatus::Consumed
+            })
+            .times(1)
+            .return_once(move |_, _, _, _| {
+                let mut s = pending_session(client_id);
+                s.status = DeviceAuthStatus::Consumed;
+                Box::pin(async move { Ok(s) })
+            });
         issuer
             .expect_issue_tokens_for_user()
             .withf(move |input| input.user_id == user_id && input.client_id == Some(client_id))
@@ -686,9 +743,13 @@ mod tests {
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
         device_repo
             .expect_update_status()
-            .withf(move |dc, status, _| *dc == device_code && *status == DeviceAuthStatus::Expired)
+            .withf(move |dc, expected, status, _| {
+                *dc == device_code
+                    && *expected == DeviceAuthStatus::Pending
+                    && *status == DeviceAuthStatus::Expired
+            })
             .times(1)
-            .return_once(move |_, _, _| {
+            .return_once(move |_, _, _, _| {
                 let mut s = pending_session(client_id);
                 s.status = DeviceAuthStatus::Expired;
                 Box::pin(async move { Ok(s) })
@@ -797,6 +858,133 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_consumed_session_no_longer_yields_a_token() {
+        let client_id = Uuid::new_v4();
+        let mut session = pending_session(client_id);
+        session.status = DeviceAuthStatus::Consumed;
+        session.user_id = Some(Uuid::new_v4());
+        let device_code = session.device_code;
+
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_device_code()
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+
+        let service = build(
+            device_repo,
+            MockWebhookRepository::new(),
+            MockDeviceTokenIssuer::new(),
+        );
+        let err = service
+            .poll(PollDeviceTokenParams {
+                device_code,
+                client_id,
+                base_url: "https://auth.example.com".to_string(),
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::InvalidDeviceCode));
+    }
+
+    #[tokio::test]
+    async fn a_lost_consumption_race_issues_no_token() {
+        let user_id = Uuid::new_v4();
+        let client_id = Uuid::new_v4();
+        let mut session = pending_session(client_id);
+        session.status = DeviceAuthStatus::Approved;
+        session.user_id = Some(user_id);
+        let device_code = session.device_code;
+
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_device_code()
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+        device_repo
+            .expect_update_status()
+            .times(1)
+            .return_once(move |_, _, _, _| {
+                Box::pin(async move { Err(AuthenticationError::NotFound) })
+            });
+
+        let issuer = MockDeviceTokenIssuer::new();
+
+        let service = build(device_repo, MockWebhookRepository::new(), issuer);
+        let err = service
+            .poll(PollDeviceTokenParams {
+                device_code,
+                client_id,
+                base_url: "https://auth.example.com".to_string(),
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::InvalidDeviceCode));
+    }
+
+    #[tokio::test]
+    async fn an_approved_session_still_expires() {
+        let user_id = Uuid::new_v4();
+        let client_id = Uuid::new_v4();
+        let mut session = pending_session(client_id);
+        session.status = DeviceAuthStatus::Approved;
+        session.user_id = Some(user_id);
+        session.expires_at = Utc::now() - Duration::seconds(1);
+        let device_code = session.device_code;
+
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_device_code()
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+
+        let service = build(
+            device_repo,
+            MockWebhookRepository::new(),
+            MockDeviceTokenIssuer::new(),
+        );
+        let err = service
+            .poll(PollDeviceTokenParams {
+                device_code,
+                client_id,
+                base_url: "https://auth.example.com".to_string(),
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::ExpiredToken));
+    }
+
+    #[tokio::test]
+    async fn deny_cannot_overturn_an_approved_session() {
+        let client_id = Uuid::new_v4();
+        let mut session = pending_session(client_id);
+        session.status = DeviceAuthStatus::Approved;
+        session.user_id = Some(Uuid::new_v4());
+        let user_code = session.user_code.clone();
+
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_user_code()
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+
+        let service = build(
+            device_repo,
+            MockWebhookRepository::new(),
+            MockDeviceTokenIssuer::new(),
+        );
+        let err = service
+            .deny(user_code.into_inner(), Uuid::new_v4())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::InvalidUserCode));
+    }
+
+    #[tokio::test]
     async fn poll_token_issuance_failure_is_surfaced() {
         let user_id = Uuid::new_v4();
         let client_id = Uuid::new_v4();
@@ -812,6 +1000,14 @@ mod tests {
             .expect_find_by_device_code()
             .times(1)
             .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+        device_repo
+            .expect_update_status()
+            .times(1)
+            .return_once(move |_, _, _, _| {
+                let mut s = pending_session(client_id);
+                s.status = DeviceAuthStatus::Consumed;
+                Box::pin(async move { Ok(s) })
+            });
         issuer
             .expect_issue_tokens_for_user()
             .times(1)
