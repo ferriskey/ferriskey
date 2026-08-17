@@ -4,6 +4,8 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
+use crate::domain::realm::entities::RealmId;
+
 use crate::{
     application::migrate::{build_runner, context::MigrationContext},
     domain::{
@@ -697,22 +699,56 @@ impl ApplicationService {
     /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
     pub async fn verify_device_user_code(
         &self,
+        realm_name: String,
         user_code: String,
         user_id: uuid::Uuid,
+        user_realm_id: RealmId,
     ) -> Result<(), DeviceFlowError> {
+        let realm_id = self
+            .device_realm_for_actor(&realm_name, user_realm_id)
+            .await?;
+
         self.device_flow_service
-            .verify_user_code(user_code, user_id)
+            .verify_user_code(user_code, user_id, realm_id)
             .await
+    }
+
+    async fn device_realm_for_actor(
+        &self,
+        realm_name: &str,
+        user_realm_id: RealmId,
+    ) -> Result<RealmId, DeviceFlowError> {
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(realm_name)
+            .await
+            .map_err(|_| DeviceFlowError::Forbidden)?
+            .ok_or(DeviceFlowError::Forbidden)?;
+
+        if user_realm_id != realm.id {
+            return Err(DeviceFlowError::Forbidden);
+        }
+
+        Ok(realm.id)
     }
 
     /// Verification page: mark the device session identified by `user_code`
     /// as denied.
     pub async fn deny_device_user_code(
         &self,
+        realm_name: String,
         user_code: String,
         user_id: uuid::Uuid,
+        user_realm_id: RealmId,
     ) -> Result<(), DeviceFlowError> {
-        self.device_flow_service.deny(user_code, user_id).await
+        let realm_id = self
+            .device_realm_for_actor(&realm_name, user_realm_id)
+            .await?;
+
+        self.device_flow_service
+            .deny(user_code, user_id, realm_id)
+            .await
     }
 
     pub async fn list_user_sessions(

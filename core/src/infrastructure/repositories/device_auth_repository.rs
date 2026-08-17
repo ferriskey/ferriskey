@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    prelude::Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter, prelude::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -11,6 +11,7 @@ use crate::domain::authentication::device_flow::entities::{
 };
 use crate::domain::authentication::device_flow::ports::DeviceAuthRepository;
 use crate::domain::authentication::entities::AuthenticationError;
+use crate::domain::realm::entities::RealmId;
 use crate::entity::device_auth_sessions::{
     ActiveModel as DasActiveModel, Column as DasColumn, Entity as DasEntity, Model as DasModel,
 };
@@ -114,9 +115,11 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
     async fn find_by_user_code(
         &self,
         user_code: String,
+        realm_id: RealmId,
     ) -> Result<Option<DeviceAuthSession>, AuthenticationError> {
         let model = DasEntity::find()
             .filter(DasColumn::UserCode.eq(user_code))
+            .filter(DasColumn::RealmId.eq(Uuid::from(realm_id)))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -125,6 +128,19 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
             })?;
 
         Ok(model.map(Into::into))
+    }
+
+    async fn user_code_exists(&self, user_code: String) -> Result<bool, AuthenticationError> {
+        let count = DasEntity::find()
+            .filter(DasColumn::UserCode.eq(user_code))
+            .count(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error checking device auth user_code uniqueness: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+        Ok(count > 0)
     }
 
     async fn update_status(

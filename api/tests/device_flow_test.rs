@@ -318,6 +318,26 @@ mod tests {
             .await
     }
 
+    async fn verify_in_realm(
+        server: &TestServer,
+        realm_name: &str,
+        admin_token: &str,
+        user_code: &str,
+        action: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!("/realms/{}/device/verify", realm_name))
+            .add_header(
+                "Cookie",
+                HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+            )
+            .json(&json!({
+                "user_code": user_code,
+                "action": action
+            }))
+            .await
+    }
+
     // -------------------------------------------------------------------------
     // Tests
     // -------------------------------------------------------------------------
@@ -357,6 +377,44 @@ mod tests {
                 .as_str()
                 .expect("access_token in poll response");
             assert!(!access_token.is_empty(), "access_token must not be empty");
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn approval_through_another_realm_path_is_refused() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let other_realm = format!("other-{}", Uuid::new_v4().simple());
+
+            let resp =
+                verify_in_realm(&server, &other_realm, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                resp.status_code(),
+                403,
+                "approval must be refused when the caller does not belong to the realm in the path: {}",
+                resp.text()
+            );
+
+            let poll_resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                poll_resp.status_code(),
+                400,
+                "the session must still be pending: {}",
+                poll_resp.text()
+            );
+            let body: Value = poll_resp.json();
+            assert_eq!(
+                body["error"], "authorization_pending",
+                "the refused approval must not have advanced the session: {body:?}"
+            );
         });
     }
 

@@ -152,14 +152,24 @@ pub async fn device_verify(
         DeviceVerifyAction::Approve => {
             state
                 .service
-                .verify_device_user_code(payload.user_code, user_id)
+                .verify_device_user_code(
+                    realm_name.clone(),
+                    payload.user_code,
+                    user_id,
+                    user.realm_id,
+                )
                 .await?;
             "approved"
         }
         DeviceVerifyAction::Deny => {
             state
                 .service
-                .deny_device_user_code(payload.user_code, user_id)
+                .deny_device_user_code(
+                    realm_name.clone(),
+                    payload.user_code,
+                    user_id,
+                    user.realm_id,
+                )
                 .await?;
             "denied"
         }
