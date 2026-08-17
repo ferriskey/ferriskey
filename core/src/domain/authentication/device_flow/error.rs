@@ -50,6 +50,9 @@ pub enum DeviceFlowError {
     #[error("unauthorized_client")]
     UnauthorizedClient,
 
+    #[error("forbidden")]
+    Forbidden,
+
     /// Could not generate a collision-free user code within the retry budget.
     #[error("failed to generate a unique user code")]
     UserCodeGenerationExhausted,
@@ -74,6 +77,9 @@ impl From<DeviceFlowError> for CoreError {
             DeviceFlowError::InvalidUserCode => CoreError::InvalidToken,
             DeviceFlowError::InvalidClient => CoreError::InvalidClient,
             DeviceFlowError::UnauthorizedClient => CoreError::InvalidClient,
+            DeviceFlowError::Forbidden => {
+                CoreError::Forbidden("device session belongs to another realm".to_string())
+            }
             DeviceFlowError::UserCodeGenerationExhausted => CoreError::InternalServerError,
             DeviceFlowError::TokenIssuance(msg) => CoreError::TokenGenerationError(msg),
             DeviceFlowError::Repository(err) => err.into(),

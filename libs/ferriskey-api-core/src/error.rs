@@ -351,6 +351,9 @@ impl From<DeviceFlowError> for ApiError {
                 "unauthorized_client",
                 "The client is not authorized to use the device authorization grant.",
             ),
+            DeviceFlowError::Forbidden => {
+                Self::Forbidden("You cannot act on a device session of another realm".into())
+            }
             DeviceFlowError::UserCodeGenerationExhausted => {
                 Self::InternalServerError("Failed to generate a unique user code".into())
             }

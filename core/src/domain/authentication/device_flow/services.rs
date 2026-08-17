@@ -15,6 +15,7 @@ use crate::domain::authentication::device_flow::value_objects::{
 };
 use crate::domain::authentication::entities::JwtToken;
 use crate::domain::authentication::value_objects::GenerateTokensForUserInput;
+use crate::domain::realm::entities::RealmId;
 use crate::domain::webhook::entities::webhook_payload::WebhookPayload;
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::ports::WebhookRepository;
@@ -79,12 +80,12 @@ where
     async fn generate_unique_user_code(&self) -> Result<UserCode, DeviceFlowError> {
         for _ in 0..MAX_USER_CODE_ATTEMPTS {
             let candidate = UserCode::generate();
-            let existing = self
+            let exists = self
                 .device_auth_repository
-                .find_by_user_code(candidate.as_str().to_string())
+                .user_code_exists(candidate.as_str().to_string())
                 .await?;
 
-            if existing.is_none() {
+            if !exists {
                 return Ok(candidate);
             }
         }
@@ -159,10 +160,11 @@ where
         &self,
         user_code: String,
         user_id: uuid::Uuid,
+        realm_id: RealmId,
     ) -> Result<(), DeviceFlowError> {
         let session = self
             .device_auth_repository
-            .find_by_user_code(user_code)
+            .find_by_user_code(user_code, realm_id)
             .await?
             .ok_or(DeviceFlowError::InvalidUserCode)?;
 
@@ -191,10 +193,15 @@ where
         Ok(())
     }
 
-    async fn deny(&self, user_code: String, user_id: uuid::Uuid) -> Result<(), DeviceFlowError> {
+    async fn deny(
+        &self,
+        user_code: String,
+        user_id: uuid::Uuid,
+        realm_id: RealmId,
+    ) -> Result<(), DeviceFlowError> {
         let session = self
             .device_auth_repository
-            .find_by_user_code(user_code)
+            .find_by_user_code(user_code, realm_id)
             .await?
             .ok_or(DeviceFlowError::InvalidUserCode)?;
 
@@ -372,9 +379,9 @@ mod tests {
         let issuer = MockDeviceTokenIssuer::new();
 
         device_repo
-            .expect_find_by_user_code()
+            .expect_user_code_exists()
             .times(1)
-            .returning(|_| Box::pin(async move { Ok(None) }));
+            .returning(|_| Box::pin(async move { Ok(false) }));
         device_repo
             .expect_create()
             .times(1)
@@ -418,18 +425,12 @@ mod tests {
         // First candidate collides, second is free.
         let mut calls = 0;
         device_repo
-            .expect_find_by_user_code()
+            .expect_user_code_exists()
             .times(2)
             .returning(move |_| {
                 calls += 1;
                 let collide = calls == 1;
-                Box::pin(async move {
-                    if collide {
-                        Ok(Some(pending_session(Uuid::new_v4())))
-                    } else {
-                        Ok(None)
-                    }
-                })
+                Box::pin(async move { Ok(collide) })
             });
         device_repo
             .expect_create()
@@ -493,7 +494,7 @@ mod tests {
         device_repo
             .expect_find_by_user_code()
             .times(1)
-            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(session)) }));
         device_repo
             .expect_update_status()
             .withf(move |dc, expected, status, uid| {
@@ -512,7 +513,11 @@ mod tests {
 
         let service = build(device_repo, webhook_repo, issuer);
         service
-            .verify_user_code("BCDF-GHJK".to_string(), user_id)
+            .verify_user_code(
+                "BCDF-GHJK".to_string(),
+                user_id,
+                RealmId::from(Uuid::new_v4()),
+            )
             .await
             .expect("verify should succeed");
     }
@@ -523,7 +528,7 @@ mod tests {
         device_repo
             .expect_find_by_user_code()
             .times(1)
-            .returning(|_| Box::pin(async move { Ok(None) }));
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
 
         let service = build(
             device_repo,
@@ -531,7 +536,11 @@ mod tests {
             MockDeviceTokenIssuer::new(),
         );
         let err = service
-            .verify_user_code("ZZZZ-ZZZZ".to_string(), Uuid::new_v4())
+            .verify_user_code(
+                "ZZZZ-ZZZZ".to_string(),
+                Uuid::new_v4(),
+                RealmId::from(Uuid::new_v4()),
+            )
             .await
             .unwrap_err();
 
@@ -551,7 +560,7 @@ mod tests {
         device_repo
             .expect_find_by_user_code()
             .times(1)
-            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(session)) }));
         device_repo
             .expect_update_status()
             .withf(move |dc, expected, status, _| {
@@ -574,7 +583,11 @@ mod tests {
 
         let service = build(device_repo, webhook_repo, issuer);
         service
-            .deny("BCDF-GHJK".to_string(), user_id)
+            .deny(
+                "BCDF-GHJK".to_string(),
+                user_id,
+                RealmId::from(Uuid::new_v4()),
+            )
             .await
             .expect("deny should succeed");
     }
@@ -858,6 +871,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn approval_only_looks_inside_the_caller_realm() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_user_code()
+            .withf(move |_, r| *r == realm_id)
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
+
+        let service = build(
+            device_repo,
+            MockWebhookRepository::new(),
+            MockDeviceTokenIssuer::new(),
+        );
+        let err = service
+            .verify_user_code("BCDF-GHJK".to_string(), Uuid::new_v4(), realm_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::InvalidUserCode));
+    }
+
+    #[tokio::test]
+    async fn denial_only_looks_inside_the_caller_realm() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let mut device_repo = MockDeviceAuthRepository::new();
+        device_repo
+            .expect_find_by_user_code()
+            .withf(move |_, r| *r == realm_id)
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
+
+        let service = build(
+            device_repo,
+            MockWebhookRepository::new(),
+            MockDeviceTokenIssuer::new(),
+        );
+        let err = service
+            .deny("BCDF-GHJK".to_string(), Uuid::new_v4(), realm_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, DeviceFlowError::InvalidUserCode));
+    }
+
+    #[tokio::test]
     async fn a_consumed_session_no_longer_yields_a_token() {
         let client_id = Uuid::new_v4();
         let mut session = pending_session(client_id);
@@ -969,7 +1028,7 @@ mod tests {
         device_repo
             .expect_find_by_user_code()
             .times(1)
-            .return_once(move |_| Box::pin(async move { Ok(Some(session)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(session)) }));
 
         let service = build(
             device_repo,
@@ -977,7 +1036,11 @@ mod tests {
             MockDeviceTokenIssuer::new(),
         );
         let err = service
-            .deny(user_code.into_inner(), Uuid::new_v4())
+            .deny(
+                user_code.into_inner(),
+                Uuid::new_v4(),
+                RealmId::from(Uuid::new_v4()),
+            )
             .await
             .unwrap_err();
 
