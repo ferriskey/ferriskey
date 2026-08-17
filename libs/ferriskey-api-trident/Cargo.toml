@@ -16,3 +16,5 @@ url = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
+zeroize = { workspace = true }
+psl = { workspace = true }

@@ -81,6 +81,11 @@ fn parse_event_type(raw: &str) -> SecurityEventType {
         "session_created" => SecurityEventType::SessionCreated,
         "session_revoked" => SecurityEventType::SessionRevoked,
         "identity_provider_link_removed" => SecurityEventType::IdentityProviderLinkRemoved,
+        "mfa_enrolled" => SecurityEventType::MfaEnrolled,
+        "mfa_removed" => SecurityEventType::MfaRemoved,
+        "credential_deleted" => SecurityEventType::CredentialDeleted,
+        "reauthentication_failed" => SecurityEventType::ReauthenticationFailed,
+        "recovery_code_burned" => SecurityEventType::RecoveryCodeBurned,
         _ => SecurityEventType::LoginSuccess,
     }
 }
@@ -141,6 +146,11 @@ mod tests {
         SecurityEventType::SessionCreated,
         SecurityEventType::SessionRevoked,
         SecurityEventType::IdentityProviderLinkRemoved,
+        SecurityEventType::MfaEnrolled,
+        SecurityEventType::MfaRemoved,
+        SecurityEventType::CredentialDeleted,
+        SecurityEventType::ReauthenticationFailed,
+        SecurityEventType::RecoveryCodeBurned,
     ];
 
     /// The write path persists `event_type` via `Display` and the read path
@@ -196,7 +206,12 @@ mod tests {
                 | SecurityEventType::ClientMaintenanceDisabled
                 | SecurityEventType::SessionCreated
                 | SecurityEventType::SessionRevoked
-                | SecurityEventType::IdentityProviderLinkRemoved => true,
+                | SecurityEventType::IdentityProviderLinkRemoved
+                | SecurityEventType::MfaEnrolled
+                | SecurityEventType::MfaRemoved
+                | SecurityEventType::CredentialDeleted
+                | SecurityEventType::ReauthenticationFailed
+                | SecurityEventType::RecoveryCodeBurned => true,
             };
 
             assert!(listed && ALL_EVENT_TYPES.contains(event_type));

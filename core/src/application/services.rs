@@ -201,6 +201,9 @@ type SmtpConfigRepo = PostgresSmtpConfigRepository;
 type EmailPortImpl = SmtpEmailPort;
 type PasswordResetTokenRepo = PostgresPasswordResetTokenRepository;
 type WebAuthnChallengeRepo = crate::infrastructure::repositories::webauthn_challenge_repository::PostgresWebAuthnChallengeRepository;
+type StepUpTokenRepo =
+    crate::infrastructure::repositories::step_up_token_repository::PostgresStepUpTokenRepository;
+type PendingTotpSecretRepo = crate::infrastructure::repositories::pending_totp_secret_repository::PostgresPendingTotpSecretRepository;
 type PasswordPolicyRepo = crate::infrastructure::repositories::password_policy_repository::PostgresPasswordPolicyRepository;
 type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
@@ -269,6 +272,8 @@ type ApplicationTridentService = TridentServiceImpl<
     UserRoleRepo,
     ApplicationTokenRevocation,
     WebAuthnChallengeRepo,
+    StepUpTokenRepo,
+    PendingTotpSecretRepo,
 >;
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;

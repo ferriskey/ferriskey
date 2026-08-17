@@ -129,6 +129,13 @@ impl From<CoreError> for ApiError {
             CoreError::TotpVerificationFailed(msg) => {
                         Self::Unauthorized(format!("TOTP verification failed: {}", msg).into())
                     }
+            CoreError::InvalidOtpCode => Self::BadRequest("Invalid OTP code".into()),
+            CoreError::PendingTotpSecretMissing => {
+                Self::BadRequest("No pending TOTP secret for this user".into())
+            }
+            CoreError::StepUpTokenInvalid => {
+                Self::Unauthorized("Step-up re-authentication token is invalid or expired".into())
+            }
             CoreError::CannotDeleteMasterRealm => {
                         Self::Forbidden("Cannot delete master realm".into())
                     }

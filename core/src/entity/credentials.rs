@@ -24,6 +24,11 @@ pub struct Model {
     pub updated_at: DateTime,
     pub temporary: Option<bool>,
     pub webauthn_credential_id: Option<Vec<u8>>,
+    /// Fast lookup key (first 16 hex chars of SHA-256 of the code's hex
+    /// representation) for recovery-code credentials. Lets verification locate
+    /// the single candidate row instead of running Argon2 against every stored
+    /// code, preventing a memory-hard DoS on the unauthenticated reset endpoint.
+    pub recovery_code_lookup: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -39,6 +44,7 @@ pub enum Column {
     UpdatedAt,
     Temporary,
     WebauthnCredentialId,
+    RecoveryCodeLookup,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -73,6 +79,7 @@ impl ColumnTrait for Column {
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::Temporary => ColumnType::Boolean.def().null(),
             Self::WebauthnCredentialId => ColumnType::VarBinary(StringLen::None).def().null(),
+            Self::RecoveryCodeLookup => ColumnType::String(StringLen::N(64u32)).def().null(),
         }
     }
 }
