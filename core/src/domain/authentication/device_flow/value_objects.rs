@@ -33,6 +33,7 @@ pub struct PollDeviceTokenParams {
 pub struct InitiateDeviceFlowInput {
     pub realm_name: String,
     pub client_id: String,
+    pub client_secret: Option<String>,
     pub scope: Option<String>,
 }
 

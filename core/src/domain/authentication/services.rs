@@ -299,7 +299,7 @@ fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
 /// Constant-time comparison of a configured client secret against the one
 /// presented on the token endpoint. `(None, None)` means "no secret configured
 /// and none presented", which is only ever reached for public clients.
-fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
+pub(crate) fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
     match (stored, provided) {
         (Some(s), Some(p)) => {
             let s_hash = Sha256::digest(s.as_bytes());

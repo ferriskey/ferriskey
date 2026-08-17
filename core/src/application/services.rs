@@ -4,6 +4,7 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
+use crate::domain::authentication::services::client_secret_matches;
 use crate::domain::realm::entities::RealmId;
 
 use crate::{
@@ -641,6 +642,12 @@ impl ApplicationService {
             .await
             .map_err(|_| DeviceFlowError::InvalidClient)?;
 
+        if !client.public_client
+            && !client_secret_matches(client.secret.as_deref(), input.client_secret.as_deref())
+        {
+            return Err(DeviceFlowError::InvalidClient);
+        }
+
         let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
 
         self.device_flow_service
@@ -685,6 +692,12 @@ impl ApplicationService {
             .get_by_client_id(input.client_id, realm.id)
             .await
             .map_err(|_| DeviceFlowError::InvalidClient)?;
+
+        if !client.public_client
+            && !client_secret_matches(client.secret.as_deref(), input.client_secret.as_deref())
+        {
+            return Err(DeviceFlowError::InvalidClient);
+        }
 
         self.device_flow_service
             .poll(PollDeviceTokenParams {

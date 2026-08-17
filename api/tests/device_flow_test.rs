@@ -255,6 +255,55 @@ mod tests {
         client_id
     }
 
+    async fn create_confidential_device_client(
+        server: &TestServer,
+        admin_token: &str,
+    ) -> (String, String) {
+        let client_id = format!("device-conf-{}", Uuid::new_v4().simple());
+
+        let response = server
+            .post(&format!("/realms/{}/clients", realm()))
+            .add_header("Authorization", auth_header(admin_token))
+            .json(&json!({
+                "client_id": client_id,
+                "name": "Confidential Device Test Client",
+                "client_type": "confidential",
+                "protocol": "openid-connect",
+                "public_client": false,
+                "service_account_enabled": false,
+                "direct_access_grants_enabled": false,
+                "enabled": true,
+                "oauth_device_code_grant_enabled": true
+            }))
+            .await;
+
+        assert_eq!(
+            response.status_code(),
+            201,
+            "confidential client creation failed: {}",
+            response.text()
+        );
+
+        let body: Value = response.json();
+        let secret = body["secret"]
+            .as_str()
+            .unwrap_or_else(|| panic!("a confidential client carries a secret: {body}"))
+            .to_string();
+        assert!(!secret.is_empty(), "the client secret must not be empty");
+
+        (client_id, secret)
+    }
+
+    async fn initiate_raw(server: &TestServer, fields: &[(&str, &str)]) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/protocol/openid-connect/auth/device",
+                realm()
+            ))
+            .form(fields)
+            .await
+    }
+
     /// POST to the device authorization endpoint. Returns the parsed JSON body.
     async fn initiate(server: &TestServer, client_id: &str, scope: Option<&str>) -> Value {
         let mut fields = vec![("client_id", client_id)];
@@ -377,6 +426,99 @@ mod tests {
                 .as_str()
                 .expect("access_token in poll response");
             assert!(!access_token.is_empty(), "access_token must not be empty");
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_confidential_client_cannot_initiate_without_its_secret() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let (client_id, secret) =
+                create_confidential_device_client(&server, &admin_token).await;
+
+            let resp = initiate_raw(&server, &[("client_id", client_id.as_str())]).await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "a confidential client must not initiate without its secret: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_client", "body: {body:?}");
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", "not-the-secret"),
+                ],
+            )
+            .await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "a wrong secret must not be accepted: {}",
+                resp.text()
+            );
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", secret.as_str()),
+                ],
+            )
+            .await;
+            assert_eq!(
+                resp.status_code(),
+                200,
+                "the correct secret must be accepted: {}",
+                resp.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_confidential_client_cannot_poll_without_its_secret() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let (client_id, secret) =
+                create_confidential_device_client(&server, &admin_token).await;
+
+            let init = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", secret.as_str()),
+                ],
+            )
+            .await;
+            assert_eq!(init.status_code(), 200, "initiate failed: {}", init.text());
+            let init_body: Value = init.json();
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "polling without the client secret must be refused: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_client", "body: {body:?}");
         });
     }
 
