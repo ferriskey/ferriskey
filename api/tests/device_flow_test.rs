@@ -571,6 +571,70 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn the_consent_preview_names_the_client_and_the_requested_scopes() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .add_header(
+                    "Cookie",
+                    HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+                )
+                .await;
+
+            assert_eq!(resp.status_code(), 200, "preview failed: {}", resp.text());
+            let body: Value = resp.json();
+            assert_eq!(
+                body["client_id"], client_id,
+                "the preview must name the requesting client: {body:?}"
+            );
+            let scopes: Vec<String> = body["scopes"]
+                .as_array()
+                .expect("scopes array")
+                .iter()
+                .map(|v| v.as_str().unwrap_or_default().to_string())
+                .collect();
+            assert!(
+                scopes.iter().any(|s| s == "openid"),
+                "the preview must list what is being granted: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_consent_preview_requires_an_identity() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .await;
+
+            assert_eq!(
+                resp.status_code(),
+                401,
+                "the preview must not be an anonymous oracle over user codes: {}",
+                resp.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
     fn the_issued_token_carries_the_client_and_the_granted_scope() {
         let server = make_server();
         rt().block_on(async {

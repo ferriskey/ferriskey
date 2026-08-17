@@ -13,6 +13,6 @@ pub use error::DeviceFlowError;
 pub use ports::{DeviceAuthRepository, DeviceFlowService, DeviceTokenIssuer};
 pub use services::{DeviceFlowConfig, DeviceFlowServiceImpl};
 pub use value_objects::{
-    InitiateDeviceFlowInput, InitiateDeviceFlowOutput, InitiateDeviceFlowParams,
-    PollDeviceTokenParams,
+    DeviceSessionPreview, DeviceVerificationPreview, InitiateDeviceFlowInput,
+    InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
 };

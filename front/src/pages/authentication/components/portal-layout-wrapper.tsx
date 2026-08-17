@@ -13,6 +13,7 @@ import type { BuilderNode } from '@/lib/builder-core'
 import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
 import { mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import type { Schemas } from '@/api/api.client'
+import { useDevicePreview } from '@/api/device.api'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import {
@@ -104,6 +105,25 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     realm,
     token: totpSetupToken,
   })
+  const deviceUserCode =
+    pageType === 'device_verify'
+      ? new URLSearchParams(
+          typeof window === 'undefined' ? '' : window.location.search,
+        ).get('user_code') ?? ''
+      : ''
+  const { data: devicePreviewData } = useDevicePreview({
+    realm,
+    userCode: deviceUserCode,
+    enabled: pageType === 'device_verify' && deviceUserCode.length > 0,
+  })
+  const deviceConsent = useMemo(() => {
+    if (pageType !== 'device_verify' || !devicePreviewData) return undefined
+    return {
+      clientName: devicePreviewData.client_name || devicePreviewData.client_id,
+      scopes: devicePreviewData.scopes,
+    }
+  }, [pageType, devicePreviewData])
+
   const totpSetup = useMemo(
     () => {
       if (
@@ -394,7 +414,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, formError, isSubmitting })}
+      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, deviceConsent, formError, isSubmitting })}
     </form>
   )
 
@@ -412,7 +432,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <div style={cssVars} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
-      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, formError, isSubmitting })}
+      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, formError, isSubmitting })}
     </div>
   )
 }

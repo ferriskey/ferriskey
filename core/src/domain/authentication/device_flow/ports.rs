@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::domain::authentication::device_flow::entities::{DeviceAuthSession, DeviceAuthStatus};
 use crate::domain::authentication::device_flow::error::DeviceFlowError;
 use crate::domain::authentication::device_flow::value_objects::{
-    InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
+    DeviceSessionPreview, InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
 };
 use crate::domain::authentication::entities::{AuthenticationError, JwtToken};
 use crate::domain::authentication::value_objects::GenerateTokensForUserInput;
@@ -79,6 +79,12 @@ pub trait DeviceFlowService: Send + Sync {
 
     /// Verification page: bind the approving user and mark the session
     /// approved.
+    fn preview_user_code(
+        &self,
+        user_code: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<DeviceSessionPreview, DeviceFlowError>> + Send;
+
     fn verify_user_code(
         &self,
         user_code: String,

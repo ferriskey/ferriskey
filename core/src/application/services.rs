@@ -20,8 +20,8 @@ use crate::{
                 ports::{DeviceFlowService, DeviceTokenIssuer},
                 services::DeviceFlowServiceImpl,
                 value_objects::{
-                    InitiateDeviceFlowInput, InitiateDeviceFlowOutput, InitiateDeviceFlowParams,
-                    PollDeviceTokenParams,
+                    DeviceVerificationPreview, InitiateDeviceFlowInput, InitiateDeviceFlowOutput,
+                    InitiateDeviceFlowParams, PollDeviceTokenParams,
                 },
             },
             entities::{ExchangeTokenInput, JwtToken},
@@ -716,6 +716,40 @@ impl ApplicationService {
 
     /// Verification page: bind the authenticated user to the device session
     /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
+    pub async fn describe_device_user_code(
+        &self,
+        realm_name: String,
+        user_code: String,
+        user_realm_id: RealmId,
+    ) -> Result<DeviceVerificationPreview, DeviceFlowError> {
+        let realm_id = self
+            .device_realm_for_actor(&realm_name, user_realm_id)
+            .await?;
+
+        let preview = self
+            .device_flow_service
+            .preview_user_code(user_code, realm_id)
+            .await?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_id(realm_id, preview.client_id)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidClient)?;
+
+        Ok(DeviceVerificationPreview {
+            client_id: client.client_id,
+            client_name: client.name,
+            scopes: preview
+                .scope
+                .unwrap_or_default()
+                .split_whitespace()
+                .map(str::to_string)
+                .collect(),
+        })
+    }
+
     pub async fn verify_device_user_code(
         &self,
         realm_name: String,

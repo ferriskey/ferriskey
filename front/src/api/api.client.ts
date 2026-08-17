@@ -489,6 +489,11 @@ export namespace Schemas {
   export type DeviceAuthorizationRequest = Partial<{ client_id: string | null; scope: string | null }>;
   export type DeviceVerifyAction = "approve" | "deny";
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string };
+  export type DeviceVerificationPreview = {
+    client_id: string;
+    client_name: string;
+    scopes: Array<string>;
+  };
   export type DeviceVerifyResponse = { status: string };
   export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
@@ -1772,6 +1777,20 @@ export namespace Endpoints {
       path: { realm_name: string };
     };
     responses: { 302: unknown };
+  };
+  export type get_Device_preview = {
+    method: "GET";
+    path: "/realms/{realm_name}/device/preview";
+    requestFormat: "json";
+    parameters: {
+      query: { user_code: string };
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.DeviceVerificationPreview;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Device_verify = {
     method: "POST";
@@ -3749,6 +3768,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/compass/v1/flows/{flow_id}": Endpoints.get_Get_flow;
     "/realms/{realm_name}/compass/v1/stats": Endpoints.get_Get_stats;
     "/realms/{realm_name}/device": Endpoints.get_Device_verification_page;
+    "/realms/{realm_name}/device/preview": Endpoints.get_Device_preview;
     "/realms/{realm_name}/email-templates": Endpoints.get_Fetch_templates;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.get_Get_template;
     "/realms/{realm_name}/federation/providers": Endpoints.get_List_providers;

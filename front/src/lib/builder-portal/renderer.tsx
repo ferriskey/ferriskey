@@ -42,6 +42,10 @@ type RenderOptions = {
     otpauthUrl: string
     secret: string
   }
+  deviceConsent?: {
+    clientName: string
+    scopes: string[]
+  }
   /**
    * Inline form-error message surfaced by the page's submit handler
    * (invalid credentials, email already in use, …). Read by the
@@ -507,6 +511,61 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
     // Holds its value through a hidden `name="user_code"` input so the
     // surrounding <form> picks it up; the device_verify submit branch
     // re-inserts the dash before calling the verify endpoint.
+    case 'device_consent': {
+      const consent = options.deviceConsent ?? {
+        clientName: 'Living Room TV',
+        scopes: ['openid', 'profile'],
+      }
+      return (
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            ...orderStyle(node),
+          }}
+        >
+          <p style={{ margin: 0 }}>
+            <strong>{consent.clientName}</strong>{' '}
+            {(node.props.label as string) ?? 'is asking to sign in as you.'}
+          </p>
+          {consent.scopes.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>
+                {(node.props.placeholder as string) ?? 'It will be granted'}
+              </span>
+              <ul
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 4,
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: 0,
+                }}
+              >
+                {consent.scopes.map((scope) => (
+                  <li
+                    key={scope}
+                    style={{
+                      borderRadius: 6,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      background: 'rgba(127,127,127,0.15)',
+                    }}
+                  >
+                    {scope}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      )
+    }
+
     case 'user_code_input':
       return (
         <div

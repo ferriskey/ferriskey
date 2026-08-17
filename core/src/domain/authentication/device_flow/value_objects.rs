@@ -37,6 +37,18 @@ pub struct InitiateDeviceFlowInput {
     pub scope: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct DeviceVerificationPreview {
+    pub client_id: String,
+    pub client_name: String,
+    pub scopes: Vec<String>,
+}
+
+pub struct DeviceSessionPreview {
+    pub client_id: Uuid,
+    pub scope: Option<String>,
+}
+
 /// Output of the device authorization endpoint (RFC 8628 §3.2).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct InitiateDeviceFlowOutput {
