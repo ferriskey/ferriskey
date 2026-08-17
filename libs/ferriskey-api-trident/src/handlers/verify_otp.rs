@@ -48,7 +48,9 @@ pub async fn verify_otp(
             identity,
             VerifyOtpInput {
                 code: payload.code,
-                label: Some(payload.label),
+                // The login flow is already protected by a temporary login
+                // token, so no step-up token is required here.
+                step_up_token: None,
             },
         )
         .await

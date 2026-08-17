@@ -46,6 +46,7 @@ impl From<crate::entity::credentials::Model> for Credential {
             created_at,
             updated_at,
             webauthn_credential_id,
+            recovery_code_lookup: model.recovery_code_lookup,
         }
     }
 }
@@ -91,6 +92,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
             webauthn_credential_id: Set(None),
+            recovery_code_lookup: Set(None),
         };
 
         let t = payload.insert(&self.db).await.map_err(|e| {
@@ -157,6 +159,25 @@ impl CredentialRepository for PostgresCredentialRepository {
         Ok(credentials)
     }
 
+    async fn find_recovery_code_by_lookup(
+        &self,
+        user_id: uuid::Uuid,
+        lookup: &str,
+    ) -> Result<Option<Credential>, CredentialError> {
+        let model = CredentialEntity::find()
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::RecoveryCodeLookup
+                    .eq(lookup)
+                    .and(crate::entity::credentials::Column::CredentialType.eq("recovery-code")),
+            )
+            .one(&self.db)
+            .await
+            .map_err(|_| CredentialError::GetUserCredentialsError)?;
+
+        Ok(model.map(Credential::from))
+    }
+
     async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::Id.eq(credential_id))
@@ -195,6 +216,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
             webauthn_credential_id: Set(None),
+            recovery_code_lookup: Set(None),
         };
 
         let model = payload
@@ -208,13 +230,13 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn create_recovery_code_credentials(
         &self,
         user_id: uuid::Uuid,
-        hashes: Vec<HashResult>,
+        credentials: Vec<(HashResult, String)>,
     ) -> Result<(), CredentialError> {
         let (now, _) = generate_timestamp();
 
-        let credential_data = hashes
+        let credential_data = credentials
             .iter()
-            .map(|h| {
+            .map(|(h, _)| {
                 serde_json::to_value(CredentialData::new_hash(
                     h.hash_iterations,
                     h.algorithm.clone(),
@@ -223,22 +245,24 @@ impl CredentialRepository for PostgresCredentialRepository {
             })
             .collect::<Result<Vec<Value>, CredentialError>>()?;
 
-        let models = hashes
-            .into_iter()
-            .zip(credential_data)
-            .map(|(h, cred_data)| ActiveModel {
-                id: Set(generate_uuid_v7()),
-                salt: Set(Some(h.salt)),
-                credential_type: Set("recovery-code".to_string()),
-                user_id: Set(user_id),
-                user_label: Set(None),
-                secret_data: Set(h.hash),
-                credential_data: Set(cred_data),
-                created_at: Set(now.naive_utc()),
-                updated_at: Set(now.naive_utc()),
-                temporary: Set(Some(false)),
-                webauthn_credential_id: Set(None),
-            });
+        let models =
+            credentials
+                .into_iter()
+                .zip(credential_data)
+                .map(|((h, lookup), cred_data)| ActiveModel {
+                    id: Set(generate_uuid_v7()),
+                    salt: Set(Some(h.salt)),
+                    credential_type: Set("recovery-code".to_string()),
+                    user_id: Set(user_id),
+                    user_label: Set(None),
+                    secret_data: Set(h.hash),
+                    credential_data: Set(cred_data),
+                    created_at: Set(now.naive_utc()),
+                    updated_at: Set(now.naive_utc()),
+                    temporary: Set(Some(false)),
+                    webauthn_credential_id: Set(None),
+                    recovery_code_lookup: Set(Some(lookup)),
+                });
 
         let _ = CredentialEntity::insert_many(models)
             .exec(&self.db)
@@ -273,6 +297,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)),
             webauthn_credential_id: Set(Some(credential_id)),
+            recovery_code_lookup: Set(None),
         };
 
         let model = payload

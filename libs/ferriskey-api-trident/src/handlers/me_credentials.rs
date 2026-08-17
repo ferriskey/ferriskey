@@ -4,7 +4,7 @@ use axum::{
 };
 use ferriskey_api_core::{
     api_entities::{
-        api_error::{ApiError, ApiErrorResponse},
+        api_error::{ApiError, ApiErrorResponse, ValidateJson},
         response::Response,
     },
     app_state::AppState,
@@ -17,6 +17,7 @@ use ferriskey_core::domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct MeCredentialsResponse {
@@ -26,6 +27,15 @@ pub struct MeCredentialsResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct MeDeleteCredentialResponse {
     pub message: String,
+}
+
+/// Request body for deleting a credential. Carries the step-up token minted by
+/// `/me/reauthenticate`.
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct MeDeleteCredentialRequest {
+    /// Step-up token minted by `/me/reauthenticate`.
+    #[validate(length(min = 1))]
+    pub step_up_token: String,
 }
 
 #[utoipa::path(
@@ -49,7 +59,14 @@ pub async fn me_credentials(
     Extension(identity): Extension<Identity>,
     Extension(auth_realm): Extension<AuthenticatedRealm>,
 ) -> Result<Response<MeCredentialsResponse>, ApiError> {
-    if auth_realm.0 != realm_name {
+    // Compare realm *ids* (the token's realm is authoritative, carried by the
+    // resolved identity) rather than names parsed from the issuer claim.
+    let path_realm_id = state
+        .service
+        .realm_id_for_name(&realm_name)
+        .await
+        .map_err(ApiError::from)?;
+    if path_realm_id != auth_realm.realm_id {
         return Err(ApiError::Forbidden(
             "token realm does not match the requested realm".into(),
         ));
@@ -74,8 +91,10 @@ pub async fn me_credentials(
         ("realm_name" = String, Path, description = "Realm name"),
         ("credential_id" = Uuid, Path, description = "Credential ID"),
     ),
+    request_body = MeDeleteCredentialRequest,
     responses(
         (status = 200, description = "Credential deleted successfully", body = MeDeleteCredentialResponse),
+        (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Credential does not belong to the user", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
@@ -86,8 +105,16 @@ pub async fn me_delete_credential(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     Extension(auth_realm): Extension<AuthenticatedRealm>,
+    ValidateJson(payload): ValidateJson<MeDeleteCredentialRequest>,
 ) -> Result<Response<MeDeleteCredentialResponse>, ApiError> {
-    if auth_realm.0 != realm_name {
+    // Compare realm *ids* (the token's realm is authoritative, carried by the
+    // resolved identity) rather than names parsed from the issuer claim.
+    let path_realm_id = state
+        .service
+        .realm_id_for_name(&realm_name)
+        .await
+        .map_err(ApiError::from)?;
+    if path_realm_id != auth_realm.realm_id {
         return Err(ApiError::Forbidden(
             "token realm does not match the requested realm".into(),
         ));
@@ -95,7 +122,7 @@ pub async fn me_delete_credential(
 
     state
         .service
-        .delete_credential_self_service(identity, credential_id)
+        .delete_credential_self_service(identity, credential_id, payload.step_up_token)
         .await
         .map_err(ApiError::from)?;
 

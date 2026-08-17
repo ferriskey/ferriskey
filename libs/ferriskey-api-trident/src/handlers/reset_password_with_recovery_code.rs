@@ -1,25 +1,18 @@
 use axum::{
     extract::{Path, State},
-    http::{HeaderValue, StatusCode, header::SET_COOKIE},
     response::IntoResponse,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson},
     app_state::AppState,
     url::FullUrl,
 };
-use ferriskey_core::domain::{
-    authentication::{
-        entities::JwtToken, ports::AuthService, value_objects::GenerateTokensForUserInput,
-    },
-    trident::ports::{CompletePasswordResetWithRecoveryCodeInput, TridentService},
+use ferriskey_core::domain::trident::ports::{
+    CompletePasswordResetWithRecoveryCodeInput, TridentService,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
-
-const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct ResetPasswordWithRecoveryCodeRequest {
@@ -30,10 +23,14 @@ pub struct ResetPasswordWithRecoveryCodeRequest {
     pub new_password: String,
 }
 
+/// Response returned after a recovery code is successfully burned. A recovery
+/// code is a *second* factor, so we do not mint a session here: a password-reset
+/// link is emailed to the account and the new password is only applied when that
+/// link is completed (standard email-reset flow).
 #[derive(Debug, Serialize, ToSchema)]
-pub struct CompletePasswordResetWithRecoveryCodeResponse {
-    #[serde(flatten)]
-    pub token: JwtToken,
+pub struct ResetPasswordWithRecoveryCodeResponse {
+    /// Human-readable status. The actual reset link is delivered by email.
+    pub message: String,
 }
 
 #[utoipa::path(
@@ -41,15 +38,16 @@ pub struct CompletePasswordResetWithRecoveryCodeResponse {
     path = "/realms/{realm_name}/login-actions/reset-password-with-recovery-code",
     tag = "auth",
     summary = "Reset password with a recovery code",
-    description = "Resets the password for the account matching the email using a one-time recovery code instead of the email reset token. Consumes the code and returns authentication tokens.",
+    description = "Burns a one-time recovery code to unlock a password reset. The code is a second factor: a reset link is emailed to the account and the new password is applied only when that link is completed, so a leaked code cannot take over the account or bypass MFA on its own.",
     params(
         ("realm_name" = String, Path, description = "The realm name"),
     ),
     request_body = ResetPasswordWithRecoveryCodeRequest,
     responses(
-        (status = 200, description = "Password reset successfully, returns auth tokens", body = CompletePasswordResetWithRecoveryCodeResponse),
+        (status = 200, description = "Recovery code accepted, password reset email sent", body = ResetPasswordWithRecoveryCodeResponse),
         (status = 400, description = "Invalid or expired recovery code", body = ApiErrorResponse),
         (status = 404, description = "No account found for the email", body = ApiErrorResponse),
+        (status = 423, description = "Account is temporarily locked due to too many failed attempts", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
@@ -61,47 +59,22 @@ pub async fn reset_password_with_recovery_code(
 ) -> Result<impl IntoResponse, ApiError> {
     state
         .service
-        .validate_password_policy(realm_name.clone(), &payload.new_password)
-        .await?;
-
-    let result = state
-        .service
         .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {
             realm_name,
             email: payload.email,
             code: payload.recovery_code,
             format: payload.recovery_code_format,
             new_password: payload.new_password,
-        })
-        .await?;
-
-    let is_secure = base_url.starts_with("https://");
-
-    let token = state
-        .service
-        .generate_tokens_for_user(GenerateTokensForUserInput {
-            user_id: result.user_id,
-            realm_id: result.realm_id,
             base_url,
-            client_id: None,
         })
-        .await?;
-
-    let mut identity_cookie = Cookie::build((IDENTITY_COOKIE, token.access_token().to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax);
-
-    if is_secure {
-        identity_cookie = identity_cookie.secure(true);
-    }
-
-    let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
+        .await
+        .map_err(ApiError::from)?;
 
     Ok((
-        StatusCode::OK,
-        [(SET_COOKIE, cookie_value)],
-        axum::Json(CompletePasswordResetWithRecoveryCodeResponse { token }),
+        axum::http::StatusCode::OK,
+        axum::Json(ResetPasswordWithRecoveryCodeResponse {
+            message: "Recovery code accepted. A password reset link has been sent to your email."
+                .to_string(),
+        }),
     ))
 }

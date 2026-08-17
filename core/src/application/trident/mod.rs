@@ -6,6 +6,7 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         credential::entities::CredentialOverview,
+        realm::entities::RealmId,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
             CompletePasswordResetInput, CompletePasswordResetOutput,
@@ -13,9 +14,9 @@ use crate::{
             GenerateRecoveryCodeOutput, MagicLinkInput, PasskeyAuthenticateInput,
             PasskeyAuthenticateOutput, PasskeyRegisterOptionsSelfServiceInput,
             PasskeyRegisterSelfServiceInput, PasskeyRequestOptionsInput, ReauthenticateInput,
-            RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
-            UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
-            VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
+            ReauthenticateOutput, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
+            TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
+            VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
             WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
             WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
             WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
@@ -190,7 +191,7 @@ impl TridentService for ApplicationService {
         &self,
         identity: Identity,
         input: ReauthenticateInput,
-    ) -> Result<(), CoreError> {
+    ) -> Result<ReauthenticateOutput, CoreError> {
         self.trident_service.reauthenticate(identity, input).await
     }
 
@@ -207,9 +208,14 @@ impl TridentService for ApplicationService {
         &self,
         identity: Identity,
         credential_id: Uuid,
+        step_up_token: String,
     ) -> Result<(), CoreError> {
         self.trident_service
-            .delete_credential_self_service(identity, credential_id)
+            .delete_credential_self_service(identity, credential_id, step_up_token)
             .await
+    }
+
+    async fn realm_id_for_name(&self, realm_name: &str) -> Result<RealmId, CoreError> {
+        self.trident_service.realm_id_for_name(realm_name).await
     }
 }

@@ -133,6 +133,15 @@ pub enum CoreError {
     #[error("TOTP verification failed: {0}")]
     TotpVerificationFailed(String),
 
+    #[error("Invalid OTP code")]
+    InvalidOtpCode,
+
+    #[error("No pending TOTP secret for this user")]
+    PendingTotpSecretMissing,
+
+    #[error("Step-up re-authentication token is invalid or expired")]
+    StepUpTokenInvalid,
+
     #[error("Recovery code generation failed: {0}")]
     RecoveryCodeGenError(String),
 

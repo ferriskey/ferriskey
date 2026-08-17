@@ -13,6 +13,18 @@ pub struct OtpVerifyRequest {
     pub label: String,
 }
 
+/// Request for the self-service `/me/totp/verify` flow. The TOTP secret is
+/// persisted server-side by `/me/totp/setup`, so the caller only supplies the
+/// code and the step-up token minted by `/me/reauthenticate`.
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct MeTotpVerifyRequest {
+    #[validate(length(min = 1, max = 8))]
+    pub code: String,
+    /// Step-up token minted by `/me/reauthenticate`.
+    #[validate(length(min = 1))]
+    pub step_up_token: String,
+}
+
 /// Derives the WebAuthn Relying Party info from the webapp URL.
 ///
 /// The `rp_id` must be a valid domain that matches the origin,
@@ -34,21 +46,23 @@ pub fn webauthn_rp_info_from_webapp_url(webapp_url: &str) -> WebAuthnRpInfo {
 /// authenticator entries by this label, so keeping it short and stable
 /// avoids the long API hostname showing up in the OTP record.
 ///
-/// Falls back to the realm name when no usable host can be parsed.
+/// Uses the Public Suffix List so multi-part public suffixes (e.g. `.co.uk`)
+/// are handled correctly: `https://api.sub.example.co.uk` -> `example.co.uk`,
+/// not `co.uk`. Falls back to the realm name when no usable host can be parsed.
 pub fn otp_issuer_from_webapp_url(webapp_url: &str, realm_name: &str) -> String {
     let host = Url::parse(webapp_url)
         .ok()
         .and_then(|u| u.host_str().map(str::to_string))
         .unwrap_or_default();
 
-    let parts: Vec<&str> = host.split('.').collect();
-    if parts.len() > 2 {
-        parts[parts.len() - 2..].join(".")
-    } else if !host.is_empty() {
-        host
-    } else {
-        realm_name.to_string()
+    if host.is_empty() {
+        return realm_name.to_string();
     }
+
+    // `psl::domain_str` returns the registrable domain (eTLD+1), e.g.
+    // `example.co.uk` for `api.sub.example.co.uk`. Fall back to the raw host
+    // when the PSL cannot classify it (e.g. `localhost` or an IP address).
+    psl::domain_str(&host).unwrap_or(&host).to_string()
 }
 
 #[cfg(test)]
@@ -56,14 +70,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn otp_issuer_uses_last_two_host_labels() {
+    fn otp_issuer_uses_registrable_domain() {
         assert_eq!(
             otp_issuer_from_webapp_url("https://account.example.com", "demo"),
             "example.com"
         );
+        // Multi-part public suffix: the registrable domain is `example.co.uk`,
+        // not the bare `co.uk` suffix.
         assert_eq!(
             otp_issuer_from_webapp_url("https://api.sub.example.co.uk", "demo"),
-            "co.uk"
+            "example.co.uk"
+        );
+        assert_eq!(
+            otp_issuer_from_webapp_url("https://www.example.com.au", "demo"),
+            "example.com.au"
         );
     }
 
@@ -73,6 +93,7 @@ mod tests {
             otp_issuer_from_webapp_url("https://example.com", "demo"),
             "example.com"
         );
+        // `localhost` is not a public suffix, so the raw host is kept.
         assert_eq!(
             otp_issuer_from_webapp_url("http://localhost:3000", "demo"),
             "localhost"

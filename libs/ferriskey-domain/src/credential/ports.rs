@@ -62,8 +62,17 @@ pub trait CredentialRepository: Send + Sync {
     fn create_recovery_code_credentials(
         &self,
         user_id: Uuid,
-        hash: Vec<HashResult>,
+        credentials: Vec<(HashResult, String)>,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
+
+    /// Locate a single recovery-code credential candidate by its fast lookup
+    /// key, so verification runs Argon2 only once instead of against every
+    /// stored code. Returns `None` when no (unexpired) candidate matches.
+    fn find_recovery_code_by_lookup(
+        &self,
+        user_id: Uuid,
+        lookup: &str,
+    ) -> impl Future<Output = Result<Option<Credential>, CredentialError>> + Send;
 
     fn create_webauthn_credential(
         &self,
