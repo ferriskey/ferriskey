@@ -53,6 +53,9 @@ pub enum DeviceFlowError {
     #[error("forbidden")]
     Forbidden,
 
+    #[error("invalid_scope")]
+    InvalidScope,
+
     /// Could not generate a collision-free user code within the retry budget.
     #[error("failed to generate a unique user code")]
     UserCodeGenerationExhausted,
@@ -79,6 +82,9 @@ impl From<DeviceFlowError> for CoreError {
             DeviceFlowError::UnauthorizedClient => CoreError::InvalidClient,
             DeviceFlowError::Forbidden => {
                 CoreError::Forbidden("device session belongs to another realm".to_string())
+            }
+            DeviceFlowError::InvalidScope => {
+                CoreError::InvalidScope("requested scope is not allowed".to_string())
             }
             DeviceFlowError::UserCodeGenerationExhausted => CoreError::InternalServerError,
             DeviceFlowError::TokenIssuance(msg) => CoreError::TokenGenerationError(msg),

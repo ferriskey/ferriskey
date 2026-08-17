@@ -120,6 +120,7 @@ pub struct GenerateTokensForUserInput {
     pub realm_id: Uuid,
     pub base_url: String,
     pub client_id: Option<Uuid>,
+    pub scope: Option<String>,
 }
 
 impl CreateAuthSessionRequest {

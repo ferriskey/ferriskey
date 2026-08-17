@@ -130,6 +130,7 @@ pub async fn reset_password_with_token(
             realm_id: result.realm_id,
             base_url,
             client_id: None,
+            scope: None,
         })
         .await?;
 

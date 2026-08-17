@@ -351,6 +351,10 @@ impl From<DeviceFlowError> for ApiError {
                 "unauthorized_client",
                 "The client is not authorized to use the device authorization grant.",
             ),
+            DeviceFlowError::InvalidScope => oauth(
+                "invalid_scope",
+                "The requested scope is not permitted for this client.",
+            ),
             DeviceFlowError::Forbidden => {
                 Self::Forbidden("You cannot act on a device session of another realm".into())
             }

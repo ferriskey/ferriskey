@@ -648,13 +648,19 @@ impl ApplicationService {
             return Err(DeviceFlowError::InvalidClient);
         }
 
+        let scope = self
+            .auth_service
+            .resolve_scopes_for_client(client.id, input.scope)
+            .await
+            .map_err(|_| DeviceFlowError::InvalidScope)?;
+
         let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
 
         self.device_flow_service
             .initiate(InitiateDeviceFlowParams {
                 realm_id: realm.id,
                 client_id: client.id,
-                scope: input.scope,
+                scope: Some(scope),
                 oauth_device_code_grant_enabled: client.oauth_device_code_grant_enabled,
                 verification_uri,
             })

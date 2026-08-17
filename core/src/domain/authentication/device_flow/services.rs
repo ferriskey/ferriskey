@@ -288,6 +288,7 @@ where
                         realm_id: session.realm_id.into(),
                         base_url: params.base_url,
                         client_id: Some(session.client_id),
+                        scope: session.scope.clone(),
                     })
                     .await
                     .map_err(|err| DeviceFlowError::TokenIssuance(err.to_string()))
