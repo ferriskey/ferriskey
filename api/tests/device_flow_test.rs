@@ -362,6 +362,49 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn second_poll_after_token_issuance_returns_invalid_grant() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let first = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                first.status_code(),
+                200,
+                "first poll must issue a token: {}",
+                first.text()
+            );
+
+            let second = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                second.status_code(),
+                400,
+                "a device_code must not be replayable: {}",
+                second.text()
+            );
+            let body: Value = second.json();
+            assert_eq!(
+                body["error"], "invalid_grant",
+                "replay must be refused as invalid_grant: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
     fn poll_before_verify_returns_authorization_pending() {
         let server = make_server();
         rt().block_on(async {

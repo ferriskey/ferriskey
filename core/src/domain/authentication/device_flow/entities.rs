@@ -84,6 +84,9 @@ pub enum DeviceAuthStatus {
     /// returns `expired_token`.
     #[serde(rename = "expired")]
     Expired,
+
+    #[serde(rename = "consumed")]
+    Consumed,
 }
 
 impl DeviceAuthStatus {
@@ -94,6 +97,7 @@ impl DeviceAuthStatus {
             DeviceAuthStatus::Approved => "approved",
             DeviceAuthStatus::Denied => "denied",
             DeviceAuthStatus::Expired => "expired",
+            DeviceAuthStatus::Consumed => "consumed",
         }
     }
 
@@ -104,6 +108,7 @@ impl DeviceAuthStatus {
             "approved" => Some(DeviceAuthStatus::Approved),
             "denied" => Some(DeviceAuthStatus::Denied),
             "expired" => Some(DeviceAuthStatus::Expired),
+            "consumed" => Some(DeviceAuthStatus::Consumed),
             _ => None,
         }
     }
