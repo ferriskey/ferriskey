@@ -12,6 +12,7 @@ use axum_extra::{
 use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::{entities::AuthorizeRequestInput, ports::AuthService};
 use ferriskey_core::domain::jwt::entities::JwtClaim;
+use ferriskey_core::domain::realm::entities::RealmId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -44,11 +45,19 @@ struct ErrorResponse {
     status: i64,
 }
 
-/// The realm name carried by the authenticated bearer token, extracted from the
-/// JWT `iss` claim (`{base_url}/realms/{realm_name}`). Self-service handlers use
-/// it to reject requests whose URL realm does not match the token's realm.
+/// The realm bound to the authenticated bearer token.
+///
+/// `realm_id` is the authoritative realm, taken from the *resolved* identity
+/// (`output.identity.realm_id()`) returned by `authorize_request` — not from
+/// string-parsing the `iss` claim. `realm_name` is copied from the `iss` claim
+/// purely as a routing hint for handlers that compare against the URL path; the
+/// security check compares realm *ids*, so a `root_path` containing `/realms/`
+/// or a realm rename can never make a token bind to the wrong realm.
 #[derive(Clone, Debug)]
-pub struct AuthenticatedRealm(pub String);
+pub struct AuthenticatedRealm {
+    pub realm_id: RealmId,
+    pub realm_name: String,
+}
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
@@ -201,9 +210,17 @@ pub async fn auth(
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
+    // The resolved identity carries the authoritative realm; the `iss` claim is
+    // only used as a routing hint. If the issuer does not even parse as
+    // `{base_url}/realms/{realm_name}` we cannot route, so reject (fail-closed).
+    let realm_name = realm_from_iss.ok_or(StatusCode::UNAUTHORIZED)?;
+    let realm_id = output.identity.realm_id();
+
     req.extensions_mut().insert(output.identity);
-    let realm = realm_from_iss.ok_or(StatusCode::UNAUTHORIZED)?;
-    req.extensions_mut().insert(AuthenticatedRealm(realm));
+    req.extensions_mut().insert(AuthenticatedRealm {
+        realm_id,
+        realm_name,
+    });
 
     Ok(next.run(req).await)
 }

@@ -89,6 +89,21 @@ pub enum SecurityEventType {
     /// row can never be misread as a successful login. See `parse` below.
     #[serde(rename = "unknown")]
     Unknown,
+
+    #[serde(rename = "mfa_enrolled")]
+    MfaEnrolled,
+
+    #[serde(rename = "mfa_removed")]
+    MfaRemoved,
+
+    #[serde(rename = "credential_deleted")]
+    CredentialDeleted,
+
+    #[serde(rename = "reauthentication_failed")]
+    ReauthenticationFailed,
+
+    #[serde(rename = "recovery_code_burned")]
+    RecoveryCodeBurned,
 }
 
 impl SecurityEventType {
@@ -121,6 +136,11 @@ impl SecurityEventType {
             "session_created" => Self::SessionCreated,
             "session_revoked" => Self::SessionRevoked,
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
+            "mfa_enrolled" => Self::MfaEnrolled,
+            "mfa_removed" => Self::MfaRemoved,
+            "credential_deleted" => Self::CredentialDeleted,
+            "reauthentication_failed" => Self::ReauthenticationFailed,
+            "recovery_code_burned" => Self::RecoveryCodeBurned,
             _ => Self::Unknown,
         }
     }
@@ -160,6 +180,11 @@ impl Display for SecurityEventType {
                 write!(f, "identity_provider_link_removed")
             }
             SecurityEventType::Unknown => write!(f, "unknown"),
+            SecurityEventType::MfaEnrolled => write!(f, "mfa_enrolled"),
+            SecurityEventType::MfaRemoved => write!(f, "mfa_removed"),
+            SecurityEventType::CredentialDeleted => write!(f, "credential_deleted"),
+            SecurityEventType::ReauthenticationFailed => write!(f, "reauthentication_failed"),
+            SecurityEventType::RecoveryCodeBurned => write!(f, "recovery_code_burned"),
         }
     }
 }

@@ -450,6 +450,25 @@ mod tests {
                     .starts_with("otpauth://totp/")
             );
 
+            // Verify now requires a step-up token minted by /me/reauthenticate
+            // and only the code (the secret is persisted server-side at setup).
+            let reauth = server
+                .post(&format!("/realms/{}/me/reauthenticate", realm()))
+                .add_header("Authorization", auth_header(&user_token))
+                .json(&json!({ "password": password }))
+                .await;
+            assert_eq!(
+                reauth.status_code(),
+                200,
+                "reauthenticate failed: {}",
+                reauth.text()
+            );
+            let reauth_body: Value = reauth.json();
+            let step_up_token = reauth_body["step_up_token"]
+                .as_str()
+                .expect("step_up_token in reauthenticate response")
+                .to_string();
+
             // Verify with a freshly computed valid code → 200.
             let counter = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -460,7 +479,7 @@ mod tests {
             let verify = server
                 .post(&format!("/realms/{}/me/totp/verify", realm()))
                 .add_header("Authorization", auth_header(&user_token))
-                .json(&json!({ "code": code, "label": "my-authenticator", "secret": secret }))
+                .json(&json!({ "code": code, "step_up_token": step_up_token }))
                 .await;
             assert_eq!(
                 verify.status_code(),

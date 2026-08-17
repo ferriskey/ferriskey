@@ -13,7 +13,7 @@ use ferriskey_core::domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::validators::OtpVerifyRequest;
+use crate::validators::MeTotpVerifyRequest;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct MeTotpVerifyResponse {
@@ -26,7 +26,7 @@ pub struct MeTotpVerifyResponse {
     tag = "auth",
     summary = "Verify and save a TOTP credential for the signed-in user",
     description = "Confirms the code produced by the secret from /me/totp/setup and stores the TOTP credential. Bearer-only self-service endpoint; no session cookie required.",
-    request_body = OtpVerifyRequest,
+    request_body = MeTotpVerifyRequest,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
@@ -41,7 +41,7 @@ pub struct MeTotpVerifyResponse {
 pub async fn me_totp_verify(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
+    ValidateJson(payload): ValidateJson<MeTotpVerifyRequest>,
 ) -> Result<Response<MeTotpVerifyResponse>, ApiError> {
     let result = state
         .service
@@ -49,8 +49,7 @@ pub async fn me_totp_verify(
             identity,
             VerifyOtpInput {
                 code: payload.code,
-                label: Some(payload.label),
-                secret: payload.secret,
+                step_up_token: Some(payload.step_up_token),
             },
         )
         .await
