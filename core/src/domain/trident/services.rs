@@ -1585,7 +1585,7 @@ where
         self.pending_totp_secret_repository
             .save(PendingTotpSecretRecord {
                 user_id: user.id,
-                secret: secret.base32_encoded().to_string(),
+                secret: secret.clone(),
                 label: None,
                 expires_at,
             })
@@ -3119,7 +3119,7 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, WCR, SUT, PTS>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT, PTS>
     TridentServiceImpl<
         CR,
         RC,
@@ -3137,6 +3137,9 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, WCR, SUT
         ETR,
         TR,
         PPR,
+        OER,
+        URR,
+        TRV,
         WCR,
         SUT,
         PTS,
@@ -3158,6 +3161,9 @@ where
     ETR: EmailTemplateRepository,
     TR: TemplateRenderer,
     PPR: PasswordPolicyRepository,
+    OER: OtpEnrollmentRepository,
+    URR: UserRoleRepository,
+    TRV: TokenRevocationPort,
     WCR: WebAuthnChallengeRepository,
     SUT: StepUpTokenRepository,
     PTS: PendingTotpSecretRepository,
@@ -3247,6 +3253,7 @@ where
 
                 let html_body = self
                     .render_email_template(
+                        realm.id.into(),
                         tid,
                         &user,
                         &[
