@@ -53,48 +53,16 @@ mod tests {
             .unwrap_or(default)
     }
 
-    /// Best-effort schema teardown on normal process exit.
-    ///
-    /// The shared `OnceLock` context below is never dropped, so the one-off
-    /// UUID schema would otherwise leak into the development database. An
-    /// `atexit` hook runs after all tests complete and before the process
-    /// exits, giving the DROP a chance to execute.
-    struct SchemaCleanup {
-        admin_url: String,
-        schema: String,
-    }
-
-    static CLEANUP: std::sync::OnceLock<SchemaCleanup> = std::sync::OnceLock::new();
-
-    extern "C" fn drop_test_schema() {
-        let Some(cleanup) = CLEANUP.get() else {
-            return;
-        };
-        // atexit runs after the tokio runtime has shut down, so spin up a
-        // short-lived one to issue the DROP. All failures are ignored because
-        // this is best-effort teardown.
-        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        else {
-            return;
-        };
-        rt.block_on(async {
-            let Ok(pool) = sqlx::PgPool::connect(&cleanup.admin_url).await else {
-                return;
-            };
-            let _ = sqlx::Executor::execute(
-                &pool,
-                sqlx::query(&format!(
-                    "DROP SCHEMA IF EXISTS \"{}\" CASCADE",
-                    cleanup.schema
-                )),
-            )
-            .await;
-        });
-    }
-
     /// Shared context built exactly once per process.
+    ///
+    /// The one-off UUID schema created for this run is intentionally *not* dropped
+    /// on process exit. The shared `OnceLock` context is never dropped, and any
+    /// `atexit`/static-destruction teardown runs after the tokio runtime has been
+    /// torn down — spinning up a new runtime there leads to
+    /// `std::thread::current()` panics and a SIGABRT that fails the whole CI job
+    /// (see the integration-tests workflow). The schema name is a random UUID, so
+    /// leaving it behind is harmless; this matches the convention used by every
+    /// other `#[ignore]` integration test in `api/tests/`.
     struct SharedContext {
         app: std::sync::Mutex<axum::Router>,
         realm_name: String,
@@ -147,18 +115,6 @@ mod tests {
             )))
             .await
             .expect("create schema");
-
-        // Register teardown so the one-off schema is dropped when the process
-        // exits normally (see `drop_test_schema`).
-        let _ = CLEANUP.set(SchemaCleanup {
-            admin_url: admin_url.clone(),
-            schema: schema.clone(),
-        });
-        // SAFETY: `drop_test_schema` is a `#[no_mangle]`-free plain C function
-        // with no arguments; registering it with atexit is valid on Unix.
-        unsafe {
-            libc::atexit(drop_test_schema);
-        }
 
         let schema_url = format!(
             "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
