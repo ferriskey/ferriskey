@@ -15,7 +15,7 @@ impl From<Model> for Client {
             realm_id: model.realm_id.into(),
             name: model.name,
             client_id: model.client_id,
-            secret: model.secret,
+            secret: model.secret.map(maskass::Masked::new),
             enabled: model.enabled,
             protocol: model.protocol,
             public_client: model.public_client,

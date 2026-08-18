@@ -16,6 +16,6 @@ export default function PageClientCredentialsFeature() {
   }
 
   return (
-    <PageClientCredentials client={responseData.data} />
+    <PageClientCredentials client={responseData.data} realm={realm_name ?? 'master'} />
   )
 }

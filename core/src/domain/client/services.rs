@@ -516,6 +516,44 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
+    async fn reveal_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<Option<String>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_repository
+            .get_by_id(realm.id, input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::ClientSecretViewed,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("client".to_string(), client.id, None),
+            )
+            .await?;
+
+        Ok(client.secret_str().map(str::to_string))
+    }
+
     async fn get_client_roles(
         &self,
         identity: Identity,

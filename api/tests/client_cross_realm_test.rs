@@ -408,6 +408,14 @@ mod tests {
         );
         let body: Value = response.json();
         let uuid = body["id"].as_str().expect("victim client id").to_string();
+        let secret = body["client_secret"]
+            .as_str()
+            .expect("creation is the one place that hands back the plaintext secret")
+            .to_string();
+        assert!(
+            !secret.is_empty() && secret != "***",
+            "the leak assertions below are meaningless unless this is the real secret: {secret}"
+        );
 
         // `create_client` always persists `require_pkce: false`; the update attack
         // needs it on so that flipping it off is an observable weakening.
@@ -433,16 +441,6 @@ mod tests {
             201,
             "registering the victim's redirect URI failed: {}",
             response.text()
-        );
-
-        let client = read_victim_client(server, master, &uuid).await;
-        let secret = client["secret"]
-            .as_str()
-            .expect("a confidential client carries a secret")
-            .to_string();
-        assert!(
-            !secret.is_empty(),
-            "the victim client must carry a non-empty secret for the leak assertion to mean anything"
         );
 
         VictimClient { uuid, secret }
@@ -486,6 +484,55 @@ mod tests {
             .iter()
             .map(|uri| uri["value"].as_str().unwrap_or_default().to_string())
             .collect()
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored"]
+    fn reading_a_client_never_yields_its_plaintext_secret() {
+        rt().block_on(async {
+            let server = make_server();
+            let master = master_token(&server).await;
+            let victim = create_victim_client(&server, &master).await;
+
+            let client = read_victim_client(&server, &master, &victim.uuid).await;
+            let serialized = client.to_string();
+            assert!(
+                !serialized.contains(&victim.secret),
+                "the client read endpoint must not carry the plaintext secret: {serialized}"
+            );
+            assert_eq!(
+                client["secret"], "***",
+                "the field must be present but redacted, so the console can still tell a confidential client apart: {client}"
+            );
+
+            let list = server
+                .get(&format!("/realms/{TENANT_B}/clients"))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert!(
+                !list.text().contains(&victim.secret),
+                "the client list must not carry the plaintext secret"
+            );
+
+            let reveal = server
+                .get(&format!(
+                    "/realms/{TENANT_B}/clients/{}/client-secret",
+                    victim.uuid
+                ))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert_eq!(
+                reveal.status_code(),
+                200,
+                "an operator holding ManageClients must still be able to retrieve it: {}",
+                reveal.text()
+            );
+            let body: Value = reveal.json();
+            assert_eq!(
+                body["client_secret"], victim.secret,
+                "the dedicated endpoint must return the real secret: {body}"
+            );
+        });
     }
 
     #[test]
@@ -696,11 +743,9 @@ mod tests {
                 response.text()
             );
             let body: Value = response.json();
-            assert!(
-                body["data"]["secret"]
-                    .as_str()
-                    .is_some_and(|s| !s.is_empty()),
-                "alice's own confidential client should expose its secret to her: {body}"
+            assert_eq!(
+                body["data"]["secret"], "***",
+                "alice sees her own confidential client, with the secret redacted like everyone else's: {body}"
             );
 
             // Update.

@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
+use maskass::Masked;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -72,12 +73,12 @@ impl FromStr for ClientType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 pub struct Client {
     pub id: Uuid,
     pub enabled: bool,
     pub client_id: String,
-    pub secret: Option<String>,
+    pub secret: Option<Masked<String>>,
     pub realm_id: RealmId,
     pub protocol: String,
     pub public_client: bool,
@@ -121,13 +122,17 @@ pub struct ClientConfig {
 }
 
 impl Client {
+    pub fn secret_str(&self) -> Option<&str> {
+        self.secret.as_ref().map(|secret| secret.expose().as_str())
+    }
+
     pub fn new(config: ClientConfig) -> Self {
         let (now, timestamp) = generate_timestamp();
         Self {
             id: Uuid::new_v7(timestamp),
             enabled: config.enabled,
             client_id: config.client_id,
-            secret: config.secret,
+            secret: config.secret.map(Masked::new),
             realm_id: config.realm_id,
             protocol: config.protocol,
             public_client: config.public_client,
@@ -159,7 +164,7 @@ impl Client {
             id: Uuid::new_v7(timestamp),
             enabled: true,
             client_id: client_id.clone(),
-            secret: Some(generate_random_string()),
+            secret: Some(Masked::new(generate_random_string())),
             realm_id,
             protocol: "openid-connect".to_string(),
             public_client: false,

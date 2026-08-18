@@ -287,7 +287,7 @@ mod tests {
         );
 
         let body: Value = response.json();
-        let secret = body["secret"]
+        let secret = body["client_secret"]
             .as_str()
             .unwrap_or_else(|| panic!("a confidential client carries a secret: {body}"))
             .to_string();

@@ -12,7 +12,7 @@ use utoipa::{
 use crate::strategies::{FullMask, MaskStrategy};
 
 /// What gets produced when data is serialized / logged.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ToSchema)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, ToSchema)]
 pub enum Redaction {
     /// Always "***"
     Full,
@@ -25,7 +25,7 @@ pub enum Redaction {
 /// - `Deserialize`: stores the real value
 /// - `Serialize`: outputs redacted string (never the real value)
 /// - `Debug` / `Display`: redacted
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Masked<T>
 where
     T: ToSchema,

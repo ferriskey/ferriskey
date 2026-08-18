@@ -11,6 +11,16 @@ use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::client::entities::Client;
 use ferriskey_core::domain::client::{entities::CreateClientInput, ports::ClientService};
+use serde::Serialize;
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CreatedClientResponse {
+    #[serde(flatten)]
+    pub client: Client,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_secret: Option<String>,
+}
 
 #[utoipa::path(
     post,
@@ -34,7 +44,7 @@ pub async fn create_client(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<CreateClientValidator>,
-) -> Result<Response<Client>, ApiError> {
+) -> Result<Response<CreatedClientResponse>, ApiError> {
     let client = state
         .service
         .create_client(
@@ -54,5 +64,10 @@ pub async fn create_client(
         )
         .await?;
 
-    Ok(Response::Created(client))
+    let client_secret = client.secret_str().map(str::to_string);
+
+    Ok(Response::Created(CreatedClientResponse {
+        client,
+        client_secret,
+    }))
 }

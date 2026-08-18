@@ -55,6 +55,9 @@ pub enum SecurityEventType {
     #[serde(rename = "client_secret_rotated")]
     ClientSecretRotated,
 
+    #[serde(rename = "client_secret_viewed")]
+    ClientSecretViewed,
+
     #[serde(rename = "realm_config_changed")]
     RealmConfigChanged,
 
@@ -95,6 +98,7 @@ impl Display for SecurityEventType {
             SecurityEventType::ClientCreated => write!(f, "client_created"),
             SecurityEventType::ClientDeleted => write!(f, "client_deleted"),
             SecurityEventType::ClientSecretRotated => write!(f, "client_secret_rotated"),
+            SecurityEventType::ClientSecretViewed => write!(f, "client_secret_viewed"),
             SecurityEventType::RealmConfigChanged => write!(f, "realm_config_changed"),
             SecurityEventType::EmailNotSent => write!(f, "email_not_sent"),
             SecurityEventType::EmailSent => write!(f, "email_sent"),

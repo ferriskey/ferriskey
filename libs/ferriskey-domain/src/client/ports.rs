@@ -68,6 +68,12 @@ pub trait ClientService: Send + Sync {
         input: GetClientsInput,
     ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
 
+    fn reveal_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> impl Future<Output = Result<Option<String>, CoreError>> + Send;
+
     fn get_redirect_uris(
         &self,
         identity: Identity,
