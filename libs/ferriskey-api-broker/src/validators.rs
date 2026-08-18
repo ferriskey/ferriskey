@@ -36,6 +36,12 @@ pub struct BrokerLoginRequest {
     /// Existing auth session ID (if initiated from login page)
     #[serde(default)]
     pub session_id: Option<Uuid>,
+
+    #[serde(default)]
+    pub code_challenge: Option<String>,
+
+    #[serde(default)]
+    pub code_challenge_method: Option<String>,
 }
 
 fn default_response_type() -> String {

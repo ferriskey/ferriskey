@@ -103,6 +103,11 @@ pub trait OAuthClient: Send + Sync {
         userinfo_url: &str,
         access_token: &str,
     ) -> impl Future<Output = Result<BrokeredUserInfo, CoreError>> + Send;
+
+    fn fetch_jwks(
+        &self,
+        jwks_url: &str,
+    ) -> impl Future<Output = Result<serde_json::Value, CoreError>> + Send;
 }
 
 /// Service trait for broker authentication business logic
@@ -124,5 +129,6 @@ pub trait BrokerService: Send + Sync {
         &self,
         config: &OAuthProviderConfig,
         token_response: &OAuthTokenResponse,
+        expected_nonce: Option<&str>,
     ) -> impl Future<Output = Result<BrokeredUserInfo, CoreError>> + Send;
 }

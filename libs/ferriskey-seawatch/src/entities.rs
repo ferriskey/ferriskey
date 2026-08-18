@@ -78,6 +78,9 @@ pub enum SecurityEventType {
 
     #[serde(rename = "session_revoked")]
     SessionRevoked,
+
+    #[serde(rename = "identity_provider_link_removed")]
+    IdentityProviderLinkRemoved,
 }
 
 impl Display for SecurityEventType {
@@ -110,6 +113,9 @@ impl Display for SecurityEventType {
             }
             SecurityEventType::SessionCreated => write!(f, "session_created"),
             SecurityEventType::SessionRevoked => write!(f, "session_revoked"),
+            SecurityEventType::IdentityProviderLinkRemoved => {
+                write!(f, "identity_provider_link_removed")
+            }
         }
     }
 }

@@ -80,6 +80,7 @@ fn parse_event_type(raw: &str) -> SecurityEventType {
         "client_maintenance_disabled" => SecurityEventType::ClientMaintenanceDisabled,
         "session_created" => SecurityEventType::SessionCreated,
         "session_revoked" => SecurityEventType::SessionRevoked,
+        "identity_provider_link_removed" => SecurityEventType::IdentityProviderLinkRemoved,
         _ => SecurityEventType::LoginSuccess,
     }
 }
@@ -139,6 +140,7 @@ mod tests {
         SecurityEventType::ClientMaintenanceDisabled,
         SecurityEventType::SessionCreated,
         SecurityEventType::SessionRevoked,
+        SecurityEventType::IdentityProviderLinkRemoved,
     ];
 
     /// The write path persists `event_type` via `Display` and the read path
@@ -193,7 +195,8 @@ mod tests {
                 | SecurityEventType::ClientMaintenanceEnabled
                 | SecurityEventType::ClientMaintenanceDisabled
                 | SecurityEventType::SessionCreated
-                | SecurityEventType::SessionRevoked => true,
+                | SecurityEventType::SessionRevoked
+                | SecurityEventType::IdentityProviderLinkRemoved => true,
             };
 
             assert!(listed && ALL_EVENT_TYPES.contains(event_type));

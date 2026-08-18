@@ -7,8 +7,9 @@ use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
-    CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
-    IdentityProvider, ListIdentityProvidersInput, UpdateIdentityProviderInput,
+    CreateIdentityProviderInput, DeleteIdentityProviderInput, DeleteIdentityProviderLinkInput,
+    GetIdentityProviderInput, IdentityProvider, IdentityProviderLinkView,
+    ListIdentityProviderLinksInput, ListIdentityProvidersInput, UpdateIdentityProviderInput,
 };
 use super::value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
 
@@ -103,6 +104,18 @@ pub trait IdentityProviderService: Send + Sync {
         &self,
         identity: Identity,
         input: DeleteIdentityProviderInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn list_identity_provider_links(
+        &self,
+        identity: Identity,
+        input: ListIdentityProviderLinksInput,
+    ) -> impl Future<Output = Result<Vec<IdentityProviderLinkView>, CoreError>> + Send;
+
+    fn delete_identity_provider_link(
+        &self,
+        identity: Identity,
+        input: DeleteIdentityProviderLinkInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 

@@ -43,6 +43,8 @@ pub struct BrokerAuthSession {
 
     /// PKCE code verifier (if PKCE is enabled)
     pub code_verifier: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
 
     /// Linked FerrisKey auth session ID (if initiated from existing auth flow)
     pub auth_session_id: Option<Uuid>,
@@ -66,6 +68,8 @@ pub struct BrokerAuthSessionParams {
     pub nonce: Option<String>,
     pub broker_state: String,
     pub code_verifier: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
     pub auth_session_id: Option<Uuid>,
 }
 
@@ -88,6 +92,8 @@ impl BrokerAuthSession {
             nonce: params.nonce,
             broker_state: params.broker_state,
             code_verifier: params.code_verifier,
+            code_challenge: params.code_challenge,
+            code_challenge_method: params.code_challenge_method,
             auth_session_id: params.auth_session_id,
             created_at: now,
             expires_at: now + Duration::minutes(10),
@@ -183,6 +189,8 @@ mod tests {
             nonce: Some("nonce123".to_string()),
             broker_state: "random-broker-state".to_string(),
             code_verifier: Some("pkce-verifier".to_string()),
+            code_challenge: None,
+            code_challenge_method: None,
             auth_session_id: None,
         };
 

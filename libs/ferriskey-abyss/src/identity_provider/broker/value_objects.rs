@@ -133,6 +133,10 @@ pub struct BrokerLoginInput {
     /// Existing auth session ID (if initiated from login page)
     pub auth_session_id: Option<Uuid>,
 
+    pub code_challenge: Option<String>,
+
+    pub code_challenge_method: Option<String>,
+
     /// Base URL of the API server (e.g., "https://auth.example.com")
     pub base_url: String,
 }
@@ -274,6 +278,8 @@ pub struct CreateBrokerAuthSessionRequest {
     pub nonce: Option<String>,
     pub broker_state: String,
     pub code_verifier: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
     pub auth_session_id: Option<Uuid>,
 }
 

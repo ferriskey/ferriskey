@@ -55,6 +55,8 @@ pub async fn broker_login(
             state: params.state,
             nonce: params.nonce,
             auth_session_id: params.session_id,
+            code_challenge: params.code_challenge,
+            code_challenge_method: params.code_challenge_method,
             base_url,
         })
         .await?;

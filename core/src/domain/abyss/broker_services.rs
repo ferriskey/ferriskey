@@ -20,6 +20,7 @@ use crate::domain::abyss::identity_provider::broker::{
 use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
 use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
 use crate::domain::authentication::ports::AuthSessionRepository;
+use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::redirect_uri_matching::redirect_uri_matches_any;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -232,6 +233,7 @@ where
         // 2. If link_only mode, try to find user by email
         if idp.link_only {
             if let Some(email) = &user_info.email
+                && user_info.email_verified.unwrap_or(false)
                 && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
             {
                 // Link existing user
@@ -308,22 +310,69 @@ where
         self.link_repository.create(request).await
     }
 
-    /// Extracts user info from an ID token (JWT)
-    fn extract_user_info_from_id_token(id_token: &str) -> Result<BrokeredUserInfo, CoreError> {
-        // Split the JWT into parts
-        let parts: Vec<&str> = id_token.split('.').collect();
-        if parts.len() != 3 {
-            return Err(CoreError::InvalidIdToken);
+    async fn verify_id_token(
+        &self,
+        id_token: &str,
+        config: &OAuthProviderConfig,
+        expected_nonce: Option<&str>,
+    ) -> Result<serde_json::Value, CoreError> {
+        let jwks_url = config
+            .jwks_url
+            .as_deref()
+            .ok_or(CoreError::InvalidIdToken)?;
+        let issuer = config.issuer.as_deref().ok_or(CoreError::InvalidIdToken)?;
+
+        let header = jsonwebtoken::decode_header(id_token).map_err(|e| {
+            warn!("id_token header is not decodable: {e}");
+            CoreError::InvalidIdToken
+        })?;
+
+        let jwks = self.oauth_client.fetch_jwks(jwks_url).await?;
+        let jwk_set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks).map_err(|e| {
+            warn!("JWKS document is not a valid key set: {e}");
+            CoreError::InvalidIdToken
+        })?;
+
+        let jwk = match header.kid.as_deref() {
+            Some(kid) => jwk_set.find(kid),
+            None => jwk_set.keys.first(),
+        }
+        .ok_or_else(|| {
+            warn!("no JWKS key matches the id_token header");
+            CoreError::InvalidIdToken
+        })?;
+
+        let key = jsonwebtoken::DecodingKey::from_jwk(jwk).map_err(|e| {
+            warn!("JWKS key is unusable: {e}");
+            CoreError::InvalidIdToken
+        })?;
+
+        let mut validation = jsonwebtoken::Validation::new(header.alg);
+        validation.set_issuer(&[issuer]);
+        validation.set_audience(&[config.client_id.as_str()]);
+        validation.validate_exp = true;
+
+        let data = jsonwebtoken::decode::<serde_json::Value>(id_token, &key, &validation).map_err(
+            |e| {
+                warn!("id_token verification failed: {e}");
+                CoreError::InvalidIdToken
+            },
+        )?;
+
+        let claims = data.claims;
+
+        if let Some(expected) = expected_nonce {
+            let presented = claims["nonce"].as_str();
+            if presented != Some(expected) {
+                warn!("id_token nonce does not match the one sent to the provider");
+                return Err(CoreError::InvalidIdToken);
+            }
         }
 
-        // Decode the payload (second part)
-        let payload = URL_SAFE_NO_PAD
-            .decode(parts[1])
-            .map_err(|_| CoreError::InvalidIdToken)?;
+        Ok(claims)
+    }
 
-        let claims: serde_json::Value =
-            serde_json::from_slice(&payload).map_err(|_| CoreError::InvalidIdToken)?;
-
+    fn user_info_from_claims(claims: serde_json::Value) -> Result<BrokeredUserInfo, CoreError> {
         Ok(BrokeredUserInfo {
             subject: claims["sub"]
                 .as_str()
@@ -391,6 +440,15 @@ where
             return Err(CoreError::ProviderDisabled);
         }
 
+        if client.require_pkce {
+            let has_s256 = input.code_challenge.is_some()
+                && input.code_challenge_method.as_deref() == Some("S256");
+
+            if !has_s256 {
+                return Err(CoreError::PkceRequired);
+            }
+        }
+
         // 4. Parse OAuth config from idp.config
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into().map_err(|e| {
             error!("error: {e}");
@@ -421,6 +479,8 @@ where
             nonce: input.nonce.clone(),
             broker_state: broker_state.clone(),
             code_verifier,
+            code_challenge: input.code_challenge.clone(),
+            code_challenge_method: input.code_challenge_method.clone(),
             auth_session_id: input.auth_session_id,
         };
 
@@ -615,7 +675,11 @@ where
 
         // 7. Extract user info from tokens
         let user_info = self
-            .extract_user_info(&oauth_config, &token_response)
+            .extract_user_info(
+                &oauth_config,
+                &token_response,
+                broker_session.nonce.as_deref(),
+            )
             .await?;
 
         // 8. Find or create user
@@ -661,13 +725,11 @@ where
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
-                // Brokered sessions (external IdP) bypass client-native PKCE
-                // because the PKCE challenge/verifier pair is between the
-                // upstream IdP and FerrisKey (outbound, already handled by
-                // `broker_services`). The inbound client flow does not send
-                // a code_challenge in this path.
-                code_challenge: None,
-                code_challenge_method: None,
+                code_challenge: broker_session.code_challenge.clone(),
+                code_challenge_method: broker_session
+                    .code_challenge_method
+                    .as_deref()
+                    .and_then(|method| method.parse::<CodeChallengeMethod>().ok()),
             });
             self.auth_session_repository.create(&auth_session).await?;
         }
@@ -700,12 +762,17 @@ where
         &self,
         config: &OAuthProviderConfig,
         token_response: &OAuthTokenResponse,
+        expected_nonce: Option<&str>,
     ) -> Result<BrokeredUserInfo, CoreError> {
-        // Try to extract from ID token first (more efficient)
         if let Some(id_token) = &token_response.id_token
-            && let Ok(user_info) = Self::extract_user_info_from_id_token(id_token)
+            && config.jwks_url.is_some()
+            && config.issuer.is_some()
         {
-            return Ok(user_info);
+            let claims = self
+                .verify_id_token(id_token, config, expected_nonce)
+                .await?;
+
+            return Self::user_info_from_claims(claims);
         }
 
         // Fall back to userinfo endpoint
