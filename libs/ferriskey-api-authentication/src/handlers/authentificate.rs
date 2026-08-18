@@ -138,7 +138,7 @@ pub async fn authenticate(
         let mut flow_cookie = Cookie::build((LOGIN_ACTION_COOKIE, token))
             .path(format!("/realms/{realm_name}/login-actions"))
             .http_only(true)
-            .same_site(SameSite::Strict);
+            .same_site(SameSite::Lax);
 
         if base_url.starts_with("https") {
             flow_cookie = flow_cookie.secure(true)

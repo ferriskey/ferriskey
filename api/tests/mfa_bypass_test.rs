@@ -341,8 +341,8 @@ mod tests {
 
             assert!(raw.contains("HttpOnly"), "cookie must be HttpOnly: {raw}");
             assert!(
-                raw.contains("SameSite=Strict"),
-                "cookie must be SameSite=Strict: {raw}"
+                raw.contains("SameSite=Lax"),
+                "cookie must carry the same SameSite policy as FERRISKEY_SESSION: {raw}"
             );
             assert!(
                 raw.contains(&format!("Path=/realms/{}/login-actions", realm())),
