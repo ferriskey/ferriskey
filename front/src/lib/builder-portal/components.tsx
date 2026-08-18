@@ -53,6 +53,7 @@ const ALL_CHILDREN = [
   'password_confirm_input',
   'totp_input',
   'user_code_input',
+  'device_consent',
   'submit_button',
   'device_approve_button',
   'device_deny_button',
@@ -366,6 +367,16 @@ export const portalComponents: ComponentDefinition[] = [
   // segmented control as `totp_input`; submitted as `name="user_code"` and
   // prefilled from the `?user_code=` query at runtime.
   {
+    type: 'device_consent',
+    label: 'Device consent details',
+    icon: <ScanLine size={14} />,
+    defaultProps: {
+      label: 'is asking to sign in as you.',
+      placeholder: 'It will be granted',
+    },
+    defaultStyles: {},
+  },
+  {
     type: 'user_code_input',
     label: 'Device code input',
     icon: <ScanLine size={14} />,
@@ -562,6 +573,7 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'submit_button',
   'identity_providers',
   'user_code_input',
+  'device_consent',
   'device_approve_button',
   'device_deny_button',
 ])
@@ -767,6 +779,7 @@ export const RESTRICTED_TO_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
   totp_qr_code: new Set(['totp_setup']),
   totp_secret: new Set(['totp_setup']),
   user_code_input: new Set(['device_verify']),
+  device_consent: new Set(['device_verify']),
   device_approve_button: new Set(['device_verify']),
   device_deny_button: new Set(['device_verify']),
 }

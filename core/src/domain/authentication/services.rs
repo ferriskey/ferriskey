@@ -1757,7 +1757,7 @@ where
     /// - Standard OIDC scopes (openid, profile, email, etc.) are always permitted.
     /// - Any requested scope not in the above sets returns `CoreError::InvalidScope`.
     /// - Falls back to `profile email` defaults when the client has no configured scopes.
-    async fn resolve_scopes_for_client(
+    pub(crate) async fn resolve_scopes_for_client(
         &self,
         client_uuid: Uuid,
         requested_scope: Option<String>,
@@ -3663,6 +3663,7 @@ where
                 realm_id: realm.id.into(),
                 base_url: issuer_base_url,
                 client_id: None,
+                scope: None,
             })
             .await?;
 
@@ -3984,6 +3985,20 @@ where
             .create_user_session(user.id, realm.id, lifetimes.refresh_token)
             .await?;
 
+        let (azp, scope) = match input.client_id {
+            Some(client_uuid) => {
+                let client = self
+                    .client_repository
+                    .get_by_id(realm.id, client_uuid)
+                    .await?;
+                let scope = self
+                    .resolve_scopes_for_client(client_uuid, input.scope.clone())
+                    .await?;
+                (client.client_id, Some(scope))
+            }
+            None => ("".to_string(), None),
+        };
+
         let iss = format!("{}/realms/{}", input.base_url, realm.name);
         let mut claims = JwtClaim::new(
             user.id,
@@ -3991,9 +4006,9 @@ where
             iss.clone(),
             vec![format!("{}-realm", realm.name), "account".to_string()],
             ClaimsTyp::Bearer,
-            "".to_string(),
+            azp,
             user.email.clone(),
-            None,
+            scope.clone(),
             lifetimes.access_token,
         );
         claims.sid = Some(user_session.id);
@@ -4005,7 +4020,7 @@ where
             claims.iss.clone(),
             claims.aud.clone(),
             claims.azp.clone(),
-            None,
+            scope,
             lifetimes.refresh_token,
         );
         refresh_claims.sid = Some(user_session.id);

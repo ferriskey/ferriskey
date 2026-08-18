@@ -29,7 +29,14 @@ export type DeviceVerifyStatus =
   | 'denied'
   | 'error'
 
+export interface DeviceConsentPreview {
+  client_id: string
+  client_name: string
+  scopes: string[]
+}
+
 export interface PageDeviceVerifyProps {
+  preview?: DeviceConsentPreview
   status: DeviceVerifyStatus
   errorMessage: string | null
   pendingAction: 'approve' | 'deny' | null
@@ -38,6 +45,7 @@ export interface PageDeviceVerifyProps {
 }
 
 export default function PageDeviceVerify({
+  preview,
   status,
   errorMessage,
   pendingAction,
@@ -143,6 +151,34 @@ export default function PageDeviceVerify({
               >
                 <AlertCircle className='mt-0.5 h-4 w-4 shrink-0' />
                 <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {preview && (
+              <div className='flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm'>
+                <p className='text-muted-foreground'>
+                  <span className='font-medium text-foreground'>
+                    {preview.client_name || preview.client_id}
+                  </span>{' '}
+                  is asking to sign in as you.
+                </p>
+                {preview.scopes.length > 0 && (
+                  <div className='flex flex-col gap-1'>
+                    <p className='text-xs uppercase tracking-wide text-muted-foreground'>
+                      It will be granted
+                    </p>
+                    <ul className='flex flex-wrap gap-1'>
+                      {preview.scopes.map((scope) => (
+                        <li
+                          key={scope}
+                          className='rounded-md bg-primary/10 px-2 py-0.5 text-xs text-foreground'
+                        >
+                          {scope}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 

@@ -11,7 +11,7 @@ use crate::domain::authentication::device_flow::ports::{
     DeviceAuthRepository, DeviceFlowService, DeviceTokenIssuer,
 };
 use crate::domain::authentication::device_flow::value_objects::{
-    InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
+    DeviceSessionPreview, InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
 };
 use crate::domain::authentication::entities::JwtToken;
 use crate::domain::authentication::value_objects::GenerateTokensForUserInput;
@@ -156,6 +156,34 @@ where
         })
     }
 
+    async fn preview_user_code(
+        &self,
+        user_code: String,
+        realm_id: RealmId,
+    ) -> Result<DeviceSessionPreview, DeviceFlowError> {
+        let session = self
+            .device_auth_repository
+            .find_by_user_code(user_code, realm_id)
+            .await?
+            .ok_or(DeviceFlowError::InvalidUserCode)?;
+
+        match session.status {
+            DeviceAuthStatus::Denied => return Err(DeviceFlowError::AccessDenied),
+            DeviceAuthStatus::Expired => return Err(DeviceFlowError::ExpiredToken),
+            DeviceAuthStatus::Consumed => return Err(DeviceFlowError::InvalidUserCode),
+            DeviceAuthStatus::Approved | DeviceAuthStatus::Pending => {}
+        }
+
+        if session.is_expired() {
+            return Err(DeviceFlowError::ExpiredToken);
+        }
+
+        Ok(DeviceSessionPreview {
+            client_id: session.client_id,
+            scope: session.scope,
+        })
+    }
+
     async fn verify_user_code(
         &self,
         user_code: String,
@@ -288,6 +316,7 @@ where
                         realm_id: session.realm_id.into(),
                         base_url: params.base_url,
                         client_id: Some(session.client_id),
+                        scope: session.scope.clone(),
                     })
                     .await
                     .map_err(|err| DeviceFlowError::TokenIssuance(err.to_string()))

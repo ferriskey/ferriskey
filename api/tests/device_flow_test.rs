@@ -387,6 +387,15 @@ mod tests {
             .await
     }
 
+    fn decode_jwt_payload(token: &str) -> Value {
+        use base64::Engine;
+        let payload = token.split('.').nth(1).expect("a JWT has three parts");
+        let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .expect("JWT payload is base64url");
+        serde_json::from_slice(&bytes).expect("JWT payload is JSON")
+    }
+
     // -------------------------------------------------------------------------
     // Tests
     // -------------------------------------------------------------------------
@@ -557,6 +566,147 @@ mod tests {
                 body["error"], "authorization_pending",
                 "the refused approval must not have advanced the session: {body:?}"
             );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_consent_preview_names_the_client_and_the_requested_scopes() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .add_header(
+                    "Cookie",
+                    HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+                )
+                .await;
+
+            assert_eq!(resp.status_code(), 200, "preview failed: {}", resp.text());
+            let body: Value = resp.json();
+            assert_eq!(
+                body["client_id"], client_id,
+                "the preview must name the requesting client: {body:?}"
+            );
+            let scopes: Vec<String> = body["scopes"]
+                .as_array()
+                .expect("scopes array")
+                .iter()
+                .map(|v| v.as_str().unwrap_or_default().to_string())
+                .collect();
+            assert!(
+                scopes.iter().any(|s| s == "openid"),
+                "the preview must list what is being granted: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_consent_preview_requires_an_identity() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .await;
+
+            assert_eq!(
+                resp.status_code(),
+                401,
+                "the preview must not be an anonymous oracle over user codes: {}",
+                resp.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_issued_token_carries_the_client_and_the_granted_scope() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let poll_resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                poll_resp.status_code(),
+                200,
+                "poll failed: {}",
+                poll_resp.text()
+            );
+            let body: Value = poll_resp.json();
+
+            let claims = decode_jwt_payload(body["access_token"].as_str().expect("access_token"));
+            assert_eq!(
+                claims["azp"], client_id,
+                "the token must name the client it was issued to: {claims:?}"
+            );
+            let scope = claims["scope"].as_str().unwrap_or("");
+            assert!(
+                scope.contains("openid"),
+                "the granted scope must reach the token: {claims:?}"
+            );
+
+            let refresh =
+                decode_jwt_payload(body["refresh_token"].as_str().expect("refresh_token"));
+            assert_eq!(
+                refresh["azp"], client_id,
+                "the refresh token must carry the same client: {refresh:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_scope_the_client_does_not_have_is_refused_at_initiation() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("scope", "openid not-a-scope-of-this-client"),
+                ],
+            )
+            .await;
+
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "an unassigned scope must be refused before any user is prompted: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_scope", "body: {body:?}");
         });
     }
 

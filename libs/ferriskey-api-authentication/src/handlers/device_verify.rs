@@ -6,6 +6,7 @@ use axum::{
 };
 use axum_cookie::CookieManager;
 use base64::{Engine, engine::general_purpose};
+use ferriskey_core::domain::authentication::device_flow::DeviceVerificationPreview;
 use ferriskey_core::domain::authentication::entities::AuthorizeRequestInput;
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::jwt::entities::JwtClaim;
@@ -43,6 +44,65 @@ pub struct DeviceVerifyRequest {
 pub struct DeviceVerifyResponse {
     /// Resulting session status: `approved` or `denied`.
     pub status: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DevicePreviewQuery {
+    pub user_code: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/device/preview",
+    tag = "auth",
+    summary = "Device consent preview",
+    description = "Returns the client and the scopes a pending device session is asking for, so the verification page can show what is being approved (RFC 8628 §5.3). Requires the identity cookie and refuses codes belonging to another realm.",
+    params(
+        ("realm_name" = String, Path, description = "Realm name"),
+        ("user_code" = String, Query, description = "The end-user code shown on the device"),
+    ),
+    responses(
+        (status = 200, description = "Pending session details", body = DeviceVerificationPreview),
+        (status = 401, description = "Authentication required", body = ApiErrorResponse),
+        (status = 403, description = "The session belongs to another realm", body = ApiErrorResponse),
+    )
+)]
+#[instrument(skip(state, cookie), fields(realm_name = %realm_name))]
+pub async fn device_preview(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+    cookie: CookieManager,
+    Query(query): Query<DevicePreviewQuery>,
+) -> Result<Response, ApiError> {
+    let token = cookie
+        .get(IDENTITY_COOKIE)
+        .map(|c| c.value().to_string())
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| ApiError::Unauthorized("Authentication required".into()))?;
+
+    let claims = decode_jwt_claims(&token)
+        .ok_or_else(|| ApiError::Unauthorized("Invalid identity token".into()))?;
+
+    let output = state
+        .service
+        .authorize_request(AuthorizeRequestInput { claims, token })
+        .await
+        .map_err(|error| {
+            warn!(error = ?error, "Device preview: identity token rejected");
+            ApiError::Unauthorized("Invalid identity token".into())
+        })?;
+
+    let user = output
+        .identity
+        .as_user()
+        .ok_or_else(|| ApiError::Forbidden("Service accounts cannot approve devices".into()))?;
+
+    let preview = state
+        .service
+        .describe_device_user_code(realm_name, query.user_code, user.realm_id)
+        .await?;
+
+    Ok((StatusCode::OK, Json(preview)).into_response())
 }
 
 #[utoipa::path(
