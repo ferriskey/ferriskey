@@ -91,19 +91,12 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   const identityProviders = loginSettings?.identity_providers ?? []
 
   // TOTP setup: when the user is mid-enrolment we need to fetch the QR
-  // code + secret from the backend's setup endpoint. The token lives in
-  // the URL as `client_data` (set by the auth flow). Only run the query
+  // code + secret from the backend's setup endpoint. Only run the query
   // on the totp_setup page — every other page would waste a network call
-  // and risk a 4xx if no token is present.
-  const totpSetupToken =
-    pageType === 'totp_setup'
-      ? new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get(
-          'client_data',
-        )
-      : null
+  // and risk a 4xx outside of an enrolment flow.
   const { data: totpSetupData } = useSetupOtp({
     realm,
-    token: totpSetupToken,
+    enabled: pageType === 'totp_setup',
   })
   const deviceUserCode =
     pageType === 'device_verify'

@@ -257,6 +257,139 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored"]
+    fn a_failed_step_does_not_burn_the_token() {
+        rt().block_on(async {
+            grant_otp_credential_to_admin().await;
+            let server = make_server();
+            let authorize = start_authorization(&server).await;
+
+            let login = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(&json!({ "username": "admin", "password": "admin" }))
+                .await;
+
+            let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+            let session_id = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+            let cookies =
+                format!("FERRISKEY_SESSION={session_id}; FERRISKEY_LOGIN_ACTION={step_token}");
+
+            let wrong = server
+                .post(&format!("/realms/{}/login-actions/challenge-otp", realm()))
+                .add_header("Cookie", HeaderValue::from_str(&cookies).unwrap())
+                .json(&json!({ "code": "000000" }))
+                .await;
+
+            assert_ne!(
+                wrong.status_code(),
+                401,
+                "the flow cookie must authenticate the call: {}",
+                wrong.text()
+            );
+            assert_ne!(
+                wrong.status_code(),
+                200,
+                "a wrong code must not succeed: {}",
+                wrong.text()
+            );
+
+            let retry = server
+                .post(&format!("/realms/{}/login-actions/challenge-otp", realm()))
+                .add_header("Cookie", HeaderValue::from_str(&cookies).unwrap())
+                .json(&json!({ "code": "000001" }))
+                .await;
+
+            assert_ne!(
+                retry.status_code(),
+                401,
+                "a mistyped code must not cost the user their login flow: {}",
+                retry.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored"]
+    fn the_step_token_is_confined_to_an_http_only_cookie() {
+        rt().block_on(async {
+            grant_otp_credential_to_admin().await;
+            let server = make_server();
+            let authorize = start_authorization(&server).await;
+
+            let login = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(&json!({ "username": "admin", "password": "admin" }))
+                .await;
+
+            let body: Value = login.json();
+            assert!(
+                body.get("token").is_none(),
+                "the step token must not travel in the response body: {body}"
+            );
+
+            let raw = login
+                .headers()
+                .get_all("set-cookie")
+                .iter()
+                .filter_map(|v| v.to_str().ok())
+                .find(|v| v.starts_with("FERRISKEY_LOGIN_ACTION="))
+                .expect("the step token must be handed back as a cookie")
+                .to_string();
+
+            assert!(raw.contains("HttpOnly"), "cookie must be HttpOnly: {raw}");
+            assert!(
+                raw.contains("SameSite=Lax"),
+                "cookie must carry the same SameSite policy as FERRISKEY_SESSION: {raw}"
+            );
+            assert!(
+                raw.contains(&format!("Path=/realms/{}/login-actions", realm())),
+                "cookie must be scoped to this realm's login actions: {raw}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored"]
+    fn a_login_action_no_longer_accepts_a_bearer_header() {
+        rt().block_on(async {
+            grant_otp_credential_to_admin().await;
+            let server = make_server();
+            let authorize = start_authorization(&server).await;
+
+            let login = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(&json!({ "username": "admin", "password": "admin" }))
+                .await;
+
+            let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+
+            let response = server
+                .post(&format!("/realms/{}/login-actions/verify-otp", realm()))
+                .add_header(
+                    "Authorization",
+                    format!("Bearer {step_token}")
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                )
+                .json(&json!({ "code": "000000" }))
+                .await;
+
+            assert_eq!(
+                response.status_code(),
+                401,
+                "a token presented outside the flow cookie must be refused: {}",
+                response.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test mfa_bypass_test -- --ignored"]
     fn temporary_step_token_cannot_be_replayed_to_complete_login() {
         rt().block_on(async {
             grant_otp_credential_to_admin().await;
@@ -284,10 +417,7 @@ mod tests {
                 "the account must stop at the OTP challenge, got: {body}"
             );
 
-            let step_token = body["token"]
-                .as_str()
-                .expect("the OTP challenge hands back a temporary token")
-                .to_string();
+            let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
 
             // Step 2 — replay that step token as a Bearer credential on the very same
             // endpoint. Before the fix this returned Success with an authorization
@@ -336,10 +466,7 @@ mod tests {
                 .json(&json!({ "username": "admin", "password": "admin" }))
                 .await;
 
-            let step_token = login.json::<Value>()["token"]
-                .as_str()
-                .expect("temporary token")
-                .to_string();
+            let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
 
             // The step token is exactly what `auth_login_actions` accepts, so this is
             // the enrolment endpoint an attacker holding only the password can reach.
@@ -348,13 +475,18 @@ mod tests {
             let enrol = server
                 .post(&format!("/realms/{}/login-actions/verify-otp", realm()))
                 .add_header(
-                    "Authorization",
-                    format!("Bearer {step_token}")
-                        .parse::<HeaderValue>()
-                        .unwrap(),
+                    "Cookie",
+                    HeaderValue::from_str(&format!("FERRISKEY_LOGIN_ACTION={step_token}")).unwrap(),
                 )
                 .json(&json!({ "code": "000000", "label": "attacker-device" }))
                 .await;
+
+            assert_ne!(
+                enrol.status_code(),
+                401,
+                "the flow cookie must authenticate the call, or this test proves nothing: {}",
+                enrol.text()
+            );
 
             assert_ne!(
                 enrol.status_code(),

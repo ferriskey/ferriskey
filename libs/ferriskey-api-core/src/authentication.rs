@@ -18,7 +18,7 @@ pub struct AuthenticateResponse {
     pub status: AuthenticationStatus,
     pub url: Option<String>,
     pub required_actions: Option<Vec<RequiredAction>>,
-    pub token: Option<String>,
+    pub email: Option<String>,
     pub message: Option<String>,
 }
 
@@ -29,7 +29,7 @@ impl From<AuthenticateOutput> for AuthenticateResponse {
                 status: AuthenticationStatus::Success,
                 url: result.redirect_url,
                 required_actions: None,
-                token: None,
+                email: None,
                 message: Some("Authentication successful".to_string()),
             },
             AuthenticationStepStatus::RequiresActions => AuthenticateResponse {
@@ -40,21 +40,21 @@ impl From<AuthenticateOutput> for AuthenticateResponse {
                 } else {
                     Some(result.required_actions)
                 },
-                token: result.temporary_token,
+                email: None,
                 message: Some("Additional actions required before login".to_string()),
             },
             AuthenticationStepStatus::RequiresOtpChallenge => AuthenticateResponse {
                 status: AuthenticationStatus::RequiresOtpChallenge,
                 url: None,
                 required_actions: None,
-                token: result.temporary_token,
+                email: result.email.clone(),
                 message: Some("OTP verification required".to_string()),
             },
             AuthenticationStepStatus::Failed => AuthenticateResponse {
                 status: AuthenticationStatus::Failed,
                 url: None,
                 required_actions: None,
-                token: None,
+                email: None,
                 message: Some("Authentication failed".to_string()),
             },
         }

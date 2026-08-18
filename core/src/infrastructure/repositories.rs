@@ -5,6 +5,7 @@ pub mod credential_repository;
 pub mod device_auth_repository;
 pub mod email_verification_token_repository;
 pub mod keystore_repository;
+pub mod login_action_token_repository;
 pub mod magic_link_repository;
 pub mod password_policy_repository;
 pub mod password_reset_token_repository;

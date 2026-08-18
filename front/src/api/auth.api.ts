@@ -56,8 +56,6 @@ export interface AuthenticatePayload {
   data: Schemas.AuthenticateRequest
   realm: string
   clientId: string
-  useToken?: boolean
-  token?: string
 }
 
 export interface AuthQuery {
@@ -91,12 +89,9 @@ export const useAuthQuery = (params: AuthQuery) => {
 export const useAuthenticateMutation = () => {
   return useMutation({
     mutationFn: async (params: AuthenticatePayload): Promise<Schemas.AuthenticateResponse> => {
-      const headers: Record<string, string> = {}
-
-      if (params.token !== undefined) {
-        headers.Authorization = `Bearer ${params.token}`
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
       }
-      headers['Content-Type'] = 'application/json'
 
       const url = new URL(`${window.apiUrl}/realms/${params.realm}/login-actions/authenticate`)
       url.searchParams.set('client_id', params.clientId)
@@ -252,7 +247,6 @@ export const useLogoutMutation = () => {
 
 export interface ResendVerificationEmailPayload {
   realm: string
-  token: string
 }
 
 export interface ResendVerificationEmailResponse {
@@ -267,7 +261,6 @@ export const useResendVerificationEmailMutation = () => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${params.token}`,
           'Content-Type': 'application/json',
         },
         credentials: 'include',

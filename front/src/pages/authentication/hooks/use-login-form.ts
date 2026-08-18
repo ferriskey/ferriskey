@@ -44,18 +44,19 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
     if (
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0 &&
-      authenticateData.token
+      authenticateData.required_actions.length > 0
     ) {
       const firstRequiredAction = authenticateData.required_actions[0]
 
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
       )
     }
 
     if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
-      navigate(`/realms/${realm_name}/authentication/otp?token=${authenticateData.token}`)
+      navigate(`/realms/${realm_name}/authentication/otp`, {
+        state: { email: authenticateData.email ?? null },
+      })
     }
   }, [authenticateData, navigate, realm_name])
 

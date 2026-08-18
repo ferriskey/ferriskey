@@ -99,10 +99,10 @@ export namespace Schemas {
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
   export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
   export type AuthenticateResponse = {
+    email?: (string | null) | undefined;
     message?: (string | null) | undefined;
     required_actions?: (Array<RequiredAction> | null) | undefined;
     status: AuthenticationStatus;
-    token?: (string | null) | undefined;
     url?: (string | null) | undefined;
   };
   export type AuthenticationAttemptResponse = { login_url: string };

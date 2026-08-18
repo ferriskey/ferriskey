@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import PageOtpChallenge from '../ui/page-otp-challenge'
 import { RouterParams } from '@/routes/router'
 import { useChallengeOtp } from '@/api/trident.api'
@@ -6,23 +6,16 @@ import { useForm } from 'react-hook-form'
 import { challengeOtpSchema, ChallengeOtpSchema } from '../schemas/challange-otp.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const [searchParams] = useSearchParams()
+  const { state } = useLocation()
   const navigate = useNavigate()
   const { mutate: challengeOtp, data: challengeOtpData, isPending, error } = useChallengeOtp()
 
-  const token = searchParams.get('token')
-
-  const email = useCallback(() => {
-    // the token is a JWT we need to decode it to get the claim "email"
-    if (!token) return ''
-    const decodedToken = JSON.parse(atob(token.split('.')[1]))
-    return decodedToken.email
-  }, [token])
+  const email = (state as { email?: string | null } | null)?.email ?? ''
 
   const form = useForm<ChallengeOtpSchema>({
     resolver: zodResolver(challengeOtpSchema),
@@ -36,12 +29,10 @@ export default function PageOtpChallengeFeature() {
   }
 
   const handleClick = (values: ChallengeOtpSchema) => {
-    if (!token) return
     challengeOtp({
       data: {
         code: values.code,
       },
-      token,
       realm: realm_name,
     })
   }
@@ -49,14 +40,10 @@ export default function PageOtpChallengeFeature() {
   useEffect(() => {
     if (!challengeOtpData) return
 
-    if (
-      challengeOtpData.required_actions &&
-      challengeOtpData.required_actions.length > 0 &&
-      token
-    ) {
+    if (challengeOtpData.required_actions && challengeOtpData.required_actions.length > 0) {
       const firstRequiredAction = challengeOtpData.required_actions[0]
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${token}`
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
       )
       return
     }
@@ -64,7 +51,7 @@ export default function PageOtpChallengeFeature() {
     if (challengeOtpData.url) {
       window.location.href = challengeOtpData.url
     }
-  }, [challengeOtpData, navigate, realm_name, token])
+  }, [challengeOtpData, navigate, realm_name])
 
   useEffect(() => {
     if (error) {
@@ -77,7 +64,7 @@ export default function PageOtpChallengeFeature() {
       <PageOtpChallenge
         handleCancelClick={handleCancelClick}
         handleClick={handleClick}
-        email={email()}
+        email={email}
         isLoading={isPending}
       />
     </Form>

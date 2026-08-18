@@ -14,6 +14,8 @@ export interface BaseQuery {
  */
 const TOKEN_ENDPOINT_SEGMENT = '/protocol/openid-connect/token'
 
+const LOGIN_ACTIONS_SEGMENT = '/login-actions/'
+
 /**
  * Pull the realm name out of an API URL like
  * `https://api.example.com/realms/master/users/123`. Used by the 401
@@ -53,9 +55,11 @@ async function refreshSession(
 }
 
 export const fetcher: Fetcher['fetch'] = async (input) => {
+  const isLoginAction = input.url.pathname.includes(LOGIN_ACTIONS_SEGMENT)
+
   const buildHeaders = (token: string | null): Headers => {
     const h = new Headers()
-    if (token) h.set('Authorization', `Bearer ${token}`)
+    if (token && !isLoginAction) h.set('Authorization', `Bearer ${token}`)
     if (input.parameters?.header) {
       Object.entries(input.parameters.header).forEach(([key, value]) => {
         if (value != null) h.set(key, String(value))
