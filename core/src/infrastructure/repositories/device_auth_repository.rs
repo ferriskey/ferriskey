@@ -51,23 +51,6 @@ impl PostgresDeviceAuthRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
-
-    /// Delete all sessions whose lifetime has elapsed. Returns the number of
-    /// rows removed. Intended to be run periodically by a background job.
-    #[allow(dead_code)]
-    pub async fn purge_expired(&self) -> Result<u64, AuthenticationError> {
-        let now = Utc::now().fixed_offset();
-        let result = DasEntity::delete_many()
-            .filter(DasColumn::ExpiresAt.lt(now))
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Error purging expired device auth sessions: {e:?}");
-                AuthenticationError::InternalServerError
-            })?;
-
-        Ok(result.rows_affected)
-    }
 }
 
 impl DeviceAuthRepository for PostgresDeviceAuthRepository {
@@ -171,6 +154,20 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
             .ok_or(AuthenticationError::NotFound)?;
 
         Ok(model.into())
+    }
+
+    async fn purge_expired(&self) -> Result<u64, AuthenticationError> {
+        let now = Utc::now().fixed_offset();
+        let result = DasEntity::delete_many()
+            .filter(DasColumn::ExpiresAt.lt(now))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error purging expired device auth sessions: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+        Ok(result.rows_affected)
     }
 
     async fn mark_polled(&self, device_code: Uuid) -> Result<(), AuthenticationError> {

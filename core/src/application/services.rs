@@ -716,6 +716,10 @@ impl ApplicationService {
 
     /// Verification page: bind the authenticated user to the device session
     /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
+    pub async fn purge_expired_device_sessions(&self) -> Result<u64, DeviceFlowError> {
+        self.device_flow_service.purge_expired_sessions().await
+    }
+
     pub async fn describe_device_user_code(
         &self,
         realm_name: String,

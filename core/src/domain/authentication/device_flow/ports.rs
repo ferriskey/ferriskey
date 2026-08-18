@@ -52,6 +52,8 @@ pub trait DeviceAuthRepository: Send + Sync {
         &self,
         device_code: Uuid,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    fn purge_expired(&self) -> impl Future<Output = Result<u64, AuthenticationError>> + Send;
 }
 
 /// Token issuance seam for the device flow.
@@ -79,6 +81,8 @@ pub trait DeviceFlowService: Send + Sync {
 
     /// Verification page: bind the approving user and mark the session
     /// approved.
+    fn purge_expired_sessions(&self) -> impl Future<Output = Result<u64, DeviceFlowError>> + Send;
+
     fn preview_user_code(
         &self,
         user_code: String,

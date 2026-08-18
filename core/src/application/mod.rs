@@ -12,7 +12,9 @@ use crate::{
             ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
         },
         authentication::{
-            device_flow::services::{DeviceFlowConfig, DeviceFlowServiceImpl},
+            device_flow::services::{
+                DeviceFlowConfig, DeviceFlowServiceImpl, purge_expired_device_sessions_task,
+            },
             mapper_engine::MapperEngine,
             services::AuthServiceImpl,
         },
@@ -146,6 +148,8 @@ pub mod user;
 pub mod webhook;
 
 pub use services::ApplicationService;
+
+const DEVICE_SESSION_PURGE_PERIOD: std::time::Duration = std::time::Duration::from_secs(900);
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
     let database_url = format!(
@@ -308,6 +312,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(auth_service.clone()),
         DeviceFlowConfig::default(),
     );
+
+    tokio::spawn(purge_expired_device_sessions_task(
+        device_flow_service.clone(),
+        DEVICE_SESSION_PURGE_PERIOD,
+    ));
 
     let app = ApplicationService {
         maintenance_service: MaintenanceServiceImpl::new(
