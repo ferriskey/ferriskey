@@ -497,6 +497,54 @@ mod tests {
     /// Worst impact: the tenant-a admin sets the password of a tenant-b user and
     /// owns the account.
     #[test]
+    #[ignore]
+    fn alice_cannot_reach_federation_of_another_tenant() {
+        let server = make_server();
+        rt().block_on(async {
+            let stranger = Uuid::new_v4();
+
+            let listing = server
+                .get(&format!("/realms/{}/federation/providers", tenant_b()))
+                .add_header("Authorization", auth_header(alice_token()))
+                .await;
+            assert_eq!(
+                listing.status_code(),
+                403,
+                "listing another tenant's federation providers must be refused: {}",
+                listing.text()
+            );
+
+            let test_connection = server
+                .post(&format!(
+                    "/realms/{}/federation/providers/{stranger}/test-connection",
+                    tenant_b()
+                ))
+                .add_header("Authorization", auth_header(alice_token()))
+                .await;
+            assert_eq!(
+                test_connection.status_code(),
+                403,
+                "authorization must be decided before the provider is looked up, so a stranger learns nothing about which ids exist: {}",
+                test_connection.text()
+            );
+
+            let sync = server
+                .post(&format!(
+                    "/realms/{}/federation/providers/{stranger}/sync-users",
+                    tenant_b()
+                ))
+                .add_header("Authorization", auth_header(alice_token()))
+                .await;
+            assert_eq!(
+                sync.status_code(),
+                403,
+                "triggering a directory sync on another tenant's provider must be refused: {}",
+                sync.text()
+            );
+        });
+    }
+
+    #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_cross_realm_test -- --ignored"]
     fn reset_password_across_tenant_realms_is_refused() {
         rt().block_on(async {

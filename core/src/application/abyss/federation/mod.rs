@@ -72,18 +72,24 @@ impl FederationService for ApplicationService {
 
     async fn test_federation_connection(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
     ) -> Result<TestConnectionResult, CoreError> {
-        self.federation_service.test_federation_connection(id).await
+        self.federation_service
+            .test_federation_connection(identity, realm_name, id)
+            .await
     }
 
     async fn sync_federation_users(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
         mode: SyncMode,
     ) -> Result<SyncResult, CoreError> {
         self.federation_service
-            .sync_federation_users(id, mode)
+            .sync_federation_users(identity, realm_name, id, mode)
             .await
     }
 }
